@@ -46,8 +46,11 @@ def _park_foreign_publication_recovery(
     throw the replay away to settle a question about the pull request rather
     than about the commit. The whole record stays pinned with it, so a human
     who repoints the issue back, or clears the record, hands the next tick
-    something it can finish.
+    something it can finish -- which is why the recovery context is asked
+    first whether the park may go on (`persistence._proves_before_the_park`).
     """
+    if not persistence._proves_before_the_park(context):
+        return True
     recorded = context.pending_rewrite
     log.warning(
         "issue=#%d auto-rebase recovery: the interrupted attempt recorded PR "
@@ -175,9 +178,12 @@ def _park_stranded_recovery(context: _AutoRebaseRecoveryContext) -> bool:
 
     What it asks a human for turns on who holds the label (`_stranded_notice`):
     the label back and a reply, or -- beside a live adjudication, which keeps
-    its label -- the record reconciled by hand.
+    its label -- the record reconciled by hand. The record it keeps is what
+    that reply brings back, so the recovery context is asked first whether the
+    park may go on (`persistence._proves_before_the_park`), each time the park
+    is about to be taken.
     """
-    if _already_stranded(context.state):
+    if _already_stranded(context.state) or not persistence._proves_before_the_park(context):
         return True
     log.warning(
         "issue=#%d auto-rebase recovery: label %r is not one the refresh "

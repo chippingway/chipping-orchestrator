@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from unittest.mock import DEFAULT
 
+from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.git.ref_transport import _RefRead
 from orchestrator.git.verification.status import _WorktreeStatus
 from tests.workflow.patch_models import _WorkflowRunContext
@@ -135,3 +137,28 @@ class _RemoteBranchReads:
         if branch == spec.base_branch:
             return _RefRead(sha=self._context.remote_base_tip)
         return _RefRead(sha=self._context.fetched_branch_tip)
+
+
+class _BaseDivergences:
+    """Answer the divergence probe for the base branch: the context's counts, against the tip the remote names.
+
+    A head counted against the base is counted against where the remote says
+    the base is, so the tip a rewrite's replay is recorded as made onto and the
+    remote's own answer for the base are one fact, as a fetch makes them. Every
+    other branch, and a base the remote names nothing for, falls through to the
+    probe's own return value, which a case may still set.
+    """
+
+    def __init__(self, context: _WorkflowRunContext) -> None:
+        self._context = context
+
+    def __call__(self, spec, worktree, branch: str, *_revision):
+        context = self._context
+        if branch != spec.base_branch or not context.remote_base_tip:
+            return DEFAULT
+        return _BranchDivergence(
+            tip=context.remote_base_tip,
+            ahead=context.branch_ahead_behind[0],
+            behind=context.branch_ahead_behind[1],
+            readable=context.branch_divergence_readable,
+        )

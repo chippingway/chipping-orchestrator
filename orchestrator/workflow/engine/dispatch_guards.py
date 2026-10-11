@@ -20,7 +20,6 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import recovery_holds as _recovery_holds, state as _base_sync_state
-from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
@@ -34,6 +33,7 @@ from orchestrator.workflow.engine import (
     stage_targets as _stage_targets,
     verification_transaction as _verification_transaction,
 )
+from orchestrator.workflow.engine.rewrite_landing_moved import abandons_unproved
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -372,9 +372,9 @@ def _anchor_holds_the_tick(
             spec.slug, issue.number, label,
         )
         return True
-    checkout = _worktree_paths._worktree_path(spec, issue.number)
+    held = _recovery_holds._held_anchor_context(gh, spec, issue, state, label)
     if not _recovery_holds._recovery_holds_dispatch(
-        issue, label, state, checkout,
+        issue, label, state, held.worktree,
     ):
         return False
     log.info(
@@ -383,7 +383,7 @@ def _anchor_holds_the_tick(
         "unpublished replay",
         spec.slug, issue.number, label,
     )
-    _recovery_holds._answers_a_held_anchor(gh, spec, issue, state, label)
+    _recovery_holds._answers_a_held_anchor(held, abandons_unproved)
     return True
 
 

@@ -3,22 +3,26 @@
 """A landed base rewrite whose evidence something moved under, or whose evidence write did not land.
 
 A result whose head, checkout, requirements, or configuration moved while the
-commands ran is recorded nowhere, and the head goes to the fresh reviewer. A
+commands ran is recorded nowhere: a landing that moved holds the route, and
+anything else sends the head to the fresh reviewer. A
 review recorded meanwhile, a pinned comment that would not read again, an
 evidence write whose answer was lost, and one the comment had no room for each
 hold the route instead: nothing relabelled, the attempt standing. The next
 finish -- the recovery of the push it finds standing -- decides over the
 comment as it then reads, and repeats neither the announcement nor a record
 an earlier finish already made, while still invalidating evidence a context
-moved since then no longer lets stand.
+moved since then no longer lets stand -- and abandoning a recorded carry that
+moved context refuses, with nothing run again.
 """
 from __future__ import annotations
 
 import unittest
 from functools import partial
+from itertools import product
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
@@ -27,6 +31,7 @@ from tests.workflow.engine import (
     rewrite_finish_moves as moves,
     rewrite_finish_readings as readings,
     verification_evidence_test_support as support,
+    verification_world_fixture as _world,
 )
 from tests.workflow.interleaving import _RacesPastTheStep
 
@@ -63,13 +68,41 @@ _CONTEXT_MOVES = (
 )
 
 # What another road does while the rebased head's commands run, which leaves
-# the result eligible for nothing.
+# the result eligible for nothing, beside what the finish comes to: a landing
+# that moved holds the route, and anything else lets it go on to the reviewer.
 _MOVES = (
-    ("the checkout committed past the remote", lambda case: setattr(case.world, "remote", _AHEAD)),
-    ("a push moved the pull request and the branch", lambda case: case.moves_the_head(support.SQUASHED_SHA)),
-    ("the issue body was edited", lambda case: setattr(case.issue, "body", "Also cover a moved base.")),
-    *_CONTEXT_MOVES,
+    (
+        "the checkout committed past the remote",
+        lambda case: setattr(case.world, "remote", _AHEAD),
+        FinishOutcome.HELD,
+    ),
+    (
+        "a push moved the pull request and the branch",
+        lambda case: case.moves_the_head(support.SQUASHED_SHA),
+        FinishOutcome.HELD,
+    ),
+    (
+        "the issue body was edited",
+        lambda case: setattr(case.issue, "body", "Also cover a moved base."),
+        FinishOutcome.ROUTED,
+    ),
+    *((moved, moves_it, FinishOutcome.ROUTED) for moved, moves_it in _CONTEXT_MOVES),
 )
+
+
+# Routes that run no command: the exact tree's carry, and a changed tree with
+# nothing configured.
+_SILENT_ROUTES = (
+    ("an exact tree's carry", SQUASHED, (support.SUITE,)),
+    ("a changed tree with nothing configured", REBASED, ()),
+)
+
+# A base gone elsewhere since the head was counted, and one nobody could read.
+_HOLDING = tuple(product(_SILENT_ROUTES, (_BaseStanding.MOVED, _BaseStanding.UNREAD)))
+
+# A base that is not the tip the replay was recorded as made onto, and an
+# attempt that recorded none.
+_REFUSING = tuple(product(_SILENT_ROUTES, (_BaseStanding.DROPPED, _BaseStanding.UNPROVEN)))
 
 
 class MovedDuringVerificationTest(unittest.TestCase, finish_support.RewriteFinishCase):
@@ -80,16 +113,17 @@ class MovedDuringVerificationTest(unittest.TestCase, finish_support.RewriteFinis
 
     def test_a_moved_result_is_refused(self) -> None:
         # Passing or failing, the run is no evidence of the rebased head:
-        # nothing is recorded or posted as a failure, and the head goes to the
-        # fresh reviewer with the replaced head's evidence invalidated.
-        for moved, moves_it in _MOVES:
+        # nothing is recorded or posted as a failure, and the replaced head's
+        # evidence is invalidated. The head goes to the fresh reviewer, unless
+        # the landing itself moved, which holds it for the next tick.
+        for moved, moves_it, outcome in _MOVES:
             for exit_status in (0, rewrite_support.FAILED_EXIT):
                 with self.subTest(moved=moved, exit_status=exit_status):
                     self._runs_under(moves_it, exit_status)
 
-                    self.assertEqual(self.finishes(REBASED), FinishOutcome.ROUTED)
+                    self.assertEqual(self.finishes(REBASED), outcome)
 
-                    self.assertEqual(self.at_the_relabel(), (None, None, self.invalidated()))
+                    self.assertEqual(readings.pinned_records(self), (None, None, self.invalidated()))
                     self.assertEqual(len(readings.notices(self)), 1)
 
     def test_a_context_moved_meanwhile_invalidates(self) -> None:
@@ -195,12 +229,70 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
             (1, recorded[0].revision, 1),
         )
 
-    def test_a_reused_carry_is_invalidated_once_owed(self) -> None:
+    def test_an_unprovable_record_holds_the_route(self) -> None:
+        # The evidence write lands and its answer is lost. The next finish
+        # cannot re-read the settled report the captured run is bound to, so
+        # it holds the route with the record standing and nothing run. Once
+        # the report reads, the finish after it routes the record as captured.
+        self.attempts(REBASED)
+        self.rewrites(REBASED)
+        self.during = moves.loses_answers
+        self.assertEqual(self.finishes(REBASED), FinishOutcome.UNCONFIRMED)
+        self.gh.pinned_failures.lost.clear()
+        recorded = readings.pinned_records(self)
+        unreadable = self.gh.report_failures.unreadable
+
+        unreadable.add(support.PR_NUMBER)
+        held = self.finishes(REBASED, FOUND)
+        unreadable.clear()
+
+        self.assertEqual(
+            (held, readings.pinned_records(self), readings.relabels(self)),
+            (FinishOutcome.HELD, recorded, ()),
+        )
+        self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.ROUTED)
+        self.assertEqual(
+            (self.at_the_relabel(), len(self.handed)),
+            (recorded, 1),
+        )
+
+    def test_a_checkout_moved_beside_an_unread_remote(self) -> None:
+        # The evidence write lands and its answer is lost. The next finish's
+        # remote read of the branch comes back with nothing, and the checkout
+        # has committed past the head since the proof read it: the unread
+        # remote holds the route, and the moved checkout, read all the same,
+        # abandons the record. Put back, the head routes with the record still
+        # abandoned and the suite never run again.
+        self.attempts(REBASED)
+        self.rewrites(REBASED)
+        self.during = moves.loses_answers
+        self.assertEqual(self.finishes(REBASED), FinishOutcome.UNCONFIRMED)
+        self.gh.pinned_failures.lost.clear()
+        recorded = self.gh.read_pinned_state(self.issue)
+        self.world.remote_answers = False
+        self.world.checkout_head = _world.STRAY_SHA
+
+        self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.HELD)
+
+        receipt = readings.records(recorded.data)[0].receipt
+        abandoned = (*self.invalidated(), (receipt, readings.ABANDONED))
+        held = readings.records(readings.pinned(self))
+        self.assertEqual(held, (None, None, abandoned))
+        self.world.remote_answers = True
+        self.world.checkout_head = ""
+        self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.ROUTED)
+        self.assertEqual(
+            (self.at_the_relabel(), len(self.handed)),
+            ((None, None, abandoned), 1),
+        )
+
+    def test_a_moved_context_abandons_the_carry(self) -> None:
         # The exact tree's carry is recorded and the settled evidence left
         # current, and the retirement behind the relabel is refused. The
-        # configuration moves before the next finish, which reuses the carry
-        # -- no run, no second revision -- but invalidates the settled
-        # evidence the moved context no longer lets stand, before it routes.
+        # configuration moves before the next finish, which proves the carry
+        # again and finds it refused: the carry is abandoned and the settled
+        # evidence the moved context no longer lets stand invalidated, both
+        # before the route, with nothing run and the reviewer owing evidence.
         self.attempts(SQUASHED)
         self.rewrites(SQUASHED)
         relabel = self.gh.set_workflow_label
@@ -213,7 +305,10 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
         self.assertEqual(current.receipt, self.source.receipt)
         with patch.object(config, "VERIFY_COMMANDS", (support.SUITE, rewrite_support.LINT)):
             self.assertEqual(self.finishes(SQUASHED, FOUND), FinishOutcome.ROUTED)
-        self.assertEqual(readings.pinned_records(self), (carried, None, self.invalidated()))
+        self.assertEqual(
+            readings.records(self.durable[-1]),
+            (None, None, (*self.invalidated(), (carried.receipt, readings.ABANDONED))),
+        )
         self.assertEqual(
             (self.handed, readings.attempt(readings.pinned(self))),
             ([], readings.RETIRED),
@@ -245,6 +340,55 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
             (pending.binding.tested_sha, retired, len(self.handed)),
             (REBASED, self.invalidated(), 3),
         )
+
+
+class BaseStandingTest(unittest.TestCase, finish_support.RewriteFinishCase):
+    """A recovered landing's evidence is held to the base its head was replayed onto on routes that run nothing too."""
+
+    def setUp(self) -> None:
+        finish_support.RewriteFinishCase.setUp(self)
+
+    def test_a_moved_base_holds_a_silent_route(self) -> None:
+        # Neither route runs anything, yet a base gone elsewhere since the
+        # head was counted, or one nobody could read, holds both: nothing
+        # routed or retired, for the next tick to count the head again. The
+        # exact tree is carried nothing over a base that does not stand, as a
+        # run is never started over one, so nothing is recorded either.
+        for route, standing in _HOLDING:
+            with self.subTest(route=route[0], standing=standing):
+                self._lands(route[1], route[2], standing)
+
+                self.assertEqual(self.finishes(route[1], FOUND), FinishOutcome.HELD)
+
+                held = readings.pinned(self)
+                self.assertEqual(
+                    (held[readings.KEY_PENDING_PUSH], readings.records(held)[0], self.handed),
+                    (support.TESTED_SHA, None, []),
+                )
+                self.assertEqual(readings.relabels(self), ())
+
+    def test_a_base_off_its_tip_records_nothing(self) -> None:
+        # A base the head was not replayed onto, or no recorded tip, records
+        # neither the carry nor anything else, and the head goes to the
+        # fresh reviewer.
+        for (route, head, commands), standing in _REFUSING:
+            with self.subTest(route=route, standing=standing):
+                self._lands(head, commands, standing)
+
+                self.assertEqual(self.finishes(head, FOUND), FinishOutcome.ROUTED)
+
+                self.assertEqual(
+                    (self.at_the_relabel()[0], self.handed),
+                    (None, []),
+                )
+
+    def _lands(self, head: str, commands: tuple, standing: _BaseStanding) -> None:
+        """A fresh case whose rewrite onto `head` landed under `commands`, its base standing as `standing` says."""
+        self.setUp()
+        self.attempts(head)
+        self.rewrites(head)
+        self.world.base = standing
+        self.enterContext(patch.object(config, "VERIFY_COMMANDS", commands))
 
 
 if __name__ == "__main__":

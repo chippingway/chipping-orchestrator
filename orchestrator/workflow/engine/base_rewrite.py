@@ -40,7 +40,6 @@ from github.PullRequest import PullRequest
 
 from orchestrator.git.base_sync import (
     eligibility,
-    recovery_holds,
     startup,
 )
 from orchestrator.git.base_sync.models import (
@@ -49,6 +48,7 @@ from orchestrator.git.base_sync.models import (
 )
 from orchestrator.git.base_sync.state import _PENDING_PUSH_SHA
 from orchestrator.workflow.engine import (
+    rewrite_landing_moved as _landing_moved,
     rewrite_publication as _rewrite_publication,
     rewrite_recovery as _rewrite_recovery,
     rewrite_replies as _rewrite_replies,
@@ -91,7 +91,7 @@ def _publish_auto_rebase_from_pr(
 
 def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:
     """Run one refresh-time PR synchronization from normalized inputs."""
-    if not eligibility._auto_rebase_label_is_eligible(context):
+    if not eligibility._auto_rebase_label_is_eligible(context, _landing_moved.abandons_unproved):
         return
 
     retry = eligibility._auto_rebase_retry_decision(context)
@@ -138,18 +138,17 @@ def _sync_unreadable_pr_worktree(request: _AutoRebaseRequest) -> None:
     the recovery alone, and a park this refresh left is still waiting on a
     reply. Only the step past them differs. There is no lag to route on and no head worth comparing, so
     nothing is fetched and nothing is classified: the recovery takes its
-    fail-closed abort directly.
+    fail-closed abort directly, with what it owes over that abort's reset
+    (`rewrite_recovery.answers_an_unreadable_checkout`).
     """
     context = request.to_context(_PENDING_PUSH_SHA)
-    if not eligibility._auto_rebase_label_is_eligible(context):
+    if not eligibility._auto_rebase_label_is_eligible(context, _landing_moved.abandons_unproved):
         return
     retry = eligibility._auto_rebase_retry_decision(context)
     if eligibility._open_auto_rebase_pr(context) is None:
         return
     if retry.should_continue or eligibility._answers_only_the_anchor(context):
-        recovery_holds._answers_an_unreadable_checkout(
-            context, retry.consumed_comment_id,
-        )
+        _rewrite_recovery.answers_an_unreadable_checkout(context, retry.consumed_comment_id)
 
 
 def _sync_pr_worktree_to_base(*args: Any, **kwargs: Any) -> None:

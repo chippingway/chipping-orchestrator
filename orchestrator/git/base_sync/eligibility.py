@@ -20,6 +20,9 @@ clean worktree that is genuinely behind base earns a rebase of its own.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import replace
+
 from github.PullRequest import PullRequest
 
 from orchestrator.git.base_sync import (
@@ -30,6 +33,7 @@ from orchestrator.git.base_sync import (
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseDecision,
+    _AutoRebaseRecoveryContext,
 )
 from orchestrator.git.base_sync.state import (
     _AUTO_REBASE_PARK_REASONS,
@@ -42,18 +46,23 @@ from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github.comments import filter_trusted
 
 
-def _auto_rebase_label_is_eligible(context: _AutoRebaseContext) -> bool:
+def _auto_rebase_label_is_eligible(
+    context: _AutoRebaseContext,
+    proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
+) -> bool:
     """Clear stale recovery state and reject labels refresh does not drive.
 
     An anchor under such a label is answered here, with the clear or the park
     `replay_cleanup` chooses between: nothing is fetched, compared, or
     published, since no later tick under this label reaches the recovery.
+    `proves_before_a_park` is what the workflow's recovery asks before that
+    park keeps the attempt (`_AutoRebaseRecoveryContext.proves_before_a_park`).
     """
     if context.label in _PR_REFRESH_DETOUR_LABELS:
         return True
     if context.pending_pre_rebase_sha:
         _replay_cleanup._answers_an_ineligible_label(
-            recovery._recovery_context(context),
+            replace(recovery._recovery_context(context), proves_before_a_park=proves_before_a_park),
         )
     log.debug(
         "issue=#%d behind %s/%s by %d but label=%r; not auto-rebasing",

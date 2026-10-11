@@ -47,8 +47,11 @@ def _park_unfinished_recovery(
     moved leaves the next tick to measure a rewrite a human already ruled on
     and route it into adjudication a second time. A human's reply re-enters
     this route, the remote is read again, and whatever it turns out to be is
-    classified from scratch.
+    classified from scratch -- which is why the recovery context is asked
+    first whether the park may go on (`persistence._proves_before_the_park`).
     """
+    if not persistence._proves_before_the_park(context):
+        return True
     local_short = _recovery_notices._short(recovery_snapshot.head)
     log.warning(
         "issue=#%d auto-rebase recovery: PR #%d carries %s and this tick "
@@ -101,7 +104,6 @@ def _park_unvouched_recovery(
     name what it names, and the rollback drops only what it can read whole.
     """
     local_short = _recovery_notices._short(recovery_snapshot.head)
-    pre_rebase_short = _recovery_notices._short(context.pending_pre_rebase_sha)
     log.warning(
         "issue=#%d auto-rebase recovery: the pinned comment claims an "
         "exemption, a transfer, or a debt this build cannot tie to this "
@@ -120,8 +122,7 @@ def _park_unvouched_recovery(
             f"interrupted rebase left `{local_short}` on the branch. Publishing "
             "it would act on a record nothing could check -- sending a change "
             "a human already ruled on back into adjudication, or overwriting "
-            "a push somebody else is still owed -- so HEAD has been reset to "
-            f"the pre-rebase SHA `{pre_rebase_short}` and nothing was pushed. "
+            "a push somebody else is still owed -- so nothing was pushed. "
             "Repair the `late_exempt_*` / `late_rewrite_*` / `late_approved_*` "
             "fields on the pinned comment, then reply on this issue with "
             "anything to retry."
@@ -152,7 +153,6 @@ def _park_refused_permit_recovery(
     stays exactly where the adjudication put it.
     """
     local_short = _recovery_notices._short(recovery_snapshot.head)
-    pre_rebase_short = _recovery_notices._short(context.pending_pre_rebase_sha)
     log.warning(
         "issue=#%d auto-rebase recovery: no permit licenses %s to publish and "
         "there is nothing else this road may publish it on; resetting onto "
@@ -171,8 +171,7 @@ def _park_refused_permit_recovery(
             "stage, the checkout, the leased head, or the two contributions "
             "no longer agree, and the orchestrator log names which. "
             "Publishing it on anything else would send that change back into "
-            f"adjudication, so HEAD has been reset to `{pre_rebase_short}` "
-            "and nothing was pushed. Reconcile the pinned comment and reply "
+            "adjudication, so nothing was pushed. Reconcile the pinned comment and reply "
             "on this issue with anything to retry."
         ),
         reason=_REASON_AUTO_BASE_REBASE_FAILED,
@@ -209,7 +208,6 @@ def _park_unproven_replay_recovery(
     once a human has said the checkout is where they want it.
     """
     local_short = _recovery_notices._short(recovery_snapshot.head)
-    pre_rebase_short = _recovery_notices._short(context.pending_pre_rebase_sha)
     log.warning(
         "issue=#%d auto-rebase recovery: the attempt died before recording "
         "the replay it made and nothing on this issue can vouch for %s; "
@@ -227,9 +225,7 @@ def _park_unproven_replay_recovery(
             f"nothing on this issue vouches for `{local_short}` -- and this "
             "issue carries no adjudication verdict the contribution could be "
             "proved against instead. Publishing it would force-push a head "
-            "no record names over the pull request, so HEAD has been reset "
-            f"to `{pre_rebase_short}` (the head the pull request carries) "
-            "and nothing was pushed; the replay is still in `git reflog`. "
+            "no record names over the pull request, so nothing was pushed. "
             "Check the worktree and reply on this issue with anything to "
             "have the rebase made again."
         ),

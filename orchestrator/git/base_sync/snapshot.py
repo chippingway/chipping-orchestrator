@@ -34,17 +34,13 @@ def _abort_recovery_unverified(
     context: _AutoRebaseRecoveryContext, detail: str,
 ) -> bool:
     """Restore the recovery anchor when the remote state cannot be verified."""
-    pre_rebase_short = context.pending_pre_rebase_sha[:8]
     persistence._reset_clear_and_park(
         context,
         context.pending_pre_rebase_sha,
         message=(
             f"{config.HITL_MENTIONS} crash recovery for PR "
             f"#{context.pr_number} could not safely finalize: {detail} "
-            f"Local HEAD has been reset to the pre-rebase SHA "
-            f"`{pre_rebase_short}` so the worktree "
-            "matches the (last-known) remote PR head -- the "
-            "issue is parked so the same-tick stage handlers do "
+            "The issue is parked so the same-tick stage handlers do "
             "NOT run against a SHA the PR may not carry. Reply "
             "on this issue with anything once the underlying "
             "problem is fixed and the orchestrator will re-"

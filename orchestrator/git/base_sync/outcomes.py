@@ -58,7 +58,6 @@ def _park_diverged_recovery(
     """Restore the anchor instead of overwriting an out-of-band PR update."""
     spec = context.spec
     local_short = recovery_snapshot.local_head[:8]
-    pre_rebase_short = _recovery_notices._short(context.pending_pre_rebase_sha)
     persistence._reset_clear_and_park(
         context,
         context.pending_pre_rebase_sha,
@@ -69,8 +68,7 @@ def _park_diverged_recovery(
             f"and {recovery_snapshot.behind} behind remote "
             f"`{spec.remote_name}/{recovery_snapshot.branch}` -- the "
             "remote PR branch was updated out-of-band during the "
-            "interrupted auto rebase. HEAD has been reset to the pre-"
-            f"rebase SHA `{pre_rebase_short}`. "
+            "interrupted auto rebase. "
             "Investigate the remote PR head and reply on this issue "
             "with anything once the divergence is reconciled."
         ),
@@ -86,7 +84,6 @@ def _park_dirty_recovery(
 ) -> bool:
     """Reset and clean a recovered rebase that carries worktree changes."""
     local_short = recovery_snapshot.local_head[:8]
-    pre_rebase_short = _recovery_notices._short(context.pending_pre_rebase_sha)
     persistence._reset_clear_and_park(
         context,
         context.pending_pre_rebase_sha,
@@ -94,11 +91,8 @@ def _park_dirty_recovery(
             f"{config.HITL_MENTIONS} crash recovery for PR "
             f"#{context.pr_number}: the rebased worktree (recovered "
             f"from a prior tick, HEAD `{local_short}`) "
-            f"carries {len(dirty_files)} uncommitted change(s). HEAD "
-            "has been reset to the pre-rebase SHA "
-            f"`{pre_rebase_short}` and untracked "
-            "files cleaned (use `git reflog` if you need the "
-            "discarded edits). Investigate, then reply on this issue "
+            f"carries {len(dirty_files)} uncommitted change(s). "
+            "Investigate, then reply on this issue "
             "with anything to retry."
         ),
         reason="auto_base_rebase_dirty",
@@ -121,8 +115,7 @@ def _park_failed_recovery_push(
             f"{config.HITL_MENTIONS} crash recovery for PR "
             f"#{context.pr_number}: `--force-with-lease` push of the "
             f"recovered rebase (`{local_short}`, lease "
-            f"against `{pre_rebase_short}`) failed. "
-            "HEAD has been reset to the pre-rebase SHA. Most likely "
+            f"against `{pre_rebase_short}`) failed. Most likely "
             "the remote PR branch was updated out-of-band; investigate "
             "and reply on this issue with anything to retry."
         ),

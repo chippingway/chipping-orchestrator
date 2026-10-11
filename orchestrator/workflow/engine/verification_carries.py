@@ -44,7 +44,7 @@ a carry or not, taking a carry's approval with it; so do the recovery helpers
 of a landed base rewrite's captured evidence, in a write of their own, for a
 transaction an earlier finish of the landing recorded that something moved
 under or whose head the base advanced past (`rewrite_finish_captured`,
-`rewrite_landing_moved`) -- helpers no finish or recovery road asks yet. A
+`rewrite_landing_moved`), or in the park write behind a recovery's reset. A
 route behind the reconciliation abandons a carry only, and only on a refusal
 of the carry itself: the publication, at the reading of its own artifact
 (`verification_publishing`), and the settlement, in the commit that records the

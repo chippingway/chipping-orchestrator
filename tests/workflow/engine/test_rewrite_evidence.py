@@ -106,14 +106,14 @@ _MOVES = (
         lambda case: case.enterContext(patch.object(
             case.gh, "get_issue", side_effect=RuntimeError("GitHub did not answer"),
         )),
-        "could not be read again after the run",
+        "could not be read again to prove the evidence",
     ),
     (
         "the pinned comment would not read again",
         lambda case: case.enterContext(patch.object(
             case.gh, "read_pinned_state", side_effect=RuntimeError("GitHub did not answer"),
         )),
-        "could not be read again after the run",
+        "could not be read again to prove the evidence",
     ),
 )
 

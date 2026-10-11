@@ -60,7 +60,7 @@ def _park_rolled_back_recovery(
             "back or moved out of band while the orchestrator was down. "
             "Reissuing the interrupted push would be leased against the very "
             "head it was rolled back to and would overwrite it, so nothing "
-            "was pushed and HEAD has been reset to the pre-rebase SHA. "
+            "was pushed. "
             "Investigate the remote branch and reply on this issue with "
             "anything once it is reconciled."
         ),
@@ -89,7 +89,6 @@ def _park_unrecorded_recovery(
     group: for a human to repair, not for this tick to guess at.
     """
     local_short = _recovery_notices._short(recovery_snapshot.head)
-    pre_rebase_short = _recovery_notices._short(context.pending_pre_rebase_sha)
     log.warning(
         "issue=#%d auto-rebase recovery: the record of what this attempt "
         "produced does not vouch for the checkout; resetting %s onto the "
@@ -105,8 +104,7 @@ def _park_unrecorded_recovery(
             "rebase an earlier tick was interrupted in the middle of, and it "
             f"does not say that `{local_short}` on the branch is that "
             "attempt's own work -- the record is in pieces, or it names some "
-            f"other commit. HEAD has been reset to the pre-rebase SHA "
-            f"`{pre_rebase_short}` and nothing was pushed. Repair or clear "
+            "other commit. Nothing was pushed. Repair or clear "
             "the `pending_auto_base_rebase_*` fields on the pinned comment, "
             "then reply on this issue with anything to retry."
         ),
@@ -156,8 +154,7 @@ def _park_undone_recovery(
             "tick made past it -- the replay it produced, the announcement a "
             "finish left, or the permission granted for a push nobody made. "
             "Something undid that rebase without finishing its bookkeeping, "
-            "so the records it abandoned have been dropped and nothing was "
-            "rebased or pushed. Check the worktree and reply on this issue "
+            "and nothing was rebased or pushed. Check the worktree and reply on this issue "
             "with anything once it is where you want it."
         ),
         reason=_REASON_AUTO_BASE_REBASE_FAILED,
@@ -211,8 +208,7 @@ def _park_announced_recovery(
             f"`{local_short}` on this branch. The publication was rolled back "
             "out of band, or the checkpoint itself was damaged. Reissuing the "
             "push would overwrite that rollback and announce the same rebase "
-            "twice, so nothing was pushed and HEAD has been reset to the "
-            "pre-rebase SHA. Investigate the remote branch and the "
+            "twice, so nothing was pushed. Investigate the remote branch and the "
             "`pending_auto_base_rebase_announced_sha` field, then reply on "
             "this issue with anything to retry."
         ),

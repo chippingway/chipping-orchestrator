@@ -135,12 +135,16 @@ class LandingMovedTest(unittest.TestCase, captured_support.CapturedEvidenceCase)
         )
 
     def _resets(self, exit_code: int) -> None:
-        """The git owner's reset-and-park tail, its reset answered with `exit_code`, handed the recovery's answer."""
+        """The git owner's reset-and-park tail, its reset answered with `exit_code`, handed the recovery's answer.
+
+        Under the world's readings, which a reset that did not land proves the
+        run again over before its park keeps it.
+        """
         recovery = self.recovery()
         answered = replace(recovery, settles_over_a_reset=lambda: _landing_moved.abandons_over_the_reset(recovery))
         reset = subprocess.CompletedProcess([], exit_code, "", "")
         with patch.object(commands, "_git_hardened", return_value=reset):
-            persistence._reset_clear_and_park(answered, ANCHOR, message="parked", reason=_PARK_REASON)
+            self.asks(persistence._reset_clear_and_park, answered, ANCHOR, message="parked", reason=_PARK_REASON)
 
 
 if __name__ == "__main__":

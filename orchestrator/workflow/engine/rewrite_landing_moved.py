@@ -13,9 +13,11 @@ not on the checkout -- rolled back, or moved out of band -- and a remote and
 checkout that agree on another head. These are the helpers that abandon the
 transaction before any such road is taken, so that movement under a decision
 leaves no decision a later route, or the dispatcher's reconciliation once the
-attempt is cleared, may take. They are dormant: the recovery
-(`rewrite_recovery`, `rewrite_landed`) asks none of them yet, and no recovery
-road hands the reset answer on.
+attempt is cleared, may take. The recovery's coordinator (`rewrite_recovery`)
+asks them of every snapshot before the road it chooses, and the landed road
+(`rewrite_landed`) of a checkout or remote it reads leaving the head; every
+road's context carries the reset answer, and so does the refresh's abort over
+a checkout whose lag against base could not be counted.
 
 `abandons_off_the_landing` answers whether a road may go on: True where the
 snapshot reads no head off the announced head, or where nothing captured for
@@ -35,6 +37,19 @@ unrun, or refused for good where the comment has no room for that. The
 abandonment is a write of its own over the comment read afresh, landed over
 the tick's own reading where that write does not land; only where no write
 lands at all is the transaction still standing.
+
+A recovery park that keeps the attempt keeps the transaction with it, for the
+human reply that brings the recovery back: a reset that did not land, an issue
+relabelled out of the stages the refresh drives, a landing made for another
+publication or one its record does not account for. What such a park read is
+put right by a human, and the reply then finishes the landing, so the git
+owner asks before every such park (`abandons_unproved`) for the transaction to
+be proved again -- over the issue and comment read afresh, held to the last
+word, none of it needing the fetch an abort could not take -- and abandoned now
+where anything it rests on moved, a configuration or a pull request repointed
+among the reasons, so putting that back before the reply revives nothing. One
+that still proves, or that only a reading nobody could take holds, is kept
+for that finish.
 
 A reset is the one road that moves the checkout off the landed head itself,
 and the git owner's park behind it drops the attempt in one whole write of the
@@ -67,16 +82,21 @@ from orchestrator.git.base_sync.models import (
 )
 from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite, _PushOutcome, _RewriteCandidate
 from orchestrator.git.ref_transport import _RefRead
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import (
     rewrite_finish_captured as _captured,
     verification_carries as _carries,
     verification_record_state as _record_state,
     verification_records as _records,
 )
-from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING
+from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING, last_word
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
+
+_RELEASED = "in the write that releases its attempt behind the reset that took the checkout off it"
+
+_CHECKOUT_GONE = "in the write that parks its attempt, the checkout it was captured on gone"
 
 
 def announced(context: _AutoRebaseContext | _AutoRebaseRecoveryContext) -> str:
@@ -84,43 +104,51 @@ def announced(context: _AutoRebaseContext | _AutoRebaseRecoveryContext) -> str:
     return context.state.get(_base_sync_state._PENDING_ANNOUNCED_SHA) or ""
 
 
-def abandons_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext) -> None:
+def abandons_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext, why: str = _RELEASED) -> None:
     """Stage the abandonment of what a finish captured for the announced head on the state a landed reset's park writes.
 
     The recovery's answer to a reset (`_AutoRebaseRecoveryContext.settles_over_a_reset`),
-    for the git owner to ask once the reset landed and before the attempt is
+    asked by the git owner once the reset landed and before the attempt is
     dropped from `context.state`: the reset took the checkout off the landed
     head, which is movement under the transaction. Staged on the state the
     park then writes whole, the abandonment lands with the attempt's release
     or not at all, so no cleared attempt leaves the transaction behind it for
     the reconciliation to settle once the checkout is put back. With no room
-    for its history entry, the transaction is dropped instead.
+    for its history entry, the transaction is dropped instead and refused for
+    good, as the finish's own abandonment refuses one (`rewrite_finish_captured`):
+    the base tip the attempt recorded its replay as made onto is blanked with
+    it, so where the attempt outlives that write -- the park over a checkout
+    gone from disk keeps it -- every later reading of the base proves nothing
+    (`rewrite_evidence_proof.standing_refusal`), and no finish of this landing
+    runs or carries the evidence again, with neither the transaction nor its
+    history entry left to say a run was captured. A reset's release drops the
+    tip with the attempt either way. `why` names the write it rides, logged.
     """
     pending = _captured_for(context)
     if pending is None:
         return
     head = pending.binding.target.target_head
     log.info(
-        "issue=#%d abandoning verification evidence revision %d recorded for %.8s, in the write that releases "
-        "its attempt behind the reset that took the checkout off it",
-        context.issue.number, pending.revision, head,
+        "issue=#%d abandoning verification evidence revision %d recorded for %.8s, %s",
+        context.issue.number, pending.revision, head, why,
     )
     if not _carries.abandons(context.state, pending):
         context.state.set(_records.PENDING_EVIDENCE, None)
+        context.state.set(_base_sync_state._PENDING_REWRITE_BASE, None)
 
 
 def abandons_off_the_landing(context: _AutoRebaseRecoveryContext, snapshot: _AutoRebaseRecoverySnapshot) -> bool:
     """Abandon the transaction captured for the announced head where `snapshot` reads a head off it; may it go on.
 
-    For the recovery's coordinator to ask of every snapshot it reads, before
+    Asked by the recovery's coordinator of every snapshot it reads, before
     the road the snapshot chooses is taken; a remote and a checkout both on
     the announced head are the landed road's to finish, which reads them
     again itself. A head the snapshot holds as "" is one nobody read, which
     establishes no movement, so the transaction is kept for a reset that
     lands to abandon (`abandons_over_the_reset`). False only where a
     transaction still stands that the abandonment could not retire, logged:
-    the coordinator is to hold the tick then rather than take a road that
-    would leave it behind.
+    the coordinator holds the tick then rather than take a road that would
+    leave it behind.
     """
     head = announced(context)
     if not head or not {snapshot.local_head, snapshot.remote_head} - {"", head}:
@@ -156,23 +184,67 @@ def abandons(
     """
     if _captured_for(context) is None:
         return True
-    landed = announced(context)
+    finish = _finish(context, snapshot, candidate)
+    _captured.stands_before_the_route(finish, proof=LEFT_THE_LANDING)
+    return _captured.recorded(finish, logged=False) is None
+
+
+def abandons_unproved(context: _AutoRebaseRecoveryContext) -> bool:
+    """Prove the transaction captured for the announced head before a park keeps it, abandoning it where it moved.
+
+    Whether the park may go on -- asked by the git owner ahead of every
+    recovery park that keeps the attempt (`git/base_sync/persistence._proves_before_the_park`),
+    over the checkout as it reads now and the branch the comment names. The
+    transaction's binding is proved again over the issue and comment read
+    afresh (`rewrite_finish_captured.proved_again`) and held to the last word
+    beside it (`rewrite_evidence_proof.last_word`), neither of which needs the
+    fetch a failed abort could not take; where either reads movement, the
+    transaction is abandoned unrun -- or, with no room, refused for good --
+    through the last word with that movement as its proof. Nothing is read or
+    written where no transaction is recorded for that head, and one nothing
+    moved under is kept. With no checkout on disk there is nothing to prove
+    the landing over, the checkout it was captured on being gone, so the
+    abandonment is staged on the state the park then writes whole
+    (`abandons_over_the_reset`). False only where movement was read and the
+    transaction still stands once the abandonment was asked, for the git owner
+    to hold the tick with nothing parked.
+    """
+    pending = _captured_for(context)
+    if pending is None:
+        return True
+    if not context.worktree.is_dir():
+        abandons_over_the_reset(context, _CHECKOUT_GONE)
+        return True
+    branch = _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
+    finish = _finish(context, _AutoRebaseRecoverySnapshot(branch=branch, local_head=""), None)
+    proof = _captured.proved_again(finish, pending)
+    moved = last_word(finish, pending.binding, earlier=proof)[0]
+    if moved is None:
+        return True
+    _captured.stands_before_the_route(finish, proof=moved)
+    return _captured.recorded(finish, logged=False) is None
+
+
+def _finish(
+    context: _AutoRebaseRecoveryContext,
+    snapshot: _AutoRebaseRecoverySnapshot,
+    candidate: _RewriteCandidate | None,
+) -> LandedFinish:
+    """The finish of the announced head's landing as `snapshot` read it, over `candidate` or the checkout read now."""
     read = candidate or _recovery_push._recovered_candidate(context, snapshot)
-    finish = LandedFinish(
+    return LandedFinish(
         gh=context.gh,
         spec=context.spec,
         issue=context.issue,
         state=context.state,
         landed=_LandedRewrite(
-            candidate=replace(read, checkout=replace(read.checkout, head=landed)),
+            candidate=replace(read, checkout=replace(read.checkout, head=announced(context))),
             outcome=_PushOutcome.OBSERVED,
             remote=_RefRead(sha=snapshot.remote_head),
         ),
         label=_replay_evidence._recovered_stage(context.label),
         road=FinishRoad.RECOVERY,
     )
-    _captured.stands_before_the_route(finish, proof=LEFT_THE_LANDING)
-    return _captured.recorded(finish, logged=False) is None
 
 
 def _captured_for(context: _AutoRebaseContext | _AutoRebaseRecoveryContext) -> _records.PendingEvidence | None:

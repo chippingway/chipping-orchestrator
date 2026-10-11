@@ -24,8 +24,10 @@ rewrite moves the head under a report about the old one, which the rewritten
 head's report refresh answers before any reviewer is handed it. Its whole
 binding is then proved (`verification_proof.binding_verdict`) -- the settled
 report re-read at its location, the requirements, the branch and the checkout
--- and what it licenses keeps the tested commit and tree and names the source
-it copied: explicit provenance, never a run relabelled.
+-- and the head held to the base tip its replay was made onto, as a run is
+before it starts (below), and what it licenses keeps the tested commit and
+tree and names the source it copied: explicit provenance, never a run
+relabelled.
 
 A rewrite that moved the full tree or the context -- or one whose trees
 nobody read -- invalidates the current evidence instead: it no longer answers
@@ -45,7 +47,11 @@ on the publication that report was settled to, moved to the rewritten head.
 The whole binding is proved before anything runs, so a subject still about
 the head the rewrite replaced -- the refresh not yet settled, or no reviewer
 handed it -- runs nothing. A pull request or report nobody could read is
-reported in the proof's own verdict, so its HOLD reaches the caller.
+reported in the proof's own verdict, so its HOLD reaches the caller. Nor does
+a head that no longer stands on the base tip its replay was made onto
+(`rewrite_evidence_proof.standing_refusal`): a remote base moved since it was
+counted HOLDS, and a base rewound or repointed under it, or no recorded tip to
+hold it to, DEFERS.
 
 After the run its own record is held to the binding planned for it: the
 commit and tree the runner read as its baseline, and the context it minted,
@@ -53,19 +59,22 @@ have to be the rewritten head, the tree the landing read for it, and the
 configuration proved before it ran. A checkout that stood elsewhere as the run
 began -- and back by the time anything is read again -- or a baseline the
 runner never read is a run of something else, whatever it passed or failed.
-Then the issue and its pinned comment are read afresh -- the issue
-fetched again, since the one the finish holds carries the title and body read
-when the tick began -- and the whole binding proved again over them: the pull
+Then the issue and its pinned comment are read afresh and the whole binding
+proved again over them (`rewrite_evidence_proof.proves_again`): the pull
 request still on the rewritten head, the remote branch and the checkout
 standing there, the configuration still the one the commands ran under, the
 review subject and the settled report still the ones bound, and the issue's
 requirements unchanged. Anything that moved, or that nobody could read again,
-makes the result MOVED, eligible for nothing. Only then is it
-classified: a run `verification_local_runs` binds is FRESH, carrying exactly
-the commands, exit statuses, and outputs that ran; a passing run that binds
-nothing records nothing and leaves the evidence to the reviewer; and every
-other run is FAILED, the run kept whole so its failing command and output stay
-actionable.
+makes the result MOVED, eligible for nothing. Only then is it classified: a run `verification_local_runs` binds is
+FRESH, carrying exactly the commands, exit statuses, and outputs that ran; a
+passing run that binds nothing records nothing and leaves the evidence to the
+reviewer; and every other run is FAILED, the run kept whole so its failing
+command and output stay actionable.
+
+Every decision -- a carry, a route that runs nothing, and a run's -- is held,
+once it is written, to the last word the finish's evidence step takes behind
+all its requests (`rewrite_finish_captured.stands_before_the_route`): the
+landing, the base, the requirements, and the configuration read once more.
 """
 from __future__ import annotations
 
@@ -88,6 +97,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_evidence_models import RewriteEvidence, RewriteEvidenceRoute
+from orchestrator.workflow.engine.rewrite_evidence_proof import proves_again, standing_refusal
 from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
@@ -117,11 +127,6 @@ _ELSEWHERE = _evidence_models.ReportEvidence(
     _DEFER, "the run did not test the rewritten head and its tree under the configuration proved for it",
 )
 
-_UNREAD = _evidence_models.ReportEvidence(
-    _evidence_models.ReportEvidenceVerdict.HOLD,
-    "the issue or its pinned comment could not be read again after the run",
-)
-
 
 def decides(finish: LandedFinish) -> RewriteEvidence:
     """The evidence `finish`'s landed head is routed with; nothing is written.
@@ -130,13 +135,15 @@ def decides(finish: LandedFinish) -> RewriteEvidence:
     before anything routes it. A carry where the rewrite is proved equivalent
     to what the current evidence tested, and otherwise a fresh run of the
     configured commands, or the reviewer's responsibility where none can be
-    bound.
+    bound. The base the head was replayed onto, and everything else that can
+    move, is held to once the decision is written
+    (`rewrite_finish_captured.stands_before_the_route`).
     """
     reading = _proof.ProofReading(finish.gh, finish.spec, finish.issue, finish.state)
     invalidates = invalidates_current(finish)
     carried = None
     if _settlement.read_current_evidence(finish.state) is not None and not invalidates:
-        carried = _carried(reading, finish.head)
+        carried = _carried(reading, finish)
     decided = carried or _verified(reading, finish, invalidates)
     log.info(
         "issue=#%d decided %s evidence for the base rewrite's head %.8s, "
@@ -167,18 +174,24 @@ def invalidates_current(finish: LandedFinish) -> bool:
     return not (context and candidate.checkout.tree and len(trees) == 1)
 
 
-def _carried(reading: _proof.ProofReading, head: str) -> RewriteEvidence | None:
-    """The current evidence carried onto `head`, or None where no carry is proved.
+def _carried(reading: _proof.ProofReading, finish: LandedFinish) -> RewriteEvidence | None:
+    """The current evidence carried onto `finish`'s head, or None where no carry is proved.
 
-    The carry-forward decision answers only for a review subject about
-    `head` or the approval's unchanged one; the second is refused here, and
-    the first proved whole.
+    The carry-forward decision answers only for a review subject about the
+    head or the approval's unchanged one; the second is refused here, and the
+    first proved whole -- and held, as a run is before it starts, to the base
+    tip the head's replay was made onto (`rewrite_evidence_proof.standing_refusal`),
+    so a head whose base proves nothing, its recorded tip blanked by a
+    transaction refused for good among them, is carried nothing again.
     """
+    head = finish.head
     decided = _carry_forward.carry_forward_decision(reading, head)
     if not isinstance(decided, _carry_forward.CarryForward):
         return None
     about = _review_subjects.ReviewSubject.commit_recorded_in(decided.subject)
     found = _proof.binding_verdict(reading, decided.binding) if about == head else _PRECEDING
+    if found.proved:
+        found = standing_refusal(finish) or found
     if found.proved:
         return RewriteEvidence(RewriteEvidenceRoute.CARRIED, carry=decided)
     log.info(
@@ -192,13 +205,17 @@ def _verified(reading: _proof.ProofReading, finish: LandedFinish, invalidates: b
     """A fresh run of the configured commands on the rewritten head, and what it came to.
 
     The configuration is read once, so the binding proved before the run is
-    minted under exactly the commands and timeout the runner is handed.
+    minted under exactly the commands and timeout the runner is handed. A
+    head that no longer stands on the base it was counted against runs
+    nothing (`rewrite_evidence_proof.standing_refusal`).
     """
     configured = (tuple(config.VERIFY_COMMANDS), config.VERIFY_TIMEOUT)
     planned = _planned(reading.state, finish, configured)
     found = planned
     if isinstance(planned, _records.EvidenceBinding):
         found = _proof.binding_verdict(reading, planned)
+    if found.proved:
+        found = standing_refusal(finish) or found
     if not found.proved:
         return RewriteEvidence(RewriteEvidenceRoute.REVIEWER, invalidates, refusal=found)
     run = _verify_runner._run_verify_commands(
@@ -250,16 +267,20 @@ def _ran(
     checkout elsewhere as it began, or a baseline it never read -- says
     nothing about the rewritten head, a failure included, and the readings
     behind it cannot tell. Then `planned` is proved again over the issue and
-    its pinned comment read afresh, so a failure on a head nobody stands on
-    any more is no failure of the rewritten head either. Where the baseline
-    is `planned`'s, so is the binding a passing run earns.
+    its pinned comment read afresh (`rewrite_evidence_proof`), so a failure
+    on a head nobody stands on any more is no failure of the rewritten head
+    either, and the base the head stands on read again, so a run the base
+    moved under is recorded as nothing at all. Where the baseline is
+    `planned`'s, so is the binding a passing run earns.
     """
     bound = _local_runs.local_run_evidence(run, planned.target)
     baseline = (run.commit, run.tree_identity, run.context_revision)
     if baseline == (planned.tested_sha, planned.tested_tree, planned.context_revision):
-        found = _proved_again(finish, planned)
+        found = proves_again(finish, planned)
     else:
         found = _ELSEWHERE
+    if found.proved:
+        found = standing_refusal(finish) or found
     if not found.proved:
         return RewriteEvidence(RewriteEvidenceRoute.MOVED, invalidates, refusal=found, run=run)
     if bound is not None:
@@ -267,31 +288,3 @@ def _ran(
     if run.status == _verify_models.VERIFY_STATUS_OK:
         return RewriteEvidence(RewriteEvidenceRoute.REVIEWER, invalidates, refusal=_UNBINDABLE, run=run)
     return RewriteEvidence(RewriteEvidenceRoute.FAILED, invalidates, run=run)
-
-
-def _proved_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _evidence_models.ReportEvidence:
-    """The whole proof of `binding` over the issue and its pinned comment read afresh, or the HOLD nobody could read.
-
-    The issue is fetched again rather than reused: the one the finish holds
-    carries the title and body read when the tick began, and requirements
-    edited while the commands ran are exactly what the proof has to see.
-    """
-    try:
-        issue = finish.gh.get_issue(finish.issue.number)
-    except Exception:
-        log.exception(
-            "issue=#%d could not be read again after verifying %s", finish.issue.number, finish.head,
-        )
-        return _UNREAD
-    try:
-        state = finish.gh.read_pinned_state(issue)
-    except Exception:
-        log.exception(
-            "issue=#%d could not read its pinned comment again after verifying %s",
-            finish.issue.number, finish.head,
-        )
-        return _UNREAD
-    if not state.parsed:
-        return _UNREAD
-    reading = _proof.ProofReading(finish.gh, finish.spec, issue, state)
-    return _proof.binding_verdict(reading, binding)

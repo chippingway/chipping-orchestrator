@@ -38,7 +38,6 @@ def _park_unreadable_post_rebase_head(
         context.issue.number,
     )
     spec = context.spec
-    before_short = before_sha[:8]
     persistence._reset_clear_and_park(
         context,
         before_sha,
@@ -47,9 +46,7 @@ def _park_unreadable_post_rebase_head(
             f"{context.behind} commit(s) behind "
             f"`{spec.remote_name}/{spec.base_branch}`. "
             "The auto rebase ran but the orchestrator could not "
-            "read local `HEAD` afterwards. HEAD has been reset to "
-            f"the pre-rebase SHA `{before_short}` so the worktree "
-            "still matches the remote PR head. Inspect the "
+            "read local `HEAD` afterwards. Inspect the "
             "worktree's git state and reply on this issue with "
             "anything to retry."
         ),
@@ -93,9 +90,7 @@ def _park_dirty_auto_rebase(
             f"`{spec.remote_name}/{spec.base_branch}` "
             "and the auto rebase landed cleanly but left "
             f"{len(dirty_files)} uncommitted change(s) on the worktree. "
-            "Local HEAD has been reset to the pre-rebase SHA and "
-            "untracked files cleaned (use `git reflog` if you need "
-            "the discarded edits). Investigate the smudge filter / "
+            "Investigate the smudge filter / "
             "hook / external race that produced the dirty tree, "
             "then reply on this issue with anything to retry."
         ),
@@ -127,9 +122,7 @@ def _park_failed_auto_rebase_push(
             f"`{spec.remote_name}/{spec.base_branch}`; "
             "the orchestrator rebased the worktree cleanly but pushing "
             "the rewritten branch (`--force-with-lease` against "
-            f"`{before_short}`) failed. Local HEAD has "
-            "been reset to the pre-rebase SHA so the worktree still "
-            "matches the remote PR head. Most likely the PR branch "
+            f"`{before_short}`) failed. Most likely the PR branch "
             "was updated out-of-band; investigate the remote "
             f"`{branch}` and reply on this issue with anything once "
             "the branch is ready for the orchestrator to re-attempt "

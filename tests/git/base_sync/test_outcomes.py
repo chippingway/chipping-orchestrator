@@ -18,8 +18,6 @@ SHORT_LOCAL = fixtures.RECOVERED_SHA[:8]
 
 SHORT_REMOTE = fixtures.REMOTE_SHA[:8]
 
-SHORT_ANCHOR = fixtures.PRE_REBASE_SHA[:8]
-
 DIRTY_FILES = ("scratch.txt", "notes.md")
 
 def _park_dirty(context, snapshot) -> bool:
@@ -95,9 +93,10 @@ class RecoveryParkTest(unittest.TestCase):
         self._assert_message(reset.call_args.kwargs.get("message"), fragment)
 
     def _assert_message(self, message: str, fragment: str) -> None:
+        # Why it parks only: what the reset came to is the tail's to say.
         self.assertIn(fragment, message)
         self.assertIn(f"#{fixtures.PR_NUMBER}", message)
-        self.assertIn(SHORT_ANCHOR, message)
+        self.assertNotIn("has been reset", message)
 
 
 if __name__ == "__main__":

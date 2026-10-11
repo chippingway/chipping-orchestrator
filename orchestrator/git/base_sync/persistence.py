@@ -9,11 +9,21 @@ back onto the anchor before it parks goes through one tail
 abandoned only where the reset itself landed -- staging first whatever a
 recovery context says it owes over that reset
 (`_AutoRebaseRecoveryContext.settles_over_a_reset`), so it rides the same
-write. No recovery road hands such an answer yet. The finish of a rewrite that
-landed is the workflow's (`workflow/engine/rewrite_finish.py`), whichever road
-reached it.
+write; the workflow's recovery hands one on every road. The notice that park
+posts says what the reset and the clean behind it came to, and the drop as what
+the park's own write makes durable (`_reset_outcome`), so a caller describes
+only why it parks. A recovery park
+that keeps the attempt instead -- that tail behind a reset that did not land,
+and the parks that never reset -- asks the recovery context first whether it
+may go on (`_proves_before_the_park`), so a transaction the workflow captured
+for the landed head is proved again before the record a human's reply brings
+back is left standing. The finish of a
+rewrite that landed is the workflow's (`workflow/engine/rewrite_finish.py`),
+whichever road reached it.
 """
 from __future__ import annotations
+
+from types import MappingProxyType
 
 from github.Issue import Issue
 
@@ -25,11 +35,34 @@ from orchestrator.git.base_sync.models import (
 )
 from orchestrator.git.base_sync.state import (
     _AUTO_REBASE_PARK_REASONS,
+    _ERROR_SNIPPET_LEN,
     _PARK_REASON,
     log,
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+
+# The drop is said as what the park's write will make durable, since the notice
+# goes out ahead of that write and cannot see whether it lands.
+_RESET = (
+    "Local HEAD has been reset to `{sha}`, where the branch stood before the rebase{cleaned}; `git reflog` "
+    "still has whatever the reset left behind. The attempt, with every record the reset abandoned, is dropped "
+    "by the pinned-state write that records this park, and still stands until that write lands."
+)
+
+_UNRESET = (
+    "The reset this park takes did not land: `git reset --hard {sha}` failed (`{error}`), so local HEAD was "
+    "not moved{cleaned}, and this park keeps the attempt -- its anchor `{sha}` among it -- with every record it "
+    "carries. Inspect the worktree's git state before replying."
+)
+
+# What the clean behind the reset came to, beside the reset that landed or did not.
+_CLEANED = MappingProxyType({
+    (True, True): ", and untracked files were cleaned",
+    (True, False): ", but `git clean -fd` failed, so untracked files may remain",
+    (False, True): ", though untracked files were cleaned",
+    (False, False): ", and `git clean -fd` failed too",
+})
 
 
 def _park_auto_rebase_failure(
@@ -92,7 +125,10 @@ def _reset_clear_and_park(
     A failed reset / clean is logged but does not abort the park: the
     `awaiting_human` flag is what short-circuits the same-tick handlers,
     and it still lands even if the worktree is left on an unexpected SHA
-    for the operator to inspect.
+    for the operator to inspect. The park's notice is the caller's
+    `message` -- why it parks -- followed by what actually happened
+    (`_reset_outcome`): the reset and the drop behind it, or a reset that
+    did not land and the attempt kept, never a reset that did not happen.
 
     What the park DROPS is held to that reset landing, and every record it
     would drop is held to it alike. The size gate measures a rebased head
@@ -140,6 +176,7 @@ def _reset_clear_and_park(
         "reset", "--hard", reset_sha, cwd=context.worktree,
     )
     restored = reset.returncode == 0
+    refused = None if restored else reset.stderr or ""
     if not restored:
         log.error(
             "issue=#%d auto-rebase recovery: reset --hard to %s failed: "
@@ -149,25 +186,71 @@ def _reset_clear_and_park(
             reset_sha[:8],
             (reset.stderr or "").strip(),
         )
+    cleaned = None
     if clean:
-        cleaned = commands._git_hardened("clean", "-fd", cwd=context.worktree)
-        if cleaned.returncode != 0:
+        cleaning = commands._git_hardened("clean", "-fd", cwd=context.worktree)
+        cleaned = cleaning.returncode == 0
+        if not cleaned:
             log.error(
                 "issue=#%d auto-rebase recovery: `git clean -fd` after "
                 "the reset failed: %s",
-                context.issue.number, (cleaned.stderr or "").strip(),
+                context.issue.number, (cleaning.stderr or "").strip(),
             )
     if restored:
         _settles_over_the_reset(context)
         attempts._clears_the_attempt(context.state)
         _forgets_the_reset(context, reset_sha)
+    elif not _proves_before_the_park(context):
+        return
     _park_auto_rebase_failure(
         context.gh,
         context.issue,
         context.state,
-        message=message,
+        message=f"{message}\n\n{_reset_outcome(reset_sha, refused, cleaned)}",
         reason=reason,
     )
+
+
+def _reset_outcome(reset_sha: str, refused: str | None, cleaned: bool | None) -> str:
+    """What the park's notice says the reset to `reset_sha` came to, beside the clean behind it where one ran.
+
+    `refused` is what git answered a reset that did not land, None for one
+    that did. A reset that landed is the attempt dropped with what it
+    abandoned -- by the park's own write, which the notice goes out ahead of,
+    so the notice says that write drops them rather than that they are gone;
+    one that did not land is the attempt kept whole, since records follow the
+    reset rather than the intent, and a write that fails keeps it as well.
+    """
+    said = "" if cleaned is None else _CLEANED[refused is None, cleaned]
+    short = reset_sha[:8]
+    if refused is None:
+        return _RESET.format(sha=short, cleaned=said)
+    error = refused.strip()[:_ERROR_SNIPPET_LEN]
+    return _UNRESET.format(sha=short, error=error, cleaned=said)
+
+
+def _proves_before_the_park(context: _AutoRebaseContext | _AutoRebaseRecoveryContext) -> bool:
+    """Whether a recovery park that keeps the attempt may go on, once the workflow proved what it captured.
+
+    Every such park leaves the whole record standing for a human's reply to
+    bring the recovery back to, and a verification transaction the workflow
+    captured for the landed head stands with it. So the workflow proves it
+    again first (`_AutoRebaseRecoveryContext.proves_before_a_park`), and
+    abandons it where anything it rests on moved, before the park and not
+    behind the reply -- by which time what moved may be back. False is a
+    movement it read and could not record: nothing is parked, the anchor still
+    holds every handler, and the next tick's recovery asks again. A refresh's
+    own context, ahead of any recovery, has captured nothing to prove.
+    """
+    proves = context.proves_before_a_park if isinstance(context, _AutoRebaseRecoveryContext) else None
+    if proves is None or proves(context):
+        return True
+    log.warning(
+        "issue=#%d auto-rebase recovery: holding rather than parking, since the verification evidence "
+        "captured for the landed head could not be abandoned over what moved under it",
+        context.issue.number,
+    )
+    return False
 
 
 def _settles_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext) -> None:
