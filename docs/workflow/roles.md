@@ -97,9 +97,10 @@ per-stage behavior is in
   or handoff retry finishes the verdict without a second reviewer, usage fold, run charge, round, or developer run.
   A reviewer run that timed out, crashed, or ran out of provider quota is answered by the next fresh reviewer, never
   by the developer session: a timeout or crash (`reviewer_timeout` / `reviewer_failed`) is retried on a quiet tick
-  or by any reply, while a `reviewer_usage_limit` park — the reason defined for a reviewer its provider's usage limit
-  stopped, which no road sets yet — waits for the operator to say the quota reset with a trusted
-  `/orchestrator continue`, and holds every other tick with nothing run or consumed (see
+  or by any reply, while a `reviewer_usage_limit` park — the one a Codex reviewer takes when its last turn failed
+  on the account's usage limit, its notice naming the limit and the reset the provider gave — waits for the
+  operator to say the quota reset with a trusted `/orchestrator continue`, and holds every other tick with nothing
+  run or consumed (see
   [state-machine/delivery-stages.md](../state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating)).
 - **Decomposer reuse.** `_handle_decomposing` spawns the decomposer once and resumes it on every awaiting-human
   reply — with one park excepted. An issue stopped on its spent spawn budget (`retry_cap`) is waiting on a human
