@@ -926,7 +926,7 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   them: the proof again, the head held to its recorded base tip, and the last word over everything that moves
   (`workflow/engine/rewrite_evidence_proof.py`); a captured run proved again, or abandoned unrun -- refused for good,
   its base tip blanked, where the comment has no room (`workflow/engine/rewrite_finish_captured.py`); and that
-  abandonment where a recovery reads the landing moved or its reset takes the checkout off it
+  abandonment where a recovery reads the landing on another head or its reset takes the checkout off it
   (`workflow/engine/rewrite_landing_moved.py`), the git owner's reset tail asking a recovery context for that answer
   (`settles_over_a_reset`) though no road hands one yet.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
