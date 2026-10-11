@@ -1301,8 +1301,9 @@ because there it is the claim that this stage has already rerouted rather than a
   stay actionable. The base is held to the tip the attempt recorded its replay as made onto
   (`pending_auto_base_rebase_rewrite_base`) -- frozen off the base ref with the anchor before git runs
   (`git/base_sync/startup.py`), and left blank where the ref moved while git ran, so a base ref moved once the replay
-  exists is never what the attempt names -- by identity rather than by counting commits -- the base the head was
-  counted against has to be that very tip, and the remote's base, read without a fetch, still there -- before a run
+  exists is never what the attempt names -- by identity rather than by counting commits -- the head counted afresh
+  against the local base ref has to find that very tip, and the remote's base, read without a fetch, still there; a
+  local base the head is behind has advanced past it and holds as a base gone elsewhere does -- before a run
   starts and behind it, before a carry is recorded, and once more by the last word (next bullet). A base rewound or
   repointed under the head, or an attempt that recorded no tip -- or a tip blanked by a transaction refused for good --
   records nothing, carries nothing, and runs nothing, and the fresh reviewer owes the evidence; a remote base gone
@@ -1339,31 +1340,31 @@ because there it is the claim that this stage has already rerouted rather than a
   `rewrite_evidence_proof.last_word`) -- which reads everything that moves again in one fixed order: the network first,
   the remote branch the head landed on, the base, and -- over the issue and pinned comment fetched once more -- the
   requirements and the review and report records the transaction is bound to, and then what no request answers, the
-  checkout's own head and the configuration. Every reading is taken, the checkout read whatever the remote branch's
-  reading came to and the records compared on their own, whatever the proof before them could read: the first that
-  establishes movement and the first that holds the route are answered side by side, so a reading nobody could take
-  never hides movement another reading took -- movement only the unread reading would have shown is established by
-  nothing, and holds for another proof. A captured transaction's proof that stops at a pull request nobody could read is
-  answered beside the records the comment it read carries (`verification_proof.recorded_verdict`: the review subject,
-  the settled report pair -- the current report readable and its handoff describing it -- and that report named by the
-  subject) the same way. A remote branch or checkout read off the landed head, a remote branch nobody could read or a
-  checkout whose head would not prove, or a base gone elsewhere or unreadable, holds the route; moved requirements,
-  review subject, settled report, or configuration, or a base no longer the recorded tip, refuse the transaction the
-  route would carry, and the head goes to the fresh reviewer. Wherever any reading establishes movement -- the captured
-  transaction's own proof refusing it, those refusals, a landing read off its head, or a base read elsewhere -- the
-  transaction is abandoned unrun in its own write, staged on the comment read afresh and committed guarded by that
-  reading, so a review, report, or approval another road wrote meanwhile neither refuses it nor is written over -- only
-  a carry's own approval goes with it -- and no later route takes the transaction, not even once everything is back
-  where it was; only readings nobody could take, an unproved checkout head among them, leave it to be proved again. A
-  comment with no room for the abandonment takes a write that only shrinks it instead: the transaction is dropped --
-  nothing was posted under it while the anchor stood, and the revision floor keeps its revision -- and the attempt's
-  recorded base tip is blanked, so every later reading of the base proves nothing and no finish of the attempt runs the
-  commands again or routes over it. The landing is read for every route that carries or follows a recorded decision or
-  ran the configured commands; a fresh decision that ran and recorded nothing is held to the base alone. Two remote
-  readings cannot be taken at one instant, and the route's own writes behind the last word are not read past: what moves
-  there is guarded by the retirement's prerequisites and proved again by the reconciliation before anything settles; the
-  recovery of the push already landed finishes it on a later tick under its own mark, with no second notice or event
-  (next bullet).
+  checkout's own head, the local base ref it counts against, and the configuration. Every reading is taken, the checkout
+  read whatever the remote branch's reading came to and the records compared on their own, whatever the proof before
+  them could read: the first that establishes movement and the first that holds the route are answered side by side, so
+  a reading nobody could take never hides movement another reading took -- movement only the unread reading would have
+  shown is established by nothing, and holds for another proof. A captured transaction's proof that stops at a pull
+  request nobody could read is answered beside the records the comment it read carries
+  (`verification_proof.recorded_verdict`: the review subject, the settled report pair -- the current report readable and
+  its handoff describing it -- and that report named by the subject) the same way. A remote branch or checkout read off
+  the landed head, a remote branch nobody could read or a checkout whose head would not prove, or a base gone elsewhere
+  or unreadable, holds the route; moved requirements, review subject, settled report, or configuration, or a base no
+  longer the recorded tip, refuse the transaction the route would carry, and the head goes to the fresh reviewer.
+  Wherever any reading establishes movement -- the captured transaction's own proof refusing it, those refusals, a
+  landing read off its head, or a base read elsewhere -- the transaction is abandoned unrun in its own write, staged on
+  the comment read afresh and committed guarded by that reading, so a review, report, or approval another road wrote
+  meanwhile neither refuses it nor is written over -- only a carry's own approval goes with it -- and no later route
+  takes the transaction, not even once everything is back where it was; only readings nobody could take, an unproved
+  checkout head among them, leave it to be proved again. A comment with no room for the abandonment takes a write that
+  only shrinks it instead: the transaction is dropped -- nothing was posted under it while the anchor stood, and the
+  revision floor keeps its revision -- and the attempt's recorded base tip is blanked, so every later reading of the
+  base proves nothing and no finish of the attempt runs the commands again or routes over it. The landing is read for
+  every route that carries or follows a recorded decision or ran the configured commands; a fresh decision that ran and
+  recorded nothing is held to the base alone. Two remote readings cannot be taken at one instant, and the route's own
+  writes behind the last word are not read past: what moves there is guarded by the retirement's prerequisites and
+  proved again by the reconciliation before anything settles; the recovery of the push already landed finishes it on a
+  later tick under its own mark, with no second notice or event (next bullet).
 - **Base-rewrite evidence, recovered**: a tick that died behind an accepted rewrite push leaves the attempt standing,
   and the recovery of the push already landed (`workflow/engine/rewrite_landed.py`) proves the landing again -- the
   attempt's record naming the head, the remote and the checkout agreeing on it, the transfer accounted for -- and hands
@@ -1411,7 +1412,9 @@ because there it is the claim that this stage has already rerouted rather than a
   a finish whose route that abandonment stopped short of is followed by one that decides nothing afresh and runs nothing
   again. A report or review subject another road recorded while the proof ran is read by the last word behind it, which
   abandons the transaction; one recorded after the last word refuses the route, since the retirement behind it is
-  decided on every record the transaction is bound through, and the next recovery proves the transaction against it. A
+  decided on every record the transaction is bound through, and the last word asked once more behind that refusal --
+  as behind a checkpoint the comment refuses -- reads it moved and abandons the transaction, so putting the record back
+  before the next recovery revives nothing. A
   head the base advanced past again is not routed: a transaction recorded for it is abandoned in a write of its own,
   staged on the comment read afresh so another road's approval neither refuses it nor is written over, before the
   attempt retires (a failure notice recorded for it is cleared by that retirement), and the tick's rebase

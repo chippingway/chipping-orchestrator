@@ -29,7 +29,8 @@ the network first -- the remote branch the head landed on, the base, and,
 over the issue and pinned comment fetched once more, the issue's requirements
 and the review and report records the transaction is bound to -- and then the
 readings no request answers, behind every one that did: the checkout's own
-head and the configuration. The remote branch and the checkout are two
+head, the local base ref it counts against, and the configuration. The remote
+branch and the checkout are two
 readings, the checkout read whatever the remote's came to, and the records are
 compared on their own, whatever the proof before them could read. Every
 reading is taken, and the last word answers with the first that establishes
@@ -68,8 +69,14 @@ the attempt recorded its replay as made onto
   the last word's caller abandons a transaction the route would carry besides
   (`rewrite_finish_captured.stands_before_the_route`); an unread base proves
   no movement and leaves it to be proved again.
-- A counted base that is not the recorded tip -- rewound or repointed under
-  the head after the rebase -- DEFERS, and so does an attempt that recorded no
+- The head is counted afresh against the local base ref, whatever the reading
+  the candidate was prepared with said, since that ref lives in a store the
+  worktree can write. A count whose tip is not the recorded one and that the
+  head is behind is a base advanced past it, which HOLDS as a base gone
+  elsewhere does (`BASE_MOVED`).
+- A counted base that is not the recorded tip and that the head is not behind
+  -- rewound or repointed under the head after the rebase -- DEFERS, and so
+  does an attempt that recorded no
   tip at all, since nothing then proves which base the head was replayed
   onto. No later tick changes either answer, so the decision is refused for
   good: nothing is run or recorded for the head, a captured decision is
@@ -268,19 +275,19 @@ def _answers_locally(
     """The readings no request answers, behind every one that did -- the checkout's own head, the configuration.
 
     Then every verdict in its order, None for each reading that refused
-    nothing: the remote branch, the checkout, the base, the requirements and
-    the records, the configuration.
+    nothing: the remote branch, the checkout and the local base it counts
+    against, the base, the requirements and the records, the configuration.
     """
     remote, asked = heard
-    landed = _landing_refusals(finish, remote) if landing else (None, None)
+    landed = _landing_refusals(finish, remote) if landing else (None, None, None)
     reconfigured = binding is not None and binding.context_revision != _proof.configured_context_revision()
     return *landed, *asked, _RECONFIGURED if reconfigured else None
 
 
 def _landing_refusals(
     finish: LandedFinish, remote: str | None,
-) -> tuple[_evidence_models.ReportEvidence | None, _evidence_models.ReportEvidence | None]:
-    """The remote branch, as heard, and the checkout, read now, each against the landed head.
+) -> tuple[_evidence_models.ReportEvidence | None, ...]:
+    """The remote branch, as heard, and the checkout, read now, each against the landed head; and the local base.
 
     Two readings, each refused on its own: a remote branch nobody could read
     says nothing about the checkout, which is read whatever the branch's
@@ -288,18 +295,26 @@ def _landing_refusals(
     reading that did not happen -- the branch unread, or a checkout head the
     proof could not name, which reads as "" -- holds without establishing
     movement, as the evidence policy holds a reading nobody took; only a head
-    read somewhere else is the landing left.
+    read somewhere else is the landing left. The checkout's reading counts
+    against the local base ref as it reads now too, behind every request, and
+    a base that reads as another tip than the one the attempt recorded its
+    replay made onto has moved: advanced past the head (`BASE_MOVED`), or
+    rewound or repointed under it (`_BaseStanding.DROPPED`).
     """
-    checkout = _rewrite_facts._reads_the_checkout(
+    reading = _rewrite_facts._reads_the_checkout(
         finish.spec, _worktree_paths._worktree_path(finish.spec, finish.issue.number),
-    ).head
+    )
+    onto = _attempt_records._recorded_onto(finish.state)
+    base = None
+    if onto and reading.base.readable and reading.base.tip != onto:
+        base = BASE_MOVED if reading.base.behind else _REFUSALS[_BaseStanding.DROPPED]
     if remote is None:
         branch = _UNREAD_REMOTE
     else:
         branch = None if remote == finish.head else LEFT_THE_LANDING
-    if not checkout:
-        return branch, _UNREAD_CHECKOUT
-    return branch, None if checkout == finish.head else LEFT_THE_LANDING
+    if not reading.head:
+        return branch, _UNREAD_CHECKOUT, base
+    return branch, None if reading.head == finish.head else LEFT_THE_LANDING, base
 
 
 def _reads_again(finish: LandedFinish) -> tuple[Issue, PinnedState] | None:

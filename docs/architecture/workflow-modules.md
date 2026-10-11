@@ -1235,8 +1235,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that notice beside the attempt, decided on the attempt, the park's flags, the round, the
                             claim, and every record the evidence is bound through, so a report or review moved after
                             the evidence was decided -- a captured record proved over the tick's reading included --
-                            refuses the route; and the debt park, decided on what the checkpoint is and prepared
-                            before its notice is posted
+                            refuses the route, behind the last word asked again (`rewrite_finish.py`), which abandons
+                            a transaction the move falls under; and the debt park, decided on what the checkpoint is
+                            and prepared before its notice is posted
     rewrite_evidence.py     the evidence policy for a landed rewrite's head, handed the finish's input and writing
                             nothing; the finish's evidence step (`rewrite_finish_evidence.py`) asks it for every head
                             it routes, and asks whether the current evidence is invalidated (`invalidates_current`)
@@ -1276,7 +1277,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `last_word` reads everything that moves again once nothing else is left to request, the
                             network first -- the remote branch the head landed on, the base, and, over the issue and
                             pinned comment fetched once more, the requirements and those review and report records,
-                            compared on their own -- and then the checkout's own head and the configuration,
+                            compared on their own -- and then the checkout's own head, the local base ref it counts
+                            against, and the configuration,
                             which no request answers, the checkout read whatever the remote's reading came to --
                             every reading taken, the first that establishes movement and
                             the first that holds answered side by side, so an unread reading masks no movement

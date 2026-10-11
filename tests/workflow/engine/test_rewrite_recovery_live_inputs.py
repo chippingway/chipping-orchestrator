@@ -45,6 +45,8 @@ _REREAD = "reread_report_location"
 
 _REMOTE_READ = "_remote_branch_read"
 
+_UPDATE_REF = "update-ref"
+
 _STRAY_COMMIT = (
     "-c", "user.name=stray", "-c", "user.email=stray@example.invalid",
     "commit", _QUIET, "--allow-empty", "-m", "stray",
@@ -56,6 +58,11 @@ _MID_PROOF_MOVES = (
     ("the issue body was edited", lambda case: setattr(case.issue, "body", _EDITED_BODY), True),
     ("another command was configured", lambda case: case.configures("echo another"), True),
     ("the checkout committed past the head", lambda case: case._git(*_STRAY_COMMIT, cwd=case._wt), False),
+    (
+        "the local base ref was rewound under the head",
+        lambda case: case._git(_UPDATE_REF, f"refs/remotes/origin/{_MAIN}", f"{case.anchor}^", cwd=case._wt),
+        True,
+    ),
 )
 
 # The requests a recovery's proof of a captured run, and the last word behind
@@ -117,15 +124,16 @@ class LiveInputsRecoveryTest(support.VerificationRecoveryCase, unittest.TestCase
 
         self.assert_held(None)
         self._assert_abandoned(captured)
-        self._git("update-ref", f"refs/heads/{_MAIN}", onto, cwd=self._remote)
+        self._git(_UPDATE_REF, f"refs/heads/{_MAIN}", onto, cwd=self._remote)
         self.recovers()
         self._assert_abandoned(captured)
         self.assert_recovered(head)
 
     def test_a_move_around_the_proof_abandons(self) -> None:
         # The issue -- a snapshot, as a fetched issue is -- the configuration,
-        # or the checkout moves while the proof re-reads the settled report,
-        # or while the last word behind it reads the base again. Each is read
+        # the checkout, or the local base ref it counts against moves while
+        # the proof re-reads the settled report, or while the last word behind
+        # it reads the base again. Each is read
         # once more behind every request, so the run is abandoned unrun: the
         # head goes to the reviewer, unless the landing itself moved, which
         # holds it with nothing routed.
@@ -152,7 +160,7 @@ class LiveInputsRecoveryTest(support.VerificationRecoveryCase, unittest.TestCase
         head, captured = _captures(self)
         carried = self._git("rev-list", "--count", f"origin/{_MAIN}..{head}", cwd=self._wt)
         self.assertEqual(int(carried), 1)
-        self._git("update-ref", f"refs/heads/{_MAIN}", rewound, cwd=self._remote)
+        self._git(_UPDATE_REF, f"refs/heads/{_MAIN}", rewound, cwd=self._remote)
 
         self.recovers()
 

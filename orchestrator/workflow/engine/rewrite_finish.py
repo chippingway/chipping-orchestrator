@@ -67,8 +67,11 @@ move refuses stops the finish there with nothing behind it made:
   tick lost between them back, to the mark this finish left and the evidence
   it recorded. It is decided on every record the evidence is bound through,
   so a report or review another road moved after the evidence was decided
-  refuses the route rather than riding it. An issue already on `workflow:validating` under its own mark
-  is not relabelled again.
+  refuses the route rather than riding it -- behind the last word asked once
+  more, which abandons a transaction the route would carry that the move
+  falls under (`rewrite_finish_captured.stands_before_the_route`), as it is
+  behind a checkpoint the comment refuses. An issue already on
+  `workflow:validating` under its own mark is not relabelled again.
 
 Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
@@ -102,6 +105,7 @@ from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     report_rewrite_debt as _rewrite_debt,
+    rewrite_finish_captured as _captured,
     rewrite_finish_debt as _debt,
     rewrite_finish_evidence as _evidence,
     rewrite_finish_notices as _notices,
@@ -127,7 +131,7 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     announced = _attempts._already_announced(finish.state, finish.head)
     stopped = _checkpoints(finish, announced=announced)
     if stopped is not None:
-        return stopped
+        return _captured.stands_before_the_route(finish, behind=stopped)
     headed = _decides_the_route(finish)
     if headed not in _HEADED:
         return headed
@@ -274,20 +278,24 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
 
     The retirement is prepared before the relabel and lands behind it, so a
     relabel is made only for a write that would follow it, and the anchor
-    stands until the route is behind it.
+    stands until the route is behind it. A retirement the comment refuses --
+    a review or report record another road moved since the last word read it
+    among the reasons -- stops the route behind the last word asked once more
+    (`rewrite_finish_captured.stands_before_the_route`), so a transaction the
+    route would carry that something moved under is abandoned there rather
+    than left for a later route once the record moves back.
     """
     staged = _writes.retirement(finish)
     stopped = _writes.prepares(finish, staged, _writes.FINISH)
+    if stopped is None:
+        relabels = headed is FinishOutcome.ROUTED and not (
+            announced and finish.label == WorkflowLabel.VALIDATING
+        )
+        if relabels:
+            finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
+        stopped = _writes.lands(finish, staged, _writes.FINISH)
     if stopped is not None:
-        return stopped
-    relabels = headed is FinishOutcome.ROUTED and not (
-        announced and finish.label == WorkflowLabel.VALIDATING
-    )
-    if relabels:
-        finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
-    stopped = _writes.lands(finish, staged, _writes.FINISH)
-    if stopped is not None:
-        return stopped
+        return _captured.stands_before_the_route(finish, behind=stopped)
     log.info(
         "issue=#%d finished the base rewrite PR #%d landed on %.8s: %s",
         finish.issue.number, finish.pr_number, finish.head, headed.value,

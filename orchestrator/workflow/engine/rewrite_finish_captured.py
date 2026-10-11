@@ -29,8 +29,9 @@ record that proves is held once more to the last word behind every request
 they moved while the proof ran, and then routed only while the comment still
 carries every record it is bound through: the retirement behind the route is
 decided on them (`rewrite_finish_writes.FINISH`), so a review that moved after
-the last word refuses the route, and the next finish proves the record against
-it.
+the last word refuses the route -- and the last word, asked once more behind
+that refusal, reads it moved and abandons the record, so putting the review
+back before the next finish revives nothing.
 
 An abandoned record stays this landing's captured run (`retired`): it is in
 the evidence history with its whole binding, so a finish whose route the
@@ -175,9 +176,12 @@ def stands_before_the_route(
     a recorded decision or ran the configured commands, `landing` False
     sparing only a fresh decision that ran nothing and recorded nothing.
     `behind` is where the route already stopped -- a write that did not land,
-    a hold for want of room, a failure notice nobody could confirm -- and is
-    the answer whatever this reads: the last word is asked all the same, so a
-    captured transaction something moved under is abandoned behind any stop.
+    the retirement's or the checkpoint's among them, a hold for want of room,
+    a failure notice nobody could confirm -- and is the answer whatever this
+    reads: the last word is asked all the same over a transaction still
+    recorded for the head, so one something moved under is abandoned behind
+    any stop rather than left for a later route once the record moves back.
+    With none recorded, a stop has nothing to abandon and nothing is read.
 
     Every reading is taken, and none nobody could take hides one that read
     movement. Any that establishes
@@ -192,6 +196,8 @@ def stands_before_the_route(
     tick to prove again. Nothing runs again.
     """
     pending = recorded(finish, logged=False)
+    if pending is None and behind is not None:
+        return behind
     moved, held = last_word(
         finish,
         None if pending is None else pending.binding,

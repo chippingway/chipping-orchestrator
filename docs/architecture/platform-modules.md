@@ -635,11 +635,11 @@ orchestrator/
                         so it no longer contains the tip the replay sits over, or a remote off the anchor --
                         already on the candidate included, which excuses none of the others -- refuses, while a
                         base that only advanced does not. For a landed head it also answers whether the head
-                        still stands on its base (`_standing_on_the_remote_base`), by identity: the base it was
-                        counted against has to be the tip the attempt recorded its replay as made onto, and the
-                        remote's base, read without a fetch, still there -- standing, moved since it was counted,
-                        dropped by a base rewound or repointed under it, unproven where no tip was recorded, or
-                        unread
+                        still stands on its base (`_standing_on_the_remote_base`), by identity: the head counted
+                        afresh against the local base ref has to find the tip the attempt recorded its replay as
+                        made onto, and the remote's base, read without a fetch, still there -- standing, moved
+                        since it was counted (the remote's elsewhere, or a local base the head is behind), dropped
+                        by a base rewound or repointed under it, unproven where no tip was recorded, or unread
       rewrite_transport.py
                         publishes exactly the candidate's rewritten head, leased to its original one, through the
                         branch transport once that fresh reading refuses nothing, so a publication that landed is

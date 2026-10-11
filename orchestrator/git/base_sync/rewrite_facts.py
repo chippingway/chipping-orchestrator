@@ -106,22 +106,27 @@ def _standing_on_the_remote_base(
     Asked of a landing whose push is already out, by the evidence policy
     before it records or routes anything over it
     (`workflow/engine/rewrite_evidence_proof.py`). Proved by identity rather than inferred from
-    counts: the base the head was counted against has to BE the tip the
+    counts: the base the head is counted against has to BE the tip the
     rebase used, since a base rewound or repointed under the head leaves it
     level with a commit it was never replayed onto, whatever the commits over
-    it look like. Then the remote is asked, without a fetch, whether its base
-    is still there -- only it can say the base went elsewhere after the head
-    was counted, while commands ran or a proof's requests were answered -- so
-    the shared ref every other worktree counts from is left as the tick's own
-    fetch set it. An attempt that recorded no tip proves nothing.
+    it look like. That count is taken afresh off the local base ref rather
+    than off the reading the candidate was prepared with, since the ref lives
+    in a store the worktree can write and may have moved since: one the head
+    is behind has advanced past it, which is the base moving (MOVED), and one
+    it is not behind was rewound or repointed under it (DROPPED). Then the
+    remote is asked, without a fetch, whether its base is still there -- only
+    it can say the base went elsewhere after the head was counted, while
+    commands ran or a proof's requests were answered -- so the shared ref
+    every other worktree counts from is left as the tick's own fetch set it.
+    An attempt that recorded no tip proves nothing, and is answered first.
     """
-    counted = candidate.checkout.base
-    if not counted.readable:
-        return _BaseStanding.UNREAD
     if not onto:
         return _BaseStanding.UNPROVEN
+    counted = _standing_on_the_base(spec, worktree, candidate.rewritten_head)
+    if not counted.readable:
+        return _BaseStanding.UNREAD
     if counted.tip != onto:
-        return _BaseStanding.DROPPED
+        return _BaseStanding.MOVED if counted.behind else _BaseStanding.DROPPED
     remote = branch_transport._remote_branch_read(spec, worktree, spec.base_branch).sha
     if remote is None:
         return _BaseStanding.UNREAD
