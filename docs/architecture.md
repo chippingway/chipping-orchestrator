@@ -927,7 +927,9 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   current evidence the rewrite moved past invalidated into history,
   and a fresh run or a proved carry recorded as the evidence transaction's pending record, which the finish then
   publishes and settles itself, through the reconciliation's own answer, with the attempt still standing, its proof
-  held to the base and the configuration read again behind its requests, and every write it makes decided on the
+  held to the base, and the anchor's landing and base, the issue's requirements, and the configuration read again
+  behind every request ahead of the post and of the settlement (`workflow/engine/verification_unguarded.py`), the
+  artifact re-read behind the settlement's whole proof, and every write it makes decided on the
   attempt too, so a replacement attempt refuses them (`workflow/engine/rewrite_finish_settlement.py`) -- or nothing
   recorded, and the fresh
   reviewer owes the evidence, a failed run's notice recorded first and put on the pull request once
@@ -942,7 +944,11 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   it says otherwise -- and abandons it
   unrun, then or after, where something it is bound to -- or the base -- moved
   since: refused for good, its base tip blanked, where the comment has no room
-  (`workflow/engine/rewrite_finish_captured.py`). The recovery abandons it the same way where its snapshot reads the
+  (`workflow/engine/rewrite_finish_captured.py`). Which run is that captured one is the receipt the finish puts on
+  the attempt in the write that records it (`pending_auto_base_rebase_evidence_receipt`), since no announcement mark
+  is down yet; it outlives the bounded evidence history, so a run records another road wrote pushed out of it is
+  still never run again, and any other pending transaction is that road's, kept as written. The recovery abandons
+  the captured run the same way where its snapshot reads the
   landing on another head, or its reset takes the checkout off it (`workflow/engine/rewrite_landing_moved.py`), the
   git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
   park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). It runs under
