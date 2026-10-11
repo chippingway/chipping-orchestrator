@@ -1248,11 +1248,12 @@ off a facade:
   after eligibility and the injected guards on `maintenance_guards`. The workflow layer is never imported here.
   `runtime/artifacts.py` schedules the pass, takes the scheduler hold, and injects those guards; through
   `runtime/exclusion.py`, it claims the host against processes no scheduler hold can see.
-- `base_sync/` — `models` and `state` carry only data. On the sync side the workflow's refresh calls
-  `refresh_selection` before `pre_pr` and its base-rewrite coordinator, `refresh_selection` asks `frozen` alone, the
-  coordinator asks `eligibility` and `startup` in that order and hands a clean rebase to the workflow's publication,
-  which reads its candidate through `rewrite_facts`, pushes it through `rewrite_transport`, records its replay through
-  `attempts`, and ends an attempt it refuses through `guards`, which ends in `persistence`.
+- `base_sync/` — `models` and `state` carry only data, save the optional answer a recovery context may hold for its
+  reset (`settles_over_a_reset`), which `persistence` calls before it drops the attempt. On the sync side the workflow's
+  refresh calls `refresh_selection` before `pre_pr` and its base-rewrite coordinator, `refresh_selection` asks `frozen`
+  alone, the coordinator asks `eligibility` and `startup` in that order and hands a clean rebase to the workflow's
+  publication, which reads its candidate through `rewrite_facts`, pushes it through `rewrite_transport`, records its
+  replay through `attempts`, and ends an attempt it refuses through `guards`, which ends in `persistence`.
   On the recovery side the workflow's recovery coordinator resumes the attempt in the context `recovery` binds, and
   asks `replay_cleanup` before comparison, `snapshot` and `transfers` for the comparison, and `replay_refusals` and
   `replay_evidence` before its retry. Those refusal owners separate checkout rollback, publication identity, and
@@ -1274,6 +1275,7 @@ off a facade:
   as well; `rewrite_facts` reads it through the verification, measurement, and publication probes and the branch
   transport, and `rewrite_transport` publishes or observes it through `rewrite_facts` and the branch transport. Only
   `recovery_push` calls one of the three, to read a recovery's candidate: the workflow's publication, retry, and
-  recovery of a landed push read, publish, and observe through them. The keyword-call adapter here
-  — the conflict route — like the PR sync on the workflow's coordinator, still takes the argument list its caller
-  spells and normalizes it into the typed context entry point beside it.
+  recovery of a landed push read, publish, and observe through them, and its dormant evidence proof
+  (`workflow/engine/rewrite_evidence_proof.py`) reads a landed head's base standing through `rewrite_facts`. The
+  keyword-call adapter here — the conflict route — like the PR sync on the workflow's coordinator, still takes the
+  argument list its caller spells and normalizes it into the typed context entry point beside it.
