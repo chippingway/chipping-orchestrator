@@ -68,8 +68,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             The shared redactor runs over the RAW stderr before either trim, since a secret sliced
                             by the cut survives as a fragment the redactor no longer matches, and that fragment is
                             what leaks; the same ordering puts it ahead of the `rstrip`, so a multi-line env value
-                            ending in a newline still matches verbatim. The block is quoted through
-                            `messages.py`'s blockquote, so it reads as the last-message body it is appended under
+                            ending in a newline still matches verbatim. A Codex usage-limit stop gets a block of
+                            its own -- the reset the provider named, then its message -- redacted whole before a
+                            1KB budget cuts the message, the reset read off that redacted text under a budget of
+                            its own. Each block is quoted through `messages.py`'s blockquote, so it reads as the
+                            last-message body it is appended under
     comments.py             the orchestrator marker, bound from the GitHub trust owner, and the bounded id ledger
                             shared by issue and pull-request comment posts; a developer report enters the ledger on
                             whichever reading finds it on the thread, since a post whose response was lost hands
@@ -3972,6 +3975,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             cleared it -- and about the note a deferral left, which that round discharges -- and the
                             verdict fan-out: a timeout or a missing verdict parks with the run's return recorded by the
                             park's own guarded commit, prepared before its notice (`review_writes.parks_the_return`),
+                            and so, behind the timeout and ahead of any VERDICT parse, does a Codex reviewer whose
+                            last turn failed on the account's usage limit (`reviewer_usage_limit`, read off its
+                            JSONL stream by `provider_failures.codex_usage_limit_failure`), its notice naming the
+                            limit, the provider's reset, and the trusted `/orchestrator continue` that retries it,
                             and an approval or a change request goes to `review_disposition.py`, which
                             records that return over its own last reading, so the usage is folded once. The developer
                             report is resolved through `review_report.py` ahead of the spawn and the subject it yields
@@ -4944,7 +4951,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             grouping of the reviewer-side parks whose reply buys a fresh reviewer and that the
                             drift check stands down for, `reviewer_unverified`, `reviewer_unrecorded`, and
                             `reviewer_usage_limit` among them, none of which retries itself, the last answered
-                            only by `/orchestrator continue` and set by no road yet -- including the
+                            only by `/orchestrator continue` and set by a Codex reviewer its usage limit stopped
+                            (`reviewer.py`) -- including the
                             three that outlive their own tick: the claim that a requirements edit this stage's
                             resume ended without answering is still outstanding, the note left for a reviewer
                             round still owed -- the park it was written beside is gone before that round runs

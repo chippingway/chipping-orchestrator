@@ -44,7 +44,11 @@ whose failure it was. An empty last message with a non-zero exit is a crash,
 and a message that opens with a transient provider refusal is an outage
 wearing the reviewer's output slot; both are tagged transient so the next tick
 re-spawns the reviewer -- waking the dev on a human "retry" would hand the
-wrong agent a prompt with no review in it. Real text that merely omitted the
+wrong agent a prompt with no review in it. A Codex run its account's usage
+limit stopped has the crash's shape and never arrives here: the reviewer's
+dispatch parks it under `reviewer_usage_limit` before any VERDICT is parsed,
+since retrying it on the next tick would only spend a launch on a quota
+nothing says has reset. Real text that merely omitted the
 marker is left for a human, and the stderr tail is suppressed there because
 the human is already reading model output. Unknown-verdict and reviewer-failure
 parks forward typed correlation fields (`agent_role`, `session_id`,
@@ -120,7 +124,9 @@ def _reviewer_no_verdict_park(review) -> tuple[str, str]:
     adjudication. Both are `reviewer_failed`, so the next tick's
     transient-recovery branch re-spawns the reviewer rather than waking the dev
     on a human "Retry" comment -- `_resume_developer_on_human_reply` would
-    otherwise hand the wrong agent a do-nothing prompt.
+    otherwise hand the wrong agent a do-nothing prompt. A Codex run its usage
+    limit stopped is no crash for this split to read: the dispatch parks it
+    under `reviewer_usage_limit` before the verdict is parsed.
 
     A reviewer that emitted real text and merely omitted the VERDICT line is
     the one park a human has to read, and it stays `reviewer_no_verdict`.
