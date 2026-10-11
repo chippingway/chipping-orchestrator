@@ -35,13 +35,16 @@ that park clears itself once the branch reads level, and the debt behind it
 would put the refresh straight back out on the next tick, one timeout after
 another.
 
-Everything else a finished run can leave -- a question, a silent exit, a quota
-stop, a provider refusal, an unfinished command -- is an agent failure, and
-takes the park that failure always takes (`implementing/parks.py`), so the
+Everything else a finished run can leave -- a question, a silent exit, a
+provider refusal, an unfinished command -- is an agent failure, and takes the
+park that failure always takes (`implementing/parks.py`), so the
 session-rotation streak and `/orchestrator continue` behave exactly as on
-every other developer road. An unfinished command is read ahead of the message:
-a run whose tool step was still active when it ended -- what the AGY recovery
-behind the resume hands back once its one retry is spent -- verified nothing it
+every other developer road. A quota stop takes it too, and is asked ahead of
+the checkout and the timeout alike, since either refusal would name neither
+the quota nor its reset and refuse the bare continue that retries the run.
+An unfinished command is read ahead of the message: a run whose tool step
+was still active when it ended -- what the AGY recovery behind the resume
+hands back once its one retry is spent -- verified nothing it
 claims, so a report block it wrote is no report, and it parks as the execution
 failure it is rather than being published and settled. The debt of the report rides that park as
 `developer_report_owed`, and that is what makes the reply to it a report

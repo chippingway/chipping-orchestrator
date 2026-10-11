@@ -3987,12 +3987,16 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        ([base refresh](labels-and-state.md#base-refresh)), so it settles about the head it was written for, and a
        base that moved meanwhile is rebased onto behind it, leaving a debt of its own. A head somebody pushed or an
        edit made while the agent was out records nothing and parks nothing: the reviewer road refuses a head the
-       claim no longer explains, and the drift resume answers the edit. A run
+       claim no longer explains, and the drift resume answers the edit. A run an account quota stopped is read
+       ahead of every refusal below, whether or not its clock ran out and whatever its checkout reads as: it takes
+       the session limit `_on_question` classifies (route `report_refresh`), whose bare continue the
+       `report_undeliverable` park would refuse, with a commit it left off the head still recorded as
+       `developer_report_unreported_work` and loose work left in the checkout. Otherwise a run
        that committed (recorded `developer_report_unreported_work`) or left loose work, one that timed out, one
        that ended on `REPORT: VERIFIED` instead of writing a report, and one whose `REPORT: READY` cannot be recorded
        -- its notice naming the refusal, as the implementing seam's does -- park once under `report_undeliverable`;
        every
-       other finished run with no report -- a question, a silent exit, a quota stop, a provider refusal, an unfinished
+       other finished run with no report -- a question, a silent exit, a provider refusal, an unfinished
        command -- takes the agent-failure park `_on_question` classifies (route `report_refresh`). A run that ended
        with a tool step still active, which is what the AGY recovery behind the resume hands back once its one retry
        is spent, is read as that unfinished command ahead of its message, so a `REPORT: READY` block it wrote parks
