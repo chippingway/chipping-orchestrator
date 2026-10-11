@@ -459,8 +459,9 @@ orchestrator/
                         the provider message verbatim (unredacted and unbounded, for its consumer to redact
                         and bound) and the reset time as phrased: a `usage_limit_exceeded` code on the
                         closing turn's error decides it, any other code rules it out, and a code-less error
-                        falls back to the provider's opening words only beside a non-zero exit. No workflow
-                        stage asks it yet
+                        falls back to the provider's opening words only beside a non-zero exit. The
+                        validating reviewer dispatch asks it ahead of the VERDICT parse and parks the stop
+                        under `reviewer_usage_limit` (`workflow/stages/validating/reviewer.py`)
     process_groups.py   what a child started into its own process group costs to tear down, apart from any
                         record of which ones are in flight: the bounded drain that reports a pipe a descendant
                         still holds open rather than blocking on it, the `killpg(_, 0)` probe that answers
