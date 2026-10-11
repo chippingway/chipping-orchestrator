@@ -10,14 +10,14 @@ evidence write whose answer was lost, and one the comment had no room for each
 hold the route instead: nothing relabelled, the attempt standing. The next
 finish -- the recovery of the push it finds standing -- decides over the
 comment as it then reads, and repeats neither the announcement nor a record
-an earlier finish already made, while still invalidating evidence a context
-moved since then no longer lets stand -- and abandoning a recorded carry that
-moved context refuses, with nothing run again.
+an earlier finish already made, settling that record before its route, while
+still invalidating evidence a context moved since then no longer lets stand --
+and abandoning a recorded carry that moved context refuses, with nothing run
+again and its artifact, posted with its answer lost, never settled.
 """
 from __future__ import annotations
 
 import unittest
-from functools import partial
 from itertools import product
 from unittest.mock import patch
 
@@ -33,7 +33,6 @@ from tests.workflow.engine import (
     verification_evidence_test_support as support,
     verification_world_fixture as _world,
 )
-from tests.workflow.interleaving import _RacesPastTheStep
 
 REBASED = support.REBASED_SHA
 
@@ -114,8 +113,9 @@ class MovedDuringVerificationTest(unittest.TestCase, finish_support.RewriteFinis
     def test_a_moved_result_is_refused(self) -> None:
         # Passing or failing, the run is no evidence of the rebased head:
         # nothing is recorded or posted as a failure, and the replaced head's
-        # evidence is invalidated. The head goes to the fresh reviewer, unless
-        # the landing itself moved, which holds it for the next tick.
+        # evidence is invalidated. The head is announced and goes to the fresh
+        # reviewer, unless the landing itself moved, which holds it for the
+        # next tick with nothing announced.
         for moved, moves_it, outcome in _MOVES:
             for exit_status in (0, rewrite_support.FAILED_EXIT):
                 with self.subTest(moved=moved, exit_status=exit_status):
@@ -123,8 +123,9 @@ class MovedDuringVerificationTest(unittest.TestCase, finish_support.RewriteFinis
 
                     self.assertEqual(self.finishes(REBASED), outcome)
 
+                    announced = int(outcome is FinishOutcome.ROUTED)
                     self.assertEqual(readings.pinned_records(self), (None, None, self.invalidated()))
-                    self.assertEqual(len(readings.notices(self)), 1)
+                    self.assertEqual(len(readings.notices(self)), announced)
 
     def test_a_context_moved_meanwhile_invalidates(self) -> None:
         # The squash leaves the tested tree, but the settled artifact was
@@ -153,8 +154,9 @@ class MovedDuringVerificationTest(unittest.TestCase, finish_support.RewriteFinis
         # A later report settles and is reviewed while the commands run. The
         # result is refused, and so is the write that would invalidate the
         # settled evidence, since records it was decided on moved. The next
-        # finish runs again over the comment as it then reads, records that
-        # run against the later review, and announces nothing a second time.
+        # finish runs again over the comment as it then reads, records and
+        # settles that run against the later review, and announces nothing a
+        # second time.
         self._runs_under(moves.later_review)
 
         self.assertEqual(self.finishes(REBASED), FinishOutcome.REFUSED)
@@ -162,8 +164,8 @@ class MovedDuringVerificationTest(unittest.TestCase, finish_support.RewriteFinis
         self._assert_held()
         self.during = moves.unmoved
         self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.ROUTED)
-        pending = self.at_the_relabel()[0]
-        self.assertEqual(pending.binding.target.subject, readings.pinned(self)["review_subject"])
+        current = self.at_the_relabel()[1]
+        self.assertEqual(current.binding.target.subject, readings.pinned(self)["review_subject"])
         self.assertEqual(
             (len(self.handed), len(readings.notices(self))),
             (2, 1),
@@ -171,8 +173,8 @@ class MovedDuringVerificationTest(unittest.TestCase, finish_support.RewriteFinis
 
     def test_an_unreadable_comment_holds_the_route(self) -> None:
         # The pinned comment would not read again after the run: nothing is
-        # decided, written, or routed. Once it reads, the next finish records a
-        # run of the rebased head and routes it.
+        # decided, written, or routed. Once it reads, the next finish records
+        # and settles a run of the rebased head and routes it.
         self._runs_under(moves.unreadable)
 
         self.assertEqual(self.finishes(REBASED), FinishOutcome.HELD)
@@ -181,8 +183,8 @@ class MovedDuringVerificationTest(unittest.TestCase, finish_support.RewriteFinis
         self._assert_held()
         self.during = moves.unmoved
         self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.ROUTED)
-        pending, _current, retired = self.at_the_relabel()
-        self.assertEqual((pending.binding.tested_sha, retired), (REBASED, self.invalidated()))
+        _pending, current, retired = self.at_the_relabel()
+        self.assertEqual((current.binding.tested_sha, retired), (REBASED, self.invalidated()))
 
     def _runs_under(self, moves_it, exit_status: int = 0) -> None:
         """A fresh case whose rebase onto `REBASED` exits `exit_status` while `moves_it` happens."""
@@ -211,7 +213,8 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
     def test_an_unconfirmed_record_is_made_once(self) -> None:
         # The evidence write lands and its answer is lost: nothing routes. The
         # next finish finds the transaction recorded for the landed head and
-        # routes it, with no second run, revision, or history entry.
+        # settles it before its route, with no second run, revision, or
+        # history entry.
         self.attempts(REBASED)
         self.rewrites(REBASED)
         self.during = moves.loses_answers
@@ -222,12 +225,10 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
         recorded = readings.pinned_records(self)
         self.assertEqual(readings.relabels(self), ())
         self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.ROUTED)
-        self.assertEqual(self.at_the_relabel(), recorded)
+        self._assert_settled_at_the_relabel(recorded)
         floor = readings.pinned(self)[readings.KEY_REVISION_FLOOR]
-        self.assertEqual(
-            (len(self.handed), floor, len(readings.notices(self))),
-            (1, recorded[0].revision, 1),
-        )
+        self.assertEqual(floor, recorded[0].revision)
+        self.assertEqual(len(readings.notices(self)), 1)
 
     def test_an_unprovable_record_holds_the_route(self) -> None:
         # The evidence write lands and its answer is lost. The next finish
@@ -251,10 +252,7 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
             (FinishOutcome.HELD, recorded, ()),
         )
         self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.ROUTED)
-        self.assertEqual(
-            (self.at_the_relabel(), len(self.handed)),
-            (recorded, 1),
-        )
+        self._assert_settled_at_the_relabel(recorded)
 
     def test_a_checkout_moved_beside_an_unread_remote(self) -> None:
         # The evidence write lands and its answer is lost. The next finish's
@@ -288,19 +286,18 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
 
     def test_a_moved_context_abandons_the_carry(self) -> None:
         # The exact tree's carry is recorded and the settled evidence left
-        # current, and the retirement behind the relabel is refused. The
-        # configuration moves before the next finish, which proves the carry
-        # again and finds it refused: the carry is abandoned and the settled
-        # evidence the moved context no longer lets stand invalidated, both
-        # before the route, with nothing run and the reviewer owing evidence.
+        # current, and the post of its artifact loses its answer, so the
+        # route holds with the carry owed. The configuration moves before the
+        # next finish, which proves the carry again and finds it refused: the
+        # carry is abandoned rather than settled over the artifact that
+        # landed, and the settled evidence the moved context no longer lets
+        # stand invalidated, both before the route, with nothing run and the
+        # reviewer owing evidence.
         self.attempts(SQUASHED)
         self.rewrites(SQUASHED)
-        relabel = self.gh.set_workflow_label
-        self.gh.set_workflow_label = _RacesPastTheStep(relabel, partial(finish_support.spends_a_round, self))
+        with patch.object(self.gh.report_failures, "lost", {support.PR_NUMBER}):
+            self.assertEqual(self.finishes(SQUASHED), FinishOutcome.HELD)
 
-        self.assertEqual(self.finishes(SQUASHED), FinishOutcome.REFUSED)
-
-        self.gh.set_workflow_label = relabel
         carried, current, _retired = readings.pinned_records(self)
         self.assertEqual(current.receipt, self.source.receipt)
         with patch.object(config, "VERIFY_COMMANDS", (support.SUITE, rewrite_support.LINT)):
@@ -314,11 +311,13 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
             ([], readings.RETIRED),
         )
 
-    def test_no_room_to_invalidate_holds_the_route(self) -> None:
+    def test_a_full_comment_holds_the_route(self) -> None:
         # The comment fills while the commands run, so the write the decision
-        # was staged for overflows it and is refused. The next finish, over the
-        # full comment, has no room to invalidate the settled evidence and
-        # holds. Once room is made, the one after records and routes.
+        # was staged for overflows it and is refused, with nothing announced.
+        # The next finish, over the full comment, finds no room for the debt
+        # its announcement would carry: it runs and records nothing, and the
+        # park it takes does not fit either. Once room is made, the one after
+        # runs, records, settles, announces, and routes.
         self.attempts(REBASED)
         self.rewrites(REBASED)
         self.during = moves.fills_the_comment
@@ -326,19 +325,28 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
         self.assertEqual(self.finishes(REBASED), FinishOutcome.REFUSED)
 
         self.during = moves.unmoved
-        with self.assertLogs(support.WORKFLOW_LOG, "ERROR") as logged:
-            self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.HELD)
-            self.assertIn("no room to invalidate", support.logged_refusal(logged))
+        self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.REFUSED)
+        retired = readings.pinned_records(self)[2]
         self.assertEqual(
-            (readings.relabels(self), readings.pinned_records(self)[2]),
-            ((), ()),
+            (readings.relabels(self), retired, readings.notices(self)),
+            ((), (), []),
         )
         moves.makes_room(self)
         self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.ROUTED)
-        pending, _current, retired = self.at_the_relabel()
+        _pending, current, retired = self.at_the_relabel()
         self.assertEqual(
-            (pending.binding.tested_sha, retired, len(self.handed)),
-            (REBASED, self.invalidated(), 3),
+            (current.binding.tested_sha, retired, len(self.handed)),
+            (REBASED, self.invalidated(), 2),
+        )
+
+
+    def _assert_settled_at_the_relabel(self, recorded: tuple) -> None:
+        """At the one relabel, the transaction `recorded` names was current, run once, with no new history."""
+        pending, current, retired = self.at_the_relabel()
+        transaction = recorded[0]
+        self.assertEqual(
+            (pending, (current.receipt, current.revision, current.binding), retired, len(self.handed)),
+            (None, (transaction.receipt, transaction.revision, transaction.binding), recorded[2], 1),
         )
 
 

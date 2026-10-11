@@ -3,11 +3,15 @@
 """The evidence a landed automatic base rewrite's head is routed with.
 
 A rebase whose push landed moves the pull request onto a head no verification
-evidence was recorded for, and its finish (`rewrite_finish`) routes that head
-to review between its checkpoint and its route. This owner is the evidence
-policy for that step (`decides`), asked by the finish's evidence step
-(`rewrite_finish_evidence`) for every head it routes, which records what the
-decision requires before anything routes. It reads the landing the finish is
+evidence was recorded for, and its finish (`rewrite_finish`) resolves the
+evidence that head is routed with before it announces the landing -- ahead of
+its checkpoint, its notice and `base_rebased` event, and its route -- with the
+attempt still standing. This owner is the evidence policy for that step
+(`decides`), asked by the finish's evidence step (`rewrite_finish_evidence`)
+for every head it routes, which records what the decision requires -- a
+transaction with its receipt on the attempt -- and has it published and
+settled under the anchor (`rewrite_finish_settlement`) before anything is
+announced or routed. It reads the landing the finish is
 handed (`rewrite_finish_models`) and writes nothing itself; the one staging its
 decision implies is `RewriteEvidence.stages`.
 
@@ -160,7 +164,14 @@ def invalidates_current(finish: LandedFinish) -> bool:
     Equivalence has to be shown rather than assumed: the tree the rewrite
     replaced, the tree it published, and the tree the evidence tested all
     read, and are one, under the context configured now. False where there is
-    no current evidence to invalidate. Asked again by the finish as it stages
+    no current evidence to invalidate. Current evidence that already answers
+    for the landed head -- an earlier finish of this landing settled it --
+    is no rewrite's to move past, and a newer transaction recorded for that
+    head supersedes it once it settles; it is invalidated only where the
+    context configured now is not the one it was taken under, which leaves it
+    answering for nothing a route could carry -- so a newer transaction
+    abandoned over that very move strands no stale evidence behind the
+    revision it spent. Asked again by the finish as it stages
     its write -- behind the commands a decision ran, and of a decision an
     earlier finish made durable -- since the configuration can move in
     between.
@@ -168,9 +179,11 @@ def invalidates_current(finish: LandedFinish) -> bool:
     current = _settlement.read_current_evidence(finish.state)
     if current is None:
         return False
+    context = current.binding.context_revision == _proof.configured_context_revision()
+    if current.binding.target.target_head == finish.head:
+        return not context
     candidate = finish.landed.candidate
     trees = {candidate.original_tree, candidate.checkout.tree, current.binding.tested_tree}
-    context = current.binding.context_revision == _proof.configured_context_revision()
     return not (context and candidate.checkout.tree and len(trees) == 1)
 
 

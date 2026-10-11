@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Whether an issue is live work that verification evidence may be settled for.
 
-Asked twice about one transaction, of two readings of the issue. The
+Asked three times about one transaction, of three readings of the issue. The
 dispatcher's reconciliation asks it of the issue it routed, before anything is
-read or posted; the settlement asks it again of the issue read afresh after
-the artifact is posted, because a post is long enough for a human to close
-the issue, pause it, relabel it `done` or `rejected`, or take its workflow
-label off -- and evidence declared current on an issue somebody has just
-ended or paused is a write the label exists to prevent.
+read or posted; the publication asks it again of the issue read afresh right
+before the post, and the settlement once more of the issue read afresh after
+it (`verification_unguarded.live_issue`), because a proof and a post are each
+long enough for a human to close the issue, pause it, relabel it `done` or
+`rejected`, or take its workflow label off -- and evidence posted or declared
+current on an issue somebody has just ended or paused is a write the label
+exists to prevent.
 
 Every one of those stands aside rather than retiring anything, so a reopen, an
 unpause, or a relabel finds the transaction exactly as it was.

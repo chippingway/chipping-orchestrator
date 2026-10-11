@@ -14,9 +14,9 @@ one policy (`finalizes`), handed over as the typed landing the git layer
 reports (`rewrite_handoffs._LandedRewrite`) beside the issue it finishes
 (`rewrite_finish_models.LandedFinish`).
 
-The policy is the order every finish has always kept, and each step lands
-through a guarded commit (`rewrite_finish_writes`), so a write another road's
-move refuses stops the finish there with nothing behind it made:
+The policy is one order every finish keeps, and each step lands through a
+guarded commit (`rewrite_finish_writes`), so a write another road's move
+refuses stops the finish there with nothing behind it made:
 
 - A landing the pinned record does not account for is finished by nobody: one
   the remote was not shown standing on, a rewrite that moved nothing -- its
@@ -31,50 +31,61 @@ move refuses stops the finish there with nothing behind it made:
   could not be counted: neither its notice nor its route can be decided, so
   the attempt stays for the caller's unreadable-checkout road.
 - The debt is staged and measured on the complete write that announces it
-  (`rewrite_finish_debt`). A proved debt with no room parks
-  `auto_base_rebase_unrecorded_debt` with the push kept and the attempt
-  standing, and nothing is announced or routed; a reply once room is made
-  brings the recovery back to finish it. The park is prepared before its
-  notice, so one whose room another road changed meanwhile -- the round the
-  announcement resets included -- posts nothing.
-- An announcement is prepared over the fresh comment first, its notice's
-  ledger entry reserved over the ledger that comment carries, so a comment
-  that would refuse it posts nothing. Then the notice and the event go out
-  (`rewrite_finish_notices`), and the checkpoint lands the debt, the reset
-  round, and the mark while the anchor still stands. A finish whose mark
-  already names this head repeats neither: it lands only a debt that is new
-  beside it -- one an earlier build's mark never carried -- before its route.
-- The route is decided (`_decides_the_route`). A head the base has advanced
-  past again is not routed: a transaction an earlier finish recorded for it
-  is abandoned, its retirement lands, and the caller's ordinary rebase goes
-  on from it. Any other head's evidence is decided and made durable first
-  (`rewrite_finish_evidence`): the current evidence the rewrite moved past
-  invalidated into history, and a fresh or carried result recorded as a
-  pending transaction, in a guarded commit that lands before anything routes
-  -- or nothing recorded, the fresh reviewer owing the evidence, a failed
-  run's notice recorded and put on the pull request once. A decision nobody
-  could take, an invalidation with no room, an evidence write that did not
-  land, or a failure notice nobody could confirm published holds the route
-  with the attempt standing. The finish that completes it runs the commands
-  again only where no run was captured, and takes what this one recorded
-  only once it proves again: a captured transaction something moved under
-  since -- the base included -- is abandoned, with nothing run again then or
-  after. Every evidence decision is held to the base tip the replay was
-  recorded as made onto once its requests are behind it, so a base that
-  moved meanwhile holds the route too.
+  (`rewrite_finish_debt`), first on the comment as the tick holds it, ahead of
+  anything decided for the head, and again on the comment as the evidence
+  left it. A proved debt with no room parks `auto_base_rebase_unrecorded_debt`
+  with the push kept and the attempt standing, and nothing is run, recorded,
+  announced, or routed; a reply once room is made brings the recovery back to
+  finish it. The park is prepared before its notice, so one whose room another
+  road changed meanwhile -- the round the announcement resets included --
+  posts nothing.
+- The evidence a head the base has not advanced past is routed with is
+  resolved before anything announces it (`_resolves`,
+  `rewrite_finish_settlement.resolves`): the current evidence the rewrite
+  moved past invalidated into history and a fresh or carried result recorded
+  as a pending transaction, in a guarded commit (`rewrite_finish_evidence`),
+  that transaction then published and settled with the anchor still standing,
+  its proof held to the base and its writes to the attempt as well, or
+  retired where anything refuses it -- or nothing recorded, the fresh
+  reviewer owing the evidence, a failed run's notice recorded and put on the
+  pull request once. A decision nobody could take, an invalidation with no
+  room, an evidence write that did not land, a failure notice nobody could
+  confirm published, or a transaction whose post or settlement did not
+  resolve holds the route with nothing announced, the round as it was, and
+  the attempt standing. The finish that completes it runs the commands again
+  only where no run was captured, takes what this one recorded only once it
+  proves again -- a captured transaction something moved under since, the
+  base included, is abandoned, with nothing run again then or after -- finds
+  an artifact this one posted under its receipt rather than posting it again,
+  and settles nothing this one already settled while the records agree that
+  is the last word on the head. Every evidence decision is held to the base
+  tip the replay was recorded as made onto once its requests are behind it,
+  so a base that moved meanwhile holds the route too.
+- Only then is the landing announced: prepared over the fresh comment first,
+  its notice's ledger entry reserved over the ledger that comment carries, so
+  a comment that would refuse it posts nothing; then the notice and the event
+  go out (`rewrite_finish_notices`), and the checkpoint lands the debt, the
+  reset round, and the mark while the anchor still stands. The checkpoint is
+  decided on the evidence records too, so a transaction another road recorded
+  beside the one this finish resolved -- even while the settlement's own
+  answer came back -- refuses it before anything is posted, and the attempt
+  stands for the next finish to answer that transaction. A finish whose
+  mark already names this head repeats neither: it lands only a debt that is
+  new beside it -- one an earlier build's mark never carried -- before its
+  route. A head the base has advanced past again is announced and not routed:
+  a transaction an earlier finish recorded for it is abandoned ahead of that
+  announcement -- an abandonment that does not land holds the continuation
+  with nothing announced, and so does a record another road left unresolved
+  beside the evidence this landing already resolved -- its retirement lands,
+  and the caller's ordinary rebase goes on from it.
 - The write that retires the attempt is prepared before the relabel to
   `workflow:validating`, then lands behind it -- the anchor is what brings a
   tick lost between them back, to the mark this finish left and the evidence
-  it recorded. Between the two, a transaction the route carries is held to
-  the last word once more, so a configuration or anything else that moved
-  while the route was taken abandons it before the anchor that keeps the
-  reconciliation off it goes. The retirement is decided on every record the evidence is bound through,
-  so a report or review another road moved after the evidence was decided
-  refuses the route rather than riding it -- behind the last word asked once
-  more, which abandons a transaction the route would carry that the move
-  falls under (`rewrite_finish_captured.stands_before_the_route`), as it is
-  behind a checkpoint the comment refuses. An issue already on
-  `workflow:validating` under its own mark is not relabelled again.
+  it settled. The retirement is decided on every record the evidence is
+  bound through, so a report or review another road moved after the evidence
+  was decided or settled refuses the route rather than riding it. An issue
+  already on `workflow:validating` under its own mark is not relabelled
+  again.
 
 Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
@@ -110,8 +121,8 @@ from orchestrator.workflow.engine import (
     report_rewrite_debt as _rewrite_debt,
     rewrite_finish_captured as _captured,
     rewrite_finish_debt as _debt,
-    rewrite_finish_evidence as _evidence,
     rewrite_finish_notices as _notices,
+    rewrite_finish_settlement as _settlement,
     rewrite_finish_writes as _writes,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
@@ -119,8 +130,6 @@ from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
-# The routes a decided head is taken on; any other decision is where the finish stopped.
-_HEADED = frozenset((FinishOutcome.ROUTED, FinishOutcome.CONTINUED))
 
 
 def finalizes(finish: LandedFinish) -> FinishOutcome:
@@ -139,12 +148,10 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
         proof = None if captured is None else _captured.proved_again(finish, captured)
         return _captured.stands_before_the_route(finish, proof=proof, behind=FinishOutcome.UNFINISHABLE)
     announced = _attempts._already_announced(finish.state, finish.head)
-    stopped = _checkpoints(finish, announced=announced)
+    stopped = _resolves(finish, announced=announced)
     if stopped is not None:
-        return _captured.stands_before_the_route(finish, behind=stopped)
-    headed = _decides_the_route(finish)
-    if headed not in _HEADED:
-        return headed
+        return stopped
+    headed = FinishOutcome.CONTINUED if finish.behind else FinishOutcome.ROUTED
     return _routes(finish, headed, announced=announced)
 
 
@@ -233,7 +240,10 @@ def _vouched(finish: LandedFinish) -> bool:
 def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     """Make the debt durable, and announce the landing where nothing has yet; None to go on to the route.
 
-    Measured on the announcement the debt rides, or -- where the mark already
+    Asked once the landed head's evidence is resolved (`_resolves`), so a
+    notice, an event, and a round reset are never made for a head whose
+    evidence is still owed to its pull request. Measured on the announcement
+    the debt rides, or -- where the mark already
     names this head -- on the comment as it stands, and landed there only
     where it is a claim the comment does not carry yet. An announcement is
     prepared over the fresh comment before its notice is posted, the entry
@@ -263,24 +273,30 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     return _writes.lands(finish, staged, _writes.CHECKPOINT)
 
 
-def _decides_the_route(finish: LandedFinish) -> FinishOutcome:
-    """Where the landed head goes once its checkpoint is durable: ROUTED, CONTINUED, or where its evidence stopped it.
+def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
+    """Resolve the landed head's evidence, then make the debt durable and announce; None to go on to the route.
 
-    The post-push, pre-route step, and the one place the evidence a landed
-    head is routed with is decided: asked once the push has landed and the
-    debt and announcement are durable, and before anything moves the label or
-    retires the attempt. A head the base has advanced past is CONTINUED to the
-    caller's next rebase with no evidence decided, since that rebase replaces
-    it and the head it lands is decided then -- a transaction an earlier
-    finish recorded for it abandoned first (`rewrite_finish_evidence.continues`).
-    Every other head is ROUTED to `workflow:validating` only once the evidence
-    it is routed with is durable (`rewrite_finish_evidence.settles`); a
-    decision or write that stopped short of that is the outcome instead, and
-    nothing routes.
+    The evidence comes first (`rewrite_finish_settlement.resolves`): a head
+    the base has not advanced past is announced, its round reset, and its
+    mark written only once the evidence it is routed with is settled, retired,
+    or the fresh reviewer's to owe -- a decision, write, publication, or
+    settlement that stopped short of that is the outcome instead, with
+    nothing announced. A head the base advanced past again decides no
+    evidence, but a transaction an earlier finish recorded for it is
+    abandoned before its continuation is announced
+    (`rewrite_finish_evidence.continues`), and an abandonment that did not
+    land holds it the same way, as does a record another road left unresolved
+    beside the evidence this landing already resolved. A debt the comment has no room for runs and
+    records nothing ahead of the park it takes (`rewrite_finish_debt.fits`).
+    A checkpoint that did not land, or the park, stops the route behind the
+    last word over a transaction still recorded for the head.
     """
-    if finish.behind:
-        return _evidence.continues(finish) or FinishOutcome.CONTINUED
-    return _evidence.settles(finish) or FinishOutcome.ROUTED
+    if _debt.fits(finish, announced=announced):
+        stopped = _settlement.resolves(finish)
+        if stopped is not None:
+            return stopped
+    stopped = _checkpoints(finish, announced=announced)
+    return None if stopped is None else _captured.stands_before_the_route(finish, behind=stopped)
 
 
 def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> FinishOutcome:
@@ -288,34 +304,23 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
 
     The retirement is prepared before the relabel and lands behind it, so a
     relabel is made only for a write that would follow it, and the anchor
-    stands until the route is behind it. A transaction the route would carry
-    is held to the last word once more behind the relabel
-    (`rewrite_finish_captured.stands_before_the_route`), so whatever moved
-    while the route was being taken -- a configuration among it, which no
-    write is decided on -- abandons it before the anchor that keeps the
-    reconciliation off it goes, and the retirement is staged again over what
-    that left. A retirement the comment refuses -- a review or report record
-    another road moved since the last word read it among the reasons -- stops
-    the route behind the last word asked once more, so a transaction the route
-    would carry that something moved under is abandoned there rather than
-    left for a later route once the record moves back -- with the movement the
-    retirement's guard read handed to that word as its proof
-    (`rewrite_finish_writes.prepares`, `lands`), so a record put back before
-    the word reads the comment again is abandoned over all the same.
+    stands until the route is behind it. Nothing recorded for the head is
+    left owed by then: the evidence step settled or retired whatever it
+    recorded (`rewrite_finish_settlement`), so no transaction rides the route
+    for the anchor's retirement to hand to the dispatcher. A retirement the
+    comment refuses -- a review or report record another road moved since the
+    evidence was decided or settled among the reasons -- stops the route with
+    the attempt standing, for the recovery of the push already landed to
+    route the head on a later tick over evidence it settles nothing for again.
     """
-    observed: list = []
-    stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)
-    if stopped is not None:
-        return _captured.stands_before_the_route(finish, proof=next(iter(observed), None), behind=stopped)
-    if headed is FinishOutcome.ROUTED and not (announced and finish.label == WorkflowLabel.VALIDATING):
-        finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
-    if _captured.recorded(finish, logged=False) is not None:
-        stopped = _captured.stands_before_the_route(finish)
+    stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH)
     if stopped is not None:
         return stopped
-    stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH, observed)
+    if headed is FinishOutcome.ROUTED and not (announced and finish.label == WorkflowLabel.VALIDATING):
+        finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
+    stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH)
     if stopped is not None:
-        return _captured.stands_before_the_route(finish, proof=next(iter(observed), None), behind=stopped)
+        return stopped
     log.info(
         "issue=#%d finished the base rewrite PR #%d landed on %.8s: %s",
         finish.issue.number, finish.pr_number, finish.head, headed.value,

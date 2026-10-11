@@ -38,8 +38,6 @@ from orchestrator.workflow.engine import (
     review_subjects,
 )
 from tests.workflow.engine import (
-    rewrite_finish_git_support as git_support,
-    rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
 )
 from tests.workflow.interleaving import _RacesPastTheStep
@@ -151,17 +149,15 @@ class UnreadCheckoutRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         # Whichever reading fails, the route is held for the checkout that
         # could not be read, with the captured run still pending rather than
         # abandoned. Read on the head again, the run -- its transcript, and the
-        # commit and source it was tested on -- is routed exactly as recorded.
+        # commit and source it was tested on -- is settled exactly as recorded
+        # and routed.
         for reading, failing in _UNPROVED_READINGS:
             with self.subTest(reading=reading):
                 head, captured = self._holds_over_an_unread_checkout(failing)
 
                 self.recovers()
 
-                self.assertEqual(
-                    (readings.pinned_records(self), self.runs()),
-                    ((captured, None, git_support.invalidated(self)), 1),
-                )
+                self.assert_settled(captured)
                 self.assert_recovered(head)
 
     def test_an_unread_pull_request_hides_no_move(self) -> None:

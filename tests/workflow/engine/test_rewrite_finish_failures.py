@@ -4,9 +4,10 @@
 
 A failing run records no evidence, so its notice is the failure's whole
 account. It is recorded on the pinned comment, with the invalidation, before
-it is posted, and the route waits for the pull request to carry it: a post
-GitHub refused, or one whose answer was lost, holds the route with the record
-standing, and so does an evidence write nobody confirmed. The next finish --
+it is posted, and the route -- the announcement of the landing included --
+waits for the pull request to carry it: a post GitHub refused, or one whose
+answer was lost, holds the route with the record standing and nothing
+announced, and so does an evidence write nobody confirmed. The next finish --
 the recovery of the push it finds standing -- runs nothing again: it finds the
 notice where a lost answer left it, or posts the one it recorded, once, and
 routes only on a base it can still read where the head was counted against it.
@@ -100,14 +101,14 @@ class FailureNoticeTest(unittest.TestCase, finish_support.RewriteFinishCase):
         )
 
     def _assert_held_with_the_record(self, *, posted: int) -> None:
-        """Nothing routed or retired, the invalidation and the failure's notice recorded, `posted` notices out."""
+        """Nothing announced, routed, or retired, the invalidation and the failure's notice recorded, `posted` out."""
         held = readings.pinned(self)
         self.assertEqual(
             (readings.relabels(self), held[readings.KEY_PENDING_PUSH], readings.records(held)),
             ((), support.TESTED_SHA, (None, None, self.invalidated())),
         )
         self.assertEqual(readings.failure(held)["head"], REBASED)
-        self.assertEqual(len(readings.notices(self)), 1 + posted)
+        self.assertEqual(len(readings.notices(self)), posted)
 
     def _assert_routed_once(self) -> None:
         """The next finish routes behind one failure notice, run once, entered in the ledger, its record cleared."""

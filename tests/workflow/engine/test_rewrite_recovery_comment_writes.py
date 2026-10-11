@@ -144,7 +144,7 @@ class CommentWritesRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         git_support.advances_the_base(self, net=False)
         head = self.rebases_by_hand()
         self.reviews(head)
-        self.dies_routing(partial(self.finishes, head))
+        self.dies_at(support.POST, partial(self.finishes, head))
         captured = readings.pinned_records(self)[0]
         self.assertNotEqual(captured.binding.tested_sha, head)
         self.configures("echo another")

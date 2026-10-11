@@ -88,6 +88,21 @@ def announcement(state: PinnedState, head: str) -> PinnedState:
     return announced
 
 
+def fits(finish: LandedFinish, *, announced: bool) -> bool:
+    """Whether the comment as the tick holds it has room for `finish`'s debt on the write it rides; nothing is staged.
+
+    Asked ahead of the evidence the finish decides before it announces, so a
+    debt the comment has no room for parks before anything runs or is
+    recorded for the head; the checkpoint measures it again on the comment as
+    that leaves it.
+    """
+    staged = PinnedState(state_data=copy.deepcopy(finish.state.data))
+    measured = PinnedState(state_data=copy.deepcopy(finish.state.data))
+    if not announced:
+        measured = announcement(staged, finish.head)
+    return stages(finish, staged, measured)
+
+
 def stages(finish: LandedFinish, staged: PinnedState, measured: PinnedState) -> bool:
     """Stage `finish`'s debt on `staged`, measured on `measured` first; False only where there is no room for it.
 

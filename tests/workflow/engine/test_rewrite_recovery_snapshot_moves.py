@@ -2,13 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """A captured run whose landing moved before the recovery's first snapshot, abandoned before any road it takes.
 
-A finish recorded its run for the landed head and died at its relabel, and the
+A finish recorded its run for the landed head and died posting its artifact, and the
 landing moved before the next recovery fetched the branch: the remote rolled
 back onto the anchor, the checkout reset onto it, or both moved on together to
 another head. Each snapshot sends the recovery down a road that never takes the
-run's route -- the park that resets and clears an announced attempt, the
-rollback of an undone one, the park of a landing its announcement does not name
--- and the run is abandoned before it. A snapshot nobody could take -- a fetch
+run's route -- the park of a replay the run says landed and the remote was
+rolled back off, the rollback of an undone one, the park of a landing nothing
+on the comment names -- and the run is abandoned before it. No announcement
+mark is down yet, since the finish resolves the evidence first, but the run
+itself says the push landed, so the rolled-back remote is parked rather than
+pushed over. A snapshot nobody could take -- a fetch
 that failed, a remote head that would not resolve -- ends in the abort that
 resets the checkout onto the anchor and clears the attempt -- as does a
 checkout whose lag against its base could not be counted at all -- and once
@@ -112,11 +115,11 @@ class SnapshotMoveRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         # Whatever moved, the recovery abandons the run before the road the
         # snapshot chose. Both heads put back on the landed head, the
         # reconciliation finds nothing pending, so the run is never settled.
-        for moved, moves_it in _MOVES:
-            with self.subTest(moved=moved):
+        for move in _MOVES:
+            with self.subTest(moved=move[0]):
                 self.setUp()
                 head, captured = self.captures()
-                moves_it(self)
+                move[1](self)
 
                 self.recovers()
 
@@ -126,7 +129,7 @@ class SnapshotMoveRecoveryTest(support.CapturedRunCase, unittest.TestCase):
                 self.reconciles()
                 self.assert_abandoned(captured)
                 said = (support.announced(self), self.pushes.call_count, self.developer.call_count)
-                self.assertEqual(said, ([head], 0, 0))
+                self.assertEqual(said, ([], 0, 0))
 
     def test_an_unread_snapshot_reset_abandons(self) -> None:
         # The snapshot could not be taken, so the abort resets the checkout

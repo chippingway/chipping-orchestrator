@@ -27,11 +27,12 @@ requirements -- and hands its verdict on rather than acting on it alone.
 `stands_before_the_route` is the last word behind every request a route made
 (`rewrite_evidence_proof.last_word`), over the transaction the route would
 carry, beside a verdict the caller already read it with and behind wherever
-the route already stopped: the finish asks it at the end of its evidence step,
-behind a checkpoint or retirement the comment refuses, and once more behind
-the relabel before the retirement lands (`rewrite_finish`), so a record moved
-while the route was taken abandons the transaction before the anchor goes. A
-transaction under which any reading establishes
+the route already stopped: the finish asks it at the end of its evidence step
+and behind a park or a checkpoint the comment refuses (`rewrite_finish`), and
+once more behind the publication and settlement of the transaction it
+recorded where that left it owed or retired it (`rewrite_finish_settlement`),
+so a record moved while the artifact was posted abandons the transaction
+before anything announces or routes the head or the anchor goes. A transaction under which any reading establishes
 movement -- its binding refused, the review and report records the comment
 carries moved, the landing moved, or the base read elsewhere -- is abandoned
 unrun, however the readings beside it came out, so no later route takes it
@@ -71,6 +72,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     rewrite_finish_writes as _writes,
+    rewrite_landing_records as _landing_records,
     verification_carries as _carries,
     verification_durable as _durable,
     verification_record_state as _record_state,
@@ -110,8 +112,14 @@ def retired(finish: LandedFinish) -> bool:
     binding: a transaction a finish abandoned because something moved under
     it is a run or carry this landing already captured, so a later finish
     whose route that abandonment stopped short of decides nothing afresh and
-    runs nothing again. Logged where there is one; a history nobody can read
-    says nothing either way.
+    runs nothing again. The history keeps only its latest entries, though, so
+    one that records another road wrote since pushed out of it is read off
+    the receipt the finish put on the attempt beside it instead
+    (`rewrite_landing_records.capture_answered`) -- and current evidence an
+    earlier finish settled for the head counts the same, so evidence the
+    configuration has since moved past is invalidated with nothing run again.
+    Logged where there is one; a history nobody can read says nothing either
+    way.
     """
     about_the_head = (
         entry for entry in _settlement.read_evidence_history(finish.state) or ()
@@ -124,7 +132,17 @@ def retired(finish: LandedFinish) -> bool:
             "running nothing again, and the fresh reviewer owes the evidence",
             finish.issue.number, entry.revision, finish.head, entry.retired.value,
         )
-    return entry is not None
+        return True
+    current = _settlement.read_current_evidence(finish.state)
+    settled = current is not None and current.binding.target.target_head == finish.head
+    if not settled and not _landing_records.capture_answered(finish.state):
+        return False
+    log.info(
+        "issue=#%d already settled or retired the verification evidence it recorded for %.8s; "
+        "deciding and running nothing again",
+        finish.issue.number, finish.head,
+    )
+    return True
 
 
 def proved_again(finish: LandedFinish, pending: _records.PendingEvidence) -> ReportEvidence:
@@ -164,11 +182,11 @@ def stands_before_the_route(
     again whenever a transaction is recorded, `landing` False sparing only a
     fresh decision that ran nothing and recorded nothing.
     `behind` is where the route already stopped -- a write that did not land,
-    the retirement's or the checkpoint's among them, a hold for want of room,
-    a failure notice nobody could confirm -- and is the answer whatever this
-    reads: the last word is asked all the same over a transaction still
-    recorded for the head, so one something moved under is abandoned behind
-    any stop rather than left for a later route once the record moves back.
+    the checkpoint's among them, a hold for want of room, a failure notice
+    nobody could confirm -- and is the answer whatever this reads: the last
+    word is asked all the same over a transaction still recorded for the
+    head, so one something moved under is abandoned behind any stop rather
+    than left for a later route once the record moves back.
     With none recorded, a stop has nothing to abandon and nothing is read.
 
     Every reading is taken, and none nobody could take hides one that read
@@ -243,11 +261,11 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     A comment with no room for the abandonment's history entry still takes a
     write that only shrinks it, and that write refuses the transaction for
     good with the records it already carries. The transaction is dropped with
-    no entry -- its artifact waits behind the standing anchor, so nothing was
-    posted under it, and the revision floor it raised keeps its revision from
-    being reused -- and the base tip the attempt recorded its replay as made
-    onto (`pending_auto_base_rebase_rewrite_base`) is blanked with it. Every
-    later reading of the base then proves nothing
+    no entry -- an artifact the finish already posted under its receipt is
+    never settled once its record is gone, and the revision floor it raised
+    keeps its revision from being reused -- and the base tip the attempt
+    recorded its replay as made onto (`pending_auto_base_rebase_rewrite_base`)
+    is blanked with it. Every later reading of the base then proves nothing
     (`rewrite_evidence_proof.standing_refusal`, UNPROVEN), so no finish of
     this landing runs or carries the evidence again or routes a transaction
     over it, however the base, the landing, or the issue reads by then. The

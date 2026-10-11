@@ -1,14 +1,15 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The evidence a landed base rewrite's head is routed with, made durable before anything routes it.
+"""The evidence a landed base rewrite's head is routed with, made durable before anything announces or routes it.
 
-The finish (`rewrite_finish`) asks this once its checkpoint is durable and
-before the relabel to `workflow:validating` or the attempt's retirement
-(`settles`), for a head it routes: a head the base advanced past again is
-rebased once more, and the head that rebase lands is decided then. The
-decision is the evidence policy's (`rewrite_evidence.decides`); what it
-requires of the pinned comment is staged here and lands in one guarded commit
-(`rewrite_finish_writes.EVIDENCE`) before the finish goes on:
+The finish (`rewrite_finish`) asks this once the debt is measured and before
+it announces the landing, resets the round, relabels to `workflow:validating`,
+or retires the attempt (`settles`), for a head it routes: a head the base
+advanced past again is rebased once more, and the head that rebase lands is
+decided then. The decision is the evidence policy's
+(`rewrite_evidence.decides`); what it requires of the pinned comment is staged
+here and lands in one guarded commit (`rewrite_finish_writes.EVIDENCE`) before
+the finish goes on:
 
 - Current evidence the rewrite moved past -- a changed full tree or
   verification context -- is retired into history as INVALIDATED, whole, on
@@ -16,12 +17,16 @@ requires of the pinned comment is staged here and lands in one guarded commit
   the rewritten one.
 - A FRESH run of the rewritten head, or a CARRIED decision, is recorded as the
   evidence transaction's pending record (`verification_record_state`), with
-  the room its settlement and its later invalidation need. Its artifact is not
-  posted here: the dispatcher's reconciliation (`verification_transaction`)
-  waits behind the standing anchor, then proves the whole binding again over
-  the settled report and the applicable review subject, and publishes it --
-  and only that settlement makes it current. A result the comment cannot take
-  is recorded nowhere, and the head goes to the fresh reviewer instead.
+  the room its settlement and its later invalidation need, and its receipt is
+  put on the attempt in the same write (`rewrite_landing_records.records`), so
+  a recovery reading it before any mark knows it for this finish's own rather
+  than one another road recorded meanwhile. Its artifact is not
+  posted here: the finish's next step (`rewrite_finish_settlement`), with the
+  anchor still standing, proves the whole binding again over the settled
+  report, the applicable review subject, and the base, and publishes and
+  settles it through the reconciliation's own answer -- and only that
+  settlement makes it current. A result the comment cannot take is recorded
+  nowhere, and the head goes to the fresh reviewer instead.
 - A REVIEWER decision records nothing: the fresh reviewer is handed no current
   evidence (`stages/validating/review_evidence.py`), so its prompt tells it to
   run the verification itself (`review_evidence_prompts`). So does a MOVED
@@ -30,16 +35,16 @@ requires of the pinned comment is staged here and lands in one guarded commit
   same write and then put on the pull request once (`rewrite_finish_failures`)
   before the route, so the failure stays actionable.
 
-The route is held instead -- nothing relabelled or retired, the attempt left
-standing for a later tick's recovery to finish -- for a decision short of a
-reading nobody could take, a base that moved after the head was counted
-against it among them (HELD), an invalidation the comment has no room for
-(HELD), an evidence write refused or never confirmed (REFUSED, UNCONFIRMED),
-and a failure notice whose publication nobody could confirm (HELD). Each of
-these stops a captured transaction's route only behind the last word, which
-still proves it again and abandons it where anything moved under it. The
-standing anchor holds every handler meanwhile, so no reviewer is handed the
-head.
+The route is held instead -- nothing announced, relabelled, or retired, the
+attempt left standing for a later tick's recovery to finish -- for a decision
+short of a reading nobody could take, a base that moved after the head was
+counted against it among them (HELD), an invalidation the comment has no room
+for (HELD), an evidence write refused or never confirmed (REFUSED,
+UNCONFIRMED), and a failure notice whose publication nobody could confirm
+(HELD). Each of these stops a captured transaction's route only behind the
+last word, which still proves it again and abandons it where anything moved
+under it. The standing anchor holds every handler meanwhile, so no reviewer is
+handed the head.
 
 The finish that completes it -- the recovery of the push already landed --
 repeats nothing an earlier one made durable. One that died before its
@@ -76,6 +81,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish_failures as _failures,
     rewrite_finish_notices as _notices,
     rewrite_finish_writes as _writes,
+    rewrite_landing_records as _landing_records,
     verification_record_state as _record_state,
     verification_settlement_state as _settlement,
 )
@@ -132,8 +138,9 @@ def continues(finish: LandedFinish) -> FinishOutcome | None:
     The caller's next rebase replaces that head, so a transaction recorded
     for it is a decision no route takes (`rewrite_finish_captured.sets_aside`),
     abandoned in a write of its own over the comment read afresh before the
-    attempt retires. Nothing is decided, run, or invalidated for the head
-    itself.
+    continuation is announced or the attempt retires; one that does not land
+    holds the continuation with nothing announced. Nothing is decided, run, or
+    invalidated for the head itself.
     """
     return _captured.sets_aside(finish)
 
@@ -185,15 +192,18 @@ def _records(finish: LandedFinish, decided: RewriteEvidence, staged: PinnedState
 
     Minted past every revision the issue spent and recorded through the
     transaction's own owner, which measures the record, its settlement, and
-    the invalidation that settlement leaves room for. One it refuses leaves
-    `staged` as it was, and the fresh reviewer owes the evidence.
+    the invalidation that settlement leaves room for -- with the attempt's
+    receipt of it beside it, which is what says, before any mark is down,
+    that the transaction is this finish's own (`rewrite_landing_records.records`).
+    One it refuses leaves `staged` as it was, and the fresh reviewer owes the
+    evidence.
     """
     licensed = _licensed(decided)
     if licensed is None:
         return
     binding, commands, copied_from = licensed
     pending = _record_state.mint_pending_evidence(staged, finish.issue.number, binding, commands, copied_from)
-    if pending is not None and _record_state.record_pending_evidence(staged, pending):
+    if pending is not None and _landing_records.records(staged, pending):
         log.info(
             "issue=#%d recorded %s verification evidence revision %d for %.8s ahead of its route",
             finish.issue.number, decided.route.value, pending.revision, finish.head,

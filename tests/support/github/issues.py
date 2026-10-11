@@ -273,9 +273,14 @@ class _WorkflowStateService:
         """The record pinned on this issue, parsed or not as it was pinned.
 
         A thread named on `pinned_failures.unreadable` raises, as the real
-        walk does on a request GitHub would not answer.
+        walk does on a request GitHub would not answer, and so does the next
+        read of one named on `pinned_failures.unanswered_once`, which is then
+        answered from the read after it.
         """
         if issue.number in self._pinned_failures.unreadable:
+            raise RuntimeError(_PINNED_UNREAD)
+        if issue.number in self._pinned_failures.unanswered_once:
+            self._pinned_failures.unanswered_once.discard(issue.number)
             raise RuntimeError(_PINNED_UNREAD)
         existing = self._pinned.get(issue.number)
         if existing is None:

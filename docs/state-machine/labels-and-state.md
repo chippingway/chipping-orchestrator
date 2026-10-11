@@ -676,24 +676,34 @@ remote already stands on the replay sent nothing, and is announced on either roa
 refusal for room alone over a comment that still reads as the tick read it — a debt park that cannot fit included —
 leaves the tick's state to be written, since that comment is only full; every other refusal, and an edit nobody
 confirmed, withholds it. It takes no writer claim of its own: the caller's claim, held through the route, covers it.
-Between the checkpoint and the route sits the post-push, pre-route step where the evidence a landed head
-is routed with is decided (`workflow/engine/rewrite_evidence.py`) and, for a head the base has not advanced past
-again, made durable before the relabel (`workflow/engine/rewrite_finish_evidence.py`, the
+Ahead of the checkpoint -- once the debt it carries is measured to fit -- sits the step where the evidence a landed
+head is routed with is decided (`workflow/engine/rewrite_evidence.py`) and, for a head the base has not advanced past
+again, made durable before the announcement (`workflow/engine/rewrite_finish_evidence.py`, the
 [base-rewrite evidence](delivery-stages.md#the-verification-evidence-transaction-every-dispatch) bullets): in one
 guarded commit decided on the attempt, the debt, and every record the evidence is bound through, current evidence
 the rewrite moved past -- its tree, or the context configured as the write is staged, behind any run -- is
 invalidated into history, and a fresh run or a proved carry is recorded as
-`verification_evidence_pending`, which the dispatcher publishes once the attempt is retired. Nothing is recorded where
+`verification_evidence_pending`, which the finish then publishes and settles itself with the attempt still standing
+(`workflow/engine/rewrite_finish_settlement.py`), its proof held to the base and its writes to the attempt as well --
+or abandons into history where anything refuses it -- before the notice, the `base_rebased` event, the round reset,
+the mark, the relabel, or the retirement: the checkpoint announces only a head whose evidence is resolved. Nothing is
+recorded where
 the binding to a review of the rewritten head is not there yet, the configuration is empty, the run failed -- its
 notice recorded in the same write (`auto_base_rebase_failed_verification`) and put on the pull request once before
 the route -- something moved under it, or the comment cannot record it: the fresh reviewer owes the evidence. A
 decision nobody could take, a base that moved after the head was counted, an invalidation with no room, a failure
-notice whose post nobody could confirm, or an evidence write refused or unconfirmed holds the route with the attempt
-standing, for the recovery of the push already landed to finish under its own mark, with no developer launched: the
-commands run again only where no completed run was captured, a failure notice an earlier finish recorded is published
-once, and a transaction it recorded is routed as captured only once it proves again -- abandoned into history, nothing
-run, where anything it is bound to, the landing, or the base moved since -- with the invalidation a moved context now
-owes landed before the route.
+notice whose post nobody could confirm, an evidence write refused or unconfirmed, or a transaction whose post or
+settlement did not resolve holds the route with nothing announced, the round as it was, and the attempt standing,
+for the recovery of the push already landed to
+finish under its own mark, with no developer launched: the commands run again only where no completed run was
+captured, a failure notice an earlier finish recorded is published once, a transaction it recorded is settled and
+routed as captured only once it proves again -- abandoned into history, nothing run, where anything it is bound to,
+the landing, or the base moved since -- over an artifact an earlier post landed, found under its receipt, and one an
+earlier finish already settled is routed with nothing posted or settled again while nothing beside it says
+otherwise -- a newer transaction for the head is settled over it, and a handoff or revision floor out of step holds
+the route -- with the invalidation a moved context now owes landed before the route, that settled evidence's own
+included: a configuration moved since it settled invalidates it with nothing run again, rather than leaving it to
+hold the route behind a revision spent past it.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
@@ -2870,7 +2880,11 @@ The keys that matter for the state machine fall into a few groups:
   against the ledger the comment carries now rather than the one the tick read, and room left to invalidate what it
   installs -- and prepared as the settlement's own guarded commit over the pinned
   comment read afresh (`workflow/engine/verification_publishing.py`), so a comment another road filled since the tick
-  read it, or one whose bound records moved, posts nothing. Before the settlement the issue and the pinned comment are
+  read it, or one whose bound records moved, posts nothing. Behind that, right before the post, the readings no guarded
+  commit holds are taken again (`workflow/engine/verification_unguarded.py`) -- a standing anchor's landing and base,
+  then the issue fetched afresh, still live work and its requirements hashed over that reading, and the configuration
+  last -- so one that moved while the proof's requests were answered posts nothing. Before the settlement the issue
+  and the pinned comment are
   read afresh: the issue has to be live work still, by the same rule as above, or nothing at all is written; the
   comment has to carry every bound record -- `pr_number`, the `developer_report_*` group (`developer_report_owed`
   included) and `park_reason`, whose report debt a review subject stands only without, `review_subject`,
@@ -2880,7 +2894,10 @@ The keys that matter for the state machine fall into a few groups:
   (`workflow/engine/verification_settling.py`) -- and a carry's `copied_from` source still current and as copied
   (`verification_current.copied_source_verdict`). Those are requests of their own, so the comment is read once more
   behind them and has to still carry every bound record as the proof read it -- a subject removed or replaced meanwhile
-  refuses the settlement and is kept. Only then is the settlement committed, composed over that last reading as one
+  refuses the settlement and is kept. Behind that the artifact is re-read once more and has to still be exactly this
+  transaction's, since those requests -- the settled report's re-read among them -- are long enough to edit it too,
+  and then the same readings no guarded commit holds are taken last once more, in the same order. Only then is the
+  settlement committed, composed over that last reading as one
   guarded commit whose prerequisites are those bound records and which owns the four evidence records, the revision
   floor -- left as the transaction's record raised it -- and the artifact's entry in `orchestrator_comment_ids`, merged
   into whatever ledger the comment carries: read once more, the comment has to still carry every bound record as that
@@ -3161,10 +3178,29 @@ The keys that matter for the state machine fall into a few groups:
   finishes write it and for the same reason — the refresh's own publishing tail, which announces the rebase it just
   pushed, and the recovery, which announces one an earlier tick left — since neither is distinguishable afterwards
   from an attempt that never got that far. The report debt the landed head leaves (`developer_report_rewrite_debt`)
-  rides the same write, so it is durable before the attempt is cleared or the issue relabelled. It is
+  rides the same write, so it is durable before the attempt is cleared or the issue relabelled. A finish writes it
+  only once the landed head's evidence is resolved -- settled, retired, or the fresh reviewer's to owe -- so a tick lost
+  while that evidence was being run, published, or settled comes back to an attempt with no mark; the recovery then
+  reads the transaction under the receipt the finish put on the attempt (below) as the one that finish captured
+  (`workflow/engine/rewrite_landing_moved.py`) -- any other is another road's, and kept -- and any evidence
+  record naming the replay -- pending, current,
+  retired, or a failed run's notice -- as the word that its push landed (`workflow/engine/rewrite_landing_records.py`),
+  so a remote rolled back off that replay parks as the rollback it is rather than being pushed over again. It is
   read by PRESENCE, like every other checkpoint here: the key standing at all says a finish announced THIS attempt's
   replay, so a value naming any other head — or naming no commit — is a mark something took apart rather than an
   answer a reader may give as "nothing was announced".
+  `pending_auto_base_rebase_evidence_receipt` — the receipt of the verification transaction a finish of the attempt
+  recorded for the landed head, written in the very guarded write that records it
+  (`workflow/engine/rewrite_finish_writes.EVIDENCE`, staged by `workflow/engine/rewrite_landing_records.py`) and
+  blanked with the rest of the attempt by every write that ends it. With no mark down it is the one durable word that
+  a pending transaction is the finish's own: the recovery abandons only the transaction under it where the landing
+  moved -- before a road, before a park, or in the release a landed reset writes -- whether or not the attempt's record
+  names its replay yet, and keeps any other as the road that recorded it wrote it, with its revision floor. It
+  outlives the evidence history, which keeps only its latest entries: a receipt naming no pending transaction is a
+  capture already settled or retired, so a later finish runs nothing again and holds the route beside any record
+  another road left pending, and the replay the attempt's record names counts as landed for the rollback park. Additive:
+  an attempt whose finish recorded no transaction carries none, and one from before this member existed recorded its
+  evidence only behind its mark, so with none on it a transaction about the head the mark names is that finish's.
   `auto_base_rebase_failed_verification` sits beside the group without being a member of it: the notice a landed
   head's failed configured verification is owed — an object of `head`, the rewritten head the run failed on, and
   `notice`, the notice's whole text (the failing command, how it failed, and its output's tail) — written by the

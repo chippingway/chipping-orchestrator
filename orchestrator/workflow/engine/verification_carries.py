@@ -50,11 +50,15 @@ of the carry itself: the publication, at the reading of its own artifact
 (`verification_publishing`), and the settlement, in the commit that records the
 artifact's ledger entry, where the comment read behind its proof still carries
 every bound record as the tick read it (`verification_settling`). Any other
-transaction those routes refuse stays owed for the route that answers it.
+transaction those routes refuse stays owed for the route that answers it --
+save one a landed base rewrite's finish settles while its anchor stands
+(`rewrite_finish_settlement`), which each of those routes abandons as it would
+a carry (`abandons_on_refusal`), since no route behind the anchor answers it.
 """
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 
 from github.Issue import Issue
 
@@ -83,6 +87,20 @@ ABANDONS = (
 def is_carry(pending: _records.PendingEvidence | None) -> bool:
     """Whether `pending` carries a run onto a head it did not run on."""
     return pending is not None and pending.binding.tested_sha != pending.binding.target.target_head
+
+
+def abandons_on_refusal(pending: _records.PendingEvidence | None, *, anchored: bool) -> bool:
+    """Whether a refusal of `pending` short of a reading nobody could take abandons it rather than leaving it owed.
+
+    A carry's, which nothing later makes answer again; and any transaction a
+    landed base rewrite's finish settles while its auto-rebase anchor stands
+    (`anchored`, `verification_proof.ProofReading.anchored`), a fresh run
+    included. No route behind the reconciliation answers that one either: the
+    anchor holds every handler until the finish routes, so a transaction left
+    owed there would hold the issue on every tick rather than go to the fresh
+    reviewer, which owes the evidence once it is abandoned.
+    """
+    return anchored or is_carry(pending)
 
 
 def abandons(state: PinnedState, pending: _records.PendingEvidence | None) -> bool:
@@ -146,7 +164,11 @@ def _is_its_approval(state: PinnedState, binding: _records.EvidenceBinding) -> b
 
 
 def abandons_afresh(
-    gh: GitHubClient, issue: Issue, state: PinnedState, pending: _records.PendingEvidence | None,
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    pending: _records.PendingEvidence | None,
+    rests_on: Iterable[str] = (),
 ) -> bool:
     """Abandon `pending` over the comment read afresh, in one guarded commit; True where the tick holds.
 
@@ -161,11 +183,13 @@ def abandons_afresh(
     with no room for the entry keeps it owed too, but takes a carry's
     approval (`abandons`), which is committed all the same. A commit nobody
     confirmed holds, and the next tick finds the record gone or abandons it
-    again, with no second entry.
+    again, with no second entry. `rests_on` names any record beyond the bound
+    ones the caller's decision rests on -- a standing auto-rebase attempt --
+    held the same way.
     """
-    durable, refused = _durable.durable_comment(gh, issue, state)
+    durable, refused = _durable.durable_comment(gh, issue, state, rests_on)
     if refused is None:
-        guard = _durable.guarded(durable, ABANDONS)
+        guard = _durable.guarded(durable, ABANDONS, rests_on)
         if not abandons(durable, pending):
             log.error(
                 "issue=#%d has no room on its pinned comment to abandon the "

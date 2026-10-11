@@ -25,12 +25,21 @@ KEY_REWRITE_STAGE = "pending_auto_base_rebase_rewrite_stage"
 KEY_REWRITE_SHA = "pending_auto_base_rebase_rewrite_sha"
 KEY_REWRITE_BASE = "pending_auto_base_rebase_rewrite_base"
 KEY_ANNOUNCED = "pending_auto_base_rebase_announced_sha"
+KEY_EVIDENCE_RECEIPT = "pending_auto_base_rebase_evidence_receipt"
 KEY_REVIEW_ROUND = "review_round"
 KEY_REVISION_FLOOR = "verification_evidence_revision"
 KEY_FAILED_VERIFICATION = "auto_base_rebase_failed_verification"
 
 # Every field one attempt puts on the comment, which a finish retires as one.
-ATTEMPT_KEYS = (KEY_PENDING_PUSH, KEY_REWRITE_PR, KEY_REWRITE_STAGE, KEY_REWRITE_SHA, KEY_REWRITE_BASE, KEY_ANNOUNCED)
+ATTEMPT_KEYS = (
+    KEY_PENDING_PUSH,
+    KEY_REWRITE_PR,
+    KEY_REWRITE_STAGE,
+    KEY_REWRITE_SHA,
+    KEY_REWRITE_BASE,
+    KEY_ANNOUNCED,
+    KEY_EVIDENCE_RECEIPT,
+)
 
 # The attempt as a finish leaves it: every member blanked rather than removed.
 RETIRED = MappingProxyType(dict.fromkeys(ATTEMPT_KEYS))

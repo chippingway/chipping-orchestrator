@@ -15,8 +15,11 @@ adjudication, an outstanding size-gate publication and its lease, and a
 standing auto-rebase anchor all outrank it, since each is a world in which the
 pull request's head is not yet what anything downstream may believe -- and the
 anchor is asked again here, so a transaction a landed rewrite's finish recorded
-is left to the recovery that owes it while the attempt stands, whoever calls
-this. The report transaction outranks it too: evidence answers for a review subject that
+is left to that finish while the attempt stands, whoever calls this: the finish
+answers it itself, through this owner (`answers`), before its route
+(`rewrite_finish_settlement`), and a finish that stopped short of settling it is
+completed by the recovery of the push already landed, under the same anchor.
+The report transaction outranks it too: evidence answers for a review subject that
 names the developer report, so a report still owed is a subject about to move,
 and this proof defers to it. Behind them, it runs ahead of the reuse guard and
 the handler, so a reviewer or a readiness decision behind it reads evidence
@@ -62,7 +65,10 @@ it is exactly the review of the rewritten head the carry answers for
 (`verification_carries`) -- here, ahead of the post, and on the publication
 and the settlement behind it (`verification_publishing`,
 `verification_settling`) -- for a fresh reviewer to answer the head as it
-stands. A bound record another road moved under the settlement is a refusal of
+stands. A transaction the finish of a landed base rewrite answers under its
+standing anchor, a fresh run included, is abandoned on the same terms
+(`verification_carries.abandons_on_refusal`), since no route behind the anchor
+answers it. A bound record another road moved under the settlement is a refusal of
 what the tick decided over, not of the carry, and leaves it owed for the next
 tick to answer here over the comment as it reads then. A carry that copied settled
 evidence's transcript is refused here too where that source no longer says
@@ -90,7 +96,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
-from orchestrator.workflow.engine.verification_carries import abandons_afresh, is_carry
+from orchestrator.workflow.engine.verification_carries import abandons_afresh, abandons_on_refusal
 from orchestrator.workflow.engine.verification_current import copied_source_verdict
 
 log = logging.getLogger("orchestrator.workflow")
@@ -111,9 +117,10 @@ def _reconciles_pending_evidence(
     behind a structural refusal.
 
     The anchor is asked here as well as ahead of this guard: a transaction a
-    landed rewrite's finish recorded is the recovery's to route or abandon
-    while the attempt stands, and settled here behind its back it would
-    outlive a movement the recovery read but could not yet record.
+    landed rewrite's finish recorded is that finish's -- or the recovery's that
+    completes it -- to settle, route, or abandon while the attempt stands, and
+    settled here behind its back it would outlive a movement the recovery read
+    but could not yet record.
     """
     if not _record_state.carries_pending_evidence(state):
         return False
@@ -129,6 +136,7 @@ def _reconciles_pending_evidence(
             "evidence it owes where it stands", issue.number, label,
         )
         return False
+    reading = _proof.ProofReading(gh, spec, issue, state)
     pending = _record_state.read_pending_evidence(state)
     if pending is None:
         log.error(
@@ -136,46 +144,49 @@ def _reconciles_pending_evidence(
             "dropping it, since evidence nobody can read is evidence nobody has",
             issue.number,
         )
-        return _retires(gh, issue, state, None)
-    return _answers_what_is_owed(gh, spec, issue, state, pending)
+        return _retires(reading, None)
+    return answers(reading, pending)
 
 
-def _answers_what_is_owed(
-    gh: GitHubClient,
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    state: PinnedState,
-    pending: _records.PendingEvidence,
-) -> bool:
-    """Answer one readable transaction: replayed, outdated, ended, unproved, or published.
+def answers(reading: _proof.ProofReading, pending: _records.PendingEvidence) -> bool:
+    """Answer one readable transaction: replayed, outdated, ended, unproved, or published; True holds the tick.
 
     The two pinned questions come first, since they cost nothing and neither
     depends on the pull request. Then the pull request, which every other
     reading stands behind: an ENDED one retires the transaction ahead of
     anything else that could be said about it. The source a carry copied is
     read last, on the pull request the proof read.
+
+    The dispatcher's reconciliation asks it of the transaction it reads. The
+    finish of a landed base rewrite asks it of the one it recorded for the
+    landed head, with its anchor standing (`rewrite_finish_settlement`), over a
+    reading whose `anchored` proof holds that head to the base its replay was
+    made onto before the post and again before the settlement, and on which any
+    refusal short of a reading nobody could take abandons the transaction
+    (`verification_carries.abandons_on_refusal`). Whatever answer lands becomes
+    `reading.state`.
     """
+    gh, issue, state = reading.gh, reading.issue, reading.state
     if _already_recorded(state, pending):
         log.info(
             "issue=#%d already settled or retired verification evidence "
             "revision %d; dropping the record rather than repeating it",
             issue.number, pending.revision,
         )
-        return _retires(gh, issue, state, pending, indexed=True)
+        return _retires(reading, pending, indexed=True)
     if _outdated(state, pending):
         log.info(
             "issue=#%d recorded verification evidence past revision %d, or "
             "cannot say what it spent; abandoning it", issue.number, pending.revision,
         )
-        return _retires(gh, issue, state, pending)
+        return _retires(reading, pending)
     found = _publication.subject_verdict(gh, pending.binding.target.publication)
     if found.ended:
         log.info(
             "issue=#%d owes verification evidence to a pull request that is "
             "over; abandoning revision %d", issue.number, pending.revision,
         )
-        return _retires(gh, issue, state, pending)
-    reading = _proof.ProofReading(gh, spec, issue, state)
+        return _retires(reading, pending)
     evidence = _proof.rest_verdict(reading, pending.binding, found)
     if evidence.proved:
         evidence = copied_source_verdict(gh, state, pending, evidence.pull_request) or evidence
@@ -193,15 +204,19 @@ def _stands_down(
 
     True where the tick is held. A carry is abandoned on every refusal but a
     reading nobody could take, since nothing a later route does makes it
-    answer again; any other transaction stays owed for that route.
+    answer again, and so is a transaction answered under a standing
+    auto-rebase anchor (`verification_carries.abandons_on_refusal`); any other
+    transaction stays owed for that route.
     """
     log.info(
         "issue=#%d cannot make verification evidence revision %d current "
         "yet: %s", reading.issue.number, pending.revision, evidence.refusal,
     )
-    if evidence.holds or not is_carry(pending):
+    reading.observes(evidence)
+    anchored = reading.anchored is not None
+    if evidence.holds or not abandons_on_refusal(pending, anchored=anchored):
         return evidence.holds
-    return _retires(reading.gh, reading.issue, reading.state, pending)
+    return _retires(reading, pending)
 
 
 def _already_recorded(state: PinnedState, pending: _records.PendingEvidence) -> bool:
@@ -229,9 +244,7 @@ def _outdated(state: PinnedState, pending: _records.PendingEvidence) -> bool:
 
 
 def _retires(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
+    reading: _proof.ProofReading,
     pending: _records.PendingEvidence | None,
     *,
     indexed: bool = False,
@@ -259,15 +272,17 @@ def _retires(
     shrinks the comment. Nothing is sent where nothing changed, and a commit
     nobody confirmed holds: the next tick finds the record gone, or retires
     it again, with no second history entry. The write is this owner's, since
-    a record left standing would be answered again on every poll.
+    a record left standing would be answered again on every poll. Every one is
+    decided on the records the reading rests on too (`ProofReading.rests_on`).
     """
+    gh, issue = reading.gh, reading.issue
     if not indexed:
-        return abandons_afresh(gh, issue, state, pending)
-    durable, refused = _durable.durable_comment(gh, issue, state)
+        return abandons_afresh(gh, issue, reading.state, pending, reading.rests_on)
+    durable, refused = _durable.durable_comment(gh, issue, reading.state, reading.rests_on)
     if refused is None:
-        guard = _durable.guarded(durable, (_records.PENDING_EVIDENCE,))
+        guard = _durable.guarded(durable, (_records.PENDING_EVIDENCE,), reading.rests_on)
         durable.set(_records.PENDING_EVIDENCE, None)
-        refused = _durable.lands(gh, issue, state, guard, durable)
+        refused = _durable.lands(gh, issue, reading.state, guard, durable)
     if refused is None:
         return False
     log.info(

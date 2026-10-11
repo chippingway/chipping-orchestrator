@@ -27,6 +27,7 @@ from orchestrator.git.base_sync.state import (
     _AWAITING_HUMAN,
     _PARK_REASON,
     _PENDING_ANNOUNCED_SHA,
+    _PENDING_EVIDENCE_RECEIPT,
     _PENDING_PUSH_SHA,
     _PENDING_REWRITE_BASE,
     _PENDING_REWRITE_SHA,
@@ -37,15 +38,20 @@ from orchestrator.github.pinned_state import PinnedState
 # that ends it drops the whole record rather than the field it happens to
 # name.
 _ATTEMPT_KEYS = (
-    _PENDING_PUSH_SHA, *_attempt_records._PENDING_REWRITE_KEYS, _PENDING_REWRITE_BASE, _PENDING_ANNOUNCED_SHA,
+    _PENDING_PUSH_SHA,
+    *_attempt_records._PENDING_REWRITE_KEYS,
+    _PENDING_REWRITE_BASE,
+    _PENDING_ANNOUNCED_SHA,
+    _PENDING_EVIDENCE_RECEIPT,
 )
 
 
 def _clears_the_attempt(state: PinnedState) -> None:
     """Drop the whole record of one auto-rebase attempt.
 
-    The anchor, the terms it was made under, the head the replay produced, and
-    the mark a finish left are one record and are dropped as one: the anchor
+    The anchor, the terms it was made under, the head the replay produced, the
+    receipt of the evidence a finish recorded for it, and the mark a finish
+    left are one record and are dropped as one: the anchor
     alone would bring a later tick back to an attempt it cannot prove the
     checkout belongs to, and the rest names a commit and a pull request
     nothing is leased to publish onto. Every step that ends an attempt goes

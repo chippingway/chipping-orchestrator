@@ -8,9 +8,9 @@ over the anchor, and the rebased head's report settled and handed a reviewer,
 so the evidence policy runs the configured command on that head. The
 publication's finish is handed the landing, and the process dies at a step
 (`ProcessDied`, which nothing on the finish's road catches): in the verify
-runner before any command ran, behind a run that completed, or at the relabel
-behind the evidence write that captured the run -- or a recovery dies at its
-own relabel, behind the write that abandoned that run.
+runner before any command ran, behind a run that completed, or at the post of
+the artifact behind the evidence write that captured the run -- or a recovery
+dies at its own relabel, behind the write that abandoned that run.
 
 What it left is recovered by the whole per-tick base refresh (`recovers`): the
 anchor read, the branch fetched, the push observed where the remote stands,
@@ -19,8 +19,8 @@ are recorded around it, so a case reads back that nothing was pushed a second
 time and no developer was launched. A case about the run the evidence write
 captured (`CapturedRunCase`) lands it first (`captures`), answers a park with
 the issue author's continue (`continues`), and reads the run back abandoned
-(`assert_abandoned`) or offered to the dispatcher's reconciliation
-(`reconciles`).
+(`assert_abandoned`), settled under the anchor (`assert_settled`), or offered
+to the dispatcher's reconciliation (`reconciles`).
 """
 from __future__ import annotations
 
@@ -32,11 +32,13 @@ from unittest.mock import Mock, patch
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.git import branch_transport
 from orchestrator.git.verification import runner as _verify_runner
-from orchestrator.workflow.engine import verification_transaction
+from orchestrator.workflow.engine import verification_settlement_state, verification_transaction
 from tests.git.base_sync.real_git_test_support import _LocalBranchPusher
 from tests.workflow.engine import (
+    rewrite_finish_evidence_test_support as _finish_support,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
+    verification_evidence_test_support as _evidence_support,
 )
 from tests.workflow.git_owners import seam_patch
 
@@ -51,6 +53,12 @@ STRAY_COMMIT = (
     "-c", "user.name=stray", "-c", "user.email=stray@example.invalid",
     "commit", _QUIET, "--allow-empty", "-m", "stray",
 )
+
+# The client's steps a finish or a recovery dies at: the relabel, and the post
+# of the evidence artifact.
+RELABEL = "set_workflow_label"
+
+POST = "publish_verification_artifact"
 
 # The command every case configures, put back once a case has moved it.
 CONFIGURED = f"test -f feature.py && echo '{git_support.CHECKED}'"
@@ -97,17 +105,18 @@ class VerificationRecoveryCase(git_support.RealGitFinishCase):
         with seam_patch("_run_verify_commands", died), self.assertRaises(ProcessDied):
             self.finishes(head)
 
-    def dies_routing(self, finishing) -> None:
-        """Run `finishing` -- a finish, or a whole recovery -- dying at its relabel, behind every write before it.
+    def dies_at(self, step: str, finishing) -> None:
+        """Run `finishing` -- a finish, or a whole recovery -- dying at the client's `step`, behind every earlier write.
 
-        A death inside the base refresh is one more failed issue sync to it,
+        The step is put back behind the death, and nothing was relabelled. A
+        death inside the base refresh is one more failed issue sync to it,
         logged and gone past, exactly as nothing behind it runs.
         """
-        relabel = self.gh.set_workflow_label
-        self.gh.set_workflow_label = dies
+        live = getattr(self.gh, step)
+        setattr(self.gh, step, dies)
         with contextlib.suppress(ProcessDied):
             finishing()
-        self.gh.set_workflow_label = relabel
+        setattr(self.gh, step, live)
         self.assertEqual(readings.relabels(self), ())
 
     def recovers(self, during=None) -> None:
@@ -143,14 +152,19 @@ class VerificationRecoveryCase(git_support.RealGitFinishCase):
 
 
 class CapturedRunCase(VerificationRecoveryCase):
-    """Issue #7's rebased head handed a reviewer, its run captured by a finish that dies at the relabel."""
+    """Issue #7's rebased head handed a reviewer, its run captured by a finish that dies posting its artifact."""
 
     def captures(self) -> tuple:
-        """Land a reviewed rebase whose finish records its run and dies at the relabel; the head, and that run."""
+        """Land a reviewed rebase whose finish records its run and dies posting its artifact; the head, and that run.
+
+        The run's receipt went on the attempt in the write that recorded it.
+        """
         head = self.lands_a_reviewed_rebase()
-        self.dies_routing(partial(self.finishes, head))
+        self.dies_at(POST, partial(self.finishes, head))
         self.assertEqual(self.runs(), 1)
-        return head, readings.pinned_records(self)[0]
+        captured = readings.pinned_records(self)[0]
+        self.assertEqual(readings.pinned(self)[readings.KEY_EVIDENCE_RECEIPT], captured.receipt)
+        return head, captured
 
     def continues(self) -> None:
         """Have the issue's author reply `/orchestrator continue` to the park a recovery left."""
@@ -162,12 +176,46 @@ class CapturedRunCase(VerificationRecoveryCase):
             self.gh, self._spec, self.issue, git_support.REVIEWING, self.gh.read_pinned_state(self.issue),
         )
 
+    def assert_settled(self, captured) -> None:
+        """`captured` current exactly as recorded and its artifact posted once, beside the evidence it invalidated.
+
+        Nothing pending, nothing retired but the evidence the rewrite moved
+        past, and the command run once: the run the finish captured.
+        """
+        pending, current, retired = readings.pinned_records(self)
+        settled = (current.receipt, current.revision, current.binding)
+        self.assertEqual(
+            (pending, settled, retired, self.runs()),
+            (None, (captured.receipt, captured.revision, captured.binding), git_support.invalidated(self), 1),
+        )
+        self.assertEqual(self.posted(captured), [captured.commands])
+
+    def posted(self, captured) -> list:
+        """The transcript of every artifact the pull request carries under `captured`'s receipt, oldest first."""
+        published = _evidence_support.posted_artifacts(self)
+        return [artifact.commands for artifact in published if artifact.receipt == captured.receipt]
+
     def assert_abandoned(self, captured) -> None:
-        """Nothing pending or current, the settled evidence invalidated and `captured` abandoned, and no second run."""
+        """Nothing pending or current, the settled evidence invalidated and `captured` abandoned whole, run once.
+
+        The abandoned entry keeps the revision and the whole binding the run
+        was captured with: its tested commit and tree, configuration, source,
+        and the review it answered for.
+        """
         retired = (*git_support.invalidated(self), (captured.receipt, readings.ABANDONED))
         self.assertEqual(
             (readings.pinned_records(self), self.runs()),
             ((None, None, retired), 1),
+        )
+        abandoned = verification_settlement_state.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
+        self.assertEqual((abandoned.revision, abandoned.binding), (captured.revision, captured.binding))
+
+    def assert_unannounced(self) -> None:
+        """Nothing announced -- no notice, no `base_rebased` event -- relabelled, or reset: the round as spent."""
+        unsaid = (announced(self), readings.notices(self), readings.relabels(self))
+        self.assertEqual(
+            (*unsaid, readings.pinned(self)[readings.KEY_REVIEW_ROUND]),
+            ([], [], (), _finish_support.SPENT_ROUND),
         )
 
 

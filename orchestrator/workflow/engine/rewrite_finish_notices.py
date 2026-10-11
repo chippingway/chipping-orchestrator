@@ -21,13 +21,15 @@ was about is recorded all the same. A post that lands enters the ledger of
 this orchestrator's comments on the state the caller stages, so the write that
 records the announcement carries it.
 
-A landed head whose configured verification failed is said once more, behind
-its announcement (`failure`): the failing command, how it failed, and the tail
-of what it printed, worded as the approval's own verify gate words a failure
-(`stages/validating/verify.py`), so the failure stays actionable on the pull
-request although nothing records it as evidence. That notice is not best
-effort: it is recorded before it is posted and the route waits for the pull
-request to carry it (`rewrite_finish_failures`); only its wording is here.
+A landed head whose configured verification failed is said once more, and
+ahead of its announcement (`failure`): the finish's evidence step records and
+posts that notice before the landing is announced, so the failing command, how
+it failed, and the tail of what it printed -- worded as the approval's own
+verify gate words a failure (`stages/validating/verify.py`) -- stay actionable
+on the pull request although nothing records them as evidence. That notice is
+not best effort: it is recorded before it is posted and neither the
+announcement nor the route goes on until the pull request carries it
+(`rewrite_finish_failures`); only its wording is here.
 """
 from __future__ import annotations
 
