@@ -2267,8 +2267,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             delivery record its prompt was cut from, since the thread moves while an agent is out
                             and a mark taken off the one it returns to crosses replies nobody delivered -- the
                             reply that finishes a report-owed park carrying the same record; the parked reply names
-                            the commands a retry spent, which that record's read leaves out, and the last comment it
-                            holds, which only the resolution road marks read ahead of its run
+                            the commands a retry spent, which that record's read leaves out, the last comment it
+                            holds, which only the resolution road marks read ahead of its run, and -- for a retry --
+                            the thread less those commands that a fresh spawn the retry becomes is re-grounded on
       state.py              the counter keys they share, the single settled pair one held round at a time is named
                             by, the preamble head a recovered push ahead of a rebase leaves for its report debt, and
                             the `conflict_replay_*` group a rebase writes about itself -- both ends of what it
@@ -3318,7 +3319,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the quota one asking a failure record's verdict as well as the final message -- and
                             the blockquote they quote with
       session_retirement.py the record of a developer conversation retired as failed (`dev_session_retirement`):
-                            the idempotent retirement that records it and clears the pins with `dev_agent` kept,
+                            the idempotent retirement that records it -- every pinned one, on the tick's state and on
+                            the reading its commit lands over, where it is handed none -- and clears the pins with
+                            `dev_agent` kept,
                             the reading the planned resume asks before either counter, the pin a fresh spawn's id
                             goes through -- refusing a missing or retired id so recovery stays owed -- with every
                             pin a fresh conversation is owed over, in either field, counted as retired and named as
@@ -3327,6 +3330,27 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retirement alone, over a fresh reading, for a tick whose own write is discarded -- every
                             id the tick's own record names retired over that reading too -- putting what it landed
                             back on that tick's state
+      quota_retirement.py   the trigger that record is retired by live: an exhausted account quota on a developer
+                            attempt's normalized failure record (Antigravity's, the only backend that keeps one),
+                            asked by the coordinator on `execution.py` as every attempt returns. It retires the
+                            conversation the failure names -- or the one the attempt was launched to resume, where
+                            it names none -- through the guarded commit above before the result is handed back, so
+                            neither a discarded tick write nor a publication can leave it pinned; a shutdown-sweep
+                            kill and a Claude quota notice retire nothing, and nothing here launches or parks. Each
+                            Antigravity launch arms the host record below first, refused where the host will not
+                            take that, and settles it on a return no quota stopped. One that commit will not land
+                            is owed from that record, which outlives a restart: the tick is held, its state
+                            withheld from the whole-state writer, and it is landed again ahead of a resume's plan
+                            and ahead of each launch, which it refuses until it lands and the record is settled
+                            and, on a withheld tick -- one a record naming no retirement was planned over included
+                            -- after it lands too
+      quota_record.py       that host record, beside the issue's writer claim (`writer_claims.claim_path`): armed
+                            under a token of its own before an Antigravity launch, settled by its return, resolved
+                            to the conversation a quota stop retires, and settled -- written over in place as owing
+                            nothing, never removed -- once that lands, every write flushed to disk with the
+                            directory entries reaching it before it counts; a resolution the host would not take held in
+                            process memory only while the record still shows its arming, and a record naming no
+                            retirement -- one that will not read, or an arming nothing resolved -- never landed
       resume.py             the two resume entry points and the historical call shape they keep. The
                             human-reply one is handed its caller's frozen batch rather than reading the
                             thread itself, hands that batch's frozen conversation down for the re-grounding
@@ -3365,8 +3389,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since that retry is a SECOND agent -- and what each attempt is allowed to persist; the
                             bounded AGY command-recovery coordinator (`_coordinate_developer_run`) that recognizes
                             incomplete command outcomes and permits at most one immediate tracked continuation for
-                            both fresh spawns and resumes, never of a conversation `session_retirement` retired; and
-                            the identity an attempt is charged under, spelled once
+                            both fresh spawns and resumes, never of a conversation `session_retirement` retired nor
+                            of one an account quota stopped, whose retirement every attempt -- the continuation
+                            included -- lands as it returns (`quota_retirement.py`), ahead of its pause check, a
+                            retirement that will not land holding the tick and refusing each launch until it does,
+                            and a resume naming a conversation the tick's state records as retired never launched;
+                            and the identity an attempt is charged under, spelled once
                             (`_launch_identity`), so the fingerprint a resume's first attempt would be charged under is
                             read without resuming (`_first_launch_fingerprint`) -- how a handed change request's
                             recovery tells that developer's charge from another road's

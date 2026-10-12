@@ -14,11 +14,12 @@ a backend-selection problem) while clearing the id and both counters.
 Retirement drops the id BEFORE the spawn so a spawn that returns no id of its
 own cannot leave the next tick resuming the session this one just retired.
 
-A conversation a run showed to have FAILED is retired for good instead, on a
-record of its own that `session_retirement` keeps: the planned read here asks
-that record before either counter, and the pin a fresh spawn's id goes through
-refuses a retired id or a missing one, so recovery stays owed until a
-conversation with an id of its own is pinned.
+A conversation a run showed to have FAILED -- one an exhausted account quota
+stopped, which `quota_retirement` retires as the attempt returns -- is retired
+for good instead, on a record of its own that `session_retirement` keeps: the
+planned read here asks that record before either counter, and the pin a fresh
+spawn's id goes through refuses a retired id or a missing one, so recovery
+stays owed until a conversation with an id of its own is pinned.
 
 The retry budget is the other gate, and it is deliberately not per-session:
 the 24h window counts fresh spawns per ISSUE, shared with decomposing, so a

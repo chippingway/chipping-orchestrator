@@ -452,22 +452,32 @@ GitHub holds the durable state:
 - **Per-issue workflow state** — the workflow label + pinned `<!--orchestrator-state ...-->` JSON comment on each
   Issue (schema in [`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)).
 
-The orchestrator process is stateless; restoring an Issue restores progress.
+One per-issue record lives on the orchestrator host instead: the quota retirement record an Antigravity developer
+launch arms, `WORKTREES_DIR/.issue-writer-claims/repo-<id>-issue-<n>.quota-retirement`
+([format and recovery](configuration/operations.md#running-more-than-one-poller)). Until the pinned comment takes the
+retirement of a conversation an account quota stopped, that record is the only place it is owed, and every developer
+launch on the issue reads it first. Restoring an Issue restores its progress, except for an owed retirement the
+comment never took: a host restored without the record could resume the stopped conversation.
 
 Operator drill checklist (run at least once after setup, then on a recurring cadence):
 
 1. Confirm a current clone of the repo exists off the orchestrator host, tracking `main`.
 2. Export open / recently-closed Issues via the GitHub API (`gh issue list --state all --json …`) off-host. The
    pinned-state JSON comment is part of the export.
-3. Verify that restoring target clones and running `chipping-orchestrator` against a fresh `WORKTREES_DIR` recovers
-   in-flight Issues from their labels + pinned comments — the documented restart contract
-   ([`configuration.md#what-survives-a-restart`](configuration.md#what-survives-a-restart)).
-4. Confirm each configured repository's `~/.config/<owner>/<repo>/token` (or whatever `ORCHESTRATOR_TOKEN_FILE` points
+3. Back up `WORKTREES_DIR/.issue-writer-claims/` with the pollers stopped, and restore it into the new
+   `WORKTREES_DIR` before the first poller starts. Where it cannot be restored, list every Issue an Antigravity
+   developer ran on whose record did not read `{}`, and settle or write each one by hand on the new host, as the
+   [runbook](configuration/operations.md#running-more-than-one-poller) describes, before any poller runs.
+4. Verify that restoring target clones, that directory, and running `chipping-orchestrator` against the restored
+   `WORKTREES_DIR` recovers in-flight Issues from their labels + pinned comments and those records — the documented
+   restart contract ([`configuration.md#what-survives-a-restart`](configuration.md#what-survives-a-restart)).
+5. Confirm each configured repository's `~/.config/<owner>/<repo>/token` (or whatever `ORCHESTRATOR_TOKEN_FILE` points
    at) is backed up out-of-band; the personal access token is not stored in the repo and not recoverable from a code
    restore alone.
 
 Worktrees under `WORKTREES_DIR` are cache, not state — losing them only forces the next tick to re-create the worktree
-from `origin/<base>`.
+from `origin/<base>`. Its `.issue-writer-claims/` namespace is not: the claim files are disposable once every poller
+has stopped, but a quota retirement record beside one may carry an obligation GitHub does not.
 
 ### AI-generated code review, tests, and scans
 

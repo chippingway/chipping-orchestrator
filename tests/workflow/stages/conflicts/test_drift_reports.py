@@ -300,7 +300,9 @@ class ResolvingConflictDriftReportTest(
         # still mid-flight. That reads first, as the resolution funnel reads
         # it: a session failure, parked as the timeout or the session limit it
         # is, which `/orchestrator continue` retries -- not a rebase only a
-        # human can finish, which refuses the command.
+        # human can finish, which refuses the command. The quota retired the
+        # conversation it stopped, so its retry is a fresh one, re-grounded on
+        # a conversation the command is not quoted in.
         for shape, stopped, reason in MID_REBASE_STOPS:
             with self.subTest(stopped=shape):
                 self.seeded_on_conflict()
@@ -312,7 +314,10 @@ class ResolvingConflictDriftReportTest(
                 world.human_reply(self, CONTINUE)
                 retried = self.drift(QUESTION_REPLY, committed=False)[RUN_AGENT]
                 retried.assert_called_once()
-                self.assertNotIn(CONTINUE, retried.call_args.args[1])
+                launch = retried.call_args
+                self.assertIn(_prompt_notes._CONTINUE_RETRY_PROMPT, launch.args[1])
+                self.assertNotIn(f"@alice: {CONTINUE}", launch.args[1])
+                self.assertEqual(launch.kwargs.get("resume_session_id") is None, reason != AGENT_TIMEOUT)
 
     def test_a_capped_report_alone_still_settles(self) -> None:
         # The counter has spent every round, and the session answers the edit

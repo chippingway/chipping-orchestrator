@@ -11,9 +11,10 @@ retirement held in those or in the pin alone is undone by the next commit that
 ships. It is recorded in a field nothing else writes
 (`state._DEV_SESSION_RETIREMENT`) instead:
 
-* `_retire_dev_session` records the id, marks a fresh conversation owed, and
-  clears the active and legacy pins the way every rotation does
-  (`_clear_dev_session_pins`), keeping the pinned `dev_agent` command.
+* `_retire_dev_session` records the id -- every pinned id, where it is handed
+  none -- marks a fresh conversation owed, and clears the active and legacy
+  pins the way every rotation does (`_clear_dev_session_pins`), keeping the
+  pinned `dev_agent` command.
   Retiring a conversation already recorded only unpins it where something
   pinned it again, so the primitive is idempotent per conversation.
 * `_retired_session_reason` is asked first by the planned and resolved reads
@@ -47,7 +48,9 @@ ships. It is recorded in a field nothing else writes
 
 Nothing here decides THAT a conversation failed, and nothing touches the
 worktree, the branch, the retry gates, or the run ledger: the caller that
-classified the result names the conversation and the reason.
+classified the result names the conversation and the reason -- for an
+exhausted account quota, `quota_retirement`, through the guarded commit as
+every developer attempt returns.
 """
 from __future__ import annotations
 
@@ -196,21 +199,25 @@ def _retire_dev_session(state: PinnedState, session_id: str | None, reason: str)
     """Record `session_id` as retired for good, owe a fresh conversation, and clear the pins.
 
     `session_id` is the conversation the failed run ran as, or None where the
-    run named none; either way the next run must open a new one. A conversation
-    the record already names is not retired a second time: a recovery that has
-    since pinned a distinct conversation keeps it, and only a pin naming the
-    retired id again -- in either field -- is cleared. The pins are cleared
-    before the record owes a fresh conversation, so a pin is recorded beside
-    `session_id` only where an earlier retirement already owed one over it.
+    run named none; either way the next run must open a new one. Handed none,
+    the retirement names every conversation either pin field holds in its
+    place: the failure is no other conversation's it could name, and a pin
+    cleared unnamed could be handed back by the fresh run and pinned as the
+    recovery. A conversation the record already names is not retired a second
+    time: a recovery that has since pinned a distinct conversation keeps it,
+    and only a pin naming the retired id again -- in either field -- is
+    cleared. The pins are cleared before the record owes a fresh conversation,
+    so a pin is recorded beside a named `session_id` only where an earlier
+    retirement already owed one over it.
     """
     if session_id and session_id in _retirement(state)[0]:
         if session_id in _session_read._pinned_session_ids(state):
             _clear_dev_session_pins(state)
         return
+    named = [session_id] if session_id else _session_read._pinned_session_ids(state)
     _clear_dev_session_pins(state)
     retired = _retirement(state)[0]
-    if session_id:
-        retired.append(session_id)
+    retired.extend(name for name in named if name not in retired)
     state.set(_state._DEV_SESSION_RETIREMENT, {
         _SESSION_IDS: retired, _REASON: reason, _RECOVERY_PENDING: True,
     })
@@ -271,7 +278,10 @@ def _commit_dev_session_retirement(
     order `state` records it: the tick may have retired one on its state alone
     and never written it, and a commit staged over the comment's record alone
     would land without it, hand that record back to `state` in place of the
-    tick's own, and leave the conversation free to be pinned again.
+    tick's own, and leave the conversation free to be pinned again. A
+    retirement handed no conversation names every one that reading pins as
+    well, before anything there is cleared: the comment may pin one the tick
+    never read, and cleared unnamed it could be pinned again.
 
     `state` carries the retirement whatever the commit answers, so a write the
     tick does make carries it as well. A commit that lands puts every field it
@@ -290,6 +300,8 @@ def _commit_dev_session_retirement(
     staged = PinnedState(comment_id=fresh.comment_id, state_data=copy.deepcopy(fresh.data))
     if not staged.get(_state._DEV_AGENT) and state.get(_state._DEV_AGENT):
         staged.set(_state._DEV_AGENT, state.get(_state._DEV_AGENT))
+    if not session_id:
+        _retire_dev_session(staged, None, reason)
     for retired_id in _retirement(state)[0]:
         _retire_dev_session(staged, retired_id, reason)
     _retire_dev_session(staged, session_id, reason)

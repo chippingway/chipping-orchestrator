@@ -13,7 +13,21 @@ runs after BOTH runs, because each opens its own live-pause window -- the first
 before the retry spawns a second agent, the second before anything is persisted
 -- and a fired guard returns before the session id is pinned and before
 `awaiting_human` is cleared, so the next tick re-derives the resume from
-untouched durable state. The stage the run is attributed to is resolved once,
+untouched durable state. The one write not left to that is the retirement of
+a conversation an exhausted account quota stopped, which every attempt lands
+as it returns (`quota_retirement`), ahead of its pause check: a tick that
+writes nothing still never resumes it, and the post-run persistence refuses to
+pin it again. One the comment would not take answers paused too, so the tick
+is held as a pause holds it, and every launch after it -- a restarted poller's
+included -- is refused with the run circuit's own answer until a later reading
+lands it; the resume plan built here asks first, so a retirement landed then is
+one the plan reads, and one that will not land or will not read there keeps
+that tick from launching at all. A resume of a conversation the tick's state
+records as retired, which only a plan made before that retirement landed can
+still name, is refused the same way, and so is an Antigravity launch the host
+will not first record as owing its conversation's retirement -- the record its
+return clears where no quota stopped it. The stage
+the run is attributed to is resolved once,
 at build time, and an explicit `stage` wins over the label read off the issue:
 a caller that just relabeled (validating -> fixing) names the stage it moved to
 -- as does the recovery of a launch a handed request owes, on an issue already
@@ -45,11 +59,13 @@ from orchestrator.workflow.engine import (
     observations as _observations,
     prompt_notes as _prompt_notes,
     run_charge_state as _run_charge_state,
+    run_circuit as _run_circuit,
     run_requests as _run_requests,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
     models as _models,
+    quota_retirement as _quota_retirement,
     resume_request as _resume_request,
     session as _session,
     session_retirement as _session_retirement,
@@ -64,6 +80,9 @@ log = logging.getLogger("orchestrator.workflow")
 _DEVELOPER = "developer"
 
 _REVIEW_ROUND = "review_round"
+
+# The launch option naming the backend an attempt runs on.
+_BACKEND = "backend"
 
 
 @dataclass(frozen=True)
@@ -87,6 +106,13 @@ class _DevResumeContext:
         state, followup_text = request.resume_args
         options = _resume_request._DevResumeOptions.from_fields(request.option_fields)
         worktree = _worktree._ensure_resume_worktree(request.spec, request.issue, state)
+        # A quota retirement an earlier tick could not land is landed ahead of
+        # the plan, so the plan reads it. One that still will not land, or will
+        # not read, withholds the state, and the coordinator refuses the launch
+        # on it -- whatever a second attempt there answers, or an operator
+        # does to the record meanwhile -- so this tick, which can no longer
+        # record what the launch leads to, makes none.
+        _quota_retirement._reconcile(request.gh, request.issue, state)
         plan = _session._resolve_dev_session_for_resume(request.issue, state)
         return cls(
             gh=request.gh,
@@ -192,7 +218,7 @@ def _launch_identity(
 ) -> dict:
     """Every field one developer attempt is fingerprinted by, beside its role."""
     return {
-        "backend": session.backend,
+        _BACKEND: session.backend,
         "stage": stage,
         "agent_spec": session.spec,
         "resume_session_id": session_id,
@@ -227,16 +253,23 @@ def _should_recover_incomplete_agy(
     """Whether an incomplete AGY command outcome earns an immediate continuation.
 
     Stops recovery on a freshly observed pause, a launch the run circuit
-    refused, a shutdown sweep interruption, a process timeout, a missing
-    recorded conversation id, an outcome that is non-AGY or normally
-    completed, or a conversation `state` records as retired
-    (`session_retirement._held_retirement`). That last is a fresh run handing
-    a failed conversation's id back: continuing it would resume the very
+    refused, a shutdown sweep interruption, a process timeout, an exhausted
+    account quota, a missing recorded conversation id, an outcome that is
+    non-AGY or normally completed, or a conversation `state` records as retired
+    (`session_retirement._held_retirement`). The quota stops it whatever
+    unfinished steps it left beside the error: the continuation would resume
+    the conversation the quota just retired (`quota_retirement`), on an account
+    that cannot run it until the reset. The last is a fresh run handing a
+    failed conversation's id back: continuing it would resume the very
     conversation the post-run pin then refuses, with the recovery still owed.
     """
     if paused or not agent_result.invoked:
         return False
-    if is_shutdown_sweep_interrupted(agent_result) or agent_result.timed_out:
+    if (
+        is_shutdown_sweep_interrupted(agent_result)
+        or agent_result.timed_out
+        or _quota_retirement._quota_failure(agent_result)
+    ):
         return False
     if not (_is_incomplete_agy_result(backend, agent_result) and agent_result.session_id):
         return False
@@ -258,9 +291,10 @@ class _DevRunCoordinator:
             )
         else:
             agent_result = initial_result
-            paused = bool(self._options.get("initial_paused", False))
+            held = self._held_on_quota(agent_result, self._options.get("resume_session_id"))
+            paused = held or bool(self._options.get("initial_paused", False))
 
-        backend = str(self._options["backend"])
+        backend = str(self._options[_BACKEND])
         if _should_recover_incomplete_agy(backend, agent_result, paused, self._state()):
             log.info(
                 "issue=#%d AGY run ended with unfinished tool steps on session %r; "
@@ -290,12 +324,14 @@ class _DevRunCoordinator:
     def _run_agent(
         self, prompt: str, resume_session_id: str | None,
     ) -> tuple[AgentResult, bool]:
+        if self._launch_held(resume_session_id):
+            return _run_circuit._refused_run(), False
         agent_result = _usage._run_agent_tracked(
             self._gh,
             self._resolved_budget(),
             agent_role=_DEVELOPER,
             stage=self._options["stage"],
-            backend=self._options["backend"],
+            backend=self._options[_BACKEND],
             prompt=prompt,
             cwd=self._options["worktree"],
             agent_spec=self._options.get("agent_spec"),
@@ -310,11 +346,55 @@ class _DevRunCoordinator:
             ),
         )
         _issue_usage._accumulate_issue_usage(self._state(), agent_result.usage)
-        paused = (
+        paused = self._held_on_quota(agent_result, resume_session_id) or (
             self._options.get("pause_guard", True)
             and _guards._paused_during_agent_run(self._gh, self._issue())
         )
         return agent_result, bool(paused)
+
+    def _launch_held(self, resume_session_id: str | None) -> bool:
+        """Whether this launch is not to be made, for a quota retirement or for the conversation it resumes.
+
+        Answered with the run circuit's own refusal (`_refused_run`), which
+        every caller already returns on without writing, and asked before the
+        circuit charges anything: no run was made. A quota retirement no
+        commit has confirmed, or the host still owes, holds it, and a tick
+        whose state is withheld makes no launch at all, even where a later
+        attempt lands the retirement (`quota_retirement._holds_the_launch`).
+        Once whatever was owed has landed on the tick's state, a resume of a
+        conversation that state records as retired is refused too: only a
+        plan made before the retirement landed still names it, and the run
+        would be the very conversation the record retires. Last, an
+        Antigravity launch -- the one backend whose failure record says
+        whether a quota stopped it -- owes the retirement of the conversation
+        it runs on the host before it is made (`quota_retirement._armed`), and
+        is held where the host will not take that.
+        """
+        state = self._state()
+        if _quota_retirement._holds_the_launch(self._gh, self._issue(), state):
+            return True
+        if resume_session_id in _session_retirement._held_retirement(state)[0]:
+            log.warning(
+                "issue=#%d refusing to resume dev session %r, which the pinned state records as retired",
+                self._issue().number, resume_session_id,
+            )
+            return True
+        if self._options[_BACKEND] != _protocol.AGY:
+            return False
+        return not _quota_retirement._armed(self._gh, self._issue(), resume_session_id)
+
+    def _held_on_quota(self, agent_result: AgentResult, launched: str | None) -> bool:
+        """Retire the conversation an attempt ran -- `launched` where it names none -- if a quota stopped it.
+
+        Asked of every attempt as it returns, ahead of its pause check: a
+        caller honoring a pause writes nothing, which is why the retirement
+        lands apart from that caller's write. True where it could not be
+        confirmed, which holds the tick exactly as a live pause does -- the
+        caller writing nothing over the comment the commit was refused on.
+        """
+        return not _quota_retirement._retire_quota_conversation(
+            self._gh, self._issue(), self._state(), agent_result, launched,
+        )
 
 
 def _coordinate_developer_run(
@@ -333,10 +413,25 @@ def _coordinate_developer_run(
     Every continuation invokes `_run_agent_tracked` with the same issue
     budget, worktree, backend spec, stage attribution, timeout behavior, and
     conversation id. A missing or retired conversation, timeout, shutdown
-    interruption, never-invoked run-budget refusal, or freshly observed pause
-    stops recovery.
+    interruption, never-invoked run-budget refusal, exhausted account quota,
+    or freshly observed pause stops recovery.
     A second premature exit returns the structured failure for child 3 to park.
     No loop or direct backend/subprocess call is made.
+
+    Every attempt -- the first, handed in or run here, and the continuation
+    -- is the developer result boundary an account quota is decided at: the
+    conversation the attempt ran, or the one it was launched to resume where
+    the failure named none, is retired durably before the attempt is handed
+    back (`quota_retirement`), so no later launch on any road resumes it and
+    neither post-run persistence pins it again. A retirement the comment would
+    not take answers paused, withholding the caller's state from its
+    whole-state write, and is owed from a record the host keeps: each launch
+    made here after it answers the run circuit's refusal, uncharged, until the
+    retirement lands -- and on a tick whose state is withheld, after it lands
+    too. So does a resume of a conversation the state records as retired, and
+    an Antigravity launch the host will not first record as owing the
+    retirement of the conversation it runs, which the attempt's return clears
+    where no quota stopped it.
     """
     return _DevRunCoordinator(gh, budget, kwargs).coordinate()
 

@@ -123,8 +123,8 @@ def _spawn_implementer(
         pause_guard=True,
     )
     # The persistence every developer run's id goes through, so a spawn that
-    # hands a retired conversation's id back -- or none -- pins nothing and a
-    # recovery owed stays owed.
+    # hands a retired conversation's id back -- the one its own quota stop just
+    # retired included -- or none pins nothing and a recovery owed stays owed.
     _session._persist_dev_session_after_run(state, agent_result, fresh_spawn=True)
     return agent_result, paused, delivered
 

@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Direct coordinator tests for bounded tracked AGY command recovery."""
+"""Direct coordinator tests for bounded tracked AGY command recovery and the quota retirement at its boundary."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import signal
 from pathlib import Path
 from unittest import TestCase, main, mock
 
-from orchestrator.agents.models import AgentResult, ToolLifecycle
+from orchestrator.agents.models import AgentResult, TerminalFailure, ToolLifecycle
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.usage import protocol as _protocol
 from orchestrator.observability.usage.metrics import UsageMetrics
@@ -19,7 +19,10 @@ from orchestrator.workflow.engine import (
     run_circuit as _run_circuit,
     usage as _usage,
 )
-from orchestrator.workflow.stages.implementing import execution as _execution
+from orchestrator.workflow.stages.implementing import (
+    execution as _execution,
+    quota_record as _quota_record,
+)
 from tests.support import fakes
 
 _ISSUE_NUMBER = 42
@@ -63,6 +66,21 @@ _CWD_KEY = "cwd"
 _STAGE_KEY = "stage"
 _AGENT_SPEC_KEY = "agent_spec"
 _EXTRA_ARGS_KEY = "extra_args"
+
+_RUNNER_RUN_AGENT = "orchestrator.agents.runner.run_agent"
+_PIN_KEY = "dev_session_id"
+_RETIREMENT_KEY = "dev_session_retirement"
+_LAUNCHED_SESSION = "agy-convo-launched"
+_FAILED_STATUS = "ERROR"
+_CLAUDE_QUOTA_NOTICE = "You've hit your session limit · resets 7pm (Asia/Novosibirsk)"
+# The failure record an AGY run the account quota stopped normalizes to.
+_QUOTA_FAILURE = TerminalFailure(
+    process_exit_code=1,
+    status=_FAILED_STATUS,
+    error="Individual quota reached. Resets in 2h42m39s.",
+    quota_exhausted=True,
+    quota_reset="2h42m39s",
+)
 
 _UNFINISHED_STEP = ToolLifecycle(
     step_index=_STEP_ONE, tool_name="run_command", state="ACTIVE",
@@ -119,6 +137,28 @@ def _completed_result(
     }
     defaults.update(kwargs)
     return AgentResult(**defaults)
+
+
+# A quota stop naming its conversation, and one naming none, each beside the
+# result handed to the coordinator in place of a run -- None where it runs.
+_NAMED_QUOTA = _incomplete_result(terminal_failure=_QUOTA_FAILURE)
+_UNNAMED_QUOTA = _incomplete_result(session_id=None, terminal_failure=_QUOTA_FAILURE)
+_QUOTA_ATTEMPTS = ((_NAMED_QUOTA, None), (_UNNAMED_QUOTA, None), (_NAMED_QUOTA, _NAMED_QUOTA))
+
+# Stops that retire nothing: a Claude quota notice in the final message, a
+# failure record naming some other failure, and an AGY quota stop the shutdown
+# sweep killed.
+_UNRETIRED_STOPS = (
+    ("claude notice", _completed_result(last_message=_CLAUDE_QUOTA_NOTICE, exit_code=1)),
+    ("unrelated failure", _completed_result(
+        last_message="",
+        exit_code=1,
+        terminal_failure=TerminalFailure(process_exit_code=0, status=_FAILED_STATUS, error="malformed output"),
+    )),
+    ("shutdown kill", _incomplete_result(
+        terminal_failure=_QUOTA_FAILURE, interrupted=True, exit_code=-signal.SIGTERM,
+    )),
+)
 
 
 class _AGYRecoveryBase(TestCase):
@@ -523,6 +563,135 @@ class AGYRecoveryGuardsAndCircuitTest(_AGYRecoveryBase):
             self.assertIs(guarded, recovered)
             self.assertFalse(paused)
             self._assert_circuit_and_events()
+
+
+class AGYQuotaRetirementTest(_AGYRecoveryBase):
+    """An account quota decided as each attempt returns: the conversation it
+    stopped is retired on the pinned comment before the coordinator hands the
+    result back, and the attempt earns no continuation whatever it left
+    unfinished. Each first launch resumes `_LAUNCHED_SESSION`, which the
+    comment pins under the AGY command.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.gh.seed_state(_ISSUE_NUMBER, dev_agent=_AGENT_SPEC, dev_session_id=_LAUNCHED_SESSION)
+        self.state = self.gh.read_pinned_state(self.issue)
+        self.budget = _run_charge_state.AgentRunBudget(issue=self.issue, state=self.state)
+
+    def test_quota_retires_without_a_continuation(self) -> None:
+        # The run names its conversation, or names none and the one it was
+        # launched to resume stands in, whether it ran here or was handed in;
+        # the step it left running buys nothing -- asked of a state holding no
+        # retirement too -- so the one attempt is the only run charged.
+        for stopped, handed in _QUOTA_ATTEMPTS:
+            with self.subTest(named=stopped.session_id, handed=handed is not None):
+                self.setUp()
+                with mock.patch(_RUNNER_RUN_AGENT, return_value=stopped) as run_agent:
+                    self.assertEqual(self._coordinate(initial_result=handed), (stopped, False))
+                    self.assertEqual(run_agent.call_count, int(handed is None))
+                    charged = self.gh.pinned_data(_ISSUE_NUMBER).get(_RUNS_USED, 0)
+                    self.assertEqual(charged, run_agent.call_count, "the one attempt is the only run charged")
+                self._assert_retired(stopped.session_id or _LAUNCHED_SESSION)
+        self.assertEqual(
+            [
+                _execution._should_recover_incomplete_agy(_protocol.AGY, ran, False, PinnedState())
+                for ran in (_incomplete_result(terminal_failure=_QUOTA_FAILURE), _incomplete_result())
+            ],
+            [False, True],
+        )
+
+    def test_continued_quota_retires_its_conversation(self) -> None:
+        # An unrelated unfinished command still earns its one continuation of
+        # the conversation it returned, and that is the conversation retired
+        # when the quota stops the continuation without naming one.
+        with mock.patch(_RUNNER_RUN_AGENT, side_effect=[_incomplete_result(), _UNNAMED_QUOTA]) as run_agent:
+            self._coordinate()
+            self.assertEqual(run_agent.call_args.kwargs[_RESUME_SESSION_KEY], _SESSION_ID)
+        self._assert_retired(_SESSION_ID)
+        self.assertEqual(self.gh.pinned_data(_ISSUE_NUMBER)[_RUNS_USED], _EXPECTED_RUNS)
+
+    def test_other_stops_retire_nothing(self) -> None:
+        # A Claude quota notice resumes past its reset, a failure record naming
+        # no quota is some other failure, and a run the shutdown sweep killed
+        # is no trustworthy outcome at all.
+        for name, stopped in _UNRETIRED_STOPS:
+            with self.subTest(stopped=name):
+                self.setUp()
+                with mock.patch(_RUNNER_RUN_AGENT, return_value=stopped) as run_agent:
+                    self._coordinate()
+                    run_agent.assert_called_once()
+                for pinned in (self.state.data, self.gh.pinned_data(_ISSUE_NUMBER)):
+                    self.assertEqual(
+                        (pinned.get(_PIN_KEY), pinned.get(_RETIREMENT_KEY)), (_LAUNCHED_SESSION, None),
+                    )
+
+    def test_unanswered_retirement_holds_each_launch(self) -> None:
+        # The edit landing the retirement goes unanswered: the attempt holds
+        # its caller as a pause does, with the state withheld from the
+        # whole-state writer. Each launch after it is refused uncharged until
+        # the retirement lands -- the one it lands under too, and every one
+        # after that on the tick whose state is withheld. The next tick still
+        # never resumes the conversation it retired, as a resume planned
+        # before it landed would, and its fresh launch runs.
+        self.gh.pinned_failures.refused.add(_ISSUE_NUMBER)
+        with mock.patch(_RUNNER_RUN_AGENT, side_effect=[_UNNAMED_QUOTA, _completed_result()]) as run_agent:
+            # In order: the stopped attempt, the state and the comment it
+            # leaves, and whether the launch behind it ran.
+            unanswered = [
+                self._coordinate(),
+                self.state.withheld,
+                self.gh.pinned_data(_ISSUE_NUMBER).get(_PIN_KEY),
+                self._coordinate()[0].invoked,
+            ]
+            self.gh.pinned_failures.refused.clear()
+            answered = [
+                self._coordinate()[0].invoked,
+                self._coordinate()[0].invoked,
+            ]
+            self.state = self.gh.read_pinned_state(self.issue)
+            self.budget = _run_charge_state.AgentRunBudget(issue=self.issue, state=self.state)
+            answered += [
+                self._coordinate()[0].invoked,
+                self._coordinate(resume_session_id=None)[0].invoked,
+                run_agent.call_count,
+            ]
+        self.assertEqual(unanswered, [(_UNNAMED_QUOTA, True), True, _LAUNCHED_SESSION, False])
+        self.assertEqual(
+            answered, [False, False, False, True, _EXPECTED_RUNS],
+            "landed under the withheld tick, which launches nothing however often it asks; the next tick resumes "
+            "the retired conversation never, and runs a fresh one",
+        )
+        self._assert_retired(_LAUNCHED_SESSION)
+        self.assertEqual(self.gh.pinned_data(_ISSUE_NUMBER)[_RUNS_USED], _EXPECTED_RUNS, "a held launch is uncharged")
+        self.assertIsNone(
+            _quota_record._OwedRetirement.recorded(self.gh, self.issue),
+            "a landed retirement is owed, and landed again, no more",
+        )
+
+    def _coordinate(self, **options: object) -> tuple[AgentResult, bool]:
+        launch = {"resume_session_id": _LAUNCHED_SESSION, **options}
+        return _execution._coordinate_developer_run(
+            self.gh,
+            self.budget,
+            issue=self.issue,
+            state=self.state,
+            worktree=self.worktree,
+            backend=_protocol.AGY,
+            stage=_STAGE,
+            prompt=_PROMPT,
+            agent_spec=_AGENT_SPEC,
+            **launch,
+        )
+
+    def _assert_retired(self, session_id: str) -> None:
+        """The tick's state and the comment both retire `session_id`, the AGY command kept."""
+        retired = {"session_ids": [session_id], "reason": "agent_session_limit", "recovery_pending": True}
+        for pinned in (self.state.data, self.gh.pinned_data(_ISSUE_NUMBER)):
+            self.assertEqual(
+                (pinned.get(_PIN_KEY), pinned.get(_RETIREMENT_KEY), pinned.get("dev_agent")),
+                (None, retired, _AGENT_SPEC),
+            )
 
 
 if __name__ == "__main__":

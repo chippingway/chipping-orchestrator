@@ -2345,7 +2345,14 @@ because there it is the claim that this stage has already rerouted rather than a
      original fresh spawn, while every process consumes the lifetime agent-run ledger. Non-AGY backends (Codex,
      Claude) and completed runs are untouched. Pause, timeout, shutdown sweep kill, and run-limit refusals stop
      recovery, and so do a run that names no conversation and one that hands back a conversation retired as failed
-     (`dev_session_retirement`), whose id the post-run pin refuses too.
+     (`dev_session_retirement`), whose id the post-run pin refuses too. So does an exhausted account quota, whatever
+     unfinished steps sit beside it: every attempt the coordinator makes -- this spawn and its continuation alike --
+     is asked as it returns (`quota_retirement`), and the conversation a quota stopped, or the one the attempt
+     resumed where the failure names none, is retired through the record's guarded commit before the result reaches
+     this step's post-run pin or any disposition below, a commit's publication included. A retirement that commit
+     will not land holds the tick as the `paused` branch below does, its state withheld from the whole-state writer,
+     and refuses every developer launch on the issue after it -- uncharged, as the run circuit refuses one -- until a
+     later reading lands it.
   6. Branch on result:
      - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
        pinned state, so durable GitHub state stays exactly as the prior tick left it and the next process retries.
@@ -2353,12 +2360,14 @@ because there it is the claim that this stage has already rerouted rather than a
        HITL question, consumes `awaiting_human`, or advances a watermark. An Antigravity cancellation with no signal
        behind it whose failure record names the exhausted quota is not one: the CLI stopped itself, so it reaches the
        branches below and parks as a session limit rather than leaving the issue unparked for another run.
-     - `paused` / `backlog` applied mid-run → same short-circuit as `interrupted`: return WITHOUT writing pinned
-       state, so no PR opens, no relabel, no park, no watermark bump. `_paused_during_agent_run` re-reads a FRESHLY
-       fetched issue (`gh.get_issue`) because the dispatch-time skip only saw the pre-run labels. Applies to the fresh
-       spawn, the awaiting-human resume (including the pre-disposition `_resume_dev_with_text` poisoned-session retry),
-       and the user-content-change resume. The committed work stays on the branch and republishes through step 3's
-       recovered-worktree path once the label is removed.
+     - `paused` / `backlog` applied mid-run → same short-circuit as `interrupted`: return WITHOUT writing pinned state,
+       so no PR opens, no relabel, no park, no watermark bump -- the one write already made being the retirement of a
+       conversation an account quota stopped, landed alone as the run returned; a retirement that would not land holds
+       the tick through this same branch. `_paused_during_agent_run` re-reads a
+       FRESHLY fetched issue (`gh.get_issue`) because the dispatch-time skip only saw the pre-run labels. Applies to the
+       fresh spawn, the awaiting-human resume (including the pre-disposition `_resume_dev_with_text` poisoned-session
+       retry), and the user-content-change resume. The committed work stays on the branch and republishes through step
+       3's recovered-worktree path once the label is removed.
      - `timed_out` → dispose on whether the run left a commit, which requires command completion
        (`not unfinished_steps`) and two readings (`_timeout_left_commits`): HEAD advanced past the pre-agent SHA
        snapshot **and** the branch carries commits `<remote>/<base>` does not. A clean advance that passes both
@@ -5398,7 +5407,9 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      path uses the same `_post_conflict_resolution_result` helper as the fresh path — except over a park that left
      a report owed, which it answers as the rest of the body edit's road — and a bare `/orchestrator
      continue` on it is intercepted like `validating`'s: a session-failure park (`agent_silent` / `agent_timeout` /
-     `agent_execution_failed`) retries the dev on the neutral `_CONTINUE_RETRY_PROMPT` instead of the literal command,
+     `agent_execution_failed`) retries the dev on the neutral `_CONTINUE_RETRY_PROMPT` instead of the literal command
+     -- and a retry that becomes a fresh spawn, as every retry after an account quota retired the conversation does,
+     is re-grounded on the thread less the commands it consumed --
      a park needing a real answer refuses, and an auto-rebase park is left to the refresh retry-unpark
      (`_continue_command_action` / `_refuse_parked_continue`). A park left by a *reading* rather than a question is
      not answered here at all — see the transient-park note below.

@@ -3443,10 +3443,12 @@ a string nor null, a `recovery_pending` that is not a boolean: every id it still
 clear a resume owed a fresh conversation makes, or the pin of the distinct conversation that recovers.
 Its lifecycle, all on `stages/implementing/session_retirement.py`:
 
-- **Retired.** The retirement records the conversation's id -- or none, where the failed run named none -- marks
-  recovery owed, and clears `dev_session_id` and the legacy `codex_session_id` with both per-session counters zeroed,
-  exactly as a rotation does: `dev_agent` keeps the full command (the legacy pin is converted to `"codex"` first), and
-  the worktree, branch, pull request, issue thread, retry gates, park, and lifetime run ledger are not touched.
+- **Retired.** The retirement records the conversation's id -- or, where the failed run named none, every id either pin
+  field holds, on the tick's state and on the reading its guarded commit lands over, so no pin is cleared unnamed --
+  marks recovery owed, and clears `dev_session_id` and the legacy `codex_session_id` with both per-session counters
+  zeroed, exactly as a rotation does: `dev_agent` keeps the full command (the legacy pin is converted to `"codex"`
+  first), and the worktree, branch, pull request, issue thread, retry gates, park, and lifetime run ledger are not
+  touched.
   Retiring a conversation the record already names changes nothing but a pin naming it again. The primitive stages
   the retirement on the tick's state; its guarded commit lands it alone over a fresh reading as well, owning only the
   record, the two pins, `dev_agent`, and the two counters, so a tick whose own write is discarded leaves the
@@ -3455,7 +3457,24 @@ Its lifecycle, all on `stages/implementing/session_retirement.py`:
   dropped from the comment, nor from the record the tick takes back. A commit that lands puts those owned fields back
   on the tick's state as the comment now holds them, the rest of its staging left alone, so a write the tick does make
   keeps an id another road retired since it read. The record does not decide THAT a conversation failed: whatever
-  retires one names the conversation and the reason.
+  retires one names the conversation and the reason. What retires one live is an Antigravity account quota
+  (`stages/implementing/quota_retirement.py`), asked as every developer attempt returns -- a first spawn, a resume,
+  and the AGY command continuation alike -- and landed through that guarded commit before the result is handed back,
+  under the reason `agent_session_limit`: the conversation the failure names, or the one the attempt was launched to
+  resume where it names none, or none at all for a fresh spawn that returned none -- every pinned id then -- which still
+  owes the fresh one. A shutdown-sweep kill, a Claude quota notice, and every other failure retire nothing. Where that
+  commit refuses or goes unanswered the tick is held as a live pause holds it -- its state withheld from the whole-state
+  writer, so nothing goes out over the comment -- and the retirement is owed from a record the host keeps beside the
+  issue's writer claim (`stages/implementing/quota_record.py`), which a restarted poller reads too: every Antigravity
+  launch arms it first, and is refused where the host will not take that, so a stop is owed on the host before it is
+  known; its return settles it, or resolves it to the conversation a quota stopped. An arming nothing resolved, like a
+  record that will not read, names no retirement a poller can land, so it holds every later launch until the poller
+  holding its resolution writes it or an operator writes or settles it -- never the attempt that left it, which goes
+  on to its disposition -- and a tick whose resume was planned over one launches nothing. Every developer launch on
+  the issue is refused, uncharged, until a later reading lands it and the record is settled in place, the plan of a
+  resume asking first -- a poller's memory of it giving way to a settlement made elsewhere -- and a tick whose own
+  attempt failed launches nothing even where a later attempt in it lands; once it has landed no launch resumes a
+  conversation the tick's state records retired.
 - **Owed.** While recovery is owed, every planned or resolved developer resume -- `_planned_dev_session`, which
   `_resolve_dev_session_for_resume` and the launch fingerprint a handed change request correlates both read -- treats
   any pinned id as retired and opens a fresh conversation, re-grounded on the committed branch, whatever

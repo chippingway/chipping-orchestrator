@@ -75,7 +75,14 @@ per-stage behavior is in
   the fresh one a recovery pinned in its place is charged for it. An authorized late restart drops the pins and
   `dev_agent` with the cycle but keeps the record, so the fresh cycle's first spawn is refused a retired id too. The
   retirement spends nothing of the retry budget or the run ledger, and authorizes no run: the next one still waits on
-  whatever gate stopped the issue. The record does not decide THAT a conversation failed; its lifecycle is in
+  whatever gate stopped the issue. The record does not decide THAT a conversation failed; an Antigravity account
+  quota is what does, asked as every developer attempt returns — a first spawn, a resume, and the AGY command
+  continuation alike, which the quota refuses whatever unfinished steps sit beside it — so the conversation it stopped
+  is retired before the result reaches any persistence, park, or publication, and stays retired where the tick's own
+  write is discarded by a live pause. Where the comment will not take the retirement, the tick is held like a paused
+  one and no developer is launched on the issue until a later reading lands it. A Claude quota notice retires
+  nothing: that conversation resumes past the reset.
+  The record's lifecycle is in
   [the pinned-state reference](../state-machine/labels-and-state.md#pinned-state). `_resume_dev_with_text` on
   `workflow/stages/implementing/resume.py` is the one module every one of those resumes goes through; it declares the
   call signature its callers were written against, then binds those arguments into a typed request/context before

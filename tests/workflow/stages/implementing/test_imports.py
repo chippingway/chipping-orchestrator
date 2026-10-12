@@ -95,6 +95,8 @@ _OWNERS = (
     "plan_reading",
     "pr_description",
     "publication",
+    "quota_record",
+    "quota_retirement",
     "read_only_relabel",
     "relabel_evidence",
     "relabel_hazard",

@@ -943,6 +943,33 @@ need the isolation described under
   claimed since its predecessor was killed holding it, or ever, and that is reopened before the poller claims it, ends
   no cycle by that reading. Pollers must all run a build that signs and stamps its claims: one that does not is a hold
   nobody sees, and a close read beside it can end a cycle that poller restarted.
+- **An owed quota retirement.** Beside an issue's claim file, `repo-<id>-issue-<n>.quota-retirement` holds the
+  quota retirement the host owes the issue until the pinned comment takes it. Every Antigravity developer launch arms
+  it first, under the claim, as `{"armed": "<id>", "launch": "<token>"}` (`null` for a fresh spawn), and is refused,
+  uncharged, with a warning where the host will not take that write — a namespace that takes no new entry with no
+  record standing, or a record that takes no write. The attempt's return settles it as `{}` where no quota stopped
+  it; a quota stop resolves it to `{"session_id": "<id>"}` — the conversation the failure names, or the launched one
+  where it names none — which every poller on the host lands ahead of the issue's next resume plan and before each
+  developer launch, refusing the launch until it lands. Once landed it is settled as `{}`, written in place and never
+  removed, and every launch waits while it cannot be, so a landed record is never landed again over a conversation
+  pinned after it. A resolution the record would not take is held in that poller's memory and written again at each
+  check, only for as long as the record still shows the arming it resolves, or nothing: once another poller or an
+  operator has resolved or settled it, the memory is dropped. Every write is in place, so a namespace that takes no
+  new entry still works once the record stands, and none counts until it is flushed to disk with the directory
+  entries that reach it — the record's directory and the namespace's — so a host crash keeps the state every launch
+  since rested on; a write the disk will not flush fails like any other, and an arming it refused is taken back
+  before its launch is refused. A record that names no retirement a poller can land holds every
+  developer launch on the issue, logging an error each time, until an operator acts: one that will not read — torn
+  by a crash or a full disk, or blocked by something else standing at its name — or an arming nothing resolved, which
+  is what a poller killed mid-run, an exception out of the runner, a settle the record refused, or a resolution it
+  refused before a restart leave behind. Such an arming says a launch went out and not which conversation, if any, a
+  quota stopped: a fresh spawn's id is unknown until it returns. It holds only the launches after it, each refused
+  uncharged: a run no quota stopped whose settle the record refused still goes on to its disposition, and its commit
+  publishes. The operator writes the retirement it owes as
+  `{"session_id": "<id>"}` (`null` where none can be named) or settles it as `{}`; a tick whose resume was planned
+  over such a record launches nothing even where it is written again or settled before the launch. Settling the
+  record by hand drops the obligation, and the next run may resume the conversation the quota stopped; deleting it
+  does too, except that a poller still holding the resolution in memory writes it again.
 - **Release.** A claim ends when the dispatch or base-refresh route that took it ends, however it ends, and the kernel
   drops it when a process dies, so a crashed poller leaves nothing held; its descriptor is closed with it and is not
   inherited by an agent the holder spawns. The files stay: never delete the directory or a file in it while any poller
@@ -1540,8 +1567,10 @@ service at a safe stopping point. [Developer checkouts](../development.md) use t
 
 ### What survives a restart
 
-Per-issue progress lives in the issue's pinned JSON comment on GitHub and in the per-issue worktree on disk. Restarting
-between ticks loses nothing — the next tick picks each issue back up from its label and pinned state. Two restart-time
+Per-issue progress lives in the issue's pinned JSON comment on GitHub and in the per-issue worktree on disk, and an
+Antigravity developer launch also keeps a quota retirement record on the host
+([An owed quota retirement](#running-more-than-one-poller)). Restarting between ticks loses nothing — the next tick
+picks each issue back up from its label and pinned state, and from that record on the same host. Three restart-time
 hazards are worth knowing:
 
 - **A live `codex` / `claude` child.** Stage handlers spawn agent subprocesses that may run for as long as
@@ -1553,6 +1582,15 @@ hazards are worth knowing:
   `resolving_conflict`) short-circuits on it — they ignore the partial result and leave durable GitHub state
   untouched, so the next process retries the resume from scratch rather than parking on `awaiting_human` or routing
   through timeout recovery. A dirty worktree may still remain on disk for the next tick to reconcile.
+- **A live `agy` child's quota record.** Every Antigravity developer launch arms its issue's quota retirement record
+  before it runs, and the run's return settles it — the interrupted return above included. Each change is flushed to
+  disk first, so the record outlives a crash of the host as well as of the poller, but it lives only under this
+  host's `WORKTREES_DIR`: back it up and restore it with the rest of that namespace
+  ([backups](../security.md#backup-and-restore-drills)). A poller that dies before that return reaches the record —
+  killed past the shutdown watchdog, by SIGKILL, or with the host — leaves the arming standing, which says nothing
+  about whether a quota stopped the run, so every developer launch on that issue waits, logging an error each tick,
+  until an operator writes the retirement it owes or settles it as `{}`
+  ([An owed quota retirement](#running-more-than-one-poller)).
 - **In-flight agent spec is pinned.** When a `codex` / `claude` session starts, the orchestrator writes the full
   `DEV_AGENT` / `DECOMPOSE_AGENT` spec into pinned state and re-parses it (not the current `.env`) on every resume.
   Flipping `DEV_AGENT` or `DECOMPOSE_AGENT` after a session is locked does nothing for that issue until it reaches
@@ -1564,8 +1602,8 @@ hazards are worth knowing:
 
 - **Idle / between ticks — safe.** Restart freely; the next tick resumes from GitHub state.
 - **Issue mid-stage with no agent child — generally safe.** Workflow state is on GitHub and in the worktree.
-- **Live `codex` / `claude` child — avoid.** Wait for the agent to exit. Forcing a restart can park the issue or leave
-  a dirty worktree behind.
+- **Live `codex` / `claude` / `agy` child — avoid.** Wait for the agent to exit. Forcing a restart can park the issue,
+  leave a dirty worktree behind, or leave an `agy` launch's quota record armed for an operator to settle.
 
 Set the shell's `LOG_DIR` to the running process's log directory:
 `~/.local/state/chipping-orchestrator/logs` after package setup above, unless overridden. Use an absolute path;

@@ -109,17 +109,23 @@ class _ParkedReply:
     the neutral retry prompt where a bare `/orchestrator continue` retries a
     session failure. `through` is the last comment the batch holds, which the
     resolution road marks read before its run. `retried` names the commands
-    that retry consumed, and is empty for every other reply. A park that left
-    this issue owing a report resumes on the frozen drift prompt instead,
-    which quotes every reply whole and is what marks them read once the run
-    is back; that read leaves the retry's commands out of what it quotes,
-    records and re-grounds a fresh spawn with, since the developer has no
-    context for the command, and the retry prompt leads in its place.
+    that retry consumed, and is empty for every other reply, and
+    `thread_text` is the conversation less those commands that a retry's
+    fresh spawn is re-grounded with -- the spawn a retired, rotated or
+    poisoned session turns the retry into, which an account quota's
+    retirement makes of every retry after one -- and None for every other
+    reply. A park that left this issue owing a report resumes on the frozen
+    drift prompt instead, which quotes every reply whole and is what marks
+    them read once the run is back; that read leaves the retry's commands out
+    of what it quotes, records and re-grounds a fresh spawn with, since the
+    developer has no context for the command, and the retry prompt leads in
+    its place.
     """
 
     followup: str
     through: int
     retried: frozenset = frozenset()
+    thread_text: str | None = None
 
 
 @dataclass(frozen=True)
