@@ -1516,9 +1516,11 @@ because there it is the claim that this stage has already rerouted rather than a
     whether or not the attempt carries it, and a tick lost on either side of the event, on this build or an earlier
     one, files it once in all. A log the process cannot read holds the finish with nothing filed, relabelled, or
     retired rather than counting as absent, and so does a conversation nobody could read, or a post that raised and
-    does not show on the conversation read again. The event's record or the checkpoint refused or never confirmed
-    stops the finish with the attempt standing, and the next finish finds what went out ahead of it rather than
-    saying it again.
+    does not show on the conversation read again. Both writes behind the notice are prepared over the comment read
+    afresh before it is posted -- the checkpoint whole, the record staged on it too, and the record's own write over
+    the round the checkpoint has yet to reset -- so a comment with no room for either posts and files nothing. The
+    event's record or the checkpoint refused or never confirmed stops the finish with the attempt standing, and the
+    next finish finds what went out ahead of it rather than saying it again.
   - **The relabel is said once too.** The retirement is prepared before the relabel and lands behind it, owning the
     attempt, the round, the park's flags, a spent reply, and a failure notice the route no longer owes, and decided
     on every record the evidence is bound through: a record another road moved -- while the relabel was made, say --

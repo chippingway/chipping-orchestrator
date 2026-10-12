@@ -92,11 +92,11 @@ _PENDING_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
 # The head whose `base_rebased` event a finish of this attempt is filing,
 # written in a write of its own right ahead of the event and of the
 # announcement mark, so the event goes out only behind a write proving the
-# attempt still stands. It says the event may be out; its absence says
-# nothing, since a finish from before this record existed filed the event
-# with none, so every finish asks the event stream before filing until the
-# mark is down. Additive: an attempt from before this record existed carries
-# none.
+# attempt still stands, and carried by the mark's own write as well. It says
+# the event may be out; its absence says nothing, since a finish from before
+# this record existed filed the event with none, so every finish asks the
+# event stream before filing until the mark is down. Additive: an attempt from
+# before this record existed carries none.
 _PENDING_ANNOUNCED_EVENT = "pending_auto_base_rebase_announced_event"
 
 # The receipt of the verification transaction a finish of this attempt

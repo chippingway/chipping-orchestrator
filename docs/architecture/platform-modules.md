@@ -227,8 +227,9 @@ orchestrator/
                         never one whose header claims a count of more digits than Python converts
     event_log.py        the audit log read back for `events.filed`: every record naming one event on the file at
                         `EVENT_LOG_PATH` and on each rotated copy logrotate leaves beside it -- the log's name
-                        followed by a dot or a dash, a gzip, bzip2, or xz copy decompressed -- read whole, a block
-                        at a time, so an event filed before a rotation is still found behind it, and listed again
+                        followed by a dot or a dash, a gzip, bzip2, or xz copy decompressed, the log itself read
+                        plain as its writer appends it whatever its name ends in -- read whole, a block at a time,
+                        so an event filed before a rotation is still found behind it, and listed again
                         behind every read, so a rotation run under the read reads them all again rather than
                         answering an absence; a copy or a directory that would not read, or copies still moving
                         after three readings, is no answer rather than an absence
