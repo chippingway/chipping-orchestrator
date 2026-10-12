@@ -1144,8 +1144,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             or retired, with the anchor still standing -- evidence an earlier finish already settled
                             for the head routed while nothing beside it says otherwise, and settled evidence proved
                             ready again first (`rewrite_finish_readiness.py`) -- and once more behind the relabel,
-                            ahead of the retirement, so a base or landing that moved while the announcement or
-                            the relabel was answered invalidates it and holds the route. Only then is the
+                            ahead of the retirement, where every routed head is held to its base
+                            (`rewrite_finish_settlement.stands_ready_if_settled`), so a base that advanced, or a
+                            landing that moved under settled evidence, while the announcement or the relabel was
+                            answered holds the route with the attempt standing. Only then is the
                             announcement prepared before the notice and the `base_rebased` event go out, landing the
                             debt, the reset round, and the mark while the anchor stands; a finish whose mark already
                             names the head repeats neither and lands only a debt new beside it. A head the base
@@ -1301,7 +1303,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             method the event files for each; each said once per landed head (`announces`): the
                             conversation is read first, and a comment of ours already announcing the head -- posted
                             ahead of a checkpoint that never landed -- is the announcement made, with neither it nor
-                            the event said again, the event filed only behind a post the tick made itself, and a
+                            the notice posted again, the event filed only where the attempt does not record it filed
+                            (`pending_auto_base_rebase_announced_event`, landed by a write of its own right behind
+                            it, `rewrite_finish_writes.ANNOUNCED_EVENT`), so each is recovered on its own, and a
                             conversation nobody could read or a post nobody can find holding the finish; and the
                             notice of a configured verification the landed head failed, naming the command, how it
                             failed, and its output's tail
@@ -1326,7 +1330,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `rewrite_finish_captured.py` -- and the invalidation of settled evidence staged the same
                             way (`INVALIDATION`), owning the current record and the history, decided only on those,
                             the transaction beside them, and the attempt -- the fallback of
-                            `rewrite_finish_readiness.invalidates`; a refusal naming a record the evidence is bound
+                            `rewrite_finish_readiness.invalidates`; the record of the `base_rebased` event a finish
+                            filed (`ANNOUNCED_EVENT`), owning that member alone and decided on the attempt; a refusal
+                            naming a record the evidence is bound
                             through is collected for the caller as movement -- `BINDING_MOVED` where a record
                             beyond the evidence records themselves moved, which settled evidence is invalidated
                             over

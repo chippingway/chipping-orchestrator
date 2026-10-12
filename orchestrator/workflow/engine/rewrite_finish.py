@@ -69,9 +69,10 @@ refuses stops the finish there with nothing behind it made:
 - Only then is the landing announced: prepared over the fresh comment first,
   its notice's ledger entry reserved over the ledger that comment carries, so
   a comment that would refuse it posts nothing; then the notice and the event
-  go out once (`rewrite_finish_notices.announces`) -- found on the pull
-  request rather than said again where an earlier finish posted them ahead of
-  a checkpoint that never landed -- and the checkpoint lands the debt, the
+  go out once each (`rewrite_finish_notices.announces`) -- the notice found
+  on the pull request rather than posted again, and the event filed only
+  where the attempt does not record it filed, where an earlier finish said
+  them ahead of a checkpoint that never landed -- and the checkpoint lands the debt, the
   reset round, and the mark while the anchor still stands. A checkpoint
   refused over a report record another road moved while the notice was posted
   has read movement under the settled evidence, which is invalidated before
@@ -110,10 +111,10 @@ evidence up where the records leave it -- settled evidence proved ready
 again, a failure notice found on the pull request, a decision that recorded
 nothing taken afresh -- and reads the rest off the mark, the pull request,
 and the label: a head the mark already names gets no second notice,
-`base_rebased` event, or round reset, an announcement found on the pull
-request with no mark beside it is that announcement made, and an issue
-already relabelled under the mark gets no second relabel or stage-entry
-event. Nothing on any of those roads pushes, runs a captured
+`base_rebased` event, or round reset, a notice found on the pull request or
+an event the attempt records filed with no mark beside them is not said
+again, and an issue already relabelled under the mark gets no second relabel
+or stage-entry event. Nothing on any of those roads pushes, runs a captured
 decision's commands again, posts its artifact again, or launches a
 developer.
 
@@ -354,14 +355,17 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     (`rewrite_finish_readiness.invalidates_behind`), so putting that record
     back first revives nothing. A relabel that landed ahead of a retirement
     that did not is that recovery's to finish too, under the mark this finish
-    left, with no second relabel. Evidence settled for a routed head is proved
-    ready once more behind the relabel, the last request ahead of the
-    retirement (`rewrite_finish_settlement.stands_ready_if_settled`): a base
-    advanced or a landing moved while the announcement or the relabel was
-    answered invalidates it and holds the route with the attempt standing,
-    for the recovery to continue the head to another rebase or read the
-    landing again, rather than retiring the attempt over a proof those
-    requests outlived.
+    left, with no second relabel. Behind the relabel, the last request ahead
+    of the retirement, a routed head is held to its base once more
+    (`rewrite_finish_settlement.stands_ready_if_settled`) -- evidence settled
+    for it proved ready again over the landing and the base, and a head with
+    none current for it -- the fresh reviewer's responsibility, or evidence of
+    the replaced head deferred -- held to the base tip its replay was made
+    onto: a base advanced while the announcement or the relabel was answered,
+    or a landing moved under settled evidence, holds the route with the
+    attempt standing, settled evidence invalidated over it, for the recovery
+    to continue the head to another rebase or read the landing again, rather
+    than retiring the attempt over a reading those requests outlived.
     """
     observed: list = []
     stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)
@@ -370,7 +374,7 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     if headed is FinishOutcome.ROUTED and not (announced and finish.label == WorkflowLabel.VALIDATING):
         finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
     if headed is FinishOutcome.ROUTED:
-        stopped = _settlement.stands_ready_if_settled(finish)
+        stopped = _settlement.stands_ready_if_settled(finish, or_the_base=True)
     if stopped is None:
         stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH, observed)
     if stopped is not None:

@@ -173,8 +173,9 @@ class PublishedFinishTest(unittest.TestCase):
             ),
             (_RETIRED, 0, support.owed(), 1),
         )
-        # The announcement and the retirement, and no other write.
-        self.assertEqual(world.github.write_state_calls, 2)
+        # The record of the event, the announcement, and the retirement, and
+        # no other write.
+        self.assertEqual(world.github.write_state_calls, 3)
 
 
     def test_a_publication_found_standing_says_so(self) -> None:

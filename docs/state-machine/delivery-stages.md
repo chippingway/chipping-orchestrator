@@ -1545,22 +1545,27 @@ because there it is the claim that this stage has already rerouted rather than a
   - **The announcement is the existing checkpoint's.** A head the mark already names gets no second notice,
     `base_rebased` event, or round reset, and an issue already on `workflow:validating` under that mark is not
     relabelled again, so it files no second stage-entry event. The notice and the event go out ahead of that
-    checkpoint, so a finish reads the pull request's conversation before it says anything
-    (`rewrite_finish_notices.announces`): a comment of ours already announcing the head -- posted by a tick whose
-    checkpoint was refused, went unconfirmed, or died -- is the announcement made, entered in the ledger with neither
-    it nor the event said again, and the event is filed only behind a post this tick made. A conversation nobody
+    checkpoint, so each is recovered on its own (`rewrite_finish_notices.announces`). A finish reads the pull
+    request's conversation before it posts anything, and a comment of ours already announcing the head -- posted by
+    a tick whose checkpoint was refused, went unconfirmed, or died -- is that notice made, entered in the ledger and
+    not posted again. The event stream cannot be read back, so the event is recorded on the attempt in a guarded
+    write of its own right behind it (`pending_auto_base_rebase_announced_event`), and filed only where that record
+    is missing: a tick lost after its notice and before its event files it once on the next. A conversation nobody
     could read, or a post that raised and does not show on the conversation read again, holds the finish with
-    nothing filed. The one window left is a process lost between a post that landed and the event behind it, where
-    the event is never filed rather than filed twice. The checkpoint is decided on the report
+    nothing filed. The one window no ordering closes is a process lost between filing the event and its record,
+    behind which it is filed once more. The checkpoint is decided on the report
     records, so a report another road settled while the notice was posted refuses it -- and that refusal is movement
     read under the settled evidence, invalidated there and then, before the finish stops
     (`rewrite_finish_readiness.invalidates_behind`), with the attempt and the newer report kept.
   - **The retirement is proved over once more.** The announcement and the relabel are requests made after the
-    evidence was proved ready, so settled evidence for a routed head is proved ready again behind the relabel, the
-    last request before the retirement (`rewrite_finish_settlement.stands_ready_if_settled`): a base advanced or a
-    landing moved meanwhile invalidates it and holds the route with the attempt standing -- the next tick continues
-    the head to another rebase, or reads the landing again -- and a report or review record moved meanwhile
-    invalidates it and lets the route go on to the fresh reviewer.
+    evidence was resolved, so behind the relabel, the last request before the retirement, a routed head is held to
+    its base again (`rewrite_finish_settlement.stands_ready_if_settled`). Settled evidence for it is proved ready
+    over the landing and the base: a base advanced or a landing moved meanwhile invalidates it and holds the route
+    with the attempt standing -- the next tick continues the head to another rebase, or reads the landing again --
+    and a report or review record moved meanwhile invalidates it and lets the route go on to the fresh reviewer. A
+    head with no evidence current for it -- the fresh reviewer's responsibility handed off, or the replaced head's
+    evidence deferred -- is held to the base tip its replay was made onto: a base advanced meanwhile holds the route
+    the same way, so the attempt is never retired, nor a handler released, over a head the base left behind.
   - **The retirement is the guarded one.** It owns the attempt, the round, the park's flags, a spent reply, and a
     failure notice the route no longer owes, and is decided on every record the evidence is bound through, so the
     evidence and report records stay as the comment carries them: a record another road moved -- while the relabel

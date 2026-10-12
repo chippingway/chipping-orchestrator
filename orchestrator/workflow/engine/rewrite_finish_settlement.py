@@ -321,20 +321,27 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
     return FinishOutcome.HELD
 
 
-def stands_ready_if_settled(finish: LandedFinish) -> FinishOutcome | None:
-    """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None where none is.
+def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) -> FinishOutcome | None:
+    """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None to go on.
 
     For a route whose evidence step left nothing recorded for the head
     (`settles`): where a newer transaction recorded beside settled evidence
     was abandoned, that evidence is still current, and the route may not
     carry it unproved. And for the retirement behind the relabel
-    (`rewrite_finish`), the last write of the route: the announcement and the
-    relabel are requests made after the evidence was proved ready, and a base
-    advanced or a landing moved while they were answered has the evidence
-    invalidated and the route held with the attempt standing rather than
-    retired over a proof those requests outlived.
+    (`rewrite_finish`), the last write of the route, `or_the_base` set: the
+    announcement and the relabel are requests made after the evidence was
+    resolved, and a base advanced while they were answered has the route held
+    with the attempt standing rather than retired over a head the base has
+    left behind -- settled evidence proved ready over the landing and the base
+    and invalidated over what moved, and a head with none current for it (the
+    fresh reviewer's responsibility handed off, or evidence of the replaced
+    head deferred) held to the base tip its replay was made onto alone, by the
+    last word over the base (`rewrite_finish_captured.stands_before_the_route`),
+    so the recovery continues the head to another rebase. Such a head carries
+    no decision the landing could move under: a head pushed over it meanwhile
+    is the pull request's to show the validating stage, which reads it afresh.
     """
     current = _settlement.read_current_evidence(finish.state)
-    if current is None or current.binding.target.target_head != finish.head:
-        return None
-    return stands_ready(finish, current)
+    if current is not None and current.binding.target.target_head == finish.head:
+        return stands_ready(finish, current)
+    return _captured.stands_before_the_route(finish, landing=False) if or_the_base else None

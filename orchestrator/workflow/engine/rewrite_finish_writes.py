@@ -14,7 +14,7 @@ the pinned fields the publication is resolved from
 (`ReportWrite.on_the_publication`), and keeping every other field -- unknown
 ones included -- as the fresh reading carries it.
 
-Six writes, and each lists what it has to land exactly among the records it
+Seven writes, and each lists what it has to land exactly among the records it
 is decided on as well as among its own, since a field staged as it was read is
 no move of the write's and would otherwise be left to whatever another road
 did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
@@ -50,6 +50,8 @@ under where the write staged on the comment read afresh would not land
 decided only on the evidence records and the attempt, as `ABANDONMENT` is, so
 a failed reading of the comment does not leave a decision standing that a
 later reading, once the movement is put back, would take as current.
+`ANNOUNCED_EVENT` records the `base_rebased` event a finish filed for the
+landed head, on its own and right behind it, decided on the attempt alone.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, the claim the checkpoint made durable, and every
@@ -154,6 +156,14 @@ INVALIDATION = _commits.ReportWrite(
     decided_on=frozenset((
         _evidence_records.PENDING_EVIDENCE, _evidence_records.CURRENT_EVIDENCE, _evidence_records.EVIDENCE_HISTORY,
     )) | _ATTEMPT,
+)
+
+# The record of the `base_rebased` event a finish filed, landed on its own right
+# behind the event and ahead of the checkpoint (`rewrite_finish_notices`), so a
+# finish lost before its mark finds the event filed rather than filing it again.
+ANNOUNCED_EVENT = _commits.ReportWrite(
+    owned=frozenset((_base_sync_state._PENDING_ANNOUNCED_EVENT,)),
+    decided_on=_ATTEMPT,
 )
 
 FINISH = _commits.ReportWrite(

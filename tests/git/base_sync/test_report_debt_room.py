@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import unittest
 from functools import partial
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
+from tests.git.base_sync.journey_push_support import LosesTheMark
 from tests.git.base_sync.refresh_scenarios import PUSH_PATCH, _clean_rebase_scenario, _landed_recovery_scenario
 from tests.git.base_sync.refresh_test_support import (
     AFTER_SHA,
@@ -322,11 +323,11 @@ class RoomInTheRecoveryTest(_RoomFixture, unittest.TestCase):
         return widest - (MAX_PINNED_BODY - _AMPLE)
 
     def _lost_before_the_mark(self, **state) -> None:
-        # The mark lands through the guarded edit of the pinned comment, the
-        # first the finish makes past its notice and its event.
+        # The mark lands through the guarded edit of the pinned comment that
+        # follows the notice, the event, and the event's own record.
         self._reported(**state)
         with patch.object(
-            self.gh, "edit_pinned_state", MagicMock(side_effect=RuntimeError(DIED)),
+            self.gh, "edit_pinned_state", LosesTheMark(self.gh.edit_pinned_state),
         ), self.assertRaises(RuntimeError):
             _clean_rebase_scenario().run(self)
 

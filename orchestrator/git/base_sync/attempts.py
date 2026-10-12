@@ -20,29 +20,20 @@ the announcement mark.
 """
 from __future__ import annotations
 
-from orchestrator.git.base_sync import attempt_records as _attempt_records
+from orchestrator.git.base_sync import attempt_records as _attempt_records, state as _state
 from orchestrator.git.base_sync.models import _AutoRebaseContext
-from orchestrator.git.base_sync.state import (
-    _AUTO_REBASE_PARK_REASONS,
-    _AWAITING_HUMAN,
-    _PARK_REASON,
-    _PENDING_ANNOUNCED_SHA,
-    _PENDING_EVIDENCE_RECEIPT,
-    _PENDING_PUSH_SHA,
-    _PENDING_REWRITE_BASE,
-    _PENDING_REWRITE_SHA,
-)
 from orchestrator.github.pinned_state import PinnedState
 
 # Everything one auto-rebase attempt puts on the pinned comment, so the step
 # that ends it drops the whole record rather than the field it happens to
 # name.
 _ATTEMPT_KEYS = (
-    _PENDING_PUSH_SHA,
+    _state._PENDING_PUSH_SHA,
     *_attempt_records._PENDING_REWRITE_KEYS,
-    _PENDING_REWRITE_BASE,
-    _PENDING_ANNOUNCED_SHA,
-    _PENDING_EVIDENCE_RECEIPT,
+    _state._PENDING_REWRITE_BASE,
+    _state._PENDING_ANNOUNCED_SHA,
+    _state._PENDING_EVIDENCE_RECEIPT,
+    _state._PENDING_ANNOUNCED_EVENT,
 )
 
 
@@ -50,8 +41,9 @@ def _clears_the_attempt(state: PinnedState) -> None:
     """Drop the whole record of one auto-rebase attempt.
 
     The anchor, the terms it was made under, the head the replay produced, the
-    receipt of the evidence a finish recorded for it, and the mark a finish
-    left are one record and are dropped as one: the anchor
+    receipt of the evidence a finish recorded for it, the record of the event a
+    finish filed, and the mark a finish left are one record and are dropped as
+    one: the anchor
     alone would bring a later tick back to an attempt it cannot prove the
     checkout belongs to, and the rest names a commit and a pull request
     nothing is leased to publish onto. Every step that ends an attempt goes
@@ -84,10 +76,11 @@ def _retires_its_park(state: PinnedState) -> bool:
 
     Staged like the clear, so it lands with the write that ends the attempt.
     """
-    if not state.get(_AWAITING_HUMAN) or state.get(_PARK_REASON) not in _AUTO_REBASE_PARK_REASONS:
+    parked = state.get(_state._PARK_REASON) in _state._AUTO_REBASE_PARK_REASONS
+    if not (state.get(_state._AWAITING_HUMAN) and parked):
         return False
-    state.set(_AWAITING_HUMAN, False)
-    state.set(_PARK_REASON, None)
+    state.set(_state._AWAITING_HUMAN, False)
+    state.set(_state._PARK_REASON, None)
     return True
 
 
@@ -131,8 +124,8 @@ def _records_the_replay(context: _AutoRebaseContext, replayed: str, onto: str) -
     may already name another. A blank goes down as no tip at all, which
     proves nothing.
     """
-    context.state.set(_PENDING_REWRITE_SHA, replayed)
-    context.state.set(_PENDING_REWRITE_BASE, onto or None)
+    context.state.set(_state._PENDING_REWRITE_SHA, replayed)
+    context.state.set(_state._PENDING_REWRITE_BASE, onto or None)
     context.gh.write_pinned_state(context.issue, context.state)
 
 
@@ -150,7 +143,7 @@ def _already_announced(state: PinnedState, local_head: str) -> bool:
     asks: a mark naming any other head, or naming no commit at all, is not an
     answer this reader may give as "nothing was announced".
     """
-    recorded = state.get(_PENDING_ANNOUNCED_SHA)
+    recorded = state.get(_state._PENDING_ANNOUNCED_SHA)
     return bool(local_head) and recorded == local_head
 
 
@@ -175,7 +168,7 @@ def _carries_an_announcement(state: PinnedState) -> bool:
     domain retires, so the key being there with a null under it is the record
     nobody wrote.
     """
-    return state.get(_PENDING_ANNOUNCED_SHA) is not None
+    return state.get(_state._PENDING_ANNOUNCED_SHA) is not None
 
 
 def _foreign_mark(state: PinnedState, local_head: str) -> bool:

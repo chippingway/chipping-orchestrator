@@ -17,8 +17,12 @@ from types import MappingProxyType
 
 from orchestrator.workflow.engine import rewrite_finish as _finish
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
-from tests.workflow.engine import rewrite_finish_effects_support as effects, rewrite_finish_test_support as support
-from tests.workflow.interleaving import _RacesPastTheStep
+from tests.workflow.engine import (
+    rewrite_finish_effects_support as effects,
+    rewrite_finish_readings as readings,
+    rewrite_finish_test_support as support,
+)
+from tests.workflow.interleaving import _RacesPastTheCall, _RacesPastTheStep
 
 _ROUTED = (support.LABEL_VALIDATING,)
 
@@ -89,12 +93,13 @@ class GuardedWriteTest(unittest.TestCase):
         lost = world.github.pinned_failures.lost
         lost.add(support.ISSUE)
 
-        # Said, and the mark landed with its answer lost: nothing behind it is made.
+        # Said, and the record of the event landed with its answer lost:
+        # nothing behind it is made, the mark included.
         self.assertEqual(world.finalizes(), FinishOutcome.UNCONFIRMED)
-        self.assertEqual(
-            (world.relabels(), support.checkpoint(world.pinned())),
-            ((), (support.owed(), support.LANDED, support.ANCHOR, 0)),
-        )
+        self.assertEqual(world.relabels(), ())
+        durable = world.pinned()
+        self.assertIsNone(durable.get(support.KEY_ANNOUNCED))
+        self.assertEqual(durable[readings.KEY_ANNOUNCED_EVENT], support.LANDED)
 
         lost.discard(support.ISSUE)
         self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
@@ -106,14 +111,15 @@ class GuardedWriteTest(unittest.TestCase):
         self.assertIsNone(world.pinned()[support.KEY_PENDING_PUSH])
 
     def test_a_refused_retirement_relabels_nothing(self) -> None:
-        # Another road parks the issue the instant the announcement lands: the
-        # retirement is prepared before the relabel, so nothing is routed over
-        # that park, and the park is kept as that road wrote it.
+        # Another road parks the issue the instant the announcement lands --
+        # the second edit, behind the record of the event: the retirement is
+        # prepared before the relabel, so nothing is routed over that park,
+        # and the park is kept as that road wrote it.
         world = support.FinishWorld.seeded()
         parks = partial(world.another_road, **{
             support.KEY_AWAITING_HUMAN: True, support.KEY_PARK_REASON: _ANOTHER_PARK,
         })
-        world.github._send_pinned_edit = _RacesPastTheStep(world.github._send_pinned_edit, parks)
+        world.github._send_pinned_edit = _RacesPastTheCall(world.github._send_pinned_edit, 2, parks)
 
         self.assertEqual(world.finalizes(), FinishOutcome.REFUSED)
 

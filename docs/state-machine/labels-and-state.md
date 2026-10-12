@@ -3182,9 +3182,10 @@ The keys that matter for the state machine fall into a few groups:
   published is recorded in between, while the anchor and the replay still stand. A tick lost there comes back to a
   comment that says the announcement was made rather than to an attempt that looks unfinished, which is what stops a
   second `base_rebased` on the stream and a second notice on the pull request for one publication that happened once.
-  The notice and the event go out ahead of this write, so a tick lost between them and it leaves no mark: the next
-  finish reads the pull request's conversation first and takes a comment of ours already announcing the head as the
-  announcement made, saying neither the notice nor the event again (`workflow/engine/rewrite_finish_notices.py`).
+  The notice and the event go out ahead of this write, so a tick lost between them and it leaves no mark, and each is
+  recovered on its own (`workflow/engine/rewrite_finish_notices.py`): the next finish reads the pull request's
+  conversation first and takes a comment of ours already announcing the head as that notice made, posting it no
+  more, and files the event only where `pending_auto_base_rebase_announced_event` (below) does not record it filed.
   BOTH finishes write it and for the same reason — the refresh's own publishing tail, which announces the rebase it just
   pushed, and the recovery, which announces one an earlier tick left — since neither is distinguishable afterwards from
   an attempt that never got that far. The report debt the landed head leaves (`developer_report_rewrite_debt`) rides the
@@ -3210,6 +3211,15 @@ The keys that matter for the state machine fall into a few groups:
   another road left pending, and the replay the attempt's record names counts as landed for the rollback park. Additive:
   an attempt whose finish recorded no transaction carries none, and one from before this member existed recorded its
   evidence only behind its mark, so with none on it a transaction about the head the mark names is that finish's.
+  `pending_auto_base_rebase_announced_event` — the head whose `base_rebased` event a finish of the attempt filed,
+  written in a guarded write of its own right behind the event and ahead of the mark
+  (`workflow/engine/rewrite_finish_writes.ANNOUNCED_EVENT`), and blanked with the rest of the attempt by every write
+  that ends it. The event stream cannot be read back, so this is the one durable word that a finish lost after its
+  event and before its mark already filed it: a finish finding it files nothing again, and one finding none files the
+  event, a finish lost after its notice and before its event included. The tick that writes it takes in that member
+  alone, so the mark behind it is still decided on every other record as the tick read it. The one window no
+  ordering closes is a process lost between filing the event and this write, behind which the event is filed once
+  more. Additive: an attempt from before this member existed carries none.
   `auto_base_rebase_failed_verification` sits beside the group without being a member of it: the notice a landed
   head's failed configured verification is owed — an object of `head`, the rewritten head the run failed on, and
   `notice`, the notice's whole text (the failing command, how it failed, and its output's tail) — written by the

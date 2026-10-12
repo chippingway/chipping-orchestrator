@@ -45,6 +45,7 @@ ATTEMPT_KEYS = (
     KEY_REWRITE_SHA,
     "pending_auto_base_rebase_announced_sha",
     "pending_auto_base_rebase_evidence_receipt",
+    "pending_auto_base_rebase_announced_event",
 )
 
 RETIRED = dict.fromkeys(ATTEMPT_KEYS)
