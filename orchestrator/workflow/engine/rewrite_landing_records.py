@@ -34,6 +34,11 @@ settled or retired, whether or not the history still keeps it
 (`capture_answered`) -- so a later finish decides and runs nothing afresh,
 and holds over any record another road left pending beside it.
 
+`settled` is the evidence such a finish settled for the head and left
+current, which the recovery's helpers (`rewrite_landing_moved`) invalidate
+wherever the landing is read moving under it, as they abandon a captured
+transaction, so restoring the landing revives no decision taken over it.
+
 `resolved` is the narrower question of whether evidence for the head was
 already settled or retired -- current, or in the history -- which the
 settlement step (`rewrite_finish_settlement`) asks before it lets any other
@@ -49,7 +54,7 @@ from orchestrator.workflow.engine import (
     verification_record_state as _record_state,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.verification_records import PendingEvidence
+from orchestrator.workflow.engine.verification_records import CurrentEvidence, PendingEvidence
 
 
 def saw_land(state: PinnedState, head: str) -> bool:
@@ -110,6 +115,26 @@ def captured(state: PinnedState) -> PendingEvidence | None:
     else:
         owned = receipt == pending.receipt
     return pending if owned else None
+
+
+def settled(state: PinnedState) -> CurrentEvidence | None:
+    """The current evidence a finish of the attempt settled for the head it landed, which `state` carries; or None.
+
+    The finish's own transaction, settled under the receipt it put on the
+    attempt, or current evidence about the head the attempt's record names as
+    its replay or its mark names as announced: while the attempt stands the
+    anchor keeps every other road off that head's evidence, so nothing but a
+    finish of the attempt settles any for it -- a newer transaction it
+    answered over its own included.
+    """
+    current = _settlement.read_current_evidence(state)
+    if current is None:
+        return None
+    if current.receipt == state.get(_base_sync_state._PENDING_EVIDENCE_RECEIPT):
+        return current
+    head = current.binding.target.target_head
+    announced = head == state.get(_base_sync_state._PENDING_ANNOUNCED_SHA)
+    return current if announced or _attempt_records._pending_rewrite(state).names(head) else None
 
 
 def _receipted(state: PinnedState, head: str) -> bool:

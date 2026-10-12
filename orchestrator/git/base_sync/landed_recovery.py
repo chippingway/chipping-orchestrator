@@ -16,7 +16,12 @@ ways the leased no-op that settles an outstanding permission can fail to.
 Readings and reasons only. Nothing here parks, pushes, announces, routes, or
 writes, and nothing reaches the workflow layer above: the parks are
 `replay_transfer_parks`', and the finish of a landing that survives every
-reason is the workflow's own.
+reason is the workflow's own -- the evidence the landed head is routed with,
+its announcement, its relabel, and the attempt's retirement, each taken up
+where an interrupted tick left it and made once. The mark that finish leaves
+is what the first reason here reads: one naming this head is that finish's
+own announcement, which a later finish does not repeat, and one naming
+another head is an announcement nobody here can account for.
 """
 from __future__ import annotations
 

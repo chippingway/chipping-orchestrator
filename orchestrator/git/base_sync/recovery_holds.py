@@ -158,8 +158,9 @@ def _refresh_reaches(
 def _answers_an_unreadable_checkout(
     context: _AutoRebaseContext,
     consumed_comment_id: int | None,
-    settles_over_a_reset: Callable[[], None] | None = None,
+    settles_over_a_reset: Callable[[], bool] | None = None,
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
+    lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None,
 ) -> bool:
     """Reset and park an anchor over a checkout whose HEAD cannot be read.
 
@@ -181,7 +182,8 @@ def _answers_an_unreadable_checkout(
     (`_AutoRebaseRecoveryContext.settles_over_a_reset`), by the workflow's
     recovery (`workflow/engine/rewrite_recovery.answers_an_unreadable_checkout`),
     and so is what it asks before the park of a reset that did not land
-    (`proves_before_a_park`).
+    (`proves_before_a_park`) and the park it records either park through
+    (`lands_a_park`).
     """
     return snapshot._abort_recovery_unverified(
         _AutoRebaseRecoveryContext(
@@ -197,6 +199,7 @@ def _answers_an_unreadable_checkout(
             unparking_consumed_max=consumed_comment_id,
             settles_over_a_reset=settles_over_a_reset,
             proves_before_a_park=proves_before_a_park,
+            lands_a_park=lands_a_park,
         ),
         _UNREADABLE_CHECKOUT,
     )
@@ -225,6 +228,7 @@ def _held_anchor_context(gh, spec, issue, state, label) -> _AutoRebaseRecoveryCo
 def _answers_a_held_anchor(
     context: _AutoRebaseRecoveryContext,
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
+    lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None,
 ) -> None:
     """What an anchor the dispatcher holds a handler back for is owed.
 
@@ -251,9 +255,10 @@ def _answers_a_held_anchor(
     refresh of the same issue on this host -- and it asks for no claim of its
     own, which that hold would refuse. `proves_before_a_park` is what the
     workflow's recovery asks before the stranded park keeps the attempt
-    (`_AutoRebaseRecoveryContext.proves_before_a_park`).
+    (`_AutoRebaseRecoveryContext.proves_before_a_park`), and `lands_a_park`
+    the park it records that one through (`_AutoRebaseRecoveryContext.lands_a_park`).
     """
-    context = replace(context, proves_before_a_park=proves_before_a_park)
+    context = replace(context, proves_before_a_park=proves_before_a_park, lands_a_park=lands_a_park)
     if context.label in _PR_REFRESH_DETOUR_LABELS:
         if not context.worktree.is_dir():
             _restores_the_checkout(context.spec, context.issue.number, context.state)

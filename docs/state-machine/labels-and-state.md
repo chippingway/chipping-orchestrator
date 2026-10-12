@@ -495,7 +495,11 @@ see [Pinned state](#pinned-state)): a `question_*` / `discussion_*` park, the tw
 keeps back, so a freeze on any of them as well would leave neither side able to move. None of
 them is holding a branch still against a rebase any more — the anchor says one already ran — so the recovery reaches
 the checkout, pushes the replay its record names or puts the branch back on the anchor and asks a human, and leaves
-each record for its owner. The `question` and `discussion` labels themselves are still skipped, and an anchor under
+each record for its owner. A recovery that takes the anchor down and lets the tick go on -- the clear of an attempt
+that never started, or a landed head the base advanced past again, retired unrouted -- has every one of those freezes
+asked again before the rebase behind it (`workflow/engine/base_rewrite.py`), so a developer report recorded and not
+yet settled holds that rebase until the report reconciliation settles it on the head it is about, as it holds an
+unanchored branch. The `question` and `discussion` labels themselves are still skipped, and an anchor under
 either is answered by the dispatcher on the recovery's ineligible road. The one late claim beside an anchor that no
 reconciliation ends is a generation measured past its ceiling over the anchor's own replay, which the refresh stays
 away from and the hold would keep its adjudication off: the dispatcher hands that replay to the generation ahead of the
@@ -520,7 +524,9 @@ conflicted files (`auto_base_rebase_failed`), dirty-after-clean-rebase (`auto_ba
 the pre-rebase SHA and park awaiting human with a durable `park_reason`. The park's notice says why it parks and then
 what the reset came to: a reset git refused is reported as refused, the attempt and its records kept, and a landed
 one's drop of the attempt is said as what the park's own write makes durable, since the notice goes out ahead of that
-write. A push is refused, with nothing sent, where the
+write. A recovery's park lands that write over the comment read afresh (`workflow/engine/rewrite_recovery_parks.py`),
+keeping a report or evidence record another road wrote while the notice went out. A push is refused, with nothing
+sent, where the
 checkout, the base ref, or the remote branch moved since the candidate was read, or the remote could not be read; a
 remote already standing on the candidate excuses none of those refusals, and is proved there by a push leased to the
 candidate itself before anything is finished -- announced as found standing even where that proof's answer was lost --
@@ -568,7 +574,10 @@ ledger entry (reserved at the widest id a comment is recorded at), the record of
 (`pending_auto_base_rebase_announced_event`), the `review_round` both finishes reset ahead of the mark, and the
 mark -- rather than on the debt alone, and on the comment as it stands as well, since resetting a wide
 round can make the announcement the narrower of the two; the writes past it only clear. A proved debt that does not fit
-stops the finish before it announces anything: no notice, no `base_rebased`, no relabel, and no clear. It parks
+stops the finish before it announces anything: no notice, no `base_rebased`, no relabel, and no clear. Verification
+evidence an earlier finish already settled for the landed head is proved ready first all the same, and invalidated
+into history where anything it rests on moved, so the park keeps no decision for the reply that brings the route back.
+It parks
 `auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay standing, and the anchor holding every
 stage handler back; the park asks for room to be made on the pinned comment and a reply, and the reply brings the
 recovery back to finish the landed head -- recording the debt first, or parking again if there is still no room. A
@@ -701,10 +710,18 @@ captured, a failure notice an earlier finish recorded is published once, a trans
 routed as captured only once it proves again -- abandoned into history, nothing run, where anything it is bound to,
 the landing, or the base moved since -- over an artifact an earlier post landed, found under its receipt, and one an
 earlier finish already settled is routed with nothing posted or settled again while nothing beside it says
-otherwise -- a newer transaction for the head is settled over it, and a handoff or revision floor out of step holds
-the route -- with the invalidation a moved context now owes landed before the route, that settled evidence's own
+otherwise -- a newer transaction for the head is settled over it, one abandoned beside it outranks it and has it
+invalidated, and a handoff out of step or a revision floor nobody can read holds the route -- with the invalidation
+a moved context now owes landed before the route, that settled evidence's own
 included: a configuration moved since it settled invalidates it with nothing run again, rather than leaving it to
-hold the route behind a revision spent past it.
+hold the route behind a revision spent past it. Settled evidence is proved ready again before any route takes it
+(`workflow/engine/rewrite_finish_readiness.py`), and anything else it is bound to that moved since it settled -- the
+requirements, a report or review record, its artifact, a revision spent past it, the landing, or the base --
+invalidates it whole too. A tick lost behind the resolved evidence -- before the announcement, between its notice,
+`base_rebased` event, and checkpoint, between the checkpoint and the relabel, or between the relabel and the
+retirement -- keeps the attempt, and its recovery proves that evidence ready again and reads what was done off
+`pending_auto_base_rebase_announced_sha`, the pull request, the event stream, and the label, repeating no notice,
+event, round reset, or relabel.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel

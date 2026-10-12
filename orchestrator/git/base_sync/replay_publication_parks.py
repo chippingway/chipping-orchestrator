@@ -59,10 +59,8 @@ def _park_foreign_publication_recovery(
         context.issue.number, recorded.pr_number, str(recorded.stage),
         context.pr_number, str(context.label),
     )
-    persistence._park_auto_rebase_failure(
-        context.gh,
-        context.issue,
-        context.state,
+    persistence._parks_the_recovery(
+        context,
         message=(
             f"{config.HITL_MENTIONS} crash recovery for this issue's auto "
             f"rebase: the interrupted attempt was made against pull request "
@@ -191,10 +189,8 @@ def _park_stranded_recovery(context: _AutoRebaseRecoveryContext) -> bool:
         "them and parking awaiting human",
         context.issue.number, context.label,
     )
-    persistence._park_auto_rebase_failure(
-        context.gh,
-        context.issue,
-        context.state,
+    persistence._parks_the_recovery(
+        context,
         message=_stranded_notice(context),
         reason=_REASON_AUTO_BASE_REBASE_FAILED,
     )

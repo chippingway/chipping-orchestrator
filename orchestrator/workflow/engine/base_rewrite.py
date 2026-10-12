@@ -10,10 +10,13 @@ that order is the contract. Every gate in ``eligibility`` is asked before
 ``startup`` is allowed to move HEAD, because each of them is a reason the
 worktree must be left exactly as the last tick published it. Crash recovery is
 settled before a new rebase is begun, so an anchor an earlier tick pinned is
-never rewritten out from under the comparison that would have resolved it.
-Only then does ``startup`` anchor and run the rebase, and only a rebase that
-returns a known pre-rebase SHA reaches the publication -- the failure paths
-have already routed themselves to ``conflicts`` or to a park.
+never rewritten out from under the comparison that would have resolved it --
+and a recovery that took the anchor down has the refresh's own selection
+asked again before any rebase behind it, since the anchor is what set the
+rest of that selection aside. Only then does ``startup`` anchor and run the
+rebase, and only a rebase that returns a known pre-rebase SHA reaches the
+publication -- the failure paths have already routed themselves to
+``conflicts`` or to a park.
 
 The ordinary publication is the workflow's own (``rewrite_publication``): the
 candidate the git owner reads, the size and transfer gates it passes before
@@ -40,6 +43,7 @@ from github.PullRequest import PullRequest
 
 from orchestrator.git.base_sync import (
     eligibility,
+    refresh_selection,
     startup,
 )
 from orchestrator.git.base_sync.models import (
@@ -51,6 +55,7 @@ from orchestrator.workflow.engine import (
     rewrite_landing_moved as _landing_moved,
     rewrite_publication as _rewrite_publication,
     rewrite_recovery as _rewrite_recovery,
+    rewrite_recovery_parks as _recovery_parks,
     rewrite_replies as _rewrite_replies,
 )
 
@@ -72,6 +77,8 @@ def _publish_auto_rebase_from_pr(
     recovery = _rewrite_recovery.decides(context, consumed_comment_id)
     if not recovery.should_continue:
         return
+    if _held_past_the_anchor(context):
+        return
     if not eligibility._normal_auto_rebase_can_start(context):
         return
 
@@ -89,9 +96,36 @@ def _publish_auto_rebase_from_pr(
     _rewrite_publication.publishes(context, before_sha)
 
 
+def _held_past_the_anchor(context: _AutoRebaseContext) -> bool:
+    """Whether a record the anchor set aside holds the branch, now that the recovery let the tick go on.
+
+    The refresh chose this worktree beside a standing anchor, so only the late
+    claims were asked to hold it (`refresh_selection._state_holds_the_branch`):
+    the anchor was this refresh's own interrupted work, and every other record
+    was left for the recovery to reach the checkout past. A recovery that lets
+    the tick go on has taken the anchor down -- the clear of an attempt that
+    never started, or the retirement of a landed head the base advanced past
+    again -- so a rebase begun now is a new rewrite with no anchor beside it,
+    and the refresh's selection is asked again of the comment as the recovery
+    left it. A developer report recorded and not yet settled -- a refresh of
+    the landed head's report among them -- holds it as it holds an unanchored
+    branch: the report reconciliation ahead of the next handler settles the
+    report on the head it is about, and the refresh behind that rebases, as an
+    uninterrupted journey's would. A reply the recovery did not spend is left
+    unspent for that rebase.
+    """
+    if not context.pending_pre_rebase_sha:
+        return False
+    return refresh_selection._issue_skips_base_sync(
+        context.issue, context.issue.number, context.state, context.worktree,
+    )
+
+
 def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:
     """Run one refresh-time PR synchronization from normalized inputs."""
-    if not eligibility._auto_rebase_label_is_eligible(context, _landing_moved.abandons_unproved):
+    if not eligibility._auto_rebase_label_is_eligible(
+        context, _landing_moved.abandons_unproved, _recovery_parks.lands_a_park,
+    ):
         return
 
     retry = eligibility._auto_rebase_retry_decision(context)
@@ -142,7 +176,9 @@ def _sync_unreadable_pr_worktree(request: _AutoRebaseRequest) -> None:
     (`rewrite_recovery.answers_an_unreadable_checkout`).
     """
     context = request.to_context(_PENDING_PUSH_SHA)
-    if not eligibility._auto_rebase_label_is_eligible(context, _landing_moved.abandons_unproved):
+    if not eligibility._auto_rebase_label_is_eligible(
+        context, _landing_moved.abandons_unproved, _recovery_parks.lands_a_park,
+    ):
         return
     retry = eligibility._auto_rebase_retry_decision(context)
     if eligibility._open_auto_rebase_pr(context) is None:

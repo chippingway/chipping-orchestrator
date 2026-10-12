@@ -187,10 +187,12 @@ class _AutoRebaseRecoveryContext:
     # What the workflow's recovery owes over a reset that takes the checkout
     # off the head the attempt landed, staged on `state` before the attempt is
     # dropped from it, so it rides the park's write with that release or not
-    # at all (`persistence._reset_clear_and_park`). None owes nothing; the
-    # workflow's recovery hands its answer on every road's context
+    # at all (`persistence._reset_clear_and_park`, `lands_a_park`). False keeps
+    # the attempt and holds, nothing dropped or parked: a record that cannot go
+    # with the release. None owes nothing; the workflow's recovery hands its
+    # answer on every road's context
     # (`workflow/engine/rewrite_landing_moved.abandons_over_the_reset`).
-    settles_over_a_reset: Callable[[], None] | None = None
+    settles_over_a_reset: Callable[[], bool] | None = None
     # What the workflow's recovery asks of this context before any park that
     # keeps the attempt standing for a human's reply -- a reset that did not
     # land, an issue relabelled out from under it, a landing made for another
@@ -202,6 +204,14 @@ class _AutoRebaseRecoveryContext:
     # recovery context it builds or has built
     # (`workflow/engine/rewrite_landing_moved.abandons_unproved`).
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None
+    # How every park this recovery takes is posted and recorded, given the
+    # context, the notice, and the reason (`persistence._parks_the_recovery`):
+    # its record lands a notice after the tick read the comment, so the
+    # workflow lands it over the comment read afresh, keeping what another
+    # road wrote meanwhile. None writes the tick's state whole; the workflow
+    # hands its answer in on every recovery context it builds or has built
+    # (`workflow/engine/rewrite_recovery_parks.lands_a_park`).
+    lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None
 
 
 @dataclass(frozen=True)

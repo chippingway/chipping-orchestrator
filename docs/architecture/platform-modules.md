@@ -596,7 +596,8 @@ orchestrator/
                         freezes no write ever ends is applied. Beside an auto-rebase anchor only the late claims
                         the reconciliation answers freeze the walk and a read-only park is set aside: the
                         dispatcher holds every handler that would end the rest, so none of them may freeze the
-                        recovery out as well
+                        recovery out as well -- and once a recovery takes the anchor down, the coordinator asks
+                        the whole selection again before any rebase behind it (`workflow/engine/base_rewrite.py`)
       frozen.py         which records hold a checkout still and what ends each freeze: the ones that freeze a
                         branch by their presence -- the late reading, the approval, and the terms of a squash
                         mid-rewrite among them, each read as the whole GROUP its write puts down rather than as
@@ -621,7 +622,8 @@ orchestrator/
                         name and only while the stage that has to act on it still holds the issue
       eligibility.py    the label, park, open-PR, and clean-tree gates one PR sync clears, the clear or park an
                         anchor under a label the refresh does not drive takes -- handed what the workflow asks
-                        before that park keeps the attempt -- and whether a park a stage left
+                        before that park keeps the attempt and the park it records it through -- and whether a
+                        park a stage left
                         still owes a standing anchor its recovery -- which the workflow's recovery coordinator
                         runs; a terminal PR ends an anchored attempt's whole handoff through `terminal_handoff`
       pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
@@ -753,13 +755,15 @@ orchestrator/
       recovery_holds.py
                         what no recovery road reaches: the reset and park over a checkout whose base lag cannot
                         be counted, handed on whatever its caller says the workflow's recovery owes over that
-                        reset (`settles_over_a_reset`, which the workflow's recovery hands in), and the dispatch
+                        reset (`settles_over_a_reset`, which the workflow's recovery hands in) and the proof and
+                        park its parks take (`proves_before_a_park`, `lands_a_park`), and the dispatch
                         hold -- whether a standing anchor keeps a stage handler back,
                         which every label the refresh does not drive does, and one it drives does unless a late
                         claim the reconciliation answers freezes the refresh out -- with a missing checkout
                         restored where the refresh drives the label and the ineligible answer taken where it does
                         not, over a context built apart (`_held_anchor_context`) so the dispatcher can hand it the
-                        workflow's answer before a park keeps the attempt. An anchor beside a live adjudication
+                        workflow's answer before a park keeps the attempt and the park that one is recorded
+                        through. An anchor beside a live adjudication
                         reaches it only once the dispatcher's handoff
                         (`workflow/engine/rewrite_takeover.py`) has refused the pair
       persistence.py    the parks and the reset-and-park tail -- which drops the whole attempt and the debt it
@@ -767,7 +771,9 @@ orchestrator/
                         has actually landed, since a refused one may leave the branch still standing on the
                         approved commit; a recovery context is asked first what it owes over that reset
                         (`settles_over_a_reset`), staged on the same state so it rides the one park write -- an
-                        optional answer the workflow's recovery hands on every road. The park's notice is the
+                        optional answer the workflow's recovery hands on every road, which answers whether the
+                        attempt may go; one that may not is kept, with nothing dropped or parked
+                        (`_releases_over_the_reset`). The park's notice is the
                         caller's reason followed by what the reset, the clean, and the drop came to
                         (`_reset_outcome`), so a reset that failed is never reported as made, and the drop is said
                         as what the park's own write makes durable, since the notice goes out ahead of it. Every
@@ -775,14 +781,21 @@ orchestrator/
                         that keeps the attempt -- that tail behind a reset that did not land, the stranded,
                         foreign-publication, and unfinished parks -- first asks the answer the recovery context
                         carries (`proves_before_a_park`, which the workflow hands in on every recovery context)
-                        to prove a captured verification transaction again (`_proves_before_the_park`), and holds
-                        the tick with nothing parked where its abandonment could not land. The finish of a landing --
-                        its report debt, notice, event, announcement mark, and route -- is the workflow's
-                        (`workflow/engine/rewrite_finish.py`)
+                        to prove a captured verification transaction, or evidence a finish settled for the landed
+                        head, again (`_proves_before_the_park`), and holds the tick with nothing parked where its
+                        abandonment or invalidation could not land. Every recovery park is
+                        recorded through the park the recovery context carries (`_parks_the_recovery`,
+                        `lands_a_park`, which the workflow hands in on every recovery context), landed over the
+                        comment read afresh so a report or evidence record another road wrote while the notice
+                        went out is kept rather than put back; a context with none writes the state whole. The
+                        finish of a landing -- its report debt, notice, event, announcement mark, and route -- is
+                        the workflow's (`workflow/engine/rewrite_finish.py`)
       recovery_notices.py
                         how a recovery's park notices name the commits they are about
       models.py         the frozen contexts, requests, snapshots, and decisions -- a recovery context carrying the
-                        optional answer its reset is owed (`settles_over_a_reset`)
+                        optional answers the workflow hands it: what its reset is owed (`settles_over_a_reset`),
+                        the proof before a park that keeps the attempt (`proves_before_a_park`), and the park its
+                        every park is recorded through (`lands_a_park`)
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
       commits.py        the commits the orchestrator creates on a branch itself -- the squash, and the documenting
@@ -1273,8 +1286,9 @@ off a facade:
   after eligibility and the injected guards on `maintenance_guards`. The workflow layer is never imported here.
   `runtime/artifacts.py` schedules the pass, takes the scheduler hold, and injects those guards; through
   `runtime/exclusion.py`, it claims the host against processes no scheduler hold can see.
-- `base_sync/` — `models` and `state` carry only data, save the optional answer a recovery context may hold for its
-  reset (`settles_over_a_reset`), which `persistence` calls before it drops the attempt. On the sync side the workflow's
+- `base_sync/` — `models` and `state` carry only data, save the optional answers a recovery context may hold: for its
+  reset (`settles_over_a_reset`), which `persistence` calls before it drops the attempt, and the park it records every
+  park through (`lands_a_park`), which `persistence` calls in place of its whole write. On the sync side the workflow's
   refresh calls `refresh_selection` before `pre_pr` and its base-rewrite coordinator, `refresh_selection` asks `frozen`
   alone, the coordinator asks `eligibility` and `startup` in that order and hands a clean rebase to the workflow's
   publication, which reads its candidate through `rewrite_facts`, pushes it through `rewrite_transport`, records its

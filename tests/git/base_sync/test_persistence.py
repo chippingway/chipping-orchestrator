@@ -51,6 +51,10 @@ _ANSWERED = ([fixtures.PRE_REBASE_SHA], SETTLED, None, [WRITE_STATE])
 
 _UNANSWERED = ([], None, fixtures.PRE_REBASE_SHA, [WRITE_STATE])
 
+# What a landed reset whose answer may not go with the release leaves: the
+# answer asked, nothing written, and the anchor kept.
+_HELD = ([fixtures.PRE_REBASE_SHA], None, fixtures.PRE_REBASE_SHA, [])
+
 # Everything one interrupted attempt carries past the anchor: the replay it
 # recorded making, the base tip it made it onto, and the publication it made
 # it for, the head a finish said it had already announced, and the debt the
@@ -288,9 +292,16 @@ class ResetAnswerTest(unittest.TestCase):
             with self.subTest(road=road.__name__, exit_code=exit_code):
                 self.assertEqual(self._takes(road, exit_code), _UNANSWERED if exit_code else _ANSWERED)
 
-    def _takes(self, road, exit_code: int) -> tuple:
-        """Take `road` over a reset git answers with `exit_code`, and read back what it left."""
-        owed = _Owed()
+    def test_an_answer_kept_from_the_release_holds(self) -> None:
+        # The recovery answers that its record may not go with the release:
+        # the attempt is kept guarding it, and nothing is written or parked.
+        for road in (_resets, _aborts):
+            with self.subTest(road=road.__name__):
+                self.assertEqual(self._takes(road, 0, releases=False), _HELD)
+
+    def _takes(self, road, exit_code: int, *, releases: bool = True) -> tuple:
+        """Take `road` over a reset git answers with `exit_code`, the answer `releases` or not, and read it back."""
+        owed = _Owed(releases=releases)
         context, takes = road(owed)
         ordered: list[str] = []
         with _recorded_calls(ordered, context.gh, WRITE_STATE), patch.object(
@@ -302,15 +313,20 @@ class ResetAnswerTest(unittest.TestCase):
 
 
 class _Owed:
-    """A recovery's answer to its landed reset: a record staged on `state`, the anchor standing as it is asked."""
+    """A recovery's answer to its landed reset: a record staged on `state`, the anchor standing as it is asked.
 
-    def __init__(self) -> None:
+    `releases` is whether the record may go with the attempt's release.
+    """
+
+    def __init__(self, *, releases: bool = True) -> None:
         self.state = None
         self.asked: list[str | None] = []
+        self._releases = releases
 
-    def __call__(self) -> None:
+    def __call__(self) -> bool:
         self.asked.append(self.state.get(fixtures.KEY_PENDING_PUSH_SHA))
         self.state.set(KEY_SETTLED, SETTLED)
+        return self._releases
 
 
 def _resets(owed: _Owed):

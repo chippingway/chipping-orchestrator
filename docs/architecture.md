@@ -960,7 +960,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   (`workflow/engine/rewrite_evidence_proof.py`). The finish that completes it runs the commands again only where no
   run was captured, settles a captured one only once it proves again -- over an artifact an earlier post landed,
   found under its receipt, and routing one already settled with nothing posted or settled again while nothing beside
-  it says otherwise -- and abandons it
+  it says otherwise and it proves ready again, invalidated whole where anything it is bound to moved since it settled
+  (`workflow/engine/rewrite_finish_readiness.py`) -- and abandons it
   unrun, then or after, where something it is bound to -- or the base -- moved
   since: refused for good, its base tip blanked, where the comment has no room
   (`workflow/engine/rewrite_finish_captured.py`). Which run is that captured one is the receipt the finish puts on
@@ -970,8 +971,12 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   the captured run the same way where its snapshot reads the
   landing on another head, or its reset takes the checkout off it (`workflow/engine/rewrite_landing_moved.py`), the
   git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
-  park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). It runs under
-  its caller's issue writer claim.
+  park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`); evidence a
+  finish already settled for the head and left behind a tail cut short is invalidated whole on each of those roads
+  too, and kept whole beside the attempt, which is not released, where history has no room for it. Every recovery
+  park is recorded over the comment read afresh (`lands_a_park`, `workflow/engine/rewrite_recovery_parks.py`), so a
+  report or evidence record another road wrote while its notice went out is kept. It runs under its caller's issue
+  writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

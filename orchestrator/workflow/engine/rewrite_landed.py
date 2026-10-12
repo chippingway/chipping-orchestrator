@@ -65,7 +65,11 @@ that brought the attempt back spent. A tick lost before the checkpoint leaves
 no mark, so the evidence it captured is found by the receipt the finish put on
 the attempt beside it (`rewrite_landing_records.captured`) rather than by any
 announced head. A mark already naming this head says its notice and its event
-are out, so that finish repeats neither and finishes only the route. One that finds
+are out, so that finish repeats neither and finishes only the route; a
+`workflow:validating` label beside that mark is the relabel the same finish
+made, which is not made again. Evidence the dead tick settled for the head is
+proved ready again before that route takes it, and invalidated whole where
+anything it is bound to moved since (`rewrite_finish_readiness`). One that finds
 the remote no longer on the head, or a base it cannot count the head against,
 makes nothing, and the next tick classifies whatever it then finds.
 

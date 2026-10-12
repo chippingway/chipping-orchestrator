@@ -14,7 +14,7 @@ the pinned fields the publication is resolved from
 (`ReportWrite.on_the_publication`), and keeping every other field -- unknown
 ones included -- as the fresh reading carries it.
 
-Six writes, and each lists what it has to land exactly among the records it
+Seven writes, and each lists what it has to land exactly among the records it
 is decided on as well as among its own, since a field staged as it was read is
 no move of the write's and would otherwise be left to whatever another road
 did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
@@ -46,6 +46,12 @@ the attempt, so one comment reading that failed or one move under the write
 does not leave the transaction standing. It owns the base tip the replay was
 recorded as made onto too, which an abandonment with no room for its history
 entry blanks.
+`INVALIDATION` invalidates settled evidence a reading established movement
+under where the write staged on the comment read afresh would not land
+(`rewrite_finish_readiness.invalidates`): staged on the tick's own copy and
+decided only on the evidence records and the attempt, as `ABANDONMENT` is, so
+a failed reading of the comment does not leave a decision standing that a
+later reading, once the movement is put back, would take as current.
 `ANNOUNCED_EVENT` records the `base_rebased` event a finish is filing for
 the landed head, on its own and right ahead of it, decided on the attempt
 alone, so the event goes out only behind a write proving the attempt stands.
@@ -147,6 +153,19 @@ ABANDONMENT = _commits.ReportWrite(
     decided_on=frozenset((_evidence_records.PENDING_EVIDENCE, _evidence_records.EVIDENCE_HISTORY)) | _ATTEMPT,
 )
 
+# An invalidation of settled evidence staged on the tick's own copy, where the
+# comment read afresh would not take one (`rewrite_finish_readiness.invalidates`):
+# decided only on the evidence records it retires, the transaction beside them,
+# and the attempt, so a review or report record another road moved -- the very
+# movement the invalidation answers, often -- lands as the fresh comment
+# carries it rather than refusing it.
+INVALIDATION = _commits.ReportWrite(
+    owned=frozenset((_evidence_records.CURRENT_EVIDENCE, _evidence_records.EVIDENCE_HISTORY)),
+    decided_on=frozenset((
+        _evidence_records.PENDING_EVIDENCE, _evidence_records.CURRENT_EVIDENCE, _evidence_records.EVIDENCE_HISTORY,
+    )) | _ATTEMPT,
+)
+
 # The record of the `base_rebased` event a finish is filing, landed on its own
 # right ahead of the event and of the checkpoint (`rewrite_finish_events`), so
 # the event goes out only behind a write proving the attempt still stands.
@@ -177,6 +196,15 @@ _BOUND = frozenset(_durable._BOUND_RECORDS)
 # nothing (`rewrite_finish_captured.stands_before_the_route`).
 _BOUND_MOVED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence is bound through moved under a write finishing the landing",
+)
+
+# The same reading where what moved is a record settled evidence's binding
+# rests on -- the pull request, a report or its debt, a review subject -- and
+# not only the evidence records themselves, whose movement is a newer
+# transaction for the head to answer: settled evidence is invalidated over it
+# (`rewrite_finish_readiness.invalidates_behind`).
+BINDING_MOVED = ReportEvidence(
+    ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved under a write finishing the landing",
 )
 
 _UNLANDED = MappingProxyType({
@@ -292,8 +320,9 @@ def _stopped(
 
     A refusal that names a record the evidence is bound through read that
     record moved, and that reading is appended to `observed` as the movement
-    it is (`_BOUND_MOVED`): the guard read it once, and whatever reads the
-    comment after may find it put back.
+    it is -- `BINDING_MOVED` where a record beyond the evidence records
+    themselves moved, `_BOUND_MOVED` otherwise: the guard read it once, and
+    whatever reads the comment after may find it put back.
     """
     stopped = _UNLANDED.get(outcome.status)
     if stopped is not None:
@@ -303,6 +332,7 @@ def _stopped(
             "posting, relabeling, and clearing nothing behind it",
             finish.issue.number, finish.head, why.value,
         )
-        if observed is not None and _BOUND.intersection(outcome.fields):
-            observed.append(_BOUND_MOVED)
+        moved = _BOUND.intersection(outcome.fields)
+        if observed is not None and moved:
+            observed.append(BINDING_MOVED if moved - _EVIDENCE_RECORDS else _BOUND_MOVED)
     return stopped
