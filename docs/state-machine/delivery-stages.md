@@ -1416,7 +1416,8 @@ because there it is the claim that this stage has already rerouted rather than a
   establishes movement and lets the route go on where nothing holds it; one nothing
   moved under holds the route (`HELD`) with the attempt standing, nothing announced, relabelled, retired, or reset.
   The route goes on only once the transaction is settled -- its artifact posted once, its transcript, revision,
-  tested commit and tree, and source as recorded -- or retired, behind the last word over the landing and the base.
+  tested commit and tree, and source as recorded -- or retired, behind the last word over the landing and the base,
+  and what settled only once it proves ready again (**Base-rewrite evidence, handed off** below).
 - **Base-rewrite evidence, recovered**: the recovery of the push already landed (`workflow/engine/rewrite_landed.py`)
   finishes a held route on a later tick under the attempt's own mark, with nothing pushed again, the notice, event,
   and round reset made once -- by whichever finish first resolves the evidence -- and no developer launched. A tick
@@ -1428,9 +1429,10 @@ because there it is the claim that this stage has already rerouted rather than a
   tested commit and tree, configuration, and source unchanged, over an artifact an earlier post landed, its answer
   lost included, found under its receipt rather than posted again -- and routed, or abandoned with nothing run where
   anything it is bound to, the landing, or the base moved since. One an earlier finish already settled -- its commit
-  landed and the process died, or the commit's answer was lost -- is routed as it stands, behind the last word over
-  the landing and the base, with nothing decided, run, invalidated, posted, or settled again
-  (`rewrite_finish_settlement.resolves`) -- but only while the records agree it is the last word on the head: nothing
+  landed and the process died, or the commit's answer was lost, or the tail behind it died -- is routed with nothing
+  decided, run, posted, or settled again (`rewrite_finish_settlement.resolves`) once it proves ready again, and
+  invalidated whole where anything it is bound to moved since (**Base-rewrite evidence, handed off** below) -- but
+  only while the records agree it is the last word on the head: nothing
   pending beside it, the handoff naming it, and no revision spent past it. A newer transaction recorded for the head
   beside it is published and settled as any captured one, superseding it, rather than left owed behind a cleared
   attempt, and any other disagreement holds the route. The records a finish's own publication and settlement leave
@@ -1493,6 +1495,53 @@ because there it is the claim that this stage has already rerouted rather than a
   state the park writes (`git/base_sync/persistence.py`), in the one write that releases the attempt or not at all; a
   reset that failed keeps both, save a transaction the snapshot already read the landing move under. Publishing and
   settling the recorded transaction is the finish's own, under the anchor (the bullet above).
+- **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
+  announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
+  relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
+  them: behind the evidence settled, retired, or handed to the fresh reviewer and before the announcement, behind the
+  checkpoint and before the relabel, or behind the relabel and before the retirement. Each leaves the attempt
+  standing, so the anchor keeps holding every handler and nothing reviews the head, and the recovery of the push
+  already landed finishes it on a later tick from what the records say was done:
+  - **The evidence is taken up where it stands.** Settled evidence -- this finish's own settlement as well as an
+    earlier one's -- is proved ready again before any route takes it (`workflow/engine/rewrite_finish_readiness.py`):
+    the readiness proof every reader relying on current evidence takes (`verification_proof.current_evidence_verdict`)
+    over the issue and pinned comment read afresh -- still the latest record, its handoff naming it, its artifact
+    re-read intact under its receipt, and its whole binding -- and behind it the last word over that binding, so the
+    remote branch, the base, the requirements and the review and report records, the checkout, the local base ref,
+    and the configuration are read once more. Ready, it is routed as current. Where any reading establishes
+    movement -- an issue edited, a report or review record replaced, the artifact edited or deleted, another command
+    configured, or the landing or the base moved since it settled -- the earlier decision answers for nothing the
+    route carries: the evidence is invalidated into history whole, its revision, transcript digest, and tested and
+    source provenance kept, in a write staged on the comment read afresh and guarded by that reading and the
+    attempt, and the head goes on to the fresh reviewer, the normal workflow owning whatever moved -- save a landing
+    that left the head or a base gone elsewhere, which hold the route behind that invalidation for the next tick to
+    classify the branch and count the head again. A reading nobody could take, a comment no longer carrying that
+    evidence as current or carrying a pending record, handoff, or revision beside it that says it is not the last
+    word, or an invalidation that did not land holds the route with the attempt standing, and the next recovery
+    proves it again over what it then reads. A failure notice recorded
+    for the head is found on the pull request rather than posted again, and a decision that recorded nothing -- the
+    fresh reviewer's responsibility handed off, a run refused as moved, or a passing run that binds nothing -- is
+    taken afresh, so the handoff is proved over the records as they read then; a run the policy makes again there is
+    one no write ever captured.
+  - **The announcement is the existing checkpoint's.** A head the mark already names gets no second notice,
+    `base_rebased` event, or round reset, and an issue already on `workflow:validating` under that mark is not
+    relabelled again, so it files no second stage-entry event. Only a notice posted and an event filed ahead of a
+    checkpoint that never landed are said again, as for any landing.
+  - **The retirement is the guarded one.** It owns the attempt, the round, the park's flags, a spent reply, and a
+    failure notice the route no longer owes, and is decided on every record the evidence is bound through, so the
+    evidence and report records stay as the comment carries them: a record another road moved refuses it, with the
+    attempt standing for the next recovery, which reads that move as movement under the evidence.
+  - **A base that advanced again** while the attempt stood is no route at all: the landed head is announced only
+    where the dead tick had not announced it, its attempt is retired unrouted, and the tick's rebase replaces it.
+    The evidence settled for it stays in place for that rebase's own finish to decide over, invalidated whole where
+    the new head's tree or the configuration moved -- a deferral across a further base advance never treats the
+    earlier binding as the new head's, nor holds behind the anchor: the new head's report refresh is owed afresh and
+    its fresh reviewer owes its evidence.
+
+  So whichever boundary a tick dies at, the journey ends as the uninterrupted one does: one notice and one
+  `base_rebased` event per rewrite that actually landed, one artifact and one settlement per evidence revision, no
+  round reset or relabel repeated, and no developer launched on any recovery road -- the report refreshes a later
+  `workflow:validating` tick asks for are the same ones the uninterrupted journey asks for.
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims

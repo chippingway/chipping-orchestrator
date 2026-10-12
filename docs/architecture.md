@@ -941,7 +941,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   (`workflow/engine/rewrite_evidence_proof.py`). The finish that completes it runs the commands again only where no
   run was captured, settles a captured one only once it proves again -- over an artifact an earlier post landed,
   found under its receipt, and routing one already settled with nothing posted or settled again while nothing beside
-  it says otherwise -- and abandons it
+  it says otherwise and it proves ready again, invalidated whole where anything it is bound to moved since it settled
+  (`workflow/engine/rewrite_finish_readiness.py`) -- and abandons it
   unrun, then or after, where something it is bound to -- or the base -- moved
   since: refused for good, its base tip blanked, where the comment has no room
   (`workflow/engine/rewrite_finish_captured.py`). Which run is that captured one is the receipt the finish puts on

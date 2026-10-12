@@ -49,7 +49,8 @@ What the answer comes to decides the route:
 - Settled, or retired: the transaction is resolved -- current with its
   transcript and revision as recorded and its artifact posted once, or the
   fresh reviewer's to answer -- and the route goes on behind the last word
-  over the landing and the base (`rewrite_finish_captured.stands_before_the_route`).
+  over the landing and the base (`rewrite_finish_captured.stands_before_the_route`),
+  settled evidence proved ready again first (`rewrite_finish_readiness`).
 - Still owed -- a post or a settlement nobody confirmed, a reading nobody
   could take, a settlement the comment had no room for or whose commit a
   moved record or comment refused, an issue that stopped being live work
@@ -69,13 +70,18 @@ What the answer comes to decides the route:
   developer launched.
 
 A finish behind one that already settled the transaction -- its commit landed
-and the process died, or the commit's answer was lost -- finds the current
-evidence answering for the landed head and routes it as it stands, with
-nothing decided, run, invalidated, posted, or settled again, but only while the
-records agree it is the last word on the head: no pending record beside it,
-the handoff naming it, and no revision spent past it. A newer transaction
-recorded for the head beside it is answered as any captured one is, and
-supersedes it once it settles; any other disagreement holds the route.
+and the process died, or the commit's answer was lost, or the tail behind it
+died before the announcement, the relabel, or the retirement -- finds the
+current evidence answering for the landed head and routes it with nothing
+decided, run, posted, or settled again, but only while the records agree it is
+the last word on the head: no pending record beside it, the handoff naming it,
+and no revision spent past it. A newer transaction recorded for the head
+beside it is answered as any captured one is, and supersedes it once it
+settles; any other disagreement holds the route. Whatever settled it, that
+evidence is proved ready again before every route takes it
+(`rewrite_finish_readiness.stands_ready`): anything it is bound to that moved
+since its settlement invalidates it into history whole, and the head goes on
+to the fresh reviewer.
 """
 from __future__ import annotations
 
@@ -83,7 +89,6 @@ import logging
 from functools import partial
 
 from orchestrator.git.base_sync import attempts as _attempts
-from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     rewrite_finish_captured as _captured,
@@ -98,6 +103,7 @@ from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence import invalidates_current
 from orchestrator.workflow.engine.rewrite_evidence_proof import MOVEMENT, _reads_again, last_word
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_readiness import beside_current, stands_ready
 from orchestrator.workflow.engine.rewrite_landing_records import capture_answered, resolved
 
 log = logging.getLogger("orchestrator.workflow")
@@ -114,10 +120,13 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     published and settled here (`settles`) -- and so is a newer transaction
     recorded for the head beside evidence an earlier finish already settled
     for it, which then supersedes that evidence rather than leaving it
-    current. Settled evidence with nothing beside it is taken as it stands,
-    with nothing decided, run, invalidated, posted, or settled again, but only
-    while the records agree it is the last word on the head: no pending
-    record at all, the handoff naming it, and no revision spent past it. Any
+    current. Settled evidence with nothing beside it is taken with nothing
+    decided, run, posted, or settled again, but only while the records agree
+    it is the last word on the head -- no pending record at all, the handoff
+    naming it, and no revision spent past it -- and only once it proves ready
+    again (`rewrite_finish_readiness.stands_ready`), which invalidates it where
+    anything it is bound to moved since it settled and holds the route where a
+    reading could not be taken. Any
     of those out of step holds the route, since nobody can say what was owed
     -- and so does any pending record about another head beside evidence an
     earlier finish of this landing already retired for it, current evidence
@@ -143,7 +152,7 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
         "issue=#%d already settled verification evidence revision %d for %.8s; settling and running nothing again",
         finish.issue.number, current.revision, finish.head,
     )
-    return _captured.stands_before_the_route(finish)
+    return stands_ready(finish, current)
 
 
 def settles(finish: LandedFinish) -> FinishOutcome | None:
@@ -167,8 +176,9 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     another road made while this one was published -- current evidence its
     handoff does not name, or a revision spent past it -- comes in with the
     comment the answer adopted and holds the route with the attempt standing,
-    and current evidence the configuration moved past is invalidated, with
-    nothing run again, rather than routed or held over. A
+    current evidence the configuration moved past is invalidated, with
+    nothing run again, rather than routed or held over, and the evidence this
+    answer settled is proved ready again before the route takes it. A
     transaction still owed goes to the last word over the first movement the
     answer read, where it read any -- a refusal of its binding, a bound record
     read moved, or a base read gone elsewhere, put back since or not, sorted as
@@ -277,7 +287,8 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
     recorded for the head, which the finish answers itself. Otherwise any
     pending record -- about another head, or one nobody can read -- is out of
     step, and so, beside that current evidence, are a handoff that does not
-    name it and a revision spent past it (`_beside_current`).
+    name it and a revision spent past it
+    (`rewrite_finish_readiness.beside_current`).
     """
     state = finish.state
     current = None if finish.behind else _settlement.read_current_evidence(state)
@@ -288,7 +299,7 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
     settled = resolved(state, finish.head) or capture_answered(state)
     out_of_step = ""
     if settled and _captured.recorded(finish, logged=False) is None:
-        out_of_step = _beside_current(state, current)
+        out_of_step = beside_current(state, current)
     if not out_of_step:
         return None
     log.warning(
@@ -296,22 +307,3 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
         finish.issue.number, finish.head, out_of_step,
     )
     return FinishOutcome.HELD
-
-
-def _beside_current(state: PinnedState, current: _records.CurrentEvidence | None) -> str:
-    """Why a record beside the head's resolved evidence says `current` is not the last word on it, or "".
-
-    Any pending record, and -- beside `current`, where there is one -- a
-    handoff that does not name it or a revision spent past it.
-    """
-    if _record_state.carries_pending_evidence(state):
-        return "a pending record no finish of this landing can answer stands beside it"
-    if current is None:
-        return ""
-    handoff = _settlement.read_evidence_handoff(state)
-    named = None if handoff is None else (handoff.receipt, handoff.revision)
-    if named != (current.receipt, current.revision):
-        return "the evidence handoff does not name it"
-    if _record_state._latest_revision(state) != current.revision:
-        return "a revision past it was spent, or nobody can say which"
-    return ""

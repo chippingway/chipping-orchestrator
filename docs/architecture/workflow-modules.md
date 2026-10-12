@@ -1142,7 +1142,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`_resolves`, `rewrite_finish_settlement.resolves`): decided and landed by the evidence
                             step (`rewrite_finish_evidence.py`), and a transaction it recorded published and settled,
                             or retired, with the anchor still standing -- evidence an earlier finish already settled
-                            for the head routed as it stands while nothing beside it says otherwise. Only then is the
+                            for the head routed while nothing beside it says otherwise, and settled evidence proved
+                            ready again first (`rewrite_finish_readiness.py`). Only then is the
                             announcement prepared before the notice and the `base_rebased` event go out, landing the
                             debt, the reset round, and the mark while the anchor stands; a finish whose mark already
                             names the head repeats neither and lands only a debt new beside it. A head the base
@@ -1155,7 +1156,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction left owed stops the finish with nothing behind it made -- nothing announced,
                             the round as it was -- behind the last word
                             (`rewrite_finish_captured.stands_before_the_route`) wherever a transaction is recorded for
-                            the head. It runs under its caller's issue writer claim and takes none. The ordinary
+                            the head. A tick lost behind the evidence -- before the announcement, between the
+                            checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt
+                            standing, and the finish that completes it repeats nothing the mark and the label say
+                            was done: no second notice, `base_rebased` event, round reset, relabel, or stage-entry
+                            event. It runs under its caller's issue writer claim and takes none. The ordinary
                             publication
                             (`rewrite_publication.py`) hands its landing here, and the recovery's retry
                             (`rewrite_retry.py`) and its finish of a push already landed (`rewrite_landed.py`) hand
@@ -1242,7 +1247,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             already settled for the head is
                             routed with nothing decided, run, posted, or settled again while the records agree it is
                             the last word -- no pending record beside it, the handoff naming it, no revision spent
-                            past it -- and while the configured context is still the one it was taken under, the
+                            past it -- once it proves ready again (`rewrite_finish_readiness.stands_ready`), and
+                            while the configured context is still the one it was taken under, the
                             evidence step invalidating it with nothing run otherwise rather than holding over it; a
                             newer transaction recorded for the head is answered and settled over it, and
                             any other disagreement holds, as does a pending record about any other head beside the
@@ -1251,6 +1257,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             announced or routed (`_holds_out_of_step`), so a settlement or retirement another road
                             made while the run was published, which comes in with the comment the answer adopted,
                             holds the route out of step too
+    rewrite_finish_readiness.py
+                            evidence a finish of the landing settled for its head, proved ready again before every
+                            route that takes it -- the settling tick's own and every recovery of a tail cut short
+                            behind it (`stands_ready`): the readiness proof every reader relying on current evidence
+                            takes (`verification_proof.current_evidence_verdict`) over the issue and pinned comment
+                            read afresh, then the last word over its binding (`rewrite_evidence_proof.last_word`).
+                            Movement -- an issue edited, a report or review record replaced, the artifact edited or
+                            deleted, a command configured otherwise, the landing or the base moved -- invalidates it
+                            into history whole in a write staged on the comment read afresh and guarded by that
+                            reading and the attempt, and the head goes on to the fresh reviewer -- held behind that
+                            write where the landing left the head or the base went elsewhere; a reading nobody
+                            could take, a comment no longer carrying it as the last word on the head
+                            (`beside_current`: a pending record, a handoff not naming it, a revision spent past it,
+                            which the settlement step's out-of-step hold asks of the tick's reading too), or an
+                            invalidation that did not land holds the route
     rewrite_finish_failures.py
                             the notice a landed head's failed verification is owed, kept on the pinned comment
                             (`auto_base_rebase_failed_verification`: the head and the notice's whole text) from the

@@ -19,7 +19,10 @@ may go on (`_proves_before_the_park`), so a transaction the workflow captured
 for the landed head is proved again before the record a human's reply brings
 back is left standing. The finish of a
 rewrite that landed is the workflow's (`workflow/engine/rewrite_finish.py`),
-whichever road reached it.
+whichever road reached it, and so is the tail an interrupted finish leaves
+behind its evidence -- the announcement, the relabel, and the retirement --
+which none of these parks takes: a park that keeps the attempt keeps it for
+the reply that brings that finish back, with what the attempt still owes.
 """
 from __future__ import annotations
 

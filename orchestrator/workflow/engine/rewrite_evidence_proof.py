@@ -11,9 +11,11 @@ to the base before a run starts or a carry is made, and a recovery takes up a
 decision an earlier finish captured only once it proves again
 (`rewrite_finish_captured`). Every route the finish's evidence step takes that
 carries or follows a recorded decision ends in the last word -- a captured
-transaction's behind whatever stopped it -- and only a fresh decision held
-before its write, whose write did not land, or whose failure notice nobody
-could confirm ends without it, leaving no transaction behind it to abandon.
+transaction's behind whatever stopped it, and settled evidence's behind its
+readiness proved again (`rewrite_finish_readiness`) -- and only a fresh
+decision held before its write, whose write did not land, or whose failure
+notice nobody could confirm ends without it, leaving no transaction behind it
+to abandon.
 
 `proves_again` reads the world afresh rather than off the tick's own reading:
 the issue is fetched again, since the one a finish holds carries the title and
@@ -214,9 +216,11 @@ def last_word(
 ) -> Word:
     """What everything that moves under `finish`'s route reads as now, behind every request: `(moved, held)`.
 
-    `binding` is the transaction the route would carry, None where it carries
-    none, and `landing` whether the remote branch and the checkout are read
-    again too -- for a route that carries or follows a recorded decision.
+    `binding` is the evidence the route would carry -- a transaction recorded
+    for the head, or evidence already settled for it, proved ready again
+    (`rewrite_finish_readiness`) -- None where it carries none, and `landing`
+    whether the remote branch and the checkout are read again too -- for a
+    route that carries or follows a recorded decision.
     `earlier` is a verdict the caller already read the transaction with -- a
     proof of it again -- which is sorted first, beside the rest. The network
     is read first and the local readings last (`_answers_locally`), so

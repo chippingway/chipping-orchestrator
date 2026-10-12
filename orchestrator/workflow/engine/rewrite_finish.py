@@ -60,7 +60,12 @@ refuses stops the finish there with nothing behind it made:
   and settles nothing this one already settled while the records agree that
   is the last word on the head. Every evidence decision is held to the base
   tip the replay was recorded as made onto once its requests are behind it,
-  so a base that moved meanwhile holds the route too.
+  so a base that moved meanwhile holds the route too. Settled evidence --
+  this finish's own settlement, or an earlier one's -- is proved ready again
+  before any route takes it (`rewrite_finish_readiness`), and invalidated
+  into history whole where anything it is bound to moved since it settled,
+  so the head goes on to the fresh reviewer rather than with a decision
+  about a review, report, requirements, or configuration nobody holds now.
 - Only then is the landing announced: prepared over the fresh comment first,
   its notice's ledger entry reserved over the ledger that comment carries, so
   a comment that would refuse it posts nothing; then the notice and the event
@@ -83,9 +88,25 @@ refuses stops the finish there with nothing behind it made:
   tick lost between them back, to the mark this finish left and the evidence
   it settled. The retirement is decided on every record the evidence is
   bound through, so a report or review another road moved after the evidence
-  was decided or settled refuses the route rather than riding it. An issue
-  already on `workflow:validating` under its own mark is not relabelled
-  again.
+  was decided or settled refuses the route rather than riding it, and it
+  owns only the attempt, the round, the park's flags, a spent reply, and a
+  failure notice the route no longer owes: evidence and report records stay
+  as the comment carries them. An issue already on `workflow:validating`
+  under its own mark is not relabelled again.
+
+A tick lost anywhere in that tail -- behind the evidence it settled, retired,
+or left to the fresh reviewer and before the announcement, behind the
+checkpoint and before the relabel, or behind the relabel and before the
+retirement -- leaves the attempt standing, so the anchor holds every handler
+until a later finish discharges what it still owes. That finish takes the
+evidence up where the records leave it -- settled evidence proved ready
+again, a failure notice found on the pull request, a decision that recorded
+nothing taken afresh -- and reads the rest off the mark and the label: a head
+the mark already names gets no second notice, `base_rebased` event, or round
+reset, and an issue already relabelled under it no second relabel or
+stage-entry event. Nothing on any of those roads pushes, runs a captured
+decision's commands again, posts its artifact again, or launches a
+developer.
 
 Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
@@ -311,7 +332,10 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     comment refuses -- a review or report record another road moved since the
     evidence was decided or settled among the reasons -- stops the route with
     the attempt standing, for the recovery of the push already landed to
-    route the head on a later tick over evidence it settles nothing for again.
+    route the head on a later tick over evidence it settles nothing for again
+    and proves ready again first. A relabel that landed ahead of a retirement
+    that did not is that recovery's to finish too, under the mark this finish
+    left, with no second relabel.
     """
     stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH)
     if stopped is not None:
