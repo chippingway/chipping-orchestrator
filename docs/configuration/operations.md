@@ -973,8 +973,10 @@ need the isolation described under
 - **Release.** A claim ends when the dispatch or base-refresh route that took it ends, however it ends, and the kernel
   drops it when a process dies, so a crashed poller leaves nothing held; its descriptor is closed with it and is not
   inherited by an agent the holder spawns. The files stay: never delete the directory or a file in it while any poller
-  runs, since a recreated file is a new inode another process can lock beside a holder of the old one. They are small,
-  one per issue key ever claimed, and safe to remove once every poller has stopped.
+  runs, since a recreated file is a new inode another process can lock beside a holder of the old one. The claim files
+  are small, one per issue key ever claimed, and safe to remove once every poller has stopped; a `.quota-retirement`
+  record beside one is not, unless it reads `{}` — removing one that is armed or owes a retirement drops that
+  obligation, as [An owed quota retirement](#running-more-than-one-poller) describes.
 - **Not covered.** Pollers on different hosts, or on one host with different `WORKTREES_DIR` values, are not
   coordinated at all and are not supported against the same repository. And the claim is separate from the artifact
   presence on `WORKTREES_DIR/.artifact-maintenance.lock`: a maintenance pass neither takes nor reads a writer claim, and

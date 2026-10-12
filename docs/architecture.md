@@ -281,7 +281,9 @@ self-exit and be restarted with new source code; those launch commands are in th
   holds nothing, since the kernel drops the lock with the file description.
 - **Issue writer claims** (`scheduler.writer_claims`): one exclusive `flock` per repository issue under
   `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric GitHub id (the client's `repo_id`, never a
-  name: neither the configured slug nor the `owner/name` a poller fetched before a rename) and the issue number. Every
+  name: neither the configured slug nor the `owner/name` a poller fetched before a rename) and the issue number. The
+  same namespace keeps each issue's quota retirement record beside its claim file, written only under the claim and
+  host state rather than lock bookkeeping ([design constraints](#design-constraints)). Every
   dispatch path takes it before anything it does for the issue — the worker's refetch, the pinned-state guards, the
   close recovery wrapped around the pass, and the handler — and the enumeration takes it for the close receipt it posts,
   so two pollers sharing a checkout root never write one issue's pinned comment and labels at once. A family handler's

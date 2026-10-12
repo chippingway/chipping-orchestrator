@@ -80,8 +80,9 @@ per-stage behavior is in
   continuation alike, which the quota refuses whatever unfinished steps sit beside it — so the conversation it stopped
   is retired before the result reaches any persistence, park, or publication, and stays retired where the tick's own
   write is discarded by a live pause. Where the comment will not take the retirement, the tick is held like a paused
-  one and no developer is launched on the issue until a later reading lands it. A Claude quota notice retires
-  nothing: that conversation resumes past the reset.
+  one and no developer is launched on the issue until a later reading lands it; the host's record of it is armed
+  before every Antigravity launch, which is refused, uncharged, where the host will not take that or the record names
+  no retirement a poller can land. A Claude quota notice retires nothing: that conversation resumes past the reset.
   The record's lifecycle is in
   [the pinned-state reference](../state-machine/labels-and-state.md#pinned-state). `_resume_dev_with_text` on
   `workflow/stages/implementing/resume.py` is the one module every one of those resumes goes through; it declares the

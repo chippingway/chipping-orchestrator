@@ -860,7 +860,9 @@ error.
   The default never depends on where the package is installed or where `.env` was read from, but it does follow the
   order of `REPOS`: set it explicitly before reordering entries on a host with issues in flight, and on a host whose
   pollers list their repositories differently, since every poller on one host has to resolve the same root — see
-  [`configuration/operations.md#running-more-than-one-poller`](configuration/operations.md#running-more-than-one-poller)
+  [running more than one poller](configuration/operations.md#running-more-than-one-poller). Its `.issue-writer-claims/`
+  directory also keeps each issue's Antigravity quota retirement record, which a restore has to carry over
+  ([backups](security.md#backup-and-restore-drills)).
 - `LOG_DIR` — default `<REPO_ROOT>/logs`. directory `runtime/logs.py` attaches its `FileHandler` under
   (`orchestrator.log`, rotated ~10 MiB × 5). Also the default parent for `ANALYTICS_LOG_PATH`
   (`LOG_DIR/analytics.jsonl`). In a source checkout this is `<checkout>/logs`; in an installed package it is inside

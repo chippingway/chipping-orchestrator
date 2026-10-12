@@ -2352,7 +2352,10 @@ because there it is the claim that this stage has already rerouted rather than a
      this step's post-run pin or any disposition below, a commit's publication included. A retirement that commit
      will not land holds the tick as the `paused` branch below does, its state withheld from the whole-state writer,
      and refuses every developer launch on the issue after it -- uncharged, as the run circuit refuses one -- until a
-     later reading lands it.
+     later reading lands it. The spawn is refused the same way, before it runs, where the host will not arm the quota
+     retirement record it would owe a stop from, or where that record names no retirement a poller can land
+     ([the record](../state-machine.md#_handle_implementing-label-workflowimplementing)); the attempt that leaves an
+     arming unsettled is never held by it, its disposition and publication going on.
   6. Branch on result:
      - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
        pinned state, so durable GitHub state stays exactly as the prior tick left it and the next process retries.
