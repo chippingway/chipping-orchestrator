@@ -72,12 +72,12 @@ standing, and a reset that failed moved nothing and keeps the transaction.
 That write is landed over the comment read afresh (`rewrite_recovery_parks`),
 never over the tick's whole reading, so a report another road settled, or a
 transaction it recorded, while the park's notice went out is kept rather than
-put back. The reset moves the checkout ahead of that write, so settled
-evidence has the reset recorded against it before it is made
-(`rewrite_recovery_parks.records_the_reset`): a process lost between them
-leaves the evidence read as moved by every later proof, however the checkout
-is put back -- and so does a reset git refused, whose park proves the
-evidence first and invalidates it over that record.
+put back. The reset moves the checkout ahead of that write, so the
+transaction and settled evidence have the reset recorded against them before
+it is made (`rewrite_recovery_parks.records_the_reset`): a process lost
+between them leaves both read as moved by every later proof, however the
+checkout is put back. A reset git refused moved nothing, and the git owner
+stages that record back for the park that keeps the attempt.
 
 Only a transaction a finish of the attempt recorded is read
 (`rewrite_landing_records.captured`): the one under the receipt the finish put

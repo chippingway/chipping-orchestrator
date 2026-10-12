@@ -90,7 +90,11 @@ from __future__ import annotations
 import logging
 from functools import partial
 
-from orchestrator.git.base_sync import attempts as _attempts
+from orchestrator.git.base_sync import (
+    attempt_records as _attempt_records,
+    attempts as _attempts,
+    state as _base_sync_state,
+)
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     rewrite_finish_captured as _captured,
@@ -103,12 +107,19 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence import invalidates_current
-from orchestrator.workflow.engine.rewrite_evidence_proof import MOVEMENT, _reads_again, last_word
+from orchestrator.workflow.engine.rewrite_evidence_proof import MOVEMENT, _reads_again, last_word, standing_refusal
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
-from orchestrator.workflow.engine.rewrite_finish_readiness import beside_current, stands_ready
+from orchestrator.workflow.engine.rewrite_finish_readiness import beside_current, invalidates, stands_ready
 from orchestrator.workflow.engine.rewrite_landing_records import capture_answered, resolved
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The receipt a finish's evidence write puts on the attempt: an attempt that
+# carries one was pinned by a build that records the base tip its replay was
+# made onto, so a tip it does not record was blanked since -- by a base that
+# moved while git ran, or by a record of movement under its evidence -- rather
+# than never recorded, and its route is still held to a base.
+_RECEIPT = _base_sync_state._PENDING_EVIDENCE_RECEIPT
 
 
 def resolves(finish: LandedFinish) -> FinishOutcome | None:
@@ -130,7 +141,13 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     invalidates it where anything it is bound to moved since it settled, a
     revision spent past it included -- a newer transaction abandoned beside
     it outranks it for good, which no route may carry and no poll may hold
-    over -- and holds the route where a reading could not be taken. Any
+    over -- and holds the route where a reading could not be taken. One taken
+    under a configuration no longer in place is invalidated as every movement
+    under settled evidence is (`rewrite_finish_readiness.invalidates`), before
+    the evidence step decides the head afresh: where that does not land --
+    no room for its history entry among the reasons -- the movement is
+    recorded against it and the route held, so putting the configuration back
+    before room is made revives nothing. Any
     of those out of step holds the route, since nobody can say what was owed
     -- and so does any pending record about another head beside evidence an
     earlier finish of this landing already retired for it, current evidence
@@ -149,8 +166,17 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
         return _evidence.continues(finish)
     current = _settlement.read_current_evidence(finish.state)
     standing = current is not None and current.binding.target.target_head == finish.head
-    standing = standing and not invalidates_current(finish)
-    if not standing or _captured.recorded(finish, logged=False) is not None:
+    captured = _captured.recorded(finish, logged=False)
+    if standing and captured is None and invalidates_current(finish):
+        if not invalidates(finish, current):
+            log.warning(
+                "issue=#%d holding the route of %.8s: verification evidence revision %d settled for it was taken "
+                "under a configuration no longer in place, and could not be invalidated",
+                finish.issue.number, finish.head, current.revision,
+            )
+            return FinishOutcome.HELD
+        standing = False
+    if not standing or captured is not None:
         return _evidence.settles(finish) or settles(finish)
     log.info(
         "issue=#%d already settled verification evidence revision %d for %.8s; settling and running nothing again",
@@ -340,8 +366,30 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
     so the recovery continues the head to another rebase. Such a head carries
     no decision the landing could move under: a head pushed over it meanwhile
     is the pull request's to show the validating stage, which reads it afresh.
+    An attempt that recorded its evidence under a receipt but no longer records
+    that tip had it blanked -- most often to record movement under the evidence
+    (`rewrite_finish_readiness`, `rewrite_recovery_parks.records_the_reset`),
+    which every proof then reads as refusing the evidence rather than the
+    route: its head is held instead to the base this tick counted it against
+    (`rewrite_evidence_proof.standing_refusal`), so a base advanced while the
+    announcement or the relabel was answered still holds the route.
     """
     current = _settlement.read_current_evidence(finish.state)
+    stopped = None
     if current is not None and current.binding.target.target_head == finish.head:
-        return stands_ready(finish, current)
-    return _captured.stands_before_the_route(finish, landing=False) if or_the_base else None
+        stopped = stands_ready(finish, current)
+    elif or_the_base:
+        stopped = _captured.stands_before_the_route(finish, landing=False)
+    blanked = finish.state.get(_RECEIPT) and not _attempt_records._recorded_onto(finish.state)
+    if stopped is not None or not (or_the_base and blanked):
+        return stopped
+    counted = finish.landed.candidate.checkout
+    moved = standing_refusal(finish, onto=counted.base.tip)
+    if moved is None or not moved.holds:
+        return None
+    log.warning(
+        "issue=#%d holding the route of %.8s: its attempt records no base tip, and the base this tick counted "
+        "it against reads otherwise now (%s)",
+        finish.issue.number, finish.head, moved.refusal,
+    )
+    return FinishOutcome.HELD

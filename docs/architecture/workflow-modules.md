@@ -1257,8 +1257,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             routed with nothing decided, run, posted, or settled again while the records agree it is
                             the last word -- no pending record beside it, the handoff naming it, a revision floor
                             somebody can read -- once it proves ready again (`rewrite_finish_readiness.stands_ready`),
-                            and while the configured context is still the one it was taken under, the
-                            evidence step invalidating it with nothing run otherwise rather than holding over it; a
+                            and while the configured context is still the one it was taken under -- invalidated
+                            otherwise as every movement under it is (`rewrite_finish_readiness.invalidates`),
+                            before the evidence step decides the head afresh, rather than held over; a
                             newer transaction recorded for the head is answered and settled over it -- or, abandoned
                             instead, leaves that evidence outranked, proved and invalidated before the route
                             (`settles`, over `rewrite_finish_readiness.stands_ready`) -- and
@@ -1267,7 +1268,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the records the answer itself leaves are held to the same agreement before anything is
                             announced or routed (`_holds_out_of_step`), so a settlement another road made while the
                             run was published with a handoff not naming its evidence, which comes in with the
-                            comment the answer adopted, holds the route out of step too
+                            comment the answer adopted, holds the route out of step too. Behind the relabel every
+                            routed head is held to its base once more (`stands_ready_if_settled`): to the tip its
+                            replay was recorded as made onto, or -- where a record of movement blanked that tip --
+                            to the base the tick counted the head against, so no route is retired without a base
+                            reading
     rewrite_finish_readiness.py
                             evidence a finish of the landing settled for its head, proved ready again before every
                             route that takes it -- the settling tick's own and every recovery of a tail cut short
@@ -1964,12 +1969,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction it recorded while the notice went out is kept rather than put back. A park
                             refused or never confirmed records nothing and withholds the tick's state, for the
                             next tick's recovery to answer the attempt again; a state nothing was read into is
-                            written whole. Ahead of every reset it records the reset against evidence a finish
-                            settled for the landed head (`records_the_reset`, which the git owner asks before it
-                            moves the checkout): the attempt's recorded base tip blanked in a write of its own, so
-                            a process lost behind the reset or a park write that does not land leaves every later
-                            proof reading the evidence moved, and a blank that does not land holds with nothing
-                            reset. The dispatcher's answer to an anchor it holds is handed the same park beside the
+                            written whole. Ahead of every reset it records the reset against a transaction a
+                            finish captured or evidence it settled for the landed head (`records_the_reset`, which
+                            the git owner asks before it moves the checkout): the attempt's recorded base tip
+                            blanked in a write of its own, so a process lost behind the reset or a park write that
+                            does not land leaves every later proof reading the evidence moved, and a blank that
+                            does not land holds with nothing reset. The dispatcher's answer to an anchor it holds is
+                            handed the same park beside the
                             proof that park asks first (`answers_a_held_anchor`)
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written

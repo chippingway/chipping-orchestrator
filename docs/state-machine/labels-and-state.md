@@ -714,7 +714,8 @@ otherwise -- a newer transaction for the head is settled over it, one abandoned 
 invalidated, and a handoff out of step or a revision floor nobody can read holds the route -- with the invalidation
 a moved context now owes landed before the route, that settled evidence's own
 included: a configuration moved since it settled invalidates it with nothing run again, rather than leaving it to
-hold the route behind a revision spent past it. Settled evidence is proved ready again before any route takes it
+hold the route behind a revision spent past it -- or, with no room for that, records the movement against it as
+every invalidation that does not land does. Settled evidence is proved ready again before any route takes it
 (`workflow/engine/rewrite_finish_readiness.py`), and anything else it is bound to that moved since it settled -- the
 requirements, a report or review record, its artifact, a revision spent past it, the landing, or the base --
 invalidates it whole too. A tick lost behind the resolved evidence -- before the announcement, between its notice,
@@ -3187,10 +3188,13 @@ The keys that matter for the state machine fall into a few groups:
   unproven refuses the decision for good. A captured transaction whose abandonment the comment has no room for is
   dropped with this member blanked, in a write that only shrinks the comment, so no later reading proves a base for it
   and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`). Settled evidence
-  is held to it the same way: an invalidation the comment has no room for, and every reset about to take the checkout
-  off a landed head with settled evidence beside it, blank this member in a write of its own first
+  is held to it the same way: an invalidation that does not land, and every reset about to take the checkout off a
+  landed head with captured or settled evidence beside it, blank this member in a write of its own first
   (`workflow/engine/rewrite_finish_readiness.py`, `workflow/engine/rewrite_recovery_parks.records_the_reset`), so
-  every later proof reads the evidence moved and invalidates it once room is made, whatever is put back meanwhile.
+  every later proof reads the evidence moved and retires it once room is made, whatever is put back meanwhile; a
+  reset git refused has it staged back for the park that keeps the attempt. The route still reads the base over a
+  blanked member, held to the base the tick counted the head against
+  (`workflow/engine/rewrite_finish_settlement.stands_ready_if_settled`).
   `pending_auto_base_rebase_announced_sha` is the member written last and covers the last window a finish has:
   everything a finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out
   before the relabel, and the write that clears this record goes out after it, so the head it has already said it

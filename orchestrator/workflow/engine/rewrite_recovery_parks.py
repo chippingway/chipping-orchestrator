@@ -30,19 +30,21 @@ was read into has no reading to guard it by and is written whole, as every
 park always was.
 
 A reset park moves the checkout before any of that is written, and with it
-the landing evidence a finish settled for the head was proved over. Retired
-only in the park's write, or behind it, that evidence would outlive a process
-lost between the reset and the write, or a write that did not land, and a
-checkout put back on the head before the next poll would prove it ready again.
+the landing a finish captured or settled evidence for the head over.
+Abandoned or retired only in the park's write, or behind it, that evidence
+would outlive a process lost between the reset and the write, or a write that
+did not land, and a checkout put back on the head before the next poll would
+prove it again -- settle a captured run, or route a settled one as current.
 So the reset is recorded against it first (`records_the_reset`): the base tip
 the attempt recorded its replay as made onto is blanked in a write of its own,
 which only shrinks the comment, and with no tip nothing proves which base the
 head was replayed onto, so every later proof of that evidence defers
-(`rewrite_evidence_proof.standing_refusal`) and invalidates it whole once the
-comment has room. A blank that does not land holds the tick with nothing
-reset. A transaction a finish captured and never settled is left to the
-park's own write, as it always was: a reset git refuses moved nothing, and the
-run stands for the next proof.
+(`rewrite_evidence_proof.standing_refusal`), abandoning a captured run and
+invalidating a settled one whole once the comment has room; the base itself is
+still read, so no route over the head goes without a base reading. A blank
+that does not land holds the tick with nothing reset. A reset git refused
+moved nothing, and the git owner stages the tip back for the park that keeps
+the attempt, so the evidence stands for that park's proof as it did before.
 
 The dispatcher's answer to an anchor it holds a handler back for is the git
 owner's (`answers_a_held_anchor`), and its stranded park keeps the attempt, so
@@ -123,19 +125,19 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
 
 
 def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
-    """Record a reset about to move the checkout against evidence settled for the landed head; may the reset go on.
+    """Record a reset about to move the checkout against evidence for the landed head; may the reset go on.
 
     The recovery's answer ahead of every reset (`_AutoRebaseRecoveryContext.records_before_a_reset`):
-    where a finish of the attempt settled evidence for the head and the
-    attempt still records the base tip its replay was made onto, that tip is
-    blanked through the guarded commit as the finish's own abandonment is
-    (`rewrite_finish_writes.ABANDONMENT`), and laid over the tick's state.
-    True where nothing needed recording or the blank landed; False, logged,
-    where it was refused or went unconfirmed, for the git owner to hold with
-    nothing reset.
+    where a finish of the attempt captured a transaction for the head or
+    settled evidence for it, and the attempt still records the base tip its
+    replay was made onto, that tip is blanked through the guarded commit as
+    the finish's own abandonment is (`rewrite_finish_writes.ABANDONMENT`), and
+    laid over the tick's state. True where nothing needed recording or the
+    blank landed; False, logged, where it was refused or went unconfirmed, for
+    the git owner to hold with nothing reset.
     """
-    settled = _landing_records.settled(context.state)
-    if settled is None or not _attempt_records._recorded_onto(context.state):
+    guarded = _landing_records.captured(context.state) or _landing_records.settled(context.state)
+    if guarded is None or not _attempt_records._recorded_onto(context.state):
         return True
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)
     staged = commit.staging()
@@ -143,14 +145,14 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     landed = commit.lands(staged, _writes.ABANDONMENT)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
         log.info(
-            "issue=#%d recorded the reset ahead of it against verification evidence revision %d settled for %.8s",
-            context.issue.number, settled.revision, settled.binding.target.target_head,
+            "issue=#%d recorded the reset ahead of it against verification evidence revision %d for %.8s",
+            context.issue.number, guarded.revision, guarded.binding.target.target_head,
         )
         return True
     log.warning(
-        "issue=#%d the reset could not be recorded against verification evidence revision %d settled for %.8s "
+        "issue=#%d the reset could not be recorded against verification evidence revision %d for %.8s "
         "(%s); nothing is reset until a later tick records it",
-        context.issue.number, settled.revision, settled.binding.target.target_head,
+        context.issue.number, guarded.revision, guarded.binding.target.target_head,
         (landed.refusal or landed.status).value,
     )
     return False

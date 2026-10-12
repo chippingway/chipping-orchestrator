@@ -44,6 +44,7 @@ from orchestrator.git.base_sync.state import (
     _AUTO_REBASE_PARK_REASONS,
     _ERROR_SNIPPET_LEN,
     _PARK_REASON,
+    _PENDING_REWRITE_BASE,
     log,
 )
 from orchestrator.github.client import GitHubClient
@@ -181,37 +182,19 @@ def _reset_clear_and_park(
     drop, or neither lands -- and where the recovery answers that it cannot
     be settled, settled evidence with no room left for its history entry,
     nothing is dropped or parked: the attempt is kept guarding it, as a reset
-    that failed keeps it, and the next tick asks again. Settled evidence is
-    marked moved before the reset is even made
-    (`_AutoRebaseRecoveryContext.records_before_a_reset`), since the reset
-    moves the checkout ahead of every write behind it: a process lost between
-    them, or a write behind it that does not land, would otherwise leave the
-    evidence for a checkout put back to revive. A mark that does not land
-    holds the tick with nothing reset, dropped, or parked. That write is the
+    that failed keeps it, and the next tick asks again. What the workflow
+    captured or settled for the head is marked moved before the reset is even
+    made (`_resets`), since the reset moves the checkout ahead of every write
+    behind it: a process lost between them, or a write behind it that does not
+    land, would otherwise leave it for a checkout put back to revive. That
+    write is the
     recovery's own park (`_parks_the_recovery`), landed over the comment read
     afresh, so a report or evidence record another road wrote while the
     notice went out is kept beside it rather than put back.
     """
-    records = context.records_before_a_reset if isinstance(context, _AutoRebaseRecoveryContext) else None
-    if records is not None and not records(context):
-        log.warning(
-            "issue=#%d auto-rebase recovery: holding rather than resetting to %s, since the reset could not be "
-            "recorded against the verification evidence settled for the landed head ahead of it",
-            context.issue.number, reset_sha[:8],
-        )
+    reset = _resets(context, reset_sha)
+    if reset is None:
         return
-    reset = commands._git_hardened(
-        "reset", "--hard", reset_sha, cwd=context.worktree,
-    )
-    if reset.returncode:
-        log.error(
-            "issue=#%d auto-rebase recovery: reset --hard to %s failed: "
-            "%s; the awaiting_human park still short-circuits same-tick "
-            "handler dispatch but operator inspection of HEAD is needed",
-            context.issue.number,
-            reset_sha[:8],
-            (reset.stderr or "").strip(),
-        )
     cleaned = None
     if clean:
         cleaning = commands._git_hardened("clean", "-fd", cwd=context.worktree)
@@ -323,6 +306,13 @@ def _releases_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCo
     evidence the comment has no room to retire into history -- logged: the
     attempt keeps guarding it, nothing is dropped or parked, and the next
     tick's recovery asks again.
+
+    The drop of what the reset took the branch off is staged, not written, so
+    the park's own write makes it durable: the approval and a transfer's
+    permission both name a commit only the reflog still has once the branch is
+    back on the pre-rebase anchor -- a push owed for it, and what that push
+    may carry a human's verdict over -- and neither has anything left to be
+    paid by.
     """
     settles = context.settles_over_a_reset if isinstance(context, _AutoRebaseRecoveryContext) else None
     if settles is not None and not settles():
@@ -334,23 +324,6 @@ def _releases_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCo
         )
         return False
     attempts._clears_the_attempt(context.state)
-    _forgets_the_reset(context, reset_sha)
-    return True
-
-
-def _forgets_the_reset(
-    context: _AutoRebaseContext | _AutoRebaseRecoveryContext,
-    reset_sha: str,
-) -> None:
-    """Drop what a landed reset just took the branch off, in memory.
-
-    Both records name a commit only the reflog still has once the branch is
-    back on the pre-rebase anchor: the approval says a push is owed for it,
-    and a transfer's permission says what that push may carry a human's
-    verdict over. Neither has anything left to be paid by, and both are staged
-    rather than written so the park's own write is what makes the drop
-    durable.
-    """
     # Lazily bound for the reason the guard owner is: the size gate sits in
     # the workflow layer above this package, and binding it at module load
     # would make every git-side import pay for the stage tree.
@@ -369,3 +342,46 @@ def _forgets_the_reset(
         ),
         reset_sha,
     )
+    return True
+
+
+def _resets(
+    context: _AutoRebaseContext | _AutoRebaseRecoveryContext, reset_sha: str,
+) -> subprocess.CompletedProcess | None:
+    """Hard-reset `context`'s checkout to `reset_sha`, recorded first where its recovery asks; git's answer, or None.
+
+    A recovery's attempt can stand guard over a decision the workflow made
+    about the head the reset takes the checkout off -- a verification
+    transaction a finish captured, or evidence one settled -- and the reset
+    moves the checkout ahead of every write that answers for it: a process
+    lost behind the reset, or a park write that does not land, would leave
+    that decision for a checkout put back on the head to take up again. So the
+    recovery records the reset first, in a write of its own
+    (`_AutoRebaseRecoveryContext.records_before_a_reset`): the base tip the
+    attempt recorded its replay as made onto, blanked, which every later proof
+    of the decision reads as movement. None where that record did not land,
+    logged: nothing is reset, dropped, or parked, and the next tick asks again.
+    A reset git refused moved nothing, so the tip is staged back on the state
+    for the park that keeps the attempt to write, and the decision stands for
+    the proof that park asks first, as it did before the record.
+    """
+    onto = context.state.get(_PENDING_REWRITE_BASE)
+    records = context.records_before_a_reset if isinstance(context, _AutoRebaseRecoveryContext) else None
+    if records is not None and not records(context):
+        log.warning(
+            "issue=#%d auto-rebase recovery: holding rather than resetting to %s, since the reset could not be "
+            "recorded ahead of it against the verification evidence captured or settled for the landed head",
+            context.issue.number, reset_sha[:8],
+        )
+        return None
+    reset = commands._git_hardened("reset", "--hard", reset_sha, cwd=context.worktree)
+    if reset.returncode:
+        log.error(
+            "issue=#%d auto-rebase recovery: reset --hard to %s failed: "
+            "%s; the awaiting_human park still short-circuits same-tick "
+            "handler dispatch but operator inspection of HEAD is needed",
+            context.issue.number, reset_sha[:8], (reset.stderr or "").strip(),
+        )
+        if onto:
+            context.state.set(_PENDING_REWRITE_BASE, onto)
+    return reset

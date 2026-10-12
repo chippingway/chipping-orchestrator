@@ -196,13 +196,17 @@ def proves_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _ev
     return _proof.recorded_verdict(state, binding) or found
 
 
-def standing_refusal(finish: LandedFinish) -> _evidence_models.ReportEvidence | None:
-    """Why `finish`'s landed head no longer stands on the base its replay was made onto, or None where it does."""
+def standing_refusal(finish: LandedFinish, onto: str | None = None) -> _evidence_models.ReportEvidence | None:
+    """Why `finish`'s landed head no longer stands on the base its replay was made onto, or None where it does.
+
+    `onto` is the base tip to hold the head to, where the caller has one of
+    its own: by default the one the attempt recorded its replay as made onto.
+    """
     standing = _rewrite_facts._standing_on_the_remote_base(
         finish.spec,
         _worktree_paths._worktree_path(finish.spec, finish.issue.number),
         finish.landed.candidate,
-        _attempt_records._recorded_onto(finish.state),
+        _attempt_records._recorded_onto(finish.state) if onto is None else onto,
     )
     return _REFUSALS.get(standing)
 

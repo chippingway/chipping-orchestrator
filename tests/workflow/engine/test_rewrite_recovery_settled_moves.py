@@ -18,10 +18,14 @@ either. So does a finish the comment has no room to record the landing's
 report debt on: the run is proved ready before the park that debt takes, and
 the requirements edited under it invalidate it there, so making room, putting
 the requirements back, and replying routes the head with nothing current. A
-comment with no room for the run's history entry at all keeps the run current
-and records the movement against it instead, by blanking the base tip its
-replay was made onto, so putting the requirements back before room is made
-still finds it moved. The run is never made again, and no developer is
+comment with no room for the run's history entry at all -- filled ahead of
+the recovery, or by another road while the recovery proves the run -- keeps
+the run current and records the movement against it instead, by blanking the
+base tip its replay was made onto, so putting the requirements back before
+room is made still finds it moved. So does another command configured once
+the landing is announced, which the evidence step would otherwise invalidate
+the run over with no room to: putting the configuration back before room is
+made revives nothing either. The run is never made again, and no developer is
 launched.
 """
 from __future__ import annotations
@@ -45,6 +49,7 @@ from tests.workflow.engine import (
     rewrite_handoff_test_support as handoff,
     rewrite_verification_recovery_support as support,
 )
+from tests.workflow.interleaving import _RacesPastTheCall
 
 _EDITED_BODY = "Also cover a base that moved twice."
 
@@ -52,9 +57,24 @@ _EDITED_BODY = "Also cover a base that moved twice."
 # behind it, and short of the report debt and the announcement it rides.
 _SHORT_OF_THE_DEBT = 250
 
+# Room on the pinned comment for a debt already recorded, and short of the
+# evidence's history entry.
+_SHORT_OF_THE_HISTORY = 20
+
 _FILLER = "room_filler"
 
 _DEBT_PARK = "auto_base_rebase_unrecorded_debt"
+
+_ANOTHER_COMMAND = "echo another"
+
+# Whether the comment is filled ahead of the recovery, or by another road
+# while the recovery proves the run -- behind its re-read of the report the
+# run is bound to, ahead of the write that would invalidate it.
+_FILLED_WHILE_PROVED = (False, True)
+
+# The finishes that die once their checkpoint has landed, so the next one
+# finds the landing announced and its debt recorded.
+_CHECKPOINTED = handoff.BOUNDARIES[4:]
 
 # The finishes that die before their checkpoint lands, so the next one still
 # owes the landing's report debt a write.
@@ -71,12 +91,12 @@ def _puts_the_checkout_on(case: support.CapturedRunCase, head: str) -> None:
     case._git("reset", "--quiet", "--hard", head, cwd=case._wt)
 
 
-def _fills_short_of_the_debt(case: support.CapturedRunCase) -> None:
-    """Fill the pinned comment to `_SHORT_OF_THE_DEBT` short of its limit, as another road's records would."""
+def _fills_short_of(case: support.CapturedRunCase, left: int) -> None:
+    """Fill the pinned comment to `left` characters short of its limit, as another road's records would."""
     filled = case.gh.read_pinned_state(case.issue)
     filled.set(_FILLER, "")
     room = MAX_PINNED_BODY - len(pinned_state_body(filled.data))
-    filled.set(_FILLER, "x" * (room - _SHORT_OF_THE_DEBT))
+    filled.set(_FILLER, "x" * (room - left))
     case.gh.write_pinned_state(case.issue, filled)
 
 
@@ -157,7 +177,7 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
                 head, settled = self._settles_then_dies(boundary)
                 written = self.issue.body
                 self.issue.body = _EDITED_BODY
-                _fills_short_of_the_debt(self)
+                _fills_short_of(self, _SHORT_OF_THE_DEBT)
 
                 self.recovers()
                 self.assertEqual(readings.pinned(self)["park_reason"], _DEBT_PARK)
@@ -167,37 +187,6 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
                 self._assert_invalidated(settled)
                 routed = (support.announced(self), readings.relabels(self))
                 self.assertEqual(routed, ([head], readings.ROUTED))
-
-    def test_a_full_comment_records_the_movement(self) -> None:
-        # The issue is edited under the run on a comment with no room for its
-        # history entry: the route is held with the run current and the
-        # movement recorded by blanking the base tip, and the requirements put
-        # back before room is made still leave the run invalidated whole and
-        # the head routed with nothing current.
-        for boundary in handoff.BOUNDARIES:
-            with self.subTest(boundary=boundary.name):
-                self.setUp()
-                head, settled = self._settles_then_dies(boundary)
-                written = self.issue.body
-                self.issue.body = _EDITED_BODY
-                finish_moves.fills_the_comment(self)
-                self.recovers()
-
-                pinned = readings.pinned(self)
-                self.assertEqual(
-                    (readings.pinned_records(self)[1], pinned[readings.KEY_PENDING_PUSH]),
-                    (settled, self.anchor),
-                )
-                self.assertIsNone(pinned[readings.KEY_REWRITE_BASE])
-                self.issue.body = written
-                finish_moves.makes_room(self)
-                self.recovers()
-
-                self._assert_invalidated(settled)
-                self.assertEqual(
-                    (support.announced(self), readings.relabels(self)),
-                    ([head], readings.ROUTED),
-                )
 
     def _puts_it_right(self, written: str) -> None:
         """Put the issue's body back as `written`, make room on the comment, reply, and recover once more."""
@@ -222,6 +211,81 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
         self.assertEqual((entry.revision, entry.binding), (settled.revision, settled.binding))
         made = (self.runs(), self.pushes.call_count, self.developer.call_count)
         self.assertEqual(made, (1, 0, 0))
+
+
+class FullCommentMoveTest(support.CapturedRunCase, unittest.TestCase):
+    """Movement under a settled run the comment has no room to invalidate is recorded, so nothing put back revives."""
+
+    def test_moved_requirements_are_recorded(self) -> None:
+        # The issue is edited under the run, the comment filled ahead of the
+        # recovery or while it proves the run: the route is held with the run
+        # current and the movement recorded by blanking the base tip, and the
+        # requirements put back before room is made still leave the run
+        # invalidated whole and the head routed with nothing current.
+        for during, boundary in product(_FILLED_WHILE_PROVED, handoff.BOUNDARIES):
+            with self.subTest(filled_while_proved=during, boundary=boundary.name):
+                self.setUp()
+                head, settled = self._settles_then_dies(boundary)
+                written = self.issue.body
+                self.issue.body = _EDITED_BODY
+                self._recovers_filling(during=during)
+
+                self._assert_recorded(settled)
+                self._puts_it_right(head, settled, partial(setattr, self.issue, "body", written))
+
+    def test_a_moved_configuration_is_recorded(self) -> None:
+        # Once the landing is announced, another command is configured on a
+        # full comment: the run cannot be invalidated, so the movement is
+        # recorded, and the configuration put back before room is made still
+        # leaves the run invalidated whole and the head routed once.
+        for boundary in _CHECKPOINTED:
+            with self.subTest(boundary=boundary.name):
+                self.setUp()
+                head, settled = self._settles_then_dies(boundary)
+                self.configures(_ANOTHER_COMMAND)
+                _fills_short_of(self, _SHORT_OF_THE_HISTORY)
+                self.recovers()
+
+                self._assert_recorded(settled)
+                self._puts_it_right(head, settled, partial(self.configures, support.CONFIGURED))
+
+    def _settles_then_dies(self, boundary: handoff.Boundary) -> tuple:
+        """Land a reviewed rebase, settle its run, and kill the finish at `boundary`; the head, and the settled run."""
+        head = self.lands_a_reviewed_rebase()
+        handoff.dies_at(self.gh, boundary, partial(self.finishes, head))
+        return head, readings.pinned_records(self)[1]
+
+    def _recovers_filling(self, *, during: bool) -> None:
+        """Recover with the comment filled to its limit: ahead of the recovery, or `during` its proof of the run."""
+        fills = partial(finish_moves.fills_the_comment, self)
+        if not during:
+            fills()
+            self.recovers()
+            return
+        racing = _RacesPastTheCall(self.gh.reread_report_location, 1, fills)
+        with patch.object(self.gh, "reread_report_location", racing):
+            self.recovers()
+
+    def _assert_recorded(self, settled) -> None:
+        """`settled` held current beside the standing attempt, the movement recorded by its blank base tip."""
+        pinned = readings.pinned(self)
+        self.assertEqual(readings.pinned_records(self)[1], settled)
+        self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
+        self.assertIsNone(pinned[readings.KEY_REWRITE_BASE])
+
+    def _puts_it_right(self, head: str, settled, puts_back) -> None:
+        """Do `puts_back`, make room, and recover: `settled` invalidated whole, `head` routed once, run once."""
+        puts_back()
+        finish_moves.makes_room(self)
+        self.recovers()
+
+        retired = (*git_support.invalidated(self), (settled.receipt, readings.INVALIDATED))
+        self.assertEqual(readings.pinned_records(self), (None, None, retired))
+        entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
+        self.assertEqual((entry.revision, entry.binding), (settled.revision, settled.binding))
+        self.assertEqual(support.announced(self), [head])
+        self.assertEqual(readings.relabels(self), readings.ROUTED)
+        self.assertEqual((self.runs(), self.developer.call_count), (1, 0))
 
 
 if __name__ == "__main__":

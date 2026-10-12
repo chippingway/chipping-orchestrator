@@ -20,11 +20,13 @@ with the checkout put back on the landed head, by the finish that proves the
 run again and routes the head with nothing current. The run is never made
 again, and nothing is pushed or launched.
 
-The blank lands ahead of the reset, with room on the comment or none: a
+The blank lands ahead of the reset, with room on the comment or none, and
+over a run the finish captured and never settled as well as a settled one: a
 process killed behind the reset, before anything else is written, leaves the
 reset recorded, so the checkout put back on the landed head before the next
-poll revives nothing. A blank GitHub refuses holds the tick with nothing
-reset, and the next tick records it and resets.
+poll revives nothing -- the settled run is invalidated, and the captured one
+abandoned rather than settled. A blank GitHub refuses holds the tick with
+nothing reset, and the next tick records it and resets.
 """
 from __future__ import annotations
 
@@ -51,6 +53,8 @@ _FETCH = branch_transport._authed_fetch
 
 _FETCHES = "_authed_fetch"
 
+_RESET = "reset"
+
 
 def _unfetched(spec, ref: str, **options) -> subprocess.CompletedProcess:
     """The branch transport's fetch, failing for issue #7's branch alone."""
@@ -68,7 +72,12 @@ def _blanking(_issue, state, *, over: dict) -> bool:
 _BEFORE_THE_BLANK = handoff.Boundary("before the base tip is blanked", "edit_pinned_state", _blanking)
 
 # The reset git made, behind which the process is killed before anything else is written.
-_RESETTING = handoff.Boundary("behind the reset", "_git_hardened", lambda verb, *_args, **_kwargs: verb == "reset")
+_RESETTING = handoff.Boundary("behind the reset", "_git_hardened", lambda verb, *_args, **_kwargs: verb == _RESET)
+
+
+def _dies_behind_the_reset():
+    """The git owner's hardened git, killing the process behind the first reset it makes."""
+    return _RESETTING.moving(commands._git_hardened, partial(sys.exit, "the process was killed behind the reset"))
 
 
 def _refuses_the_blank(refused: set, live, issue, state, *, over: dict):
@@ -129,7 +138,7 @@ class ResetRoomTest(support.CapturedRunCase, unittest.TestCase):
         settled = self._dies_and_fills(head)
         with patch.object(branch_transport, _FETCHES, _unfetched):
             self.recovers()
-        self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+        self._git(_RESET, "--quiet", "--hard", head, cwd=self._wt)
         finish_moves.makes_room(self)
         self.recovers()
 
@@ -175,7 +184,7 @@ class ResetRecordTest(support.CapturedRunCase, unittest.TestCase):
                 head = self.lands_a_reviewed_rebase()
                 settled = self._settles_and_resets(head, full=full)
 
-                self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+                self._git(_RESET, "--quiet", "--hard", head, cwd=self._wt)
                 if full:
                     finish_moves.makes_room(self)
                 self.recovers()
@@ -183,6 +192,28 @@ class ResetRecordTest(support.CapturedRunCase, unittest.TestCase):
                 _assert_invalidated(self, settled)
                 routed = (support.announced(self), readings.relabels(self))
                 self.assertEqual(routed, ([head], readings.ROUTED))
+
+    def test_a_captured_run_is_recorded_too(self) -> None:
+        # The run was captured and never settled when the process died behind
+        # the reset: the reset is recorded against it all the same, so the
+        # checkout put back on the landed head and the branch fetched again
+        # abandon the run rather than settle it, nothing run again.
+        head, captured = self.captures()
+        with (
+            patch.object(branch_transport, _FETCHES, _unfetched),
+            patch.object(commands, "_git_hardened", _dies_behind_the_reset()),
+            contextlib.suppress(SystemExit),
+        ):
+            self.recovers()
+        self.assertEqual(self._wt_head(), self.anchor)
+        self.assertEqual(readings.pinned_records(self)[0], captured)
+        self.assertIsNone(readings.pinned(self)[readings.KEY_REWRITE_BASE])
+
+        self._git(_RESET, "--quiet", "--hard", head, cwd=self._wt)
+        self.recovers()
+
+        self.assert_abandoned(captured)
+        self.assertEqual((self.pushes.call_count, self.developer.call_count), (0, 0))
 
     def test_a_refused_record_resets_nothing(self) -> None:
         # GitHub refuses the blank: nothing is reset or parked, the run and
@@ -211,10 +242,9 @@ class ResetRecordTest(support.CapturedRunCase, unittest.TestCase):
         settled = readings.pinned_records(self)[1]
         if full:
             finish_moves.fills_the_comment(self)
-        dying = _RESETTING.moving(commands._git_hardened, partial(sys.exit, "the process was killed behind the reset"))
         with (
             patch.object(branch_transport, _FETCHES, _unfetched),
-            patch.object(commands, "_git_hardened", dying),
+            patch.object(commands, "_git_hardened", _dies_behind_the_reset()),
             contextlib.suppress(SystemExit),
         ):
             self.recovers()

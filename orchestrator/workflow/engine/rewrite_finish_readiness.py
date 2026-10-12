@@ -47,8 +47,10 @@ base ref, and the configuration once more.
   of this one, no room for the history entry, or neither write landing holds
   the route instead, and the next recovery proves the evidence again over
   what it then reads; so does a pending record the invalidation's write
-  finds beside it (`beside_current`), the next finish's to answer. Where it
-  is only the room for the history entry that is missing, the movement is
+  finds beside it (`beside_current`), the next finish's to answer. Where the
+  comment still carries the evidence for this attempt and the invalidation
+  did not land -- no room for its history entry, the comment filled while
+  the proof was read, or a write refused or unconfirmed -- the movement is
   recorded against the evidence instead: the base tip the attempt recorded
   its replay as made onto is blanked, in a write that only shrinks the
   comment, so every later proof of the evidence reads movement
@@ -193,8 +195,9 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
     read is never left behind a comment that would not read, for a later poll
     to find put back and take the decision as current. False where the
     comment carries another attempt or no longer carries `current` as current,
-    where neither reading has room for the history entry -- the movement then
-    recorded against `current` instead -- or where neither write landed.
+    and where neither reading took the invalidation -- for want of room, or a
+    write that did not land -- the movement then recorded against `current`
+    instead.
     """
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
@@ -279,27 +282,31 @@ def _invalidates_on_the_tick(finish: LandedFinish, current: _records.CurrentEvid
 
     Decided only on the evidence records and the attempt, so a review or
     report record another road moved -- often the very movement read -- is
-    no refusal. Where the history has no room for the entry, the movement is
-    recorded against `current` instead, which stays current: the base tip the
-    attempt recorded its replay as made onto is blanked, and with no tip
-    nothing proves which base the head was replayed onto, so every later proof
-    of `current` defers (`rewrite_evidence_proof.standing_refusal`) and
-    invalidates it once room is made, whatever moved put back meanwhile or
-    not. The blank only shrinks the comment, so it lands where the entry would
-    not, guarded as the finish's own abandonment is
-    (`rewrite_finish_writes.ABANDONMENT`); a tip already blank is left as it is.
+    no refusal. Where it did not land -- no room for the history entry on the
+    tick's copy or on the comment another road filled since, or a write
+    refused or never confirmed -- the movement is recorded against `current`
+    instead, which stays current: the base tip the attempt recorded its replay
+    as made onto is blanked, and with no tip nothing proves which base the
+    head was replayed onto, so every later proof of `current` defers
+    (`rewrite_evidence_proof.standing_refusal`) and invalidates it once room is
+    made, whatever moved put back meanwhile or not. The blank only shrinks
+    the comment, so it lands where the entry would not, guarded as the
+    finish's own abandonment is (`rewrite_finish_writes.ABANDONMENT`); a tip
+    already blank is left as it is.
     """
     staged = _writes.staging(finish)
     if _settlement.read_current_evidence(staged) != current:
         return False
-    if _settlement.retire_current_evidence(staged):
-        return _writes.lands(finish, staged, _writes.INVALIDATION) is None
-    if _attempt_records._recorded_onto(staged):
-        staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
-        stopped = _writes.lands(finish, staged, _writes.ABANDONMENT)
+    retired = _settlement.retire_current_evidence(staged)
+    if retired and _writes.lands(finish, staged, _writes.INVALIDATION) is None:
+        return True
+    if _attempt_records._recorded_onto(finish.state):
+        marked = _writes.staging(finish)
+        marked.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+        stopped = _writes.lands(finish, marked, _writes.ABANDONMENT)
         log.error(
-            "issue=#%d the pinned comment has no room to invalidate verification evidence revision %d settled "
-            "for %.8s; keeping it current, the movement read under it recorded by blanking its base tip (%s)",
+            "issue=#%d verification evidence revision %d settled for %.8s could not be invalidated; keeping it "
+            "current, the movement read under it recorded by blanking its base tip (%s)",
             finish.issue.number, current.revision, finish.head, "landed" if stopped is None else stopped.value,
         )
     return False

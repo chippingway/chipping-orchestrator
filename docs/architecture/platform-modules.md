@@ -774,8 +774,9 @@ orchestrator/
                         optional answer the workflow's recovery hands on every road, which answers whether the
                         attempt may go; one that may not is kept, with nothing dropped or parked
                         (`_releases_over_the_reset`). Before the reset moves anything the context is asked to
-                        record it (`records_before_a_reset`), so a process lost behind it leaves nothing a checkout
-                        put back revives; one it could not record is not made. The park's notice is the
+                        record it (`_resets`, `records_before_a_reset`), so a process lost behind it leaves nothing
+                        a checkout put back revives; one it could not record is not made, and one git refused has
+                        the base tip that record blanked staged back for the park. The park's notice is the
                         caller's reason followed by what the reset, the clean, and the drop came to
                         (`_reset_outcome`), so a reset that failed is never reported as made, and the drop is said
                         as what the park's own write makes durable, since the notice goes out ahead of it. Every

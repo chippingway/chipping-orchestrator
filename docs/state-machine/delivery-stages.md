@@ -1508,11 +1508,14 @@ because there it is the claim that this stage has already rerouted rather than a
   state a landed reset's park writes, so neither putting the landing back nor a human's reply revives a decision the
   landing moved under. Each invalidation is guarded as the finish's own is (the next bullet), and one no write lands
   holds the tick with nothing reset, cleared, or parked. Settled evidence is never dropped short of history, and the
-  reset is recorded against it before it is made (`rewrite_recovery_parks.records_the_reset`): the base tip the
-  attempt recorded its replay as made onto is blanked -- a write that only shrinks the comment -- so every later proof
-  of the evidence reads movement and invalidates it whole once room is made, the checkout put back on the head
-  meanwhile or not. A process lost behind the reset, or a park write behind it that does not land, so leaves nothing a
-  restored checkout revives, and a blank that does not land holds the tick with nothing reset. Where the landed reset
+  reset is recorded against it -- and against a transaction a finish captured and never settled -- before it is made
+  (`rewrite_recovery_parks.records_the_reset`): the base tip the attempt recorded its replay as made onto is blanked
+  -- a write that only shrinks the comment -- so every later proof reads movement, abandoning the captured run and
+  invalidating the settled one whole once room is made, the checkout put back on the head meanwhile or not. A process
+  lost behind the reset, or a park write behind it that does not land, so leaves nothing a restored checkout revives,
+  and a blank that does not land holds the tick with nothing reset. A reset git refused moved nothing, so the git
+  owner stages the tip back for the park that keeps the attempt, and both stand for that park's proof as before.
+  Where the landed reset
   then finds no room on the comment for the history entry, the evidence stays current and whole beside the attempt,
   which is not released; nothing is parked until room is made, and the anchor keeps holding every handler. Every
   recovery park, a landed reset's included, is recorded
@@ -1554,9 +1557,11 @@ because there it is the claim that this stage has already rerouted rather than a
     reading nobody could take, a comment no longer carrying that evidence as current or carrying a pending record or
     a handoff beside it that says it is not the last word, a revision floor nobody can read, or an invalidation no
     write landed holds the route with the attempt standing, and the next recovery proves it again over what it then
-    reads. An invalidation the comment has no room for records the movement instead, blanking the base tip the
-    attempt recorded its replay as made onto in a write that only shrinks the comment: every later proof then reads
-    movement, so putting back what moved before room is made revives nothing. A failure notice recorded
+    reads. An invalidation that does not land -- no room for its history entry, a comment another road filled while
+    the proof was read, a write refused -- records the movement instead, blanking the base tip the attempt recorded
+    its replay as made onto in a write that only shrinks the comment: every later proof then reads movement, so
+    putting back what moved before room is made revives nothing. Evidence taken under a configuration no longer in
+    place is invalidated the same way before the evidence step decides the head afresh. A failure notice recorded
     for the head is found on the pull request rather than posted again, and a decision that recorded nothing -- the
     fresh reviewer's responsibility handed off, a run refused as moved, or a passing run that binds nothing -- is
     taken afresh, so the handoff is proved over the records as they read then; a run the policy makes again there is
@@ -1592,7 +1597,9 @@ because there it is the claim that this stage has already rerouted rather than a
     and a report or review record moved meanwhile invalidates it and lets the route go on to the fresh reviewer. A
     head with no evidence current for it -- the fresh reviewer's responsibility handed off, or the replaced head's
     evidence deferred -- is held to the base tip its replay was made onto: a base advanced meanwhile holds the route
-    the same way, so the attempt is never retired, nor a handler released, over a head the base left behind.
+    the same way, so the attempt is never retired, nor a handler released, over a head the base left behind. Where
+    that tip was blanked to record movement under the attempt's evidence, the head is held instead to the base this
+    tick counted it against, so a base advanced while the announcement or the relabel was answered still holds it.
   - **The retirement is the guarded one.** It owns the attempt, the round, the park's flags, a spent reply, and a
     failure notice the route no longer owes, and is decided on every record the evidence is bound through, so the
     evidence and report records stay as the comment carries them: a record another road moved -- while the relabel
