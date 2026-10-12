@@ -249,7 +249,10 @@ def _state_holds_the_branch(
     none of them is holding a branch still against a rebase any more, since
     the anchor says one already ran. The recovery over them pushes the replay
     its record names or puts the branch back on the anchor and asks a human,
-    and each is left for the owner that spends it.
+    and each is left for the owner that spends it. A recovery that takes the
+    anchor down and lets the tick go on is no rebase of that attempt's any
+    more, so the coordinator asks this whole selection again, unanchored,
+    before the rebase behind it (`workflow/engine/base_rewrite.py`).
     """
     anchored = bool(state.get(_PENDING_PUSH_SHA))
     held = (

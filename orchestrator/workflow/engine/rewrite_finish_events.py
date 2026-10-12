@@ -12,12 +12,13 @@ attempt recorded its events (`pending_auto_base_rebase_announced_event`)
 filed the event and died behind it with no record at all. So until the mark
 is down, every finish asks the event stream itself first
 (`github.events.filed`: the client's in-memory tail, then the whole audit log
-however long the retry took), record or no record, and files the event only
-where the stream does not carry it. A stream that would not read is nobody's
-answer: the finish is held with nothing filed, relabelled, or retired, for
-the next tick to ask again -- so an audit log the process cannot read holds
-every landed rewrite's route until it reads. Once the mark is down, no later
-finish announces the head at all.
+and every rotated copy of it beside it, however long the retry took and
+however often the log was rotated meanwhile), record or no record, and files
+the event only where the stream does not carry it. A stream that would not
+read is nobody's answer: the finish is held with nothing filed, relabelled, or
+retired, for the next tick to ask again -- so an audit log the process cannot
+read holds every landed rewrite's route until it reads. Once the mark is down,
+no later finish announces the head at all.
 
 The attempt records the event ahead of filing it, in a guarded write of its
 own (`rewrite_finish_writes.ANNOUNCED_EVENT`), decided on the attempt: the

@@ -1563,7 +1563,8 @@ because there it is the claim that this stage has already rerouted rather than a
     a tick whose checkpoint was refused, went unconfirmed, or died -- is that notice made, entered in the ledger and
     not posted again. Until the mark is down, every finish asks the event stream before it files the event
     (`rewrite_finish_events`, `github/events.filed`: the client's in-memory tail, then the whole audit log, however
-    much it grew) and files it only where the stream does not carry it, recorded first on the attempt in a guarded
+    much it grew, and every rotated copy logrotate left beside it) and files it only where the stream does not carry
+    it, recorded first on the attempt in a guarded
     write of its own (`pending_auto_base_rebase_announced_event`) so it goes out only for an attempt still standing.
     That record is no proof either way -- a finish from before it existed filed the event with none -- so the stream
     is asked whether or not the attempt carries it, and a tick lost on either side of the event, on this build or an
@@ -1597,6 +1598,13 @@ because there it is the claim that this stage has already rerouted rather than a
     the new head's tree or the configuration moved -- a deferral across a further base advance never treats the
     earlier binding as the new head's, nor holds behind the anchor: the new head's report refresh is owed afresh and
     its fresh reviewer owes its evidence.
+  - **The rebase behind that retirement is the refresh's again.** The refresh chose the worktree beside the anchor,
+    so only the late claims were asked to hold it; once the recovery has taken the anchor down, the coordinator asks
+    the refresh's whole selection again over the comment as the recovery left it (`base_rewrite`). A developer report
+    recorded and not yet settled -- a refresh of the landed head's report among them -- holds that rebase, as it
+    holds an uninterrupted journey's: the report reconciliation ahead of the next handler settles it on the head it
+    is about, with no park, and the refresh behind it rebases onto the advanced base. A reply the recovery did not
+    spend is left unspent for that rebase.
 
   So whichever boundary a tick dies at, the journey ends as the uninterrupted one does: one notice and one
   `base_rebased` event per rewrite that actually landed, one artifact and one settlement per evidence revision, no

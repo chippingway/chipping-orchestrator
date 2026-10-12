@@ -10,14 +10,16 @@ than a mebibyte of other issues' events since: the recovery asks the whole
 log for the event before it files one, finds it, and files nothing again --
 one `base_rebased` on the log for one rewrite, the head routed once. So does
 an attempt a finish from before the attempt recorded its events left, which
-filed the event and died behind it with no record of it on the comment. A
-log that would not read is no answer: the finish is held with
-nothing filed, relabelled, or retired, and the next tick, the log readable
-again, finds the event the same way. Nothing is run again, pushed, or
-launched.
+filed the event and died behind it with no record of it on the comment, and
+so does a log rotated in between -- renamed to its first copy, or copied
+compressed beside it and truncated -- whose copy still carries the event. A
+log that would not read is no answer: the finish is held with nothing filed,
+relabelled, or retired, and the next tick, the log readable again, finds the
+event the same way. Nothing is run again, pushed, or launched.
 """
 from __future__ import annotations
 
+import gzip
 import json
 import tempfile
 import unittest
@@ -26,7 +28,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.github import events as _events
+from orchestrator.github import event_log as _event_log
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
@@ -51,6 +53,29 @@ def _unreadable(*_called, **_options):
     raise PermissionError("the event log may not be read")
 
 
+def _stays(_event_log: Path) -> None:
+    """Leave the audit log as it stands, never rotated."""
+
+
+def _renames(event_log: Path) -> None:
+    """Rotate `event_log` as logrotate does by default: renamed to its first copy, for the next event to create."""
+    event_log.rename(event_log.with_name(f"{event_log.name}.1"))
+
+
+def _copies_compressed(event_log: Path) -> None:
+    """Rotate `event_log` as `copytruncate`, `compress`, and `dateext` do: a gzip copy beside it, and it truncated."""
+    with gzip.open(event_log.with_name(f"{event_log.name}-20261012.gz"), "wb") as rotated:
+        rotated.write(event_log.read_bytes())
+    event_log.write_bytes(b"")
+
+
+_ROTATIONS = (
+    ("not rotated", _stays),
+    ("renamed", _renames),
+    ("copied compressed and truncated", _copies_compressed),
+)
+
+
 class EventStreamRecoveryTest(support.CapturedRunCase, unittest.TestCase):
     """A fresh process finds the event a lost one filed anywhere on the audit log, and files it once."""
 
@@ -61,11 +86,17 @@ class EventStreamRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         self.enterContext(patch.object(config, "EVENT_LOG_PATH", self.event_log))
 
     def test_a_fresh_process_finds_the_event(self) -> None:
-        head = self._dies_behind_the_event()
+        # On the log as it stands, or on the copy a rotation between the lost
+        # finish and its retry left beside it: the retry files nothing again.
+        for name, rotates in _ROTATIONS:
+            with self.subTest(rotation=name):
+                self.setUp()
+                head = self._dies_behind_the_event()
+                rotates(self.event_log)
 
-        self.recovers()
+                self.recovers()
 
-        self._assert_filed_once(head)
+                self._assert_filed_once(head)
 
     def test_an_unrecorded_event_is_found_too(self) -> None:
         # A finish from before the record existed filed the event and died
@@ -81,7 +112,7 @@ class EventStreamRecoveryTest(support.CapturedRunCase, unittest.TestCase):
 
     def test_an_unread_log_holds_the_finish(self) -> None:
         head = self._dies_behind_the_event()
-        with patch.object(_events, "_named_lines", side_effect=_unreadable):
+        with patch.object(_event_log, "_named_lines", side_effect=_unreadable):
             self.recovers()
         announced = readings.pinned(self).get(readings.KEY_ANNOUNCED)
         held = (self._logged(), readings.relabels(self), announced)
@@ -107,15 +138,19 @@ class EventStreamRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         return head
 
     def _logged(self) -> list[str]:
-        """The head every `base_rebased` the audit log carries for issue #7 names, oldest first."""
-        logged = (json.loads(line) for line in self.event_log.read_text().splitlines())
+        """The head every `base_rebased` for issue #7 on the audit log and each rotated copy beside it names."""
+        lines = []
+        for copy in sorted(self.event_log.parent.iterdir()):
+            opens = gzip.open if copy.suffix == ".gz" else Path.open
+            with opens(copy, "rt", encoding="utf-8") as logged:
+                lines.extend(logged.read().splitlines())
         return [
-            event["sha"] for event in logged
+            event["sha"] for event in map(json.loads, lines)
             if event.get("event") == _REBASED and event.get("issue") == git_support.ISSUE
         ]
 
     def _assert_filed_once(self, head: str) -> None:
-        """`head` filed once on the log, nothing filed again in memory, and the head routed with the attempt retired."""
+        """`head` filed once across the log and its copies, none again in memory, and the head routed and retired."""
         filed = (self._logged(), support.announced(self))
         self.assertEqual(filed, ([head], []))
         self.assertEqual(readings.relabels(self), readings.ROUTED)

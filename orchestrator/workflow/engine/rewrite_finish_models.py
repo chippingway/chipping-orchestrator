@@ -53,11 +53,12 @@ class FinishOutcome(StrEnum):
 
     ROUTED finished the attempt with the landed head on `workflow:validating`.
     CONTINUED finished it over a base that advanced past the landed head
-    again: the caller's ordinary rebase goes on from that head. PARKED is a
-    debt the pinned comment had no room for, parked with the push and the
-    attempt standing. REFUSED and UNCONFIRMED are a guarded write that did not
-    land -- refused with nothing written, or sent and never confirmed -- and
-    nothing that depends on it was made. HELD is an evidence decision that
+    again: the caller's ordinary rebase goes on from that head, once nothing
+    the retired anchor set aside holds the branch. PARKED is a debt the pinned
+    comment had no room for, parked with the push and the attempt standing.
+    REFUSED and UNCONFIRMED are a guarded write that did not land -- refused
+    with nothing written, or sent and never confirmed -- and nothing that
+    depends on it was made. HELD is an evidence decision that
     could not be taken or made good -- a reading nobody could take, the
     recorded decision of an earlier finish included, a base that moved after
     the head was counted against it, an invalidation or an abandonment the

@@ -495,7 +495,11 @@ see [Pinned state](#pinned-state)): a `question_*` / `discussion_*` park, the tw
 keeps back, so a freeze on any of them as well would leave neither side able to move. None of
 them is holding a branch still against a rebase any more — the anchor says one already ran — so the recovery reaches
 the checkout, pushes the replay its record names or puts the branch back on the anchor and asks a human, and leaves
-each record for its owner. The `question` and `discussion` labels themselves are still skipped, and an anchor under
+each record for its owner. A recovery that takes the anchor down and lets the tick go on -- the clear of an attempt
+that never started, or a landed head the base advanced past again, retired unrouted -- has every one of those freezes
+asked again before the rebase behind it (`workflow/engine/base_rewrite.py`), so a developer report recorded and not
+yet settled holds that rebase until the report reconciliation settles it on the head it is about, as it holds an
+unanchored branch. The `question` and `discussion` labels themselves are still skipped, and an anchor under
 either is answered by the dispatcher on the recovery's ineligible road. The one late claim beside an anchor that no
 reconciliation ends is a generation measured past its ceiling over the anchor's own replay, which the refresh stays
 away from and the hold would keep its adjudication off: the dispatcher hands that replay to the generation ahead of the
@@ -3224,10 +3228,11 @@ The keys that matter for the state machine fall into a few groups:
   read it, and the member says the event may be out. Its absence proves nothing: a finish from before this member
   existed filed the event and could die behind it with none written. So until the mark is down, every finish asks
   the event stream first, member or no member (`github/events.filed`: the client's in-memory tail, then the whole
-  audit log, however much it grew since), and files the event only where the stream does not carry it; a log the
-  process cannot read is no answer, and holds the finish -- nothing filed, relabelled, or retired -- for the next
-  tick to ask again. With no audit log configured, an event a lost process filed went nowhere durable, so the live
-  tail is all there is to ask; a log rotated or truncated in between no longer carries what it dropped. The tick
+  audit log, however much it grew since, and every rotated copy of it beside it), and files the event only where
+  the stream does not carry it; a log or copy the process cannot read is no answer, and holds the finish -- nothing
+  filed, relabelled, or retired -- for the next tick to ask again. With no audit log configured, an event a lost
+  process filed went nowhere durable, so the live tail is all there is to ask; a copy the log's retention deleted,
+  or a log truncated with no copy kept, no longer carries what it dropped. The tick
   that writes it takes in that member alone, so the mark behind it is still decided on every other record as the
   tick read it. Additive: an attempt from before this member existed carries none.
   `auto_base_rebase_failed_verification` sits beside the group without being a member of it: the notice a landed

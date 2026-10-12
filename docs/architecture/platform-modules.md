@@ -225,10 +225,15 @@ orchestrator/
                         one quoting a receipt marker, and one past a comment's length are refused rather than cut,
                         and a comment reads back as a report only when it is ours and re-renders byte for byte --
                         never one whose header claims a count of more digits than Python converts
+    event_log.py        the audit log read back for `events.filed`: every record naming one event on the file at
+                        `EVENT_LOG_PATH` and on each rotated copy logrotate leaves beside it -- the log's name
+                        followed by a dot or a dash, a gzip, bzip2, or xz copy decompressed -- read whole, a block
+                        at a time, so an event filed before a rotation is still found behind it; a copy or a
+                        directory that would not read is no answer rather than an absence
     events.py           audit event record construction and the optional JSONL sink, and whether an event a
                         caller may already have filed is on the stream -- the client's in-memory tail, then the
-                        whole sink, read a block at a time -- with a sink that would not read answered as no
-                        answer rather than as an absence (`filed`)
+                        whole sink and its rotated copies (`event_log.py`) -- with a sink that would not read
+                        answered as no answer rather than as an absence (`filed`)
     issue_polling.py    the one walk over a repository's issues a tick is served from: the open poll, the
                         cadenced closed sweep beside it, and the shared number set both filter through so an
                         issue two queries return is dispatched once, and which drops the pull requests those
@@ -588,7 +593,8 @@ orchestrator/
                         freezes no write ever ends is applied. Beside an auto-rebase anchor only the late claims
                         the reconciliation answers freeze the walk and a read-only park is set aside: the
                         dispatcher holds every handler that would end the rest, so none of them may freeze the
-                        recovery out as well
+                        recovery out as well -- and once a recovery takes the anchor down, the coordinator asks
+                        the whole selection again before any rebase behind it (`workflow/engine/base_rewrite.py`)
       frozen.py         which records hold a checkout still and what ends each freeze: the ones that freeze a
                         branch by their presence -- the late reading, the approval, and the terms of a squash
                         mid-rewrite among them, each read as the whole GROUP its write puts down rather than as

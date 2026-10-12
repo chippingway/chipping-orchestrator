@@ -1310,7 +1310,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     rewrite_finish_events.py
                             the `base_rebased` event a finish files behind its notice, and the method it names: once
                             per landed head, the event stream asked first by every finish until the mark is down
-                            (`github/events.filed`, the whole audit log included), whatever the attempt records --
+                            (`github/events.filed`, the whole audit log and its rotated copies included), whatever
+                            the attempt records --
                             a finish from before the record existed filed it with none -- and filed only where the
                             stream does not carry it, recorded on the attempt ahead of it
                             (`pending_auto_base_rebase_announced_event`, in a write of its own,
@@ -1818,8 +1819,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     base_rewrite.py         the base-rewrite coordinator for a PR-having worktree: the order the git `base_sync`
                             owners' gates and rebase and the publication below are asked in, a terminal pull request
                             asked for ahead of any park an anchor stands under, the recovery alone an anchor a
-                            stage's park stands over is answered with, and the same gates in front of the abort a
-                            checkout whose lag cannot be counted takes. It writes nothing itself -- a reply that let
+                            stage's park stands over is answered with, the refresh's own selection asked again once
+                            a recovery took the anchor down and let the tick go on -- so a record the anchor set
+                            aside, a developer report recorded and unsettled among them, holds the rebase behind it
+                            as it holds an unanchored one -- and the same gates in front of the abort a checkout
+                            whose lag cannot be counted takes. It writes nothing itself -- a reply that let
                             the rebase start is staged read, where it only asked for the retry, for the anchor's own
                             write to land (`rewrite_replies.py`) -- and a clean rebase is handed to
                             `rewrite_publication.py`, a pinned anchor's recovery to `rewrite_recovery.py`,

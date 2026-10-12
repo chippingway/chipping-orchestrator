@@ -111,10 +111,12 @@ def decides(
 
     A recovery that answered the anchor -- finished it, parked it, or found
     nothing it could verify -- owns the tick. One that let it go on did so
-    over a head the base may still be ahead of, and the trusted reply that
-    released a park this refresh left goes on with it only while that park
-    still stands: a recovery that took the park down spent the reply, and the
-    rebase behind it may not spend it again.
+    over a head the base may still be ahead of, with the anchor down -- so the
+    coordinator asks the refresh's selection again before its rebase
+    (`base_rewrite`) -- and the trusted reply that released a park this
+    refresh left goes on with it only while that park still stands: a
+    recovery that took the park down spent the reply, and the rebase behind it
+    may not spend it again.
     """
     if not context.pending_pre_rebase_sha:
         return _AutoRebaseDecision(True, consumed_comment_id)
