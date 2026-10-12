@@ -75,13 +75,15 @@ died before the announcement, the relabel, or the retirement -- finds the
 current evidence answering for the landed head and routes it with nothing
 decided, run, posted, or settled again, but only while the records agree it is
 the last word on the head: no pending record beside it, the handoff naming it,
-and no revision spent past it. A newer transaction recorded for the head
-beside it is answered as any captured one is, and supersedes it once it
+and a revision floor somebody can read. A newer transaction recorded for the
+head beside it is answered as any captured one is, and supersedes it once it
 settles; any other disagreement holds the route. Whatever settled it, that
 evidence is proved ready again before every route takes it
-(`rewrite_finish_readiness.stands_ready`): anything it is bound to that moved
-since its settlement invalidates it into history whole, and the head goes on
-to the fresh reviewer.
+(`rewrite_finish_readiness.stands_ready`) -- one a newer transaction was
+abandoned beside included (`rewrite_finish_readiness.stands_ready_if_settled`):
+anything it is bound to that moved since its settlement, or a revision spent
+past it, which outranks it for good, invalidates it into history whole, and
+the head goes on to the fresh reviewer.
 """
 from __future__ import annotations
 
@@ -103,7 +105,7 @@ from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence import invalidates_current
 from orchestrator.workflow.engine.rewrite_evidence_proof import MOVEMENT, _reads_again, last_word
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
-from orchestrator.workflow.engine.rewrite_finish_readiness import beside_current, stands_ready
+from orchestrator.workflow.engine.rewrite_finish_readiness import beside_current, stands_ready, stands_ready_if_settled
 from orchestrator.workflow.engine.rewrite_landing_records import capture_answered, resolved
 
 log = logging.getLogger("orchestrator.workflow")
@@ -123,10 +125,12 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     current. Settled evidence with nothing beside it is taken with nothing
     decided, run, posted, or settled again, but only while the records agree
     it is the last word on the head -- no pending record at all, the handoff
-    naming it, and no revision spent past it -- and only once it proves ready
-    again (`rewrite_finish_readiness.stands_ready`), which invalidates it where
-    anything it is bound to moved since it settled and holds the route where a
-    reading could not be taken. Any
+    naming it, and a revision floor somebody can read -- and only once it
+    proves ready again (`rewrite_finish_readiness.stands_ready`), which
+    invalidates it where anything it is bound to moved since it settled, a
+    revision spent past it included -- a newer transaction abandoned beside
+    it outranks it for good, which no route may carry and no poll may hold
+    over -- and holds the route where a reading could not be taken. Any
     of those out of step holds the route, since nobody can say what was owed
     -- and so does any pending record about another head beside evidence an
     earlier finish of this landing already retired for it, current evidence
@@ -160,7 +164,12 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
 
     None too where nothing is recorded for the head -- the decision ran or
     recorded nothing, or the last word behind it abandoned what it recorded --
-    since the evidence is then the fresh reviewer's. Anything else is where
+    since the evidence is then the fresh reviewer's, save evidence an earlier
+    finish settled for the head that is still current beside a newer
+    transaction the decision abandoned: that is proved ready again
+    (`rewrite_finish_readiness.stands_ready_if_settled`), and the revision the
+    abandoned transaction spent past it alone invalidates it, so no route
+    carries it and no later poll holds over it. Anything else is where
     the finish stops, with nothing announced, relabelled, or retired. Every
     write the answer makes is decided on the attempt as this finish read it
     (`verification_proof.ProofReading.rests_on`), and a finish whose state
@@ -172,13 +181,14 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     nothing is recorded for the head any more -- settled or retired by the
     answer, or abandoned by the last word behind it -- the records that left
     are resolved afresh (`resolves`), with nothing recorded to answer this
-    time, before anything is announced or routed: a settlement or retirement
-    another road made while this one was published -- current evidence its
-    handoff does not name, or a revision spent past it -- comes in with the
-    comment the answer adopted and holds the route with the attempt standing,
-    current evidence the configuration moved past is invalidated, with
-    nothing run again, rather than routed or held over, and the evidence this
-    answer settled is proved ready again before the route takes it. A
+    time, before anything is announced or routed: a settlement another road
+    made while this one was published with a handoff that does not name its
+    current evidence comes in with the comment the answer adopted and holds
+    the route with the attempt standing, current evidence the configuration
+    moved past is invalidated, with nothing run again, rather than routed or
+    held over, and current evidence for the head -- the one this answer
+    settled, or one an earlier finish settled that a revision this answer
+    retired outranks -- is proved ready again before the route takes it. A
     transaction still owed goes to the last word over the first movement the
     answer read, where it read any -- a refusal of its binding, a bound record
     read moved, or a base read gone elsewhere, put back since or not, sorted as
@@ -187,7 +197,7 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     """
     pending = _captured.recorded(finish, logged=False)
     if pending is None:
-        return None
+        return stands_ready_if_settled(finish)
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     observed: list[ReportEvidence] = []
     read = _reads_again(finish)
@@ -287,8 +297,10 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
     recorded for the head, which the finish answers itself. Otherwise any
     pending record -- about another head, or one nobody can read -- is out of
     step, and so, beside that current evidence, are a handoff that does not
-    name it and a revision spent past it
-    (`rewrite_finish_readiness.beside_current`).
+    name it and a revision floor nobody can read
+    (`rewrite_finish_readiness.beside_current`). A readable revision spent
+    past it is no hold: it outranks that evidence, which the readiness proof
+    then invalidates rather than holding every later poll over it.
     """
     state = finish.state
     current = None if finish.behind else _settlement.read_current_evidence(state)

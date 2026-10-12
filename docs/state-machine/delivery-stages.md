@@ -1432,13 +1432,16 @@ because there it is the claim that this stage has already rerouted rather than a
   landed and the process died, or the commit's answer was lost, or the tail behind it died -- is routed with nothing
   decided, run, posted, or settled again (`rewrite_finish_settlement.resolves`) once it proves ready again, and
   invalidated whole where anything it is bound to moved since (**Base-rewrite evidence, handed off** below) -- but
-  only while the records agree it is the last word on the head: nothing
-  pending beside it, the handoff naming it, and no revision spent past it. A newer transaction recorded for the head
+  only while the records agree it is the last word on the head: nothing pending beside it, the handoff naming it,
+  and a revision floor somebody can read. A newer transaction recorded for the head
   beside it is published and settled as any captured one, superseding it, rather than left owed behind a cleared
-  attempt, and any other disagreement holds the route. The records a finish's own publication and settlement leave
-  are held to that same agreement before anything is announced or routed, so a settlement or retirement another road
-  made while the run was published -- current evidence its handoff does not name, or a revision spent past it, which
-  comes in with the comment the answer adopted -- holds the route with the attempt standing, poll after poll. The
+  attempt; one abandoned instead leaves the settled evidence it was recorded beside outranked for good, which no
+  reader is ever handed, so that evidence goes through the readiness proof as well and is invalidated, rather than
+  routed as current or held over poll after poll. Any other disagreement holds the route. The records a finish's own
+  publication and settlement leave are held to that same agreement before anything is announced or routed, so a
+  settlement another road made while the run was published with a handoff that does not name its current evidence,
+  which comes in with the comment the answer adopted, holds the route with the attempt standing, poll after poll,
+  while one that spent a revision past it outranks it, invalidating it and routing the head. The
   same holds where the head's own evidence was retired and
   nothing is current: a pending record about any other head -- a successor about the anchor recorded over the run,
   abandoning it -- is one no finish of this landing can answer, so the route is held over it poll after poll, the
@@ -1515,10 +1518,15 @@ because there it is the claim that this stage has already rerouted rather than a
     source provenance kept, in a write staged on the comment read afresh and guarded by that reading and the
     attempt, and the head goes on to the fresh reviewer, the normal workflow owning whatever moved -- save a landing
     that left the head or a base gone elsewhere, which hold the route behind that invalidation for the next tick to
-    classify the branch and count the head again. A reading nobody could take, a comment no longer carrying that
-    evidence as current or carrying a pending record, handoff, or revision beside it that says it is not the last
-    word, or an invalidation that did not land holds the route with the attempt standing, and the next recovery
-    proves it again over what it then reads. A failure notice recorded
+    classify the branch and count the head again. A revision spent past it -- a newer transaction recorded beside it
+    and then abandoned or dropped, whichever road recorded it and however the finish's own evidence step left it --
+    outranks it for good, so it is movement too: the readiness proof is asked over it even where that evidence step
+    abandoned the newer transaction and recorded nothing for the head
+    (`rewrite_finish_readiness.stands_ready_if_settled`), and it is invalidated rather than routed or held over. A
+    reading nobody could take, a comment no longer carrying that evidence as current or carrying a pending record or
+    a handoff beside it that says it is not the last word, a revision floor nobody can read, or an invalidation that
+    did not land holds the route with the attempt standing, and the next recovery proves it again over what it then
+    reads. A failure notice recorded
     for the head is found on the pull request rather than posted again, and a decision that recorded nothing -- the
     fresh reviewer's responsibility handed off, a run refused as moved, or a passing run that binds nothing -- is
     taken afresh, so the handoff is proved over the records as they read then; a run the policy makes again there is

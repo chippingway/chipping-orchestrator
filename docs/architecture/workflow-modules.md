@@ -1246,17 +1246,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             again, the successor left as that road wrote it. Evidence an earlier finish of the landing
                             already settled for the head is
                             routed with nothing decided, run, posted, or settled again while the records agree it is
-                            the last word -- no pending record beside it, the handoff naming it, no revision spent
-                            past it -- once it proves ready again (`rewrite_finish_readiness.stands_ready`), and
-                            while the configured context is still the one it was taken under, the
+                            the last word -- no pending record beside it, the handoff naming it, a revision floor
+                            somebody can read -- once it proves ready again (`rewrite_finish_readiness.stands_ready`),
+                            and while the configured context is still the one it was taken under, the
                             evidence step invalidating it with nothing run otherwise rather than holding over it; a
-                            newer transaction recorded for the head is answered and settled over it, and
+                            newer transaction recorded for the head is answered and settled over it -- or, abandoned
+                            instead, leaves that evidence outranked, proved and invalidated before the route
+                            (`settles`, over `rewrite_finish_readiness.stands_ready_if_settled`) -- and
                             any other disagreement holds, as does a pending record about any other head beside the
                             head's own retired evidence with nothing current (`rewrite_landing_records.resolved`);
                             the records the answer itself leaves are held to the same agreement before anything is
-                            announced or routed (`_holds_out_of_step`), so a settlement or retirement another road
-                            made while the run was published, which comes in with the comment the answer adopted,
-                            holds the route out of step too
+                            announced or routed (`_holds_out_of_step`), so a settlement another road made while the
+                            run was published with a handoff not naming its evidence, which comes in with the
+                            comment the answer adopted, holds the route out of step too
     rewrite_finish_readiness.py
                             evidence a finish of the landing settled for its head, proved ready again before every
                             route that takes it -- the settling tick's own and every recovery of a tail cut short
@@ -1269,9 +1271,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading and the attempt, and the head goes on to the fresh reviewer -- held behind that
                             write where the landing left the head or the base went elsewhere; a reading nobody
                             could take, a comment no longer carrying it as the last word on the head
-                            (`beside_current`: a pending record, a handoff not naming it, a revision spent past it,
-                            which the settlement step's out-of-step hold asks of the tick's reading too), or an
-                            invalidation that did not land holds the route
+                            (`beside_current`: a pending record, a handoff not naming it, a revision floor nobody
+                            can read, which the settlement step's out-of-step hold asks of the tick's reading too), or
+                            an invalidation that did not land holds the route. A revision spent past it -- a newer
+                            transaction abandoned or dropped beside it -- outranks it for good and invalidates it, and
+                            evidence the evidence step left current beside a newer transaction it abandoned is proved
+                            the same way (`stands_ready_if_settled`), so no poll holds over evidence no reader is
+                            handed
     rewrite_finish_failures.py
                             the notice a landed head's failed verification is owed, kept on the pinned comment
                             (`auto_base_rebase_failed_verification`: the head and the notice's whole text) from the

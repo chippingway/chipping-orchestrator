@@ -700,12 +700,14 @@ captured, a failure notice an earlier finish recorded is published once, a trans
 routed as captured only once it proves again -- abandoned into history, nothing run, where anything it is bound to,
 the landing, or the base moved since -- over an artifact an earlier post landed, found under its receipt, and one an
 earlier finish already settled is routed with nothing posted or settled again while nothing beside it says
-otherwise -- a newer transaction for the head is settled over it, and a handoff or revision floor out of step holds
-the route -- with the invalidation a moved context now owes landed before the route, that settled evidence's own
+otherwise -- a newer transaction for the head is settled over it, one abandoned beside it outranks it and has it
+invalidated, and a handoff out of step or a revision floor nobody can read holds the route -- with the invalidation
+a moved context now owes landed before the route, that settled evidence's own
 included: a configuration moved since it settled invalidates it with nothing run again, rather than leaving it to
 hold the route behind a revision spent past it. Settled evidence is proved ready again before any route takes it
 (`workflow/engine/rewrite_finish_readiness.py`), and anything else it is bound to that moved since it settled -- the
-requirements, a report or review record, its artifact, the landing, or the base -- invalidates it whole too. A tick
+requirements, a report or review record, its artifact, a revision spent past it, the landing, or the base --
+invalidates it whole too. A tick
 lost behind the resolved evidence -- before the announcement, between the checkpoint and the relabel, or between the
 relabel and the retirement -- keeps the attempt, and its recovery reads what was done off
 `pending_auto_base_rebase_announced_sha` and the label, repeating no notice, event, round reset, or relabel.

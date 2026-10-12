@@ -20,8 +20,9 @@ or cleared. An artifact a human edited out of its format under the receipt is
 the one answer that never settles: the run is abandoned, and the head goes to
 the fresh reviewer. Settled evidence an interrupted recovery left is routed as
 it stands only while nothing beside it says otherwise: a newer transaction
-recorded for the head is settled over it, and a revision spent past it holds
-the route.
+recorded for the head is settled over it, and a revision spent past it with
+nothing left recorded outranks it for good, so it is invalidated and the head
+routed to the fresh reviewer.
 """
 from __future__ import annotations
 
@@ -198,24 +199,22 @@ class PublicationWindowTest(support.CapturedRunCase, unittest.TestCase):
         self.assertEqual(self.posted(newer), [newer.commands])
         self.assert_recovered(head)
 
-    def test_a_floor_past_the_settled_run_holds(self) -> None:
+    def test_a_floor_past_the_run_invalidates_it(self) -> None:
         # The recovery settles the run and dies at its relabel, and a
-        # revision past it is spent with nothing left recorded beside it.
-        # Nobody can say what was owed, so the next recovery holds the route
-        # with the attempt standing rather than route the run as the last
-        # word on the head.
-        _head, captured = self.captures()
+        # revision past it is spent with nothing left recorded beside it --
+        # a newer transaction dropped. That revision outranks the run for
+        # good, so the next recovery invalidates it whole rather than route
+        # it as the last word on the head or hold every later poll over it,
+        # and routes the head, already announced, to the fresh reviewer.
+        head, captured = self.captures()
         self.dies_at(support.RELABEL, self.recovers)
         _writes(self, readings.KEY_REVISION_FLOOR, captured.revision + 1)
 
         self.recovers()
 
-        pinned = readings.pinned(self)
-        current = readings.records(pinned)[1]
-        self.assertEqual(
-            (pinned[readings.KEY_PENDING_PUSH], readings.relabels(self), current.receipt),
-            (self.anchor, (), captured.receipt),
-        )
+        retired = (*git_support.invalidated(self), (captured.receipt, readings.INVALIDATED))
+        self.assertEqual(readings.pinned_records(self), (None, None, retired))
+        self.assert_recovered(head)
 
     def _leaves_posted(self, leaves_it) -> tuple:
         """A fresh case's reviewed rebase whose finish `leaves_it` posted and unsettled, then a usage fold.

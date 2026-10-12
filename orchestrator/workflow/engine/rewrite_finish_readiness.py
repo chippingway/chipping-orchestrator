@@ -12,13 +12,15 @@ recovery of the push already landed finishes the route on a later tick from
 the announcement mark and the label the dead tick left, with nothing decided,
 run, posted, or settled again. The settlement proved the evidence at its own
 moment; the route reads it at another, and an issue edited, a report or review
-record moved, the artifact edited or deleted under its receipt, a newer
-revision spent, a command configured otherwise, or a landing or base that
-moved since leaves evidence that no longer answers for the head it would be
-routed with.
+record moved, the artifact edited or deleted under its receipt, a revision
+spent past it -- a newer transaction recorded beside it and then abandoned --,
+a command configured otherwise, or a landing or base that moved since leaves
+evidence that no longer answers for the head it would be routed with.
 
 So every route that takes settled evidence as it stands -- the settling
-tick's own, and every recovery of it -- proves it ready again first
+tick's own, every recovery of it, and one whose evidence step abandoned a
+newer transaction recorded beside it and left it current
+(`stands_ready_if_settled`) -- proves it ready again first
 (`stands_ready`): the readiness proof every reader relying on current evidence
 takes (`verification_proof.current_evidence_verdict`), over the issue and
 pinned comment read afresh, and behind it the last word over its binding
@@ -102,13 +104,32 @@ def stands_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> Fin
     return FinishOutcome.HELD
 
 
+def stands_ready_if_settled(finish: LandedFinish) -> FinishOutcome | None:
+    """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None where none is.
+
+    For a route whose evidence step left nothing recorded for the head
+    (`rewrite_finish_settlement.settles`): where a newer transaction recorded
+    beside settled evidence was abandoned, that evidence is still current, and
+    the route may not carry it unproved.
+    """
+    current = _settlement.read_current_evidence(finish.state)
+    if current is None or current.binding.target.target_head != finish.head:
+        return None
+    return stands_ready(finish, current)
+
+
 def beside_current(state: PinnedState, current: _records.CurrentEvidence | None) -> str:
-    """Why a record beside the head's resolved evidence says `current` is not the last word on it, or "".
+    """Why a record beside the head's resolved evidence says nobody can tell what `current` is, or "".
 
     Any pending record, and -- beside `current`, where there is one -- a
-    handoff that does not name it or a revision spent past it. A route never
-    goes on over one, and nothing it reads moved under `current` either: a
-    newer transaction recorded for the head supersedes it once it settles.
+    handoff that does not name it or a revision floor nobody can read. A route
+    never goes on over one, and nothing it reads moved under `current` either:
+    a newer transaction recorded for the head supersedes it once it settles.
+    A readable revision spent past `current` is none of these: a newer
+    transaction recorded and then abandoned or dropped beside it outranks it
+    for good, so the readiness proof reads it as movement and invalidates it
+    (`verification_current.publication_verdict`), rather than every later poll
+    holding over evidence no reader will ever be handed.
     """
     if _record_state.carries_pending_evidence(state):
         return "a pending record no finish of this landing can answer stands beside it"
@@ -118,8 +139,8 @@ def beside_current(state: PinnedState, current: _records.CurrentEvidence | None)
     named = None if handoff is None else (handoff.receipt, handoff.revision)
     if named != (current.receipt, current.revision):
         return "the evidence handoff does not name it"
-    if _record_state._latest_revision(state) != current.revision:
-        return "a revision past it was spent, or nobody can say which"
+    if _record_state._latest_revision(state) is None:
+        return "nobody can say which revision was spent last"
     return ""
 
 
