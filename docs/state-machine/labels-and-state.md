@@ -562,7 +562,8 @@ A process lost before the mark comes back to the attempt record itself: its anch
 heads, and the anchor holds every stage handler back until a finish has written both. A base that moves
 again before that report is asked for retargets the claim onto the head the next rebase lands, keeping the head the
 settled report is about, so repeated advances leave one debt naming the latest proved head -- and where the recovery
-finds the base behind again, it records the landed head's debt before the same tick rebases it. A rebase that moved
+finds the base behind again, it records the landed head's debt before the rebase behind it -- this same tick's,
+unless the selection asked again once the anchor is down holds it for a report still unsettled. A rebase that moved
 nothing, a refused push, the reset a park makes, and a pull request somebody else moved never reach a finish, so they
 record nothing and leave a standing claim exactly as it is. A standing claim the landed head does not follow --
 another pull request or branch, a head somebody else pushed in between, a claim nobody can read -- is refused and
