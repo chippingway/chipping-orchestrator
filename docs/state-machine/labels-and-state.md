@@ -3182,6 +3182,9 @@ The keys that matter for the state machine fall into a few groups:
   published is recorded in between, while the anchor and the replay still stand. A tick lost there comes back to a
   comment that says the announcement was made rather than to an attempt that looks unfinished, which is what stops a
   second `base_rebased` on the stream and a second notice on the pull request for one publication that happened once.
+  The notice and the event go out ahead of this write, so a tick lost between them and it leaves no mark: the next
+  finish reads the pull request's conversation first and takes a comment of ours already announcing the head as the
+  announcement made, saying neither the notice nor the event again (`workflow/engine/rewrite_finish_notices.py`).
   BOTH finishes write it and for the same reason — the refresh's own publishing tail, which announces the rebase it just
   pushed, and the recovery, which announces one an earlier tick left — since neither is distinguishable afterwards from
   an attempt that never got that far. The report debt the landed head leaves (`developer_report_rewrite_debt`) rides the

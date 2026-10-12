@@ -200,19 +200,28 @@ def invalidates_behind(
     For the finish's announcement checkpoint and its retirement
     (`rewrite_finish`), each proved ready before it and each guarded by the
     records the evidence is bound through: a report or review record another
-    road wrote while the notice was posted or the relabel made refuses the
-    write, and that refusal (`rewrite_finish_writes.BINDING_MOVED` in
-    `observed`) is movement read under the evidence. So it is invalidated now
-    (`invalidates`), the attempt and the newer records kept as the comment
-    carries them, and putting the record back before the next poll revives
-    nothing. A write that landed, or a refusal that read no such record --
-    a newer transaction recorded for the head among them, the next finish's to
-    answer -- passes through with nothing read.
+    road wrote while the notice was posted, the relabel made, or the write
+    itself sent refuses the write. A refusal that named such a record
+    (`rewrite_finish_writes.BINDING_MOVED` in `observed`) is movement read
+    under the evidence, so it is invalidated now (`invalidates`), the attempt
+    and the newer records kept as the comment carries them, and putting the
+    record back before the next poll revives nothing. A refusal that named
+    none -- the comment moved under the edit itself, or only a newer
+    transaction recorded for the head, the next finish's to answer -- has the
+    evidence proved ready once more right away (`stands_ready`), which
+    invalidates it only where a reading then establishes movement. A write
+    that landed, one nobody confirmed, and a stop that was no write pass
+    through with nothing read.
     """
     current = _settlement.read_current_evidence(finish.state)
-    if stopped is None or _writes.BINDING_MOVED not in observed or current is None:
+    if stopped is not FinishOutcome.REFUSED or current is None:
         return stopped
-    if current.binding.target.target_head != finish.head or invalidates(finish, current):
+    if current.binding.target.target_head != finish.head:
+        return stopped
+    if _writes.BINDING_MOVED not in observed:
+        stands_ready(finish, current)
+        return stopped
+    if invalidates(finish, current):
         return stopped
     log.warning(
         "issue=#%d verification evidence revision %d settled for %.8s was read moving under the finish's write "

@@ -80,7 +80,7 @@ head beside it is answered as any captured one is, and supersedes it once it
 settles; any other disagreement holds the route. Whatever settled it, that
 evidence is proved ready again before every route takes it
 (`rewrite_finish_readiness.stands_ready`) -- one a newer transaction was
-abandoned beside included (`_stands_ready_if_settled`):
+abandoned beside included (`stands_ready_if_settled`):
 anything it is bound to that moved since its settlement, or a revision spent
 past it, which outranks it for good, invalidates it into history whole, and
 the head goes on to the fresh reviewer.
@@ -167,7 +167,7 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     since the evidence is then the fresh reviewer's, save evidence an earlier
     finish settled for the head that is still current beside a newer
     transaction the decision abandoned: that is proved ready again
-    (`_stands_ready_if_settled`), and the revision the
+    (`stands_ready_if_settled`), and the revision the
     abandoned transaction spent past it alone invalidates it, so no route
     carries it and no later poll holds over it. Anything else is where
     the finish stops, with nothing announced, relabelled, or retired. Every
@@ -197,7 +197,7 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     """
     pending = _captured.recorded(finish, logged=False)
     if pending is None:
-        return _stands_ready_if_settled(finish)
+        return stands_ready_if_settled(finish)
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     observed: list[ReportEvidence] = []
     read = _reads_again(finish)
@@ -321,13 +321,18 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
     return FinishOutcome.HELD
 
 
-def _stands_ready_if_settled(finish: LandedFinish) -> FinishOutcome | None:
+def stands_ready_if_settled(finish: LandedFinish) -> FinishOutcome | None:
     """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None where none is.
 
     For a route whose evidence step left nothing recorded for the head
     (`settles`): where a newer transaction recorded beside settled evidence
     was abandoned, that evidence is still current, and the route may not
-    carry it unproved.
+    carry it unproved. And for the retirement behind the relabel
+    (`rewrite_finish`), the last write of the route: the announcement and the
+    relabel are requests made after the evidence was proved ready, and a base
+    advanced or a landing moved while they were answered has the evidence
+    invalidated and the route held with the attempt standing rather than
+    retired over a proof those requests outlived.
     """
     current = _settlement.read_current_evidence(finish.state)
     if current is None or current.binding.target.target_head != finish.head:

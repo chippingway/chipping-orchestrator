@@ -1143,7 +1143,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             step (`rewrite_finish_evidence.py`), and a transaction it recorded published and settled,
                             or retired, with the anchor still standing -- evidence an earlier finish already settled
                             for the head routed while nothing beside it says otherwise, and settled evidence proved
-                            ready again first (`rewrite_finish_readiness.py`). Only then is the
+                            ready again first (`rewrite_finish_readiness.py`) -- and once more behind the relabel,
+                            ahead of the retirement, so a base or landing that moved while the announcement or
+                            the relabel was answered invalidates it and holds the route. Only then is the
                             announcement prepared before the notice and the `base_rebased` event go out, landing the
                             debt, the reset round, and the mark while the anchor stands; a finish whose mark already
                             names the head repeats neither and lands only a debt new beside it. A head the base
@@ -1296,8 +1298,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             every finish has spelled them -- the publication's, a recovery that pushed
                             again, and a head this tick sent nothing for, on either road, as one found standing,
                             each recovery notice saying where a base advanced again sends the landed head -- and the
-                            method the event files for each; and the notice of a configured verification the landed
-                            head failed, naming the command, how it failed, and its output's tail
+                            method the event files for each; each said once per landed head (`announces`): the
+                            conversation is read first, and a comment of ours already announcing the head -- posted
+                            ahead of a checkpoint that never landed -- is the announcement made, with neither it nor
+                            the event said again, the event filed only behind a post the tick made itself, and a
+                            conversation nobody could read or a post nobody can find holding the finish; and the
+                            notice of a configured verification the landed head failed, naming the command, how it
+                            failed, and its output's tail
     rewrite_finish_writes.py
                             the guarded commits the finish writes through, under the tick-state guard
                             (`report_commits.py`) and decided on the publication's pinned fields as well: the

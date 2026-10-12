@@ -16,10 +16,20 @@ are the ones every finish has always produced, and live issues and the
 analytics sink already carry them, so each road's are spelled here exactly as
 they always have been.
 
-The notice is best effort: a post that fails is logged, and the publication it
-was about is recorded all the same. A post that lands enters the ledger of
-this orchestrator's comments on the state the caller stages, so the write that
-records the announcement carries it.
+The notice and the event are said exactly once per landed head, though the
+announcement mark lands only behind them (`announces`). The pull request's
+conversation is read first, and a comment of ours already announcing the head
+-- one an earlier finish posted before its checkpoint was refused, went
+unconfirmed, or the process died -- is that announcement made: entered in the
+ledger, with neither it nor the event said again, since the tick that posted
+it filed the event right behind the post. Otherwise the notice is posted and
+the event filed behind it. A conversation nobody could read, or a post that
+raised and is not found on the conversation read again, holds the finish with
+nothing filed, for the next tick to ask again; the one window left is a
+process lost between a post that landed and the event behind it, in which the
+event is never filed rather than filed twice. A notice that lands enters the
+ledger of this orchestrator's comments on the state the caller stages, so the
+write that records the announcement carries it.
 
 A landed head whose configured verification failed is said once more, and
 ahead of its announcement (`failure`): the finish's evidence step records and
@@ -36,9 +46,10 @@ from __future__ import annotations
 import logging
 
 from orchestrator.git.verification.models import VerifyResult
+from orchestrator.github import comments as _github_comments
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, messages as _messages
-from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.stages.validating import verify as _verify
 from orchestrator.workflow.state import WorkflowLabel, stage_name
 
@@ -46,6 +57,9 @@ log = logging.getLogger("orchestrator.workflow")
 
 # How much of a commit id a notice names.
 _SHORT_SHA = 8
+
+# How every road's announcement of a landing opens.
+_ANNOUNCES = ":mag:"
 
 
 def method(finish: LandedFinish) -> str:
@@ -57,20 +71,45 @@ def method(finish: LandedFinish) -> str:
     return "crash_recovery_pushed"
 
 
-def announces(finish: LandedFinish, staged: PinnedState) -> None:
-    """Post the notice of `finish`'s landing and emit its `base_rebased` event.
+def announces(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
+    """Say `finish`'s landing once -- its notice, then its `base_rebased` event; None to land the checkpoint.
 
     The notice's comment is recorded on `staged`, the state the announcement
-    write is made from. The event reports the round the reviewer is asked to
-    spend afresh on the landed head, which every finish resets.
+    write is made from, whether this tick posted it or found an earlier
+    finish's on the conversation (`_found`) -- which is the announcement made,
+    so nothing is posted or filed again. The event is filed only behind a post
+    this tick made, and reports the round the reviewer is asked to spend
+    afresh on the landed head, which every finish resets. HELD, with nothing
+    filed, where the conversation would not read, or where the post raised and
+    the conversation read again does not show it.
     """
-    try:
-        _comments._post_pr_comment(finish.gh, finish.pr_number, staged, notice(finish))
-    except Exception:
-        log.exception(
-            "issue=#%s could not post the notice of its landed base rewrite to PR #%s",
-            finish.issue.number, finish.pr_number,
-        )
+    readable, found = _found(finish)
+    if readable and found is None:
+        try:
+            _comments._post_pr_comment(finish.gh, finish.pr_number, staged, notice(finish))
+        except Exception:
+            log.exception(
+                "issue=#%s could not post the notice of its landed base rewrite to PR #%s",
+                finish.issue.number, finish.pr_number,
+            )
+            readable, found = _found(finish)
+            if found is None:
+                return FinishOutcome.HELD
+            _comments._track_orchestrator_comment(staged, found)
+        _files(finish)
+        return None
+    if not readable:
+        return FinishOutcome.HELD
+    _comments._track_orchestrator_comment(staged, found)
+    log.info(
+        "issue=#%d finds its landed base rewrite of %.8s already announced on PR #%d; saying nothing again",
+        finish.issue.number, finish.head, finish.pr_number,
+    )
+    return None
+
+
+def _files(finish: LandedFinish) -> None:
+    """File `finish`'s `base_rebased` event, the round reset on it."""
     finish.gh.emit_event(
         "base_rebased",
         issue_number=finish.issue.number,
@@ -130,6 +169,34 @@ def failure(finish: LandedFinish, run: VerifyResult) -> str:
     if not output:
         return said
     return f"{said}\n\n_Verify output (tail):_\n\n{_messages._as_blockquote(output)}"
+
+
+def _found(finish: LandedFinish) -> tuple[bool, int | None]:
+    """Whether `finish`'s pull-request conversation read, and the id of a comment of ours announcing its head on it.
+
+    An announcement is a comment of this orchestrator's -- its author held to
+    this deployment (`github.comments.authored_by_us`), since text on a public
+    thread is trivially copied -- opening as every road's notice opens and
+    naming the landed head as every road's notice names it, whichever road's
+    wording it carries.
+    """
+    gh = finish.gh
+    try:
+        thread = gh.pr_conversation_thread(gh.get_pr(finish.pr_number))
+    except Exception:
+        log.exception(
+            "issue=#%d could not read PR #%d for an announcement of its landed base rewrite of %.8s",
+            finish.issue.number, finish.pr_number, finish.head,
+        )
+        return False, None
+    short_head = finish.head[:_SHORT_SHA]
+    named = f"`{short_head}`"
+    announced = (
+        posted.id for posted in thread
+        if (posted.body or "").startswith(_ANNOUNCES) and named in posted.body
+        and _github_comments.authored_by_us(posted, bot_login=getattr(gh, "_bot_login", None))
+    )
+    return True, next(announced, None)
 
 
 def _published(finish: LandedFinish) -> str:

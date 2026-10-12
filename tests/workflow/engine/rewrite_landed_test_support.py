@@ -99,10 +99,11 @@ def _after_the_relabel(case):
 
 
 # Each moment a finish can be lost at, with the mark the lost tick left and
-# what the landing ends up announced as: a mark that never went down cannot
-# say the notice and the event are out, so they are said once more.
+# what the landing ends up announced as: once, whichever -- a mark that never
+# went down leaves the notice on PR #42, which the next finish finds there and
+# says neither it nor the event again.
 WINDOWS = (
-    ("before the mark", _before_the_mark, None, (2, [FOUND, FOUND])),
+    ("before the mark", _before_the_mark, None, SAID_FOUND),
     ("at the relabel", _at_the_relabel, REPLAY, SAID_FOUND),
     ("after the relabel", _after_the_relabel, REPLAY, SAID_FOUND),
 )

@@ -273,8 +273,9 @@ class RoomInTheRecoveryTest(_RoomFixture, unittest.TestCase):
                 partial(self._reported, **_pending_attempt(AFTER_SHA)), (0, 0), (1, 1),
             ),
             # The push landed and the tick died before its mark, having said so
-            # once; the finish that the reply brings says it again.
-            ("lost before its mark", self._lost_before_the_mark, (1, 1), (2, 2)),
+            # once; the finish that the reply brings finds that notice on the
+            # pull request and says neither it nor the event again.
+            ("lost before its mark", self._lost_before_the_mark, (1, 1), (1, 1)),
             # An earlier build announced it and put no debt beside its mark,
             # so nothing is said again either way.
             ("announced without its debt", self._announced_without_its_debt, (0, 0), (0, 0)),

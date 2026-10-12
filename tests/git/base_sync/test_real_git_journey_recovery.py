@@ -109,11 +109,11 @@ class InterruptedAfterPublicationTest(_InterruptedJourney, unittest.TestCase):
         self._finishes(RECOVERY_RELABELLED)
 
     def test_a_crash_before_the_mark(self) -> None:
-        # The one window the checkpoint cannot close: the notice and the event
-        # are out and nothing records it, so they are said again rather than
-        # lost, and the durable state is right either way.
+        # The notice and the event are out and the checkpoint behind them is
+        # not: the recovery finds the notice on the pull request, so neither
+        # is said again, and the durable state is right either way.
         self._refreshes(windows.BEFORE_THE_MARK)
-        self._finishes(CLEAN_REBASE, RECOVERY_RELABELLED)
+        self._finishes(CLEAN_REBASE)
 
     def test_a_crash_at_the_relabel(self) -> None:
         # The mark says the finish announced itself, so the recovery owes the

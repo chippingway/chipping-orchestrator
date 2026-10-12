@@ -8,10 +8,12 @@ request, the `base_rebased` event, and the checkpoint that marks the head
 announced -- then the relabel to `workflow:validating`, then the write that
 retires the attempt. Each boundary (`BOUNDARIES`) is a process killed at one
 of those steps, behind every write ahead of it: before the announcement's
-notice is posted, so nothing marks the head announced; behind the checkpoint
-and before the relabel, so the retry reads the head as already announced; and
-behind the relabel and before the retirement, so the retry reads the issue as
-already relabelled too.
+notice is posted, so nothing marks the head announced; behind the notice and
+the event and before the checkpoint, so the retry finds the notice on the pull
+request with no mark beside it; behind the checkpoint and before the relabel,
+so the retry reads the head as already announced; and behind the relabel and
+before the retirement, so the retry reads the issue as already relabelled
+too.
 
 The death is the process exiting (`sys.exit`): the notice is posted best
 effort, and the handler around that post catches whatever an `Exception`
@@ -30,7 +32,7 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.engine.rewrite_finish_readings import KEY_PENDING_PUSH
+from tests.workflow.engine.rewrite_finish_readings import KEY_ANNOUNCED, KEY_PENDING_PUSH
 
 # How the announcement of a landing opens on the pull request.
 _ANNOUNCES = ":mag:"
@@ -59,6 +61,11 @@ def _announcing(_pr_number, body: str, *_args, **_kwargs) -> bool:
     return body.startswith(_ANNOUNCES)
 
 
+def _checkpointing(_issue, state, *, over: dict) -> bool:
+    """Whether a pinned-comment edit is the checkpoint marking the head announced, which the comment does not carry."""
+    return state.get(KEY_ANNOUNCED) is not None and over.get(KEY_ANNOUNCED) is None
+
+
 def _relabelling(_issue, label, *_args, **_kwargs) -> bool:
     """Whether a label write is the route to `workflow:validating`."""
     return label == WorkflowLabel.VALIDATING
@@ -71,11 +78,13 @@ def _retiring(_issue, state, *, over: dict) -> bool:
 
 BEFORE_THE_ANNOUNCEMENT = Boundary("before the announcement", "pr_comment", _announcing)
 
+BEFORE_THE_CHECKPOINT = Boundary("said, before the checkpoint", "edit_pinned_state", _checkpointing)
+
 BEFORE_THE_RELABEL = Boundary("announced, before the relabel", "set_workflow_label", _relabelling)
 
 BEFORE_THE_RETIREMENT = Boundary("relabelled, before the retirement", "edit_pinned_state", _retiring)
 
-BOUNDARIES = (BEFORE_THE_ANNOUNCEMENT, BEFORE_THE_RELABEL, BEFORE_THE_RETIREMENT)
+BOUNDARIES = (BEFORE_THE_ANNOUNCEMENT, BEFORE_THE_CHECKPOINT, BEFORE_THE_RELABEL, BEFORE_THE_RETIREMENT)
 
 
 def dies_at(client, boundary: Boundary | None, finishing: Callable[[], object]) -> None:
