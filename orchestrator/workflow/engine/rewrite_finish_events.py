@@ -1,0 +1,120 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""The `base_rebased` event a landed base rewrite's finish files, once per landed head.
+
+The event goes out behind the landing's notice and ahead of the checkpoint
+that marks the head announced (`rewrite_finish`), and no write lands in the
+same breath as it: the event stream is not the pinned comment. So the attempt
+records the event ahead of filing it, in a guarded write of its own
+(`pending_auto_base_rebase_announced_event`, `rewrite_finish_writes.ANNOUNCED_EVENT`),
+and that record says only that the event may be out. A finish finding no such
+record for the head has filed nothing, and records it before it files. One
+finding the record with no mark beside it -- a process lost between the record
+and the checkpoint, on either side of the event, or a checkpoint refused or
+never confirmed behind it -- asks the event stream itself
+(`github.events.filed`: the client's in-memory tail, and the whole audit log
+however long the retry took) and files the event only where the stream does
+not carry it. A stream that would not read is nobody's answer: the finish is
+held with nothing filed, for the next tick to ask again. Once the mark is
+down, no later finish announces the head at all.
+
+The record lands over a copy of the tick's state, and the tick takes in that
+one field and nothing else the write read, so the checkpoint behind it is
+still decided on every other record as the tick read it. A record that did
+not land is where the finish stops, with nothing filed.
+
+The event reports the round the reviewer is asked to spend afresh on the
+landed head, which every finish resets, and how the head reached its finish
+(`method`) -- the payload every finish has always filed, which live issues and
+the audit sink already carry.
+"""
+from __future__ import annotations
+
+import copy
+import logging
+from dataclasses import replace
+
+from orchestrator.git.base_sync import state as _base_sync_state
+from orchestrator.github import events as _github_events
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import pinned_commit as _commit, rewrite_finish_writes as _writes
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
+from orchestrator.workflow.state import stage_name
+
+log = logging.getLogger("orchestrator.workflow")
+
+# The attempt's record of the `base_rebased` event a finish files for its head.
+_FILED = _base_sync_state._PENDING_ANNOUNCED_EVENT
+
+_REBASED = "base_rebased"
+
+
+def method(finish: LandedFinish) -> str:
+    """How the landed head reached its finish, as the `base_rebased` event names it."""
+    if not finish.pushed:
+        return "crash_recovery_relabel_only"
+    if finish.road is FinishRoad.PUBLICATION:
+        return "auto_clean_rebase"
+    return "crash_recovery_pushed"
+
+
+def files(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
+    """File `finish`'s `base_rebased` event once, recorded on the attempt ahead of it; None to go on.
+
+    `staged` is the checkpoint's own state, which carries the record too. An
+    attempt already recording the event for this head has the event stream
+    asked first, and nothing is filed where the stream carries it; HELD where
+    the stream would not read. The outcome of the record's own write where
+    that did not land.
+    """
+    issue_number = finish.issue.number
+    if finish.state.get(_FILED) == finish.head:
+        found = _github_events.filed(finish.gh, _REBASED, issue_number=issue_number, sha=finish.head)
+        if found is None:
+            log.warning(
+                "issue=#%d could not read the event stream back for the base_rebased event of %.8s, which may "
+                "already be filed; holding the finish with nothing filed",
+                issue_number, finish.head,
+            )
+            return FinishOutcome.HELD
+        if found:
+            log.info(
+                "issue=#%d finds the base_rebased event of %.8s already on the event stream; not filing it again",
+                issue_number, finish.head,
+            )
+            return None
+    else:
+        stopped = _records(finish, staged)
+        if stopped is not None:
+            return stopped
+    finish.gh.emit_event(
+        _REBASED,
+        issue_number=issue_number,
+        stage=stage_name(finish.label),
+        pr_number=finish.pr_number,
+        sha=finish.head,
+        method=method(finish),
+        review_round=0,
+        retry_count=finish.state.get("retry_count"),
+    )
+    return None
+
+
+def _records(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
+    """Record on the attempt that `finish`'s event is being filed, in a write of its own; None where it landed.
+
+    Landed over a copy of the tick's state, so the tick and `staged` take in
+    the record alone: every other field the checkpoint is decided on stays as
+    the tick read it, and a move another road made before the record still
+    refuses the checkpoint behind it.
+    """
+    held = copy.deepcopy(finish.state)
+    recorded = _writes.staging(finish)
+    recorded.set(_FILED, finish.head)
+    stopped = _writes.lands(replace(finish, state=held), recorded, _writes.ANNOUNCED_EVENT)
+    finish.state.withheld = finish.state.withheld or held.withheld
+    if stopped is None:
+        finish.state.set(_FILED, finish.head)
+        _commit.takes_in(finish.state, {_FILED: finish.head}, (_FILED,))
+        staged.set(_FILED, finish.head)
+    return stopped

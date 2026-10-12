@@ -1297,20 +1297,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whole text its identity, its author held to this orchestrator -- so a lost answer is found
                             where it landed; an unreadable thread or a post that raised holds the route
     rewrite_finish_notices.py
-                            the pull-request notice and the `base_rebased` event a finish announces with, spelled as
-                            every finish has spelled them -- the publication's, a recovery that pushed
+                            the pull-request notice a finish announces with, spelled as every finish has spelled
+                            them -- the publication's, a recovery that pushed
                             again, and a head this tick sent nothing for, on either road, as one found standing,
-                            each recovery notice saying where a base advanced again sends the landed head -- and the
-                            method the event files for each; each said once per landed head (`announces`): the
-                            conversation is read first, and a comment of ours already announcing the head -- posted
-                            ahead of a checkpoint that never landed -- is the announcement made, with neither it nor
-                            the notice posted again, the event filed only where the attempt does not record it filed
-                            (`pending_auto_base_rebase_announced_event`, landed by a write of its own right behind
-                            it, `rewrite_finish_writes.ANNOUNCED_EVENT`) and the event stream does not already carry
-                            it (`github/events.filed`), which is recorded instead, so each is recovered on its own,
-                            and a conversation nobody could read or a post nobody can find holding the finish; and the
+                            each recovery notice saying where a base advanced again sends the landed head -- said
+                            once per landed head (`announces`): the conversation is read first, and a comment of ours
+                            already announcing the head -- posted ahead of a checkpoint that never landed -- is the
+                            notice made, not posted again, a conversation nobody could read or a post nobody can find
+                            holding the finish, and the event filed behind it (`rewrite_finish_events.py`); and the
                             notice of a configured verification the landed head failed, naming the command, how it
                             failed, and its output's tail
+    rewrite_finish_events.py
+                            the `base_rebased` event a finish files behind its notice, and the method it names: once
+                            per landed head, recorded on the attempt ahead of it
+                            (`pending_auto_base_rebase_announced_event`, in a write of its own,
+                            `rewrite_finish_writes.ANNOUNCED_EVENT`), so a finish finding no record has filed nothing,
+                            and one finding the record with no mark beside it asks the event stream
+                            (`github/events.filed`, the whole audit log included) and files only where the stream
+                            does not carry it, an unreadable log holding the finish with nothing filed
     rewrite_finish_writes.py
                             the guarded commits the finish writes through, under the tick-state guard
                             (`report_commits.py`) and decided on the publication's pinned fields as well: the
@@ -1924,7 +1928,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             state the git owner's park lands (`git/base_sync/persistence.py`, through
                             `rewrite_recovery_parks.py`) so it lands with the attempt's release or not at all,
                             dropped with the recorded base tip blanked where history has no room, so an attempt a
-                            park keeps runs nothing for that landing again.
+                            park keeps runs nothing for that landing again; settled evidence with no room there is
+                            never dropped but kept current and whole beside the attempt, which is not released, its
+                            base tip blanked in a write of its own so every later proof reads the reset, and the
+                            answer False for the git owner to hold with nothing parked until room is made.
                             Evidence a finish of the attempt already settled for the head
                             (`rewrite_landing_records.settled`) is held to the same readings: invalidated into
                             history whole where a snapshot or the landed road reads the landing off its head

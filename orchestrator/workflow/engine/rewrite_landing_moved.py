@@ -109,8 +109,10 @@ from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite, _PushOut
 from orchestrator.git.ref_transport import _RefRead
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import (
+    report_commits as _commits,
     rewrite_finish_captured as _captured,
     rewrite_finish_readiness as _readiness,
+    rewrite_finish_writes as _writes,
     rewrite_landing_records as _landing_records,
     verification_carries as _carries,
     verification_records as _records,
@@ -126,7 +128,7 @@ _RELEASED = "in the write that releases its attempt behind the reset that took t
 _CHECKOUT_GONE = "in the write that parks its attempt, the checkout it was captured on gone"
 
 
-def abandons_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext, why: str = _RELEASED) -> None:
+def abandons_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext, why: str = _RELEASED) -> bool:
     """Stage the abandonment of what a finish captured for the landed head on the state a landed reset's park writes.
 
     The recovery's answer to a reset (`_AutoRebaseRecoveryContext.settles_over_a_reset`),
@@ -147,7 +149,10 @@ def abandons_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
     history entry left to say a run was captured. A reset's release drops the
     tip with the attempt either way. Evidence a finish of the attempt already
     settled for the head is invalidated on that same state for the same reason
-    (`_invalidates_over_the_reset`). `why` names the write it rides, logged.
+    (`_invalidates_over_the_reset`), or -- with no room for its history entry
+    -- kept whole beside the attempt, which is then not released: False there,
+    for the git owner to hold with nothing released or parked. `why` names the
+    write it rides, logged.
     """
     pending = _landing_records.captured(context.state)
     if pending is not None:
@@ -158,7 +163,7 @@ def abandons_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
         if not _carries.abandons(context.state, pending):
             context.state.set(_records.PENDING_EVIDENCE, None)
             context.state.set(_base_sync_state._PENDING_REWRITE_BASE, None)
-    _invalidates_over_the_reset(context, why)
+    return _invalidates_over_the_reset(context, why)
 
 
 def abandons_off_the_landing(context: _AutoRebaseRecoveryContext, snapshot: _AutoRebaseRecoverySnapshot) -> bool:
@@ -242,15 +247,15 @@ def abandons_unproved(context: _AutoRebaseRecoveryContext) -> bool:
     the landing over, the checkout the evidence was taken on being gone, so
     both are retired on the state the park then lands
     (`abandons_over_the_reset`). False only where movement was read and
-    evidence still stands once its retirement was asked, for the git owner to
-    hold the tick with nothing parked.
+    evidence still stands once its retirement was asked -- settled evidence
+    with no room for its history entry among it -- for the git owner to hold
+    the tick with nothing parked.
     """
     settled = _landing_records.settled(context.state)
     if _landing_records.captured(context.state) is None and settled is None:
         return True
     if not context.worktree.is_dir():
-        abandons_over_the_reset(context, _CHECKOUT_GONE)
-        return True
+        return abandons_over_the_reset(context, _CHECKOUT_GONE)
     branch = _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
     unread = _AutoRebaseRecoverySnapshot(branch=branch, local_head="")
     if not _proves_captured(context, unread):
@@ -280,21 +285,41 @@ def _proves_captured(context: _AutoRebaseRecoveryContext, snapshot: _AutoRebaseR
     return _captured.recorded(finish, logged=False) is None
 
 
-def _invalidates_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext, why: str) -> None:
-    """Stage the invalidation of evidence a finish settled for the landed head on `context.state`, for the park.
+def _invalidates_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext, why: str) -> bool:
+    """Stage the invalidation of evidence a finish settled for the landed head on `context.state`; may the attempt go.
 
-    Into history whole where the comment has room, dropped with no entry where
-    it has none, so no decision the reset moved under survives the park.
+    Into history whole, its revision and binding kept, for the park to land
+    with the attempt's release. With no room for its history entry it is not
+    dropped: it stays current, whole, beside the attempt that keeps every
+    reader off it, and the reset is recorded instead by blanking the base tip
+    the attempt recorded its replay as made onto, so every later proof of the
+    evidence reads movement (`rewrite_evidence_proof.standing_refusal`) and
+    invalidates it whole once the comment has room -- putting the checkout
+    back first revives nothing. That blank only shrinks the comment, so it
+    lands at once, guarded as the finish's own abandonment is
+    (`rewrite_finish_writes.ABANDONMENT`), with whatever else this answer
+    staged. False then, for the git owner to keep the attempt and hold the
+    tick with nothing parked until room is made.
     """
     settled = _landing_records.settled(context.state)
     if settled is None:
-        return
+        return True
     log.info(
         "issue=#%d invalidating verification evidence revision %d settled for %.8s, %s",
         context.issue.number, settled.revision, settled.binding.target.target_head, why,
     )
-    if not _settlement.retire_current_evidence(context.state):
-        context.state.set(_records.CURRENT_EVIDENCE, None)
+    if _settlement.retire_current_evidence(context.state):
+        return True
+    context.state.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+    recorded = _commits.ReportCommit(context.gh, context.issue, context.state).lands(
+        context.state, _writes.ABANDONMENT,
+    )
+    log.error(
+        "issue=#%d the pinned comment has no room to retire verification evidence revision %d settled for %.8s; "
+        "keeping it current beside the attempt, its base tip blanked (%s), and holding until room is made",
+        context.issue.number, settled.revision, settled.binding.target.target_head, recorded.status.value,
+    )
+    return False
 
 
 def _finish(

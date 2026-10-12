@@ -158,7 +158,7 @@ def _refresh_reaches(
 def _answers_an_unreadable_checkout(
     context: _AutoRebaseContext,
     consumed_comment_id: int | None,
-    settles_over_a_reset: Callable[[], None] | None = None,
+    settles_over_a_reset: Callable[[], bool] | None = None,
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
     lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None,
 ) -> bool:

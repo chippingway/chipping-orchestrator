@@ -9,13 +9,14 @@ announced -- then the relabel to `workflow:validating`, then the write that
 retires the attempt. Each boundary (`BOUNDARIES`) is a process killed at one
 of those steps, behind every write ahead of it: before the announcement's
 notice is posted, so nothing marks the head announced; behind the notice and
-before the event, so the retry finds the notice with no event recorded;
-behind the event and before its record, so the retry finds the event only on
-the event stream; behind the notice, the event, and the record of the event
-and before the checkpoint, so the retry finds both with no mark beside them; behind the
-checkpoint and before the relabel, so the retry reads the head as already
-announced; and behind the relabel and before the retirement, so the retry
-reads the issue as already relabelled too. A boundary can also stand for
+before the event's record, so the retry finds the notice with no event
+recorded or filed; behind that record and before the event, so the retry
+finds the event recorded and asks the stream, which does not carry it; behind
+the event and before the checkpoint, so the retry finds the notice and the
+event with no mark beside them; behind the checkpoint and before the relabel,
+so the retry reads the head as already announced; and behind the relabel and
+before the retirement, so the retry reads the issue as already relabelled
+too. A boundary can also stand for
 another road's move behind the call it picks rather than a death
 (`Boundary.moving`).
 
@@ -83,7 +84,7 @@ class _Picks:
         return event == "base_rebased"
 
     def recording(self, _issue, state, *, over: dict) -> bool:
-        """Whether a pinned-comment edit is the record of the event filed, which the comment lacks."""
+        """Whether a pinned-comment edit is the record of the event being filed, which the comment lacks."""
         records = state.get(KEY_ANNOUNCED_EVENT) is not None
         return records and over.get(KEY_ANNOUNCED_EVENT) is None
 
@@ -106,9 +107,9 @@ _PICKS = _Picks()
 
 BEFORE_THE_ANNOUNCEMENT = Boundary("before the announcement", "pr_comment", _PICKS.announcing)
 
-BEFORE_THE_EVENT = Boundary("the notice posted, before the event", "emit_event", _PICKS.filing)
+BEFORE_THE_EVENT_RECORD = Boundary("noticed, before the event's record", "edit_pinned_state", _PICKS.recording)
 
-BEFORE_THE_EVENT_RECORD = Boundary("the event filed, before its record", "edit_pinned_state", _PICKS.recording)
+BEFORE_THE_EVENT = Boundary("the event recorded, before it is filed", "emit_event", _PICKS.filing)
 
 BEFORE_THE_CHECKPOINT = Boundary("said, before the checkpoint", "edit_pinned_state", _PICKS.checkpointing)
 
@@ -118,8 +119,8 @@ BEFORE_THE_RETIREMENT = Boundary("relabelled, before the retirement", "edit_pinn
 
 BOUNDARIES = (
     BEFORE_THE_ANNOUNCEMENT,
-    BEFORE_THE_EVENT,
     BEFORE_THE_EVENT_RECORD,
+    BEFORE_THE_EVENT,
     BEFORE_THE_CHECKPOINT,
     BEFORE_THE_RELABEL,
     BEFORE_THE_RETIREMENT,

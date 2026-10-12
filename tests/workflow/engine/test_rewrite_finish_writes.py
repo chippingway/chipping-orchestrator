@@ -93,20 +93,19 @@ class GuardedWriteTest(unittest.TestCase):
         lost = world.github.pinned_failures.lost
         lost.add(support.ISSUE)
 
-        # Said, and the record of the event landed with its answer lost:
-        # nothing behind it is made, the mark included.
+        # Noticed, and the record of the event landed with its answer lost:
+        # nothing behind it is made, the event and the mark included.
         self.assertEqual(world.finalizes(), FinishOutcome.UNCONFIRMED)
-        self.assertEqual(world.relabels(), ())
-        durable = world.pinned()
-        self.assertIsNone(durable.get(support.KEY_ANNOUNCED))
-        self.assertEqual(durable[readings.KEY_ANNOUNCED_EVENT], support.LANDED)
+        self._assert_recorded_alone(world)
 
+        # The retry finds the record and no event on the stream, and files it
+        # once, as the road that finished the head.
         lost.discard(support.ISSUE)
         self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
         notices, events = world.said()
         self.assertEqual(
             (len(notices), events, world.relabels()),
-            (1, [effects.rebased("auto_clean_rebase")], _ROUTED),
+            (1, [effects.rebased("crash_recovery_relabel_only")], _ROUTED),
         )
         self.assertIsNone(world.pinned()[support.KEY_PENDING_PUSH])
 
@@ -152,6 +151,14 @@ class GuardedWriteTest(unittest.TestCase):
         self.assertEqual((len(notices), len(events)), (1, 1))
         self.assertEqual(world.relabels(), _ROUTED)
         self.assertEqual(support.attempt(world.pinned()), _RETIRED)
+
+    def _assert_recorded_alone(self, world: support.FinishWorld) -> None:
+        """The event recorded as being filed for the landed head, and nothing filed, marked, or relabelled."""
+        made = (world.relabels(), world.said()[1])
+        self.assertEqual(made, ((), []))
+        durable = world.pinned()
+        recorded = (durable.get(support.KEY_ANNOUNCED), durable[readings.KEY_ANNOUNCED_EVENT])
+        self.assertEqual(recorded, (None, support.LANDED))
 
 
 if __name__ == "__main__":

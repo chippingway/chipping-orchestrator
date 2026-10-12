@@ -23,6 +23,9 @@ _LOG_PATH = "EVENT_LOG_PATH"
 _REBASED = "base_rebased"
 _FILED_HEAD = "c1c2c3c4c5c6c7c8c9c0c1c2c3c4c5c6c7c8c9c0"
 _OTHER_HEAD = "d1d2d3d4d5d6d7d8d9d0d1d2d3d4d5d6d7d8d9d0"
+_MEBIBYTE = 1_048_576
+# Enough of another event's lines to grow a log past a mebibyte behind the one filed.
+_GROWN_LINES = 20_000
 
 
 def _record(event: str) -> dict:
@@ -117,26 +120,50 @@ class _Client:
         self.recorded_events = list(recorded)
 
 
-def _filed(client: _Client, sha: str) -> bool:
+def _filed(client: _Client, sha: str) -> bool | None:
     """Whether `client`'s stream carries a `base_rebased` for issue #949 naming `sha`."""
     return _events.filed(client, _REBASED, issue_number=_ISSUE_NUMBER, sha=sha)
 
 
+def _logged_with(filed: dict) -> str:
+    """An audit log carrying `filed` behind a line that does not parse, grown past a mebibyte behind it."""
+    later = f"{json.dumps(_record(_EVENT_NAME))}\n" * _GROWN_LINES
+    return f"not json {_REBASED}\n{json.dumps(filed)}\n{later}"
+
+
 class FiledEventTest(unittest.TestCase):
-    """An event already on the stream is found -- in the client's tail, or in the audit log's -- and no other is."""
+    """An event already on the stream is found -- in the client's tail, or anywhere in the audit log -- and no other.
+
+    A log that would not read answers nothing either way, and one never
+    written answers that nothing was filed.
+    """
 
     def test_an_event_is_found_where_it_was_filed(self) -> None:
         # A process lost after filing an event comes back with an empty tail:
-        # the audit log is what still carries it, read from its end, a line
-        # that does not parse passed over.
+        # the audit log is what still carries it, however much it grew since,
+        # a line that does not parse passed over.
         filed = {**_record(_REBASED), "sha": _FILED_HEAD}
+        logged = _logged_with(filed)
         with tempfile.TemporaryDirectory() as work_dir:
             event_path = Path(work_dir) / _LOG_FILE_NAME
-            event_path.write_text(f"not json\n{json.dumps(filed)}\n")
+            event_path.write_text(logged)
             with patch.object(config, _LOG_PATH, event_path):
                 found = (_filed(_Client(), _FILED_HEAD), _filed(_Client(), _OTHER_HEAD))
-        in_memory = _filed(_Client(filed), _FILED_HEAD)
-        self.assertEqual((*found, in_memory), (True, False, True))
+        self.assertGreater(len(logged), _MEBIBYTE)
+        self.assertEqual(found, (True, False))
+        self.assertTrue(_filed(_Client(filed), _FILED_HEAD))
+
+    def test_an_unread_log_is_no_answer(self) -> None:
+        # A log never written carries nothing; one that would not read -- a
+        # directory where the file should be -- says nothing either way.
+        with tempfile.TemporaryDirectory() as work_dir:
+            directory = Path(work_dir)
+            with patch.object(config, _LOG_PATH, directory / _LOG_FILE_NAME):
+                unwritten = _filed(_Client(), _FILED_HEAD)
+            unreadable = patch.object(config, _LOG_PATH, directory)
+            with unreadable, self.assertLogs(_events.log, "WARNING"):
+                unread = _filed(_Client(), _FILED_HEAD)
+        self.assertEqual((unwritten, unread), (False, None))
 
     def test_nothing_is_found_without_a_log(self) -> None:
         with patch.object(config, _LOG_PATH, None):

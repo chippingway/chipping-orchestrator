@@ -187,10 +187,12 @@ class _AutoRebaseRecoveryContext:
     # What the workflow's recovery owes over a reset that takes the checkout
     # off the head the attempt landed, staged on `state` before the attempt is
     # dropped from it, so it rides the park's write with that release or not
-    # at all (`persistence._reset_clear_and_park`, `lands_a_park`). None owes nothing; the
-    # workflow's recovery hands its answer on every road's context
+    # at all (`persistence._reset_clear_and_park`, `lands_a_park`). False keeps
+    # the attempt and holds, nothing dropped or parked: a record that cannot go
+    # with the release. None owes nothing; the workflow's recovery hands its
+    # answer on every road's context
     # (`workflow/engine/rewrite_landing_moved.abandons_over_the_reset`).
-    settles_over_a_reset: Callable[[], None] | None = None
+    settles_over_a_reset: Callable[[], bool] | None = None
     # What the workflow's recovery asks of this context before any park that
     # keeps the attempt standing for a human's reply -- a reset that did not
     # land, an issue relabelled out from under it, a landing made for another

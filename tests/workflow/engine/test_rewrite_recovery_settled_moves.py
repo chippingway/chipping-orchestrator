@@ -14,7 +14,11 @@ landing back and replying revives nothing it decided. And a finish that reads
 the requirements moving under the run invalidates it even where the pinned
 comment will not read again for that write: the invalidation lands over the
 tick's own reading instead, so putting the requirements back revives nothing
-either. The run is never made again, and no developer is launched.
+either. So does a finish the comment has no room to record the landing's
+report debt on: the run is proved ready before the park that debt takes, and
+the requirements edited under it invalidate it there, so making room, putting
+the requirements back, and replying routes the head with nothing current. The
+run is never made again, and no developer is launched.
 """
 from __future__ import annotations
 
@@ -25,18 +29,32 @@ from itertools import product
 from typing import NamedTuple
 from unittest.mock import patch
 
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from orchestrator.workflow.engine import (
     verification_durable as _durable,
     verification_settlement_state as _settlement,
 )
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
+    rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
     rewrite_verification_recovery_support as support,
 )
 
 _EDITED_BODY = "Also cover a base that moved twice."
+
+# Room on the pinned comment for the evidence's history entry and the park
+# behind it, and short of the report debt and the announcement it rides.
+_SHORT_OF_THE_DEBT = 250
+
+_FILLER = "room_filler"
+
+_DEBT_PARK = "auto_base_rebase_unrecorded_debt"
+
+# The finishes that die before their checkpoint lands, so the next one still
+# owes the landing's report debt a write.
+_UNCHECKPOINTED = handoff.BOUNDARIES[:4]
 
 
 def _commits_past(case: support.CapturedRunCase, _head: str) -> None:
@@ -47,6 +65,15 @@ def _commits_past(case: support.CapturedRunCase, _head: str) -> None:
 def _puts_the_checkout_on(case: support.CapturedRunCase, head: str) -> None:
     """Reset `case`'s checkout onto `head`."""
     case._git("reset", "--quiet", "--hard", head, cwd=case._wt)
+
+
+def _fills_short_of_the_debt(case: support.CapturedRunCase) -> None:
+    """Fill the pinned comment to `_SHORT_OF_THE_DEBT` short of its limit, as another road's records would."""
+    filled = case.gh.read_pinned_state(case.issue)
+    filled.set(_FILLER, "")
+    room = MAX_PINNED_BODY - len(pinned_state_body(filled.data))
+    filled.set(_FILLER, "x" * (room - _SHORT_OF_THE_DEBT))
+    case.gh.write_pinned_state(case.issue, filled)
 
 
 def _puts_the_remote_on(case: support.CapturedRunCase, head: str) -> None:
@@ -114,6 +141,35 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
                 routed = (support.announced(self), readings.relabels(self))
                 self.assertEqual(routed, ([head], readings.ROUTED))
                 self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
+
+    def test_a_debt_park_invalidates_first(self) -> None:
+        # The comment has no room for the landing's report debt, and the issue
+        # was edited under the settled run: the run is invalidated before the
+        # park the debt takes, so room made, the requirements put back, and a
+        # reply route the head with nothing current, the run made once.
+        for boundary in _UNCHECKPOINTED:
+            with self.subTest(boundary=boundary.name):
+                self.setUp()
+                head, settled = self._settles_then_dies(boundary)
+                written = self.issue.body
+                self.issue.body = _EDITED_BODY
+                _fills_short_of_the_debt(self)
+
+                self.recovers()
+                self.assertEqual(readings.pinned(self)["park_reason"], _DEBT_PARK)
+                self._assert_invalidated(settled)
+                self._puts_it_right(written)
+
+                self._assert_invalidated(settled)
+                routed = (support.announced(self), readings.relabels(self))
+                self.assertEqual(routed, ([head], readings.ROUTED))
+
+    def _puts_it_right(self, written: str) -> None:
+        """Put the issue's body back as `written`, make room on the comment, reply, and recover once more."""
+        self.issue.body = written
+        finish_moves.makes_room(self)
+        self.continues()
+        self.recovers()
 
     def _settles_then_dies(self, boundary: handoff.Boundary) -> tuple:
         """Land a reviewed rebase, settle its run, and kill the finish at `boundary`; the head, and the settled run."""

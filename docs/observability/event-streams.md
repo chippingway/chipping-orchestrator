@@ -252,12 +252,13 @@ file is the durable record.
 - `base_rebased` — once per landed refresh-time rebase of `workflow:validating` / `workflow:documenting` /
   `in_review` / `workflow:fixing`, ahead of the route back to `workflow:validating` (which a head the base has
   advanced past again does not take; the next rebase goes on from it instead), by the workflow's one finish
-  (`workflow/engine/rewrite_finish_notices.py`) for the clean rebase `_sync_pr_worktree_to_base` publishes, for the
+  (`workflow/engine/rewrite_finish_events.py`) for the clean rebase `_sync_pr_worktree_to_base` publishes, for the
   replay a crashed prior tick never published that its recovery pushes again, and for a crashed tick's push the
   recovery finds already landed (`workflow/engine/rewrite_landed.py`) -- never twice for one publication, since the
-  attempt records the event right behind it (`pending_auto_base_rebase_announced_event`) and a finish lost before
-  that record finds the event on this stream instead (`github/events.filed`, over the audit log's tail), so a
-  resumed finish records it rather than filing it again, and only once the landed head's
+  attempt records the event right ahead of it (`pending_auto_base_rebase_announced_event`), and a finish that finds
+  that record with no announcement mark beside it asks this stream before filing again (`github/events.filed`: the
+  client's in-memory tail, then the whole audit log); a log the process cannot read holds that finish with nothing
+  filed, and only a log rotated or truncated in between can let it file a second one -- and only once the landed head's
   verification evidence is resolved (settled, retired, or left to the fresh reviewer), so a tick whose evidence post
   or settlement did not resolve files nothing and a later tick's finish files it;
   extras: `pr_number`, `sha` (new head), `method` ∈ {`auto_clean_rebase` for the tick's own push,
@@ -302,10 +303,13 @@ An `OSError` during the append is caught and downgraded to a `log.warning` so a 
 disk full, permission failure) cannot stop the per-issue tick from making progress; the missing record is silently
 dropped and the pinned state on GitHub remains correct.
 
-**Pinned state is authoritative.** The event log is append-only and observation-only. The orchestrator never reads it
-back; every dispatch decision keys off the pinned `<!--orchestrator-state ...-->` JSON comment on the issue (and the
-issue's workflow label). If the two disagree, trust pinned state. The append-only log is safe to truncate or delete at
-any time without affecting workflow correctness.
+**Pinned state is authoritative.** The event log is append-only and observation-only. The orchestrator reads it back
+in one place only, and decides nothing on it: a base-rewrite finish whose pinned record says its `base_rebased` may
+already be out asks the log whether it is, so a process lost behind the event files it once (`github/events.filed`).
+Every dispatch decision keys off the pinned `<!--orchestrator-state ...-->` JSON comment on the issue (and the issue's
+workflow label). If the two disagree, trust pinned state. The append-only log is safe to truncate or delete at any time
+without affecting workflow correctness -- doing so while such a finish is pending can only let it file that event a
+second time, and a log made unreadable holds the finish until it reads again.
 
 ## Analytics sink (`ANALYTICS_LOG_PATH`)
 

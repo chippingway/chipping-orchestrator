@@ -2,30 +2,37 @@
 # SPDX-License-Identifier: Apache-2.0
 """Structured GitHub audit event construction, persistence, and the lookup of one already filed.
 
-`filed` answers whether an event a caller is about to file is already on the
-stream -- in the client's in-memory tail, or in the tail of the audit log
-(`EVENT_LOG_PATH`) -- so a caller whose own durable record of filing it could
-not land before its process was lost files it once rather than twice. Only the
-log's last `_FILED_TAIL` bytes are read, since a caller retrying a step follows
-its first try within ticks; with no log configured, an event filed by a
-process that was lost went nowhere durable, and the tail of the live one is
-all there is to ask.
+`filed` answers whether an event a caller may already have filed is on the
+stream -- in the client's in-memory tail, or anywhere in the audit log
+(`EVENT_LOG_PATH`) -- for a caller whose durable record says it was about to
+file it and nothing says whether it did: a process lost between the two files
+it once rather than twice, however long the retry takes. The whole log is
+read, a block at a time and only the lines naming the event parsed, so a log
+grown since by any amount still answers. A log the process cannot read is
+nobody's answer (None), never an absence: the caller holds rather than files.
+A log never written, or no log configured at all, is an absence -- an event a
+lost process filed with none went nowhere durable, and the live process's
+tail is all there is to ask. A log rotated or truncated by its operator
+between the two no longer carries what it dropped.
 """
 from __future__ import annotations
 
 import json
 import logging
-import os
+from collections.abc import Iterator
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO
 
 from orchestrator import config
 
 log = logging.getLogger("orchestrator.github")
 
-# How much of the audit log's end `filed` reads: one mebibyte.
-_FILED_TAIL = 1_048_576
+# How much of the audit log `filed` reads at a time: four mebibytes.
+_BLOCK = 4_194_304
+
+_NEWLINE = b"\n"
 
 
 def append_event_line(event_path: Path, event_record: dict) -> None:
@@ -69,13 +76,13 @@ def build_event_record(
     return event_record
 
 
-def filed(client: Any, event: str, *, issue_number: int, **identity: Any) -> bool:
+def filed(client: Any, event: str, *, issue_number: int, **identity: Any) -> bool | None:
     """Whether `event` for `issue_number`, carrying every member of `identity`, is already on the stream.
 
-    Asked of `client`'s in-memory tail of recorded events and of the audit
-    log's tail, each record matched on its event, issue, repository, and every
-    member of `identity` (`_matches`); a log nobody could read answers for
-    none of its lines.
+    Asked of `client`'s in-memory tail of recorded events and then of the
+    whole audit log, each record matched on its event, issue, repository, and
+    every member of `identity` (`_matches`). None where the log is configured
+    and would not read, which says nothing either way.
     """
     wanted = {"event": event, "issue": int(issue_number), **identity}
     repo = getattr(client, "_repo_slug", None)
@@ -86,7 +93,10 @@ def filed(client: Any, event: str, *, issue_number: int, **identity: Any) -> boo
     event_path = config.EVENT_LOG_PATH
     if event_path is None:
         return False
-    return any(_matches(record, wanted) for record in _logged_tail(event_path))
+    logged = _logged(Path(event_path), event)
+    if logged is None:
+        return None
+    return any(_matches(record, wanted) for record in logged)
 
 
 def _matches(record: Any, wanted: dict) -> bool:
@@ -97,22 +107,40 @@ def _matches(record: Any, wanted: dict) -> bool:
     return carried == wanted
 
 
-def _logged_tail(event_path: Path) -> list:
-    """The records the audit log's last `_FILED_TAIL` bytes parse as, a partial first line dropped."""
+def _logged(event_path: Path, event: str) -> list | None:
+    """Every record of the audit log whose line names `event`; [] for a log never written, None for one unread."""
+    named = json.dumps(event).encode()
     try:
-        with Path(event_path).open("rb") as event_stream:
-            size = event_stream.seek(0, os.SEEK_END)
-            event_stream.seek(max(0, size - _FILED_TAIL))
-            tail = event_stream.read().decode("utf-8", "replace").splitlines()
+        with event_path.open("rb") as event_stream:
+            lines = list(_named_lines(event_stream, named))
+    except FileNotFoundError:
+        return []
     except OSError as error:
         log.warning("could not read event log %s back: %s", event_path, error)
-        return []
-    if size > _FILED_TAIL:
-        tail = tail[1:]
+        return None
     records = []
-    for line in tail:
+    for line in lines:
         try:
             records.append(json.loads(line))
         except ValueError:
             log.debug("skipping an event log line that does not parse")
     return records
+
+
+def _named_lines(event_stream: BinaryIO, named: bytes) -> Iterator[bytes]:
+    """The lines of `event_stream` naming `named`, read a block at a time.
+
+    Each block is cut at its last line end and the rest carried into the one
+    behind it, so a line is only ever read whole, and only a block naming
+    `named` is split into lines at all.
+    """
+    carried = b""
+    for block in iter(partial(event_stream.read, _BLOCK), b""):
+        whole = carried + block
+        cut = whole.rfind(_NEWLINE) + 1
+        carried = whole[cut:]
+        lines = whole[:cut]
+        if named in lines:
+            yield from (line for line in lines.split(_NEWLINE) if named in line)
+    if named in carried:
+        yield carried

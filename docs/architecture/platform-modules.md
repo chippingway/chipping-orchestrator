@@ -225,9 +225,10 @@ orchestrator/
                         one quoting a receipt marker, and one past a comment's length are refused rather than cut,
                         and a comment reads back as a report only when it is ours and re-renders byte for byte --
                         never one whose header claims a count of more digits than Python converts
-    events.py           audit event record construction and the optional JSONL sink, and whether an event is
-                        already on the stream -- the client's in-memory tail or the sink's -- for a caller whose
-                        record of filing it was lost (`filed`)
+    events.py           audit event record construction and the optional JSONL sink, and whether an event a
+                        caller may already have filed is on the stream -- the client's in-memory tail, then the
+                        whole sink, read a block at a time -- with a sink that would not read answered as no
+                        answer rather than as an absence (`filed`)
     issue_polling.py    the one walk over a repository's issues a tick is served from: the open poll, the
                         cadenced closed sweep beside it, and the shared number set both filter through so an
                         issue two queries return is dispatched once, and which drops the pull requests those
@@ -757,7 +758,9 @@ orchestrator/
                         has actually landed, since a refused one may leave the branch still standing on the
                         approved commit; a recovery context is asked first what it owes over that reset
                         (`settles_over_a_reset`), staged on the same state so it rides the one park write -- an
-                        optional answer the workflow's recovery hands on every road. The park's notice is the
+                        optional answer the workflow's recovery hands on every road, which answers whether the
+                        attempt may go; one that may not is kept, with nothing dropped or parked
+                        (`_releases_over_the_reset`). The park's notice is the
                         caller's reason followed by what the reset, the clean, and the drop came to
                         (`_reset_outcome`), so a reset that failed is never reported as made, and the drop is said
                         as what the park's own write makes durable, since the notice goes out ahead of it. Every

@@ -70,9 +70,10 @@ refuses stops the finish there with nothing behind it made:
   its notice's ledger entry reserved over the ledger that comment carries, so
   a comment that would refuse it posts nothing; then the notice and the event
   go out once each (`rewrite_finish_notices.announces`) -- the notice found
-  on the pull request rather than posted again, and the event filed only
-  where the attempt does not record it filed, where an earlier finish said
-  them ahead of a checkpoint that never landed -- and the checkpoint lands the debt, the
+  on the pull request rather than posted again, where an earlier finish said
+  it ahead of a checkpoint that never landed, and the event recorded on the
+  attempt ahead of it and filed again only where the event stream does not
+  carry it (`rewrite_finish_events`) -- and the checkpoint lands the debt, the
   reset round, and the mark while the anchor still stands. A checkpoint
   refused over a report record another road moved while the notice was posted
   has read movement under the settled evidence, which is invalidated before
@@ -157,6 +158,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish_settlement as _settlement,
     rewrite_finish_writes as _writes,
 )
+from orchestrator.workflow.engine.rewrite_finish_events import method
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -305,7 +307,7 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     if stopped is None:
         log.info(
             "issue=#%d announced the base rewrite PR #%d landed on %.8s (%s)",
-            finish.issue.number, finish.pr_number, finish.head, _notices.method(finish),
+            finish.issue.number, finish.pr_number, finish.head, method(finish),
         )
         stopped = _writes.lands(finish, staged, _writes.CHECKPOINT, observed)
     return _readiness.invalidates_behind(finish, stopped, observed)
@@ -325,14 +327,21 @@ def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     (`rewrite_finish_evidence.continues`), and an abandonment that did not
     land holds it the same way, as does a record another road left unresolved
     beside the evidence this landing already resolved. A debt the comment has no room for runs and
-    records nothing ahead of the park it takes (`rewrite_finish_debt.fits`).
-    A checkpoint that did not land, or the park, stops the route behind the
-    last word over a transaction still recorded for the head.
+    records nothing ahead of the park it takes (`rewrite_finish_debt.fits`),
+    but evidence an earlier finish already settled for the head is proved
+    ready first all the same (`rewrite_finish_settlement.stands_ready_if_settled`):
+    the park keeps it current for the reply that brings the route back, so
+    anything read moving under it now is invalidated before the park, and
+    putting that back before the reply revives nothing; a proof that holds
+    holds the park too. A checkpoint that did not land, or the park, stops the
+    route behind the last word over a transaction still recorded for the head.
     """
     if _debt.fits(finish, announced=announced):
         stopped = _settlement.resolves(finish)
-        if stopped is not None:
-            return stopped
+    else:
+        stopped = _settlement.stands_ready_if_settled(finish)
+    if stopped is not None:
+        return stopped
     stopped = _checkpoints(finish, announced=announced)
     return None if stopped is None else _captured.stands_before_the_route(finish, behind=stopped)
 

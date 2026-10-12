@@ -21,15 +21,10 @@ announcement mark lands only behind them (`announces`), and each is
 recovered on its own. The pull request's conversation is read first, and a
 comment of ours already announcing the head -- one an earlier finish posted
 before its checkpoint was refused, went unconfirmed, or the process died -- is
-that notice made: entered in the ledger and not posted again. The event
-is recorded on the attempt in a write of its own right behind it
-(`pending_auto_base_rebase_announced_event`, `rewrite_finish_writes.ANNOUNCED_EVENT`):
-a finish finding that record files nothing again, and one finding none files
-the event -- a finish lost after its notice and before its event included --
-unless the event stream itself already carries a `base_rebased` for the head
-(`github.events.filed`: the client's in-memory tail, or the audit log's), a
-process lost between filing the event and recording it, which it records
-rather than files again. A conversation nobody could read, or a post that
+that notice made: entered in the ledger and not posted again. The event is
+filed behind it (`rewrite_finish_events`), recorded on the attempt ahead of
+it, and filed again only where neither that record nor the event stream says
+it may already be out. A conversation nobody could read, or a post that
 raised and is not found on the conversation read again, holds the finish with
 nothing filed, for the next tick to ask again. A notice that lands enters the
 ledger of this orchestrator's comments on the state the caller stages, so the
@@ -47,23 +42,19 @@ announcement nor the route goes on until the pull request carries it
 """
 from __future__ import annotations
 
-import copy
 import logging
-from dataclasses import replace
 
-from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.git.verification.models import VerifyResult
-from orchestrator.github import comments as _github_comments, events as _github_events
+from orchestrator.github import comments as _github_comments
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     messages as _messages,
-    pinned_commit as _commit,
-    rewrite_finish_writes as _writes,
+    rewrite_finish_events as _filing,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.stages.validating import verify as _verify
-from orchestrator.workflow.state import WorkflowLabel, stage_name
+from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -73,20 +64,6 @@ _SHORT_SHA = 8
 # How every road's announcement of a landing opens.
 _ANNOUNCES = ":mag:"
 
-# The attempt's record of the `base_rebased` event a finish filed for its head.
-_FILED = _base_sync_state._PENDING_ANNOUNCED_EVENT
-
-_REBASED = "base_rebased"
-
-
-def method(finish: LandedFinish) -> str:
-    """How the landed head reached its finish, as the `base_rebased` event names it."""
-    if not finish.pushed:
-        return "crash_recovery_relabel_only"
-    if finish.road is FinishRoad.PUBLICATION:
-        return "auto_clean_rebase"
-    return "crash_recovery_pushed"
-
 
 def announces(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
     """Say `finish`'s landing once -- its notice, then its `base_rebased` event; None to land the checkpoint.
@@ -94,10 +71,10 @@ def announces(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None
     The notice's comment is recorded on `staged`, the state the announcement
     write is made from, whether this tick posted it or found an earlier
     finish's on the conversation (`_found`) -- which is that notice made, so
-    it is not posted again. The event is filed unless the attempt records it
-    filed (`_files`). HELD, with nothing filed, where the conversation would
-    not read, or where the post raised and the conversation read again does
-    not show it; the outcome of the event's record where that did not land.
+    it is not posted again. The event is filed behind it, once
+    (`rewrite_finish_events.files`). HELD, with nothing filed, where the
+    conversation would not read, or where the post raised and the
+    conversation read again does not show it; the event's outcome otherwise.
     """
     readable, found = _found(finish)
     if readable and found is None:
@@ -112,7 +89,7 @@ def announces(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None
             if found is None:
                 return FinishOutcome.HELD
             _comments._track_orchestrator_comment(staged, found)
-        return _files(finish, staged)
+        return _filing.files(finish, staged)
     if not readable:
         return FinishOutcome.HELD
     _comments._track_orchestrator_comment(staged, found)
@@ -120,59 +97,7 @@ def announces(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None
         "issue=#%d finds the notice of its landed base rewrite of %.8s already on PR #%d; not posting it again",
         finish.issue.number, finish.head, finish.pr_number,
     )
-    return _files(finish, staged)
-
-
-def _files(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
-    """File `finish`'s `base_rebased` event once, recorded on the attempt right behind it; None to go on.
-
-    The event reports the round the reviewer is asked to spend afresh on the
-    landed head, which every finish resets. An attempt already recording it
-    filed for this head files nothing again, and neither does one whose event
-    the stream already carries for the head (`github.events.filed`) -- a
-    process lost between filing it and recording it -- which is recorded now.
-    The record lands in a write of its own (`rewrite_finish_writes.ANNOUNCED_EVENT`)
-    before anything else is asked; the tick's state and `staged`, the
-    checkpoint's own, take in that record and nothing else the write read, so
-    the checkpoint behind it is still decided on every other record as the
-    tick read it. A record that did not land is where the finish stops.
-    """
-    if finish.state.get(_FILED) == finish.head:
-        log.info(
-            "issue=#%d finds the base_rebased event of %.8s already filed; not filing it again",
-            finish.issue.number, finish.head,
-        )
-        return None
-    if _github_events.filed(finish.gh, _REBASED, issue_number=finish.issue.number, sha=finish.head):
-        log.info(
-            "issue=#%d finds the base_rebased event of %.8s on the event stream; recording it, filing nothing",
-            finish.issue.number, finish.head,
-        )
-    else:
-        finish.gh.emit_event(
-            _REBASED,
-            issue_number=finish.issue.number,
-            stage=stage_name(finish.label),
-            pr_number=finish.pr_number,
-            sha=finish.head,
-            method=method(finish),
-            review_round=0,
-            retry_count=finish.state.get("retry_count"),
-        )
-    # Landed over a copy of the tick's state, so the tick takes in the record
-    # alone: every other field it was decided on stays as the tick read it,
-    # and a move another road made before the record still refuses the
-    # checkpoint behind it.
-    held = copy.deepcopy(finish.state)
-    recorded = _writes.staging(finish)
-    recorded.set(_FILED, finish.head)
-    stopped = _writes.lands(replace(finish, state=held), recorded, _writes.ANNOUNCED_EVENT)
-    finish.state.withheld = finish.state.withheld or held.withheld
-    if stopped is None:
-        finish.state.set(_FILED, finish.head)
-        _commit.takes_in(finish.state, {_FILED: finish.head}, (_FILED,))
-        staged.set(_FILED, finish.head)
-    return stopped
+    return _filing.files(finish, staged)
 
 
 def notice(finish: LandedFinish) -> str:
