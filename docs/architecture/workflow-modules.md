@@ -1309,12 +1309,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             failed, and its output's tail
     rewrite_finish_events.py
                             the `base_rebased` event a finish files behind its notice, and the method it names: once
-                            per landed head, recorded on the attempt ahead of it
+                            per landed head, the event stream asked first by every finish until the mark is down
+                            (`github/events.filed`, the whole audit log included), whatever the attempt records --
+                            a finish from before the record existed filed it with none -- and filed only where the
+                            stream does not carry it, recorded on the attempt ahead of it
                             (`pending_auto_base_rebase_announced_event`, in a write of its own,
-                            `rewrite_finish_writes.ANNOUNCED_EVENT`), so a finish finding no record has filed nothing,
-                            and one finding the record with no mark beside it asks the event stream
-                            (`github/events.filed`, the whole audit log included) and files only where the stream
-                            does not carry it, an unreadable log holding the finish with nothing filed
+                            `rewrite_finish_writes.ANNOUNCED_EVENT`) so it goes out only for an attempt still
+                            standing; an unreadable log holds the finish with nothing filed
     rewrite_finish_writes.py
                             the guarded commits the finish writes through, under the tick-state guard
                             (`report_commits.py`) and decided on the publication's pinned fields as well: the

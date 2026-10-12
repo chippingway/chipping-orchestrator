@@ -71,9 +71,9 @@ refuses stops the finish there with nothing behind it made:
   a comment that would refuse it posts nothing; then the notice and the event
   go out once each (`rewrite_finish_notices.announces`) -- the notice found
   on the pull request rather than posted again, where an earlier finish said
-  it ahead of a checkpoint that never landed, and the event recorded on the
-  attempt ahead of it and filed again only where the event stream does not
-  carry it (`rewrite_finish_events`) -- and the checkpoint lands the debt, the
+  it ahead of a checkpoint that never landed, and the event filed only where
+  the event stream does not already carry it, recorded on the attempt ahead
+  of it (`rewrite_finish_events`) -- and the checkpoint lands the debt, the
   reset round, and the mark while the anchor still stands. A checkpoint
   refused over a report record another road moved while the notice was posted
   has read movement under the settled evidence, which is invalidated before

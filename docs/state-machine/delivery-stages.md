@@ -1561,14 +1561,15 @@ because there it is the claim that this stage has already rerouted rather than a
     checkpoint, so each is recovered on its own (`rewrite_finish_notices.announces`). A finish reads the pull
     request's conversation before it posts anything, and a comment of ours already announcing the head -- posted by
     a tick whose checkpoint was refused, went unconfirmed, or died -- is that notice made, entered in the ledger and
-    not posted again. The event is recorded on the attempt in a guarded write of its own right ahead of it
-    (`pending_auto_base_rebase_announced_event`, `rewrite_finish_events`): a finish finding no record for the head
-    has filed nothing and records it before filing, and one finding the record with no mark beside it asks the event
-    stream (`github/events.filed`: the client's in-memory tail, then the whole audit log, however much it grew) and
-    files the event only where the stream does not carry it -- so a tick lost on either side of the event files it
-    once in all, and a log the process cannot read holds the finish with nothing filed rather than counting as
-    absent. A conversation nobody could read, or a post that raised and does not show on the conversation read
-    again, holds the finish with nothing filed. The checkpoint is decided on the report
+    not posted again. Until the mark is down, every finish asks the event stream before it files the event
+    (`rewrite_finish_events`, `github/events.filed`: the client's in-memory tail, then the whole audit log, however
+    much it grew) and files it only where the stream does not carry it, recorded first on the attempt in a guarded
+    write of its own (`pending_auto_base_rebase_announced_event`) so it goes out only for an attempt still standing.
+    That record is no proof either way -- a finish from before it existed filed the event with none -- so the stream
+    is asked whether or not the attempt carries it, and a tick lost on either side of the event, on this build or an
+    earlier one, files it once in all. A log the process cannot read holds the finish with nothing filed, relabelled,
+    or retired rather than counting as absent. A conversation nobody could read, or a post that raised and does not
+    show on the conversation read again, holds the finish with nothing filed. The checkpoint is decided on the report
     records, so a report another road settled while the notice was posted refuses it -- and that refusal is movement
     read under the settled evidence, invalidated there and then, before the finish stops
     (`rewrite_finish_readiness.invalidates_behind`), with the attempt and the newer report kept.

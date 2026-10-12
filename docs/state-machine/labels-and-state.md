@@ -3190,8 +3190,8 @@ The keys that matter for the state machine fall into a few groups:
   The notice and the event go out ahead of this write, so a tick lost between them and it leaves no mark, and each is
   recovered on its own (`workflow/engine/rewrite_finish_notices.py`): the next finish reads the pull request's
   conversation first and takes a comment of ours already announcing the head as that notice made, posting it no
-  more, and files the event only where neither `pending_auto_base_rebase_announced_event` (below) nor the event
-  stream says it may already be out (`workflow/engine/rewrite_finish_events.py`).
+  more, and files the event only where the event stream does not already carry it, recording it first in
+  `pending_auto_base_rebase_announced_event` (below; `workflow/engine/rewrite_finish_events.py`).
   BOTH finishes write it and for the same reason — the refresh's own publishing tail, which announces the rebase it just
   pushed, and the recovery, which announces one an earlier tick left — since neither is distinguishable afterwards from
   an attempt that never got that far. The report debt the landed head leaves (`developer_report_rewrite_debt`) rides the
@@ -3220,15 +3220,16 @@ The keys that matter for the state machine fall into a few groups:
   `pending_auto_base_rebase_announced_event` — the head whose `base_rebased` event a finish of the attempt is
   filing, written in a guarded write of its own right ahead of the event and of the mark
   (`workflow/engine/rewrite_finish_writes.ANNOUNCED_EVENT`), and blanked with the rest of the attempt by every write
-  that ends it. A finish finding none for the head has filed nothing, and writes it before it files the event. One
-  finding it with no mark beside it -- a process lost between this write and the mark, on either side of the event,
-  or a mark refused or never confirmed behind it -- asks the event stream (`github/events.filed`: the client's
-  in-memory tail, then the whole audit log, however much it grew since) and files the event only where the stream
-  does not carry it; a log the process cannot read is no answer, and holds the finish with nothing filed for the next
+  that ends it. The event goes out only behind it, so it is filed only for an attempt still standing as the finish
+  read it, and the member says the event may be out. Its absence proves nothing: a finish from before this member
+  existed filed the event and could die behind it with none written. So until the mark is down, every finish asks
+  the event stream first, member or no member (`github/events.filed`: the client's in-memory tail, then the whole
+  audit log, however much it grew since), and files the event only where the stream does not carry it; a log the
+  process cannot read is no answer, and holds the finish -- nothing filed, relabelled, or retired -- for the next
   tick to ask again. With no audit log configured, an event a lost process filed went nowhere durable, so the live
-  tail is all there is to ask; a log rotated or truncated in between no longer carries what it dropped. The tick that
-  writes it takes in that member alone, so the mark behind it is still decided on every other record as the tick
-  read it. Additive: an attempt from before this member existed carries none.
+  tail is all there is to ask; a log rotated or truncated in between no longer carries what it dropped. The tick
+  that writes it takes in that member alone, so the mark behind it is still decided on every other record as the
+  tick read it. Additive: an attempt from before this member existed carries none.
   `auto_base_rebase_failed_verification` sits beside the group without being a member of it: the notice a landed
   head's failed configured verification is owed — an object of `head`, the rewritten head the run failed on, and
   `notice`, the notice's whole text (the failing command, how it failed, and its output's tail) — written by the

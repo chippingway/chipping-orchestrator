@@ -23,8 +23,8 @@ comment of ours already announcing the head -- one an earlier finish posted
 before its checkpoint was refused, went unconfirmed, or the process died -- is
 that notice made: entered in the ledger and not posted again. The event is
 filed behind it (`rewrite_finish_events`), recorded on the attempt ahead of
-it, and filed again only where neither that record nor the event stream says
-it may already be out. A conversation nobody could read, or a post that
+it, and only where the event stream does not already carry it. A
+conversation nobody could read, or a post that
 raised and is not found on the conversation read again, holds the finish with
 nothing filed, for the next tick to ask again. A notice that lands enters the
 ledger of this orchestrator's comments on the state the caller stages, so the

@@ -7,9 +7,11 @@ reviewed rebase finished with the audit log configured, the process killed
 behind the event and before the checkpoint that marks the head announced. The
 next process starts with no event in memory, and the log has grown by more
 than a mebibyte of other issues' events since: the recovery asks the whole
-log for the event its attempt records as being filed, finds it, and files
-nothing again -- one `base_rebased` on the log for one rewrite, the head
-routed once. A log that would not read is no answer: the finish is held with
+log for the event before it files one, finds it, and files nothing again --
+one `base_rebased` on the log for one rewrite, the head routed once. So does
+an attempt a finish from before the attempt recorded its events left, which
+filed the event and died behind it with no record of it on the comment. A
+log that would not read is no answer: the finish is held with
 nothing filed, relabelled, or retired, and the next tick, the log readable
 again, finds the event the same way. Nothing is run again, pushed, or
 launched.
@@ -60,6 +62,18 @@ class EventStreamRecoveryTest(support.CapturedRunCase, unittest.TestCase):
 
     def test_a_fresh_process_finds_the_event(self) -> None:
         head = self._dies_behind_the_event()
+
+        self.recovers()
+
+        self._assert_filed_once(head)
+
+    def test_an_unrecorded_event_is_found_too(self) -> None:
+        # A finish from before the record existed filed the event and died
+        # behind it, leaving no record of it on the attempt.
+        head = self._dies_behind_the_event()
+        legacy = self.gh.read_pinned_state(self.issue)
+        legacy.data.pop(readings.KEY_ANNOUNCED_EVENT)
+        self.gh.write_pinned_state(self.issue, legacy)
 
         self.recovers()
 

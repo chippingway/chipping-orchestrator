@@ -52,7 +52,7 @@ a failed reading of the comment does not leave a decision standing that a
 later reading, once the movement is put back, would take as current.
 `ANNOUNCED_EVENT` records the `base_rebased` event a finish is filing for
 the landed head, on its own and right ahead of it, decided on the attempt
-alone.
+alone, so the event goes out only behind a write proving the attempt stands.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, the claim the checkpoint made durable, and every
@@ -160,8 +160,8 @@ INVALIDATION = _commits.ReportWrite(
 )
 
 # The record of the `base_rebased` event a finish is filing, landed on its own
-# right ahead of the event and of the checkpoint (`rewrite_finish_events`), so a
-# finish lost before its mark asks the event stream before filing it again.
+# right ahead of the event and of the checkpoint (`rewrite_finish_events`), so
+# the event goes out only behind a write proving the attempt still stands.
 ANNOUNCED_EVENT = _commits.ReportWrite(
     owned=frozenset((_base_sync_state._PENDING_ANNOUNCED_EVENT,)),
     decided_on=_ATTEMPT,

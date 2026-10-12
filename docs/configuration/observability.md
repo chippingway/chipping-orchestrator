@@ -11,7 +11,10 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
 
 ## Settings
 
-- `EVENT_LOG_PATH` — default _(unset)_. optional JSONL audit sink, one event per line, no built-in rotation. See
+- `EVENT_LOG_PATH` — default _(unset)_. optional JSONL audit sink, one event per line, no built-in rotation. Once set,
+  the orchestrator also reads the whole file back before each `base_rebased` a base-rewrite finish files, and holds
+  that route while the file exists but cannot be read; rotating or truncating it while a crashed finish is still to
+  retry can let that retry file its `base_rebased` twice. See
   [`event-streams.md#audit-event-log`](../observability/event-streams.md#audit-event-log-event_log_path).
 - `ANALYTICS_LOG_PATH` — default `LOG_DIR/analytics.jsonl`. project-local analytics JSONL sink. Set to empty / `off` /
   `disabled` / `none` to disable. Which kinds land here — the per-tick and per-run records, the one bounded record

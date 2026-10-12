@@ -4,8 +4,8 @@
 
 `filed` answers whether an event a caller may already have filed is on the
 stream -- in the client's in-memory tail, or anywhere in the audit log
-(`EVENT_LOG_PATH`) -- for a caller whose durable record says it was about to
-file it and nothing says whether it did: a process lost between the two files
+(`EVENT_LOG_PATH`) -- for a caller that nothing durable can tell whether it
+filed it: a process lost between filing it and the write that says so files
 it once rather than twice, however long the retry takes. The whole log is
 read, a block at a time and only the lines naming the event parsed, so a log
 grown since by any amount still answers. A log the process cannot read is
