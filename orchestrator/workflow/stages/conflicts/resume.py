@@ -27,6 +27,9 @@ neutral prompt leads the frozen drift prompt, and the command is left out of
 everything that read quotes. A reply over such a park is marked read by what
 that frozen read delivered rather than ahead of it, and the read quotes every
 reply whole, so a reply is never marked read without having been handed over.
+Over any other park a retry that becomes a fresh spawn -- as every retry after
+an account quota retired the conversation does -- is re-grounded on the thread
+less the commands it consumed, so the command reaches no prompt there either.
 Untrusted authors are dropped before any of that, so an outsider reply neither
 steers the dev nor advances the consumed-comment watermark.
 
@@ -265,7 +268,10 @@ def _resume_awaiting_human(
         _conflict_guards._ensure_conflict_worktree(ctx),
     )
     entered_head = pr.head.sha
-    run = _run_drift_resume(ctx, reply) if owes else _run_conflict_resume(ctx, reply.followup)
+    run = (
+        _run_drift_resume(ctx, reply) if owes
+        else _run_conflict_resume(ctx, reply.followup, thread_text=reply.thread_text)
+    )
     # Live pause applied mid-run: honor the helper's decision and return
     # before `_post_conflict_resolution_result` (which parses the result,
     # pushes, relabels, and writes pinned state). The in-progress rebase stays
@@ -292,9 +298,11 @@ def _awaiting_human_followup(
     the `/orchestrator continue` command is refused (park written). Otherwise
     returns the retry prompt, with the commands it consumed, or the joined
     reply text -- with the last comment of the batch, which the caller marks
-    read as its road requires.
+    read as its road requires. A retry carries the conversation less its
+    commands too, for the fresh spawn it becomes where the session was
+    retired: re-grounded on the live thread instead, the developer would be
+    handed the literal command after all.
     """
-    last_action_id = ctx.state.get("last_action_comment_id")
     # Drop untrusted authors up front (mirrors `_resume_developer_on_human_reply`):
     # with `ALLOWED_ISSUE_AUTHORS` set an outsider reply on a parked rebase must
     # not steer the developer NOR advance the consumed watermark. Only trusted
@@ -308,7 +316,7 @@ def _awaiting_human_followup(
     ours = frozenset(_comments._orchestrator_ids(ctx.state))
     new_comments = [
         comment
-        for comment in filter_trusted(ctx.gh.comments_after(ctx.issue, last_action_id))
+        for comment in filter_trusted(ctx.gh.comments_after(ctx.issue, ctx.state.get("last_action_comment_id")))
         if comment.id not in ours
     ]
     if not new_comments:
@@ -333,10 +341,15 @@ def _awaiting_human_followup(
         return None
     through = max(comment.id for comment in new_comments)
     if continue_action == "retry":
+        retried = frozenset(comment.id for comment in new_comments)
         return _models._ParkedReply(
             f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}",
             through,
-            frozenset(comment.id for comment in new_comments),
+            retried,
+            _prompt_context._thread_text(
+                [seen for seen in ctx.issue.get_comments() if seen.id not in retried],
+                retained_ids=ours,
+            ),
         )
     return _models._ParkedReply(_quoted_reply(new_comments), through)
 

@@ -449,7 +449,9 @@ class ResolvingConflictSessionRecoveryTest(
         # A rebase an account quota stopped -- mid-rebase with a tool step
         # still open, or past its timeout -- parks as the session limit rather
         # than `rebase_in_progress` or `agent_timeout`, and the bare continue
-        # after the reset resumes the developer on it instead of refusing.
+        # after the reset retries the developer on it instead of refusing: in
+        # a fresh conversation, since the quota retired the one it stopped,
+        # re-grounded on a conversation that does not quote the command.
         for shape, stalled in QUOTA_STALLS:
             with self.subTest(stalled=shape):
                 github, issue = self._seed()[:2]
@@ -461,13 +463,14 @@ class ResolvingConflictSessionRecoveryTest(
                 assert_session_limit_park(self, github, CONFLICT_ISSUE)
                 issue.comments.append(FakeComment(id=HUMAN_REPLY_ID, body=BARE_CONTINUE, user=OPERATOR))
 
-                resumed = self._run_with_merge(
+                retried = self._run_with_merge(
                     github, issue, merge_succeeded=True, head_shas=[BEFORE_HEAD, MERGED_HEAD], push_branch=True,
                     run_agent_result=_agent(session_id=DEV_SESSION, last_message="resolved"),
-                )[0]
+                )[0][RUN_AGENT]
 
-                resumed[RUN_AGENT].assert_called_once()
-                self.assertNotIn(BARE_CONTINUE, resumed[RUN_AGENT].call_args.args[1])
+                retried.assert_called_once()
+                self.assertIsNone(retried.call_args.kwargs.get("resume_session_id"))
+                self.assertNotIn(f"@{OPERATOR.login}: {BARE_CONTINUE}", retried.call_args.args[1])
                 self.assertIn((CONFLICT_ISSUE, LABEL_VALIDATING), github.label_history)
 
     def test_bare_continue_on_question_park_refuses(self) -> None:

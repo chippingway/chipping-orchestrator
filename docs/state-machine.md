@@ -466,6 +466,50 @@ bounded diagnostics with the subprocess's exit code told apart from the orchestr
 named not captured, where the timeout killed the run; either notice tells the operator to reply
 `/orchestrator continue` once the quota resets.
 
+An Antigravity quota stop also retires the developer conversation it stopped, on every stage and whether or not the run
+committed, at the one boundary every developer launch returns through: the coordinator on `implementing/execution.py`,
+deciding through `implementing/quota_retirement.py`. Each attempt -- a first spawn, an ordinary resume, a rotated or
+poisoned-session fresh spawn, and the AGY command continuation -- is asked as it returns, and the conversation its
+failure names, or the one it was launched to resume where it names none, is recorded in `dev_session_retirement` and
+unpinned through that record's guarded commit before the result is handed back. So the retirement is durable whether the
+tick's own write follows, a live pause discards it, or a commit the run left carries the issue through publication;
+neither post-run persistence pins the retired id again, and the next permitted developer run on any stage is a fresh
+conversation over the same worktree and issue context under the pinned `dev_agent` command, re-grounded on a
+conversation the bare `/orchestrator continue` that bought it is not quoted in. The quota refuses the one immediate
+continuation an unfinished AGY command earns too, whatever unfinished steps sit beside it, while an unrelated unfinished
+command keeps its continuation and a Claude stale or overflowing session its fresh retry. A Claude quota notice retires
+nothing, its conversation resuming past the reset, and neither does a shutdown-sweep kill. The retirement zeroes
+`silent_park_count` and `dev_resume_count` as every rotation does -- the quota park then counts its stop on the fresh
+streak -- and nothing else: it launches nothing, schedules no retry, spends neither the retry budget nor the lifetime
+run ledger, and leaves the human continue, pause, close, and daily retry gates where they stand in front of the next
+run. A retirement that commit will not land -- refused over a comment another writer moved, unreadable, or sent and
+never answered -- holds the tick as a live pause does: its state is withheld from the whole-state writer, so nothing is
+disposed and nothing goes out over the other writer's move, and every developer launch on the issue after it is refused
+with the run circuit's own answer, uncharged, until a later reading lands the retirement -- ahead of a resume's plan, so
+the resume it lands under opens a fresh conversation. A tick whose own attempt could not land it launches nothing for
+the rest of it, even once a later attempt in that tick lands it, since its withheld state could record nothing a launch
+led to. The owed retirement is kept on the host (`implementing/quota_record.py`), in a record beside the issue's writer
+claim, from before the launch that could owe it: every Antigravity launch arms it first, refused as an owed retirement
+refuses one where the host will not take that write, and the attempt's return settles it where no quota stopped it,
+while a quota stop resolves it to the conversation that must be retired. Each change is flushed to the host's disk, with
+the directory entries that reach it, before anything a later launch rests on goes on. So the obligation is on the host
+before the stop is known; no write that fails after it can lose it, and every other poller on that host, a restarted one
+or one after a host crash included, keeps it. An arming nothing resolved -- its poller killed mid-run, the resolution
+refused by the record before a restart, or a return no quota stopped whose settle the record refused -- says a launch
+went out and not which conversation a quota stopped, a fresh spawn's id being unknown until it returns, so it is never
+landed: like a record that will not read, it holds every later developer launch on the issue, refused uncharged, until
+the poller holding its resolution writes it, or an operator writes the retirement it owes or settles it, and a tick
+whose resume was planned over either launches nothing, whatever the record says by the launch. It never holds the
+attempt that left it: a return no quota stopped goes on to its disposition, its commit publishing, whether or not the
+record settles. A retirement that lands is settled by writing the record over in place as owing nothing, never by
+removing it, and every launch waits while it cannot be; a poller's memory of a resolution the record would not take
+gives way to whatever another poller or an operator has since resolved or settled there. So a landed record is never
+landed again over a conversation pinned after it. And once whatever was owed has landed, a launch still naming a
+conversation the tick's state records as retired is refused too. Another host sees none of it
+([operations](configuration/operations.md#running-more-than-one-poller)). The quota park the held tick owed is not
+recorded either: like any discarded tick, the next one re-derives what to do from the comment, which can be another
+fresh attempt, charged to both budgets, before a human's continue.
+
 ### `_handle_documenting` (label `workflow:documenting`)
 
 The single docs pass on the existing PR worktree, reached only via the final-docs handoff in `_handle_validating`'s

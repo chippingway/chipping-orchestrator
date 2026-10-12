@@ -1,6 +1,6 @@
 ---
 description: >-
-  How chipping-orchestrator's stateless polling process is built: its module map, process model, agent subprocess
+  How chipping-orchestrator's GitHub-backed polling process is built: its module map, process model, agent subprocess
   boundary, and hardened git and push path.
 ---
 # Architecture
@@ -9,7 +9,9 @@ Single-process **polling orchestrator** that drives GitHub issues through a labe
 work to a configurable coding-agent CLI (`codex`, `claude`, or `agy`) running as a subprocess in isolated git worktrees.
 
 State lives in GitHub: a workflow label exposes the current stage and a pinned JSON comment holds per-issue durable
-state. The orchestrator process is stateless and can restart at any time.
+state. The orchestrator process can restart at any time. Beside GitHub it keeps one per-issue record on the host, an
+Antigravity launch's quota retirement record, and -- while that record will not take a write -- the resolution its
+poller holds in memory until it does; both are covered under [Design constraints](#design-constraints).
 
 This page is the system overview: the design constraints, the top-level module map, the process model, the agent
 subprocess and the environment boundary around it, the hardened git and push path, and the schema diagram. Every
@@ -28,7 +30,17 @@ and the pages under it; and the observation-only sinks and the two pages over th
 GitHub Issues are the orchestrator's task tracker and durable state surface. The process intentionally avoids an
 internal database: workflow labels expose the current stage, and the pinned JSON comment holds the per-issue state that
 the next tick needs. This keeps progress visible to humans on github.com and lets the process restart without
-reconstructing hidden local state.
+reconstructing hidden local state. The exception is the quota retirement record
+(`workflow/stages/implementing/quota_record.py`) beside each issue's writer claim on the host: every Antigravity
+developer launch arms it before it runs, and every developer launch reads it first, since a retirement the pinned
+comment has not yet taken is owed from it. Each change to it is flushed to the host's disk before anything a later
+launch rests on goes on, so a restart -- a host crash included -- on the same host keeps it, while another host, or a
+fresh `WORKTREES_DIR`, never sees it. A resolution the record would not take lives only in its poller's memory until
+it does, holding that issue's launches meanwhile. And an arming whose outcome never reached the record -- its poller
+killed mid-run -- holds that issue's developer launches until an operator writes the retirement it owes or settles
+it, as the [operations runbook](configuration/operations.md#running-more-than-one-poller) describes, so such a restart
+is not recovered from GitHub alone ([what survives a restart](configuration/operations.md#what-survives-a-restart);
+[backups](security.md#backup-and-restore-drills)).
 
 The orchestrator is not fully autonomous. When a stage hits uncertainty, an unsafe repository state, a malformed agent
 response, or an exhausted retry cap, it parks with `awaiting_human` and mentions `HITL_HANDLE`; a later human issue
@@ -403,7 +415,9 @@ holds is skipped that tick, keeping only a close the poll read for it. A family 
 each child's own claim.
 
 Per-issue durable state lives in a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`).
-The orchestrator process is stateless; the label and the pinned JSON are the entire dispatch input.
+The label and the pinned JSON are the dispatch input, beside the one host-local record every developer launch reads
+first, the quota retirement record an Antigravity launch arms, and the resolution of it a poller holds in memory while
+the record will not take it ([design constraints](#design-constraints)).
 
 Most writers rewrite the whole record from the state they read. The guarded commit on `workflow/engine/pinned_commit.py`
 is the contract for writers that share it, and the verification-evidence publication and settlement, the evidence
@@ -620,7 +634,10 @@ lock, and the resume mechanic are documented in
   diagnostic, where only the opening line decides the verdict. The shared question park
   (`workflow/stages/implementing/parks.py`) takes the session-limit park on the quota verdict, asked through
   `session_read.py`'s quota classifier, and `workflow/engine/agent_diagnostics.py` reads `quota_reset` and
-  `process_exit_code` for the notices it renders.
+  `process_exit_code` for the notices it renders. The developer run coordinator
+  (`workflow/stages/implementing/execution.py`) asks the same verdict of every attempt as it returns, through
+  `quota_retirement.py`: the conversation the quota stopped is retired for good (`dev_session_retirement`) before the
+  result is handed back, and earns no AGY command continuation.
 - **Input**: prompt string; optional resume session id; timeout (`AGENT_TIMEOUT` / `REVIEW_TIMEOUT`).
 - **Output**: `AgentResult(...)`. `session_id` is harvested by `agents/session_ids.py` walking the JSONL events for
   any UUID-shaped value at `session_id` / `conversation_id` / etc. (shared across all backends).

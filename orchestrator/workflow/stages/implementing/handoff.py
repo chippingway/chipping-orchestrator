@@ -166,7 +166,9 @@ def _reset_implementing_counters(state: _pinned_state.PinnedState) -> None:
     state.set(_retry_values.RETRY_CAP_CONTINUED, None)
     # The session just produced commits, so it isn't poisoned -- reset the
     # silent-park streak so a future blip doesn't tip an otherwise-healthy
-    # session past the fresh-session threshold.
+    # session past the fresh-session threshold. A conversation retired as
+    # failed stays retired, a quota stop that committed first included: its
+    # record (`session_retirement`) is none of these counters.
     state.set(_state._SILENT_PARK_COUNT, 0)
     # The commit shipped, so any agent-timeout, silent or quota, or retryable
     # execution-failure park watermark is spent -- clear it (and the stale reason)

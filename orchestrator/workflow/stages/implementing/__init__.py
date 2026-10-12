@@ -8,14 +8,16 @@ in. `spawn` decides whether anything runs at all -- an awaiting-human tick
 belongs to the human's reply, and a worktree that already carries commits is a
 publication an earlier tick was interrupted mid-way through.
 
-The locked dev session is five owners because a resume is not one act:
+The locked dev session is seven owners because a resume is not one act:
 `session_read` says what the pinned state claims the session is and what a
 failed run's own text says about its health, `session` decides when it is
 retired and gates a fresh spawn against the per-issue daily cap,
 `session_retirement` keeps the record of a conversation retired as failed and
-refuses to pin it again, `resume` keeps the call shape every other stage wrote
-against, and `execution` runs one attempt plus the single poisoned-session
-retry behind it, in `worktree`'s checkout.
+refuses to pin it again, `quota_retirement` decides an exhausted account quota
+is such a failure as each attempt returns, `quota_record` keeps the host's
+record of one owed from before the launch that could owe it, `resume` keeps the
+call shape every other stage wrote against, and `execution` runs one attempt
+plus the single poisoned-session retry behind it, in `worktree`'s checkout.
 `resume_batch` freezes one read of a parked thread into what a resume
 quotes, records, re-grounds with, and settles -- here and on `validating` --
 and `parked_replies` is the cut of that thread's fresh replies the command

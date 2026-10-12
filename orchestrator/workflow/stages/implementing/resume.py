@@ -106,10 +106,13 @@ def _resume_dev_with_text(
     (`agent_silent` for two ticks, or `awaiting_human` forever) before
     recovering.
 
-    Returns `(worktree, result, paused)`. `paused` is the live-pause decision
-    -- True only when `pause_guard` is set AND a hard-skip control label
+    Returns `(worktree, result, paused)`. `paused` is the hold decision: the
+    live pause -- True when `pause_guard` is set AND a hard-skip control label
     (`paused` / `backlog`) was applied to a freshly fetched issue while an agent
-    run was in flight. `pause_guard` is opt-in (default False): every
+    run was in flight -- or, whatever `pause_guard` says, a quota retirement
+    the pinned comment would not take (`quota_retirement`), which leaves the
+    state withheld and the tick held exactly as a pause does. `pause_guard` is
+    opt-in (default False): every
     developer-resume caller -- implementing, validating, documenting, in_review,
     fixing, and resolving_conflict -- passes it True and honors the flag. The
     check runs after BOTH agent runs -- the initial resume/spawn AND the
@@ -148,9 +151,10 @@ def _resume_developer_on_human_reply(
     Returns (worktree, agent_result, paused) on resume, or None when there is
     nothing this road may resume on -- no fresh reply, or a batch a command
     road owns -- in which case the caller returns without writing state.
-    `paused` is forwarded from `_resume_dev_with_text` and is only ever True
-    when `pause_guard` is set; both callers (implementing and validating) pass
-    it True and honor the flag.
+    `paused` is forwarded from `_resume_dev_with_text`: True for a live pause
+    only when `pause_guard` is set, and for a quota retirement the pinned
+    comment would not take whether or not it is; both callers (implementing
+    and validating) pass it True and honor the flag.
 
     Used by `implementing` and `validating` -- both deliberately watch only
     the issue's comment thread, not the PR's. The `in_review` handler watches

@@ -209,9 +209,11 @@ class ValidatingPushedFixesStayOnValidatingTest(
         assert_session_limit_park(self, gh, HUMAN_RESUME_ISSUE)
         pinned = gh.pinned_data(HUMAN_RESUME_ISSUE)
         self.assertEqual(pinned.get(REVIEW_ROUND), 1)
-        # The streak the reply's park stood on advances rather than starting
-        # over, so the rotation threshold still counts consecutive stops.
-        self.assertEqual(pinned.get("silent_park_count"), 2)
+        # The quota retired the conversation the reply's park counted its
+        # streak on, which starts the streak over the way every rotation does,
+        # and the park counts this stop on it rather than clearing it.
+        self.assertEqual(pinned.get("silent_park_count"), 1)
+        self.assertIsNone(pinned.get("dev_session_id"))
 
     def test_drift_pushed_fix_stays_on_validating(self) -> None:
         gh, issue = self._validating_issue(

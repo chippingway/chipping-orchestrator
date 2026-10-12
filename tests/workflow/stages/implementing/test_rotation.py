@@ -845,6 +845,29 @@ class RetirementCommitTest(unittest.TestCase, _RetiredRecoveryMixin):
         )
         self._assert_earlier_stays_retired(gh, issue)
 
+    def test_unnamed_retirement_names_every_pin(self) -> None:
+        # A retirement handed no conversation names every pinned one in its
+        # place: the one the tick read, and the one another writer pinned on
+        # the comment since. Neither is cleared unnamed, so neither can be
+        # pinned again as the recovery.
+        gh, issue, state = self._read_by_tick(dev_agent=AGY_SPEC, sid=LIVE_SESSION)
+        moved = gh.read_pinned_state(issue)
+        moved.set(KEY_DEV_SESSION_ID, FRESH_SESSION)
+        gh.write_pinned_state(issue, moved)
+
+        _session_retirement._commit_dev_session_retirement(gh, issue, state, None, QUOTA_REASON)
+
+        self.assertEqual(
+            (gh.pinned_data(issue.number)[KEY_RETIREMENT], state.get(KEY_RETIREMENT)),
+            (_retirement(FRESH_SESSION, LIVE_SESSION),) * 2,
+            "the comment's pin and the tick's are both named retired",
+        )
+        self.assertEqual(
+            [_session_retirement._pin_dev_session(state, pinned) for pinned in (FRESH_SESSION, LIVE_SESSION)],
+            [False, False],
+            "neither is pinned again",
+        )
+
     def _assert_earlier_stays_retired(self, gh, issue) -> None:
         """A run from the comment alone that hands the earlier retired conversation back leaves it unpinned."""
         run_agent = MagicMock(return_value=_agent(session_id=EARLIER_RETIRED_SESSION, last_message=OK_MESSAGE))

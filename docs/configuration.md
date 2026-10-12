@@ -14,8 +14,10 @@ holds that split and parses every `REPOS` value the basic template writes. This 
 source of truth — every setting and every default lives on one of them, and both `.env.example*` files keep their
 inline comments terse and link back for the full rationale.
 
-The orchestrator is deliberately stateless: every setting here selects backends and budgets at startup, or names
-files/paths outside the repo. Per-issue state lives in the issue's pinned JSON comment on GitHub.
+The orchestrator keeps no configuration state of its own: every setting here selects backends and budgets at startup,
+or names files/paths outside the repo. Per-issue state lives in the issue's pinned JSON comment on GitHub, beside the
+one host-local quota retirement record an Antigravity developer launch arms
+([operations](configuration/operations.md#running-more-than-one-poller)).
 
 Two companion pages carry what is read on its own rather than scanned for a value:
 
@@ -966,9 +968,10 @@ what each launch style needs, and when each individual setting takes effect are 
 
 ### What survives a restart
 
-Per-issue progress lives in the issue's pinned JSON comment on GitHub and in the per-issue worktree, so restarting
-between ticks loses nothing. The two hazards that are not covered by that — a live `codex` / `claude` / `agy` child,
-and the agent spec pinned into an in-flight session — are in
+Per-issue progress lives in the issue's pinned JSON comment on GitHub, in the per-issue worktree, and -- for an
+Antigravity developer launch -- in the quota retirement record on the host, so restarting between ticks on the same
+host loses nothing. The hazards that are not covered by that — a live `codex` / `claude` / `agy` child, an `agy`
+launch whose poller dies before its record is settled, and the agent spec pinned into an in-flight session — are in
 [`configuration/operations.md#what-survives-a-restart`](configuration/operations.md#what-survives-a-restart).
 
 ## Control labels
