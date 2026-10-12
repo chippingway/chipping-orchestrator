@@ -596,7 +596,9 @@ orchestrator/
                         freezes no write ever ends is applied. Beside an auto-rebase anchor only the late claims
                         the reconciliation answers freeze the walk and a read-only park is set aside: the
                         dispatcher holds every handler that would end the rest, so none of them may freeze the
-                        recovery out as well
+                        recovery out as well -- and once a recovery takes the anchor down and lets the tick go
+                        on, the coordinator asks the whole selection again before any rebase behind it
+                        (`workflow/engine/base_rewrite.py`)
       frozen.py         which records hold a checkout still and what ends each freeze: the ones that freeze a
                         branch by their presence -- the late reading, the approval, and the terms of a squash
                         mid-rewrite among them, each read as the whole GROUP its write puts down rather than as
@@ -1276,7 +1278,8 @@ off a facade:
 - `base_sync/` — `models` and `state` carry only data, save the optional answer a recovery context may hold for its
   reset (`settles_over_a_reset`), which `persistence` calls before it drops the attempt. On the sync side the workflow's
   refresh calls `refresh_selection` before `pre_pr` and its base-rewrite coordinator, `refresh_selection` asks `frozen`
-  alone, the coordinator asks `eligibility` and `startup` in that order and hands a clean rebase to the workflow's
+  alone, the coordinator asks `refresh_selection` again behind a recovery that took the anchor down, then
+  `eligibility` and `startup` in that order, and hands a clean rebase to the workflow's
   publication, which reads its candidate through `rewrite_facts`, pushes it through `rewrite_transport`, records its
   replay through `attempts`, and ends an attempt it refuses through `guards`, which ends in `persistence`.
   On the recovery side the workflow's recovery coordinator resumes the attempt in the context `recovery` binds, and

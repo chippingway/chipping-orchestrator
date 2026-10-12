@@ -495,7 +495,13 @@ see [Pinned state](#pinned-state)): a `question_*` / `discussion_*` park, the tw
 keeps back, so a freeze on any of them as well would leave neither side able to move. None of
 them is holding a branch still against a rebase any more — the anchor says one already ran — so the recovery reaches
 the checkout, pushes the replay its record names or puts the branch back on the anchor and asks a human, and leaves
-each record for its owner. The `question` and `discussion` labels themselves are still skipped, and an anchor under
+each record for its owner. A recovery that takes the anchor down and lets the tick go on — the clear of an attempt
+that never started, or a landed head the base advanced past again, retired unrouted — has the whole selection asked
+again, over the comment as the recovery left it, before the rebase behind it (`workflow/engine/base_rewrite.py`).
+That rebase is a new rewrite with no anchor beside it, so every one of those freezes holds it as it holds an
+unanchored branch: a developer report recorded and not yet settled holds it until the report reconciliation settles
+the report on the head it is about, and a reply the recovery did not spend is left unspent for the rebase that
+follows. The `question` and `discussion` labels themselves are still skipped, and an anchor under
 either is answered by the dispatcher on the recovery's ineligible road. The one late claim beside an anchor that no
 reconciliation ends is a generation measured past its ceiling over the anchor's own replay, which the refresh stays
 away from and the hold would keep its adjudication off: the dispatcher hands that replay to the generation ahead of the

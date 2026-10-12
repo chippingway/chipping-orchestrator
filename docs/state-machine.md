@@ -138,7 +138,8 @@ of a replay its crash kept off the pull request and the finish of a push it find
 candidate and its exact-candidate push or observation, and the recovery's readings, refusals, and parks are the git
 `base_sync` owners' that route delegates to. A branch is left where it is while a record somebody wrote ahead of
 the thing it describes stands -- a developer report recorded or bound and not yet settled among them, since a
-rebase in that window would hand the report a head it never described. Each worktree
+rebase in that window would hand the report a head it never described -- and that holds for the rebase behind an
+interrupted attempt's recovery too, which has the selection asked again once the anchor is down. Each worktree
 is synced under its issue's writer claim — the one every dispatch path takes, on the same key — held from before the
 issue is read until its route ends, recovery and settlement included, so an issue another poller on the host is
 dispatching or refreshing is left untouched for the tick and synced on a later one. A pre-PR
@@ -613,7 +614,12 @@ the tick. Every other record and park the refresh freezes on holds: a stage's ha
 and runs on into the agent it was holding back, and a timeout, a reading nobody could take, or a collapse mid-rewrite
 is likewise ended by a handler the hold keeps back, as is a developer report recorded and not yet settled by the
 report reconciliation behind it. So beside an anchor none of them keeps the refresh away, and the
-refresh answers the anchor under them with the recovery alone, no reply spent, leaving each for its owner. A pull
+refresh answers the anchor under them with the recovery alone, no reply spent, leaving each for its owner. A recovery
+that takes the anchor down and lets the tick go on — an attempt that never started cleared, or a landed head the base
+advanced past again retired unrouted — has the refresh's whole selection asked again before the rebase behind it
+(`workflow/engine/base_rewrite.py`), so each of them holds that rebase as it holds an unanchored branch: a report
+recorded and not yet settled is settled on the head it is about first, and a reply the recovery did not spend is left
+for the rebase that follows. A pull
 request that merged or closed is asked for first under any park, the refresh's own included, and ends the attempt's
 whole handoff there, so the hold never outlives it. A checkout
 whose HEAD names a commit nothing can read stays held until the refresh has reset and parked it, and one that is not

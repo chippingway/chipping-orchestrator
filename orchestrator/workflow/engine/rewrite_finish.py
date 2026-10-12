@@ -85,7 +85,9 @@ refuses stops the finish there with nothing behind it made:
   announcement -- an abandonment that does not land holds the continuation
   with nothing announced, and so does a record another road left unresolved
   beside the evidence this landing already resolved -- its retirement lands,
-  and the caller's ordinary rebase goes on from it.
+  and the caller's ordinary rebase goes on from it, the refresh's selection
+  asked again first: a report recorded and unsettled holds that rebase until
+  it is settled on the head it is about, as an uninterrupted journey's does.
 - The write that retires the attempt is prepared before the relabel to
   `workflow:validating`, then lands behind it -- the anchor is what brings a
   tick lost between them back, to the mark this finish left and the evidence

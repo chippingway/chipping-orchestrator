@@ -1450,7 +1450,7 @@ because there it is the claim that this stage has already rerouted rather than a
   is not routed: a transaction recorded for it is abandoned before its continuation is announced or the attempt
   retires -- an abandonment that does not land holds the continuation with nothing announced, and so does a record
   another road left unresolved beside evidence this landing already resolved, as it holds the route -- and the tick's
-  rebase goes on.
+  rebase goes on wherever the refresh's selection, asked again, lets it (the handoff bullet below).
   Only whether the current evidence has to be invalidated is asked afresh on every resumed finish, since the
   configuration can move between the two -- evidence an earlier finish settled for the landed head included: under a
   configuration that has moved since, it answers for nothing a route could carry, so it is invalidated whole with
@@ -1526,10 +1526,21 @@ because there it is the claim that this stage has already rerouted rather than a
     on every record the evidence is bound through: a record another road moved -- while the relabel was made, say --
     refuses it with the attempt standing, and the next recovery finds the issue already on `workflow:validating`
     under its mark and routes it with no second relabel.
+  - **The rebase behind a continuation is the refresh's again.** A landed head the base advanced past again is
+    announced only where the dead tick had not announced it, its attempt is retired unrouted, and a rebase replaces
+    it. The refresh chose the worktree beside the anchor, so only the late claims were asked to hold it; once the
+    recovery has taken the anchor down -- here, or by clearing an attempt that never started -- the coordinator asks
+    the refresh's whole selection again over the comment as the recovery left it (`workflow/engine/base_rewrite.py`).
+    A developer report recorded and not yet settled -- a refresh of the landed head's report among them -- holds that
+    rebase, as it holds an uninterrupted journey's: the report reconciliation ahead of the next handler settles it on
+    the head it is about, with no park, and the refresh behind it rebases onto the advanced base. A reply the recovery
+    did not spend is left unspent for that rebase. The continuation hands the new head no earlier binding: its report
+    refresh is owed afresh, and its fresh reviewer is handed that report and owes its evidence.
 
   So whichever boundary a tick dies at, the journey ends as the uninterrupted one does: one notice and one
   `base_rebased` event per rewrite that actually landed, no round reset, relabel, stage-entry event, or evidence
-  publication repeated, and no developer launched on any recovery road.
+  publication repeated, and no developer launched on any recovery road -- the report refreshes a later
+  `workflow:validating` tick asks for are the same ones the uninterrupted journey asks for.
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims
