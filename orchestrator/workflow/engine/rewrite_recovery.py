@@ -47,7 +47,10 @@ found already landed -- hand it to the one finish every landing gets
   is left for a human's reply, so the git owner has the transaction proved
   again before it (`rewrite_landing_moved.abandons_unproved`), over readings
   no failed fetch is needed for, and abandoned where anything it rests on
-  moved; one whose abandonment did not land is not parked at all.
+  moved; one whose abandonment did not land is not parked at all. Every one
+  of these parks is recorded over the comment read afresh
+  (`rewrite_recovery_parks`), so what another road wrote while its notice
+  went out -- a later report, a newer transaction -- is never put back.
 - The remote head completes the comparison, and how far the transfer beside
   the attempt got is read off the comment (`git/base_sync/transfers.py`).
 - A remote standing on the checkout is a push that already landed, and the
@@ -96,6 +99,7 @@ from orchestrator.workflow.engine import (
     rewrite_landed as _rewrite_landed,
     rewrite_landing_moved as _landing_moved,
     rewrite_landing_records as _landing_records,
+    rewrite_recovery_parks as _recovery_parks,
     rewrite_retry as _rewrite_retry,
 )
 
@@ -130,13 +134,15 @@ def answers_an_unreadable_checkout(context: _AutoRebaseContext, consumed_comment
     answer to it (`rewrite_landing_moved.abandons_over_the_reset`): the
     verification transaction a finish of the attempt captured -- the one under
     the receipt on the attempt, announced or not -- goes in the write that
-    releases the attempt, or neither does.
+    releases the attempt, or neither does, and that park lands as every
+    recovery park does (`rewrite_recovery_parks.lands_a_park`).
     """
     return _recovery_holds._answers_an_unreadable_checkout(
         context,
         consumed_comment_id,
         settles_over_a_reset=partial(_landing_moved.abandons_over_the_reset, context),
         proves_before_a_park=_landing_moved.abandons_unproved,
+        lands_a_park=_recovery_parks.lands_a_park,
     )
 
 
@@ -158,12 +164,16 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     are handed carries `rewrite_landing_moved.abandons_over_the_reset`, which
     the git owner asks once a reset landed and before the drop -- and the
     proof every park that keeps the attempt asks first
-    (`rewrite_landing_moved.abandons_unproved`).
+    (`rewrite_landing_moved.abandons_unproved`). Every park, that drop's
+    included, lands over the comment read afresh
+    (`rewrite_recovery_parks.lands_a_park`), keeping what another road wrote
+    while its notice went out.
     """
     owing = replace(
         context,
         settles_over_a_reset=partial(_landing_moved.abandons_over_the_reset, context),
         proves_before_a_park=_landing_moved.abandons_unproved,
+        lands_a_park=_recovery_parks.lands_a_park,
     )
     if owing.label not in _PR_REFRESH_DETOUR_LABELS:
         return _replay_cleanup._answers_an_ineligible_label(owing)

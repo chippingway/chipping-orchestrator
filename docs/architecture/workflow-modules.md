@@ -246,8 +246,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             A standing auto-rebase anchor holds the handler, on the adjudication's own road too,
                             and is asked again behind the reconciliation; whether it holds and what a held tick
                             is owed are `base_sync/recovery_holds.py`'s, handed the proof a park that keeps the
-                            attempt asks first (`rewrite_landing_moved.abandons_unproved`). An anchor beside a live
-                            adjudication is
+                            attempt asks first (`rewrite_landing_moved.abandons_unproved`) and the park it is
+                            recorded through (`rewrite_recovery_parks.answers_a_held_anchor`). An anchor beside a
+                            live adjudication is
                             first offered to it (`rewrite_takeover.py`), so a pair describing one replay is handed
                             over with its attempt's park before the hold can strand it, and a handoff write
                             nobody confirmed holds the tick; a park the handoff leaves standing that its road does
@@ -1305,8 +1306,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             ahead of a checkpoint that never landed -- is the announcement made, with neither it nor
                             the notice posted again, the event filed only where the attempt does not record it filed
                             (`pending_auto_base_rebase_announced_event`, landed by a write of its own right behind
-                            it, `rewrite_finish_writes.ANNOUNCED_EVENT`), so each is recovered on its own, and a
-                            conversation nobody could read or a post nobody can find holding the finish; and the
+                            it, `rewrite_finish_writes.ANNOUNCED_EVENT`) and the event stream does not already carry
+                            it (`github/events.filed`), which is recorded instead, so each is recovered on its own,
+                            and a conversation nobody could read or a post nobody can find holding the finish; and the
                             notice of a configured verification the landed head failed, naming the command, how it
                             failed, and its output's tail
     rewrite_finish_writes.py
@@ -1919,16 +1921,30 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             abandoned where its proof or the last word reads movement, a checkout gone from disk
                             abandoning it in the park's own write -- and the answer a
                             landed reset is owed (`abandons_over_the_reset`), staged on the
-                            state the git owner's park writes (`git/base_sync/persistence.py`) so it lands with the
-                            attempt's release or not at all, dropped with the recorded base tip blanked where
-                            history has no room, so an attempt a park keeps runs nothing for that landing again.
+                            state the git owner's park lands (`git/base_sync/persistence.py`, through
+                            `rewrite_recovery_parks.py`) so it lands with the attempt's release or not at all,
+                            dropped with the recorded base tip blanked where history has no room, so an attempt a
+                            park keeps runs nothing for that landing again.
                             Evidence a finish of the attempt already settled for the head
                             (`rewrite_landing_records.settled`) is held to the same readings: invalidated into
                             history whole where a snapshot or the landed road reads the landing off its head
                             (`abandons`, through `rewrite_finish_readiness.invalidates`), proved ready before every
                             park that keeps the attempt and invalidated where it moved (`abandons_unproved`, over
                             `rewrite_finish_readiness.settled_word`), and invalidated on the state a landed reset's
-                            park writes
+                            park lands
+    rewrite_recovery_parks.py
+                            the park every recovery context the workflow builds carries (`lands_a_park`, which
+                            `git/base_sync/persistence.py` records each recovery park through): the notice posted
+                            and the park staged as every auto-rebase park is, then landed through the guarded commit
+                            (`report_commits.ReportCommit`) as `PARK` -- owning what the tick staged since its
+                            reading, the attempt a landed reset drops and the evidence retired beside it included,
+                            decided on the attempt, the park's flags, and the evidence records, and keeping every
+                            other field as the fresh comment carries it -- so a report another road settled or a
+                            transaction it recorded while the notice went out is kept rather than put back. A park
+                            refused or never confirmed records nothing and withholds the tick's state, for the
+                            next tick's recovery to answer the attempt again; a state nothing was read into is
+                            written whole. The dispatcher's answer to an anchor it holds is handed the same park
+                            beside the proof that park asks first (`answers_a_held_anchor`)
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written
                             only once it saw the push land: whether any record -- pending, current, retired, or a

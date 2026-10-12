@@ -255,7 +255,9 @@ file is the durable record.
   (`workflow/engine/rewrite_finish_notices.py`) for the clean rebase `_sync_pr_worktree_to_base` publishes, for the
   replay a crashed prior tick never published that its recovery pushes again, and for a crashed tick's push the
   recovery finds already landed (`workflow/engine/rewrite_landed.py`) -- never twice for one publication, since the
-  announcement mark beside the attempt keeps a resumed finish from filing it again, and only once the landed head's
+  attempt records the event right behind it (`pending_auto_base_rebase_announced_event`) and a finish lost before
+  that record finds the event on this stream instead (`github/events.filed`, over the audit log's tail), so a
+  resumed finish records it rather than filing it again, and only once the landed head's
   verification evidence is resolved (settled, retired, or left to the fresh reviewer), so a tick whose evidence post
   or settlement did not resolve files nothing and a later tick's finish files it;
   extras: `pr_number`, `sha` (new head), `method` ∈ {`auto_clean_rebase` for the tick's own push,

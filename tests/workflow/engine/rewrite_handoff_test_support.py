@@ -10,8 +10,9 @@ retires the attempt. Each boundary (`BOUNDARIES`) is a process killed at one
 of those steps, behind every write ahead of it: before the announcement's
 notice is posted, so nothing marks the head announced; behind the notice and
 before the event, so the retry finds the notice with no event recorded;
-behind the notice, the event, and the record of the event and before the
-checkpoint, so the retry finds both with no mark beside them; behind the
+behind the event and before its record, so the retry finds the event only on
+the event stream; behind the notice, the event, and the record of the event
+and before the checkpoint, so the retry finds both with no mark beside them; behind the
 checkpoint and before the relabel, so the retry reads the head as already
 announced; and behind the relabel and before the retirement, so the retry
 reads the issue as already relabelled too. A boundary can also stand for
@@ -35,7 +36,7 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.engine.rewrite_finish_readings import KEY_ANNOUNCED, KEY_PENDING_PUSH
+from tests.workflow.engine.rewrite_finish_readings import KEY_ANNOUNCED, KEY_ANNOUNCED_EVENT, KEY_PENDING_PUSH
 
 # How the announcement of a landing opens on the pull request.
 _ANNOUNCES = ":mag:"
@@ -81,6 +82,11 @@ class _Picks:
         """Whether an event is the landing's `base_rebased`."""
         return event == "base_rebased"
 
+    def recording(self, _issue, state, *, over: dict) -> bool:
+        """Whether a pinned-comment edit is the record of the event filed, which the comment lacks."""
+        records = state.get(KEY_ANNOUNCED_EVENT) is not None
+        return records and over.get(KEY_ANNOUNCED_EVENT) is None
+
     def checkpointing(self, _issue, state, *, over: dict) -> bool:
         """Whether a pinned-comment edit is the checkpoint marking the head announced, which the comment lacks."""
         marks = state.get(KEY_ANNOUNCED) is not None
@@ -102,6 +108,8 @@ BEFORE_THE_ANNOUNCEMENT = Boundary("before the announcement", "pr_comment", _PIC
 
 BEFORE_THE_EVENT = Boundary("the notice posted, before the event", "emit_event", _PICKS.filing)
 
+BEFORE_THE_EVENT_RECORD = Boundary("the event filed, before its record", "edit_pinned_state", _PICKS.recording)
+
 BEFORE_THE_CHECKPOINT = Boundary("said, before the checkpoint", "edit_pinned_state", _PICKS.checkpointing)
 
 BEFORE_THE_RELABEL = Boundary("announced, before the relabel", "set_workflow_label", _PICKS.relabelling)
@@ -109,7 +117,12 @@ BEFORE_THE_RELABEL = Boundary("announced, before the relabel", "set_workflow_lab
 BEFORE_THE_RETIREMENT = Boundary("relabelled, before the retirement", "edit_pinned_state", _PICKS.retiring)
 
 BOUNDARIES = (
-    BEFORE_THE_ANNOUNCEMENT, BEFORE_THE_EVENT, BEFORE_THE_CHECKPOINT, BEFORE_THE_RELABEL, BEFORE_THE_RETIREMENT,
+    BEFORE_THE_ANNOUNCEMENT,
+    BEFORE_THE_EVENT,
+    BEFORE_THE_EVENT_RECORD,
+    BEFORE_THE_CHECKPOINT,
+    BEFORE_THE_RELABEL,
+    BEFORE_THE_RETIREMENT,
 )
 
 

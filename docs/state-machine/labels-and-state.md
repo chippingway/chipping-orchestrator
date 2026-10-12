@@ -520,7 +520,9 @@ conflicted files (`auto_base_rebase_failed`), dirty-after-clean-rebase (`auto_ba
 the pre-rebase SHA and park awaiting human with a durable `park_reason`. The park's notice says why it parks and then
 what the reset came to: a reset git refused is reported as refused, the attempt and its records kept, and a landed
 one's drop of the attempt is said as what the park's own write makes durable, since the notice goes out ahead of that
-write. A push is refused, with nothing sent, where the
+write. A recovery's park lands that write over the comment read afresh (`workflow/engine/rewrite_recovery_parks.py`),
+keeping a report or evidence record another road wrote while the notice went out. A push is refused, with nothing
+sent, where the
 checkout, the base ref, or the remote branch moved since the candidate was read, or the remote could not be read; a
 remote already standing on the candidate excuses none of those refusals, and is proved there by a push leased to the
 candidate itself before anything is finished -- announced as found standing even where that proof's answer was lost --
@@ -3214,12 +3216,13 @@ The keys that matter for the state machine fall into a few groups:
   `pending_auto_base_rebase_announced_event` — the head whose `base_rebased` event a finish of the attempt filed,
   written in a guarded write of its own right behind the event and ahead of the mark
   (`workflow/engine/rewrite_finish_writes.ANNOUNCED_EVENT`), and blanked with the rest of the attempt by every write
-  that ends it. The event stream cannot be read back, so this is the one durable word that a finish lost after its
-  event and before its mark already filed it: a finish finding it files nothing again, and one finding none files the
-  event, a finish lost after its notice and before its event included. The tick that writes it takes in that member
-  alone, so the mark behind it is still decided on every other record as the tick read it. The one window no
-  ordering closes is a process lost between filing the event and this write, behind which the event is filed once
-  more. Additive: an attempt from before this member existed carries none.
+  that ends it. It is the durable word that a finish lost after its event and before its mark already filed it: a
+  finish finding it files nothing again, and one finding none files the event -- a finish lost after its notice and
+  before its event included -- unless the event stream already carries a `base_rebased` for the head
+  (`github/events.filed`, over the client's in-memory tail and the audit log's), which is a process lost between
+  filing the event and this write, and which the finish records without filing it again. The tick that writes it
+  takes in that member alone, so the mark behind it is still decided on every other record as the tick read it.
+  Additive: an attempt from before this member existed carries none.
   `auto_base_rebase_failed_verification` sits beside the group without being a member of it: the notice a landed
   head's failed configured verification is owed — an object of `head`, the rewritten head the run failed on, and
   `notice`, the notice's whole text (the failing command, how it failed, and its output's tail) — written by the

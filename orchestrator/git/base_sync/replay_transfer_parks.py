@@ -59,10 +59,8 @@ def _park_unfinished_recovery(
         "recovery anchor exactly as they are and parking awaiting human",
         context.issue.number, context.pr_number, local_short, detail,
     )
-    persistence._park_auto_rebase_failure(
-        context.gh,
-        context.issue,
-        context.state,
+    persistence._parks_the_recovery(
+        context,
         message=(
             f"{config.HITL_MENTIONS} crash recovery for PR "
             f"#{context.pr_number}: the rebased branch reached the remote, so "

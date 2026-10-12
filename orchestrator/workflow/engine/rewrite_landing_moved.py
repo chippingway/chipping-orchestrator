@@ -62,13 +62,16 @@ for that finish. Settled evidence is proved ready the same way before such a
 park (`rewrite_finish_readiness.settled_word`), and invalidated where it moved.
 
 A reset is the one road that moves the checkout off the landed head itself,
-and the git owner's park behind it drops the attempt in one whole write of the
-issue's state (`git/base_sync/persistence._reset_clear_and_park`).
+and the git owner's park behind it drops the attempt in one write
+(`git/base_sync/persistence._reset_clear_and_park`).
 `abandons_over_the_reset` is the answer that owner stages on that very state
 once the reset landed (`_AutoRebaseRecoveryContext.settles_over_a_reset`), so
 the transaction -- and settled evidence, invalidated -- goes with the
 attempt's release or neither goes: a park write that fails leaves both
-standing, and a reset that failed moved nothing and keeps both.
+standing, and a reset that failed moved nothing and keeps both. That write is
+landed over the comment read afresh (`rewrite_recovery_parks`), never over the
+tick's whole reading, so a report another road settled, or a transaction it
+recorded, while the park's notice went out is kept rather than put back.
 
 Only a transaction a finish of the attempt recorded is read
 (`rewrite_landing_records.captured`): the one under the receipt the finish put
@@ -130,9 +133,10 @@ def abandons_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
     asked by the git owner once the reset landed and before the attempt is
     dropped from `context.state`: the reset took the checkout off the landed
     head, which is movement under the transaction. Staged on the state the
-    park then writes whole, the abandonment lands with the attempt's release
-    or not at all, so no cleared attempt leaves the transaction behind it for
-    the reconciliation to settle once the checkout is put back. With no room
+    park then lands (`rewrite_recovery_parks`), the abandonment lands with the
+    attempt's release or not at all, so no cleared attempt leaves the
+    transaction behind it for the reconciliation to settle once the checkout
+    is put back. With no room
     for its history entry, the transaction is dropped instead and refused for
     good, as the finish's own abandonment refuses one (`rewrite_finish_captured`):
     the base tip the attempt recorded its replay as made onto is blanked with
@@ -236,7 +240,7 @@ def abandons_unproved(context: _AutoRebaseRecoveryContext) -> bool:
     moved. Nothing is read or written where neither stands, and what nothing
     moved under is kept. With no checkout on disk there is nothing to prove
     the landing over, the checkout the evidence was taken on being gone, so
-    both are retired on the state the park then writes whole
+    both are retired on the state the park then lands
     (`abandons_over_the_reset`). False only where movement was read and
     evidence still stands once its retirement was asked, for the git owner to
     hold the tick with nothing parked.

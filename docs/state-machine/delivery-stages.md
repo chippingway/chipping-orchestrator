@@ -1505,7 +1505,13 @@ because there it is the claim that this stage has already rerouted rather than a
   before every park that keeps the attempt and invalidated where anything it rests on moved, and invalidated on the
   state a landed reset's park writes, so neither putting the landing back nor a human's reply revives a decision the
   landing moved under. Each invalidation is guarded as the finish's own is (the next bullet), and one no write lands
-  holds the tick with nothing reset, cleared, or parked.
+  holds the tick with nothing reset, cleared, or parked. Every recovery park, a landed reset's included, is recorded
+  over the comment read afresh rather than written whole (`rewrite_recovery_parks.lands_a_park`): it owns what the
+  tick staged -- the park, the attempt it drops, the evidence it abandons or invalidates -- is decided on the attempt,
+  the park's flags, and the evidence records, and keeps every other field as the comment now carries it. So a report
+  another road settles and reviews while the park's notice is posted stands beside the park, and a transaction it
+  records then refuses the park, nothing written, for the next tick's recovery to park around; a process lost
+  before the park lands is answered by that tick the same way.
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
@@ -1548,12 +1554,13 @@ because there it is the claim that this stage has already rerouted rather than a
     checkpoint, so each is recovered on its own (`rewrite_finish_notices.announces`). A finish reads the pull
     request's conversation before it posts anything, and a comment of ours already announcing the head -- posted by
     a tick whose checkpoint was refused, went unconfirmed, or died -- is that notice made, entered in the ledger and
-    not posted again. The event stream cannot be read back, so the event is recorded on the attempt in a guarded
-    write of its own right behind it (`pending_auto_base_rebase_announced_event`), and filed only where that record
-    is missing: a tick lost after its notice and before its event files it once on the next. A conversation nobody
-    could read, or a post that raised and does not show on the conversation read again, holds the finish with
-    nothing filed. The one window no ordering closes is a process lost between filing the event and its record,
-    behind which it is filed once more. The checkpoint is decided on the report
+    not posted again. The event is recorded on the attempt in a guarded write of its own right behind it
+    (`pending_auto_base_rebase_announced_event`), and filed only where that record is missing and the event stream
+    does not already carry a `base_rebased` for the head (`github/events.filed`: the client's in-memory tail and the
+    audit log's): a tick lost after its notice and before its event files it once on the next, and one lost between
+    filing it and recording it has it recorded on the next with nothing filed again. A conversation nobody could
+    read, or a post that raised and does not show on the conversation read again, holds the finish with nothing
+    filed. The checkpoint is decided on the report
     records, so a report another road settled while the notice was posted refuses it -- and that refusal is movement
     read under the settled evidence, invalidated there and then, before the finish stops
     (`rewrite_finish_readiness.invalidates_behind`), with the attempt and the newer report kept.

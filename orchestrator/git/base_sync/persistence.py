@@ -17,8 +17,11 @@ that keeps the attempt instead -- that tail behind a reset that did not land,
 and the parks that never reset -- asks the recovery context first whether it
 may go on (`_proves_before_the_park`), so a transaction the workflow captured
 for the landed head, or evidence it settled for it, is proved again before the
-record a human's reply brings back is left standing. The finish of a
-rewrite that landed is the workflow's (`workflow/engine/rewrite_finish.py`),
+record a human's reply brings back is left standing. Every park a recovery
+takes is recorded as the recovery records one (`_parks_the_recovery`): over
+the comment read afresh, through the park the workflow hands its contexts,
+so nothing another road wrote while the notice went out is put back. The
+finish of a rewrite that landed is the workflow's (`workflow/engine/rewrite_finish.py`),
 whichever road reached it, and so is the tail an interrupted finish leaves
 behind its evidence -- the announcement, the relabel, and the retirement --
 which none of these parks takes: a park that keeps the attempt keeps it for
@@ -171,9 +174,13 @@ def _reset_clear_and_park(
 
     A recovery's attempt may also stand guard over a record the workflow made
     about the head the reset takes the checkout off -- a verification
-    transaction a finish captured for a landed head -- so the recovery is
-    asked to settle it on the same state first (`_settles_over_the_reset`):
-    it rides this one write with the attempt's drop, or neither lands.
+    transaction a finish captured for a landed head, or evidence one settled
+    for it -- so the recovery is asked to settle it on the same state first
+    (`_settles_over_the_reset`): it rides this one write with the attempt's
+    drop, or neither lands. That write is the recovery's own park
+    (`_parks_the_recovery`), landed over the comment read afresh, so a report
+    or evidence record another road wrote while the notice went out is kept
+    beside it rather than put back.
     """
     reset = commands._git_hardened(
         "reset", "--hard", reset_sha, cwd=context.worktree,
@@ -205,13 +212,40 @@ def _reset_clear_and_park(
         _forgets_the_reset(context, reset_sha)
     elif not _proves_before_the_park(context):
         return
-    _park_auto_rebase_failure(
-        context.gh,
-        context.issue,
-        context.state,
+    _parks_the_recovery(
+        context,
         message=f"{message}\n\n{_reset_outcome(reset_sha, refused, cleaned)}",
         reason=reason,
     )
+
+
+def _parks_the_recovery(
+    context: _AutoRebaseContext | _AutoRebaseRecoveryContext,
+    *,
+    message: str,
+    reason: str,
+) -> None:
+    """Park `context`'s issue as `_park_auto_rebase_failure` parks it, recorded as its recovery records a park.
+
+    The park's record lands behind its notice, a request after the tick read
+    the comment -- long enough for another road to settle and review a later
+    report, or move an evidence record. A recovery context the workflow built
+    carries the park that lands over the comment read afresh instead, keeping
+    whatever another road wrote meanwhile
+    (`_AutoRebaseRecoveryContext.lands_a_park`): over a landed reset, the
+    evidence a finish captured or settled for the head is retired in the very
+    write that drops the attempt (`_settles_over_the_reset`), and that write
+    puts back no report the evidence was superseded by. A context with none --
+    a refresh's own -- writes the state whole.
+    """
+    lands = context.lands_a_park if isinstance(context, _AutoRebaseRecoveryContext) else None
+    if lands is None:
+        _park_auto_rebase_failure(context.gh, context.issue, context.state, message=message, reason=reason)
+        return
+    assert reason in _AUTO_REBASE_PARK_REASONS, (
+        f"_parks_the_recovery called with reason={reason!r}, which is not in _AUTO_REBASE_PARK_REASONS"
+    )
+    lands(context, message, reason)
 
 
 def _reset_outcome(reset_sha: str, refused: str | None, cleaned: bool | None) -> str:

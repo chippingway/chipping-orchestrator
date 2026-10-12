@@ -19,6 +19,10 @@ _EVENT_NAME = "agent_spawn"
 _STAGE = "implementing"
 _ISSUE_NUMBER = 949
 _LOG_FILE_NAME = "events.jsonl"
+_LOG_PATH = "EVENT_LOG_PATH"
+_REBASED = "base_rebased"
+_FILED_HEAD = "c1c2c3c4c5c6c7c8c9c0c1c2c3c4c5c6c7c8c9c0"
+_OTHER_HEAD = "d1d2d3d4d5d6d7d8d9d0d1d2d3d4d5d6d7d8d9d0"
 
 
 def _record(event: str) -> dict:
@@ -68,7 +72,7 @@ class WriteEventRecordTest(unittest.TestCase):
 
     def test_unset_path_appends_nothing(self) -> None:
         with (
-            patch.object(config, "EVENT_LOG_PATH", None),
+            patch.object(config, _LOG_PATH, None),
             patch.object(_events, "append_event_line") as append_mock,
         ):
             _events.write_event_record(_record(_EVENT_NAME))
@@ -80,7 +84,7 @@ class WriteEventRecordTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as work_dir:
             # A nested path pins that the sink creates its parent directory.
             event_path = Path(work_dir) / "audit" / _LOG_FILE_NAME
-            with patch.object(config, "EVENT_LOG_PATH", event_path):
+            with patch.object(config, _LOG_PATH, event_path):
                 _events.write_event_record(first)
                 _events.write_event_record(second)
             written = event_path.read_text(encoding="utf-8").splitlines()
@@ -95,13 +99,48 @@ class WriteEventRecordTest(unittest.TestCase):
         # `GitHubClient.emit_event`.
         sink_error = OSError("no space left on device")
         with (
-            patch.object(config, "EVENT_LOG_PATH", Path(_LOG_FILE_NAME)),
+            patch.object(config, _LOG_PATH, Path(_LOG_FILE_NAME)),
             patch.object(_events, "append_event_line", side_effect=sink_error),
             self.assertLogs(_events.log, level="WARNING") as captured,
         ):
             _events.write_event_record(_record(_EVENT_NAME))
             warnings = captured.output
         self.assertIn("could not write event log", warnings[0])
+
+
+class _Client:
+    """A client's in-memory tail of recorded events, and the repository it records them for."""
+
+    _repo_slug = _REPO_SLUG
+
+    def __init__(self, *recorded: dict) -> None:
+        self.recorded_events = list(recorded)
+
+
+def _filed(client: _Client, sha: str) -> bool:
+    """Whether `client`'s stream carries a `base_rebased` for issue #949 naming `sha`."""
+    return _events.filed(client, _REBASED, issue_number=_ISSUE_NUMBER, sha=sha)
+
+
+class FiledEventTest(unittest.TestCase):
+    """An event already on the stream is found -- in the client's tail, or in the audit log's -- and no other is."""
+
+    def test_an_event_is_found_where_it_was_filed(self) -> None:
+        # A process lost after filing an event comes back with an empty tail:
+        # the audit log is what still carries it, read from its end, a line
+        # that does not parse passed over.
+        filed = {**_record(_REBASED), "sha": _FILED_HEAD}
+        with tempfile.TemporaryDirectory() as work_dir:
+            event_path = Path(work_dir) / _LOG_FILE_NAME
+            event_path.write_text(f"not json\n{json.dumps(filed)}\n")
+            with patch.object(config, _LOG_PATH, event_path):
+                found = (_filed(_Client(), _FILED_HEAD), _filed(_Client(), _OTHER_HEAD))
+        in_memory = _filed(_Client(filed), _FILED_HEAD)
+        self.assertEqual((*found, in_memory), (True, False, True))
+
+    def test_nothing_is_found_without_a_log(self) -> None:
+        with patch.object(config, _LOG_PATH, None):
+            self.assertFalse(_filed(_Client(), _FILED_HEAD))
 
 
 if __name__ == "__main__":
