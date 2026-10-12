@@ -581,7 +581,10 @@ The reviewer prompt (`workflow/engine/review_prompts.py`, with its verification 
   block, spelled from `workflow/engine/review_verification_models.py`, the vocabulary
   `workflow/engine/review_verification.py` reads: a `VERIFICATION: RUN <head>` … `VERIFICATION: END` block naming the
   head it is handed and listing each `COMMAND:` it ran with the `EXIT:` status it returned and any output as plain
-  lines, or — only where evidence was handed — `VERIFICATION: REUSED sha256:<revision>` naming that exact revision.
+  lines. Each `COMMAND:` names the command itself, without the logging or status-capture plumbing the reviewer wrapped
+  around it; a configured command stays exactly as written, including any redirection. Each `EXIT:` reports the
+  command's own exit status, not that of logging or output processing the reviewer added. Only where evidence was
+  handed may the reviewer instead close with `VERIFICATION: REUSED sha256:<revision>` naming that exact revision.
 - **What is no change to request.** The orchestrator publishes what the reviewer declares on the pull request itself,
   as a verification artifact (`github/verification_artifacts.py`) whose visible summary says whether the recorded
   checks passed, failed, or never ran, and names the artifact and evidence revisions, the witness, the tested commit,

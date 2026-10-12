@@ -5,8 +5,8 @@
 A reviewer closes on a `VERDICT:` line about the diff. What it says about
 verification is a separate declaration with markers of its own, so neither
 reading can stand in for the other. A declaration takes one of two forms. A
-RUN block names the commit it verified and the exact commands the reviewer ran
-in this run, each with the exit status it observed and whatever output it
+RUN block names the commit it verified and the commands the reviewer ran, as
+it declares them, each with the exit status it observed and whatever output it
 quoted, between an opening and a closing marker line, because only an explicit
 close shows the list was not cut short. A REUSED line names the revision of the
 current workflow verification evidence the reviewer inspected instead of
