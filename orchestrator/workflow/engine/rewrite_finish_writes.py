@@ -190,6 +190,11 @@ PARK = _commits.ReportWrite(
 # The records a transaction recorded for the landed head is bound through.
 _BOUND = frozenset(_durable._BOUND_RECORDS)
 
+# Those of them settled evidence's binding rests on beyond the evidence records
+# themselves -- the pull request, a report or its debt, a review subject: a
+# write that reads one of them moved has read movement under the evidence.
+BINDING_RECORDS = _BOUND - _EVIDENCE_RECORDS
+
 # What a refusal that read one of them moved observed: movement under any
 # transaction recorded for the head, which the caller hands to the last word as
 # its proof, so a record put back before that word reads it again revives

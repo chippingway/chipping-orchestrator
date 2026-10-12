@@ -75,6 +75,7 @@ from orchestrator.git.base_sync import (
     state as _base_sync_state,
 )
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
     pinned_commit_models as _commit_models,
@@ -85,10 +86,17 @@ from orchestrator.workflow.engine import (
     rewrite_landing_records as _landing_records,
     verification_records as _evidence_records,
 )
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 
 log = logging.getLogger("orchestrator.workflow")
 
 _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PARK_REASON))
+
+# What a park's record read where it adopted a record the evidence's binding
+# rests on that another road moved while its notice was posted.
+_MOVED_UNDER_THE_NOTICE = ReportEvidence(
+    ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved while a park's notice was posted",
+)
 
 # A park's record, decided on the attempt it keeps or drops, the park's own
 # flags, and the evidence records a landed reset retires beside the attempt.
@@ -112,7 +120,12 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     or not, evidence the park leaves standing beside the attempt is proved once
     more over the comment read afresh (`rewrite_landing_moved.abandons_unproved`),
     so a report another road settled while the notice was posted is read
-    moving under it now rather than put back unread before the reply.
+    moving under it now rather than put back unread before the reply. Where
+    the record that landed already adopted such a move -- a record the
+    evidence's binding rests on reading otherwise than the tick read it
+    (`rewrite_finish_writes.BINDING_RECORDS`) -- that is movement read, handed
+    to the proof as its answer, so a record put back between the park's
+    commit and the proof revives nothing.
     """
     state = context.state
     _guards._park_awaiting_human(context.gh, context.issue, state, message, reason=reason)
@@ -120,6 +133,7 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     if state.synced is None:
         context.gh.write_pinned_state(context.issue, state)
         return
+    read = {key: state.get(key) for key in _writes.BINDING_RECORDS}
     landed = _commits.ReportCommit(context.gh, context.issue, state).lands(state, PARK)
     if landed.status is not _commit_models.CommitStatus.COMMITTED:
         log.warning(
@@ -127,8 +141,9 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
             "and the next tick's recovery answers the comment as it then stands",
             context.issue.number, (landed.refusal or landed.status).value,
         )
+    moved = _adopted(state, read)
     if context.worktree.is_dir():
-        _landing_moved.abandons_unproved(context)
+        _landing_moved.abandons_unproved(context, moved)
 
 
 def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
@@ -191,3 +206,9 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
         (landed.refusal or landed.status).value,
     )
     return False
+
+
+def _adopted(state: PinnedState, read: dict) -> ReportEvidence | None:
+    """The movement a park's record adopted: `state` carrying a binding record otherwise than `read` had it, or None."""
+    carried = {key: state.get(key) for key in read}
+    return None if carried == read else _MOVED_UNDER_THE_NOTICE

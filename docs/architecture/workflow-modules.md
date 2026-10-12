@@ -1978,7 +1978,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             asks first (`proves_before_a_park`, over `rewrite_landing_moved.abandons_unproved`)
                             records the same blank first over a checkout gone from disk, whose evidence it retires
                             only on the state the park writes; and every park proves what it keeps once more behind
-                            its notice, landed or not, so a report another road settled meanwhile is read moving.
+                            its notice, landed or not, so a report another road settled meanwhile is read moving --
+                            one its own record adopted handed to that proof as movement already read, however soon
+                            it is put back.
                             The dispatcher's answer to an anchor it holds is handed the same park beside that proof
                             (`answers_a_held_anchor`)
     rewrite_landing_records.py

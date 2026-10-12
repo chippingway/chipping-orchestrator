@@ -10,10 +10,12 @@ the head, the report the run was bound to replaced: under the park a finish
 takes for want of room for the landing's report debt, which is decided on the
 report records and refused over that move; or under a recovery park that keeps
 the attempt behind a fetch and a reset that both failed, whose record keeps
-the report as the comment then carries it. Either way the run is read moving
-before the tick ends -- by the refused park, or by the proof taken once more
-behind the notice -- and invalidated whole, so putting report 2 back before
-the next poll revives nothing.
+the report as the comment then carries it -- over a run settled, or one only
+captured and never settled. Either way the run is read moving before the tick
+ends -- by the refused park, or by the park's record that adopted report 3,
+handed to the proof taken once more behind the notice -- and invalidated or
+abandoned whole, so putting report 2 back, even right behind that record and
+before the proof, revives nothing.
 
 And a checkout gone from disk under a label the refresh does not drive, which
 the dispatcher's stranded park answers by retiring the run on the state that
@@ -29,6 +31,7 @@ from __future__ import annotations
 import subprocess
 import unittest
 from functools import partial
+from itertools import product
 from unittest.mock import patch
 
 from orchestrator.git import commands
@@ -83,10 +86,10 @@ def _settles_a_later_report(case: support.CapturedRunCase, head: str, replaced: 
     case.gh.write_pinned_state(case.issue, case.state)
 
 
-def _puts_back(case: support.CapturedRunCase, replaced: dict) -> None:
-    """Write the report and review records back as they stood before report 3 moved them."""
+def _puts_back(case: support.CapturedRunCase, replaced: list) -> None:
+    """Write the report and review records back as they stood before report 3 moved them, as `replaced` kept them."""
     state = case.gh.read_pinned_state(case.issue)
-    for key, recorded in replaced.items():
+    for key, recorded in replaced[-1].items():
         state.set(key, recorded)
     case.gh.write_pinned_state(case.issue, state)
 
@@ -136,31 +139,33 @@ class ParkNoticeMoveTest(support.CapturedRunCase, unittest.TestCase):
         replaced = self._posting_moves_the_report(head, self.recovers)
 
         self.assertFalse(readings.pinned(self).get(_AWAITING))
-        self._assert_invalidated(settled)
+        self._assert_retired(settled)
         _puts_back(self, replaced)
         finish_moves.makes_room(self)
         self.recovers()
 
-        self._assert_routed(head, settled)
+        self._assert_retired(settled)
+        self._assert_routed(head)
 
     def test_a_kept_park_proves_behind_its_notice(self) -> None:
         # The park behind a fetch and a reset that failed keeps the attempt
-        # and records report 3 as the comment carries it, and the proof taken
-        # behind its notice invalidates the run; report 2 put back and the
-        # park continued, the head is routed with nothing current.
-        head, settled = self._settles_then_dies()
-        with patch.object(commands, _GIT, partial(_refuses, getattr(commands, _GIT))):
-            replaced = self._posting_moves_the_report(head, self.recovers)
+        # and records report 3 as the comment carries it -- report 2 put back
+        # right behind that record, before the proof, or only after the tick:
+        # the run, settled or only captured, is invalidated or abandoned, and
+        # once the park is continued the head is routed with nothing current.
+        for captures, restoring in product((False, True), (False, True)):
+            with self.subTest(captured=captures, restored_behind_the_record=restoring):
+                self.setUp()
+                head, run = self.captures() if captures else self._settles_then_dies()
+                with patch.object(commands, _GIT, partial(_refuses, getattr(commands, _GIT))):
+                    replaced = self._posting_moves_the_report(head, self.recovers, restoring=restoring)
 
-        pinned = readings.pinned(self)
-        self.assertTrue(pinned.get(_AWAITING))
-        self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
-        self._assert_invalidated(settled)
-        _puts_back(self, replaced)
-        self.continues()
-        self.recovers()
-
-        self._assert_routed(head, settled)
+                self.assertTrue(readings.pinned(self).get(_AWAITING))
+                self._assert_retired(run, captured=captures)
+                _puts_back(self, replaced)
+                self.continues()
+                self.recovers()
+                self._assert_routed(head)
 
     def test_a_missing_checkout_park_that_never_lands(self) -> None:
         # The stranded park's record is refused, or the process is killed
@@ -181,10 +186,13 @@ class ParkNoticeMoveTest(support.CapturedRunCase, unittest.TestCase):
                 away.rename(self._wt)
                 self.issue.labels = [FakeLabel(git_support.REVIEWING)]
 
-                self.assertEqual(readings.pinned_records(self)[1], settled)
-                self.assertIsNone(readings.pinned(self)[readings.KEY_REWRITE_BASE])
+                self.assertEqual(
+                    (readings.pinned_records(self)[1], readings.pinned(self)[readings.KEY_REWRITE_BASE]),
+                    (settled, None),
+                )
                 self.recovers()
-                self._assert_routed(head, settled)
+                self._assert_retired(settled)
+                self._assert_routed(head)
 
     def _settles_then_dies(self) -> tuple:
         """Land a reviewed rebase, settle its run, and kill its finish before the announcement; the head and the run."""
@@ -192,25 +200,41 @@ class ParkNoticeMoveTest(support.CapturedRunCase, unittest.TestCase):
         handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
         return head, readings.pinned_records(self)[1]
 
-    def _posting_moves_the_report(self, head: str, finishing) -> dict:
-        """Run `finishing` with report 3 of `head` settled behind the first issue-thread post; the records it moved."""
+    def _posting_moves_the_report(self, head: str, finishing, *, restoring: bool = False) -> list:
+        """Run `finishing` with report 3 of `head` settled behind the first issue-thread post; the records it moved.
+
+        `restoring` puts them back right behind the park's record, before
+        anything behind it reads the comment again.
+        """
         replaced: list = []
         races = _RacesPastTheCall(self.gh.comment, 1, partial(_settles_a_later_report, self, head, replaced))
-        with patch.object(self.gh, "comment", races):
+        edit = self.gh.edit_pinned_state
+        if restoring:
+            edit = _BEFORE_THE_RECORD.moving(edit, partial(_puts_back, self, replaced))
+        with (
+            patch.object(self.gh, "comment", races),
+            patch.object(self.gh, "edit_pinned_state", edit),
+        ):
             finishing()
-        return replaced[0]
+        return replaced
 
-    def _assert_invalidated(self, settled) -> None:
-        """`settled` invalidated whole behind the anchor's evidence, its revision and binding kept, run once."""
-        retired = (*git_support.invalidated(self), (settled.receipt, readings.INVALIDATED))
+    def _assert_retired(self, run, *, captured: bool = False) -> None:
+        """`run` abandoned whole where it was only `captured`, else invalidated whole, its revision and binding kept.
+
+        Behind the anchor's own evidence the rewrite invalidated, and run once.
+        """
+        if captured:
+            self.assert_abandoned(run)
+            return
+        retired = (*git_support.invalidated(self), (run.receipt, readings.INVALIDATED))
         self.assertEqual(readings.pinned_records(self), (None, None, retired))
         entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
-        self.assertEqual((entry.revision, entry.binding), (settled.revision, settled.binding))
+        self.assertEqual((entry.revision, entry.binding), (run.revision, run.binding))
         self.assertEqual((self.runs(), self.developer.call_count), (1, 0))
 
-    def _assert_routed(self, head: str, settled) -> None:
-        """`head` announced, relabelled, and its attempt retired once, `settled` invalidated, nothing pushed."""
-        self._assert_invalidated(settled)
+    def _assert_routed(self, head: str) -> None:
+        """`head` announced, relabelled, and its attempt retired once, nothing pending or current, nothing pushed."""
+        self.assertEqual(readings.pinned_records(self)[:2], (None, None))
         self.assertEqual(support.announced(self), [head])
         self.assertEqual(readings.relabels(self), readings.ROUTED)
         self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)

@@ -124,6 +124,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING, last_word
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, LandedFinish
 
@@ -234,7 +235,7 @@ def abandons(
     return _readiness.invalidates(finish, settled)
 
 
-def abandons_unproved(context: _AutoRebaseRecoveryContext) -> bool:
+def abandons_unproved(context: _AutoRebaseRecoveryContext, moved: ReportEvidence | None = None) -> bool:
     """Prove what a finish captured or settled for the landed head before a park keeps it, retiring what moved.
 
     Whether the park may go on -- asked by the git owner ahead of every
@@ -259,6 +260,11 @@ def abandons_unproved(context: _AutoRebaseRecoveryContext) -> bool:
     evidence still stands once its retirement was asked -- settled evidence
     with no room for its history entry among it -- for the git owner to hold
     the tick with nothing parked.
+
+    `moved` is movement the caller already read under that evidence -- a
+    report a park's record adopted while its notice was posted -- which no
+    reading taken now may hide by finding it put back: it is the proof the
+    transaction is abandoned with, and invalidates settled evidence outright.
     """
     settled = _landing_records.settled(context.state)
     if _landing_records.captured(context.state) is None and settled is None:
@@ -267,26 +273,29 @@ def abandons_unproved(context: _AutoRebaseRecoveryContext) -> bool:
         return abandons_over_the_reset(context, _CHECKOUT_GONE)
     branch = _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
     unread = _AutoRebaseRecoverySnapshot(branch=branch, local_head="")
-    if not _proves_captured(context, unread):
+    if not _proves_captured(context, unread, moved):
         return False
     settled = _landing_records.settled(context.state)
     if settled is None:
         return True
     finish = _finish(context, settled.binding.target.target_head, unread, None)
-    moved = _readiness.settled_word(finish, settled)[0]
-    return moved is None or _readiness.invalidates(finish, settled)
+    word = moved or _readiness.settled_word(finish, settled)[0]
+    return word is None or _readiness.invalidates(finish, settled)
 
 
-def _proves_captured(context: _AutoRebaseRecoveryContext, snapshot: _AutoRebaseRecoverySnapshot) -> bool:
+def _proves_captured(
+    context: _AutoRebaseRecoveryContext, snapshot: _AutoRebaseRecoverySnapshot, moved: ReportEvidence | None,
+) -> bool:
     """Prove the transaction a finish captured for the landed head, abandoning it where it moved; whether none stands.
 
-    The captured half of `abandons_unproved`, over `snapshot`.
+    The captured half of `abandons_unproved`, over `snapshot`, `moved` the
+    movement its caller already read, which stands as the proof.
     """
     pending = _landing_records.captured(context.state)
     if pending is None:
         return True
     finish = _finish(context, pending.binding.target.target_head, snapshot, None)
-    proof = _captured.proved_again(finish, pending)
+    proof = moved or _captured.proved_again(finish, pending)
     moved = last_word(finish, pending.binding, earlier=proof)[0]
     if moved is None:
         return True
