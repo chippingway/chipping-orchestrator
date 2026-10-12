@@ -77,12 +77,14 @@ def announcement(state: PinnedState, head: str) -> PinnedState:
     """The write that announces `head`, as `state` would make it, taken before anything is announced.
 
     Everything that write puts on the comment: the ledger entry of the notice
-    it follows, reserved at the widest id a comment is recorded at, the round
-    reset ahead of the mark, and the mark. The writes past it only clear, so
-    none of them carries more.
+    it follows, reserved at the widest id a comment is recorded at, the record
+    of its event -- which the write ahead of the event lands on its own too --
+    the round reset ahead of the mark, and the mark. The writes past it only
+    clear, so none of them carries more.
     """
     announced = PinnedState(state_data=copy.deepcopy(state.data))
     _comments._reserve_comment_slot(announced, _record_values.MAX_RECORDED_NUMBER)
+    announced.set(_base_sync_state._PENDING_ANNOUNCED_EVENT, head)
     announced.set(_base_sync_state._REVIEW_ROUND, 0)
     announced.set(_base_sync_state._PENDING_ANNOUNCED_SHA, head)
     return announced

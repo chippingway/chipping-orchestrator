@@ -9,6 +9,9 @@ tick already made -- each announcing at most once, retiring the whole attempt,
 and routing to `workflow:validating` only where the base has not advanced past
 the landed head. A landing the record does not account for, a finish already
 made, and a caller's writer claim held across it are the edges around them.
+So is a notice an interrupted finish posted ahead of its mark, which the next
+finish finds on the pull request rather than posting again, and a conversation
+that leaves the finish unable to tell, which holds it.
 """
 from __future__ import annotations
 
@@ -16,12 +19,14 @@ import unittest
 from dataclasses import replace
 from functools import partial
 from types import MappingProxyType
+from unittest.mock import MagicMock, patch
 
 from orchestrator.git.base_sync.rewrite_handoffs import _PushOutcome, _RewriteRefusal
 from orchestrator.scheduler import writer_claims
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
+from tests.support.fakes import DEFAULT_BOT_LOGIN, FakeComment, FakeUser
 from tests.workflow.engine import rewrite_finish_effects_support as effects, rewrite_finish_test_support as support
-from tests.workflow.interleaving import _RacesTheStep
+from tests.workflow.interleaving import _RacesPastTheStep, _RacesTheStep
 
 _PUBLISHED = (
     ":mag: PR was 2 commit(s) behind `origin/main`; orchestrator auto-rebased the branch and "
@@ -99,6 +104,20 @@ _RECOVERIES = (
 # The attempt as a finish leaves it: every member blanked rather than removed.
 _RETIRED = MappingProxyType(dict.fromkeys(support.ATTEMPT_KEYS))
 
+# Somebody other than this orchestrator, posting on the pull request.
+_SOMEBODY = "somebody"
+
+# Who posted a notice of the landing ahead of the finish, and how many the finish posts beside it.
+_POSTED_AHEAD = ((DEFAULT_BOT_LOGIN, 0), (_SOMEBODY, 1))
+
+# What a GitHub request that did not answer raises.
+_UNANSWERED = ConnectionError("GitHub did not answer")
+
+# Each client step whose failure leaves a finish unable to tell whether the
+# pull request carries its notice: the conversation read, and a post that
+# raised with nothing landed.
+_NOTICE_UNKNOWN = ("pr_conversation_thread", "pr_comment")
+
 # A publication whose push the remote was not shown standing on.
 _UNSHOWN = replace(support.PUBLISHED, remote=support.ANCHOR)
 
@@ -173,8 +192,9 @@ class PublishedFinishTest(unittest.TestCase):
             ),
             (_RETIRED, 0, support.owed(), 1),
         )
-        # The announcement and the retirement, and no other write.
-        self.assertEqual(world.github.write_state_calls, 2)
+        # The record of the event, the announcement, and the retirement, and
+        # no other write.
+        self.assertEqual(world.github.write_state_calls, 3)
 
 
     def test_a_publication_found_standing_says_so(self) -> None:
@@ -268,6 +288,75 @@ class AnnouncedFinishTest(unittest.TestCase):
             [(support.owed(), support.LANDED, support.ANCHOR, support.SPENT_ROUND)],
         )
         self.assertEqual(world.pinned()[support.KEY_REWRITE_DEBT], support.owed())
+
+
+class InterruptedAnnouncementTest(unittest.TestCase):
+    """A notice posted ahead of a mark that never landed is said once; one nobody can find holds the finish."""
+
+    def test_a_notice_of_ours_is_not_posted_again(self) -> None:
+        # An earlier finish posted the notice and died ahead of its mark: the
+        # finish takes that comment as the notice made, enters it in the
+        # ledger, and files the event once. A look-alike somebody else posted
+        # is no notice of ours, and the finish posts its own beside it.
+        for author, posts in _POSTED_AHEAD:
+            with self.subTest(author=author):
+                world = support.FinishWorld.seeded()
+                self._posts_ahead(world, author)
+
+                self.assertEqual(world.finalizes(), FinishOutcome.ROUTED)
+
+                self.assertEqual(len(world.said()[0]), posts)
+                self._assert_said_once(world, "auto_clean_rebase")
+
+    def test_an_unknown_notice_holds_the_finish(self) -> None:
+        # Nothing is filed, marked, relabelled, or retired, and the next
+        # finish, the conversation answering again, says the landing once.
+        for step in _NOTICE_UNKNOWN:
+            with self.subTest(failing=step):
+                world = support.FinishWorld.seeded()
+                with patch.object(world.github, step, side_effect=_UNANSWERED):
+                    self.assertEqual(world.finalizes(), FinishOutcome.HELD)
+
+                left = support.checkpoint(world.pinned())
+                said = (world.said(), world.relabels())
+                self.assertEqual(said, (([], []), ()))
+                self.assertEqual(left[1:], (None, support.ANCHOR, support.SPENT_ROUND))
+                self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
+                self._assert_said_once(world, "crash_recovery_relabel_only")
+
+    def test_a_post_whose_answer_was_lost_is_found(self) -> None:
+        # The notice landed and the request raised: the conversation read
+        # again shows it, so it is the notice made and the finish goes on.
+        world = support.FinishWorld.seeded()
+        lost = MagicMock(side_effect=_UNANSWERED)
+        world.github.pr_comment = _RacesPastTheStep(world.github.pr_comment, lost)
+
+        self.assertEqual(world.finalizes(), FinishOutcome.ROUTED)
+
+        self._assert_said_once(world, "auto_clean_rebase")
+
+    def _posts_ahead(self, world: support.FinishWorld, author: str) -> None:
+        """Put the publication's notice on PR #42 as `author`, ahead of the finish."""
+        ahead = FakeComment(
+            id=world.github.next_reply_id(world.issue),
+            body=effects.posted(_PUBLISHED),
+            user=FakeUser(author),
+        )
+        world.github.get_pr(support.PR_NUMBER).issue_comments.append(ahead)
+
+    def _assert_said_once(self, world: support.FinishWorld, method: str) -> None:
+        """One notice of ours on PR #42, in the ledger, one `base_rebased` filed through `method`, the head routed."""
+        thread = world.github.get_pr(support.PR_NUMBER).issue_comments
+        ours = [
+            posted.id for posted in thread
+            if posted.user.login == DEFAULT_BOT_LOGIN
+        ]
+        durable = world.pinned()
+        ledger = durable[support.KEY_LEDGER]
+        self.assertEqual((len(ours), ledger), (1, ours))
+        self.assertEqual(world.said()[1], [effects.rebased(method)])
+        routed = (world.relabels(), support.attempt(durable))
+        self.assertEqual(routed, (_ROUTED, _RETIRED))
 
 
 class UnaccountedLandingTest(unittest.TestCase):

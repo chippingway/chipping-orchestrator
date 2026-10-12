@@ -28,6 +28,7 @@ _MODULES = (
     "orchestrator.github.client",
     _TRUST_OWNER,
     "orchestrator.github.developer_reports",
+    "orchestrator.github.event_log",
     "orchestrator.github.events",
     "orchestrator.github.issue_polling",
     "orchestrator.github.issues",

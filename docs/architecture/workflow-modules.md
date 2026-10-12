@@ -1143,9 +1143,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             step (`rewrite_finish_evidence.py`), and a transaction it recorded published and settled,
                             or retired, with the anchor still standing -- evidence an earlier finish already settled
                             for the head routed as it stands while nothing beside it says otherwise. Only then is the
-                            announcement prepared before the notice and the `base_rebased` event go out, landing the
-                            debt, the reset round, and the mark while the anchor stands; a finish whose mark already
-                            names the head repeats neither and lands only a debt new beside it. A head the base
+                            announcement prepared before the notice and the `base_rebased` event go out, each once
+                            (`rewrite_finish_notices.py`, `rewrite_finish_events.py`), landing the debt, the reset
+                            round, and the mark while the anchor stands; a finish whose mark already names the head
+                            repeats neither and lands only a debt new beside it. A head the base
                             advanced past again is announced and retired unrouted for the caller's next rebase, a
                             transaction an earlier finish recorded for it abandoned ahead of that announcement, and
                             an abandonment that does not land holding it with nothing announced. The retirement -- the
@@ -1155,7 +1156,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction left owed stops the finish with nothing behind it made -- nothing announced,
                             the round as it was -- behind the last word
                             (`rewrite_finish_captured.stands_before_the_route`) wherever a transaction is recorded for
-                            the head. It runs under its caller's issue writer claim and takes none. The ordinary
+                            the head. A tick lost behind the evidence -- before the announcement, between the notice,
+                            the event, and the checkpoint, between the checkpoint and the relabel, or between the
+                            relabel and the retirement -- leaves the attempt standing, and the finish that completes it
+                            repeats nothing the mark, the pull request, the event stream, and the label say was done:
+                            no second notice, `base_rebased` event, round reset, relabel, or stage-entry event. It
+                            runs under its caller's issue writer claim and takes none. The ordinary
                             publication
                             (`rewrite_publication.py`) hands its landing here, and the recovery's retry
                             (`rewrite_retry.py`) and its finish of a push already landed (`rewrite_landed.py`) hand
@@ -1169,10 +1175,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whose remote could not be read after are not -- and what it came to (`FinishOutcome`):
                             routed, continued to another rebase, parked, refused, unconfirmed, held over an evidence
                             decision nobody could take, an invalidation with no room, a failure notice nobody could
-                            confirm published, or a transaction whose publication or settlement did not resolve, or
-                            unfinishable
+                            confirm published, a transaction whose publication or settlement did not resolve, or an
+                            announcement nobody could tell was already made -- a conversation or event stream that
+                            would not read, a post that raised and is not found -- or unfinishable
     rewrite_finish_debt.py  the debt a landed rewrite leaves, staged only where both the announcement write it rides
-                            -- the notice's ledger entry reserved at the widest id, the reset round, and the mark --
+                            -- the notice's ledger entry reserved at the widest id, the record of the event, the
+                            reset round, and the mark --
                             and the comment as it stands have room for it, a refusal for anything but room leaving a
                             standing claim as it is -- measured ahead of the evidence too (`fits`), so a debt with no
                             room parks before anything runs; and the park notice of a debt with no room
@@ -1259,19 +1267,35 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whole text its identity, its author held to this orchestrator -- so a lost answer is found
                             where it landed; an unreadable thread or a post that raised holds the route
     rewrite_finish_notices.py
-                            the pull-request notice and the `base_rebased` event a finish announces with, spelled as
-                            every finish has spelled them -- the publication's, a recovery that pushed
+                            the pull-request notice a finish announces with, spelled as every finish has spelled
+                            them -- the publication's, a recovery that pushed
                             again, and a head this tick sent nothing for, on either road, as one found standing,
-                            each recovery notice saying where a base advanced again sends the landed head -- and the
-                            method the event files for each; and the notice of a configured verification the landed
-                            head failed, naming the command, how it failed, and its output's tail
+                            each recovery notice saying where a base advanced again sends the landed head -- said
+                            once per landed head (`announces`): the conversation is read first, and a comment of ours
+                            already announcing the head -- posted ahead of a checkpoint that never landed -- is the
+                            notice made, not posted again, a conversation nobody could read or a post nobody can find
+                            holding the finish, and the event filed behind it (`rewrite_finish_events.py`); and the
+                            notice of a configured verification the landed head failed, naming the command, how it
+                            failed, and its output's tail
+    rewrite_finish_events.py
+                            the `base_rebased` event a finish files behind its notice, and the method it names: once
+                            per landed head, the event stream asked first by every finish until the mark is down
+                            (`github/events.filed`, the whole audit log and its rotated copies included), whatever
+                            the attempt records -- a finish from before the record existed filed it with none -- and
+                            filed only where the stream does not carry it, recorded on the attempt ahead of it
+                            (`pending_auto_base_rebase_announced_event`, in a write of its own,
+                            `rewrite_finish_writes.ANNOUNCED_EVENT`) so it goes out only for an attempt still
+                            standing -- that write prepared ahead of the notice too (`prepares_the_record`), over the
+                            round the checkpoint has yet to reset; an unreadable log holds the finish with nothing
+                            filed
     rewrite_finish_writes.py
                             the guarded commits the finish writes through, under the tick-state guard
                             (`report_commits.py`) and decided on the publication's pinned fields as well: the
                             checkpoint, decided on the attempt, the report records and claim, the park's flags, the
                             round, and the evidence records -- so a transaction another road recorded beside the one
-                            the finish resolved refuses the announcement before its notice -- and prepared with its
-                            notice's ledger entry reserved over the fresh ledger;
+                            the finish resolved refuses the announcement before its notice -- and prepared whole,
+                            the record of the event staged on it too, with its notice's ledger entry reserved over
+                            the fresh ledger;
                             the evidence write, owning the four evidence records' pending, current, and history, the
                             revision floor, a failed run's notice, and the attempt's receipt of the transaction it
                             records, decided on the attempt, the claim, and every
@@ -1283,7 +1307,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             notice is posted; and the abandonment of a recorded transaction staged on the tick's own
                             copy (`ABANDONMENT`, `abandons`), owning what abandoning writes and the attempt's recorded
                             base tip, decided only on the transaction, its history, and the attempt -- the fallback of
-                            `rewrite_finish_captured.py`
+                            `rewrite_finish_captured.py`; and the record of the `base_rebased` event a finish files
+                            (`ANNOUNCED_EVENT`), owning that member alone and decided on the attempt
     rewrite_evidence.py     the evidence policy for a landed rewrite's head, handed the finish's input and writing
                             nothing; the finish's evidence step (`rewrite_finish_evidence.py`) asks it for every head
                             it routes, ahead of the announcement and with the attempt standing, and asks whether

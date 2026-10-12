@@ -7,7 +7,8 @@ checkout, the remote, the anchor -- and they are named the same way in each,
 so an operator reading two notices on one thread can tell whether they are
 about the same commit. What a finished recovery says on the pull request, and
 the `base_rebased` event it files, are the workflow finish's own
-(`workflow/engine/rewrite_finish_notices.py`), whichever road reached it.
+(`workflow/engine/rewrite_finish_notices.py`, `rewrite_finish_events.py`),
+whichever road reached it.
 """
 from __future__ import annotations
 

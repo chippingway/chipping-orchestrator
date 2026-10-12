@@ -100,6 +100,7 @@ def _replacement(case: support.VerificationRecoveryCase) -> dict:
         readings.KEY_REWRITE_BASE: None,
         readings.KEY_ANNOUNCED: None,
         readings.KEY_EVIDENCE_RECEIPT: None,
+        readings.KEY_ANNOUNCED_EVENT: None,
     }
 
 

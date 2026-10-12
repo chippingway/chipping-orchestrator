@@ -14,12 +14,14 @@ the pinned fields the publication is resolved from
 (`ReportWrite.on_the_publication`), and keeping every other field -- unknown
 ones included -- as the fresh reading carries it.
 
-Five writes, and each lists what it has to land exactly among the records it
+Six writes, and each lists what it has to land exactly among the records it
 is decided on as well as among its own, since a field staged as it was read is
 no move of the write's and would otherwise be left to whatever another road
 did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
 announces, the reset round and the announcement mark beside it, the notice's
-ledger entry reserved over the fresh ledger and kept beside it; it is decided
+ledger entry reserved over the fresh ledger and kept beside it, and the record
+of the event -- staged before it is prepared, so the announcement is measured
+whole over the fresh comment before anything is said; it is decided
 on the attempt being finished, the report records and claim the debt was
 staged over, the park's flags, the round, and the evidence records, and it
 lands only once the landed head's evidence is resolved: a transaction another
@@ -44,6 +46,9 @@ the attempt, so one comment reading that failed or one move under the write
 does not leave the transaction standing. It owns the base tip the replay was
 recorded as made onto too, which an abandonment with no room for its history
 entry blanks.
+`ANNOUNCED_EVENT` records the `base_rebased` event a finish is filing for
+the landed head, on its own and right ahead of it, decided on the attempt
+alone, so the event goes out only behind a write proving the attempt stands.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, the claim the checkpoint made durable, and every
@@ -111,7 +116,12 @@ _EVIDENCE_RECORDS = frozenset((
 ))
 
 CHECKPOINT = _commits.ReportWrite(
-    owned=frozenset((_rewrite_debt.REWRITE_DEBT, _ROUND, _base_sync_state._PENDING_ANNOUNCED_SHA)),
+    owned=frozenset((
+        _rewrite_debt.REWRITE_DEBT,
+        _ROUND,
+        _base_sync_state._PENDING_ANNOUNCED_SHA,
+        _base_sync_state._PENDING_ANNOUNCED_EVENT,
+    )),
     decided_on=_CLAIM | _ATTEMPT | _PARK_FLAGS | {_ROUND} | _EVIDENCE_RECORDS,
 )
 
@@ -135,6 +145,14 @@ EVIDENCE = _commits.ReportWrite(
 ABANDONMENT = _commits.ReportWrite(
     owned=frozenset((*ABANDONS, _base_sync_state._PENDING_REWRITE_BASE)),
     decided_on=frozenset((_evidence_records.PENDING_EVIDENCE, _evidence_records.EVIDENCE_HISTORY)) | _ATTEMPT,
+)
+
+# The record of the `base_rebased` event a finish is filing, landed on its own
+# right ahead of the event and of the checkpoint (`rewrite_finish_events`), so
+# the event goes out only behind a write proving the attempt still stands.
+ANNOUNCED_EVENT = _commits.ReportWrite(
+    owned=frozenset((_base_sync_state._PENDING_ANNOUNCED_EVENT,)),
+    decided_on=_ATTEMPT,
 )
 
 FINISH = _commits.ReportWrite(

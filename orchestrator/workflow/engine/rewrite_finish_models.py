@@ -63,9 +63,12 @@ class FinishOutcome(StrEnum):
     the head was counted against it, an invalidation or an abandonment the
     pinned comment has no room for, a failure notice nobody could confirm the
     pull request carries, or a recorded transaction whose publication or
-    settlement did not resolve -- so nothing was routed and the attempt stands
-    for a later tick to finish. UNFINISHABLE is a landing the pinned record
-    does not account for, and nothing at all was made for it.
+    settlement did not resolve -- or an announcement nobody could tell was
+    already made: a pull-request conversation that would not read, a notice
+    whose post raised and that the conversation read again does not show, or
+    an event stream that would not read back -- so nothing was routed and the
+    attempt stands for a later tick to finish. UNFINISHABLE is a landing the
+    pinned record does not account for, and nothing at all was made for it.
     """
 
     ROUTED = "routed"

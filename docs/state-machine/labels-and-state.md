@@ -564,8 +564,9 @@ left standing, and the route goes on to the reviewer road, which refuses the sta
 no claim.
 
 The room the debt needs is measured on the whole write it rides -- the announcement, which also puts down the notice's
-ledger entry (reserved at the widest id a comment is recorded at), the `review_round` both finishes reset ahead of the
-mark, and the mark -- rather than on the debt alone, and on the comment as it stands as well, since resetting a wide
+ledger entry (reserved at the widest id a comment is recorded at), the record of the `base_rebased` event
+(`pending_auto_base_rebase_announced_event`), the `review_round` both finishes reset ahead of the mark, and the
+mark -- rather than on the debt alone, and on the comment as it stands as well, since resetting a wide
 round can make the announcement the narrower of the two; the writes past it only clear. A proved debt that does not fit
 stops the finish before it announces anything: no notice, no `base_rebased`, no relabel, and no clear. It parks
 `auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay standing, and the anchor holding every
@@ -3175,6 +3176,13 @@ The keys that matter for the state machine fall into a few groups:
   published is recorded in between, while the anchor and the replay still stand. A tick lost there comes back to a
   comment that says the announcement was made rather than to an attempt that looks unfinished, which is what stops a
   second `base_rebased` on the stream and a second notice on the pull request for one publication that happened once.
+  The notice and the event go out ahead of this write, so a tick lost between them and it leaves no mark, and each is
+  recovered on its own (`workflow/engine/rewrite_finish_notices.py`): the next finish reads the pull request's
+  conversation first and takes a comment of ours already announcing the head as that notice made, posting it no
+  more, and files the event only where the event stream does not already carry it, recording it first in
+  `pending_auto_base_rebase_announced_event` (below; `workflow/engine/rewrite_finish_events.py`). A conversation
+  nobody could read, or a post that raised and does not show on the conversation read again, holds the finish with
+  nothing filed, the attempt standing for the next tick.
   BOTH finishes write it and for the same reason — the refresh's own publishing tail, which announces the rebase it just
   pushed, and the recovery, which announces one an earlier tick left — since neither is distinguishable afterwards from
   an attempt that never got that far. The report debt the landed head leaves (`developer_report_rewrite_debt`) rides the
@@ -3200,6 +3208,24 @@ The keys that matter for the state machine fall into a few groups:
   another road left pending, and the replay the attempt's record names counts as landed for the rollback park. Additive:
   an attempt whose finish recorded no transaction carries none, and one from before this member existed recorded its
   evidence only behind its mark, so with none on it a transaction about the head the mark names is that finish's.
+  `pending_auto_base_rebase_announced_event` — the head whose `base_rebased` event a finish of the attempt is
+  filing, written in a guarded write of its own right ahead of the event and of the mark
+  (`workflow/engine/rewrite_finish_writes.ANNOUNCED_EVENT`), carried by the checkpoint as well, and blanked with the
+  rest of the attempt by every write that ends it. Both writes are prepared over the comment read afresh before the
+  notice is posted -- the checkpoint whole, and the record's own write over the round the checkpoint has yet to reset
+  -- so a comment another road filled meanwhile, or one whose wide round leaves no room for the record, posts and
+  files nothing.
+  The event goes out only behind it, so it is filed only for an attempt still standing as the finish read it, and the
+  member says the event may be out. Its absence proves nothing: a finish from before this member
+  existed filed the event and could die behind it with none written. So until the mark is down, every finish asks
+  the event stream first, member or no member (`github/events.filed`: the client's in-memory tail, then the whole
+  audit log, however much it grew since, and every rotated copy of it beside it), and files the event only where
+  the stream does not carry it; a log or copy the process cannot read is no answer, and holds the finish -- nothing
+  filed, relabelled, or retired -- for the next tick to ask again. With no audit log configured, an event a lost
+  process filed went nowhere durable, so the live tail is all there is to ask; a copy the log's retention deleted,
+  or a log truncated with no copy kept, no longer carries what it dropped. The tick
+  that writes it takes in that member alone, so the mark behind it is still decided on every other record as the
+  tick read it. Additive: an attempt from before this member existed carries none.
   `auto_base_rebase_failed_verification` sits beside the group without being a member of it: the notice a landed
   head's failed configured verification is owed — an object of `head`, the rewritten head the run failed on, and
   `notice`, the notice's whole text (the failing command, how it failed, and its output's tail) — written by the

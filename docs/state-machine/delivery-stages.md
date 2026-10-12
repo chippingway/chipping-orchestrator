@@ -1493,6 +1493,41 @@ because there it is the claim that this stage has already rerouted rather than a
   state the park writes (`git/base_sync/persistence.py`), in the one write that releases the attempt or not at all; a
   reset that failed keeps both, save a transaction the snapshot already read the landing move under. Publishing and
   settling the recorded transaction is the finish's own, under the anchor (the bullet above).
+- **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
+  announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
+  relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
+  them: behind the evidence settled, retired, or handed to the fresh reviewer and before the announcement, between
+  the notice, the event, and the checkpoint, behind the checkpoint and before the relabel, or behind the relabel and
+  before the retirement. Each leaves the attempt standing, so the anchor keeps holding every handler and nothing
+  reviews the head, and the recovery of the push already landed finishes it on a later tick from what the records,
+  the pull request, and the event stream say was done, the evidence taken up where it stands (the bullet above):
+  - **The announcement is the existing checkpoint's.** A head the mark already names gets no second notice,
+    `base_rebased` event, or round reset, and an issue already on `workflow:validating` under that mark is not
+    relabelled again, so it files no second stage-entry event. The notice and the event go out ahead of that
+    checkpoint, so each is recovered on its own (`rewrite_finish_notices.announces`). A finish reads the pull
+    request's conversation before it posts anything, and a comment of ours already announcing the head -- posted by
+    a tick whose checkpoint was refused, went unconfirmed, or died -- is that notice made, entered in the ledger and
+    not posted again; a look-alike somebody else posted is no notice of ours. Until the mark is down, every finish
+    asks the event stream before it files the event (`rewrite_finish_events`, `github/events.filed`: the client's
+    in-memory tail, then the whole audit log, however much it grew, and every rotated copy logrotate left beside it)
+    and files it only where the stream does not carry it, recorded first on the attempt in a guarded write of its
+    own (`pending_auto_base_rebase_announced_event`) so it goes out only for an attempt still standing. That record
+    is no proof either way -- a finish from before it existed filed the event with none -- so the stream is asked
+    whether or not the attempt carries it, and a tick lost on either side of the event, on this build or an earlier
+    one, files it once in all. A log the process cannot read holds the finish with nothing filed, relabelled, or
+    retired rather than counting as absent, and so does a conversation nobody could read, or a post that raised and
+    does not show on the conversation read again. The event's record or the checkpoint refused or never confirmed
+    stops the finish with the attempt standing, and the next finish finds what went out ahead of it rather than
+    saying it again.
+  - **The relabel is said once too.** The retirement is prepared before the relabel and lands behind it, owning the
+    attempt, the round, the park's flags, a spent reply, and a failure notice the route no longer owes, and decided
+    on every record the evidence is bound through: a record another road moved -- while the relabel was made, say --
+    refuses it with the attempt standing, and the next recovery finds the issue already on `workflow:validating`
+    under its mark and routes it with no second relabel.
+
+  So whichever boundary a tick dies at, the journey ends as the uninterrupted one does: one notice and one
+  `base_rebased` event per rewrite that actually landed, no round reset, relabel, stage-entry event, or evidence
+  publication repeated, and no developer launched on any recovery road.
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims

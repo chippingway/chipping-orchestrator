@@ -991,10 +991,14 @@ fills with redacted, head/tail-truncated per-run reasoning trajectories, and the
 analytics sink is replayed into. Two Streamlit pages read them: the analytics dashboard over that database, and the
 file-backed trajectory viewer, which reads its JSONL directly (usage and cost included) and needs no database at all.
 None of them feed back into dispatch — workflow correctness keys off the pinned state JSON and the workflow label —
-so every surface is observation-only and safe to truncate, rotate, or delete.
+save one read of the audit log: a base-rewrite finish asks it, and the rotated copies beside it, whether its
+`base_rebased` is already filed before filing one, and holds while they will not read
+([`observability/event-streams.md`](observability/event-streams.md#audit-event-log-event_log_path)). So every surface
+is observation-only and safe to truncate, rotate, or delete, short of that one event's once-only filing.
 
 They are not all owned in one place. The audit sink belongs to `github/events.py`, since `GitHubClient.emit_event` is
-the single chokepoint it is appended from, and the Postgres service is the operator's own `analytics-db/` deployment.
+the single chokepoint it is appended from, and so does its one read-back (`events.filed`, over the reader of the log
+and its rotated copies, `github/event_log.py`); the Postgres service is the operator's own `analytics-db/` deployment.
 Everything else — the analytics sink and what is downstream of it, the trajectory writers, the usage parser, and both
 read models — lives under `orchestrator/observability/`, whose own four owner areas are mapped together with the two
 `apps/` pages composed over them in
