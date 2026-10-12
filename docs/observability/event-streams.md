@@ -317,8 +317,9 @@ and truncated, or a copy compressed and removed between the listing and the read
 listed again behind every read, each name to the file (device and inode) it is, and a reading counts only where that
 listing matches the one ahead of it, so a rotation that ends up under a read never answers as an absence; one still
 moving them after three readings holds the finish, as an unreadable log does. What it cannot follow is a copy no
-longer beside the log -- one the retention deleted, one `olddir` moved, one another compressor wrote -- and a log
-truncated with no copy kept: a lost finish retried after any of those can file its `base_rebased` a second time.
+longer beside the log -- one the retention deleted, one `olddir` moved, one another compressor wrote -- a log
+truncated with no copy kept, and a log left behind when `EVENT_LOG_PATH` is pointed at another file: a lost finish
+retried after any of those can file its `base_rebased` a second time.
 
 An `OSError` during the append is caught and downgraded to a `log.warning` so a misconfigured path (read-only mount,
 disk full, permission failure) cannot stop the per-issue tick from making progress; the missing record is silently
