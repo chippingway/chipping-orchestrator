@@ -1545,11 +1545,17 @@ because there it is the claim that this stage has already rerouted rather than a
   - **The announcement is the existing checkpoint's.** A head the mark already names gets no second notice,
     `base_rebased` event, or round reset, and an issue already on `workflow:validating` under that mark is not
     relabelled again, so it files no second stage-entry event. Only a notice posted and an event filed ahead of a
-    checkpoint that never landed are said again, as for any landing.
+    checkpoint that never landed are said again, as for any landing. The checkpoint is decided on the report
+    records, so a report another road settled while the notice was posted refuses it -- and that refusal is movement
+    read under the settled evidence, invalidated there and then, before the finish stops
+    (`rewrite_finish_readiness.invalidates_behind`), with the attempt and the newer report kept.
   - **The retirement is the guarded one.** It owns the attempt, the round, the park's flags, a spent reply, and a
     failure notice the route no longer owes, and is decided on every record the evidence is bound through, so the
-    evidence and report records stay as the comment carries them: a record another road moved refuses it, with the
-    attempt standing for the next recovery, which reads that move as movement under the evidence.
+    evidence and report records stay as the comment carries them: a record another road moved -- while the relabel
+    was made, say -- refuses it, with the attempt standing for the next recovery, and settled evidence the refusal
+    read moving under is invalidated before the finish stops, the same way, so putting the record back before that
+    recovery revives nothing. A refusal that read only the evidence records move -- a newer transaction recorded for
+    the head -- invalidates nothing: that transaction is the next finish's to answer.
   - **A base that advanced again** while the attempt stood is no route at all: the landed head is announced only
     where the dead tick had not announced it, its attempt is retired unrouted, and the tick's rebase replaces it.
     The evidence settled for it stays in place for that rebase's own finish to decide over, invalidated whole where

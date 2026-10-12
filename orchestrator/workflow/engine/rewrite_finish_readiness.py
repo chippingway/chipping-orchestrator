@@ -52,6 +52,12 @@ base ref, and the configuration once more.
   movement too -- and the next tick classifies the branch and counts the
   head again.
 
+The finish's own announcement checkpoint and retirement come behind the
+proof, and a report or review record another road moves while the notice is
+posted or the relabel made refuses them: that refusal is movement read under
+the evidence too, which is invalidated before the finish stops
+(`invalidates_behind`).
+
 The recovery's helpers (`rewrite_landing_moved`) ask the same proof
 (`settled_word`) and the same invalidation (`invalidates`) of evidence a
 finish of the attempt settled, wherever a snapshot reads the landing moving
@@ -160,13 +166,13 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
     history are written and every other field stays as the comment carries
     it. Where that comment would not read again, or that write was refused or
     went unconfirmed, the invalidation is staged on the tick's own copy and
-    landed as `rewrite_finish_writes.INVALIDATION` instead (`_falls_back`),
-    decided only on the evidence records and the attempt -- so movement the
-    caller already read is never left behind a comment that would not read,
-    for a later poll to find put back and take the decision as current. False
-    where the comment carries another attempt or no longer carries `current`
-    as current, where neither reading has room for the history entry, or
-    where neither write landed.
+    landed as `rewrite_finish_writes.INVALIDATION` instead, decided only on
+    the evidence records and the attempt -- so movement the caller already
+    read is never left behind a comment that would not read, for a later poll
+    to find put back and take the decision as current. False where the
+    comment carries another attempt or no longer carries `current` as current,
+    where neither reading has room for the history entry, or where neither
+    write landed.
     """
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
@@ -180,7 +186,40 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
             refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
             if refused is None:
                 return True
-    return _falls_back(finish, current)
+    staged = _writes.staging(finish)
+    if _settlement.read_current_evidence(staged) != current or not _settlement.retire_current_evidence(staged):
+        return False
+    return _writes.lands(finish, staged, _writes.INVALIDATION) is None
+
+
+def invalidates_behind(
+    finish: LandedFinish, stopped: FinishOutcome | None, observed: list[_evidence_models.ReportEvidence],
+) -> FinishOutcome | None:
+    """`stopped`, behind invalidating evidence settled for the landed head that a refused write read moving under.
+
+    For the finish's announcement checkpoint and its retirement
+    (`rewrite_finish`), each proved ready before it and each guarded by the
+    records the evidence is bound through: a report or review record another
+    road wrote while the notice was posted or the relabel made refuses the
+    write, and that refusal (`rewrite_finish_writes.BINDING_MOVED` in
+    `observed`) is movement read under the evidence. So it is invalidated now
+    (`invalidates`), the attempt and the newer records kept as the comment
+    carries them, and putting the record back before the next poll revives
+    nothing. A write that landed, or a refusal that read no such record --
+    a newer transaction recorded for the head among them, the next finish's to
+    answer -- passes through with nothing read.
+    """
+    current = _settlement.read_current_evidence(finish.state)
+    if stopped is None or _writes.BINDING_MOVED not in observed or current is None:
+        return stopped
+    if current.binding.target.target_head != finish.head or invalidates(finish, current):
+        return stopped
+    log.warning(
+        "issue=#%d verification evidence revision %d settled for %.8s was read moving under the finish's write "
+        "and could not be invalidated; the next finish proves it again",
+        finish.issue.number, current.revision, finish.head,
+    )
+    return stopped
 
 
 def _readiness(finish: LandedFinish, current: _records.CurrentEvidence) -> _evidence_models.ReportEvidence:
@@ -233,13 +272,3 @@ def _invalidates(finish: LandedFinish, current: _records.CurrentEvidence, why: s
         return None
     log.warning("issue=#%d holding the route of %.8s: %s", finish.issue.number, finish.head, beside)
     return FinishOutcome.HELD
-
-
-def _falls_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
-    """Whether `current`'s invalidation landed staged on the tick's own copy (`rewrite_finish_writes.INVALIDATION`)."""
-    if _settlement.read_current_evidence(finish.state) != current:
-        return False
-    staged = _writes.staging(finish)
-    if not _settlement.retire_current_evidence(staged):
-        return False
-    return _writes.lands(finish, staged, _writes.INVALIDATION) is None

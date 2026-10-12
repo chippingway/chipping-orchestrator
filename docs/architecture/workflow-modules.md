@@ -1271,7 +1271,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading and the attempt, falling back to the tick's own reading
                             (`rewrite_finish_writes.INVALIDATION`) where that comment will not read or that write
                             does not land (`invalidates`), and the head goes on to the fresh reviewer -- held
-                            behind that write where the landing left the head or the base went elsewhere; a
+                            behind that write where the landing left the head or the base went elsewhere. The
+                            finish's announcement checkpoint and retirement, refused over a report or review record
+                            another road moved after that proof, invalidate the evidence the same way before the
+                            finish stops (`invalidates_behind`, over `rewrite_finish_writes.BINDING_MOVED`); a
                             reading nobody could take, a comment no longer carrying it as the last word on the head
                             (`beside_current`: a pending record, a handoff not naming it, a revision floor nobody
                             can read, which the settlement step's out-of-step hold asks of the tick's reading too), or
@@ -1316,7 +1319,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `rewrite_finish_captured.py` -- and the invalidation of settled evidence staged the same
                             way (`INVALIDATION`), owning the current record and the history, decided only on those,
                             the transaction beside them, and the attempt -- the fallback of
-                            `rewrite_finish_readiness.invalidates`
+                            `rewrite_finish_readiness.invalidates`; a refusal naming a record the evidence is bound
+                            through is collected for the caller as movement -- `BINDING_MOVED` where a record
+                            beyond the evidence records themselves moved, which settled evidence is invalidated
+                            over
     rewrite_evidence.py     the evidence policy for a landed rewrite's head, handed the finish's input and writing
                             nothing; the finish's evidence step (`rewrite_finish_evidence.py`) asks it for every head
                             it routes, ahead of the announcement and with the attempt standing, and asks whether

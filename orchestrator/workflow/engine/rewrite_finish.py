@@ -70,7 +70,12 @@ refuses stops the finish there with nothing behind it made:
   its notice's ledger entry reserved over the ledger that comment carries, so
   a comment that would refuse it posts nothing; then the notice and the event
   go out (`rewrite_finish_notices`), and the checkpoint lands the debt, the
-  reset round, and the mark while the anchor still stands. The checkpoint is
+  reset round, and the mark while the anchor still stands. A checkpoint
+  refused over a report record another road moved while the notice was posted
+  has read movement under the settled evidence, which is invalidated before
+  the finish stops (`rewrite_finish_readiness.invalidates_behind`), so putting
+  that record back before the next poll revives nothing; the retirement
+  behind the relabel answers the same. The checkpoint is
   decided on the evidence records too, so a transaction another road recorded
   beside the one this finish resolved -- even while the settlement's own
   answer came back -- refuses it before anything is posted, and the attempt
@@ -143,6 +148,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish_captured as _captured,
     rewrite_finish_debt as _debt,
     rewrite_finish_notices as _notices,
+    rewrite_finish_readiness as _readiness,
     rewrite_finish_settlement as _settlement,
     rewrite_finish_writes as _writes,
 )
@@ -271,27 +277,32 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     the notice adds to the ledger reserved over the one that comment carries
     rather than over the tick's: an id the tick's ledger lacks may be one
     another road has recorded since, and reserved there it is no room at all.
+    A checkpoint prepared or landed short over a report record another road
+    moved has read movement under the evidence settled for the head, which is
+    invalidated before the finish stops (`rewrite_finish_readiness.invalidates_behind`).
     """
     staged = _writes.staging(finish)
     measured = _writes.staging(finish) if announced else _debt.announcement(staged, finish.head)
     if not _debt.stages(finish, staged, measured):
         return _writes.parks(finish)
+    observed: list = []
     if announced:
         carried = _commit_models.spelled(finish.state.data, _rewrite_debt.REWRITE_DEBT)
         if _commit_models.spelled(staged.data, _rewrite_debt.REWRITE_DEBT) == carried:
             return None
-        return _writes.lands(finish, staged, _writes.CHECKPOINT)
+        stopped = _writes.lands(finish, staged, _writes.CHECKPOINT, observed)
+        return _readiness.invalidates_behind(finish, stopped, observed)
     staged.set(_base_sync_state._REVIEW_ROUND, 0)
     staged.set(_base_sync_state._PENDING_ANNOUNCED_SHA, finish.head)
-    stopped = _writes.prepares(finish, staged, _writes.CHECKPOINT, ledger_entry=True)
-    if stopped is not None:
-        return stopped
-    _notices.announces(finish, staged)
-    log.info(
-        "issue=#%d announced the base rewrite PR #%d landed on %.8s (%s)",
-        finish.issue.number, finish.pr_number, finish.head, _notices.method(finish),
-    )
-    return _writes.lands(finish, staged, _writes.CHECKPOINT)
+    stopped = _writes.prepares(finish, staged, _writes.CHECKPOINT, observed, ledger_entry=True)
+    if stopped is None:
+        _notices.announces(finish, staged)
+        log.info(
+            "issue=#%d announced the base rewrite PR #%d landed on %.8s (%s)",
+            finish.issue.number, finish.pr_number, finish.head, _notices.method(finish),
+        )
+        stopped = _writes.lands(finish, staged, _writes.CHECKPOINT, observed)
+    return _readiness.invalidates_behind(finish, stopped, observed)
 
 
 def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
@@ -333,18 +344,22 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     evidence was decided or settled among the reasons -- stops the route with
     the attempt standing, for the recovery of the push already landed to
     route the head on a later tick over evidence it settles nothing for again
-    and proves ready again first. A relabel that landed ahead of a retirement
+    and proves ready again first -- settled evidence the refusal read a report
+    or review record moving under invalidated before the route stops
+    (`rewrite_finish_readiness.invalidates_behind`), so putting that record
+    back first revives nothing. A relabel that landed ahead of a retirement
     that did not is that recovery's to finish too, under the mark this finish
     left, with no second relabel.
     """
-    stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH)
+    observed: list = []
+    stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)
     if stopped is not None:
-        return stopped
+        return _readiness.invalidates_behind(finish, stopped, observed)
     if headed is FinishOutcome.ROUTED and not (announced and finish.label == WorkflowLabel.VALIDATING):
         finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
-    stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH)
+    stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH, observed)
     if stopped is not None:
-        return stopped
+        return _readiness.invalidates_behind(finish, stopped, observed)
     log.info(
         "issue=#%d finished the base rewrite PR #%d landed on %.8s: %s",
         finish.issue.number, finish.pr_number, finish.head, headed.value,

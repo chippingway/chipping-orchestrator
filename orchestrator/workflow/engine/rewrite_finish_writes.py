@@ -180,6 +180,15 @@ _BOUND_MOVED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence is bound through moved under a write finishing the landing",
 )
 
+# The same reading where what moved is a record settled evidence's binding
+# rests on -- the pull request, a report or its debt, a review subject -- and
+# not only the evidence records themselves, whose movement is a newer
+# transaction for the head to answer: settled evidence is invalidated over it
+# (`rewrite_finish_readiness.invalidates_behind`).
+BINDING_MOVED = ReportEvidence(
+    ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved under a write finishing the landing",
+)
+
 _UNLANDED = MappingProxyType({
     _commit_models.CommitStatus.UNCONFIRMED: FinishOutcome.UNCONFIRMED,
     _commit_models.CommitStatus.REFUSED: FinishOutcome.REFUSED,
@@ -293,8 +302,9 @@ def _stopped(
 
     A refusal that names a record the evidence is bound through read that
     record moved, and that reading is appended to `observed` as the movement
-    it is (`_BOUND_MOVED`): the guard read it once, and whatever reads the
-    comment after may find it put back.
+    it is -- `BINDING_MOVED` where a record beyond the evidence records
+    themselves moved, `_BOUND_MOVED` otherwise: the guard read it once, and
+    whatever reads the comment after may find it put back.
     """
     stopped = _UNLANDED.get(outcome.status)
     if stopped is not None:
@@ -304,6 +314,7 @@ def _stopped(
             "posting, relabeling, and clearing nothing behind it",
             finish.issue.number, finish.head, why.value,
         )
-        if observed is not None and _BOUND.intersection(outcome.fields):
-            observed.append(_BOUND_MOVED)
+        moved = _BOUND.intersection(outcome.fields)
+        if observed is not None and moved:
+            observed.append(BINDING_MOVED if moved - _EVIDENCE_RECORDS else _BOUND_MOVED)
     return stopped
