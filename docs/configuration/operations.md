@@ -702,12 +702,12 @@ env -u VIRTUAL_ENV -u CONDA_PREFIX DOCS_SITE_DIR=site poetry run pytest tests/re
 ```
 
 The build writes to the ignored `site/` directory. `DOCS_SITE_DIR` makes `tests/repository/test_docs_output.py` check
-the generated links, heading anchors, search index, sitemap, and [page descriptions](#page-descriptions) of that output
-instead of building a copy of its own. A directory it names that holds no built site fails the check rather than being
-rebuilt or skipped. Without the variable, the same `pytest` command builds a fresh strict copy into a temporary
-directory. Links in the Markdown sources are checked by `tests/repository/test_doc_links.py`, which needs no
-documentation builder and runs with the rest of the suite in [Continuous integration](#continuous-integration). The
-`docs` group is separate from runtime and development dependencies, so the default `poetry sync` does not install
+the generated links, heading anchors, search index, sitemap, [page descriptions](#page-descriptions), and homepage AI
+buttons of that output instead of building a copy of its own. A directory it names that holds no built site fails the
+check rather than being rebuilt or skipped. Without the variable, the same `pytest` command builds a fresh strict copy
+into a temporary directory. Links in the Markdown sources are checked by `tests/repository/test_doc_links.py`, which
+needs no documentation builder and runs with the rest of the suite in [Continuous integration](#continuous-integration).
+The `docs` group is separate from runtime and development dependencies, so the default `poetry sync` does not install
 the documentation builder.
 
 [`../../mkdocs.yml`](../../mkdocs.yml) defines the navigation, site URL, search-enabled theme, the template directory
@@ -729,16 +729,20 @@ not its place in `nav:`, so moving a page between groups changes no address. The
 [`../../.github/docs-theme/`](../../.github/docs-theme/) render that list over the bundled `mkdocs` theme:
 
 - The top bar names each top-level entry once, as a plain link rather than a dropdown. A section links to its first
-  page, which makes that page the section's landing page, so an area's overview goes first. Search, buttons to ask
-  ChatGPT or Claude about the project, a link to the repository, and the light / dark / auto theme menu sit on the
-  right. The AI buttons open a new tab with a prompt pointing to the documentation homepage from `site_url`.
-  Below a viewport width of 1200px, the top bar collapses into a menu so both AI buttons fit.
+  page, which makes that page the section's landing page, so an area's overview goes first. The current section is
+  underlined, as are top-bar section links on hover and keyboard focus. Every top-bar link and the theme toggle show a
+  white outline on keyboard focus. Search, buttons to ask ChatGPT or Claude about the project, a link to the repository,
+  and the light / dark / auto theme menu sit on the right. The AI buttons open a new tab with a prompt pointing to the
+  documentation homepage from `site_url`. The documentation homepage offers each AI button once, only in the top bar;
+  `tests/repository/test_docs_output.py` checks this in the built site. Below a viewport width of 1200px, the top bar
+  collapses into a menu so both AI buttons fit.
 - The sidebar lists the pages of the current page's top-level section above that page's own headings. A subsection
   there is a link to its first page, and opens onto its own pages only while it holds the current one.
 - Previous and next links sit under the page, where the theme's `n` and `p` keyboard shortcuts find them.
 
-`tests/repository/test_docs_navigation.py` builds a sample site through the templates to hold each of those rules. It
-needs the `docs` group but not `DOCS_SITE_DIR`, and the **Documentation** workflow runs it beside the two checks above.
+`tests/repository/test_docs_navigation.py` builds a sample site through the templates to check the navigation rules.
+Styling is not tested. The test needs the `docs` group but not `DOCS_SITE_DIR`, and the **Documentation** workflow
+runs it beside the two checks above.
 
 ### Page descriptions
 
@@ -766,7 +770,7 @@ the homepage the page's own description takes precedence over `site_description`
 [`../../mkdocs.yml`](../../mkdocs.yml), which remains the homepage's fallback; any other page without front matter emits
 no description. The rest of that block is the theme's own, so every page keeps the canonical URL and the rest of the
 head metadata the bundled theme gives it; a page without front matter has the bundled head plus the two verification
-tags described in [GitHub Pages setup](#github-pages-setup) and the AI-button stylesheet, with the same search entry
+tags described in [GitHub Pages setup](#github-pages-setup) and the custom theme stylesheet, with the same search entry
 as under that theme.
 `tests/repository/test_docs_site.py` builds sample sites through the template to hold each of those rules, and checks
 that `mkdocs.yml` names the template directory. GitHub's file view shows front matter as a table above the page.

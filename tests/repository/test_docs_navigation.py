@@ -8,8 +8,8 @@ listed ahead of it, and the homepage is left to the site name. No dropdown stand
 in for a section. The bar carries the repository link and ChatGPT and Claude
 buttons whose documentation prompts open a new tab with `noopener`, but no
 previous, next, or per-page edit link.
-Both README pages carry the same prompts, and the template follows `site_url`
-when the documentation is hosted elsewhere.
+The repository README carries the same prompts, and the template follows
+`site_url` when the documentation is hosted elsewhere.
 The sidebar lists the current page's top-level section, opens only the
 subsection holding the page, and marks the page with `aria-current`, which the
 theme's scrollspy leaves alone. Its card scrolls on its own, no taller than the
@@ -40,16 +40,6 @@ _Attributes = dict[str, str | None]
 # Two attributes of one link, such as its target and its `aria-current`.
 _Pair = tuple[str | None, str | None]
 _REPOSITORY = "https://github.com/chippingway/chipping-orchestrator"
-_AI_PROMPT_URLS = (
-    (
-        "https://chatgpt.com/?q=Read+https%3A%2F%2Fchippingway.github.io%2Fchipping-orchestrator%2C"
-        "+I+want+to+ask+questions+about+it.&hints=search"
-    ),
-    (
-        "https://claude.ai/new?q=Read+https%3A%2F%2Fchippingway.github.io%2Fchipping-orchestrator%2C"
-        "+I+want+to+ask+questions+about+it."
-    ),
-)
 _UPSTREAM = "https://example.com/upstream"
 _NAV = f"""nav:
   - Home: README.md
@@ -127,12 +117,10 @@ def _ai_prompt_links(page: _site_support.SitePage) -> list[_Attributes]:
 
 
 class DocumentationPromptTest(unittest.TestCase):
-    def test_readmes_share_the_documentation_prompts(self) -> None:
-        """Both README pages offer the same ChatGPT and Claude prompts as the top bar."""
-        for name in ("README.md", "docs/README.md"):
-            with self.subTest(page=name):
-                targets = _target_support.document_targets(_site_support.REPO_ROOT / name)
-                self.assertLessEqual(set(_AI_PROMPT_URLS), set(targets))
+    def test_readme_offers_documentation_prompts(self) -> None:
+        """The repository README offers the same ChatGPT and Claude prompts as the top bar."""
+        targets = _target_support.document_targets(_site_support.REPO_ROOT / "README.md")
+        self.assertLessEqual(set(_site_support.AI_PROMPT_URLS), set(targets))
 
     @unittest.skipUnless(find_spec("mkdocs"), _site_support.INSTALL_HINT)
     def test_buttons_use_the_configured_site_url(self) -> None:
@@ -200,7 +188,7 @@ class SiteNavigationTest(unittest.TestCase):
                 self.assertEqual(_links(page, _SITE), links)
                 self.assertNotIn("dropdown", [link.get("data-bs-toggle") for link in _anchors(page)])
                 self.assertIn(_REPOSITORY, page.links)
-                self.assertLessEqual(set(_AI_PROMPT_URLS), set(page.links))
+                self.assertLessEqual(set(_site_support.AI_PROMPT_URLS), set(page.links))
                 for prompt in _ai_prompt_links(page):
                     self.assertEqual(prompt.get("target"), "_blank")
                     self.assertIn("noopener", (prompt.get("rel") or "").split())
