@@ -1858,7 +1858,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             did not rotate parked with
                             HEAD and the anchor kept; and every other landing handed to `rewrite_finish.py` on its
                             recovery road with the reply that brought the attempt back, a head the base advanced
-                            past again leaving this tick's rebase to go on from it
+                            past again leaving this tick's rebase to go on from it once the refresh's selection,
+                            asked again over the retired attempt, lets it (`base_rewrite.py`)
     rewrite_landed.py       the recovery of a push an interrupted tick already landed, with nothing pushed again or
                             measured: an attempt made for another publication parked; a checkout read as a candidate
                             naming any other head than the one the fetch classified -- the one every voucher below

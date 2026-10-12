@@ -105,7 +105,8 @@ def retries(
     record names, is measured as the publication this retries would have
     measured it rather than reset away. False only where the finish left the
     landed head behind a base that has advanced again, and this tick's rebase
-    goes on from it.
+    goes on from it once the refresh's selection, asked again over the retired
+    attempt, lets it (`base_rewrite`).
     """
     candidate = _recovery_push._recovered_candidate(context, completed)
     dirty = candidate.checkout.status.paths
