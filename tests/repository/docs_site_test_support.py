@@ -10,14 +10,20 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from html.parser import HTMLParser
 from itertools import takewhile
 from pathlib import Path
 from types import MappingProxyType
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote, urlencode, urlsplit
+
+from tests.repository import docs_html_test_support as _html_support
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SITE_URL = "https://chippingway.github.io/chipping-orchestrator/"
+AI_PROMPT = f"Read {SITE_URL.rstrip('/')}, I want to ask questions about it."
+AI_PROMPT_URLS = (
+    f"https://chatgpt.com/?{urlencode({'q': AI_PROMPT, 'hints': 'search'})}",
+    f"https://claude.ai/new?{urlencode({'q': AI_PROMPT})}",
+)
 SITE_DIRECTORY = "site"
 SITE_VARIABLE = "DOCS_SITE_DIR"
 THEME_PATH = ".github/docs-theme"
@@ -37,17 +43,12 @@ _NESTED_SAMPLE = """# Nested page
 """
 
 
-class SitePage(HTMLParser):
+class SitePage(_html_support.NavigationParser):
     def __init__(self, path: Path) -> None:
         super().__init__()
         self.links: list[str] = []
         self.anchors: set[str] = set()
         self.tags: list[tuple[str, _Attributes]] = []
-        # Each `<nav>` by its `aria-label`, against the attributes of every link inside it.
-        self.landmarks: dict[str, list[_Attributes]] = {}
-        self.sidebar_headings: list[_Attributes] = []
-        self._open_landmarks: list[str] = []
-        self._sidebar_depth = 0
         self.feed(path.read_text(encoding=_ENCODING))
 
     @property
@@ -64,11 +65,9 @@ class SitePage(HTMLParser):
             if tag == "meta" and attributes.get("name") == "description"
         ]
 
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        attributes = dict(attrs)
+    def _record_starttag(self, tag: str, attributes: _Attributes) -> None:
+        super()._record_starttag(tag, attributes)
         self.tags.append((tag, attributes))
-        self._record_landmark(tag, attributes)
-        self._record_sidebar(tag, attributes)
         anchor = attributes.get("id") or attributes.get("name")
         if anchor:
             self.anchors.add(anchor)
@@ -76,28 +75,6 @@ class SitePage(HTMLParser):
         href = attributes.get(attribute)
         if href:
             self.links.append(href)
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "nav" and self._open_landmarks:
-            self._open_landmarks.pop()
-        elif tag == "div" and self._sidebar_depth:
-            self._sidebar_depth -= 1
-
-    def _record_landmark(self, tag: str, attributes: _Attributes) -> None:
-        if tag == "nav":
-            label = attributes.get("aria-label") or ""
-            self._open_landmarks.append(label)
-            self.landmarks.setdefault(label, [])
-        elif tag == "a" and self._open_landmarks:
-            self.landmarks[self._open_landmarks[-1]].append(attributes)
-
-    def _record_sidebar(self, tag: str, attributes: _Attributes) -> None:
-        """Heading links inside the sidebar card, outside the section's navigation landmark."""
-        if tag == "div":
-            if self._sidebar_depth or attributes.get("id") == "toc-collapse":
-                self._sidebar_depth += 1
-        elif tag == "a" and self._sidebar_depth and not self._open_landmarks:
-            self.sidebar_headings.append(attributes)
 
 
 def build_site(config: Path, site: Path) -> subprocess.CompletedProcess[str]:

@@ -18,13 +18,13 @@ _FOOTER = re.compile(r"<footer\b[^>]*>.*?</footer\b[^>]*>", re.DOTALL | re.IGNOR
 _SCRIPTS = re.compile(r"<script\b[^>]*>.*?</script\b[^>]*>", re.DOTALL | re.IGNORECASE)
 
 
-def ai_button_stylesheet(head: list[_Tag]) -> _Tag:
+def custom_stylesheet(head: list[_Tag]) -> _Tag:
     """The custom stylesheet beside a page's bundled theme styles, including nested and 404 paths."""
     stylesheet = next(
         attributes[_HREF] or "" for tag, attributes in head
         if tag == "link" and (attributes.get(_HREF) or "").endswith("css/base.css")
     )
-    return "link", {"rel": "stylesheet", _HREF: stylesheet.replace("base.css", "ai-assistants.css")}
+    return "link", {"rel": "stylesheet", _HREF: stylesheet.replace("base.css", "theme.css")}
 
 
 def rendering(site: Path) -> dict[str, object]:

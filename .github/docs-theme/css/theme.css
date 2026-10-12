@@ -1,5 +1,27 @@
 /* Copyright 2026 Geser Dugarov */
 /* SPDX-License-Identifier: Apache-2.0 */
+.navbar.fixed-top {
+    --bs-navbar-color: #fff4eb;
+    background-color: #b84a14 !important;
+    background-image: none;
+}
+
+.navbar.fixed-top .nav-link:hover {
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+.navbar.fixed-top nav[aria-label="Site"] .nav-link.active,
+.navbar.fixed-top nav[aria-label="Site"] .nav-link:hover,
+.navbar.fixed-top nav[aria-label="Site"] .nav-link:focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 0.3em;
+}
+
+.navbar.fixed-top .dropdown-menu {
+    --bs-dropdown-link-active-bg: #b84a14;
+    --bs-dropdown-link-hover-bg: #b84a14;
+}
+
 .ai-chat-links {
     display: flex;
     align-items: center;
@@ -11,32 +33,33 @@
 .ai-chat-button {
     display: inline-flex;
     border-radius: 6px;
-    outline-offset: 3px;
 }
 
 .ai-chat-button:hover {
     filter: brightness(1.3);
 }
 
+.navbar.fixed-top .navbar-brand:focus-visible,
+.navbar.fixed-top .nav-link:focus-visible,
 .ai-chat-button:focus-visible {
+    box-shadow: none;
     outline: 2px solid #fff;
+    outline-offset: 3px;
 }
 
 .ai-chat-button img {
     display: block;
 }
 
-.col-md-9 img[src$="/ask-chatgpt.svg"],
-.col-md-9 img[src$="/ask-claude.svg"] {
-    padding: 0;
-    margin: 0;
-    border: 0;
-    background-color: transparent;
-}
+/* Keep focus outlines inside the collapsed menu's scrolling box. */
+@media (max-width: 1199.98px) {
+    .navbar.fixed-top .nav-link {
+        padding-inline: 0.5rem;
+    }
 
-[data-bs-theme="dark"] .col-md-9 img[src$="/ask-chatgpt.svg"],
-[data-bs-theme="dark"] .col-md-9 img[src$="/ask-claude.svg"] {
-    filter: invert(1) grayscale(1);
+    .navbar.fixed-top .nav-link:focus-visible {
+        outline-offset: -2px;
+    }
 }
 
 /* Keep the full navigation in the collapsed menu until both AI buttons fit. */
