@@ -17,8 +17,12 @@ tick's own reading instead, so putting the requirements back revives nothing
 either. So does a finish the comment has no room to record the landing's
 report debt on: the run is proved ready before the park that debt takes, and
 the requirements edited under it invalidate it there, so making room, putting
-the requirements back, and replying routes the head with nothing current. The
-run is never made again, and no developer is launched.
+the requirements back, and replying routes the head with nothing current. A
+comment with no room for the run's history entry at all keeps the run current
+and records the movement against it instead, by blanking the base tip its
+replay was made onto, so putting the requirements back before room is made
+still finds it moved. The run is never made again, and no developer is
+launched.
 """
 from __future__ import annotations
 
@@ -163,6 +167,37 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
                 self._assert_invalidated(settled)
                 routed = (support.announced(self), readings.relabels(self))
                 self.assertEqual(routed, ([head], readings.ROUTED))
+
+    def test_a_full_comment_records_the_movement(self) -> None:
+        # The issue is edited under the run on a comment with no room for its
+        # history entry: the route is held with the run current and the
+        # movement recorded by blanking the base tip, and the requirements put
+        # back before room is made still leave the run invalidated whole and
+        # the head routed with nothing current.
+        for boundary in handoff.BOUNDARIES:
+            with self.subTest(boundary=boundary.name):
+                self.setUp()
+                head, settled = self._settles_then_dies(boundary)
+                written = self.issue.body
+                self.issue.body = _EDITED_BODY
+                finish_moves.fills_the_comment(self)
+                self.recovers()
+
+                pinned = readings.pinned(self)
+                self.assertEqual(
+                    (readings.pinned_records(self)[1], pinned[readings.KEY_PENDING_PUSH]),
+                    (settled, self.anchor),
+                )
+                self.assertIsNone(pinned[readings.KEY_REWRITE_BASE])
+                self.issue.body = written
+                finish_moves.makes_room(self)
+                self.recovers()
+
+                self._assert_invalidated(settled)
+                self.assertEqual(
+                    (support.announced(self), readings.relabels(self)),
+                    ([head], readings.ROUTED),
+                )
 
     def _puts_it_right(self, written: str) -> None:
         """Put the issue's body back as `written`, make room on the comment, reply, and recover once more."""

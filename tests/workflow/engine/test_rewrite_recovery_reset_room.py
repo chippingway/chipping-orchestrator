@@ -19,14 +19,23 @@ binding kept -- by the abort that then releases the attempt and parks, or,
 with the checkout put back on the landed head, by the finish that proves the
 run again and routes the head with nothing current. The run is never made
 again, and nothing is pushed or launched.
+
+The blank lands ahead of the reset, with room on the comment or none: a
+process killed behind the reset, before anything else is written, leaves the
+reset recorded, so the checkout put back on the landed head before the next
+poll revives nothing. A blank GitHub refuses holds the tick with nothing
+reset, and the next tick records it and resets.
 """
 from __future__ import annotations
 
+import contextlib
 import subprocess
+import sys
 import unittest
+from functools import partial
 from unittest.mock import patch
 
-from orchestrator.git import branch_transport
+from orchestrator.git import branch_transport, commands
 from orchestrator.workflow.engine import verification_settlement_state as _settlement
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
@@ -39,6 +48,8 @@ from tests.workflow.engine import (
 _AWAITING = "awaiting_human"
 
 _FETCH = branch_transport._authed_fetch
+
+_FETCHES = "_authed_fetch"
 
 
 def _unfetched(spec, ref: str, **options) -> subprocess.CompletedProcess:
@@ -54,7 +65,29 @@ def _blanking(_issue, state, *, over: dict) -> bool:
     return blanks and over.get(readings.KEY_REWRITE_BASE) is not None
 
 
-_BEFORE_THE_BLANK = handoff.Boundary("reset, before the base tip is blanked", "edit_pinned_state", _blanking)
+_BEFORE_THE_BLANK = handoff.Boundary("before the base tip is blanked", "edit_pinned_state", _blanking)
+
+# The reset git made, behind which the process is killed before anything else is written.
+_RESETTING = handoff.Boundary("behind the reset", "_git_hardened", lambda verb, *_args, **_kwargs: verb == "reset")
+
+
+def _refuses_the_blank(refused: set, live, issue, state, *, over: dict):
+    """`live`, the client's pinned-comment edit, refused by GitHub where it is the base tip's blank."""
+    if _blanking(issue, state, over=over):
+        refused.add(issue.number)
+    answered = live(issue, state, over=over)
+    refused.discard(issue.number)
+    return answered
+
+
+def _assert_invalidated(case: support.CapturedRunCase, settled) -> None:
+    """`settled` invalidated whole behind the anchor's evidence, its revision and binding kept, run once."""
+    retired = (*git_support.invalidated(case), (settled.receipt, readings.INVALIDATED))
+    case.assertEqual(readings.pinned_records(case), (None, None, retired))
+    entry = _settlement.read_evidence_history(case.gh.read_pinned_state(case.issue))[-1]
+    case.assertEqual((entry.revision, entry.binding), (settled.revision, settled.binding))
+    made = (case.runs(), case.pushes.call_count, case.developer.call_count)
+    case.assertEqual(made, (1, 0, 0))
 
 
 class ResetRoomTest(support.CapturedRunCase, unittest.TestCase):
@@ -68,7 +101,7 @@ class ResetRoomTest(support.CapturedRunCase, unittest.TestCase):
             with self.subTest(boundary=getattr(boundary, "name", "uninterrupted")):
                 self.setUp()
                 settled = self._settles_then_fills()
-                with patch.object(branch_transport, "_authed_fetch", _unfetched):
+                with patch.object(branch_transport, _FETCHES, _unfetched):
                     handoff.dies_at(self.gh, boundary, self.recovers)
                     self.recovers()
 
@@ -78,12 +111,12 @@ class ResetRoomTest(support.CapturedRunCase, unittest.TestCase):
         # Room is made with the fetch still failing: the abort retires the run
         # whole into history in the write that releases the attempt and parks.
         settled = self._settles_then_fills()
-        with patch.object(branch_transport, "_authed_fetch", _unfetched):
+        with patch.object(branch_transport, _FETCHES, _unfetched):
             self.recovers()
             finish_moves.makes_room(self)
             self.recovers()
 
-        self._assert_invalidated(settled)
+        _assert_invalidated(self, settled)
         pinned = readings.pinned(self)
         parked = (pinned[_AWAITING], readings.attempt(pinned))
         self.assertEqual(parked, (True, readings.RETIRED))
@@ -94,13 +127,13 @@ class ResetRoomTest(support.CapturedRunCase, unittest.TestCase):
         # invalidates it whole, routing the head with nothing current.
         head = self.lands_a_reviewed_rebase()
         settled = self._dies_and_fills(head)
-        with patch.object(branch_transport, "_authed_fetch", _unfetched):
+        with patch.object(branch_transport, _FETCHES, _unfetched):
             self.recovers()
         self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
         finish_moves.makes_room(self)
         self.recovers()
 
-        self._assert_invalidated(settled)
+        _assert_invalidated(self, settled)
         routed = (support.announced(self), readings.relabels(self))
         self.assertEqual(routed, ([head], readings.ROUTED))
 
@@ -127,14 +160,75 @@ class ResetRoomTest(support.CapturedRunCase, unittest.TestCase):
         made = (self.runs(), self.pushes.call_count, self.developer.call_count)
         self.assertEqual(made, (1, 0, 0))
 
-    def _assert_invalidated(self, settled) -> None:
-        """`settled` invalidated whole behind the anchor's evidence, its revision and binding kept, run once."""
-        retired = (*git_support.invalidated(self), (settled.receipt, readings.INVALIDATED))
-        self.assertEqual(readings.pinned_records(self), (None, None, retired))
-        entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
-        self.assertEqual((entry.revision, entry.binding), (settled.revision, settled.binding))
-        made = (self.runs(), self.pushes.call_count, self.developer.call_count)
-        self.assertEqual(made, (1, 0, 0))
+
+class ResetRecordTest(support.CapturedRunCase, unittest.TestCase):
+    """A reset is recorded against a settled run before it moves the checkout, so nothing behind it revives the run."""
+
+    def test_a_reset_lost_behind_revives_nothing(self) -> None:
+        # The process dies behind the reset, over a full comment or one with
+        # room: the reset is already recorded, so the checkout put back on the
+        # landed head and room made leave the next finish reading the run
+        # moved, invalidating it whole and routing the head with nothing current.
+        for full in (True, False):
+            with self.subTest(full=full):
+                self.setUp()
+                head = self.lands_a_reviewed_rebase()
+                settled = self._settles_and_resets(head, full=full)
+
+                self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+                if full:
+                    finish_moves.makes_room(self)
+                self.recovers()
+
+                _assert_invalidated(self, settled)
+                routed = (support.announced(self), readings.relabels(self))
+                self.assertEqual(routed, ([head], readings.ROUTED))
+
+    def test_a_refused_record_resets_nothing(self) -> None:
+        # GitHub refuses the blank: nothing is reset or parked, the run and
+        # the tip stand as they were, and the next tick records the reset,
+        # makes it, and invalidates the run in the write that parks.
+        head = self.lands_a_reviewed_rebase()
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
+        settled = readings.pinned_records(self)[1]
+        refusing = partial(_refuses_the_blank, self.gh.pinned_failures.refused, self.gh.edit_pinned_state)
+        with patch.object(branch_transport, _FETCHES, _unfetched):
+            with patch.object(self.gh, "edit_pinned_state", refusing):
+                self.recovers()
+            self._assert_standing(head, settled, blank=False)
+            self.recovers()
+
+        _assert_invalidated(self, settled)
+        self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
+
+    def _settles_and_resets(self, head: str, *, full: bool):
+        """Settle `head`'s run, kill its finish, fill the comment where `full`, and die behind an abort's reset.
+
+        The run, standing current beside the attempt with the tip blank and the
+        checkout reset onto the anchor.
+        """
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
+        settled = readings.pinned_records(self)[1]
+        if full:
+            finish_moves.fills_the_comment(self)
+        dying = _RESETTING.moving(commands._git_hardened, partial(sys.exit, "the process was killed behind the reset"))
+        with (
+            patch.object(branch_transport, _FETCHES, _unfetched),
+            patch.object(commands, "_git_hardened", dying),
+            contextlib.suppress(SystemExit),
+        ):
+            self.recovers()
+        self._assert_standing(self.anchor, settled, blank=True)
+        return settled
+
+    def _assert_standing(self, checkout: str, settled, *, blank: bool) -> None:
+        """The checkout on `checkout`, `settled` current beside the unparked attempt, its tip blank where `blank`."""
+        pinned = readings.pinned(self)
+        self.assertEqual(self._wt_head(), checkout)
+        self.assertEqual(readings.pinned_records(self)[1], settled)
+        self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
+        self.assertFalse(pinned.get(_AWAITING))
+        self.assertEqual(pinned.get(readings.KEY_REWRITE_BASE) is None, blank)
 
 
 if __name__ == "__main__":

@@ -47,7 +47,13 @@ base ref, and the configuration once more.
   of this one, no room for the history entry, or neither write landing holds
   the route instead, and the next recovery proves the evidence again over
   what it then reads; so does a pending record the invalidation's write
-  finds beside it (`beside_current`), the next finish's to answer.
+  finds beside it (`beside_current`), the next finish's to answer. Where it
+  is only the room for the history entry that is missing, the movement is
+  recorded against the evidence instead: the base tip the attempt recorded
+  its replay as made onto is blanked, in a write that only shrinks the
+  comment, so every later proof of the evidence reads movement
+  (`rewrite_evidence_proof.standing_refusal`) and invalidates it once room is
+  made -- putting back what moved first revives nothing.
 - Held: a reading nobody could take, a landing off the head, or a base gone
   elsewhere holds the route with the attempt standing, nothing announced,
   relabelled, or retired -- behind the invalidation, where the reading is
@@ -73,7 +79,11 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.git.base_sync import attempts as _attempts
+from orchestrator.git.base_sync import (
+    attempt_records as _attempt_records,
+    attempts as _attempts,
+    state as _base_sync_state,
+)
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
@@ -104,20 +114,31 @@ def stands_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> Fin
 
     The readiness proof (`settled_word`), every reading taken and none nobody
     could take hiding movement another took. Movement invalidates `current`
-    (`_invalidates`), and the route goes on with nothing current unless a
+    (`invalidates`), and the route goes on with nothing current unless a
     reading also holds it: one nobody could take, a landing that left the
     head, or a base gone elsewhere -- whose next tick classifies the branch
     and counts the head again, over evidence that movement already
-    invalidated.
+    invalidated. An invalidation that did not land holds the route, and so
+    does a pending record beside the comment that write left
+    (`beside_current`): a newer transaction recorded meanwhile is the next
+    finish's to answer, never one the route may leave owed behind a cleared
+    attempt.
     """
     moved, held = settled_word(finish, current)
-    stopped = None if moved is None else _invalidates(finish, current, moved.refusal)
-    if stopped is not None or held is None:
-        return stopped
+    why = "" if held is None else f"it could not be proved ready again ({held.refusal})"
+    if moved is not None and invalidates(finish, current):
+        log.info(
+            "issue=#%d invalidated verification evidence revision %d settled for %.8s, running nothing again: %s",
+            finish.issue.number, current.revision, finish.head, moved.refusal,
+        )
+        why = beside_current(finish.state, None) or why
+    elif moved is not None:
+        why = f"it no longer proves ready ({moved.refusal}), and could not be invalidated"
+    if not why:
+        return None
     log.warning(
-        "issue=#%d holding the route of %.8s: verification evidence revision %d settled for it could not be "
-        "proved ready again (%s)",
-        finish.issue.number, finish.head, current.revision, held.refusal,
+        "issue=#%d holding the route of %.8s over verification evidence revision %d settled for it: %s",
+        finish.issue.number, finish.head, current.revision, why,
     )
     return FinishOutcome.HELD
 
@@ -167,31 +188,25 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
     and by the attempt as `finish` read it, so only the current record and the
     history are written and every other field stays as the comment carries
     it. Where that comment would not read again, or that write was refused or
-    went unconfirmed, the invalidation is staged on the tick's own copy and
-    landed as `rewrite_finish_writes.INVALIDATION` instead, decided only on
-    the evidence records and the attempt -- so movement the caller already
+    went unconfirmed, the invalidation is made over the tick's own copy
+    instead (`_invalidates_on_the_tick`) -- so movement the caller already
     read is never left behind a comment that would not read, for a later poll
     to find put back and take the decision as current. False where the
     comment carries another attempt or no longer carries `current` as current,
-    where neither reading has room for the history entry, or where neither
-    write landed.
+    where neither reading has room for the history entry -- the movement then
+    recorded against `current` instead -- or where neither write landed.
     """
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
-    if durable is not None:
-        if attempt.moved(durable.data):
-            return False
-        if _settlement.read_current_evidence(durable) != current:
-            return False
-        guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
-        if _settlement.retire_current_evidence(durable):
-            refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
-            if refused is None:
-                return True
-    staged = _writes.staging(finish)
-    if _settlement.read_current_evidence(staged) != current or not _settlement.retire_current_evidence(staged):
+    if durable is None:
+        return _invalidates_on_the_tick(finish, current)
+    if attempt.moved(durable.data) or _settlement.read_current_evidence(durable) != current:
         return False
-    return _writes.lands(finish, staged, _writes.INVALIDATION) is None
+    guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
+    if not _settlement.retire_current_evidence(durable):
+        return _invalidates_on_the_tick(finish, current)
+    refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
+    return refused is None or _invalidates_on_the_tick(finish, current)
 
 
 def invalidates_behind(
@@ -259,27 +274,32 @@ def _readiness(finish: LandedFinish, current: _records.CurrentEvidence) -> _evid
     return _proof.recorded_verdict(state, current.binding) or found
 
 
-def _invalidates(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> FinishOutcome | None:
-    """Invalidate `current` on the route (`invalidates`); None to route on, HELD where it did not land.
+def _invalidates_on_the_tick(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
+    """Invalidate `current` over the tick's own copy, landed as `rewrite_finish_writes.INVALIDATION`; whether it did.
 
-    HELD too where the comment that write left carries a pending record
-    beside it (`beside_current`): a newer transaction recorded meanwhile is
-    the next finish's to answer, never one the route may leave owed behind a
-    cleared attempt.
+    Decided only on the evidence records and the attempt, so a review or
+    report record another road moved -- often the very movement read -- is
+    no refusal. Where the history has no room for the entry, the movement is
+    recorded against `current` instead, which stays current: the base tip the
+    attempt recorded its replay as made onto is blanked, and with no tip
+    nothing proves which base the head was replayed onto, so every later proof
+    of `current` defers (`rewrite_evidence_proof.standing_refusal`) and
+    invalidates it once room is made, whatever moved put back meanwhile or
+    not. The blank only shrinks the comment, so it lands where the entry would
+    not, guarded as the finish's own abandonment is
+    (`rewrite_finish_writes.ABANDONMENT`); a tip already blank is left as it is.
     """
-    if not invalidates(finish, current):
-        log.warning(
-            "issue=#%d holding the route of %.8s: verification evidence revision %d settled for it no longer "
-            "proves ready (%s), and could not be invalidated",
-            finish.issue.number, finish.head, current.revision, why,
+    staged = _writes.staging(finish)
+    if _settlement.read_current_evidence(staged) != current:
+        return False
+    if _settlement.retire_current_evidence(staged):
+        return _writes.lands(finish, staged, _writes.INVALIDATION) is None
+    if _attempt_records._recorded_onto(staged):
+        staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+        stopped = _writes.lands(finish, staged, _writes.ABANDONMENT)
+        log.error(
+            "issue=#%d the pinned comment has no room to invalidate verification evidence revision %d settled "
+            "for %.8s; keeping it current, the movement read under it recorded by blanking its base tip (%s)",
+            finish.issue.number, current.revision, finish.head, "landed" if stopped is None else stopped.value,
         )
-        return FinishOutcome.HELD
-    log.info(
-        "issue=#%d invalidated verification evidence revision %d settled for %.8s, running nothing again: %s",
-        finish.issue.number, current.revision, finish.head, why,
-    )
-    beside = beside_current(finish.state, None)
-    if not beside:
-        return None
-    log.warning("issue=#%d holding the route of %.8s: %s", finish.issue.number, finish.head, beside)
-    return FinishOutcome.HELD
+    return False

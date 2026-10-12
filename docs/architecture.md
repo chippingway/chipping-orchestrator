@@ -973,7 +973,9 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
   park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`); evidence a
   finish already settled for the head and left behind a tail cut short is invalidated whole on each of those roads
-  too, and kept whole beside the attempt, which is not released, where history has no room for it. Every recovery
+  too, and kept whole beside the attempt, which is not released, where history has no room for it -- the movement
+  recorded against it by blanking the attempt's recorded base tip, and every reset recorded that way before it moves
+  the checkout, so nothing put back before the next poll revives it. Every recovery
   park is recorded over the comment read afresh (`lands_a_park`, `workflow/engine/rewrite_recovery_parks.py`), so a
   report or evidence record another road wrote while its notice went out is kept. It runs under its caller's issue
   writer claim.

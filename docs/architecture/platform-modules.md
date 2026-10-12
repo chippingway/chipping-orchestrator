@@ -754,9 +754,9 @@ orchestrator/
                         a label that adjudication's guard restores
       recovery_holds.py
                         what no recovery road reaches: the reset and park over a checkout whose base lag cannot
-                        be counted, handed on whatever its caller says the workflow's recovery owes over that
-                        reset (`settles_over_a_reset`, which the workflow's recovery hands in) and the proof and
-                        park its parks take (`proves_before_a_park`, `lands_a_park`), and the dispatch
+                        be counted, handed on the answers the workflow's recovery hands in for that reset and its
+                        parks (`records_before_a_reset`, `settles_over_a_reset`, `proves_before_a_park`,
+                        `lands_a_park`), and the dispatch
                         hold -- whether a standing anchor keeps a stage handler back,
                         which every label the refresh does not drive does, and one it drives does unless a late
                         claim the reconciliation answers freezes the refresh out -- with a missing checkout
@@ -773,7 +773,9 @@ orchestrator/
                         (`settles_over_a_reset`), staged on the same state so it rides the one park write -- an
                         optional answer the workflow's recovery hands on every road, which answers whether the
                         attempt may go; one that may not is kept, with nothing dropped or parked
-                        (`_releases_over_the_reset`). The park's notice is the
+                        (`_releases_over_the_reset`). Before the reset moves anything the context is asked to
+                        record it (`records_before_a_reset`), so a process lost behind it leaves nothing a checkout
+                        put back revives; one it could not record is not made. The park's notice is the
                         caller's reason followed by what the reset, the clean, and the drop came to
                         (`_reset_outcome`), so a reset that failed is never reported as made, and the drop is said
                         as what the park's own write makes durable, since the notice goes out ahead of it. Every
@@ -793,9 +795,10 @@ orchestrator/
       recovery_notices.py
                         how a recovery's park notices name the commits they are about
       models.py         the frozen contexts, requests, snapshots, and decisions -- a recovery context carrying the
-                        optional answers the workflow hands it: what its reset is owed (`settles_over_a_reset`),
-                        the proof before a park that keeps the attempt (`proves_before_a_park`), and the park its
-                        every park is recorded through (`lands_a_park`)
+                        optional answers the workflow hands it: what it records before a reset
+                        (`records_before_a_reset`), what its reset is owed (`settles_over_a_reset`), the proof
+                        before a park that keeps the attempt (`proves_before_a_park`), and the park its every park
+                        is recorded through (`lands_a_park`)
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
       commits.py        the commits the orchestrator creates on a branch itself -- the squash, and the documenting

@@ -68,10 +68,16 @@ and the git owner's park behind it drops the attempt in one write
 once the reset landed (`_AutoRebaseRecoveryContext.settles_over_a_reset`), so
 the transaction -- and settled evidence, invalidated -- goes with the
 attempt's release or neither goes: a park write that fails leaves both
-standing, and a reset that failed moved nothing and keeps both. That write is
-landed over the comment read afresh (`rewrite_recovery_parks`), never over the
-tick's whole reading, so a report another road settled, or a transaction it
-recorded, while the park's notice went out is kept rather than put back.
+standing, and a reset that failed moved nothing and keeps the transaction.
+That write is landed over the comment read afresh (`rewrite_recovery_parks`),
+never over the tick's whole reading, so a report another road settled, or a
+transaction it recorded, while the park's notice went out is kept rather than
+put back. The reset moves the checkout ahead of that write, so settled
+evidence has the reset recorded against it before it is made
+(`rewrite_recovery_parks.records_the_reset`): a process lost between them
+leaves the evidence read as moved by every later proof, however the checkout
+is put back -- and so does a reset git refused, whose park proves the
+evidence first and invalidates it over that record.
 
 Only a transaction a finish of the attempt recorded is read
 (`rewrite_landing_records.captured`): the one under the receipt the finish put
@@ -295,8 +301,10 @@ def _invalidates_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecover
     the attempt recorded its replay as made onto, so every later proof of the
     evidence reads movement (`rewrite_evidence_proof.standing_refusal`) and
     invalidates it whole once the comment has room -- putting the checkout
-    back first revives nothing. That blank only shrinks the comment, so it
-    lands at once, guarded as the finish's own abandonment is
+    back first revives nothing. A reset the recovery made has that blank
+    landed already, ahead of it (`rewrite_recovery_parks.records_the_reset`);
+    a checkout gone from disk has it landed here. It only shrinks the comment,
+    so it lands at once, guarded as the finish's own abandonment is
     (`rewrite_finish_writes.ABANDONMENT`), with whatever else this answer
     staged. False then, for the git owner to keep the attempt and hold the
     tick with nothing parked until room is made.

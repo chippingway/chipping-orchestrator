@@ -137,12 +137,15 @@ def answers_an_unreadable_checkout(context: _AutoRebaseContext, consumed_comment
     verification transaction a finish of the attempt captured -- the one under
     the receipt on the attempt, announced or not -- goes in the write that
     releases the attempt, or neither does, and that park lands as every
-    recovery park does (`rewrite_recovery_parks.lands_a_park`).
+    recovery park does (`rewrite_recovery_parks.lands_a_park`), the reset
+    recorded ahead of it as every recovery reset is
+    (`rewrite_recovery_parks.records_the_reset`).
     """
     return _recovery_holds._answers_an_unreadable_checkout(
         context,
         consumed_comment_id,
         settles_over_a_reset=partial(_landing_moved.abandons_over_the_reset, context),
+        records_before_a_reset=_recovery_parks.records_the_reset,
         proves_before_a_park=_landing_moved.abandons_unproved,
         lands_a_park=_recovery_parks.lands_a_park,
     )
@@ -169,11 +172,14 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     (`rewrite_landing_moved.abandons_unproved`). Every park, that drop's
     included, lands over the comment read afresh
     (`rewrite_recovery_parks.lands_a_park`), keeping what another road wrote
-    while its notice went out.
+    while its notice went out, and every reset is recorded against evidence a
+    finish settled for the landed head before it moves the checkout
+    (`rewrite_recovery_parks.records_the_reset`).
     """
     owing = replace(
         context,
         settles_over_a_reset=partial(_landing_moved.abandons_over_the_reset, context),
+        records_before_a_reset=_recovery_parks.records_the_reset,
         proves_before_a_park=_landing_moved.abandons_unproved,
         lands_a_park=_recovery_parks.lands_a_park,
     )

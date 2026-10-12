@@ -181,16 +181,29 @@ def _reset_clear_and_park(
     drop, or neither lands -- and where the recovery answers that it cannot
     be settled, settled evidence with no room left for its history entry,
     nothing is dropped or parked: the attempt is kept guarding it, as a reset
-    that failed keeps it, and the next tick asks again. That write is the
+    that failed keeps it, and the next tick asks again. Settled evidence is
+    marked moved before the reset is even made
+    (`_AutoRebaseRecoveryContext.records_before_a_reset`), since the reset
+    moves the checkout ahead of every write behind it: a process lost between
+    them, or a write behind it that does not land, would otherwise leave the
+    evidence for a checkout put back to revive. A mark that does not land
+    holds the tick with nothing reset, dropped, or parked. That write is the
     recovery's own park (`_parks_the_recovery`), landed over the comment read
     afresh, so a report or evidence record another road wrote while the
     notice went out is kept beside it rather than put back.
     """
+    records = context.records_before_a_reset if isinstance(context, _AutoRebaseRecoveryContext) else None
+    if records is not None and not records(context):
+        log.warning(
+            "issue=#%d auto-rebase recovery: holding rather than resetting to %s, since the reset could not be "
+            "recorded against the verification evidence settled for the landed head ahead of it",
+            context.issue.number, reset_sha[:8],
+        )
+        return
     reset = commands._git_hardened(
         "reset", "--hard", reset_sha, cwd=context.worktree,
     )
-    restored = reset.returncode == 0
-    if not restored:
+    if reset.returncode:
         log.error(
             "issue=#%d auto-rebase recovery: reset --hard to %s failed: "
             "%s; the awaiting_human park still short-circuits same-tick "
@@ -209,10 +222,10 @@ def _reset_clear_and_park(
                 "the reset failed: %s",
                 context.issue.number, (cleaning.stderr or "").strip(),
             )
-    if restored:
-        parks = _releases_over_the_reset(context, reset_sha)
-    else:
+    if reset.returncode:
         parks = _proves_before_the_park(context)
+    else:
+        parks = _releases_over_the_reset(context, reset_sha)
     if not parks:
         return
     _parks_the_recovery(

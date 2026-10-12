@@ -3186,7 +3186,11 @@ The keys that matter for the state machine fall into a few groups:
   request its route makes (`workflow/engine/rewrite_evidence_proof.py`): moved or unread holds the route, dropped or
   unproven refuses the decision for good. A captured transaction whose abandonment the comment has no room for is
   dropped with this member blanked, in a write that only shrinks the comment, so no later reading proves a base for it
-  and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`).
+  and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`). Settled evidence
+  is held to it the same way: an invalidation the comment has no room for, and every reset about to take the checkout
+  off a landed head with settled evidence beside it, blank this member in a write of its own first
+  (`workflow/engine/rewrite_finish_readiness.py`, `workflow/engine/rewrite_recovery_parks.records_the_reset`), so
+  every later proof reads the evidence moved and invalidates it once room is made, whatever is put back meanwhile.
   `pending_auto_base_rebase_announced_sha` is the member written last and covers the last window a finish has:
   everything a finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out
   before the relabel, and the write that clears this record goes out after it, so the head it has already said it

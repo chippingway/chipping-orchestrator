@@ -1507,12 +1507,15 @@ because there it is the claim that this stage has already rerouted rather than a
   before every park that keeps the attempt and invalidated where anything it rests on moved, and invalidated on the
   state a landed reset's park writes, so neither putting the landing back nor a human's reply revives a decision the
   landing moved under. Each invalidation is guarded as the finish's own is (the next bullet), and one no write lands
-  holds the tick with nothing reset, cleared, or parked. Settled evidence is never dropped short of history: where a
-  landed reset finds no room on the comment for its history entry, the evidence stays current and whole beside the
-  attempt, which is not released, and the reset is recorded instead by blanking the base tip the attempt recorded its
-  replay as made onto -- a write that only shrinks the comment -- so every later proof of the evidence reads movement
-  and invalidates it whole once room is made, the checkout put back on the head meanwhile or not; nothing is parked
-  until then, and the anchor keeps holding every handler. Every recovery park, a landed reset's included, is recorded
+  holds the tick with nothing reset, cleared, or parked. Settled evidence is never dropped short of history, and the
+  reset is recorded against it before it is made (`rewrite_recovery_parks.records_the_reset`): the base tip the
+  attempt recorded its replay as made onto is blanked -- a write that only shrinks the comment -- so every later proof
+  of the evidence reads movement and invalidates it whole once room is made, the checkout put back on the head
+  meanwhile or not. A process lost behind the reset, or a park write behind it that does not land, so leaves nothing a
+  restored checkout revives, and a blank that does not land holds the tick with nothing reset. Where the landed reset
+  then finds no room on the comment for the history entry, the evidence stays current and whole beside the attempt,
+  which is not released; nothing is parked until room is made, and the anchor keeps holding every handler. Every
+  recovery park, a landed reset's included, is recorded
   over the comment read afresh rather than written whole (`rewrite_recovery_parks.lands_a_park`): it owns what the
   tick staged -- the park, the attempt it drops, the evidence it abandons or invalidates -- is decided on the attempt,
   the park's flags, and the evidence records, and keeps every other field as the comment now carries it. So a report
@@ -1551,7 +1554,9 @@ because there it is the claim that this stage has already rerouted rather than a
     reading nobody could take, a comment no longer carrying that evidence as current or carrying a pending record or
     a handoff beside it that says it is not the last word, a revision floor nobody can read, or an invalidation no
     write landed holds the route with the attempt standing, and the next recovery proves it again over what it then
-    reads. A failure notice recorded
+    reads. An invalidation the comment has no room for records the movement instead, blanking the base tip the
+    attempt recorded its replay as made onto in a write that only shrinks the comment: every later proof then reads
+    movement, so putting back what moved before room is made revives nothing. A failure notice recorded
     for the head is found on the pull request rather than posted again, and a decision that recorded nothing -- the
     fresh reviewer's responsibility handed off, a run refused as moved, or a passing run that binds nothing -- is
     taken afresh, so the handoff is proved over the records as they read then; a run the policy makes again there is
