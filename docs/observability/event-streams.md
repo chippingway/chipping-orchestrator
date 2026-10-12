@@ -2,8 +2,12 @@
 
 The two JSONL sinks the polling tick writes as it drives issues: the **audit event log** (`EVENT_LOG_PATH`), an
 opt-in record of workflow events, and the **analytics sink** (`ANALYTICS_LOG_PATH`), the raw metric records the
-Postgres aggregation and the analytics dashboard over it are built from. Both are observation-only — no dispatch
-decision reads either back, and both are safe to truncate, rotate, or delete at any time. The third sink, the opt-in
+Postgres aggregation and the analytics dashboard over it are built from. The analytics sink is observation-only — no
+dispatch decision reads it back, and it is safe to truncate, rotate, or delete at any time. The audit log is read back
+in exactly one place: a landed base rewrite's finish asks it, and the rotated copies of it beside it, whether its
+`base_rebased` is already filed before filing one, and holds while they will not read, so a configured audit log and
+its copies have to stay readable by the orchestrator, and deleting a copy or truncating the log with none kept can
+cost that one event its once-only guarantee ([below](#audit-event-log-event_log_path)). The third sink, the opt-in
 trajectory recorder, is documented in [`trajectories.md`](trajectories.md).
 
 The record shapes below are a compatibility contract: an operator's `jq` filter, a `logrotate` rule, and the Postgres
@@ -18,7 +22,10 @@ dashboard that sink is aggregated into afterwards are on [`analytics-database.md
 
 Optional, opt-in JSONL sink. When `config.EVENT_LOG_PATH` is set, `github.events.write_event_record` appends one JSON
 object per audit event to that file inside `GitHubClient.emit_event`; when unset (the default) the helper
-short-circuits to a no-op. The fake `GitHubClient` in `tests/support/github/` calls the same helper.
+short-circuits to a no-op. The fake `GitHubClient` in `tests/support/github/` calls the same helper. When set, the
+file is also read back by one reader, `github.events.filed`, before every `base_rebased` a base-rewrite finish files
+-- together with every rotated copy beside it (`github/event_log.py`; see
+[Pinned state is authoritative](#audit-event-log-event_log_path) below).
 
 **Schema.** Every record is built by `github.events.build_event_record` and carries `ts` (UTC ISO-8601 at second
 precision), `repo` (the slug `owner/name`), `issue` (issue number, int), and `event` (the kind). `stage` is included
@@ -252,10 +259,14 @@ file is the durable record.
 - `base_rebased` — once per landed refresh-time rebase of `workflow:validating` / `workflow:documenting` /
   `in_review` / `workflow:fixing`, ahead of the route back to `workflow:validating` (which a head the base has
   advanced past again does not take; the next rebase goes on from it instead), by the workflow's one finish
-  (`workflow/engine/rewrite_finish_notices.py`) for the clean rebase `_sync_pr_worktree_to_base` publishes, for the
+  (`workflow/engine/rewrite_finish_events.py`) for the clean rebase `_sync_pr_worktree_to_base` publishes, for the
   replay a crashed prior tick never published that its recovery pushes again, and for a crashed tick's push the
-  recovery finds already landed (`workflow/engine/rewrite_landed.py`) -- never twice for one publication, since the
-  announcement mark beside the attempt keeps a resumed finish from filing it again, and only once the landed head's
+  recovery finds already landed (`workflow/engine/rewrite_landed.py`) -- never twice for one publication, since until
+  the announcement mark is down every finish asks this stream before filing it (`github/events.filed`: the client's
+  in-memory tail, then the whole audit log and its rotated copies), whatever the attempt records -- a finish from
+  before `pending_auto_base_rebase_announced_event` existed filed it with no record; a log or copy the process cannot
+  read holds that finish with nothing filed, relabelled, or retired, and only a copy deleted, or a log truncated with
+  no copy kept, between a lost finish and its retry can let it file a second one -- and only once the landed head's
   verification evidence is resolved (settled, retired, or left to the fresh reviewer), so a tick whose evidence post
   or settlement did not resolve files nothing and a later tick's finish files it;
   extras: `pr_number`, `sha` (new head), `method` ∈ {`auto_clean_rebase` for the tick's own push,
@@ -294,16 +305,38 @@ granularity surface; the rolled-up counts live in the `agent_exit` analytics rec
 `path.parent.mkdir(parents=True, exist_ok=True)`; there is no long-lived file descriptor, no size cap, no rename, and no
 compression. External rotation is operator-managed — pair `EVENT_LOG_PATH` with `logrotate` (or equivalent). Because
 each append re-resolves the path, create/rename-style rotation is as safe as `copytruncate`: the next event picks up the
-new inode without any `SIGHUP` or restart.
+new inode without any `SIGHUP` or restart. The reader below (`github/event_log.py`) reads the file at `EVENT_LOG_PATH`
+and every rotated copy of it beside it -- each entry in the log's directory named as logrotate names a copy, the log's
+name followed by a dot (`events.jsonl.1`, `events.jsonl.2.gz`) or a dash (`dateext`'s `events.jsonl-20261012`), a
+copy compressed with gzip, bzip2, or xz read through that decompressor, and the file at `EVENT_LOG_PATH` itself read
+as the plain JSON lines its writer appends whatever its name ends in -- all of each, a block at a time, before each
+`base_rebased` a base-rewrite finish files: a log grown large or a long retention costs that finish a longer read,
+and a rotation that moves a just-filed `base_rebased` out of the path before a lost finish retries leaves it in a copy
+the retry still reads. A rotation that runs while the reader is reading -- the log renamed and created afresh, copied
+and truncated, or a copy compressed and removed between the listing and the read -- is read again over: the copies are
+listed again behind every read, each name to the file (device and inode) it is, and a reading counts only where that
+listing matches the one ahead of it, so a rotation that ends up under a read never answers as an absence; one still
+moving them after three readings holds the finish, as an unreadable log does. What it cannot follow is a copy no
+longer beside the log -- one the retention deleted, one `olddir` moved, one another compressor wrote -- and a log
+truncated with no copy kept: a lost finish retried after any of those can file its `base_rebased` a second time.
 
 An `OSError` during the append is caught and downgraded to a `log.warning` so a misconfigured path (read-only mount,
 disk full, permission failure) cannot stop the per-issue tick from making progress; the missing record is silently
-dropped and the pinned state on GitHub remains correct.
+dropped and the pinned state on GitHub remains correct. Reading it back is the exception: a path that exists and
+cannot be read -- a directory, a file without read permission, a compressed copy cut short, damaged, or still being
+written, a directory that will not list, a dangling link named as a copy, a rotation that keeps moving the copies
+under three readings in a row -- holds every landed base rewrite's route, with nothing filed, relabelled, or retired,
+until it reads again; a path where no file exists yet reads as an empty log.
 
-**Pinned state is authoritative.** The event log is append-only and observation-only. The orchestrator never reads it
-back; every dispatch decision keys off the pinned `<!--orchestrator-state ...-->` JSON comment on the issue (and the
-issue's workflow label). If the two disagree, trust pinned state. The append-only log is safe to truncate or delete at
-any time without affecting workflow correctness.
+**Pinned state is authoritative.** The event log is append-only, and the orchestrator reads it back in one place only:
+before a base-rewrite finish files `base_rebased`, it asks the log and its rotated copies whether that event is already
+there (`github/events.filed`), so a process lost behind the event -- on this build, or on one from before the attempt
+recorded its events -- files it once. That read gates the route: a finish files nothing, and is neither relabelled nor
+retired, while the log will not read, and the next tick asks again. Every other dispatch decision keys off the pinned
+`<!--orchestrator-state ...-->` JSON comment on the issue (and the issue's workflow label). If the two disagree, trust
+pinned state. Truncating, rotating, or deleting the log never moves a decision the pinned state records; a rotation that
+keeps its copy beside the log costs nothing, while deleting that copy or truncating the log with none kept, done while a
+lost finish is still to retry, can let that retry file its `base_rebased` a second time.
 
 ## Analytics sink (`ANALYTICS_LOG_PATH`)
 

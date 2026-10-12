@@ -115,6 +115,7 @@ _ENGINE_OWNERS = (
     "retry_budget",
     "rewrite_finish_models",
     "rewrite_finish_debt",
+    "rewrite_finish_events",
     "rewrite_finish_notices",
     "rewrite_finish_writes",
     "rewrite_finish",

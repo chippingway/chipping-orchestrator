@@ -8,10 +8,10 @@ the push and the attempt kept, until a reply once room is made finishes the
 route; a comment with no room for that park either is left exactly as it is,
 and since it is only full, not moved, the tick's state is not withheld from
 the writes behind it. Each write past that measurement is measured again over
-the comment as another road has since left it -- the announcement with its
-notice's ledger entry reserved over the ledger that comment carries, and the
-park over the round its room depended on -- so neither posts or files anything
-for a record that could not follow it.
+the comment as another road has since left it -- the announcement whole, the
+record of its event included, with its notice's ledger entry reserved over the
+ledger that comment carries, and the park over the round its room depended on
+-- so neither posts or files anything for a record that could not follow it.
 """
 from __future__ import annotations
 
@@ -22,7 +22,11 @@ from types import MappingProxyType
 from orchestrator import config
 from orchestrator.workflow.engine import report_record_values as _record_values, rewrite_finish as _finish
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
-from tests.workflow.engine import rewrite_finish_effects_support as effects, rewrite_finish_test_support as support
+from tests.workflow.engine import (
+    rewrite_finish_effects_support as effects,
+    rewrite_finish_readings as readings,
+    rewrite_finish_test_support as support,
+)
 
 _FOUND = (
     ":mag: Recovered an interrupted auto-rebase for PR #42; the new head `b2b2b2b2` was already "
@@ -84,6 +88,10 @@ _ANNOUNCED = MappingProxyType({
 # The widest id a comment is recorded at, which a reservation over the tick's
 # ledger takes and another road can record first.
 _WIDEST_ID = _record_values.MAX_RECORDED_NUMBER
+
+# The checkpoint with its notice's entry reserved at the widest id, on a
+# comment carrying no ledger: the announcement short of the record of its event.
+_CHECKPOINTED = MappingProxyType({**_ANNOUNCED, support.KEY_LEDGER: [_WIDEST_ID]})
 
 
 def _held(world: support.FinishWorld) -> tuple:
@@ -196,6 +204,47 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         self.assertIsNone(durable.get(support.KEY_ANNOUNCED))
         self.assertEqual(durable[support.KEY_PENDING_PUSH], support.ANCHOR)
 
+    def test_an_event_record_is_measured_afresh(self) -> None:
+        # Another road fills the comment after the finish read it, leaving
+        # room for the checkpoint and its notice's entry and none for the
+        # record of its event beside them: the announcement could not land
+        # whole, so nothing is posted, filed, or recorded for it. Once room is
+        # made, the next finish says it once.
+        world = support.FinishWorld.seeded()
+        finish = world.finish()
+        effects.leaves(world, effects.room_for(world, **_CHECKPOINTED))
+
+        self.assertEqual(_finish.finalizes(finish), FinishOutcome.REFUSED)
+
+        durable = world.pinned()
+        self.assertEqual(self._said(world), (0, 0, ()))
+        self.assertIsNone(durable.get(readings.KEY_ANNOUNCED_EVENT))
+        left = support.checkpoint(durable)
+        self.assertEqual(left[1:3], (None, support.ANCHOR))
+        effects.makes_room(world)
+        self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
+        self.assertEqual(self._said(world), (1, 1, _ROUTED))
+
+    def test_a_record_over_a_wide_round_says_nothing(self) -> None:
+        # The debt is already carried and the round is wide: the checkpoint,
+        # which resets that round, has room, but the record of the event,
+        # written on its own over the round as the tick read it, has none --
+        # so nothing is posted or filed for an announcement whose first write
+        # could not land. Once room is made, the next finish says it once.
+        world = support.FinishWorld.seeded(**{
+            support.KEY_REWRITE_DEBT: support.owed(), support.KEY_REVIEW_ROUND: _WIDE_ROUND,
+        })
+        recording = effects.room_for(world, **{readings.KEY_ANNOUNCED_EVENT: support.LANDED})
+        effects.leaves(world, recording - 1)
+
+        self.assertEqual(world.finalizes(), FinishOutcome.REFUSED)
+
+        self.assertEqual(self._said(world), (0, 0, ()))
+        self.assertIsNone(world.pinned().get(readings.KEY_ANNOUNCED_EVENT))
+        effects.makes_room(world)
+        self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
+        self.assertEqual(self._said(world), (1, 1, _ROUTED))
+
     def test_a_park_whose_round_moved_posts_nothing(self) -> None:
         # The comment as the finish read it had no room for the debt beside a
         # wide round; another road resets that round before the park, which
@@ -216,6 +265,11 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         self.assertEqual(
             (durable.get(support.KEY_PARK_REASON), durable.get(support.KEY_AWAITING_HUMAN)), (None, None),
         )
+
+    def _said(self, world: support.FinishWorld) -> tuple:
+        """How many notices PR #42 was given and `base_rebased` events filed, and every label written."""
+        notices, events = world.said()
+        return len(notices), len(events), world.relabels()
 
 
 if __name__ == "__main__":

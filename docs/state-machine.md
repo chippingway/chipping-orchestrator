@@ -192,7 +192,13 @@ the landing read moving by the recovery's first snapshot -- or reset off by its 
 finish put on the attempt in the write that recorded it (`pending_auto_base_rebase_evidence_receipt`); any other is
 another road's, and kept as it wrote it. Every recovery park or hold that keeps the attempt for a later tick or a
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
-anything moved, so putting that input back before the attempt is taken up again revives nothing.
+anything moved, so putting that input back before the attempt is taken up again revives nothing. A tick lost behind
+the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
+checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
+recovery, which reads what was done off the mark, the pull request, the event stream, and the label
+(`workflow/engine/rewrite_finish_notices.py`, `workflow/engine/rewrite_finish_events.py`): no second notice,
+`base_rebased` or stage-entry event, round reset, relabel, evidence publication, or developer launch. A conversation or
+audit log the finish cannot read holds it with nothing filed.
 A replay the size gate hands to an adjudication instead is handed to the late generation adjudicating it
 (`workflow/engine/rewrite_takeover.py`) by the publication and by the recovery's retry alike, and a park the gate takes
 keeps the attempt for its recovery: where the pinned record proves a whole attempt and a live generation late

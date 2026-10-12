@@ -70,22 +70,25 @@ class _FallenBehind:
         return counted
 
 
-class _LosesTheRetirement:
-    """A guarded pinned edit that takes every write but the one retiring the attempt."""
+class _LosesTheEdit:
+    """A guarded pinned edit that takes every write but the one sending `key` blank -- or, `blank` False, set."""
 
-    def __init__(self, edit) -> None:
+    def __init__(self, edit, key: str, *, blank: bool) -> None:
         self._edit = edit
+        self._key = key
+        self._blank = blank
 
     def __call__(self, issue, state, *, over):
-        """Lose the write that blanks the anchor, and send every other."""
-        if state.get(retry.KEY_PENDING_PUSH) is None:
+        """Lose the write that sends the key as this edit loses it, and send every other."""
+        if (state.get(self._key) is None) == self._blank:
             raise RuntimeError(DIED)
         return self._edit(issue, state, over=over)
 
 
 def _before_the_mark(case):
-    """Lose the tick at the first guarded edit past the notice and the event: the mark."""
-    return patch.object(case.gh, "edit_pinned_state", MagicMock(side_effect=RuntimeError(DIED)))
+    """Lose the tick at the guarded edit writing the mark, past the notice, the event, and the event's record."""
+    loses = _LosesTheEdit(case.gh.edit_pinned_state, KEY_ANNOUNCED, blank=False)
+    return patch.object(case.gh, "edit_pinned_state", loses)
 
 
 def _at_the_relabel(case):
@@ -95,14 +98,16 @@ def _at_the_relabel(case):
 
 def _after_the_relabel(case):
     """Lose the tick at the write that retires the attempt, with the relabel already made."""
-    return patch.object(case.gh, "edit_pinned_state", _LosesTheRetirement(case.gh.edit_pinned_state))
+    loses = _LosesTheEdit(case.gh.edit_pinned_state, retry.KEY_PENDING_PUSH, blank=True)
+    return patch.object(case.gh, "edit_pinned_state", loses)
 
 
 # Each moment a finish can be lost at, with the mark the lost tick left and
-# what the landing ends up announced as: a mark that never went down cannot
-# say the notice and the event are out, so they are said once more.
+# what the landing ends up announced as: once, whichever -- a mark that never
+# went down leaves the notice on PR #42, which the next finish finds there and
+# says neither it nor the event again.
 WINDOWS = (
-    ("before the mark", _before_the_mark, None, (2, [FOUND, FOUND])),
+    ("before the mark", _before_the_mark, None, SAID_FOUND),
     ("at the relabel", _at_the_relabel, REPLAY, SAID_FOUND),
     ("after the relabel", _after_the_relabel, REPLAY, SAID_FOUND),
 )

@@ -24,6 +24,7 @@ _PINNED_CONTRACT = (
     (state._PENDING_REWRITE_STAGE, "pending_auto_base_rebase_rewrite_stage"),
     (state._PENDING_REWRITE_SHA, "pending_auto_base_rebase_rewrite_sha"),
     (state._PENDING_ANNOUNCED_SHA, "pending_auto_base_rebase_announced_sha"),
+    (state._PENDING_ANNOUNCED_EVENT, "pending_auto_base_rebase_announced_event"),
     (state._REASON_AUTO_BASE_REBASE_FAILED, "auto_base_rebase_failed"),
     (state._REASON_AUTO_BASE_REBASE_PUSH_FAILED, "auto_base_rebase_push_failed"),
     (state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT, "auto_base_rebase_unrecorded_debt"),

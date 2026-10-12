@@ -83,8 +83,21 @@ _PENDING_REWRITE_BASE = "pending_auto_base_rebase_rewrite_base"
 # the pinned write that clears the record, so a process lost between them comes
 # back to an attempt that looks unfinished and announces itself a second time
 # -- a second `base_rebased` on the stream and a second notice on the pull
-# request, for one publication that happened once.
+# request, for one publication that happened once. A process lost before it is
+# written is answered by the notice found on the pull request and the record
+# below, with the event stream asked behind it, so neither is said twice then
+# either.
 _PENDING_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
+
+# The head whose `base_rebased` event a finish of this attempt is filing,
+# written in a write of its own right ahead of the event and of the
+# announcement mark, so the event goes out only behind a write proving the
+# attempt still stands. It says the event may be out; its absence says
+# nothing, since a finish from before this record existed filed the event
+# with none, so every finish asks the event stream before filing until the
+# mark is down. Additive: an attempt from before this record existed carries
+# none.
+_PENDING_ANNOUNCED_EVENT = "pending_auto_base_rebase_announced_event"
 
 # The receipt of the verification transaction a finish of this attempt
 # recorded for the landed head, written in the very write that records it. A

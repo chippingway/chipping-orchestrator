@@ -61,11 +61,19 @@ refuses stops the finish there with nothing behind it made:
   is the last word on the head. Every evidence decision is held to the base
   tip the replay was recorded as made onto once its requests are behind it,
   so a base that moved meanwhile holds the route too.
-- Only then is the landing announced: prepared over the fresh comment first,
-  its notice's ledger entry reserved over the ledger that comment carries, so
-  a comment that would refuse it posts nothing; then the notice and the event
-  go out (`rewrite_finish_notices`), and the checkpoint lands the debt, the
-  reset round, and the mark while the anchor still stands. The checkpoint is
+- Only then is the landing announced: both of its writes prepared over the
+  fresh comment first -- the checkpoint whole, the record of its event
+  included, and that record's own write ahead of the event -- its notice's
+  ledger entry reserved over the ledger that comment carries, so a comment
+  that would refuse either posts nothing; then the notice and the event
+  go out once each (`rewrite_finish_notices.announces`) -- the notice found
+  on the pull request rather than posted again, where an earlier finish said
+  it ahead of a checkpoint that never landed, and the event filed only where
+  the event stream does not already carry it, recorded on the attempt ahead
+  of it (`rewrite_finish_events`) -- and the checkpoint lands the debt, the
+  reset round, and the mark while the anchor still stands. A conversation or
+  an event stream nobody could read holds the finish there with the attempt
+  standing, nothing filed, and no mark. The checkpoint is
   decided on the evidence records too, so a transaction another road recorded
   beside the one this finish resolved -- even while the settlement's own
   answer came back -- refuses it before anything is posted, and the attempt
@@ -86,6 +94,19 @@ refuses stops the finish there with nothing behind it made:
   was decided or settled refuses the route rather than riding it. An issue
   already on `workflow:validating` under its own mark is not relabelled
   again.
+
+A tick lost anywhere in that tail -- behind the evidence it settled, retired,
+or left to the fresh reviewer and before the announcement, between the
+notice, the event, and the checkpoint, behind the checkpoint and before the
+relabel, or behind the relabel and before the retirement -- leaves the
+attempt standing, so the anchor holds every handler until a later finish
+discharges what it still owes. That finish takes the evidence up where the
+records leave it and reads the rest off the mark, the pull request, the event
+stream, and the label: a head the mark already names gets no second notice,
+`base_rebased` event, or round reset, a notice found on the pull request or
+an event found on the stream with no mark beside them is not said again, and
+an issue already relabelled under the mark gets no second relabel or
+stage-entry event.
 
 Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
@@ -125,6 +146,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish_settlement as _settlement,
     rewrite_finish_writes as _writes,
 )
+from orchestrator.workflow.engine.rewrite_finish_events import method, prepares_the_record
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -250,6 +272,17 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     the notice adds to the ledger reserved over the one that comment carries
     rather than over the tick's: an id the tick's ledger lacks may be one
     another road has recorded since, and reserved there it is no room at all.
+    Both of the announcement's writes are prepared before its notice: the
+    checkpoint whole -- the record of its event staged on it too -- and the
+    write that lands that record on its own ahead of the event
+    (`rewrite_finish_events.prepares_the_record`), over the round as the tick
+    read it, which only the checkpoint resets. So a comment another road
+    filled since the tick read it, or one whose wide round leaves room for the
+    checkpoint and none for the record beside it, posts and files nothing.
+    The notice and the event are each said once (`rewrite_finish_notices.announces`),
+    and what stopped either -- a conversation or event stream that would not
+    read, or the event's own record that did not land -- stops the checkpoint
+    with the attempt standing.
     """
     staged = _writes.staging(finish)
     measured = _writes.staging(finish) if announced else _debt.announcement(staged, finish.head)
@@ -260,15 +293,19 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
         if _commit_models.spelled(staged.data, _rewrite_debt.REWRITE_DEBT) == carried:
             return None
         return _writes.lands(finish, staged, _writes.CHECKPOINT)
+    staged.set(_base_sync_state._PENDING_ANNOUNCED_EVENT, finish.head)
     staged.set(_base_sync_state._REVIEW_ROUND, 0)
     staged.set(_base_sync_state._PENDING_ANNOUNCED_SHA, finish.head)
     stopped = _writes.prepares(finish, staged, _writes.CHECKPOINT, ledger_entry=True)
+    if stopped is None:
+        stopped = prepares_the_record(finish)
+    if stopped is None:
+        stopped = _notices.announces(finish, staged)
     if stopped is not None:
         return stopped
-    _notices.announces(finish, staged)
     log.info(
         "issue=#%d announced the base rewrite PR #%d landed on %.8s (%s)",
-        finish.issue.number, finish.pr_number, finish.head, _notices.method(finish),
+        finish.issue.number, finish.pr_number, finish.head, method(finish),
     )
     return _writes.lands(finish, staged, _writes.CHECKPOINT)
 

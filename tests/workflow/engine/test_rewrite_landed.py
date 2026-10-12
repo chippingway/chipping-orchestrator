@@ -122,7 +122,7 @@ class LandedPushTest(landed.LandedCase):
 
 
 class InterruptedFinishTest(landed.LandedCase):
-    """A recovery's finish lost past its notice resumes into one route, said again only where nothing recorded it."""
+    """A recovery's finish lost past its notice resumes into one route, its notice and event said once."""
 
     def test_each_window_resumes_into_one_route(self) -> None:
         for window, loses, mark, said in landed.WINDOWS:

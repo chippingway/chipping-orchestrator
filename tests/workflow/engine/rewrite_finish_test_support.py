@@ -29,7 +29,7 @@ from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.engine import rewrite_finish as _finish
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.state import WorkflowLabel
-from tests.support.fakes import FakeGitHubClient, FakeIssue, make_issue
+from tests.support.fakes import FakeGitHubClient, FakeIssue, FakePR, FakePRRef, make_issue
 from tests.workflow.repo_values import _TEST_SPEC
 
 ISSUE = 7
@@ -168,10 +168,16 @@ class FinishWorld:
 
     @classmethod
     def seeded(cls, *, label: str = LABEL_FIXING, **pinned: object) -> FinishWorld:
-        """Issue #7 on `label`, pinning `attempt_record` with `pinned` over it -- a field given None dropped."""
+        """Issue #7 on `label`, pinning `attempt_record` with `pinned` over it -- a field given None dropped.
+
+        Its pull request #42 stands on the landed head, its conversation empty
+        until a finish announces on it.
+        """
         issue = make_issue(ISSUE, label=label)
         github = FakeGitHubClient([issue])
         github.seed_state(issue, **attempt_record(**pinned))
+        pull_request = FakePR(number=PR_NUMBER, head_branch=BRANCH, head=FakePRRef(sha=LANDED))
+        github.add_pr(pull_request)
         return cls(github, issue)
 
     def finish(self, road: Road = PUBLISHED) -> LandedFinish:

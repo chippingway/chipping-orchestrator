@@ -225,7 +225,17 @@ orchestrator/
                         one quoting a receipt marker, and one past a comment's length are refused rather than cut,
                         and a comment reads back as a report only when it is ours and re-renders byte for byte --
                         never one whose header claims a count of more digits than Python converts
-    events.py           audit event record construction and the optional JSONL sink
+    event_log.py        the audit log read back for `events.filed`: every record naming one event on the file at
+                        `EVENT_LOG_PATH` and on each rotated copy logrotate leaves beside it -- the log's name
+                        followed by a dot or a dash, a gzip, bzip2, or xz copy decompressed -- read whole, a block
+                        at a time, so an event filed before a rotation is still found behind it, and listed again
+                        behind every read, so a rotation run under the read reads them all again rather than
+                        answering an absence; a copy or a directory that would not read, or copies still moving
+                        after three readings, is no answer rather than an absence
+    events.py           audit event record construction and the optional JSONL sink, and whether an event a
+                        caller may already have filed is on the stream -- the client's in-memory tail, then the
+                        whole sink and its rotated copies (`event_log.py`) -- with a sink that would not read
+                        answered as no answer rather than as an absence (`filed`)
     issue_polling.py    the one walk over a repository's issues a tick is served from: the open poll, the
                         cadenced closed sweep beside it, and the shared number set both filter through so an
                         issue two queries return is dispatched once, and which drops the pull requests those
@@ -620,9 +630,10 @@ orchestrator/
                         let the rebase start on, and carries the retry the workflow staged read from it
                         (`workflow/engine/rewrite_replies.py`)
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
-                        that ends an auto-rebase attempt, the recorded base tip among its members. The workflow's
-                        publication records its replay here, with the base tip frozen before git ran beside it
-                        (`pending_auto_base_rebase_rewrite_base`); the
+                        that ends an auto-rebase attempt, the recorded base tip and the record of the `base_rebased`
+                        event a finish files (`pending_auto_base_rebase_announced_event`) among its members. The
+                        workflow's publication records its replay here, with the base tip frozen before git ran
+                        beside it (`pending_auto_base_rebase_rewrite_base`); the
                         workflow's finish of every landing puts the mark down through its own guarded checkpoint,
                         while the anchor still stands and before relabeling, and reads it back here; the
                         workflow's handoff of an unpublished replay to a late generation

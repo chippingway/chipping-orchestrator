@@ -46,6 +46,9 @@ BEFORE_THE_RECEIPT = "before the receipt"
 BEFORE_THE_REPORT = "before the report"
 BEFORE_THE_NOTICE = "before the notice"
 BEFORE_THE_MARK = "before the mark"
+
+# The record a finish marks its landing announced with.
+_ANNOUNCED = "pending_auto_base_rebase_announced_sha"
 AT_THE_RELABEL = "at the relabel"
 AFTER_THE_RELABEL = "after the relabel"
 
@@ -110,6 +113,19 @@ class _DiesAfter:
         raise RuntimeError(DIED)
 
 
+class LosesTheMark:
+    """A guarded pinned edit that sends every write but the one marking the landing announced."""
+
+    def __init__(self, edit) -> None:
+        self._edit = edit
+
+    def __call__(self, issue, state, *, over):
+        """Stop the tick at the edit that writes the mark, and send every other."""
+        if state.get(_ANNOUNCED) is not None:
+            raise RuntimeError(DIED)
+        return self._edit(issue, state, over=over)
+
+
 def crash_at(github, window: str = ""):
     """The seam a process lost at `window` is last seen at; none for ""."""
     if not window:
@@ -117,9 +133,9 @@ def crash_at(github, window: str = ""):
     seams = {
         **_MODULE_SEAMS,
         BEFORE_THE_RECEIPT: (_branch_transport, PUSH_BRANCH, _LandsThenDies(github)),
-        # The mark lands through the guarded edit of the pinned comment, the
-        # first the finish makes past its notice and its event.
-        BEFORE_THE_MARK: (github, "edit_pinned_state"),
+        # The mark lands through the guarded edit of the pinned comment that
+        # follows the notice, the event, and the event's own record.
+        BEFORE_THE_MARK: (github, "edit_pinned_state", LosesTheMark(github.edit_pinned_state)),
         AT_THE_RELABEL: (github, SET_LABEL),
         AFTER_THE_RELABEL: (
             github, SET_LABEL, _DiesAfter(github.set_workflow_label),

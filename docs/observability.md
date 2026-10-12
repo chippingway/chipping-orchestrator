@@ -1,14 +1,18 @@
 ---
 description: >-
-  The observation-only audit, analytics, and trajectory logs, the database and dashboards built over them, and the
-  parser that reads agent usage from CLI stdout.
+  The audit, analytics, and trajectory logs, the database and dashboards built over them, and the parser that reads
+  agent usage from CLI stdout.
 ---
 # Observability
 
-The orchestrator emits three independent JSONL sinks plus an optional Postgres aggregation target. None are read by
-the polling tick — workflow correctness keys off the pinned `<!--orchestrator-state ...-->` JSON comment on the issue
-(and the workflow label). Every observability surface here is observation-only and safe to truncate, rotate, or delete
-at any time.
+The orchestrator emits three independent JSONL sinks plus an optional Postgres aggregation target. Workflow correctness
+keys off the pinned `<!--orchestrator-state ...-->` JSON comment on the issue (and the workflow label), never off
+these. The one read-back is the audit log's: before a base-rewrite finish files its `base_rebased`, it asks the log and
+its rotated copies whether that event is already there, so a lost finish files it once, and a log it cannot read holds
+that finish until it reads. Every other surface here is observation-only and safe to truncate, rotate, or delete at
+any time. The audit log is safe to rotate too, but deleting a rotated copy, or truncating the log with no copy kept,
+while a lost finish is still to retry can let that retry file its `base_rebased` again
+([below](#audit-event-log-event_log_path)).
 
 This page is the map over those surfaces. Each one has a reference page of its own, and the section for it below is a
 summary that names that page — so a link written against this page still lands beside the material it pointed at:
@@ -50,7 +54,9 @@ Opt-in JSONL audit of workflow events, appended through the single `GitHubClient
 when the knob is unset (the default). Every record carries the `ts` / `repo` / `issue` / `event` envelope with
 `sort_keys=True` ordering, and `stage` carries the **bare stage tag** (`implementing`, `fixing`, …) rather than the
 `workflow:`-prefixed GitHub label — so a grep or a dashboard filter matches on the tag. There is no built-in rotation
-and an append failure is downgraded to a warning; pinned GitHub state, never this file, is what the tick reads back.
+and an append failure is downgraded to a warning; pinned GitHub state is what every dispatch decision reads, and the
+file -- with the rotated copies logrotate leaves beside it -- is read back only before a base-rewrite finish files its
+`base_rebased`, so a lost finish files that event once.
 That page lists every emitted kind and its extras, the `agent_spawn` / `agent_exit` fields, and the opt-in
 `skill_triggered` event.
 
