@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """The verification a completed reviewer run may declare, and nothing else.
 
-Two declarations count: a RUN block listing the exact commands the reviewer
-ran on the commit it was handed, and a REUSED line naming the current workflow
-evidence revision it inspected. Both are sourced to the reviewer run and kept
-as the reviewer wrote them. A missing, malformed, contradictory, truncated, or
-stale declaration is refused, the verdict line is read beside it without
-either reading the other, and no message is read at all from a run that never
-started, was interrupted, timed out, was refused by its provider, or exited
-nonzero.
+Two declarations count: a RUN block listing the commands the reviewer ran,
+as it declares them, on the commit it was handed, and a REUSED line naming
+the current workflow evidence revision it inspected. Both are sourced to the
+reviewer run and kept as the reviewer wrote them. A missing, malformed,
+contradictory, truncated, or stale declaration is refused, the verdict line
+is read beside it without either reading the other, and no message is read
+at all from a run that never started, was interrupted, timed out, was refused
+by its provider, or exited nonzero.
 """
 from __future__ import annotations
 

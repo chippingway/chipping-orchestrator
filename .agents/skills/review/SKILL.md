@@ -13,6 +13,11 @@ Run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` in a fresh review worktree 
 install or refresh dependencies. Include `--with docs` or `--with dashboard` when the change needs those optional
 dependencies. Clear both markers for every Poetry command so an activated environment cannot override this `.venv/`.
 
+Follow the [logging and exit-status bullets](../develop/SKILL.md#test-execution) when running tests to retain complete
+logs and preserve each test command's exit status. Run configured `VERIFY_COMMANDS` commands exactly as the prompt
+lists them, without adding flags or arguments. Treat added log redirection and exit-status capture as shell plumbing
+around each command; keep any redirection or status handling already present in a configured command.
+
 Reject (or request fixes) if any of these are red:
 
 - `.venv/bin/python -m ruff check orchestrator tests .github/scripts/docs_site.py`. Common offenders to look for
@@ -41,10 +46,11 @@ The orchestrator hands you the workflow verification evidence current for exactl
 you are reviewing, when there is any, and publishes the evidence you declare on the pull request itself.
 
 - End your final message with the verification declaration the prompt teaches, above the `VERDICT:` line: the
-  `VERIFICATION: RUN <head>` block listing every command you ran with the exit status it returned, or
+  `VERIFICATION: RUN <head>` block listing every command you ran with its own exit status, or
   `VERIFICATION: REUSED sha256:<revision>` naming the evidence you were handed. List only commands you actually ran,
-  quote output as plain lines, and never infer a count or a result. An approval is acted on only when that evidence
-  passed and includes every configured `VERIFY_COMMANDS` command, written exactly as the prompt lists it.
+  declaring each command itself without the logging and status-capture plumbing you wrapped around it. Quote output
+  as plain lines, and never infer a count or a result. An approval is acted on only when that evidence passed and
+  includes every configured `VERIFY_COMMANDS` command, written exactly as the prompt lists it.
 - Do not request changes merely so a developer or a human copies a commit SHA, a test count, or a command into the PR
   description or the report, while valid evidence covers the current tree and verification context. The orchestrator
   publishes that evidence with its provenance; a report describing an earlier run truthfully is not inaccurate.

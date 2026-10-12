@@ -24,10 +24,10 @@ env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator --log-level
 
 Run the sync command above in every fresh worktree before checks: `poetry run` executes commands without installing or
 refreshing dependencies. Add `--with dashboard` or `--with docs` when the change needs an optional group; use
-`--with docs,dashboard` to install both. Sync removes unselected optional groups, while
-`poetry install` preserves packages already installed but does not upgrade packages exclusive to unselected optional
-groups. Select an existing Python 3.12+ interpreter with
-`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry env use /path/to/python` when the default interpreter is unsuitable.
+`--with docs,dashboard` to install both. Sync removes unselected optional groups; tests that need those dependencies
+then skip instead of failing, so a green suite can hide missing coverage. `poetry install` preserves packages already
+installed but does not upgrade packages exclusive to unselected optional groups. Select an existing Python 3.12+
+interpreter with `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry env use /path/to/python` when the default is unsuitable.
 
 Prefix every manual Poetry command with `env -u VIRTUAL_ENV -u CONDA_PREFIX`, as in the examples above. The
 [environment selection policy](../../../docs/configuration/operations.md#dependency-tooling) explains inherited
@@ -92,6 +92,35 @@ Before committing, run each of these and fix what they report:
   acceptable; if a test fails on your branch, first reproduce it on `origin/main` at the same SHA
   you branched from, and only then call it out in the PR as a baseline failure with the reproduction
   steps. Otherwise fix it.
+
+## Test execution
+
+- Start with any reproductions the reviewer provided, then the affected test modules. After a fix, rerun the
+  failing test node IDs directly before broadening the checks.
+- Save complete combined stdout and stderr from each test run to a unique log file. For focused or extra pytest
+  runs, use `-ra --tb=short` for a readable failure summary; inspect the saved log for failure names and tracebacks.
+  Do not rerun a broad suite solely to extract or regroup diagnostics that the log already contains.
+- Preserve pytest's exit status in the shell command's result: capture it before displaying the saved log.
+  A successful `tail`, `grep`, or `head` can mask a failed pytest command; streaming through `head` can also cut
+  the producer short.
+- Once focused checks pass, run the complete [pre-push checklist](#pre-push-checklist) on the final tree.
+  Rerun the full suite whenever the tree changes after it passed.
+
+For example, a focused run that retains its diagnostics and returns pytest's actual exit status (replace the
+placeholder node ID with the failing test):
+
+```sh
+test_log=$(mktemp "${TMPDIR:-/tmp}/dev-tests.XXXXXX")
+test_status=0
+
+.venv/bin/python -m pytest \
+  'tests/<package>/test_<module>.py::<TestClass>::test_<name>' \
+  -q -ra --tb=short > "$test_log" 2>&1 || test_status=$?
+
+tail -n 80 "$test_log"
+printf 'Full test log: %s\n' "$test_log"
+(exit "$test_status")
+```
 
 ## Workflow owners and stage modules
 

@@ -276,6 +276,13 @@ class DeclarationContractTest(unittest.TestCase):
         ))
         subject = review_verification_models._VerificationSubject(HEAD, handed.revision)
 
+        self.assertIn(
+            "  COMMAND: <the command itself, without the logging or status-capture plumbing "
+            "you wrapped around it>\n"
+            "  EXIT: <the command's own exit status, not that of logging or output processing you added>\n",
+            prompt,
+        )
+        self.assertIn("an added `tail` or `head` can hide a failure", prompt)
         self.assertEqual(reuse, f"VERIFICATION: REUSED sha256:{handed.revision}")
         self.assertIsInstance(
             review_verification._parse_verification_outcome(reuse, subject),
