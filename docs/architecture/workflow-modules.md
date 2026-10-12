@@ -1784,14 +1784,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     base_rewrite.py         the base-rewrite coordinator for a PR-having worktree: the order the git `base_sync`
                             owners' gates and rebase and the publication below are asked in, a terminal pull request
                             asked for ahead of any park an anchor stands under, the recovery alone an anchor a
-                            stage's park stands over is answered with, and the same gates in front of the abort a
-                            checkout whose lag cannot be counted takes. It writes nothing itself -- a reply that let
-                            the rebase start is staged read, where it only asked for the retry, for the anchor's own
-                            write to land (`rewrite_replies.py`) -- and a clean rebase is handed to
-                            `rewrite_publication.py`, a pinned anchor's recovery to `rewrite_recovery.py`,
-                            the abort over an uncountable lag to `rewrite_recovery.answers_an_unreadable_checkout`,
-                            with the recovery's answer to its reset, and the keyword
-                            adapter binds the refresh's argument list into their typed context
+                            stage's park stands over is answered with, the refresh's own selection
+                            (`git/base_sync/refresh_selection.py`) asked again once a recovery took the anchor down
+                            and let the tick go on -- so a record the anchor set aside, a developer report recorded
+                            and unsettled among them, holds the rebase behind it as it holds an unanchored one, and
+                            a reply the recovery did not spend is left for the rebase that follows -- and the same
+                            gates in front of the abort a checkout whose lag cannot be counted takes. It writes
+                            nothing itself -- a reply that let the rebase start is staged read, where it only asked
+                            for the retry, for the anchor's own write to land (`rewrite_replies.py`) -- and a clean
+                            rebase is handed to `rewrite_publication.py`, a pinned anchor's recovery to
+                            `rewrite_recovery.py`, the abort over an uncountable lag to
+                            `rewrite_recovery.answers_an_unreadable_checkout`, with the recovery's answer to its
+                            reset, and the keyword adapter binds the refresh's argument list into their typed context
     rewrite_publication.py  the ordinary publication of a clean rebase, from the candidate the git owner reads
                             (`git/base_sync/rewrite_facts.py`) to the shared finish: an unreadable head reset and
                             parked and a rebase that moved nothing cleared, both before the replay is recorded --

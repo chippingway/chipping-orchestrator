@@ -132,7 +132,8 @@ def recovers(
     is held clean is the reading that candidate carries, and a candidate that
     is not that head is no landing anything here was asked about. False only
     where the finish found the base advanced past the landed head again, and
-    this tick's rebase goes on from it.
+    this tick's rebase goes on from it once the refresh's selection, asked
+    again over the retired attempt, lets it (`base_rewrite`).
     """
     if _replay_evidence._made_for_another_publication(context, completed):
         return _replay_publication_parks._park_foreign_publication_recovery(context, completed)

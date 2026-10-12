@@ -15,7 +15,8 @@ found already landed -- hand it to the one finish every landing gets
   park and nothing fetched (`git/base_sync/replay_cleanup.py`).
 - The branch is fetched and the checkout read (`git/base_sync/snapshot.py`).
   A checkout still standing on the anchor is the unstarted attempt's clear,
-  which lets this tick's rebase go on, or the rollback's park.
+  which lets this tick's rebase go on wherever the refresh's selection, asked
+  again with the anchor down, lets it (`base_rewrite`), or the rollback's park.
 - Before any road a snapshot it read chooses is taken, the verification
   transaction an earlier finish of the attempt captured -- the one under the
   receipt it put on the attempt, which a finish records before it announces
@@ -105,10 +106,12 @@ def decides(
 
     A recovery that answered the anchor -- finished it, parked it, or found
     nothing it could verify -- owns the tick. One that let it go on did so
-    over a head the base may still be ahead of, and the trusted reply that
-    released a park this refresh left goes on with it only while that park
-    still stands: a recovery that took the park down spent the reply, and the
-    rebase behind it may not spend it again.
+    over a head the base may still be ahead of, with the anchor down -- so the
+    coordinator asks the refresh's selection again before its rebase
+    (`base_rewrite`) -- and the trusted reply that released a park this
+    refresh left goes on with it only while that park still stands: a
+    recovery that took the park down spent the reply, and the rebase behind it
+    may not spend it again.
     """
     if not context.pending_pre_rebase_sha:
         return _AutoRebaseDecision(True, consumed_comment_id)
@@ -149,7 +152,9 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     recorded and how far the transfer beside them got. False only where HEAD
     still stands on the anchor of an attempt that never started, and the
     ordinary rebase goes on from it on this same tick -- or where a finish
-    left a landed head the base has advanced past again.
+    left a landed head the base has advanced past again -- each with the
+    anchor down, so the refresh's selection is asked again ahead of that
+    rebase.
 
     Every road that resets the checkout drops the attempt in one write, and
     the recovery's answer to that movement rides it: the context the roads

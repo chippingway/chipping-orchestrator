@@ -95,7 +95,8 @@ def _finish_an_unmoved_head(
     nothing else behind: no record of a replay, no permission it never spent,
     and a tree git has not touched. Dropping the anchor there costs nothing --
     the normal rebase flow picks the branch up on this same tick and does the
-    work again.
+    work again, once the refresh's selection, which the anchor set aside, is
+    asked again (`workflow/engine/base_rewrite.py`).
 
     The other is an attempt that got a long way and was UNDONE. A reset that
     landed and whose park write did not, or somebody's own `git reset`, puts

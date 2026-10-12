@@ -405,7 +405,10 @@ rebase is the workflow's own (`workflow/engine/rewrite_publication.py`), and so 
 recovery is asked in, the retry of a replay that crash kept off the pull request, and the finish of a push it finds
 already landed (`workflow/engine/rewrite_recovery.py`, `rewrite_retry.py`, `rewrite_landed.py`). The git `base_sync`
 owners under them supply the selection, the rebase, the candidate, its exact-candidate push or the observation of a
-landing, and the recovery's readings, refusals, and parks; every finish of what landed is the workflow's.
+landing, and the recovery's readings, refusals, and parks; every finish of what landed is the workflow's. The
+coordinator asks that selection again behind a recovery that took an anchor down and let the tick go on, so the
+rebase behind it waits for every record the anchor set aside -- a developer report not yet settled on the head it is
+about among them -- as an unanchored rebase does.
 The dispatch behind that split first drops each open `workflow:blocked` / `workflow:umbrella` issue on the ticks
 `DEPENDENCY_POLL_EVERY_N_TICKS` skips — a classification filter taken before any partition, so a skipped dependency
 walk is neither submitted nor handed a worker client — and then folds every remaining family-aware issue

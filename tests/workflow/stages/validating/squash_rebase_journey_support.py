@@ -76,14 +76,17 @@ def refresh(text: str = REBASED_REPORT) -> tuple:
     return (REFRESHER, _agent(session_id=_world.DEV_SESSION, last_message=_drift_world.reported(text)))
 
 
-def approval_on(head: str) -> tuple:
-    """A reviewer approving the report it was handed, declaring a passing run of the suite on `head`."""
+def approval_on(head: str, output: str = _world.SUITE_OUTPUT) -> tuple:
+    """A reviewer approving the report it was handed, declaring a passing run of the suite on `head`.
+
+    The run printed `output`.
+    """
     return (REVIEWER, _round.reviewer(
         "LGTM\n\n"
         f"VERIFICATION: RUN {head}\n"
         f"COMMAND: {_world.SUITE}\n"
         "EXIT: 0\n"
-        f"{_world.SUITE_OUTPUT}\n"
+        f"{output}\n"
         "VERIFICATION: END\n\n"
         "VERDICT: APPROVED",
     ))
@@ -193,8 +196,10 @@ class _SquashRebaseJourney(_squash.SquashedRoundWorld):
                 **run_options,
             )
 
-    def approved_into_review(self, head: str) -> None:
+    def approved_into_review(self, head: str, output: str = _world.SUITE_OUTPUT) -> None:
         """Dispatch until another reviewer, approving on `head`, is spawned, then the docs pass and the ping behind it.
+
+        The reviewer's declared run of the suite printed `output`.
 
         Two dispatches at most for the reviewer: a tick may be spent ahead of
         it retiring the squash's carry, which no longer answers once another
@@ -204,7 +209,7 @@ class _SquashRebaseJourney(_squash.SquashedRoundWorld):
         reviewed = len(self.spawned(REVIEWER))
         for _ in range(2):
             if len(self.spawned(REVIEWER)) == reviewed:
-                self.dispatched(approval_on(head))
+                self.dispatched(approval_on(head, output))
         self.dispatched(DOCS)
         self.dispatched()
 
