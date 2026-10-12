@@ -247,7 +247,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and is asked again behind the reconciliation; whether it holds and what a held tick
                             is owed are `base_sync/recovery_holds.py`'s, handed
                             (`rewrite_recovery_parks.answers_a_held_anchor`) the proof a park that keeps the attempt
-                            asks first (`rewrite_landing_moved.abandons_unproved`) and the park it is recorded
+                            asks first (`rewrite_recovery_parks.proves_before_a_park`) and the park it is recorded
                             through (`rewrite_recovery_parks.lands_a_park`). An anchor beside a live adjudication is
                             first offered to it (`rewrite_takeover.py`), so a pair describing one replay is handed
                             over with its attempt's park before the hold can strand it, and a handoff write
@@ -1974,9 +1974,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the git owner asks before it moves the checkout): the attempt's recorded base tip
                             blanked in a write of its own, so a process lost behind the reset or a park write that
                             does not land leaves every later proof reading the evidence moved, and a blank that
-                            does not land holds with nothing reset. The dispatcher's answer to an anchor it holds is
-                            handed the same park beside the
-                            proof that park asks first (`answers_a_held_anchor`)
+                            does not land holds with nothing reset. The proof every park that keeps the attempt
+                            asks first (`proves_before_a_park`, over `rewrite_landing_moved.abandons_unproved`)
+                            records the same blank first over a checkout gone from disk, whose evidence it retires
+                            only on the state the park writes; and every park proves what it keeps once more behind
+                            its notice, landed or not, so a report another road settled meanwhile is read moving.
+                            The dispatcher's answer to an anchor it holds is handed the same park beside that proof
+                            (`answers_a_held_anchor`)
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written
                             only once it saw the push land: whether any record -- pending, current, retired, or a

@@ -1489,10 +1489,11 @@ because there it is the claim that this stage has already rerouted rather than a
   issue records or one its record does not account for -- keeps it for the reply that finishes it once the issue is
   put right, so the git
   owner has the transaction proved again before each such park (`git/base_sync/persistence._proves_before_the_park`,
-  over `rewrite_landing_moved.abandons_unproved`), on readings no failed fetch is needed for, and abandoned where
+  over `rewrite_recovery_parks.proves_before_a_park`), on readings no failed fetch is needed for, and abandoned where
   anything it rests on moved, a configuration or a pull request repointed among the reasons: putting that back before
-  the reply revives nothing, while one that still proves is kept for that finish; a checkout gone from disk abandons
-  it in the park's own write -- or, with no room for its history entry, drops it with the recorded base tip blanked,
+  the reply revives nothing, while one that still proves is kept for that finish; a checkout gone from disk has the
+  base tip blanked against it in a write of its own first, so a park write that fails or never lands still leaves it
+  read moving, and abandons it in the park's own write -- or, with no room for its history entry, drops it,
   so the attempt that park keeps runs nothing for that landing again. An abandonment no write lands holds the tick with
   nothing reset, cleared, or parked, the anchor keeping the reconciliation off the transaction. A reset that lands --
   every road's, and the abort over a snapshot nobody could take or a checkout whose lag against base could not be
@@ -1524,7 +1525,9 @@ because there it is the claim that this stage has already rerouted rather than a
   the park's flags, and the evidence records, and keeps every other field as the comment now carries it. So a report
   another road settles and reviews while the park's notice is posted stands beside the park, and a transaction it
   records then refuses the park, nothing written, for the next tick's recovery to park around; a process lost
-  before the park lands is answered by that tick the same way.
+  before the park lands is answered by that tick the same way. A park that keeps the attempt proves what it keeps
+  once more behind its notice, landed or not, so that later report is read moving under settled evidence and
+  invalidates it before the tick ends -- putting the earlier report back before the reply revives nothing.
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of

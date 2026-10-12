@@ -114,12 +114,12 @@ from orchestrator.workflow.engine.rewrite_landing_records import capture_answere
 
 log = logging.getLogger("orchestrator.workflow")
 
-# The receipt a finish's evidence write puts on the attempt: an attempt that
-# carries one was pinned by a build that records the base tip its replay was
-# made onto, so a tip it does not record was blanked since -- by a base that
-# moved while git ran, or by a record of movement under its evidence -- rather
-# than never recorded, and its route is still held to a base.
-_RECEIPT = _base_sync_state._PENDING_EVIDENCE_RECEIPT
+# The base tip an attempt records its replay as made onto. Every attempt
+# this build pins writes the member before git runs, blank only where the base
+# moved while git ran, so an attempt that carries it blank had it blanked --
+# that way, or since, by a record of movement under its evidence -- rather
+# than never writing it, and its route is still held to a base.
+_TIP = _base_sync_state._PENDING_REWRITE_BASE
 
 
 def resolves(finish: LandedFinish) -> FinishOutcome | None:
@@ -366,8 +366,8 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
     so the recovery continues the head to another rebase. Such a head carries
     no decision the landing could move under: a head pushed over it meanwhile
     is the pull request's to show the validating stage, which reads it afresh.
-    An attempt that recorded its evidence under a receipt but no longer records
-    that tip had it blanked -- most often to record movement under the evidence
+    An attempt that carries that tip's member blank had it blanked -- most
+    often to record movement under the evidence
     (`rewrite_finish_readiness`, `rewrite_recovery_parks.records_the_reset`),
     which every proof then reads as refusing the evidence rather than the
     route: its head is held instead to the base this tick counted it against
@@ -380,7 +380,7 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
         stopped = stands_ready(finish, current)
     elif or_the_base:
         stopped = _captured.stands_before_the_route(finish, landing=False)
-    blanked = finish.state.get(_RECEIPT) and not _attempt_records._recorded_onto(finish.state)
+    blanked = finish.state.carries(_TIP) and not _attempt_records._recorded_onto(finish.state)
     if stopped is not None or not (or_the_base and blanked):
         return stopped
     counted = finish.landed.candidate.checkout

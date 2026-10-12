@@ -290,25 +290,27 @@ def abandons(finish: LandedFinish, stage: Callable[[PinnedState], bool]) -> bool
     return fits if lands(finish, staged, ABANDONMENT) is None else None
 
 
-def parks(finish: LandedFinish) -> FinishOutcome:
+def parks(finish: LandedFinish, observed: list[ReportEvidence] | None = None) -> FinishOutcome:
     """Park `finish`'s landing for want of room for its debt, prepared before the park's notice is posted.
 
     Nothing is reset and nothing is cleared: the pull request already carries
     the head, and the attempt is what the reply brings back to record the debt
     and finish the route once somebody has made room. A park that would not
-    land posts nothing.
+    land posts nothing. `observed` collects the movement a refusal read
+    (`_stopped`) -- a report record another road moved while the notice was
+    posted among it.
     """
     reason = _base_sync_state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT
     staged = staging(finish)
     staged.set(_base_sync_state._AWAITING_HUMAN, True)
     staged.set(_base_sync_state._PARK_REASON, reason)
-    stopped = prepares(finish, staged, PARK, notice=True)
+    stopped = prepares(finish, staged, PARK, observed, notice=True)
     if stopped is not None:
         return stopped
     message = _debt.unrecorded(finish)
     _guards._park_awaiting_human(finish.gh, finish.issue, staged, message, reason=reason)
     staged.set(_base_sync_state._PARK_REASON, reason)
-    return lands(finish, staged, PARK) or FinishOutcome.PARKED
+    return lands(finish, staged, PARK, observed) or FinishOutcome.PARKED
 
 
 def _stopped(

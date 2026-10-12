@@ -46,10 +46,23 @@ that does not land holds the tick with nothing reset. A reset git refused
 moved nothing, and the git owner stages the tip back for the park that keeps
 the attempt, so the evidence stands for that park's proof as it did before.
 
+A park that keeps the attempt keeps the evidence with it for the reply that
+brings the recovery back, and that evidence is proved before the park
+(`proves_before_a_park`) -- but its notice is a request after that proof, long
+enough for another road to settle a later report, which the park's record then
+keeps as the fresh comment carries it. So the evidence is proved once more
+behind the notice (`lands_a_park`), and a report moved meanwhile is movement
+read under it, invalidated or recorded against it before the tick ends:
+putting the earlier report back before the reply revives nothing. A checkout
+gone from disk has nothing to prove the landing over, so its evidence is
+retired on the state the park writes -- and the reset recorded against it
+first, in a write of its own, so a park write that fails or never lands
+leaves no evidence a checkout put back would take up as current.
+
 The dispatcher's answer to an anchor it holds a handler back for is the git
 owner's (`answers_a_held_anchor`), and its stranded park keeps the attempt, so
 it is handed this park beside the proof every such park asks first
-(`rewrite_landing_moved.abandons_unproved`).
+(`proves_before_a_park`).
 """
 from __future__ import annotations
 
@@ -95,7 +108,11 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     The notice is posted and the park staged on the tick's state as every
     auto-rebase park stages it (`git/base_sync/persistence._park_auto_rebase_failure`);
     what lands is laid over that state, so whatever the recovery does behind
-    it starts from the comment as it now stands.
+    it starts from the comment as it now stands. Behind it, whether it landed
+    or not, evidence the park leaves standing beside the attempt is proved once
+    more over the comment read afresh (`rewrite_landing_moved.abandons_unproved`),
+    so a report another road settled while the notice was posted is read
+    moving under it now rather than put back unread before the reply.
     """
     state = context.state
     _guards._park_awaiting_human(context.gh, context.issue, state, message, reason=reason)
@@ -110,6 +127,8 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
             "and the next tick's recovery answers the comment as it then stands",
             context.issue.number, (landed.refusal or landed.status).value,
         )
+    if context.worktree.is_dir():
+        _landing_moved.abandons_unproved(context)
 
 
 def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
@@ -121,7 +140,23 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
     (`rewrite_landing_moved.abandons_unproved`) and is recorded as every
     recovery park is (`lands_a_park`).
     """
-    _recovery_holds._answers_a_held_anchor(held, _landing_moved.abandons_unproved, lands_a_park)
+    _recovery_holds._answers_a_held_anchor(held, proves_before_a_park, lands_a_park)
+
+
+def proves_before_a_park(context: _AutoRebaseRecoveryContext) -> bool:
+    """Whether a recovery park that keeps the attempt may go on, its evidence proved first; the answer every road gets.
+
+    The proof is the recovery's (`rewrite_landing_moved.abandons_unproved`).
+    A checkout gone from disk has no reading to prove the landing over, so the
+    evidence is retired on the state the park writes -- and recorded against
+    first (`records_the_reset`), in a write of its own, so that a park write
+    refused, never confirmed, or cut short by a lost process leaves every later
+    proof reading the evidence moved however the checkout is put back. A
+    record that does not land holds the tick with nothing parked.
+    """
+    if not context.worktree.is_dir() and not records_the_reset(context):
+        return False
+    return _landing_moved.abandons_unproved(context)
 
 
 def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:

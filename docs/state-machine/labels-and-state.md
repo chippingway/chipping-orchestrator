@@ -576,8 +576,9 @@ mark -- rather than on the debt alone, and on the comment as it stands as well, 
 round can make the announcement the narrower of the two; the writes past it only clear. A proved debt that does not fit
 stops the finish before it announces anything: no notice, no `base_rebased`, no relabel, and no clear. Verification
 evidence an earlier finish already settled for the landed head is proved ready first all the same, and invalidated
-into history where anything it rests on moved, so the park keeps no decision for the reply that brings the route back.
-It parks
+into history where anything it rests on moved, so the park keeps no decision for the reply that brings the route back;
+the park is decided on the report records the debt was staged over, so a report another road moves while its notice is
+posted refuses it, and that refusal invalidates the evidence too. It parks
 `auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay standing, and the anchor holding every
 stage handler back; the park asks for room to be made on the pinned comment and a reply, and the reply brings the
 recovery back to finish the landed head -- recording the debt first, or parking again if there is still no room. A

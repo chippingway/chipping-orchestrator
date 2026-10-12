@@ -304,13 +304,15 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     with the attempt standing. A checkpoint prepared or landed short over a
     report record another road moved has read movement under the evidence
     settled for the head, which is invalidated before the finish stops
-    (`rewrite_finish_readiness.invalidates_behind`).
+    (`rewrite_finish_readiness.invalidates_behind`) -- and so has the debt's
+    park, decided on those same records, refused over one another road moved
+    while its notice was posted.
     """
     staged = _writes.staging(finish)
     measured = _writes.staging(finish) if announced else _debt.announcement(staged, finish.head)
-    if not _debt.stages(finish, staged, measured):
-        return _writes.parks(finish)
     observed: list = []
+    if not _debt.stages(finish, staged, measured):
+        return _readiness.invalidates_behind(finish, _writes.parks(finish, observed), observed)
     if announced:
         carried = _commit_models.spelled(finish.state.data, _rewrite_debt.REWRITE_DEBT)
         if _commit_models.spelled(staged.data, _rewrite_debt.REWRITE_DEBT) == carried:

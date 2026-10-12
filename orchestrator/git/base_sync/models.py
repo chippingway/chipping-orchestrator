@@ -212,7 +212,7 @@ class _AutoRebaseRecoveryContext:
     # (`persistence._proves_before_the_park`). False holds the tick with nothing
     # parked. None asks nothing; the workflow hands its answer in on every
     # recovery context it builds or has built
-    # (`workflow/engine/rewrite_landing_moved.abandons_unproved`).
+    # (`workflow/engine/rewrite_recovery_parks.proves_before_a_park`).
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None
     # How every park this recovery takes is posted and recorded, given the
     # context, the notice, and the reason (`persistence._parks_the_recovery`):

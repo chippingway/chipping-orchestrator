@@ -45,7 +45,7 @@ found already landed -- hand it to the one finish every landing gets
   keeps the attempt instead -- that abort or any road behind a reset that did
   not land, a label the refresh does not drive, a landing its record refuses --
   is left for a human's reply, so the git owner has the transaction proved
-  again before it (`rewrite_landing_moved.abandons_unproved`), over readings
+  again before it (`rewrite_recovery_parks.proves_before_a_park`), over readings
   no failed fetch is needed for, and abandoned where anything it rests on
   moved; one whose abandonment did not land is not parked at all. Every one
   of these parks is recorded over the comment read afresh
@@ -146,7 +146,7 @@ def answers_an_unreadable_checkout(context: _AutoRebaseContext, consumed_comment
         consumed_comment_id,
         settles_over_a_reset=partial(_landing_moved.abandons_over_the_reset, context),
         records_before_a_reset=_recovery_parks.records_the_reset,
-        proves_before_a_park=_landing_moved.abandons_unproved,
+        proves_before_a_park=_recovery_parks.proves_before_a_park,
         lands_a_park=_recovery_parks.lands_a_park,
     )
 
@@ -169,18 +169,19 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     are handed carries `rewrite_landing_moved.abandons_over_the_reset`, which
     the git owner asks once a reset landed and before the drop -- and the
     proof every park that keeps the attempt asks first
-    (`rewrite_landing_moved.abandons_unproved`). Every park, that drop's
+    (`rewrite_recovery_parks.proves_before_a_park`). Every park, that drop's
     included, lands over the comment read afresh
     (`rewrite_recovery_parks.lands_a_park`), keeping what another road wrote
-    while its notice went out, and every reset is recorded against evidence a
-    finish settled for the landed head before it moves the checkout
+    while its notice went out and proving what it keeps once more behind it,
+    and every reset is recorded against evidence a finish captured or settled
+    for the landed head before it moves the checkout
     (`rewrite_recovery_parks.records_the_reset`).
     """
     owing = replace(
         context,
         settles_over_a_reset=partial(_landing_moved.abandons_over_the_reset, context),
         records_before_a_reset=_recovery_parks.records_the_reset,
-        proves_before_a_park=_landing_moved.abandons_unproved,
+        proves_before_a_park=_recovery_parks.proves_before_a_park,
         lands_a_park=_recovery_parks.lands_a_park,
     )
     if owing.label not in _PR_REFRESH_DETOUR_LABELS:

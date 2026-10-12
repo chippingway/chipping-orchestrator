@@ -252,7 +252,10 @@ def abandons_unproved(context: _AutoRebaseRecoveryContext) -> bool:
     moved under is kept. With no checkout on disk there is nothing to prove
     the landing over, the checkout the evidence was taken on being gone, so
     both are retired on the state the park then lands
-    (`abandons_over_the_reset`). False only where movement was read and
+    (`abandons_over_the_reset`) -- the movement recorded against them first,
+    in a write of its own, by the proof the workflow hands every park
+    (`rewrite_recovery_parks.proves_before_a_park`), so a park write that
+    never lands leaves them read moving. False only where movement was read and
     evidence still stands once its retirement was asked -- settled evidence
     with no room for its history entry among it -- for the git owner to hold
     the tick with nothing parked.

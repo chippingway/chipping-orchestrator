@@ -20,7 +20,9 @@ requirements edited on a comment with no room to invalidate it -- which blanks
 the base tip its replay was recorded as made onto: with the requirements put
 back and room made, the next finish invalidates the run, and a base that
 advances while its notice is posted or its relabel made still holds the route,
-read against the base the finish counted the head against.
+read against the base the finish counted the head against -- an attempt
+already announced that carries no evidence receipt, as one recorded before
+that member existed, included.
 """
 from __future__ import annotations
 
@@ -70,6 +72,25 @@ _STEPS = (handoff.BEFORE_THE_ANNOUNCEMENT, handoff.BEFORE_THE_RELABEL)
 _EDITED_BODY = "Also cover a base that moved twice."
 
 
+class _Blank(NamedTuple):
+    """Where a finish of a head whose base tip was blanked dies, the step the base then advances under, and a receipt.
+
+    `receipted` False drops the attempt's evidence receipt once the tip is
+    blanked, as an attempt recorded before that member existed carries none.
+    """
+
+    died: handoff.Boundary
+    step: handoff.Boundary
+    receipted: bool
+
+
+_BLANKS = (
+    _Blank(handoff.BEFORE_THE_ANNOUNCEMENT, handoff.BEFORE_THE_ANNOUNCEMENT, receipted=True),
+    _Blank(handoff.BEFORE_THE_ANNOUNCEMENT, handoff.BEFORE_THE_RELABEL, receipted=True),
+    _Blank(handoff.BEFORE_THE_RELABEL, handoff.BEFORE_THE_RELABEL, receipted=False),
+)
+
+
 class UnprovedRouteMoveTest(support.CapturedRunCase, unittest.TestCase):
     """A head no evidence answers for is held to its base behind the relabel, and continued where the base moved."""
 
@@ -95,12 +116,13 @@ class UnprovedRouteMoveTest(support.CapturedRunCase, unittest.TestCase):
         # otherwise; the finish that then invalidates it still holds the route
         # where the base advanced under its final steps, and the next tick
         # continues the head to another rebase.
-        for step in _STEPS:
-            with self.subTest(step=step.name):
+        for blank in _BLANKS:
+            named = {"died": blank.died.name, "step": blank.step.name}
+            with self.subTest(receipted=blank.receipted, **named):
                 self.setUp()
                 head = self.lands_a_reviewed_rebase()
-                self._blanks_the_tip(head)
-                self._moving(step, self.recovers)
+                self._blanks_the_tip(head, blank)
+                self._moving(blank.step, self.recovers)
 
                 pinned = readings.pinned(self)
                 self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
@@ -109,14 +131,15 @@ class UnprovedRouteMoveTest(support.CapturedRunCase, unittest.TestCase):
 
                 self._assert_continued(head, ran=1)
 
-    def _blanks_the_tip(self, head: str) -> None:
-        """Kill `head`'s finish before its announcement, its run settled, and have the next tick record movement.
+    def _blanks_the_tip(self, head: str, blank: _Blank) -> None:
+        """Kill `head`'s finish where `blank` says, its run settled, and have the next tick record movement.
 
         The issue is edited under the run on a comment filled to its limit,
         so the tick blanks the base tip rather than invalidate the run; the
-        body is then put back and room made.
+        body is then put back and room made, and the receipt dropped where
+        `blank` carries none.
         """
-        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
+        handoff.dies_at(self.gh, blank.died, partial(self.finishes, head))
         written = self.issue.body
         self.issue.body = _EDITED_BODY
         finish_moves.fills_the_comment(self)
@@ -124,6 +147,10 @@ class UnprovedRouteMoveTest(support.CapturedRunCase, unittest.TestCase):
         self.assertIsNone(readings.pinned(self)[readings.KEY_REWRITE_BASE])
         self.issue.body = written
         finish_moves.makes_room(self)
+        if not blank.receipted:
+            state = self.gh.read_pinned_state(self.issue)
+            state.set(readings.KEY_EVIDENCE_RECEIPT, None)
+            self.gh.write_pinned_state(self.issue, state)
 
     def _moving(self, step: handoff.Boundary, finishing) -> None:
         """Run `finishing` with the base advanced again behind the call of the client's step `step` picks."""

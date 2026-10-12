@@ -52,7 +52,6 @@ from orchestrator.git.base_sync.models import (
 )
 from orchestrator.git.base_sync.state import _PENDING_PUSH_SHA
 from orchestrator.workflow.engine import (
-    rewrite_landing_moved as _landing_moved,
     rewrite_publication as _rewrite_publication,
     rewrite_recovery as _rewrite_recovery,
     rewrite_recovery_parks as _recovery_parks,
@@ -124,7 +123,7 @@ def _held_past_the_anchor(context: _AutoRebaseContext) -> bool:
 def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:
     """Run one refresh-time PR synchronization from normalized inputs."""
     if not eligibility._auto_rebase_label_is_eligible(
-        context, _landing_moved.abandons_unproved, _recovery_parks.lands_a_park,
+        context, _recovery_parks.proves_before_a_park, _recovery_parks.lands_a_park,
     ):
         return
 
@@ -177,7 +176,7 @@ def _sync_unreadable_pr_worktree(request: _AutoRebaseRequest) -> None:
     """
     context = request.to_context(_PENDING_PUSH_SHA)
     if not eligibility._auto_rebase_label_is_eligible(
-        context, _landing_moved.abandons_unproved, _recovery_parks.lands_a_park,
+        context, _recovery_parks.proves_before_a_park, _recovery_parks.lands_a_park,
     ):
         return
     retry = eligibility._auto_rebase_retry_decision(context)
