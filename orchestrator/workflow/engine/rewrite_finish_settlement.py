@@ -80,7 +80,7 @@ head beside it is answered as any captured one is, and supersedes it once it
 settles; any other disagreement holds the route. Whatever settled it, that
 evidence is proved ready again before every route takes it
 (`rewrite_finish_readiness.stands_ready`) -- one a newer transaction was
-abandoned beside included (`rewrite_finish_readiness.stands_ready_if_settled`):
+abandoned beside included (`_stands_ready_if_settled`):
 anything it is bound to that moved since its settlement, or a revision spent
 past it, which outranks it for good, invalidates it into history whole, and
 the head goes on to the fresh reviewer.
@@ -105,7 +105,7 @@ from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence import invalidates_current
 from orchestrator.workflow.engine.rewrite_evidence_proof import MOVEMENT, _reads_again, last_word
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
-from orchestrator.workflow.engine.rewrite_finish_readiness import beside_current, stands_ready, stands_ready_if_settled
+from orchestrator.workflow.engine.rewrite_finish_readiness import beside_current, stands_ready
 from orchestrator.workflow.engine.rewrite_landing_records import capture_answered, resolved
 
 log = logging.getLogger("orchestrator.workflow")
@@ -167,7 +167,7 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     since the evidence is then the fresh reviewer's, save evidence an earlier
     finish settled for the head that is still current beside a newer
     transaction the decision abandoned: that is proved ready again
-    (`rewrite_finish_readiness.stands_ready_if_settled`), and the revision the
+    (`_stands_ready_if_settled`), and the revision the
     abandoned transaction spent past it alone invalidates it, so no route
     carries it and no later poll holds over it. Anything else is where
     the finish stops, with nothing announced, relabelled, or retired. Every
@@ -197,7 +197,7 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     """
     pending = _captured.recorded(finish, logged=False)
     if pending is None:
-        return stands_ready_if_settled(finish)
+        return _stands_ready_if_settled(finish)
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     observed: list[ReportEvidence] = []
     read = _reads_again(finish)
@@ -319,3 +319,17 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
         finish.issue.number, finish.head, out_of_step,
     )
     return FinishOutcome.HELD
+
+
+def _stands_ready_if_settled(finish: LandedFinish) -> FinishOutcome | None:
+    """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None where none is.
+
+    For a route whose evidence step left nothing recorded for the head
+    (`settles`): where a newer transaction recorded beside settled evidence
+    was abandoned, that evidence is still current, and the route may not
+    carry it unproved.
+    """
+    current = _settlement.read_current_evidence(finish.state)
+    if current is None or current.binding.target.target_head != finish.head:
+        return None
+    return stands_ready(finish, current)

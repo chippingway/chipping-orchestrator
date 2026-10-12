@@ -1497,7 +1497,15 @@ because there it is the claim that this stage has already rerouted rather than a
   counted (`rewrite_recovery.answers_an_unreadable_checkout`) -- is movement, so the transaction is abandoned on the
   state the park writes (`git/base_sync/persistence.py`), in the one write that releases the attempt or not at all; a
   reset that failed keeps both, save a transaction the snapshot already read the landing move under. Publishing and
-  settling the recorded transaction is the finish's own, under the anchor (the bullet above).
+  settling the recorded transaction is the finish's own, under the anchor (the bullet above). Evidence a finish of the
+  attempt already settled for the head and left current -- the tail behind it cut short
+  (`rewrite_landing_records.settled`: under the attempt's receipt, or about the head its record or mark names) -- is
+  held to every one of those readings as well: invalidated into history whole wherever the snapshot or the landed road
+  reads the remote or the checkout off the head (a rollback, a stray commit, a checkout repointed), proved ready
+  before every park that keeps the attempt and invalidated where anything it rests on moved, and invalidated on the
+  state a landed reset's park writes, so neither putting the landing back nor a human's reply revives a decision the
+  landing moved under. Each invalidation is guarded as the finish's own is (the next bullet), and one no write lands
+  holds the tick with nothing reset, cleared, or parked.
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
@@ -1516,16 +1524,19 @@ because there it is the claim that this stage has already rerouted rather than a
     configured, or the landing or the base moved since it settled -- the earlier decision answers for nothing the
     route carries: the evidence is invalidated into history whole, its revision, transcript digest, and tested and
     source provenance kept, in a write staged on the comment read afresh and guarded by that reading and the
-    attempt, and the head goes on to the fresh reviewer, the normal workflow owning whatever moved -- save a landing
+    attempt -- or, where that comment will not read again or that write does not land, staged on the tick's own copy
+    and decided only on the evidence records and the attempt (`rewrite_finish_writes.INVALIDATION`), so movement
+    already read is never left for a later reading to find put back -- and the head goes on to the fresh reviewer, the
+    normal workflow owning whatever moved -- save a landing
     that left the head or a base gone elsewhere, which hold the route behind that invalidation for the next tick to
     classify the branch and count the head again. A revision spent past it -- a newer transaction recorded beside it
     and then abandoned or dropped, whichever road recorded it and however the finish's own evidence step left it --
     outranks it for good, so it is movement too: the readiness proof is asked over it even where that evidence step
     abandoned the newer transaction and recorded nothing for the head
-    (`rewrite_finish_readiness.stands_ready_if_settled`), and it is invalidated rather than routed or held over. A
+    (`rewrite_finish_settlement.settles`), and it is invalidated rather than routed or held over. A
     reading nobody could take, a comment no longer carrying that evidence as current or carrying a pending record or
-    a handoff beside it that says it is not the last word, a revision floor nobody can read, or an invalidation that
-    did not land holds the route with the attempt standing, and the next recovery proves it again over what it then
+    a handoff beside it that says it is not the last word, a revision floor nobody can read, or an invalidation no
+    write landed holds the route with the attempt standing, and the next recovery proves it again over what it then
     reads. A failure notice recorded
     for the head is found on the pull request rather than posted again, and a decision that recorded nothing -- the
     fresh reviewer's responsibility handed off, a run refused as moved, or a passing run that binds nothing -- is

@@ -14,7 +14,7 @@ the pinned fields the publication is resolved from
 (`ReportWrite.on_the_publication`), and keeping every other field -- unknown
 ones included -- as the fresh reading carries it.
 
-Five writes, and each lists what it has to land exactly among the records it
+Six writes, and each lists what it has to land exactly among the records it
 is decided on as well as among its own, since a field staged as it was read is
 no move of the write's and would otherwise be left to whatever another road
 did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
@@ -44,6 +44,12 @@ the attempt, so one comment reading that failed or one move under the write
 does not leave the transaction standing. It owns the base tip the replay was
 recorded as made onto too, which an abandonment with no room for its history
 entry blanks.
+`INVALIDATION` invalidates settled evidence a reading established movement
+under where the write staged on the comment read afresh would not land
+(`rewrite_finish_readiness.invalidates`): staged on the tick's own copy and
+decided only on the evidence records and the attempt, as `ABANDONMENT` is, so
+a failed reading of the comment does not leave a decision standing that a
+later reading, once the movement is put back, would take as current.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, the claim the checkpoint made durable, and every
@@ -135,6 +141,19 @@ EVIDENCE = _commits.ReportWrite(
 ABANDONMENT = _commits.ReportWrite(
     owned=frozenset((*ABANDONS, _base_sync_state._PENDING_REWRITE_BASE)),
     decided_on=frozenset((_evidence_records.PENDING_EVIDENCE, _evidence_records.EVIDENCE_HISTORY)) | _ATTEMPT,
+)
+
+# An invalidation of settled evidence staged on the tick's own copy, where the
+# comment read afresh would not take one (`rewrite_finish_readiness.invalidates`):
+# decided only on the evidence records it retires, the transaction beside them,
+# and the attempt, so a review or report record another road moved -- the very
+# movement the invalidation answers, often -- lands as the fresh comment
+# carries it rather than refusing it.
+INVALIDATION = _commits.ReportWrite(
+    owned=frozenset((_evidence_records.CURRENT_EVIDENCE, _evidence_records.EVIDENCE_HISTORY)),
+    decided_on=frozenset((
+        _evidence_records.PENDING_EVIDENCE, _evidence_records.CURRENT_EVIDENCE, _evidence_records.EVIDENCE_HISTORY,
+    )) | _ATTEMPT,
 )
 
 FINISH = _commits.ReportWrite(

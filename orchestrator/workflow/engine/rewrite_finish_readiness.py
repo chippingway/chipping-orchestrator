@@ -20,7 +20,7 @@ evidence that no longer answers for the head it would be routed with.
 So every route that takes settled evidence as it stands -- the settling
 tick's own, every recovery of it, and one whose evidence step abandoned a
 newer transaction recorded beside it and left it current
-(`stands_ready_if_settled`) -- proves it ready again first
+(`rewrite_finish_settlement.settles`) -- proves it ready again first
 (`stands_ready`): the readiness proof every reader relying on current evidence
 takes (`verification_proof.current_evidence_verdict`), over the issue and
 pinned comment read afresh, and behind it the last word over its binding
@@ -34,19 +34,29 @@ base ref, and the configuration once more.
   its revision, transcript digest, and tested and source provenance kept, so the
   earlier decision answers for nothing the route carries: the head goes on to
   its route with nothing current, and the fresh reviewer there owes the
-  evidence, as the normal workflow has it. The invalidation is staged on the
-  comment read afresh and guarded by that reading and the attempt, so a record
-  another road wrote meanwhile is neither refused nor written over; one that
-  does not land, a comment no longer carrying that evidence as current or as
-  the last word on the head (`beside_current`), an attempt another road put
-  in place of this one, or a comment with no room for the history entry holds
+  evidence, as the normal workflow has it. The invalidation (`invalidates`)
+  is staged on the comment read afresh and guarded by that reading and the
+  attempt, so a record another road wrote meanwhile is neither refused nor
+  written over; where that comment will not read again or that write does
+  not land, it is staged on the tick's own copy and landed as
+  `rewrite_finish_writes.INVALIDATION` instead, so movement already read is
+  never left for a later reading to find put back. A comment no longer
+  carrying that evidence as current, an attempt another road put in place
+  of this one, no room for the history entry, or neither write landing holds
   the route instead, and the next recovery proves the evidence again over
-  what it then reads.
+  what it then reads; so does a pending record the invalidation's write
+  finds beside it (`beside_current`), the next finish's to answer.
 - Held: a reading nobody could take, a landing off the head, or a base gone
   elsewhere holds the route with the attempt standing, nothing announced,
   relabelled, or retired -- behind the invalidation, where the reading is
   movement too -- and the next tick classifies the branch and counts the
   head again.
+
+The recovery's helpers (`rewrite_landing_moved`) ask the same proof
+(`settled_word`) and the same invalidation (`invalidates`) of evidence a
+finish of the attempt settled, wherever a snapshot reads the landing moving
+or a park would keep the attempt for a human's reply, so no reset, rollback
+park, or reply revives a decision the landing moved under.
 
 Nothing here runs the configured commands, posts an artifact, launches a
 developer, or announces anything.
@@ -60,13 +70,14 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     report_evidence_models as _evidence_models,
+    rewrite_finish_writes as _writes,
     verification_durable as _durable,
     verification_proof as _proof,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.rewrite_evidence_proof import _reads_again, last_word
+from orchestrator.workflow.engine.rewrite_evidence_proof import Word, _reads_again, last_word
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
@@ -83,16 +94,15 @@ _INVALIDATES = (_records.CURRENT_EVIDENCE, _records.EVIDENCE_HISTORY)
 def stands_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> FinishOutcome | None:
     """Prove `current`, settled for `finish`'s landed head, ready again before the route; None to route.
 
-    The readiness proof over the issue and comment read afresh, handed to the
-    last word over `current`'s binding as the verdict read first, so every
-    reading is taken and none nobody could take hides movement another took.
-    Movement invalidates `current` (`_invalidates`), and the route goes on
-    with nothing current unless a reading also holds it: one nobody could
-    take, a landing that left the head, or a base gone elsewhere -- whose
-    next tick classifies the branch and counts the head again, over evidence
-    that movement already invalidated.
+    The readiness proof (`settled_word`), every reading taken and none nobody
+    could take hiding movement another took. Movement invalidates `current`
+    (`_invalidates`), and the route goes on with nothing current unless a
+    reading also holds it: one nobody could take, a landing that left the
+    head, or a base gone elsewhere -- whose next tick classifies the branch
+    and counts the head again, over evidence that movement already
+    invalidated.
     """
-    moved, held = last_word(finish, current.binding, earlier=_readiness(finish, current))
+    moved, held = settled_word(finish, current)
     stopped = None if moved is None else _invalidates(finish, current, moved.refusal)
     if stopped is not None or held is None:
         return stopped
@@ -104,18 +114,16 @@ def stands_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> Fin
     return FinishOutcome.HELD
 
 
-def stands_ready_if_settled(finish: LandedFinish) -> FinishOutcome | None:
-    """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None where none is.
+def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Word:
+    """What `current`, settled for `finish`'s landed head, reads as now: `(moved, held)`.
 
-    For a route whose evidence step left nothing recorded for the head
-    (`rewrite_finish_settlement.settles`): where a newer transaction recorded
-    beside settled evidence was abandoned, that evidence is still current, and
-    the route may not carry it unproved.
+    The readiness proof over the issue and comment read afresh (`_readiness`),
+    handed to the last word over `current`'s binding as the verdict read
+    first (`rewrite_evidence_proof.last_word`). Asked by the route here and by
+    the recovery's helpers before a park keeps the attempt
+    (`rewrite_landing_moved.abandons_unproved`).
     """
-    current = _settlement.read_current_evidence(finish.state)
-    if current is None or current.binding.target.target_head != finish.head:
-        return None
-    return stands_ready(finish, current)
+    return last_word(finish, current.binding, earlier=_readiness(finish, current))
 
 
 def beside_current(state: PinnedState, current: _records.CurrentEvidence | None) -> str:
@@ -142,6 +150,37 @@ def beside_current(state: PinnedState, current: _records.CurrentEvidence | None)
     if _record_state._latest_revision(state) is None:
         return "nobody can say which revision was spent last"
     return ""
+
+
+def invalidates(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
+    """Whether `current`'s invalidation into history landed, in a write of its own; the caller logs it.
+
+    Staged on the comment read afresh and committed guarded by that reading
+    and by the attempt as `finish` read it, so only the current record and the
+    history are written and every other field stays as the comment carries
+    it. Where that comment would not read again, or that write was refused or
+    went unconfirmed, the invalidation is staged on the tick's own copy and
+    landed as `rewrite_finish_writes.INVALIDATION` instead (`_falls_back`),
+    decided only on the evidence records and the attempt -- so movement the
+    caller already read is never left behind a comment that would not read,
+    for a later poll to find put back and take the decision as current. False
+    where the comment carries another attempt or no longer carries `current`
+    as current, where neither reading has room for the history entry, or
+    where neither write landed.
+    """
+    attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
+    durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
+    if durable is not None:
+        if attempt.moved(durable.data):
+            return False
+        if _settlement.read_current_evidence(durable) != current:
+            return False
+        guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
+        if _settlement.retire_current_evidence(durable):
+            refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
+            if refused is None:
+                return True
+    return _falls_back(finish, current)
 
 
 def _readiness(finish: LandedFinish, current: _records.CurrentEvidence) -> _evidence_models.ReportEvidence:
@@ -171,11 +210,17 @@ def _readiness(finish: LandedFinish, current: _records.CurrentEvidence) -> _evid
 
 
 def _invalidates(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> FinishOutcome | None:
-    """Invalidate `current` into history in its own write (`_lands_the_invalidation`); None to route on, else HELD."""
-    if not _lands_the_invalidation(finish, current):
+    """Invalidate `current` on the route (`invalidates`); None to route on, HELD where it did not land.
+
+    HELD too where the comment that write left carries a pending record
+    beside it (`beside_current`): a newer transaction recorded meanwhile is
+    the next finish's to answer, never one the route may leave owed behind a
+    cleared attempt.
+    """
+    if not invalidates(finish, current):
         log.warning(
             "issue=#%d holding the route of %.8s: verification evidence revision %d settled for it no longer "
-            "proves ready (%s), and could not be invalidated over the pinned comment read again",
+            "proves ready (%s), and could not be invalidated",
             finish.issue.number, finish.head, current.revision, why,
         )
         return FinishOutcome.HELD
@@ -183,29 +228,18 @@ def _invalidates(finish: LandedFinish, current: _records.CurrentEvidence, why: s
         "issue=#%d invalidated verification evidence revision %d settled for %.8s, running nothing again: %s",
         finish.issue.number, current.revision, finish.head, why,
     )
-    return None
+    beside = beside_current(finish.state, None)
+    if not beside:
+        return None
+    log.warning("issue=#%d holding the route of %.8s: %s", finish.issue.number, finish.head, beside)
+    return FinishOutcome.HELD
 
 
-def _lands_the_invalidation(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
-    """Whether `current`'s invalidation landed, staged on the comment read afresh and guarded by that reading.
-
-    Guarded by the attempt as `finish` read it too, so only the current record
-    and the history are written and every other field stays as the comment
-    carries it. False where the comment would not read again, carries another
-    attempt, no longer carries `current` as current or as the last word on the
-    head (`beside_current`) -- a newer transaction recorded beside it is the
-    next finish's to answer, not one this write may route past -- has no room
-    for the entry, or did not take the write.
-    """
-    attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
-    durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
-    if durable is None or attempt.moved(durable.data):
+def _falls_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
+    """Whether `current`'s invalidation landed staged on the tick's own copy (`rewrite_finish_writes.INVALIDATION`)."""
+    if _settlement.read_current_evidence(finish.state) != current:
         return False
-    if _settlement.read_current_evidence(durable) != current:
+    staged = _writes.staging(finish)
+    if not _settlement.retire_current_evidence(staged):
         return False
-    if beside_current(durable, current):
-        return False
-    guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
-    if not _settlement.retire_current_evidence(durable):
-        return False
-    return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
+    return _writes.lands(finish, staged, _writes.INVALIDATION) is None

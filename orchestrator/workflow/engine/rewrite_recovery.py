@@ -23,7 +23,9 @@ found already landed -- hand it to the one finish every landing gets
   remote or the checkout reads a head off it
   (`rewrite_landing_moved`): every road but the landed one clears, resets, or
   parks the attempt without taking that transaction's route, and the landing
-  it was captured for has moved under it. The checkout the fetch read is
+  it was captured for has moved under it. Evidence a finish of the attempt
+  already settled for that head, the tail behind it cut short, is invalidated
+  into history whole there for the same reason. The checkout the fetch read is
   asked about before the remote head completes the snapshot, so a completion
   that fails into an abort cannot take that movement with it. A head nobody
   could read moved nothing, so the transaction is kept for the reset such a

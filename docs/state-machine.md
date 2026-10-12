@@ -194,7 +194,9 @@ the landing read moving by the recovery's first snapshot -- or reset off by its 
 finish put on the attempt in the write that recorded it (`pending_auto_base_rebase_evidence_receipt`); any other is
 another road's, and kept as it wrote it. Every recovery park or hold that keeps the attempt for a later tick or a
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
-anything moved, so putting that input back before the attempt is taken up again revives nothing. A tick lost behind
+anything moved, so putting that input back before the attempt is taken up again revives nothing; evidence a finish
+already settled for the head is proved and invalidated the same way, and wherever the recovery reads the landing off
+that head before routing it. A tick lost behind
 the resolved evidence -- before the announcement, between its checkpoint and the relabel, or between the relabel and
 the retirement -- leaves the attempt standing for that recovery, which reads what was done off the mark and the label:
 no second notice, `base_rebased` or stage-entry event, round reset, relabel, evidence publication, or developer

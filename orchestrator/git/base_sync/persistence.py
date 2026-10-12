@@ -16,8 +16,8 @@ only why it parks. A recovery park
 that keeps the attempt instead -- that tail behind a reset that did not land,
 and the parks that never reset -- asks the recovery context first whether it
 may go on (`_proves_before_the_park`), so a transaction the workflow captured
-for the landed head is proved again before the record a human's reply brings
-back is left standing. The finish of a
+for the landed head, or evidence it settled for it, is proved again before the
+record a human's reply brings back is left standing. The finish of a
 rewrite that landed is the workflow's (`workflow/engine/rewrite_finish.py`),
 whichever road reached it, and so is the tail an interrupted finish leaves
 behind its evidence -- the announcement, the relabel, and the retirement --
@@ -237,10 +237,11 @@ def _proves_before_the_park(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
 
     Every such park leaves the whole record standing for a human's reply to
     bring the recovery back to, and a verification transaction the workflow
-    captured for the landed head stands with it. So the workflow proves it
-    again first (`_AutoRebaseRecoveryContext.proves_before_a_park`), and
-    abandons it where anything it rests on moved, before the park and not
-    behind the reply -- by which time what moved may be back. False is a
+    captured for the landed head stands with it, as does evidence a finish
+    already settled for it. So the workflow proves them again first
+    (`_AutoRebaseRecoveryContext.proves_before_a_park`), and abandons the one
+    or invalidates the other where anything it rests on moved, before the park
+    and not behind the reply -- by which time what moved may be back. False is a
     movement it read and could not record: nothing is parked, the anchor still
     holds every handler, and the next tick's recovery asks again. A refresh's
     own context, ahead of any recovery, has captured nothing to prove.
@@ -250,7 +251,7 @@ def _proves_before_the_park(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
         return True
     log.warning(
         "issue=#%d auto-rebase recovery: holding rather than parking, since the verification evidence "
-        "captured for the landed head could not be abandoned over what moved under it",
+        "captured or settled for the landed head could not be retired over what moved under it",
         context.issue.number,
     )
     return False
@@ -261,8 +262,9 @@ def _settles_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
 
     A recovery's attempt can carry a record the workflow made about the head
     the reset just took the checkout off -- a verification transaction a
-    finish captured for it -- which the attempt is the only thing keeping
-    anyone from settling. Staged here, its answer lands in the park's one
+    finish captured for it, which the attempt is the only thing keeping
+    anyone from settling, or evidence a finish settled for it, which the reset
+    moved under. Staged here, its answer lands in the park's one
     write beside the attempt's release, or neither does, so a dropped attempt
     never leaves it behind.
     """
