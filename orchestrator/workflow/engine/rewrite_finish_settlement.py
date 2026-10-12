@@ -90,11 +90,7 @@ from __future__ import annotations
 import logging
 from functools import partial
 
-from orchestrator.git.base_sync import (
-    attempt_records as _attempt_records,
-    attempts as _attempts,
-    state as _base_sync_state,
-)
+from orchestrator.git.base_sync import attempt_records as _attempt_records, attempts as _attempts
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     rewrite_finish_captured as _captured,
@@ -113,13 +109,6 @@ from orchestrator.workflow.engine.rewrite_finish_readiness import beside_current
 from orchestrator.workflow.engine.rewrite_landing_records import capture_answered, resolved
 
 log = logging.getLogger("orchestrator.workflow")
-
-# The base tip an attempt records its replay as made onto. Every attempt
-# this build pins writes the member before git runs, blank only where the base
-# moved while git ran, so an attempt that carries it blank had it blanked --
-# that way, or since, by a record of movement under its evidence -- rather
-# than never writing it, and its route is still held to a base.
-_TIP = _base_sync_state._PENDING_REWRITE_BASE
 
 
 def resolves(finish: LandedFinish) -> FinishOutcome | None:
@@ -366,10 +355,12 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
     so the recovery continues the head to another rebase. Such a head carries
     no decision the landing could move under: a head pushed over it meanwhile
     is the pull request's to show the validating stage, which reads it afresh.
-    An attempt that carries that tip's member blank had it blanked -- most
-    often to record movement under the evidence
-    (`rewrite_finish_readiness`, `rewrite_recovery_parks.records_the_reset`),
-    which every proof then reads as refusing the evidence rather than the
+    An attempt that records no such tip -- one blanked to record movement
+    under the evidence (`rewrite_finish_readiness`,
+    `rewrite_recovery_parks.records_the_reset`), one blanked because the base
+    moved while git ran, or a legacy attempt pinned before the tip was among
+    its members -- proves nothing about which base the head was replayed
+    onto, which every proof reads as refusing the evidence rather than the
     route: its head is held instead to the base this tick counted it against
     (`rewrite_evidence_proof.standing_refusal`), so a base advanced while the
     announcement or the relabel was answered still holds the route.
@@ -380,8 +371,8 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
         stopped = stands_ready(finish, current)
     elif or_the_base:
         stopped = _captured.stands_before_the_route(finish, landing=False)
-    blanked = finish.state.carries(_TIP) and not _attempt_records._recorded_onto(finish.state)
-    if stopped is not None or not (or_the_base and blanked):
+    unproven = not _attempt_records._recorded_onto(finish.state)
+    if stopped is not None or not (or_the_base and unproven):
         return stopped
     counted = finish.landed.candidate.checkout
     moved = standing_refusal(finish, onto=counted.base.tip)

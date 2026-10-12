@@ -1270,9 +1270,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             run was published with a handoff not naming its evidence, which comes in with the
                             comment the answer adopted, holds the route out of step too. Behind the relabel every
                             routed head is held to its base once more (`stands_ready_if_settled`): to the tip its
-                            replay was recorded as made onto, or -- where a record of movement blanked that tip --
-                            to the base the tick counted the head against, so no route is retired without a base
-                            reading
+                            replay was recorded as made onto, or -- where the attempt records none, blanked by a
+                            record of movement or never written by a legacy attempt -- to the base the tick counted
+                            the head against, so no route is retired without a base reading
     rewrite_finish_readiness.py
                             evidence a finish of the landing settled for its head, proved ready again before every
                             route that takes it -- the settling tick's own and every recovery of a tail cut short

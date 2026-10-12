@@ -69,13 +69,14 @@ def method(finish: LandedFinish) -> str:
     return "crash_recovery_pushed"
 
 
-def files(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
+def files(finish: LandedFinish, staged: PinnedState, observed: list | None = None) -> FinishOutcome | None:
     """File `finish`'s `base_rebased` event once, recorded on the attempt ahead of it; None to go on.
 
     The event stream is asked first, whatever the attempt records, and
     nothing is filed where it carries the event; HELD where it would not read.
     `staged` is the checkpoint's own state, which carries the record too. The
-    outcome of the record's own write where that did not land.
+    outcome of the record's own write where that did not land, the movement
+    its refusal read collected on `observed` (`rewrite_finish_writes.lands`).
     """
     issue_number = finish.issue.number
     found = _github_events.filed(finish.gh, _REBASED, issue_number=issue_number, sha=finish.head)
@@ -93,7 +94,7 @@ def files(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
         )
         return None
     if finish.state.get(_FILED) != finish.head:
-        stopped = _records(finish, staged)
+        stopped = _records(finish, staged, observed)
         if stopped is not None:
             return stopped
     finish.gh.emit_event(
@@ -109,17 +110,18 @@ def files(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
     return None
 
 
-def prepares_the_record(finish: LandedFinish) -> FinishOutcome | None:
+def prepares_the_record(finish: LandedFinish, observed: list | None = None) -> FinishOutcome | None:
     """None where the record of `finish`'s event would land now, or the attempt already carries it; REFUSED otherwise.
 
-    Measured over the comment read afresh, as `_records` would write it.
+    Measured over the comment read afresh, as `_records` would write it, the
+    movement a refusal read collected on `observed`.
     """
     if finish.state.get(_FILED) == finish.head:
         return None
-    return _writes.prepares(finish, _recording(finish), _writes.ANNOUNCED_EVENT)
+    return _writes.prepares(finish, _recording(finish), _writes.ANNOUNCED_EVENT, observed)
 
 
-def _records(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
+def _records(finish: LandedFinish, staged: PinnedState, observed: list | None) -> FinishOutcome | None:
     """Record on the attempt that `finish`'s event is being filed, in a write of its own; None where it landed.
 
     Landed over a copy of the tick's state, so the tick and `staged` take in
@@ -129,7 +131,7 @@ def _records(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
     """
     held = copy.deepcopy(finish.state)
     recorded = _recording(finish)
-    stopped = _writes.lands(replace(finish, state=held), recorded, _writes.ANNOUNCED_EVENT)
+    stopped = _writes.lands(replace(finish, state=held), recorded, _writes.ANNOUNCED_EVENT, observed)
     finish.state.withheld = finish.state.withheld or held.withheld
     if stopped is None:
         finish.state.set(_FILED, finish.head)

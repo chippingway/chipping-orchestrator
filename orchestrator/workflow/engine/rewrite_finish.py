@@ -306,7 +306,8 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     settled for the head, which is invalidated before the finish stops
     (`rewrite_finish_readiness.invalidates_behind`) -- and so has the debt's
     park, decided on those same records, refused over one another road moved
-    while its notice was posted.
+    while its notice was posted, and the event's own record, refused over the
+    pull request the publication is resolved from.
     """
     staged = _writes.staging(finish)
     measured = _writes.staging(finish) if announced else _debt.announcement(staged, finish.head)
@@ -324,9 +325,9 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     staged.set(_base_sync_state._PENDING_ANNOUNCED_SHA, finish.head)
     stopped = _writes.prepares(finish, staged, _writes.CHECKPOINT, observed, ledger_entry=True)
     if stopped is None:
-        stopped = prepares_the_record(finish)
+        stopped = prepares_the_record(finish, observed)
     if stopped is None:
-        stopped = _notices.announces(finish, staged)
+        stopped = _notices.announces(finish, staged, observed)
     if stopped is None:
         log.info(
             "issue=#%d announced the base rewrite PR #%d landed on %.8s (%s)",

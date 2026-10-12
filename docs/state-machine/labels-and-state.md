@@ -3194,7 +3194,7 @@ The keys that matter for the state machine fall into a few groups:
   (`workflow/engine/rewrite_finish_readiness.py`, `workflow/engine/rewrite_recovery_parks.records_the_reset`), so
   every later proof reads the evidence moved and retires it once room is made, whatever is put back meanwhile; a
   reset git refused has it staged back for the park that keeps the attempt. The route still reads the base over a
-  blanked member, held to the base the tick counted the head against
+  blanked member -- or a legacy attempt's missing one -- held to the base the tick counted the head against
   (`workflow/engine/rewrite_finish_settlement.stands_ready_if_settled`).
   `pending_auto_base_rebase_announced_sha` is the member written last and covers the last window a finish has:
   everything a finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out

@@ -1591,7 +1591,9 @@ because there it is the claim that this stage has already rerouted rather than a
     next finish finds what went out ahead of it rather than saying it again. The checkpoint is decided on the
     report records, so a report another road settled while the notice was posted refuses it -- and that refusal is
     movement read under the settled evidence, invalidated there and then, before the finish stops
-    (`rewrite_finish_readiness.invalidates_behind`), with the attempt and the newer report kept.
+    (`rewrite_finish_readiness.invalidates_behind`), with the attempt and the newer report kept. The event's own
+    record is decided on the pull request the publication is resolved from, so a pull request repointed while the
+    notice was posted refuses it, and that refusal is movement invalidated the same way, however soon it is put back.
   - **The retirement is proved over once more.** The announcement and the relabel are requests made after the
     evidence was resolved, so behind the relabel, the last request before the retirement, a routed head is held to
     its base again (`rewrite_finish_settlement.stands_ready_if_settled`). Settled evidence for it is proved ready
@@ -1601,8 +1603,9 @@ because there it is the claim that this stage has already rerouted rather than a
     head with no evidence current for it -- the fresh reviewer's responsibility handed off, or the replaced head's
     evidence deferred -- is held to the base tip its replay was made onto: a base advanced meanwhile holds the route
     the same way, so the attempt is never retired, nor a handler released, over a head the base left behind. Where
-    that tip was blanked to record movement under the attempt's evidence, the head is held instead to the base this
-    tick counted it against, so a base advanced while the announcement or the relabel was answered still holds it.
+    the attempt records no tip -- blanked to record movement under its evidence, or never written by a legacy attempt
+    -- the head is held instead to the base this tick counted it against, so a base advanced while the announcement
+    or the relabel was answered still holds it.
   - **The retirement is the guarded one.** It owns the attempt, the round, the park's flags, a spent reply, and a
     failure notice the route no longer owes, and is decided on every record the evidence is bound through, so the
     evidence and report records stay as the comment carries them: a record another road moved -- while the relabel

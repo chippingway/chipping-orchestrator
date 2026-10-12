@@ -22,7 +22,8 @@ back and room made, the next finish invalidates the run, and a base that
 advances while its notice is posted or its relabel made still holds the route,
 read against the base the finish counted the head against -- an attempt
 already announced that carries no evidence receipt, as one recorded before
-that member existed, included.
+that member existed, included. And so is the head of a legacy attempt, pinned
+before the base tip was among its members, that a recovery finishes.
 """
 from __future__ import annotations
 
@@ -130,6 +131,25 @@ class UnprovedRouteMoveTest(support.CapturedRunCase, unittest.TestCase):
                 self.recovers()
 
                 self._assert_continued(head, ran=1)
+
+    def test_a_legacy_attempt_holds_the_route(self) -> None:
+        # The attempt records no base tip at all, so nothing proves which base
+        # the head was replayed onto; the recovery that finishes it still holds
+        # the route where the base advanced under its final steps, read against
+        # the base the tick counted the head against.
+        for step in _STEPS:
+            with self.subTest(step=step.name):
+                self.setUp()
+                head = _hands_the_reviewer(self)
+                git_support.pins_the_attempt(self, head)
+                state = self.gh.read_pinned_state(self.issue)
+                state.data.pop(readings.KEY_REWRITE_BASE)
+                self.gh.write_pinned_state(self.issue, state)
+                self._moving(step, self.recovers)
+
+                self.assertEqual(readings.pinned(self)[readings.KEY_PENDING_PUSH], self.anchor)
+                self.recovers()
+                self._assert_continued(head)
 
     def _blanks_the_tip(self, head: str, blank: _Blank) -> None:
         """Kill `head`'s finish where `blank` says, its run settled, and have the next tick record movement.
