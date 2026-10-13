@@ -63,6 +63,7 @@ from orchestrator.workflow.engine import (
     report_records as _report_records,
     review_subjects as _review_subjects,
     verification_records as _records,
+    verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 
@@ -208,17 +209,31 @@ def refusal_of(outcome: _commit_models.CommitOutcome) -> ReportEvidence | None:
     return _REFUSALS[outcome.refusal]
 
 
-def takes_in_the_evidence(state: PinnedState, durable: PinnedState) -> None:
-    """Lay the evidence records `durable`, the comment read afresh, carries over `state`, remembered as read.
+def takes_in_a_settlement(
+    gh: GitHubClient, issue: Issue, state: PinnedState, receipt: str,
+) -> _records.CurrentEvidence | None:
+    """Evidence another road settled current under `receipt` since `state` was read, laid over `state`; or None.
 
-    For a caller about to retire evidence another road settled since `state` was read.
+    For a caller about to retire that settlement over movement it already read
+    under the transaction `receipt` names: where the comment read afresh
+    carries evidence current under `receipt`, every evidence record it carries
+    is laid over `state` and remembered as read, so the retirement is staged
+    and decided on the records that settlement left -- and a comment with no
+    room for the retirement has the movement recorded against them instead.
+    None, with `state` as it was, where the comment would not read or carries
+    nothing current under `receipt`.
     """
+    durable = durable_comment(gh, issue, state)[0]
+    current = None if durable is None else _settlement.read_current_evidence(durable)
+    if current is None or current.receipt != receipt:
+        return None
     for field in _EVIDENCE_RECORDS:
         spelled = durable.data.get(field, _commit_models.ABSENT)
         state.data.pop(field, None)
         if spelled is not _commit_models.ABSENT:
             state.data[field] = spelled
     _commit.takes_in(state, durable.data, _EVIDENCE_RECORDS)
+    return current
 
 
 def moves_only_the_evidence(refused: ReportEvidence) -> bool:

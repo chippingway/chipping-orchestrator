@@ -81,18 +81,24 @@ def recovery_context(case) -> _AutoRebaseRecoveryContext:
     return handed[0]
 
 
-def records_a_newer_run(case):
+def records_a_newer_run(case, *, settles: bool = False):
     """Record a newer transaction beside `case`'s settled run, carrying its binding, as another road would; it.
 
     Its transcript is the configured command passing, as the settled run's own
-    reads, and it raises the revision floor past that run.
+    reads, and it raises the revision floor past that run. `settles` posts its
+    artifact and settles it over that run in the same write, which supersedes
+    the run under a receipt of its own.
     """
     state = case.gh.read_pinned_state(case.issue)
-    binding = readings.pinned_records(case)[1].binding
     command = config.VERIFY_COMMANDS[0]
     passed = (VerifiedCommand(command=command, exit_status=0, output=git_support.CHECKED),)
-    newer = _record_state.mint_pending_evidence(state, git_support.ISSUE, binding, passed)
+    newer = _record_state.mint_pending_evidence(
+        state, git_support.ISSUE, readings.pinned_records(case)[1].binding, passed,
+    )
     case.assertTrue(_record_state.record_pending_evidence(state, newer))
+    if settles:
+        posted = case.gh.publish_verification_artifact(case.pull_request, newer.artifact)
+        state = _settlement.settled_state(state, newer, posted.landed_id, git_support.REVIEWING)
     case.gh.write_pinned_state(case.issue, state)
     return newer
 

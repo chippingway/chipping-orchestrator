@@ -30,7 +30,7 @@ from itertools import product
 from typing import NamedTuple
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import verification_durable as _durable, verification_settlement_state as _settlement
+from orchestrator.workflow.engine import verification_durable as _durable
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
@@ -57,15 +57,6 @@ def _puts_the_label_back(case) -> None:
     """Put `case`'s issue back on the stage it was reviewed in and reply to the park."""
     case.issue.labels = [FakeLabel(git_support.REVIEWING)]
     case.continues()
-
-
-def _settles_a_newer_run(case) -> None:
-    """Record a newer run beside `case`'s settled one and settle it over that run, as another road would."""
-    newer = guarded.records_a_newer_run(case)
-    state = case.gh.read_pinned_state(case.issue)
-    posted = case.gh.publish_verification_artifact(case.pull_request, newer.artifact)
-    state = _settlement.settled_state(state, newer, posted.landed_id, git_support.REVIEWING)
-    case.gh.write_pinned_state(case.issue, state)
 
 
 class _Road(NamedTuple):
@@ -153,7 +144,7 @@ class SettledUnderTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def test_a_successor_settled_meanwhile_is_kept(self) -> None:
         # The newer run stays current, the captured one superseded as that
         # road left it, and nothing is parked.
-        captured = self._holds_over_a_settlement(_settles_a_newer_run)[1]
+        captured = self._holds_over_a_settlement(partial(guarded.records_a_newer_run, settles=True))[1]
         current, retired = readings.pinned_records(self)[1:]
         self.assertNotEqual(current.receipt, captured.receipt)
         self.assertEqual(retired[-1], (captured.receipt, "superseded"))

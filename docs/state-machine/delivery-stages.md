@@ -1337,9 +1337,12 @@ because there it is the claim that this stage has already rerouted rather than a
   -- the notice, the `base_rebased` event, the round reset, and the mark -- the relabel to `workflow:validating`, or
   the attempt's retirement, once the debt the announcement carries is measured to fit (a debt with no room parks
   before anything runs or is recorded, though evidence an earlier finish settled or captured for the head is proved
-  before that park, and again behind it -- over the move its refused record read, or behind a notice that raised --
-  and retired where it moved, so the reply finds no decision anything moved under), decided on the attempt, the debt,
-  and every
+  before that park, and again behind it -- over the move its refused record read, or behind its notice, posted,
+  raised, or followed by a record whose answer was lost -- a captured run's binding proved again whole each time, the
+  settled report re-read at its location, and retired where it moved, so the reply finds no decision anything moved
+  under; a captured run another finish settled while its abandonment was asked has that settlement invalidated over
+  the movement, or the movement recorded against it where the comment is full, a successor settled under another
+  receipt kept), decided on the attempt, the debt, and every
   record the evidence is bound through, so a report, review subject, or evidence record another road moved while the
   commands ran refuses it. On every route, current evidence the rewrite moved past goes into history whole as
   invalidated -- asked as the write is staged, behind any commands the decision ran, so a command or timeout

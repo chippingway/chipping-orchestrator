@@ -1140,7 +1140,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             Otherwise the report debt is measured on the whole announcement write and on the
                             comment as it stands (`rewrite_finish_debt.fits`), and one with no room parks
                             `auto_base_rebase_unrecorded_debt` with the push and the attempt kept, before anything runs
-                            or is recorded. Then a head the base has not advanced past has its evidence resolved
+                            or is recorded -- a transaction an earlier finish captured for the head proved again whole
+                            and held to the last word ahead of that park and again behind its notice, landed, refused,
+                            unconfirmed, or raised, and abandoned where anything moved. Then a head the base has not
+                            advanced past has its evidence resolved
                             (`_resolves`, `rewrite_finish_settlement.resolves`): decided and landed by the evidence
                             step (`rewrite_finish_evidence.py`), and a transaction it recorded published and settled,
                             or retired, with the anchor still standing -- evidence an earlier finish already settled
@@ -1225,14 +1228,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the receipt on the attempt naming no pending transaction
                             (`rewrite_landing_records.capture_answered`), or settled current for the head; proved
                             again (`proved_again`); held to the
-                            last word behind every request a route made (`stands_before_the_route`), which abandons it
-                            unrun wherever any reading establishes movement -- its binding, its review or report
-                            records, the landing, or the base -- even beside a reading nobody could take, which only
-                            holds; and abandoned where the base advanced past its head (`sets_aside`). The
+                            last word behind every request a route made (`stands_before_the_route`) -- proved again
+                            whole first where the caller asks, as the finish does ahead of its debt's park and behind
+                            that park's notice, since the last word alone never re-reads the settled report -- which
+                            abandons it unrun wherever any reading establishes movement -- its binding, its review or
+                            report records, the landing, or the base -- even beside a reading nobody could take, which
+                            only holds; and abandoned where the base advanced past its head (`sets_aside`). The
                             abandonment is guarded by the comment read afresh, falls back to the tick's own reading
                             (`rewrite_finish_writes.ABANDONMENT`), keeps what another road wrote, is refused over an
                             attempt another road put in place of the one read, and with no room for history drops the
-                            transaction and blanks the attempt's recorded base tip
+                            transaction and blanks the attempt's recorded base tip. One refused because another finish
+                            settled that very transaction meanwhile has the settlement taken in
+                            (`verification_durable.takes_in_a_settlement`) and invalidated over what the abandonment
+                            was asked on, or the movement recorded against it where the comment has no room; a
+                            successor settled under another receipt is kept
     rewrite_finish_settlement.py
                             the landed head's evidence resolved before the finish announces it (`resolves`), and the
                             publication and settlement of the transaction the evidence step recorded, before the
@@ -1733,9 +1742,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             in hand and the reading it is synced with (`lands`); and what a guarded write's outcome
                             refuses in this domain's words (`refusal_of`): an unread or replaced comment and an
                             unconfirmed write HOLD, and every other refusal -- a moved record, a comment moved under the
-                            edit, no room -- DEFERS; and whether a moved-record refusal names nothing but the
+                            edit, no room -- DEFERS; whether a moved-record refusal names nothing but the
                             evidence records themselves (`moves_only_the_evidence`), which another road settling or
-                            retiring a transaction moves rather than anything a binding rests on
+                            retiring a transaction moves rather than anything a binding rests on; and evidence another
+                            road settled current under a transaction's receipt since the state in hand was read, its
+                            evidence records laid over that state for a caller about to retire the settlement over
+                            movement it already read (`takes_in_a_settlement`)
     verification_transaction.py
                             the evidence reconciliation the dispatcher runs directly behind the report
                             transaction: holds behind a standing auto-rebase anchor, whoever calls it, leaving a
@@ -1993,9 +2005,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             invalidated into history whole where a snapshot or the landed road reads the landing off
                             its head (`abandons_off_the_landing`, `abandons`, through
                             `rewrite_finish_readiness.invalidates`), holding the road where no write lands it; an
-                            abandonment refused because another road settled that same transaction meanwhile
-                            invalidates that settlement over the movement it was asked on instead, its evidence
-                            records taken in first (`verification_durable.takes_in_the_evidence`). The
+                            abandonment refused because another road settled that same transaction meanwhile has
+                            the last word invalidate that settlement over the movement it was asked on instead, and
+                            holds the road only where that does not land (`_stands`). The
                             captured proof takes movement a caller already read as its proof, and the answers to a
                             landed reset and to a park that keeps the attempt (`rewrite_landing_retirement.py`) are
                             built over it and over the finish of a head's landing (`_finish`)
