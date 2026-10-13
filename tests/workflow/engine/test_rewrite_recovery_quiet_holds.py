@@ -14,21 +14,31 @@ the issue edited before the hold and put back right behind it has the run
 abandoned or invalidated whole, nothing posted beside the one stranded park,
 and the recovery that takes the anchor up next -- the label put back and a
 reply given, where the park stands -- routes the head with nothing current.
+
+A run another finish settles, the edit put back, while the stranded park's
+proof abandons it is invalidated over that edit all the same -- or, the comment
+full, has it recorded by its base tip blanked -- and a newer run settled over
+it under its own receipt is left as it stands.
 The run is made once, and nothing is pushed or launched.
 """
 from __future__ import annotations
 
 import unittest
 from collections.abc import Callable
+from functools import partial
 from itertools import product
 from typing import NamedTuple
+from unittest.mock import patch
 
+from orchestrator.workflow.engine import verification_durable as _durable, verification_settlement_state as _settlement
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_git_support as git_support,
+    rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
 )
+from tests.workflow.interleaving import _RacesTheStep
 
 _EDITED_BODY = "Also cover a base that moved twice."
 
@@ -47,6 +57,15 @@ def _puts_the_label_back(case) -> None:
     """Put `case`'s issue back on the stage it was reviewed in and reply to the park."""
     case.issue.labels = [FakeLabel(git_support.REVIEWING)]
     case.continues()
+
+
+def _settles_a_newer_run(case) -> None:
+    """Record a newer run beside `case`'s settled one and settle it over that run, as another road would."""
+    newer = guarded.records_a_newer_run(case)
+    state = case.gh.read_pinned_state(case.issue)
+    posted = case.gh.publish_verification_artifact(case.pull_request, newer.artifact)
+    state = _settlement.settled_state(state, newer, posted.landed_id, git_support.REVIEWING)
+    case.gh.write_pinned_state(case.issue, state)
 
 
 class _Road(NamedTuple):
@@ -102,6 +121,60 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             self.assert_abandoned(run)
         else:
             self.assert_invalidated(run)
+
+
+class SettledUnderTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """A captured run another finish settles while the stranded park's proof abandons it over an edited issue."""
+
+    def test_the_settled_run_is_invalidated(self) -> None:
+        # The park is taken over the run invalidated whole, and continued,
+        # routes the head with nothing current.
+        head, captured = self._holds_over_a_settlement()
+        self.assertTrue(self.pinned_fields(guarded.AWAITING)[0])
+        self.assert_invalidated(captured)
+        self.issue.labels = [FakeLabel(git_support.REVIEWING)]
+        self.continues()
+        self.recovers()
+        self.assert_routed(head)
+
+    def test_a_full_comment_records_the_movement(self) -> None:
+        # Nothing parked and the tip blank, the run current; room made, the
+        # next recovery invalidates it whole and routes the head.
+        head, captured = self._holds_over_a_settlement(finish_moves.fills_the_comment)
+        self.assertEqual(self.pinned_fields(guarded.AWAITING, readings.KEY_REWRITE_BASE), (None, None))
+        self.assertEqual(readings.pinned_records(self)[1].receipt, captured.receipt)
+        finish_moves.makes_room(self)
+        self.issue.labels = [FakeLabel(git_support.REVIEWING)]
+        self.recovers()
+        retired = readings.pinned_records(self)[2]
+        self.assertEqual(retired[-1], (captured.receipt, readings.INVALIDATED))
+        self.assert_routed(head)
+
+    def test_a_successor_settled_meanwhile_is_kept(self) -> None:
+        # The newer run stays current, the captured one superseded as that
+        # road left it, and nothing is parked.
+        captured = self._holds_over_a_settlement(_settles_a_newer_run)[1]
+        current, retired = readings.pinned_records(self)[1:]
+        self.assertNotEqual(current.receipt, captured.receipt)
+        self.assertEqual(retired[-1], (captured.receipt, "superseded"))
+        self.assertIsNone(self.pinned_fields(guarded.AWAITING)[0])
+
+    def _holds_over_a_settlement(self, then=None) -> tuple:
+        """Capture a run, edit the issue, and strand the attempt while another finish settles the run; head and run.
+
+        That finish puts the issue back and settles the run as the abandonment
+        reads the comment, `then` made behind it.
+        """
+        head, captured = self.captures()
+        written = self.issue.body
+        self.issue.body = _EDITED_BODY
+        self.issue.labels = [FakeLabel(_UNDRIVEN)]
+        raced: list = []
+        elsewhere = partial(guarded.settles_elsewhere, self, head, written, raced, then)
+        with patch.object(_durable, "durable_comment", _RacesTheStep(_durable.durable_comment, elsewhere)):
+            guarded.answers_a_held_anchor(self)
+        self.assertEqual(raced, [head])
+        return head, captured
 
 
 if __name__ == "__main__":

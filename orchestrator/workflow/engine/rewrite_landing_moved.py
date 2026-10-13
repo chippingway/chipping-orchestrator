@@ -262,7 +262,9 @@ def _abandoned_or_settled_since(
     read under the transaction all the same, so evidence the comment read
     afresh now carries current under `pending`'s receipt is invalidated whole
     over it (`rewrite_finish_readiness.invalidates`), however the records read
-    by then. Evidence under any other receipt -- a successor another road
+    by then -- that reading's evidence records taken in first, so with no room
+    for its history entry the movement is recorded against it instead.
+    Evidence under any other receipt -- a successor another road
     settled -- is another decision, kept as that road wrote it, and so is a
     comment nobody could read: False, for the caller to hold.
     """
@@ -277,6 +279,7 @@ def _abandoned_or_settled_since(
         "abandonment was asked, over the movement read under it: %s",
         finish.issue.number, current.revision, finish.head, moved.refusal,
     )
+    _durable.takes_in_the_evidence(finish.state, durable)
     return _readiness.invalidates(finish, current)
 
 

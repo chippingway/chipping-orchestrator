@@ -104,10 +104,11 @@ def records_a_newer_run(case):
     return newer
 
 
-def settles_elsewhere(case, head: str, written: str, raced: list) -> None:
+def settles_elsewhere(case, head: str, written: str, raced: list, then=None) -> None:
     """Put the issue back as `written` and settle `head`'s captured run as another finish would, once; into `raced`.
 
-    That finish dies before its announcement, so the attempt still stands.
+    That finish dies before its announcement, so the attempt still stands;
+    `then`, where given, is made behind it.
     """
     if raced:
         return
@@ -115,6 +116,8 @@ def settles_elsewhere(case, head: str, written: str, raced: list) -> None:
     case.issue.body = written
     finishing = partial(case.finishes, head, FinishRoad.RECOVERY)
     handoff.dies_at(case.gh, handoff.BEFORE_THE_ANNOUNCEMENT, finishing)
+    if then is not None:
+        then(case)
 
 
 def answers_a_held_anchor(case) -> None:

@@ -12,23 +12,17 @@ again first (`rewrite_landing_retirement.retires_unproved`). The transfer's
 own machinery -- how far it got, its permit, and the gate's answer -- is stood
 in for; what is read back is the run, the attempt, and what the issue was told.
 
-Where the issue was edited under the run, the run is invalidated into history
-whole, its revision and binding kept, and putting the requirements back
-before another held poll, or before the poll the gate lets through, revives
-nothing: the head is routed with nothing current. Where nothing moved, the
-run is kept current exactly as settled, poll after poll, and routed with it.
-Either way the attempt stands while the gate holds, nothing is parked,
-announced, or relabelled until the route, and the run is made once, with
-nothing pushed or launched.
+Where the issue was edited under the run, the run is invalidated whole and
+putting the requirements back revives nothing; where nothing moved, it is kept
+current and routed with the head once the gate lets a poll through. The
+attempt stands while the gate holds, and the run is made once, with nothing
+pushed or launched.
 
-The hold's own record lands over the comment read afresh, never written whole:
-a newer transaction another road records for the head while the gate answers
-is kept pending with the revision floor it raised, and the poll the gate lets
-through settles it over the run and routes the head. Behind that record the
-run is proved once more: a report another road settles between the first
-proof and the record -- which the record lands, sends with its answer lost,
-or is refused over -- is read moving under the run, even where the earlier
-report is put back right behind a record that carried the later one.
+The hold's record lands over the comment read afresh: a newer transaction
+recorded while the gate answers survives with its revision floor, and a newer
+run settled beside report 3 is proved on its own readings. Behind the record
+the run is proved once more, so a report settled at the record -- landed,
+answer lost, or refused -- is read moving even where report 2 is put back.
 """
 from __future__ import annotations
 

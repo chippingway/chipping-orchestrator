@@ -1994,7 +1994,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its head (`abandons_off_the_landing`, `abandons`, through
                             `rewrite_finish_readiness.invalidates`), holding the road where no write lands it; an
                             abandonment refused because another road settled that same transaction meanwhile
-                            invalidates that settlement over the movement it was asked on instead. The
+                            invalidates that settlement over the movement it was asked on instead, its evidence
+                            records taken in first (`verification_durable.takes_in_the_evidence`). The
                             captured proof takes movement a caller already read as its proof, and the answers to a
                             landed reset and to a park that keeps the attempt (`rewrite_landing_retirement.py`) are
                             built over it and over the finish of a head's landing (`_finish`)
