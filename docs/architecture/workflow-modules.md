@@ -1279,10 +1279,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             in a write staged on the comment read afresh and guarded by that reading and the attempt,
                             falling back to the tick's own reading (`rewrite_finish_writes.INVALIDATION`) where that
                             comment will not read or that write does not land (`invalidates`); an attempt or evidence
-                            another road put in place is left as it wrote it, and with no room for the history entry the
-                            movement is recorded instead by blanking the attempt's recorded base tip under the same
-                            guard -- refused where a successor settled in the evidence's place -- so putting back what
-                            moved revives nothing. A reading nobody could take, or a record beside it nobody can resolve
+                            another road put in place is left as it wrote it, and where neither write lands -- no room
+                            for the history entry, or a write refused or unconfirmed -- the movement is recorded instead
+                            by blanking the attempt's recorded base tip under the same guard -- refused where a
+                            successor settled in the evidence's place -- so putting back what moved revives nothing. A
+                            reading nobody could take, or a record beside it nobody can resolve
                             (`beside_current`: a pending record, a handoff not naming it, a revision floor nobody can
                             read), holds -- beside any movement the same reading established, which it never hides; a
                             refusal of a finish's later write that read a binding record moved

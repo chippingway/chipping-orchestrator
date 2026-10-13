@@ -83,13 +83,15 @@ decided again: the evidence goes on as it settled, or into history as it was.
 
 A write a finish makes behind the proof -- its announcement checkpoint or its
 retirement -- is refused by a report or review record another road moved
-while the notice was posted or the relabel made. That refusal, collected as
-`rewrite_finish_writes.BINDING_MOVED`, is movement read under the evidence
-too, which `invalidates_behind` invalidates however soon the record is put
-back; any other refusal has the evidence proved ready once more.
-`settled_word` and `invalidates` serve a recovery as well, over the evidence
-a finish of the attempt settled (`rewrite_landing_records.settled`), wherever
-it reads the landing moving or would keep the attempt for a human's reply.
+while the notice was posted or the relabel made. Such a refusal, handed in
+as `rewrite_finish_writes.BINDING_MOVED` -- which no write of the finish
+collects yet -- is movement read under the evidence too, which
+`invalidates_behind` invalidates however soon the record is put back; any
+other refusal has the evidence proved ready once more. `settled_word` and
+`invalidates` are shaped for a recovery as well, over the evidence a finish
+of the attempt settled (`rewrite_landing_records.settled`, which no recovery
+reads yet either), wherever it would read the landing moving or keep the
+attempt for a human's reply.
 
 Nothing here runs the configured commands, posts an artifact, launches a
 developer, or announces anything.
