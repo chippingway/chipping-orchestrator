@@ -16,13 +16,20 @@ only why it parks. A recovery park
 that keeps the attempt instead -- that tail behind a reset that did not land,
 and the parks that never reset -- asks the recovery context first whether it
 may go on (`_proves_before_the_park`), so a transaction the workflow captured
-for the landed head is proved again before the record a human's reply brings
-back is left standing. The finish of a
-rewrite that landed is the workflow's (`workflow/engine/rewrite_finish.py`),
-whichever road reached it.
+for the landed head, or evidence it settled for it, is proved again before the
+record a human's reply brings back is left standing. Every park a recovery
+takes is recorded as the recovery records one (`_parks_the_recovery`): over
+the comment read afresh, through the park the workflow hands its contexts,
+so nothing another road wrote while the notice went out is put back. The
+finish of a rewrite that landed is the workflow's (`workflow/engine/rewrite_finish.py`),
+whichever road reached it, and so is the tail an interrupted finish leaves
+behind its evidence -- the announcement, the relabel, and the retirement --
+which none of these parks takes: a park that keeps the attempt keeps it for
+the reply that brings that finish back, with what the attempt still owes.
 """
 from __future__ import annotations
 
+import subprocess
 from types import MappingProxyType
 
 from github.Issue import Issue
@@ -37,6 +44,7 @@ from orchestrator.git.base_sync.state import (
     _AUTO_REBASE_PARK_REASONS,
     _ERROR_SNIPPET_LEN,
     _PARK_REASON,
+    _PENDING_REWRITE_BASE,
     log,
 )
 from orchestrator.github.client import GitHubClient
@@ -168,24 +176,25 @@ def _reset_clear_and_park(
 
     A recovery's attempt may also stand guard over a record the workflow made
     about the head the reset takes the checkout off -- a verification
-    transaction a finish captured for a landed head -- so the recovery is
-    asked to settle it on the same state first (`_settles_over_the_reset`):
-    it rides this one write with the attempt's drop, or neither lands.
+    transaction a finish captured for a landed head, or evidence one settled
+    for it -- so the recovery is asked to settle it on the same state first
+    (`_releases_over_the_reset`): it rides this one write with the attempt's
+    drop, or neither lands -- and where the recovery answers that it cannot
+    be settled, settled evidence with no room left for its history entry,
+    nothing is dropped or parked: the attempt is kept guarding it, as a reset
+    that failed keeps it, and the next tick asks again. What the workflow
+    captured or settled for the head is marked moved before the reset is even
+    made (`_resets`), since the reset moves the checkout ahead of every write
+    behind it: a process lost between them, or a write behind it that does not
+    land, would otherwise leave it for a checkout put back to revive. That
+    write is the
+    recovery's own park (`_parks_the_recovery`), landed over the comment read
+    afresh, so a report or evidence record another road wrote while the
+    notice went out is kept beside it rather than put back.
     """
-    reset = commands._git_hardened(
-        "reset", "--hard", reset_sha, cwd=context.worktree,
-    )
-    restored = reset.returncode == 0
-    refused = None if restored else reset.stderr or ""
-    if not restored:
-        log.error(
-            "issue=#%d auto-rebase recovery: reset --hard to %s failed: "
-            "%s; the awaiting_human park still short-circuits same-tick "
-            "handler dispatch but operator inspection of HEAD is needed",
-            context.issue.number,
-            reset_sha[:8],
-            (reset.stderr or "").strip(),
-        )
+    reset = _resets(context, reset_sha)
+    if reset is None:
+        return
     cleaned = None
     if clean:
         cleaning = commands._git_hardened("clean", "-fd", cwd=context.worktree)
@@ -196,36 +205,64 @@ def _reset_clear_and_park(
                 "the reset failed: %s",
                 context.issue.number, (cleaning.stderr or "").strip(),
             )
-    if restored:
-        _settles_over_the_reset(context)
-        attempts._clears_the_attempt(context.state)
-        _forgets_the_reset(context, reset_sha)
-    elif not _proves_before_the_park(context):
+    if reset.returncode:
+        parks = _proves_before_the_park(context)
+    else:
+        parks = _releases_over_the_reset(context, reset_sha)
+    if not parks:
         return
-    _park_auto_rebase_failure(
-        context.gh,
-        context.issue,
-        context.state,
-        message=f"{message}\n\n{_reset_outcome(reset_sha, refused, cleaned)}",
+    _parks_the_recovery(
+        context,
+        message=f"{message}\n\n{_reset_outcome(reset_sha, reset, cleaned)}",
         reason=reason,
     )
 
 
-def _reset_outcome(reset_sha: str, refused: str | None, cleaned: bool | None) -> str:
+def _parks_the_recovery(
+    context: _AutoRebaseContext | _AutoRebaseRecoveryContext,
+    *,
+    message: str,
+    reason: str,
+) -> None:
+    """Park `context`'s issue as `_park_auto_rebase_failure` parks it, recorded as its recovery records a park.
+
+    The park's record lands behind its notice, a request after the tick read
+    the comment -- long enough for another road to settle and review a later
+    report, or move an evidence record. A recovery context the workflow built
+    carries the park that lands over the comment read afresh instead, keeping
+    whatever another road wrote meanwhile
+    (`_AutoRebaseRecoveryContext.lands_a_park`): over a landed reset, the
+    evidence a finish captured or settled for the head is retired in the very
+    write that drops the attempt (`_releases_over_the_reset`), and that write
+    puts back no report the evidence was superseded by. A context with none --
+    a refresh's own -- writes the state whole.
+    """
+    lands = context.lands_a_park if isinstance(context, _AutoRebaseRecoveryContext) else None
+    if lands is None:
+        _park_auto_rebase_failure(context.gh, context.issue, context.state, message=message, reason=reason)
+        return
+    assert reason in _AUTO_REBASE_PARK_REASONS, (
+        f"_parks_the_recovery called with reason={reason!r}, which is not in _AUTO_REBASE_PARK_REASONS"
+    )
+    lands(context, message, reason)
+
+
+def _reset_outcome(reset_sha: str, reset: subprocess.CompletedProcess, cleaned: bool | None) -> str:
     """What the park's notice says the reset to `reset_sha` came to, beside the clean behind it where one ran.
 
-    `refused` is what git answered a reset that did not land, None for one
-    that did. A reset that landed is the attempt dropped with what it
+    `reset` is what git answered the reset: what it printed on a reset that
+    did not land is quoted. A reset that landed is the attempt dropped with what it
     abandoned -- by the park's own write, which the notice goes out ahead of,
     so the notice says that write drops them rather than that they are gone;
     one that did not land is the attempt kept whole, since records follow the
     reset rather than the intent, and a write that fails keeps it as well.
     """
-    said = "" if cleaned is None else _CLEANED[refused is None, cleaned]
+    restored = reset.returncode == 0
+    said = "" if cleaned is None else _CLEANED[restored, cleaned]
     short = reset_sha[:8]
-    if refused is None:
+    if restored:
         return _RESET.format(sha=short, cleaned=said)
-    error = refused.strip()[:_ERROR_SNIPPET_LEN]
+    error = (reset.stderr or "").strip()[:_ERROR_SNIPPET_LEN]
     return _UNRESET.format(sha=short, error=error, cleaned=said)
 
 
@@ -234,10 +271,11 @@ def _proves_before_the_park(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
 
     Every such park leaves the whole record standing for a human's reply to
     bring the recovery back to, and a verification transaction the workflow
-    captured for the landed head stands with it. So the workflow proves it
-    again first (`_AutoRebaseRecoveryContext.proves_before_a_park`), and
-    abandons it where anything it rests on moved, before the park and not
-    behind the reply -- by which time what moved may be back. False is a
+    captured for the landed head stands with it, as does evidence a finish
+    already settled for it. So the workflow proves them again first
+    (`_AutoRebaseRecoveryContext.proves_before_a_park`), and abandons the one
+    or invalidates the other where anything it rests on moved, before the park
+    and not behind the reply -- by which time what moved may be back. False is a
     movement it read and could not record: nothing is parked, the anchor still
     holds every handler, and the next tick's recovery asks again. A refresh's
     own context, ahead of any recovery, has captured nothing to prove.
@@ -247,39 +285,45 @@ def _proves_before_the_park(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
         return True
     log.warning(
         "issue=#%d auto-rebase recovery: holding rather than parking, since the verification evidence "
-        "captured for the landed head could not be abandoned over what moved under it",
+        "captured or settled for the landed head could not be retired over what moved under it",
         context.issue.number,
     )
     return False
 
 
-def _settles_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext) -> None:
-    """Stage what a recovery owes over its landed reset on the state the park writes, ahead of the attempt's drop.
+def _releases_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext, reset_sha: str) -> bool:
+    """Drop the attempt a landed reset abandoned, and what the reset took the branch off; whether it was dropped.
 
     A recovery's attempt can carry a record the workflow made about the head
     the reset just took the checkout off -- a verification transaction a
-    finish captured for it -- which the attempt is the only thing keeping
-    anyone from settling. Staged here, its answer lands in the park's one
-    write beside the attempt's release, or neither does, so a dropped attempt
-    never leaves it behind.
+    finish captured for it, which the attempt is the only thing keeping
+    anyone from settling, or evidence a finish settled for it, which the reset
+    moved under. The recovery's answer to it is staged first on the state the
+    park writes (`_AutoRebaseRecoveryContext.settles_over_a_reset`), so it
+    lands in the park's one write beside the attempt's release, or neither
+    does, and a dropped attempt never leaves it behind. False where the
+    recovery answers that the record cannot go with the release -- settled
+    evidence the comment has no room to retire into history -- logged: the
+    attempt keeps guarding it, nothing is dropped or parked, and the next
+    tick's recovery asks again.
+
+    The drop of what the reset took the branch off is staged, not written, so
+    the park's own write makes it durable: the approval and a transfer's
+    permission both name a commit only the reflog still has once the branch is
+    back on the pre-rebase anchor -- a push owed for it, and what that push
+    may carry a human's verdict over -- and neither has anything left to be
+    paid by.
     """
-    if isinstance(context, _AutoRebaseRecoveryContext) and context.settles_over_a_reset is not None:
-        context.settles_over_a_reset()
-
-
-def _forgets_the_reset(
-    context: _AutoRebaseContext | _AutoRebaseRecoveryContext,
-    reset_sha: str,
-) -> None:
-    """Drop what a landed reset just took the branch off, in memory.
-
-    Both records name a commit only the reflog still has once the branch is
-    back on the pre-rebase anchor: the approval says a push is owed for it,
-    and a transfer's permission says what that push may carry a human's
-    verdict over. Neither has anything left to be paid by, and both are staged
-    rather than written so the park's own write is what makes the drop
-    durable.
-    """
+    settles = context.settles_over_a_reset if isinstance(context, _AutoRebaseRecoveryContext) else None
+    if settles is not None and not settles():
+        log.warning(
+            "issue=#%d auto-rebase recovery: the reset landed, but the verification evidence settled for the head "
+            "it took the checkout off could not be retired with the attempt; keeping the attempt and holding "
+            "rather than parking",
+            context.issue.number,
+        )
+        return False
+    attempts._clears_the_attempt(context.state)
     # Lazily bound for the reason the guard owner is: the size gate sits in
     # the workflow layer above this package, and binding it at module load
     # would make every git-side import pay for the stage tree.
@@ -298,3 +342,46 @@ def _forgets_the_reset(
         ),
         reset_sha,
     )
+    return True
+
+
+def _resets(
+    context: _AutoRebaseContext | _AutoRebaseRecoveryContext, reset_sha: str,
+) -> subprocess.CompletedProcess | None:
+    """Hard-reset `context`'s checkout to `reset_sha`, recorded first where its recovery asks; git's answer, or None.
+
+    A recovery's attempt can stand guard over a decision the workflow made
+    about the head the reset takes the checkout off -- a verification
+    transaction a finish captured, or evidence one settled -- and the reset
+    moves the checkout ahead of every write that answers for it: a process
+    lost behind the reset, or a park write that does not land, would leave
+    that decision for a checkout put back on the head to take up again. So the
+    recovery records the reset first, in a write of its own
+    (`_AutoRebaseRecoveryContext.records_before_a_reset`): the base tip the
+    attempt recorded its replay as made onto, blanked, which every later proof
+    of the decision reads as movement. None where that record did not land,
+    logged: nothing is reset, dropped, or parked, and the next tick asks again.
+    A reset git refused moved nothing, so the tip is staged back on the state
+    for the park that keeps the attempt to write, and the decision stands for
+    the proof that park asks first, as it did before the record.
+    """
+    onto = context.state.get(_PENDING_REWRITE_BASE)
+    records = context.records_before_a_reset if isinstance(context, _AutoRebaseRecoveryContext) else None
+    if records is not None and not records(context):
+        log.warning(
+            "issue=#%d auto-rebase recovery: holding rather than resetting to %s, since the reset could not be "
+            "recorded ahead of it against the verification evidence captured or settled for the landed head",
+            context.issue.number, reset_sha[:8],
+        )
+        return None
+    reset = commands._git_hardened("reset", "--hard", reset_sha, cwd=context.worktree)
+    if reset.returncode:
+        log.error(
+            "issue=#%d auto-rebase recovery: reset --hard to %s failed: "
+            "%s; the awaiting_human park still short-circuits same-tick "
+            "handler dispatch but operator inspection of HEAD is needed",
+            context.issue.number, reset_sha[:8], (reset.stderr or "").strip(),
+        )
+        if onto:
+            context.state.set(_PENDING_REWRITE_BASE, onto)
+    return reset

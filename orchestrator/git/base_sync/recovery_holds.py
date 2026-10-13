@@ -158,8 +158,7 @@ def _refresh_reaches(
 def _answers_an_unreadable_checkout(
     context: _AutoRebaseContext,
     consumed_comment_id: int | None,
-    settles_over_a_reset: Callable[[], None] | None = None,
-    proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
+    **answers: Callable[..., object] | None,
 ) -> bool:
     """Reset and park an anchor over a checkout whose HEAD cannot be read.
 
@@ -175,13 +174,14 @@ def _answers_an_unreadable_checkout(
     branch goes back onto the anchor, which is the head the pull request
     carries, and a human is asked. Records follow the reset rather than the
     intent -- a reset git refuses drops none of them, so the tick after a
-    repair still has the anchor to come back with. `settles_over_a_reset` is
-    what the workflow's recovery owes over a reset that landed, handed on to
-    the abort as every recovery road's is
-    (`_AutoRebaseRecoveryContext.settles_over_a_reset`), by the workflow's
-    recovery (`workflow/engine/rewrite_recovery.answers_an_unreadable_checkout`),
-    and so is what it asks before the park of a reset that did not land
-    (`proves_before_a_park`).
+    repair still has the anchor to come back with. `answers` are the
+    workflow recovery's, handed on to the abort's recovery context as every
+    recovery road's are (`_AutoRebaseRecoveryContext`), by the workflow's
+    recovery (`workflow/engine/rewrite_recovery.answers_an_unreadable_checkout`):
+    what it records before the reset (`records_before_a_reset`) and owes over
+    one that landed (`settles_over_a_reset`), what it asks before the park of
+    a reset that did not land (`proves_before_a_park`), and the park it
+    records either park through (`lands_a_park`).
     """
     return snapshot._abort_recovery_unverified(
         _AutoRebaseRecoveryContext(
@@ -195,8 +195,7 @@ def _answers_an_unreadable_checkout(
             pending_pre_rebase_sha=str(context.pending_pre_rebase_sha),
             pending_rewrite=_attempt_records._pending_rewrite(context.state),
             unparking_consumed_max=consumed_comment_id,
-            settles_over_a_reset=settles_over_a_reset,
-            proves_before_a_park=proves_before_a_park,
+            **answers,
         ),
         _UNREADABLE_CHECKOUT,
     )
@@ -225,6 +224,7 @@ def _held_anchor_context(gh, spec, issue, state, label) -> _AutoRebaseRecoveryCo
 def _answers_a_held_anchor(
     context: _AutoRebaseRecoveryContext,
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
+    lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None,
 ) -> None:
     """What an anchor the dispatcher holds a handler back for is owed.
 
@@ -251,9 +251,10 @@ def _answers_a_held_anchor(
     refresh of the same issue on this host -- and it asks for no claim of its
     own, which that hold would refuse. `proves_before_a_park` is what the
     workflow's recovery asks before the stranded park keeps the attempt
-    (`_AutoRebaseRecoveryContext.proves_before_a_park`).
+    (`_AutoRebaseRecoveryContext.proves_before_a_park`), and `lands_a_park`
+    the park it records that one through (`_AutoRebaseRecoveryContext.lands_a_park`).
     """
-    context = replace(context, proves_before_a_park=proves_before_a_park)
+    context = replace(context, proves_before_a_park=proves_before_a_park, lands_a_park=lands_a_park)
     if context.label in _PR_REFRESH_DETOUR_LABELS:
         if not context.worktree.is_dir():
             _restores_the_checkout(context.spec, context.issue.number, context.state)

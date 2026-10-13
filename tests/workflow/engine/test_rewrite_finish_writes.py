@@ -15,7 +15,6 @@ import unittest
 from functools import partial
 from types import MappingProxyType
 
-from orchestrator.workflow.engine import rewrite_finish as _finish
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
     rewrite_finish_effects_support as effects,
@@ -68,7 +67,7 @@ class GuardedWriteTest(unittest.TestCase):
                 world.another_road(**moved)
                 written = world.pinned()
 
-                outcome = _finish.finalizes(finish)
+                outcome = world.finalizes(finish=finish)
 
                 # Nothing said, routed, or written over that road's record, and
                 # no whole-state write puts the tick's reading back over it.
@@ -82,7 +81,7 @@ class GuardedWriteTest(unittest.TestCase):
         finish = world.finish()
         world.another_road(**{_UNKNOWN: "kept", support.KEY_LEDGER: [5, 6]})
 
-        self.assertEqual(_finish.finalizes(finish), FinishOutcome.ROUTED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.ROUTED)
 
         # The notice's entry joins the ledger beside the one another road added.
         durable = world.pinned()

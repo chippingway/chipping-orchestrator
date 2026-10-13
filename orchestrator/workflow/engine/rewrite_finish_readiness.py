@@ -8,25 +8,25 @@ announces the landing, relabels it to `workflow:validating`, and retires the
 attempt. A tick lost anywhere in that tail -- before the announcement, between
 its notice, its `base_rebased` event, and its checkpoint, between the
 checkpoint and the relabel, or between the relabel and the retirement --
-leaves the settled evidence current beside the standing attempt, for the
-recovery of the push already landed to route on a later tick. The settlement
-proved the evidence at its own moment; a route reads it at another, and an
-issue edited, a report or review record moved, the artifact edited or deleted
-under its receipt, a revision spent past it -- a newer transaction recorded
-beside it and then abandoned --, a command configured otherwise, or a landing
-or base that moved since leaves evidence that no longer answers for the head
-it would be routed with.
+leaves the settled evidence current beside the standing attempt, and the
+recovery of the push already landed finishes the route on a later tick from
+the announcement mark, the pull request, the event stream, and the label the
+dead tick left, with nothing decided, run, posted, or settled again. The
+settlement proved the evidence at its own moment; the route reads it at
+another, and an issue edited, a report or review record moved, the artifact
+edited or deleted under its receipt, a revision spent past it -- a newer
+transaction recorded beside it and then abandoned --, a command configured
+otherwise, or a landing or base that moved since leaves evidence that no
+longer answers for the head it would be routed with.
 
-These are the primitives a route that takes settled evidence as it stands
-proves it ready with (`stands_ready`), and they are dormant: no finish,
-recovery, announcement, dispatcher, or park road asks any of them yet, so the
-finish routes such evidence behind the settlement step's own record check and
-the last word over the landing and the base
-(`rewrite_finish_captured.stands_before_the_route`). The proof
-(`settled_word`) reads the evidence records over the issue and pinned comment
-read afresh, and the requirements of that issue, then, where they neither
-move nor hold, the readiness proof every reader relying on current evidence
-takes
+So every route that takes settled evidence as it stands -- the settling
+tick's own, every recovery of it, and one whose evidence step abandoned a
+newer transaction recorded beside it and left it current
+(`rewrite_finish_settlement.settles`) -- proves it ready again first
+(`stands_ready`). The proof (`settled_word`) reads the evidence records over
+the issue and pinned comment read afresh, and the requirements of that issue,
+then, where they neither move nor hold, the readiness proof every reader
+relying on current evidence takes
 (`verification_proof.current_evidence_verdict`), and behind it the last word
 over its binding (`rewrite_evidence_proof.last_word`), which reads the remote
 branch, the base, the requirements, the review and report records, and the
@@ -54,9 +54,9 @@ decided again: the evidence goes on as it settled, or into history as it was.
   never left for a later reading to find put back. A comment no longer
   carrying that evidence as current, an attempt another road put in place
   of this one, no room for the history entry, or neither write landing holds
-  the route instead, and the next proof reads the evidence again over what
-  it then reads; so does a pending record the invalidation's write finds
-  beside it (`beside_current`), the next finish's to answer. Where the
+  the route instead, and the next recovery proves the evidence again over
+  what it then reads; so does a pending record the invalidation's write
+  finds beside it (`beside_current`), the next finish's to answer. Where the
   comment still carries the evidence for this attempt and the invalidation
   did not land -- no room for its history entry, the comment filled while
   the proof was read, or a write refused or unconfirmed -- the movement is
@@ -81,17 +81,20 @@ decided again: the evidence goes on as it settled, or into history as it was.
   describes another pull request or head, which the proof refuses the evidence
   over as movement too.
 
-A write a finish makes behind the proof -- its announcement checkpoint or its
-retirement -- is refused by a report or review record another road moved
-while the notice was posted or the relabel made. Such a refusal, handed in
-as `rewrite_finish_writes.BINDING_MOVED` -- which no write of the finish
-collects yet -- is movement read under the evidence too, which
-`invalidates_behind` invalidates however soon the record is put back; any
-other refusal has the evidence proved ready once more. `settled_word` and
-`invalidates` are shaped for a recovery as well, over the evidence a finish
-of the attempt settled (`rewrite_landing_records.settled`, which no recovery
-reads yet either), wherever it would read the landing moving or keep the
-attempt for a human's reply.
+The finish's own announcement checkpoint and retirement come behind the
+proof, and a report or review record another road moves while the notice is
+posted or the relabel made refuses them. Such a refusal
+(`rewrite_finish_writes.BINDING_MOVED`) is movement read under the evidence
+too, which is invalidated before the finish stops (`invalidates_behind`)
+however soon the record is put back; any other refusal has the evidence
+proved ready once more.
+
+The recovery's helpers (`rewrite_landing_moved`) ask the same proof
+(`settled_word`) and the same invalidation (`invalidates`) of evidence a
+finish of the attempt settled (`rewrite_landing_records.settled`), wherever a
+snapshot reads the landing moving or a park would keep the attempt for a
+human's reply, so no reset, rollback park, or reply revives a decision the
+landing moved under.
 
 Nothing here runs the configured commands, posts an artifact, launches a
 developer, or announces anything.
@@ -203,9 +206,9 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Wor
     comment came to, so movement read before a comment that will not read
     again is never left for a later poll to find put back. Every reading's
     movement and every reading's hold are kept side by side, so none is
-    hidden behind another. What `stands_ready` routes over, and what a
-    recovery deciding whether a park may keep the attempt over `current` is
-    to ask.
+    hidden behind another. What `stands_ready` routes over, and what the
+    recovery asks before a park keeps the attempt over `current`
+    (`rewrite_landing_moved.abandons_unproved`).
     """
     read = _reads_again(finish) or (None, None)
     first = _records_heard(current, read[1], read[0])
@@ -281,11 +284,11 @@ def invalidates_behind(
 ) -> FinishOutcome | None:
     """`stopped`, behind invalidating evidence settled for the landed head that a refused write read moving under.
 
-    For a write a finish makes behind the proof -- its announcement
-    checkpoint or its retirement (`rewrite_finish`) -- guarded by the records
-    the evidence is bound through: a report or review record another road
-    wrote while the notice was posted, the relabel made, or the write itself
-    sent refuses the write. A refusal that named such a record
+    For the finish's announcement -- its checkpoint, its event's record, or
+    the debt's park -- and its retirement (`rewrite_finish`), each guarded by
+    the records the evidence is bound through: a report or review record
+    another road wrote while the notice was posted, the relabel made, or the
+    write itself sent refuses the write. A refusal that named such a record
     (`rewrite_finish_writes.BINDING_MOVED` in `observed`) is movement read
     under the evidence, so it is invalidated now (`invalidates`), the attempt
     and the newer records kept as the comment carries them, and putting the

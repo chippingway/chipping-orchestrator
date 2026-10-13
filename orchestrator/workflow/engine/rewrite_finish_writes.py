@@ -48,13 +48,13 @@ recorded as made onto too, which an abandonment with no room for its history
 entry blanks.
 `INVALIDATION` invalidates settled evidence a reading established movement
 under where the write staged on the comment read afresh would not land
-(`rewrite_finish_readiness.invalidates`, dormant: no road asks it yet):
-staged on the tick's own copy and decided only on the evidence records and
-the attempt -- landed without the publication's pinned fields among them
-(`lands`, `publication` False), so a pull request or branch another road
-repointed meanwhile is kept as it wrote it rather than refusing the write --
-so a failed reading of the comment does not leave a decision standing that a
-later reading, once the movement is put back, would take as current. It owns
+(`rewrite_finish_readiness.invalidates`): staged on the tick's own copy and
+decided only on the evidence records and the attempt -- landed without the
+publication's pinned fields among them (`lands`, `publication` False), so a
+pull request or branch another road repointed meanwhile is kept as it wrote it
+rather than refusing the write -- so a failed reading of the comment does not
+leave a decision standing that a later reading, once the movement is put back,
+would take as current. It owns
 the base tip the replay was recorded as made onto too, which an invalidation
 with no room for its history entry blanks -- decided on the current record
 as well, so a successor another road settled in that evidence's place is
@@ -215,11 +215,11 @@ _BOUND_MOVED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence is bound through moved under a write finishing the landing",
 )
 
-# The same reading where what moved is one of those records, and not only
-# the evidence records themselves, whose movement is a newer transaction for
-# the head to answer: a caller holding it invalidates settled evidence over it
-# (`rewrite_finish_readiness.invalidates_behind`). No write here collects it
-# yet; `_stopped` collects `_BOUND_MOVED` alone.
+# The same reading where what moved is a record settled evidence's binding
+# rests on -- the pull request, a report or its debt, a review subject -- and
+# not only the evidence records themselves, whose movement is a newer
+# transaction for the head to answer: settled evidence is invalidated over it
+# (`rewrite_finish_readiness.invalidates_behind`).
 BINDING_MOVED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved under a write finishing the landing",
 )
@@ -313,25 +313,27 @@ def abandons(finish: LandedFinish, stage: Callable[[PinnedState], bool]) -> bool
     return fits if lands(finish, staged, ABANDONMENT) is None else None
 
 
-def parks(finish: LandedFinish) -> FinishOutcome:
+def parks(finish: LandedFinish, observed: list[ReportEvidence] | None = None) -> FinishOutcome:
     """Park `finish`'s landing for want of room for its debt, prepared before the park's notice is posted.
 
     Nothing is reset and nothing is cleared: the pull request already carries
     the head, and the attempt is what the reply brings back to record the debt
     and finish the route once somebody has made room. A park that would not
-    land posts nothing.
+    land posts nothing. `observed` collects the movement a refusal read
+    (`_stopped`) -- a report record another road moved while the notice was
+    posted among it.
     """
     reason = _base_sync_state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT
     staged = staging(finish)
     staged.set(_base_sync_state._AWAITING_HUMAN, True)
     staged.set(_base_sync_state._PARK_REASON, reason)
-    stopped = prepares(finish, staged, PARK, notice=True)
+    stopped = prepares(finish, staged, PARK, observed, notice=True)
     if stopped is not None:
         return stopped
     message = _debt.unrecorded(finish)
     _guards._park_awaiting_human(finish.gh, finish.issue, staged, message, reason=reason)
     staged.set(_base_sync_state._PARK_REASON, reason)
-    return lands(finish, staged, PARK) or FinishOutcome.PARKED
+    return lands(finish, staged, PARK, observed) or FinishOutcome.PARKED
 
 
 def _stopped(
@@ -343,8 +345,9 @@ def _stopped(
 
     A refusal that names a record the evidence is bound through read that
     record moved, and that reading is appended to `observed` as the movement
-    it is (`_BOUND_MOVED`): the guard read it once, and whatever reads the
-    comment after may find it put back.
+    it is -- `BINDING_MOVED` where a record beyond the evidence records
+    themselves moved, `_BOUND_MOVED` otherwise: the guard read it once, and
+    whatever reads the comment after may find it put back.
     """
     stopped = _UNLANDED.get(outcome.status)
     if stopped is not None:
@@ -354,6 +357,7 @@ def _stopped(
             "posting, relabeling, and clearing nothing behind it",
             finish.issue.number, finish.head, why.value,
         )
-        if observed is not None and _BOUND.intersection(outcome.fields):
-            observed.append(_BOUND_MOVED)
+        moved = _BOUND.intersection(outcome.fields)
+        if observed is not None and moved:
+            observed.append(BINDING_MOVED if moved - _EVIDENCE_RECORDS else _BOUND_MOVED)
     return stopped

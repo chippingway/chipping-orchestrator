@@ -93,6 +93,10 @@ METHOD_FIELD = "method"
 
 REBASED_EVENT = "base_rebased"
 
+# The owner that resolves an issue's checkout path, which every reading the
+# workflow takes of the checkout by path goes through.
+_WORKTREE_PATH = "orchestrator.git.worktrees.paths._worktree_path"
+
 _AUTHOR_ENV = MappingProxyType(
     {
         "GIT_AUTHOR_NAME": "Dev",
@@ -318,6 +322,11 @@ class RecoveryGitFixtureMixin:
         # A retry publishes the candidate read against the remote's own answer
         # for its branch, so that reading goes to the bare remote as well.
         _remote_on_disk(self, SLUG, self.remote)
+        # The checkout the recovery is handed is the one the issue's path
+        # resolves to, as the refresh that walks it would have found it, so a
+        # reading the workflow takes of it by that path reads this clone.
+        resolved = mock.patch(_WORKTREE_PATH, lambda _spec, _issue: self.work)
+        self.enterContext(resolved)
 
     def recover(self, label: str = LABEL) -> bool:
         """Run the recovery the way the workflow's coordinator enters it; whether it owned the tick.

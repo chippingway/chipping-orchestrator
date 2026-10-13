@@ -183,7 +183,9 @@ so nothing is run or carried for its head. The recovery resumes that decision wi
 commands run again only where no completed run was captured, and a captured one is settled -- over an artifact an
 earlier post landed, found under its receipt -- and routed only once it proves again
 (`workflow/engine/rewrite_finish_captured.py`), one an earlier finish already settled is routed with nothing posted
-or settled again while nothing beside it says otherwise -- a newer transaction for the head is settled over it --
+or settled again while nothing beside it says otherwise and it proves ready again -- invalidated whole where anything
+it is bound to moved since it settled (`workflow/engine/rewrite_finish_readiness.py`), and a newer transaction for the
+head settled over it --
 and while the configuration it was taken under is still the one configured, being invalidated with nothing run
 again where it moved, and
 a captured one is
@@ -193,9 +195,9 @@ the landing read moving by the recovery's first snapshot -- or reset off by its 
 finish put on the attempt in the write that recorded it (`pending_auto_base_rebase_evidence_receipt`); any other is
 another road's, and kept as it wrote it. Every recovery park or hold that keeps the attempt for a later tick or a
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
-anything moved, so putting that input back before the attempt is taken up again revives nothing. Proving settled
-evidence ready again before its route, and invalidating it whole wherever anything it rests on moved, are dormant
-primitives no road asks yet (`workflow/engine/rewrite_finish_readiness.py`). A tick lost behind
+anything moved, so putting that input back before the attempt is taken up again revives nothing; evidence a finish
+already settled for the head is proved and invalidated the same way, and wherever the recovery reads the landing off
+that head before routing it. A tick lost behind
 the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
 checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
 recovery, which reads what was done off the mark, the pull request, the event stream, and the label

@@ -33,7 +33,7 @@ from orchestrator.workflow.engine import (
     stage_targets as _stage_targets,
     verification_transaction as _verification_transaction,
 )
-from orchestrator.workflow.engine.rewrite_landing_moved import abandons_unproved
+from orchestrator.workflow.engine.rewrite_recovery_parks import answers_a_held_anchor
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -383,7 +383,7 @@ def _anchor_holds_the_tick(
         "unpublished replay",
         spec.slug, issue.number, label,
     )
-    _recovery_holds._answers_a_held_anchor(held, abandons_unproved)
+    answers_a_held_anchor(held)
     return True
 
 
