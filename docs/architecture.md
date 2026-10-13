@@ -98,8 +98,8 @@ orchestrator/
   __main__.py           `python -m orchestrator` launch form over `cli.main`;
                         `run.sh` launches its `run` command
   runtime/              the polling process's own owners: the state one run
-                        carries, the command line, the log destinations,
-                        startup, one pass over
+                        carries, the `run` command's flags, the log
+                        destinations, startup, one pass over
                         the configured repos, the polling loop, when the
                         finished issues' artifacts may be reclaimed, which
                         process on the host may reclaim them and the one
