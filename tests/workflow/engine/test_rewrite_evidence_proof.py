@@ -5,8 +5,9 @@
 The proof again reads the issue and pinned comment afresh, and a proof that
 stopped at a reading nobody could take still answers with what the review and
 report records say moved. The base is refused by where the head stands against
-the tip its replay was recorded as made onto: gone elsewhere or unread holds,
-and rewound under the head or never recorded defers. The last word reads the
+the tip its replay was recorded as made onto, or against a tip the caller hands
+in: gone elsewhere or unread holds, and rewound under the head or never
+recorded defers. The last word reads the
 landing only where it is asked to, and answers with the first movement and the
 first hold side by side. None of them writes, runs, launches, or relabels
 anything.
@@ -21,7 +22,9 @@ from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, 
 from tests.workflow.engine import (
     rewrite_captured_test_support as captured_support,
     rewrite_finish_moves as moves,
+    rewrite_finish_readings as readings,
     verification_evidence_test_support as support,
+    verification_world_fixture as world,
 )
 
 _HOLD = ReportEvidenceVerdict.HOLD
@@ -84,6 +87,21 @@ class BaseStandingTest(unittest.TestCase, captured_support.CapturedEvidenceCase)
                 answered = None if found is None else (found.verdict, found.refusal)
                 self.assertEqual(answered, refused)
                 self.assert_dormant()
+
+
+    def test_a_tip_handed_in_holds_the_head_to_it(self) -> None:
+        # An attempt whose tip was blanked proves nothing of its own, and a
+        # caller holding a tip it counted is answered against that one.
+        state = self.gh.read_pinned_state(self.issue)
+        state.set(readings.KEY_REWRITE_BASE, None)
+        self.gh.write_pinned_state(self.issue, state)
+        finish = self.landed()
+
+        recorded = self.asks(_proof.standing_refusal, finish)
+        handed = self.asks(_proof.standing_refusal, finish, onto=world.BASE_TIP)
+
+        self.assertEqual((recorded.verdict, handed), (_DEFER, None))
+        self.assert_dormant()
 
 
 class LastWordTest(unittest.TestCase, captured_support.CapturedEvidenceCase):

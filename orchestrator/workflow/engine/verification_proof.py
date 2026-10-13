@@ -43,8 +43,10 @@ no request at all -- the recorded subject, the settled report pair as a
 reviewer's reader judges it before reading anything, that report named by the
 subject, and the reader's own rules for handing it beside that subject -- for
 a caller whose whole proof stopped at a reading nobody could take and that
-still has to hear what those records say moved. Its one reader is the evidence
-proof of a landed base rewrite (`rewrite_evidence_proof`).
+still has to hear what those records say moved. Its readers are the evidence
+proof of a landed base rewrite (`rewrite_evidence_proof`) and the readiness
+proof of the evidence such a rewrite's finish settled
+(`rewrite_finish_readiness`), which is dormant: no road asks it yet.
 
 `configured_context_revision` is the context both witnesses are held to: the
 configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, minted by the verify
