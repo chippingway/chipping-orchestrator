@@ -43,6 +43,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.documenting import (
     drift_reset as _drift_reset,
+    failed_pass as _failed_pass,
     models as _models,
     parks as _parks,
     state as _state,
@@ -168,6 +169,9 @@ def _unwinds_the_worktree(ctx: _models._DocumentingContext) -> bool:
     # behind, and relabel.
     ctx.state.set(_state._UNWIND_PENDING, False)
     ctx.state.set(_state._UNWIND_ASKED_AT, None)
+    # A failed pass a paused tick recorded is answered too: its commits were
+    # reset away, and the approval the next docs pass runs under is a new one.
+    _failed_pass._forget(ctx.state)
     ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     return True

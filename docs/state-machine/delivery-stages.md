@@ -2819,7 +2819,15 @@ because there it is the claim that this stage has already rerouted rather than a
      - `behind > 0` → park with `diverged_branch` (force-pushing would clobber the real PR head).
      - `ahead > 0` recovered commits → synthesize an `AgentResult` and skip the agent; the unified branch below pushes
        the recovered docs commit, pinned to the tip this count was taken against rather than to whatever the pull
-       request is standing on by then.
+       request is standing on by then. Not, whatever the counts, where `docs_launched_sha` still stands: an
+       Antigravity launch (steps 10–11) whose outcome nothing recorded — it fell short under a live pause, a quota
+       retirement the comment would not take withheld its tick, or the poller died with it out. That takes the park
+       the pass earned instead (`failed_pass._unfinished_pass_owed`, `_park_documenting_unvouched`, `agent_silent`
+       pinned and reported), dropping the record in its write, with nothing launched or pushed, for the
+       `/orchestrator continue` that reruns the pass — in a fresh conversation where one is owed (step 10); only a
+       pass that succeeds publishes what it left. The pre-tick base refresh holds the branch still while the record
+       stands (`git/base_sync/frozen`), so a base that advanced meanwhile is not rebased under the pass's commit and
+       pushed — nor, with no commit, pushed and the issue handed back to review — ahead of that park.
      - `(0, 0)` → fall through.
   8. **A pass whose commit the pull request already carries** (`_finished_settled_docs`), asked between the reading
      above and the run below. A `docs_settled_sha` receipt is left by any tick that published and did not finish. The
@@ -2844,9 +2852,18 @@ because there it is the claim that this stage has already rerouted rather than a
      pings as ready for a human to merge, from the moment this pass spawns until it finishes.
   10. Awaiting-human resume: rebuild the FULL docs prompt via `_build_documentation_prompt` (this may be the first time
      the session sees the docs-stage instructions), persist `docs_checked_sha=before_sha` BEFORE the spawn, then
-     `_resume_dev_with_text`.
+     `_resume_dev_with_text`. The `/orchestrator continue` that answers a failed pass's park comes through here, and
+     the conversation it runs in is the shared resume's to pick: one an Antigravity quota retired is never resumed,
+     so the prompt goes to a fresh conversation over the same worktree, under the pinned `dev_agent` command whatever
+     `DEV_AGENT` says by then, and charged to the issue's one lifetime run ledger — a ledger the stopped pass spent
+     refuses it (`agent_run_limit`). A tick with no trusted reply launches nothing (step 5). The commit the failed
+     pass left is still ahead of the remote, so a `DOCS: NO_CHANGE` from the rerun publishes it through the
+     `ahead > 0` push below rather than advancing past it.
   11. Fresh spawn: snapshot `before_sha`, persist `docs_checked_sha=before_sha` and `dev_agent` BEFORE invoking the
-      agent, build the prompt (issue body + recent comments + `DOCS: NO_CHANGE` marker contract), then run.
+      agent, build the prompt (issue body + recent comments + `DOCS: NO_CHANGE` marker contract), then run. Under a
+      pinned Antigravity command both spawning shapes first land `docs_launched_sha` (the head they launch on) alone
+      through the guarded commit (`failed_pass._armed`); a record that did not land holds the launch, and the tick
+      returns writing nothing. Every branch below that writes drops it in that write.
   12. Branch on result. Every success exit routes to `in_review` via `_advance_after_docs_push` /
       `_advance_after_docs_no_change`, which ratchets `pr_last_comment_id` past any issue-thread reply the resume
       consumed — the reply is dropped by in_review's own delivery-cursor read either way, so what the ratchet buys is
@@ -2868,12 +2885,21 @@ because there it is the claim that this stage has already rerouted rather than a
       - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
         pinned state (the pre-spawn `docs_checked_sha` / watermark writes are discarded), so the next process
         re-runs the docs pass. Precedes every branch below. The recovered `ahead > 0` path synthesizes a
-        non-interrupted result, so it is unaffected.
+        non-interrupted result, so it is unaffected. A run carrying an Antigravity failure record is ignored here
+        only where an OS signal killed its process (`_ignores_the_run`): a `CANCELED` or `INTERRUPTED` terminal the
+        CLI ended its own run on, which the shared guard reads as the sweep's kill, is a failed run the branches
+        below park, since dropping it would leave its commit for the recovered road to publish. A run this branch
+        ignores drops `docs_launched_sha` alone (`failed_pass._settle`), as does a launch never made, so the
+        recovered road still republishes the commit.
       - `paused` / `backlog` applied mid-run → same short-circuit as `interrupted`: `_paused_during_agent_run`
         re-reads a FRESHLY fetched issue after the initial-docs and awaiting-human resumes, and on a hit the handler
         returns WITHOUT pushing, posting the docs notice, advancing to `in_review`, ratcheting watermarks, or writing
         pinned state. The committed docs work stays on the branch and republishes through the `ahead > 0` recovered
-        path once the label is removed (the recovered path itself runs no agent, so it observes no live-pause window).
+        path once the label is removed (the recovered path itself runs no agent, so it observes no live-pause window)
+        — the tick drops `docs_launched_sha` alone for a run that succeeded, and leaves it standing for one that fell
+        short of success (the failed-run branch below), with no write to make: step 7 takes the park that pass
+        earned on the next tick. A quota retirement the comment would not take holds the tick the same way and
+        writes nothing at all, so the record stands for step 7 too, with the commit ahead of the remote or not.
       - `timed_out` → park (`agent_timeout`); where an account quota stopped the run, the shared question park's
         session-limit branch instead (`agent_silent` pinned, `agent_session_limit` reported). Nothing is published
         either way.
@@ -2881,6 +2907,18 @@ because there it is the claim that this stage has already rerouted rather than a
         session limit over any tree not proved clean instead (a status nobody could take included, which names no
         paths), the edits left on disk for the developer a bare continue resumes, since the dirty-tree park pins no
         retryable reason and would refuse that command.
+      - a run that fell short of success on a clean tree (`failed_pass._fell_short`): an unfinished tool step, an
+        Antigravity failure record — an error, cancelled, interrupted, or missing terminal result — or, under a
+        pinned Antigravity command, a process that exited nonzero behind a terminal that said it succeeded, which
+        keeps the response as its final message and no failure record → `_on_question`, handed no final message as
+        Antigravity hands back every run it failed, so a response is not parked as a question: park,
+        whatever the run committed, whatever tool calls it completed, and whatever `DOCS: NO_CHANGE` it wrote ahead
+        of the failure, since none of them is a pass that finished. Nothing is pushed and no `docs_verdict` is
+        stamped; the shared classifier parks it retryable — a quota pinned `agent_silent` and reported
+        `agent_session_limit`, an unfinished step pinned and reported `agent_execution_failed`, and an empty final
+        message pinned and reported `agent_silent`. A commit the run made stays on the branch, ahead of the remote,
+        for the rerun step 10 buys.
+        The recovered `ahead > 0` result carries no failure record, so that road publishes as the branch below.
       - new commit on a clean tree → **its subject normalized to one pull-request reference**, then the **size gate**
         every push onto an open pull request goes through (`implementing/late_push._publishes`, reached from
         `documenting/publication._push_docs_and_advance`). Under `PR_REF_IN_SUBJECT` (default on)

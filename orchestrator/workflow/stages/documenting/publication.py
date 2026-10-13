@@ -54,6 +54,7 @@ from orchestrator.workflow.late_split import (
     payloads as _payloads,
 )
 from orchestrator.workflow.stages.documenting import (
+    failed_pass as _failed_pass,
     handoff as _handoff,
     models as _models,
     parks as _parks,
@@ -97,11 +98,15 @@ def _stamp_docs_verdict(
     reads it as a pass still pending, skips the docs pass the approval just
     bought, and hands the issue to `in_review` a second time. Between two
     readings nothing can tell apart, running the pass is the safe one.
+
+    A failed pass a paused tick recorded goes too: this pass finished, so the
+    branch carries nothing a later tick must still park for.
     """
     state.set(_state._CHECKED_DOCS_SHA, checked_sha)
     state.set("docs_verdict", verdict)
     state.set("silent_park_count", 0)
     state.set(_state._SETTLED_DOCS_SHA, None)
+    _failed_pass._forget(state)
 
 
 def _post_docs_notice(ctx: _models._DocumentingContext, note: str) -> None:

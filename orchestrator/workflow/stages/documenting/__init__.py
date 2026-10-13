@@ -17,17 +17,20 @@ recovered-commit shortcut would push unreviewed.
 What the pass itself is worth is three more. `run` refreshes the branch,
 refuses a diverged worktree, and picks between the awaiting-human resume, the
 recovered-commit shortcut, and a fresh docs spawn. `outcomes` reads what the
-run left behind -- timeout, dirty tree, new commit, or a bare
-`DOCS: NO_CHANGE` -- and `publication` turns the surviving two into a push,
-a PR notice, and the stamped `docs_verdict`, entered on the commit `subject`
+run left behind -- timeout, dirty tree, a run its backend recorded as failed,
+new commit, or a bare `DOCS: NO_CHANGE` -- and `publication` turns the
+surviving two into a push, a PR notice, and the stamped `docs_verdict`,
+entered on the commit `subject`
 hands it once that commit's subject names the pull request. `handoff` is separate from both
 because it protects a stage this one does not run: the `pr_last_comment_id`
 ratchet is what carries in_review's watermark past the span a human reply the
 docs pass already consumed sits in.
 
-`parks` collects the four ways the tick stops for a human, over the records
-the owners hand each other (`models`) and the pinned-state keys they share
-(`state`).
+`failed_pass` says what a pass that did not finish is, and keeps the record an
+Antigravity launch lands before it runs, so a tick that ends writing nothing
+leaves the next one to park rather than publish what the pass left. `parks` collects the ways the tick stops
+for a human, over the records the owners hand each other (`models`) and the
+pinned-state keys they share (`state`).
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

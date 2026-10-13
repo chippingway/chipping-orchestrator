@@ -6,8 +6,12 @@ Both stages that read a final message as an agent's own have to tell these
 apart from an answer, so the samples they are told apart by live in one place:
 the observed refusal, and the successful answer that merely writes about it.
 Beside them is the quota stop that never reaches a final message at all: an
-Antigravity run whose failure record alone names the exhausted quota.
+Antigravity run whose failure record alone names the exhausted quota -- and the
+Antigravity run that wrote a response, which is its final message only where
+the terminal after it succeeded.
 """
+import signal
+
 from orchestrator.agents import models as _agent_models
 from orchestrator.agents.backends import agy as _agy
 from tests.support import agy_stream as _agy_stream
@@ -16,6 +20,10 @@ from tests.support import agy_stream as _agy_stream
 # the killed CLI gave.
 _TIMED_OUT_EXIT = -1
 _ACTIVE_TOOL = _agy_stream.ToolStream.tool_step(1, state="ACTIVE", args={"CommandLine": "pytest"})
+_COMPLETED_TOOL = _agy_stream.ToolStream.tool_step(1, args={"CommandLine": "git diff"}, out="docs/usage.md")
+
+# An error terminal that names no account quota.
+AGY_TERMINAL_ERROR = "Antigravity stream ended: upstream connection reset."
 
 
 # The #1408 shape, verbatim: the CLI hands a server-side refusal back through
@@ -55,4 +63,40 @@ def agy_quota_stop(*, timed_out: bool = False, unfinished: bool = False) -> _age
     exit_code = _TIMED_OUT_EXIT if timed_out else 1
     return _agy.agy_result(_agent_models.AgentRunOptions(), _agent_models.SubprocessResult(
         "\n".join(events), _agy_stream.QUOTA_PLAIN_STDERR, exit_code, timed_out, False,
+    ))
+
+
+def agy_responded(
+    response: str, *, error: str | None = None, status: str = _agy_stream.FAILURE, exit_code: int = 0,
+) -> _agent_models.AgentResult:
+    """A synthetic Antigravity run that completed a tool call and wrote `response`, normalized as a stage receives it.
+
+    The terminal after it succeeds unless `error` names what a failing
+    terminal carried instead -- an `ERROR` one unless `status` names another,
+    such as the `CANCELED` or `INTERRUPTED` AGY ends its own run on -- which
+    leaves the final message empty and the response nowhere but the stream:
+    the failure record keeps `error`, and names the quota where `error` is the
+    quota's own message. The process exits with `exit_code`, 0 unless named,
+    as a CLI that ended its own run does; a nonzero one behind a successful
+    terminal keeps the response as the final message and no failure record.
+    """
+    if error is None:
+        terminal = _agy_stream.terminal(response=response)
+    else:
+        terminal = _agy_stream.terminal(status, response=response, error=error)
+    events = (_agy_stream.init_event(), _COMPLETED_TOOL, _agy_stream.step(2, text_delta=response), terminal)
+    return _agy.agy_result(_agent_models.AgentRunOptions(), _agent_models.SubprocessResult(
+        "\n".join(events), "", exit_code, False, False,
+    ))
+
+
+def agy_signal_killed() -> _agent_models.AgentResult:
+    """A synthetic Antigravity run the shutdown sweep's SIGTERM killed after a completed tool call.
+
+    No terminal result was written, so the failure record names none, and the
+    process's own return is the signal's, which marks the run interrupted.
+    """
+    events = (_agy_stream.init_event(), _COMPLETED_TOOL)
+    return _agy.agy_result(_agent_models.AgentRunOptions(), _agent_models.SubprocessResult(
+        "\n".join(events), "", -signal.SIGTERM, False, True,
     ))

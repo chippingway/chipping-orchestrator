@@ -12,9 +12,10 @@ never sees its base again.
 Most of them end by being SPENT: the step that consumes the record drops it,
 so the freeze lasts exactly as long as the question it belongs to -- the terms
 a squash records before it rewrites the branch among them, dropped by whatever
-finishes or undoes that collapse, and a developer report recorded and not yet
-settled, dropped by the binding and settlement that publish it. Three do not,
-and they are the reason this is an owner rather than a tuple. An exemption and
+finishes or undoes that collapse, a developer report recorded and not yet
+settled, dropped by the binding and settlement that publish it, and an
+Antigravity docs launch, dropped by the write that records its outcome. Three
+do not, and they are the reason this is an owner rather than a tuple. An exemption and
 a publication record are invalidated by the head moving off them rather than
 by any write, so what answers for those is the checkout itself -- and, since
 neither is ever dropped, how long the STAGE that reads them keeps the issue,
@@ -151,6 +152,25 @@ _LATE_CLAIM_KEYS: tuple[str, ...] = (
 _REPORT_IN_FLIGHT_KEYS: tuple[str, ...] = (
     "developer_report_delivery",
     "developer_report_pending",
+)
+
+
+# The head an Antigravity docs pass was launched on, landed before the launch
+# and dropped by whatever write records that run's outcome, or proves it needs
+# none. One still standing when the refresh runs is a launch nothing answered
+# for -- a pass that fell short under a live pause, a tick a refused quota
+# retirement withheld, a poller that died with it out -- and the documenting
+# handler parks it for a human's continue, which reruns the pass over the
+# commit it left. A rebase before that park rewrites the commit and pushes it
+# to the pull request, and with nothing committed it pushes the base and hands
+# the issue back to review -- either way with no pass having finished, and
+# with the handler's park then taken over a branch that has already moved.
+#
+# It ends by being SPENT, like the report records above, and is read against
+# `null` the same way: a launch whose head could not be read records an empty
+# string, which still names a launch.
+_LAUNCH_IN_FLIGHT_KEYS: tuple[str, ...] = (
+    "docs_launched_sha",
 )
 
 
@@ -305,11 +325,14 @@ def _held_records(state: _pinned_state.PinnedState) -> tuple[str, ...]:
     another owner's -- a rebase under one is exactly what it exists to stop.
 
     A report in flight is read against `null`, the way its own owners ask
-    whether one is outstanding, so a record they cannot read still holds.
+    whether one is outstanding, so a record they cannot read still holds; so
+    is a docs launch whose outcome nothing has recorded yet.
     """
     held = tuple(key for key in _FROZEN_BY_KEYS if state.get(key))
     held += _late_claims(state)
-    held += tuple(key for key in _REPORT_IN_FLIGHT_KEYS if state.get(key) is not None)
+    held += tuple(
+        key for key in _REPORT_IN_FLIGHT_KEYS + _LAUNCH_IN_FLIGHT_KEYS if state.get(key) is not None
+    )
     return held + tuple(
         key for key in _LATE_COLLAPSE_KEYS if key in state.data
     )

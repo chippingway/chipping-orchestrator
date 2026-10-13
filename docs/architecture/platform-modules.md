@@ -615,7 +615,10 @@ orchestrator/
                         `null` -- freezes it too, since a delivery binds to whichever head the receipt names and a
                         transaction names the head it was written about, so a rewrite between would bind a report
                         to a head no developer read or strand it on one the pull request left; the binding and
-                        the settlement write each `null`, which ends that freeze -- the two parks that freeze one
+                        the settlement write each `null`, which ends that freeze. So does an Antigravity docs
+                        launch nothing answered for -- `docs_launched_sha` anything but `null` -- until the park
+                        that answers it drops it, since a rewrite first would publish what that pass left, or the
+                        base, as though a pass had finished -- the two parks that freeze one
                         with no record behind them at all
                         (a size reading nobody could take, and an implementer timeout whose watermark names a
                         commit not yet made), and the two no write ever ends (the accepted commit and the

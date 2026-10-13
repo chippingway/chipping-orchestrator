@@ -1,13 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The four ways a documenting tick stops and waits for a human, and one hold.
+"""The five ways a documenting tick stops and waits for a human, and one hold.
 
-Three of them go through `_park_documenting`, which re-stamps `park_reason`
+Two of them go through `_park_documenting`, which re-stamps `park_reason`
 after the shared HITL park cleared it: the tag is what a later tick branches on
 -- the awaiting-human resume reads it to tell a stale flag from a live park,
 `/orchestrator continue` keys its retry-or-refuse decision off it, and the
-refresh loop recognizes its own auto-rebase reasons in it. The fourth, the
-missing-`pr_number` park, is the one that must not repeat: it fires on a label
+refresh loop recognizes its own auto-rebase reasons in it. The
+missing-`pr_number` park is the one that must not repeat: it fires on a label
 an operator applied by hand and would otherwise re-post on every poll, so
 `awaiting_human` alone gates it.
 
@@ -16,6 +16,11 @@ composing their own notice, because both carry state this stage does not model
 -- the classified reason and the silent-park streak that eventually rotates a
 poisoned session, and the dirty-file count that rides on the event. Every park
 here writes pinned state, so the caller returns unconditionally.
+
+`_park_documenting_unvouched` is the one a tick takes without running anyone,
+for a launch whose outcome nothing recorded (`failed_pass`): what it left
+waits for the continue that reruns the pass rather than being published by
+the recovered-commit shortcut or rerun unasked.
 
 `_holds_the_delivery_cursor` is the hold, and it sits here rather than beside
 the road that needs it because it has to ride the park's OWN write. A drift
@@ -36,11 +41,15 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.documenting import (
+    failed_pass as _failed_pass,
     models as _models,
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import checkout_parks as _checkout_parks, parks as _dev_parks
 from orchestrator.workflow.state import WorkflowLabel
+
+# The retryable reason a bare continue reruns the docs pass on.
+_AGENT_SILENT = "agent_silent"
 
 
 def _park_documenting(
@@ -161,6 +170,31 @@ def _park_documenting_dirty(
         dirty,
     )
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+
+
+def _park_documenting_unvouched(ctx: _models._DocumentingContext, ahead: int) -> None:
+    """Take the park a docs pass that did not finish earned, rather than publish or rerun it unasked.
+
+    Retryable under `agent_silent`, as the park the pass never recorded would
+    have been, so a bare continue reruns the full docs prompt -- in a fresh
+    conversation where the issue owes one -- and only a pass that succeeds
+    publishes what this one left. The record the launch landed goes in the
+    same write: the park now answers for it. Writes pinned state.
+    """
+    _failed_pass._forget(ctx.state)
+    _park_documenting(
+        ctx,
+        f"{config.HITL_MENTIONS} a docs pass was launched on this branch and "
+        "its outcome was never recorded as a success -- it failed while this "
+        "issue was paused, its account quota stopped it, or the orchestrator "
+        "stopped before recording it -- so nothing it left is published or "
+        f"rerun unasked; this branch carries {ahead} docs commit(s) its pull "
+        "request does not. Once whatever stopped it has cleared -- an "
+        "exhausted account quota, once it resets -- reply with exactly "
+        "`/orchestrator continue` to rerun the docs pass over this checkout; "
+        "only a pass that succeeds publishes anything or advances the issue.",
+        _AGENT_SILENT,
+    )
 
 
 def _park_documenting_question(

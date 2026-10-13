@@ -317,8 +317,13 @@ class HandleDocumentingDriftRouteTest(unittest.TestCase, _DocumentingDriftFixtur
         # against the new requirements. With `SQUASH_ON_APPROVAL=off`
         # this is particularly dangerous because the reviewer-approved
         # head is still the dev's PR head (no rewrite gap) so the
-        # stale commit applies cleanly.
-        gh, issue = self._seeded(park_reason=PARK_PUSH_FAILED)
+        # stale commit applies cleanly. The record of the launch that made
+        # that commit goes with it, so the docs pass the next approval buys is
+        # not parked over commits that are gone.
+        gh, issue = self._seeded(
+            park_reason=PARK_PUSH_FAILED,
+            docs_launched_sha=documenting_support.SHA_BEFORE,
+        )
         issue.body = UPDATED_BODY_AFTER_DOCS
 
         capture = _run_drift_reconcile(
@@ -348,6 +353,7 @@ class HandleDocumentingDriftRouteTest(unittest.TestCase, _DocumentingDriftFixtur
 
         pinned_state = gh.pinned_data(self.issue_number)
         self.assertEqual(pinned_state.get(REVIEW_ROUND), 0)
+        self.assertIsNone(pinned_state.get("docs_launched_sha"))
 
     def test_body_edit_resets_dirty_without_commit(
         self,

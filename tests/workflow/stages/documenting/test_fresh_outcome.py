@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git.publication.commits import _Amendment
+from tests.support import agy_stream as stream
+from tests.workflow.agent_failure_values import AGY_TERMINAL_ERROR, agy_quota_stop, agy_responded
 from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _agent,
@@ -313,6 +315,98 @@ class HandleDocumentingFreshOutcomeTest(
         self.assertEqual(state.get(PARK_REASON), PARK_AGENT_TIMEOUT)
         self.assertIn("agent timed out", gh.posted_comments[-1][1])
 
+
+# What an Antigravity docs pass wrote, each discussing the quota a successful
+# answer may write about: the change it committed, and the verdict it gave.
+COMMITTED_RESPONSE = "Documented how an `Individual quota reached` stop parks until the quota resets."
+NO_CHANGE_RESPONSE = "The `Individual quota reached` park is already documented.\nDOCS: NO_CHANGE"
+SESSION_LIMIT = "agent_session_limit"
+
+# What AGY's terminal says where it cancelled its own run, with no signal sent.
+SELF_CANCELLED = "Antigravity command cancelled"
+
+# Antigravity docs passes that failed, beside the head each left the checkout
+# on and the park the shared question classifier reports: a quota terminal
+# with an empty final output, over a head nothing moved and over a commit; a
+# completed tool call and a response closing on `DOCS: NO_CHANGE` ahead of a
+# quota terminal (the #1917 shape); and a commit, a completed tool call, and a
+# response ahead of an error terminal that names no quota, and ahead of the
+# `CANCELED` and `INTERRUPTED` terminals AGY ends its own run on -- which mark
+# the run interrupted, though no shutdown sweep killed it. Last, a terminal
+# that said it succeeded behind a process that exited nonzero, which leaves no
+# failure record and the response as the final message: over a commit, and
+# closing on `DOCS: NO_CHANGE` with none.
+FAILED_PASSES = (
+    (agy_quota_stop(), SHA_BEFORE, SESSION_LIMIT),
+    (agy_quota_stop(), SHA_AFTER, SESSION_LIMIT),
+    (agy_responded(NO_CHANGE_RESPONSE, error=stream.QUOTA_MESSAGE), SHA_BEFORE, SESSION_LIMIT),
+    (agy_responded(COMMITTED_RESPONSE, error=AGY_TERMINAL_ERROR), SHA_AFTER, PARK_AGENT_SILENT),
+    (agy_responded(COMMITTED_RESPONSE, error=SELF_CANCELLED, status="CANCELED"), SHA_AFTER, PARK_AGENT_SILENT),
+    (agy_responded(COMMITTED_RESPONSE, error=SELF_CANCELLED, status="INTERRUPTED"), SHA_AFTER, PARK_AGENT_SILENT),
+    (agy_responded(COMMITTED_RESPONSE, exit_code=1), SHA_AFTER, PARK_AGENT_SILENT),
+    (agy_responded(NO_CHANGE_RESPONSE, exit_code=1), SHA_BEFORE, PARK_AGENT_SILENT),
+)
+
+# The same responses under a successful terminal, beside the head each left,
+# the verdict the pass is stamped with, and how many pushes publish it.
+SUCCEEDED_PASSES = (
+    (agy_responded(COMMITTED_RESPONSE), SHA_AFTER, VERDICT_UPDATED, 1),
+    (agy_responded(NO_CHANGE_RESPONSE), SHA_BEFORE, VERDICT_NO_CHANGE, 0),
+)
+
+# The keys an Antigravity pass's outcome is read back under, beside the pinned
+# fields: the pushes made, the labels moved, and the parks reported.
+PUSHES = "pushes"
+LABELS = "labels"
+REPORTED = "reported"
+HANDED_TO_REVIEW = ((_FreshDocumentingFixture.issue_number, IN_REVIEW),)
+
+
+class AgyDocsOutcomeTest(unittest.TestCase, _FreshDocumentingFixture):
+    """What an Antigravity docs pass earns is decided by whether its terminal succeeded."""
+
+    def test_failed_pass_parks_unpublished(self) -> None:
+        # Neither the commit the pass made, nor the tool call it completed, nor
+        # a `DOCS: NO_CHANGE` it wrote ahead of the error is a pass that
+        # finished: nothing is pushed, no verdict is stamped, the label stays,
+        # and the shared classifier parks it -- the quota as the session limit,
+        # the other error as a silent exit -- under the retryable reason a bare
+        # continue answers.
+        for case, (agent_result, head, reported) in enumerate(FAILED_PASSES):
+            with self.subTest(case=case):
+                self.assertEqual(self._left_by(agent_result, head), {
+                    PUSHES: 0, LABELS: (), DOCS_VERDICT: None, AWAITING_HUMAN: True,
+                    PARK_REASON: PARK_AGENT_SILENT, REPORTED: [reported],
+                })
+
+    def test_succeeded_pass_advances(self) -> None:
+        # A successful terminal is a finished pass however its prose talks
+        # about a quota: a commit is published, the verdict is stamped, and the
+        # issue is handed to in_review without a park.
+        for agent_result, head, verdict, pushes in SUCCEEDED_PASSES:
+            with self.subTest(verdict=verdict):
+                self.assertEqual(self._left_by(agent_result, head), {
+                    PUSHES: pushes, LABELS: HANDED_TO_REVIEW, DOCS_VERDICT: verdict, AWAITING_HUMAN: False,
+                    PARK_REASON: None, REPORTED: [],
+                })
+
+    def _left_by(self, agent_result, head) -> dict:
+        """What a fresh pass on the pinned Antigravity conversation left, run on a branch in sync.
+
+        The pass returns `agent_result` with the checkout's HEAD on `head`.
+        """
+        github, issue = self._seeded(dev_agent=stream.SPEC, dev_session_id=stream.SESSION_ID)
+        pushes = self._run_documenting(
+            github, issue, run_agent=agent_result, head_shas=[SHA_BEFORE, head],
+        )[PUSH_BRANCH].call_count
+        state = github.pinned_data(self.issue_number)
+        parks = (event for event in github.recorded_events if event["event"] == "park_awaiting_human")
+        return {
+            PUSHES: pushes,
+            LABELS: tuple(github.label_history),
+            **{key: state.get(key) for key in (DOCS_VERDICT, AWAITING_HUMAN, PARK_REASON)},
+            REPORTED: [park["reason"] for park in parks],
+        }
 
 
 # A head somewhere other than the replacement HEAD was just moved onto:

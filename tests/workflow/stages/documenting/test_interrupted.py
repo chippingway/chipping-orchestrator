@@ -5,12 +5,14 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.engine import content_hash as _content_hash
+from tests.support import agy_stream as stream
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
     FakeUser,
     make_issue,
 )
+from tests.workflow.agent_failure_values import agy_signal_killed
 from tests.workflow.fixtures import (
     AGENT_RUN_CHARGE_WRITES,
     MEASURED_CANDIDATE_SHA,
@@ -76,6 +78,9 @@ DOCS_ARCHITECTURE = "docs/architecture.md"
 # --- Mock keys returned by `_PatchedWorkflowMixin._run` -----------------
 RUN_AGENT = "run_agent"
 PUSH_BRANCH = "_push_branch"
+# What an Antigravity docs launch writes of its own record: landed ahead of the
+# run, and dropped once the run proves to need none.
+LAUNCH_RECORD_WRITES = 2
 
 UNCOMMITTED_CHANGE = "uncommitted change"
 TRUSTED_AUTHOR = "alice"
@@ -148,7 +153,7 @@ PARK_COMMENT_ID = 950
 HUMAN_REPLY_ID = 1100
 
 
-def _interrupted_fixture():
+def _interrupted_fixture(dev_agent: str = DEV_AGENT):
     github = FakeGitHubClient()
     issue = make_issue(INTERRUPTED_ISSUE_NUMBER, label=DOCUMENTING)
     github.add_issue(issue)
@@ -156,7 +161,7 @@ def _interrupted_fixture():
         INTERRUPTED_ISSUE_NUMBER,
         pr_number=INTERRUPTED_PR_NUMBER,
         branch=_branch(INTERRUPTED_ISSUE_NUMBER),
-        dev_agent=DEV_AGENT,
+        dev_agent=dev_agent,
         dev_session_id=DEV_SESSION,
         user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
     )
@@ -206,6 +211,32 @@ class HandleDocumentingInterruptedTest(unittest.TestCase, _DocumentingWorkflowMi
             "timed out",
             _issue_comment_text(gh, INTERRUPTED_ISSUE_NUMBER),
         )
+
+    def test_signal_killed_agy_pass_keeps_state(self) -> None:
+        # The sweep's SIGTERM killed an Antigravity docs pass after it
+        # committed. The failure record that run carries is no cancellation of
+        # its own -- the process's return is the signal's -- so it is ignored
+        # like any other kill: nothing parks and nothing is published, and the
+        # only writes beside the run's charge are the launch's record and its
+        # drop, so the next process republishes the commit as recovered work.
+        gh, issue, before_writes = _interrupted_fixture(stream.SPEC)
+
+        mocks = self._run_documenting(
+            gh,
+            issue,
+            run_agent=agy_signal_killed(),
+            head_shas=[SHA_BEFORE, SHA_AFTER],
+            branch_ahead_behind=(0, 0),
+        )
+
+        self.assertEqual(
+            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES + LAUNCH_RECORD_WRITES,
+        )
+        mocks[PUSH_BRANCH].assert_not_called()
+        self.assertEqual((gh.label_history, gh.posted_comments), ([], []))
+        state = gh.pinned_data(INTERRUPTED_ISSUE_NUMBER)
+        self.assertFalse(state.get(AWAITING_HUMAN))
+        self.assertIsNone(state.get("docs_launched_sha"))
 
     def test_awaiting_human_resume_keeps_reply(
         self,

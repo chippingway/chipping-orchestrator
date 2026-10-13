@@ -2,16 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+from dataclasses import replace
+from unittest.mock import MagicMock, patch
+
+from orchestrator import config
+from orchestrator.github.labels import PAUSED_LABEL
 from orchestrator.workflow.engine import content_hash as _content_hash
+from tests.support import agy_stream as stream
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
+    FakeLabel,
     FakeUser,
     make_issue,
 )
+from tests.workflow.agent_failure_values import agy_quota_stop, agy_responded
 
 # --- Workflow labels this stage routes between --------------------------
 from tests.workflow.fixtures import (
+    _FAKE_WT,
     MEASURED_CANDIDATE_SHA,
     _open_pr_for,
 )
@@ -145,6 +154,9 @@ PARK_COMMENT_ID = 950
 HUMAN_REPLY_ID = 1100
 
 
+_CONTINUE = "/orchestrator continue"
+
+
 def _continue_comment(body: str) -> FakeComment:
     return FakeComment(
         id=CONTINUE_COMMENT_ID,
@@ -177,6 +189,130 @@ class _ContinueDocumentingFixture(_DocumentingWorkflowMixin):
             gh, issue_number=number, pr_number=CONTINUE_PR_NUMBER,
         )
         return gh, issue
+
+
+# An issue whose Antigravity docs pass is stopped after it committed -- by a
+# quota unless named otherwise: the requirements and the trusted guidance its
+# thread carried before the pass.
+QUOTA_ISSUE_NUMBER = 732
+QUOTA_ISSUE_BODY = "Add the --dry-run flag and say what it skips."
+EARLIER_GUIDANCE = "Mention --dry-run in the README's usage section."
+_EARLIER_GUIDANCE_ID = 800
+# The commit the stopped pass left on the branch, unpublished, and the
+# conversation a continue opens in its place.
+SHA_STOPPED = documenting_support.SHA_UNREFERENCED
+FRESH_SESSION = "fresh-docs-conversation"
+_CONFIRMED = replace(
+    agy_responded("The preserved commit documents --dry-run.\nDOCS: NO_CHANGE"),
+    session_id=FRESH_SESSION,
+)
+# What the checkout's head reads as across the stopped pass's tick: the head it
+# began on, the commit it made, and the replacement a publication of that commit
+# would amend it into -- so a pass that did publish it would push rather than
+# park.
+_COMMITTED = (SHA_BEFORE, SHA_STOPPED, SHA_DOCS)
+# The pinned Antigravity command, in the issue's checkout, that every pass on
+# the issue launches under.
+PINNED_IN_CHECKOUT = (stream.BACKEND, _FAKE_WT, stream.ARGS)
+_REPLY_GAP = 100
+
+
+class _RefusedOnceSpawned:
+    """The issues whose pinned-comment edits GitHub refuses, read as: this issue, once an agent spawned on it."""
+
+    def __init__(self, gh) -> None:
+        self._gh = gh
+        self._spawned_before = self._spawns()
+
+    def __contains__(self, issue_number) -> bool:
+        return issue_number == QUOTA_ISSUE_NUMBER and self._spawns() > self._spawned_before
+
+    def _spawns(self) -> int:
+        return sum(event["event"] == "agent_spawn" for event in self._gh.recorded_events)
+
+
+class _AgyContinueDocumentingFixture(_DocumentingWorkflowMixin):
+    """One Antigravity docs issue whose fresh pass stops after it committed, ticked off one launch mock.
+
+    The launch mock answers the stopped pass and then a successful
+    `DOCS: NO_CHANGE` from the conversation `FRESH_SESSION` names, so every
+    launch the issue's ticks make reads back off it in order.
+    """
+
+    def _stopped(self, held=None, *, stop=None, head_shas=_COMMITTED):
+        """The issue once its stopped pass returned, and the launch mock every later tick shares.
+
+        `stop` is what that pass returned, a quota stop unless named, and
+        `held`, handed the client, the hold its tick runs under; without one
+        GitHub takes every edit and the disposition reads the pass. The pass
+        commits unless `head_shas` reads otherwise.
+        """
+        gh = FakeGitHubClient()
+        issue = make_issue(QUOTA_ISSUE_NUMBER, label=DOCUMENTING, body=QUOTA_ISSUE_BODY)
+        issue.comments.append(
+            FakeComment(id=_EARLIER_GUIDANCE_ID, body=EARLIER_GUIDANCE, user=FakeUser(TRUSTED_AUTHOR)),
+        )
+        gh.add_issue(issue)
+        gh.seed_state(
+            QUOTA_ISSUE_NUMBER,
+            pr_number=CONTINUE_PR_NUMBER,
+            branch=_branch(QUOTA_ISSUE_NUMBER),
+            dev_agent=stream.SPEC,
+            dev_session_id=stream.SESSION_ID,
+            last_action_comment_id=PICKUP_COMMENT_ID,
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
+        )
+        _open_pr_for(gh, issue_number=QUOTA_ISSUE_NUMBER, pr_number=CONTINUE_PR_NUMBER)
+        run_agent = MagicMock(side_effect=[stop or agy_quota_stop(), _CONFIRMED])
+        with (held or self._edits_taken)(gh):
+            self._run_documenting(
+                gh,
+                issue,
+                run_agent=run_agent,
+                head_shas=head_shas,
+                branch_ahead_behind=(0, 0),
+            )
+        return gh, issue, run_agent
+
+    def _paused_meanwhile(self, gh):
+        """An operator's pause the fresh issue read after the run finds."""
+        view = make_issue(QUOTA_ISSUE_NUMBER, label=DOCUMENTING)
+        view.labels.append(FakeLabel(PAUSED_LABEL))
+        return patch.object(gh, "get_issue", return_value=view)
+
+    def _retirement_refused(self, gh):
+        """GitHub refusing every pinned-comment edit once the agent has spawned, so a quota's retirement does not land.
+
+        The record the launch lands ahead of the run is taken; only what the
+        run's return writes is refused.
+        """
+        return patch.object(gh.pinned_failures, "refused", _RefusedOnceSpawned(gh))
+
+    def _edits_taken(self, gh):
+        """The ordinary world, where GitHub takes every pinned-comment edit."""
+        return patch.object(gh.pinned_failures, "refused", set())
+
+    def _tick(self, gh, issue, run_agent, *, head_shas=(SHA_STOPPED, SHA_DOCS), ahead=1):
+        """One later tick over the checkout the stopped pass left `ahead` commits ahead of its pull request.
+
+        Unless named, its head reads find the stopped pass's commit and then
+        the replacement a publication of it would amend it into.
+        """
+        return self._run_documenting(
+            gh, issue, run_agent=run_agent, head_shas=head_shas, branch_ahead_behind=(ahead, 0),
+        )
+
+    def _continue(self, gh, issue) -> None:
+        """A trusted bare continue above everything the thread and the park's watermark already hold."""
+        thread = [posted.id for posted in issue.comments]
+        newest = max([gh.pinned_data(issue.number)[LAST_ACTION_COMMENT_ID], *thread])
+        issue.comments.append(
+            FakeComment(id=newest + _REPLY_GAP, body=_CONTINUE, user=FakeUser(TRUSTED_AUTHOR)),
+        )
+
+    def _configured_elsewhere(self):
+        """A configured developer command other than the Antigravity one the issue pinned."""
+        return patch.multiple(config, DEV_AGENT_SPEC=DEV_AGENT, DEV_AGENT=DEV_AGENT, DEV_AGENT_ARGS=())
 
 
 class _ParkedDocumentingFixture(_DocumentingWorkflowMixin):
