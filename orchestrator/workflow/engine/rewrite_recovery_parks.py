@@ -49,8 +49,11 @@ invalidating a settled one whole once the comment has room. The blank is
 made ahead of every reset whose attempt records a tip, whatever evidence the
 tick read, and decided on every evidence record as the tick read them, so
 evidence another road recorded or settled since refuses it, and evidence
-settled behind it reads it as movement. A blank that does not land holds the
-tick with nothing reset. A reset git refused moved nothing, and the git owner
+settled behind it reads it as movement. A blank refused or never confirmed
+holds the tick with nothing reset or cleaned, and the tick's state, which
+still carries the tip, is withheld from every whole-state write behind it, so
+a blank that landed with its answer lost is never put back. A reset git
+refused moved nothing, and the git owner
 stages the tip back for the park that keeps the attempt, so the evidence
 stands for that park's proof as it did before.
 
@@ -191,7 +194,9 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     the blank reads it as movement. An attempt with no tip proves no base for
     any evidence already. True where nothing needed recording or the blank
     landed; False, logged, where it was refused or went unconfirmed, for the
-    git owner to hold with nothing reset.
+    git owner to hold with nothing reset or cleaned -- the tick's state
+    withheld by the commit (`ReportCommit.withholds`), so its stale tip is
+    never written back over a blank that landed unconfirmed.
     """
     if not _attempt_records._recorded_onto(context.state):
         return True

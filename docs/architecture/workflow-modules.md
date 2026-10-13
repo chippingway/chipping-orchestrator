@@ -1989,7 +1989,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             tip is blanked in a write of its own (`records_the_reset`, the answer
                             `records_before_a_reset` would carry), decided on every evidence record and the attempt as
                             the tick read them (`rewrite_finish_writes.INVALIDATION`), so evidence settled since refuses
-                            it and a blank that does not land holds with nothing reset; and the proof before a park
+                            it, and a blank refused or never confirmed holds with nothing reset or cleaned, the tick's
+                            state withheld so its stale tip is never written back over a blank that landed unconfirmed;
+                            and the proof before a park
                             that keeps the attempt (`proves_before_a_park`) records the same blank first over a
                             checkout gone from disk
     rewrite_landing_records.py

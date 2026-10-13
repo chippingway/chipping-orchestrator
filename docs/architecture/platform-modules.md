@@ -780,9 +780,9 @@ orchestrator/
                         attempt with nothing dropped or parked, so the captured-only answer's None releases it as
                         it always has (`_releases_over_the_reset`). A context carrying a record of the reset
                         (`records_before_a_reset`) has it made before the reset moves anything (`_resets`), so a
-                        process lost behind it leaves nothing a checkout put back revives; one it could not record
-                        is not made, and one git refused has the base tip that record blanked staged back for the
-                        park. The park's notice is the
+                        process lost behind it leaves nothing a checkout put back revives; one whose record was
+                        refused or went unconfirmed is not made, nor is the clean behind it, and one git refused has
+                        the base tip that record blanked staged back for the park. The park's notice is the
                         caller's reason followed by what the reset, the clean, and the drop came to
                         (`_reset_outcome`), so a reset that failed is never reported as made, and the drop is said
                         as what the park's own write makes durable, since the notice goes out ahead of it. Every

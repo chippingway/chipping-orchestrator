@@ -367,8 +367,9 @@ def _resets(
     every later proof of the decision reads as movement -- decided on the
     decision's records as the tick read them, so one another road made since
     refuses it, and the reset is never made under a decision the tick did not
-    see. None where that record did not land, logged: nothing is reset,
-    dropped, or parked, and the next tick asks again. A reset git refused
+    see. None where that record was refused or went unconfirmed, logged:
+    nothing is reset, cleaned, dropped, or parked, and the next tick asks
+    again. A reset git refused
     moved nothing, so the tip is staged back on the state for the park that
     keeps the attempt to write, and the decision stands for the proof that
     park asks first, as it did before the record. A context with no recorder
