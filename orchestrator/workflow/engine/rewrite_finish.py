@@ -286,7 +286,7 @@ def _vouched(finish: LandedFinish) -> bool:
     return terms and recorded.sha in {"", finish.head}
 
 
-def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
+def _checkpoints(finish: LandedFinish, observed: list, *, announced: bool) -> FinishOutcome | None:
     """Make the debt durable, and announce the landing where nothing has yet; None to go on to the route.
 
     Asked once the landed head's evidence is resolved (`_resolves`), so a
@@ -321,7 +321,6 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     """
     staged = _writes.staging(finish)
     measured = _writes.staging(finish) if announced else _debt.announcement(staged, finish.head)
-    observed: list = []
     if not _debt.stages(finish, staged, measured):
         try:
             stopped = _writes.parks(finish, observed)
@@ -372,17 +371,30 @@ def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     the park keeps it current for the reply that brings the route back, so
     anything read moving under it now is invalidated before the park, and
     putting that back before the reply revives nothing; a proof that holds
-    holds the park too. A checkpoint that did not land, or the park, stops the
-    route behind the last word over a transaction still recorded for the head.
+    holds the park too, and so is a transaction an earlier finish captured for
+    it, abandoned where it moved (`rewrite_finish_captured.stands_before_the_route`).
+    A checkpoint that did not land, or the park -- refused, unconfirmed, or
+    raised -- stops the route behind the last word over a transaction still
+    recorded for the head, handed the movement a guarded write's refusal read
+    (`rewrite_finish_writes.BINDING_MOVED`) as its proof, so a record put back
+    before that word revives nothing.
     """
     if _debt.fits(finish, announced=announced):
         stopped = _settlement.resolves(finish)
     else:
         stopped = _settlement.stands_ready_if_settled(finish)
+        if stopped is None and _captured.recorded(finish, logged=False) is not None:
+            stopped = _captured.stands_before_the_route(finish)
     if stopped is not None:
         return stopped
-    stopped = _checkpoints(finish, announced=announced)
-    return None if stopped is None else _captured.stands_before_the_route(finish, behind=stopped)
+    observed: list = []
+    try:
+        stopped = _checkpoints(finish, observed, announced=announced)
+    except Exception:
+        _captured.stands_before_the_route(finish, behind=FinishOutcome.UNCONFIRMED)
+        raise
+    moved = observed[0] if observed else None
+    return None if stopped is None else _captured.stands_before_the_route(finish, proof=moved, behind=stopped)
 
 
 def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> FinishOutcome:

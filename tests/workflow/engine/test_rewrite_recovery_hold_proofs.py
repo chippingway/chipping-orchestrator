@@ -29,7 +29,8 @@ binding kept, the run made once -- and putting it back revives nothing:
   nothing parked, so report 2 put back, with the label or the room the park
   asked for, routes the head with nothing current; and the debt park's record
   refused over report 3 settled while its notice was posted, which invalidates
-  the run the same way.
+  the run the same way -- and abandons a run only captured, even with report 2
+  put back right behind that refusal, the run never made again.
 """
 from __future__ import annotations
 
@@ -42,6 +43,7 @@ from unittest.mock import patch
 from orchestrator.git.base_sync import rewrite_facts
 from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.workflow.engine import (
+    rewrite_finish_writes as _writes,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
@@ -54,7 +56,7 @@ from tests.workflow.engine import (
     rewrite_verification_recovery_support as support,
     verification_report_fixture as _report,
 )
-from tests.workflow.interleaving import _RacesPastTheCall
+from tests.workflow.interleaving import _RacesPastTheCall, _RacesPastTheStep
 
 _EDITED_BODY = "Also cover a base that moved twice."
 
@@ -345,18 +347,44 @@ class ParkNoticeProofTest(_HoldCase, unittest.TestCase):
                 self.assert_invalidated(standing=None)
                 self.assert_routed_once(head)
 
-    def _settles_under_the_notice(self, head: str, *, raises: bool) -> dict:
-        """Recover with report 3 of `head` settled as the first notice is posted, its answer lost where `raises`.
+    def test_a_debt_park_abandons_a_captured_run(self) -> None:
+        # The run was only captured: report 3 settled while the debt park's
+        # notice is posted refuses the park's record -- report 2 put back
+        # right behind that refusal -- or is followed by the post's answer
+        # lost, and either way the run is abandoned whole before the finish
+        # stops; room made, the head is routed with nothing current.
+        for raises in (False, True):
+            with self.subTest(raised=raises):
+                self.setUp()
+                head, captured = self.captures()
+                finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
+                self._puts_back(self._settles_under_the_notice(head, raises=raises, restores=not raises))
 
-        What report 3 moved, as it read before.
-        """
+                self.assert_abandoned(captured)
+                finish_moves.makes_room(self)
+                self.recovers()
+                self.assert_abandoned(captured)
+                self.assert_routed_once(head)
+
+    def _settles_under_the_notice(self, head: str, *, raises: bool, restores: bool = False) -> dict:
+        """Recover with report 3 of `head` settled as a notice posts, lost where `raises`, put back where `restores`."""
         replaced: list = []
         moves = partial(_settles_a_later_report, self, head, replaced)
         if raises:
             moves = partial(_loses_the_answer, moves)
-        with patch.object(self.gh, "comment", _RacesPastTheCall(self.gh.comment, 1, moves)):
+        restored = _RacesPastTheStep(_writes.lands, partial(self._puts_back_once, replaced, restores))
+        with (
+            patch.object(self.gh, "comment", _RacesPastTheCall(self.gh.comment, 1, moves)),
+            patch.object(_writes, "lands", restored),
+        ):
             self.recovers()
         return replaced[0]
+
+    def _puts_back_once(self, replaced: list, restores: bool) -> None:
+        """Write back what report 3 moved, once it moved, where `restores`."""
+        if restores and replaced and replaced[-1] is not None:
+            self._puts_back(replaced[-1])
+            replaced.append(None)
 
     def _puts_back(self, recorded: dict) -> None:
         """Write the report and review records back as `recorded` kept them, before report 3 moved them."""

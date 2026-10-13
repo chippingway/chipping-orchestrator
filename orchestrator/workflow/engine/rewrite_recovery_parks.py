@@ -169,24 +169,14 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
     """Prove what a recovery hold keeps, then record the hold over the comment read afresh, as `HOLD`.
 
     The landed road's leased no-op that a publication gate held keeps the
-    attempt for a later tick (`rewrite_landed`), so what a finish captured or
-    settled for the head is proved first
-    (`rewrite_landing_retirement.retires_unproved`). The gate's answer is a
-    request after the tick read the comment, long enough for another road to
-    record a newer transaction for the head, with the revision floor it
-    raised: written whole, the tick's state would put back the floor and drop
-    that transaction. So only what the tick staged since its reading lands,
-    and every other field stays as the fresh comment carries it; a record
-    refused or never confirmed withholds the tick's state
-    (`ReportCommit.withholds`), for the next tick to answer the attempt again.
-    A report another road settles between that proof and the record is one
-    the record takes in from the fresh comment, decided on nothing the
-    evidence is bound through, so behind the record -- landed, refused, or
-    sent with its answer lost -- the evidence is proved once more, and a
-    binding record the record itself carried spelled otherwise than the tick
-    read it is handed to that proof as movement already read, however soon it
-    is put back, as behind every park (`lands_a_park`). A state nothing was
-    read into is written whole.
+    attempt (`rewrite_landed`), so its evidence is proved first
+    (`rewrite_landing_retirement.retires_unproved`). The gate's answer is long
+    enough for another road to record a newer transaction, so only what the
+    tick staged since its reading lands, every other field kept as the fresh
+    comment carries it, and a record refused or never confirmed withholds the
+    tick's state. Behind the record the evidence is proved once more, over the
+    move the record itself carried, as behind every park (`lands_a_park`). A
+    state nothing was read into is written whole.
     """
     _retirement.retires_unproved(context)
     if context.state.synced is None:
@@ -262,15 +252,12 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
 def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, named: str) -> None:
     """Land the tick's state as `write` over the comment read afresh, then prove once more what it keeps.
 
-    Whether the record landed or not, the proof behind it is handed the move
-    the record carried (`_adopted`), and taken only over a checkout on disk:
-    one gone from disk had its evidence retired on the state the record wrote.
-    That move was read against the evidence the tick held, so it is handed on
-    only while the same evidence stands behind the record
-    (`rewrite_landing_retirement.receipts`): a successor another road recorded
-    or settled meanwhile, which the record took in beside the report it is
-    bound to, is proved on its own readings instead. `named` is the record,
-    logged where it did not land.
+    Whether the record landed or not, the proof behind it -- taken only over a
+    checkout on disk -- is handed the move the record carried (`_adopted`),
+    while the evidence the tick held still stands behind it
+    (`rewrite_landing_retirement.receipts`): a successor the record took in is
+    proved on its own readings. `named` is the record, logged where it did
+    not land.
     """
     state = context.state
     read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}

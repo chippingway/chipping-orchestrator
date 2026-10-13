@@ -255,18 +255,13 @@ def _abandoned_or_settled_since(
 ) -> bool:
     """Whether nothing of `pending` stands once its abandonment over `moved` was asked; invalidated where it settled.
 
-    The abandonment is decided on the evidence records as the tick read them,
-    so another road that settled that very transaction while it was asked --
-    a finish of the same landing, over records put back by then -- refuses
-    it, and the tick's reading still carries it pending. The movement was
-    read under the transaction all the same, so evidence the comment read
-    afresh now carries current under `pending`'s receipt is invalidated whole
-    over it (`rewrite_finish_readiness.invalidates`), however the records read
-    by then -- that reading's evidence records taken in first, so with no room
-    for its history entry the movement is recorded against it instead.
-    Evidence under any other receipt -- a successor another road
-    settled -- is another decision, kept as that road wrote it, and so is a
-    comment nobody could read: False, for the caller to hold.
+    Another finish that settled that very transaction while it was asked
+    refuses the abandonment, but the movement was read under it all the same:
+    evidence the comment read afresh carries current under `pending`'s receipt
+    is invalidated whole over it (`rewrite_finish_readiness.invalidates`),
+    that reading's evidence records taken in first, so a comment with no room
+    records the movement instead. Evidence under another receipt, or a comment
+    nobody could read, is kept: False, for the caller to hold.
     """
     if _captured.recorded(finish, logged=False) is None:
         return True

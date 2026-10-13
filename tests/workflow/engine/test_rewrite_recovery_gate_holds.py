@@ -71,11 +71,7 @@ _AT_THE_RECORD = (("", True), ("lost", True), ("refused", False))
 
 @contextlib.contextmanager
 def _gate_holds(publishes=None):
-    """A transfer permission outstanding beside the landing, its permit granted, and the gate holding its no-op.
-
-    `publishes` stands in for the gated publication where the gate's answer
-    has to be made over something, `gated(_HELD)` otherwise.
-    """
+    """A transfer permission outstanding, its permit granted, and the gate -- `publishes`, where given -- holding."""
     with (
         patch.object(_transfers, "_carried_by", return_value=_Handoff.OUTSTANDING),
         patch.object(_transfer_permits, "_permits_the_publication", return_value=True),
@@ -91,11 +87,7 @@ def _holds_beside_a_newer_run(case, recorded: list, *_called, **_options):
 
 
 def _settles_a_successor(case, subject):
-    """Settle a newer run bound to report `subject` over `case.state`, as another road would; the evidence now current.
-
-    It carries the settled run's binding but for the report, and the
-    configured command's transcript the anchor's evidence was taken with.
-    """
+    """Settle a newer run bound to report `subject` over `case.state`, as another road would; now current."""
     earlier = _settlement.read_current_evidence(case.state)
     target = replace(earlier.binding.target, subject=subject.recorded())
     binding = replace(earlier.binding, target=target)
@@ -107,12 +99,10 @@ def _settles_a_successor(case, subject):
 
 
 class _AroundTheHold:
-    """The guarded commit, report 3 of `head` settled ahead of a hold's record, which goes as `failing` says.
+    """The guarded commit, report 3 of `head` settled ahead of a hold's record, which meets `failing` ("" lands).
 
-    `failing` names the client's pinned-edit failure the record meets, ""
-    where it lands; `restores` puts report 2 back right behind the record,
-    before anything behind it reads the comment again; `successor` settles a
-    newer run bound to report 3 beside it, kept as `successor`.
+    `restores` puts report 2 back right behind the record; `successor` settles
+    a newer run bound to report 3 beside it, kept as `successor`.
     """
 
     def __init__(self, case, head: str, failing: str = "", *, restores: bool = False, successor: bool = False) -> None:

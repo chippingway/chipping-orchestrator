@@ -1336,9 +1336,10 @@ because there it is the claim that this stage has already rerouted rather than a
   lands what that decision requires in one guarded commit (`rewrite_finish_writes.EVIDENCE`) before the announcement
   -- the notice, the `base_rebased` event, the round reset, and the mark -- the relabel to `workflow:validating`, or
   the attempt's retirement, once the debt the announcement carries is measured to fit (a debt with no room parks
-  before anything runs or is recorded, though evidence an earlier finish already settled for the head is proved ready
-  and invalidated where it moved before that park, so the reply finds no decision anything moved under), decided on
-  the attempt, the debt, and every
+  before anything runs or is recorded, though evidence an earlier finish settled or captured for the head is proved
+  before that park, and again behind it -- over the move its refused record read, or behind a notice that raised --
+  and retired where it moved, so the reply finds no decision anything moved under), decided on the attempt, the debt,
+  and every
   record the evidence is bound through, so a report, review subject, or evidence record another road moved while the
   commands ran refuses it. On every route, current evidence the rewrite moved past goes into history whole as
   invalidated -- asked as the write is staged, behind any commands the decision ran, so a command or timeout

@@ -211,9 +211,7 @@ def refusal_of(outcome: _commit_models.CommitOutcome) -> ReportEvidence | None:
 def takes_in_the_evidence(state: PinnedState, durable: PinnedState) -> None:
     """Lay the evidence records `durable`, the comment read afresh, carries over `state`, remembered as read.
 
-    For a caller about to retire evidence another road settled since `state`
-    was read, so the retirement -- or, with no room for it, the movement
-    recorded instead -- is staged over the records that settlement left.
+    For a caller about to retire evidence another road settled since `state` was read.
     """
     for field in _EVIDENCE_RECORDS:
         spelled = durable.data.get(field, _commit_models.ABSENT)
@@ -227,9 +225,7 @@ def moves_only_the_evidence(refused: ReportEvidence) -> bool:
     """Whether `refused` is a refusal of moved bound records (`_moved`) naming none but this domain's own.
 
     Such a refusal reads another road recording, settling, or retiring a
-    transaction -- the evidence records' own moves -- and nothing a binding
-    rests on moving: a caller that adopts that other road's settlement reads
-    no movement under the evidence in it. Any other refusal is not one.
+    transaction, and nothing a binding rests on moving.
     """
     prefix, suffix = _MOVED_SPELLING
     spelled = refused.refusal

@@ -249,17 +249,14 @@ def _behind_the_answer(
 ) -> FinishOutcome | None:
     """Where the route goes once `pending` was answered, over the movement the answer read; None to route.
 
-    Movement is sorted as the last word sorts its own readings: every refusal
-    that defers, and the two holds that read movement rather than a reading
-    that did not happen -- a landing off its head, a base gone elsewhere
+    Movement is sorted as the last word sorts its own readings
     (`rewrite_evidence_proof.MOVEMENT`). A transaction still owed goes to the
-    last word over the first such movement, or over its proof taken again
-    where the answer read none. One settled -- by this answer, or by another
-    road whose settlement the answer adopted -- is invalidated whole over
-    movement the answer read under its binding before the records are
-    resolved afresh, however soon what moved was put back: the evidence
-    records' own moves, which adopting another road's settlement reads
-    (`verification_durable.moves_only_the_evidence`), are no such movement.
+    last word over the first such movement, or over its proof taken again. One
+    settled -- by this answer, or by another road whose settlement it adopted
+    -- is invalidated whole over movement read under its binding, however soon
+    it was put back, before the records are resolved afresh; the evidence
+    records' own moves (`verification_durable.moves_only_the_evidence`) are no
+    such movement.
     """
     movements = [refused for refused in observed if not refused.holds or refused in MOVEMENT]
     if _captured.recorded(finish, logged=False) is None:

@@ -160,11 +160,7 @@ class SettledUnderTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertIsNone(self.pinned_fields(guarded.AWAITING)[0])
 
     def _holds_over_a_settlement(self, then=None) -> tuple:
-        """Capture a run, edit the issue, and strand the attempt while another finish settles the run; head and run.
-
-        That finish puts the issue back and settles the run as the abandonment
-        reads the comment, `then` made behind it.
-        """
+        """Capture a run, edit the issue, and strand the attempt while another finish settles it; head and run."""
         head, captured = self.captures()
         written = self.issue.body
         self.issue.body = _EDITED_BODY

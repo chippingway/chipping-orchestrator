@@ -71,12 +71,7 @@ _OBSERVES = _proof.ProofReading.observes
 
 
 class _MovesTheReport:
-    """Another road settling the run and then report 3 of its head, and putting report 2 back once the proof read it.
-
-    Called as the answer's proof observes each refusal: the first naming the
-    report it moved is followed at once by report 2 written back, before
-    anything behind that proof reads the comment again.
-    """
+    """Another road settling the run and then report 3 of its head, report 2 put back once the proof read it."""
 
     def __init__(self) -> None:
         self._case = None

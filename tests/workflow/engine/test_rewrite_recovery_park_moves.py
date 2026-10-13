@@ -4,16 +4,13 @@
 
 The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 rebased head reviewed, its run settled under the anchor, and the finish killed
-before its announcement. The next tick cannot fetch the branch, or cannot
-count the checkout's lag against base, and either way takes the git owner's
-fail-closed abort -- the recovery's, or the refresh's ahead of any recovery
-road -- handed the workflow's guarded operations as every recovery context is
-(`guarded_recovery_support`): the reset is recorded first, by blanking the
-attempt's base tip, the checkout goes back onto the anchor, and the park
-behind that reset releases the attempt and invalidates the settled run in one
-write. While the park's notice is posted, another road writes the comment: it
-settles and reviews report 3 of the head, or records a newer transaction for
-it beside the run.
+before its announcement. The next tick cannot fetch the branch, or count the
+checkout's lag against base, and takes the fail-closed abort with the
+workflow's guarded operations (`guarded_recovery_support`): the reset is
+recorded first by blanking the base tip, and the park behind it releases the
+attempt and invalidates the run in one write. While the park's notice is
+posted, another road settles report 3, or records a newer transaction beside
+the run.
 
 The park's record lands over the comment as it then stands, never over the
 tick's whole reading -- a run the finish only captured is abandoned in it

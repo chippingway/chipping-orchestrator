@@ -2,16 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The workflow's guarded recovery operations, reached through the production roads that hand them to the git owner.
 
-Every recovery context the workflow builds carries them
-(`workflow/engine/rewrite_recovery_parks.py`): the recorder ahead of every
-reset, the settled-aware answer a landed reset is owed, the proof before a
-park that keeps the attempt, and the park every recovery park is recorded
-through. A case reaches them as a live tick does: through the git owner's
-fail-closed abort, which every per-tick base refresh whose fetch of the branch
-fails (`unfetched`) takes, through the dispatcher's hold of an anchor it keeps
-a handler back for (`answers_a_held_anchor`), or -- asking the park proof
-alone -- over a context read off the comment as it stands
-(`recovery_context`). A real-git finish case is a `GuardedRecoveryCase`.
+A case reaches them as a live tick does: through the fail-closed abort a
+failed fetch takes (`unfetched`), the dispatcher's hold (`answers_a_held_anchor`),
+or a context the recovery itself hands its roads (`recovery_context`).
 """
 from __future__ import annotations
 
