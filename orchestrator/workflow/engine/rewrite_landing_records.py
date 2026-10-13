@@ -38,7 +38,9 @@ and holds over any record another road left pending beside it.
 current: the evidence the readiness primitives (`rewrite_finish_readiness`)
 prove ready again and invalidate where the landing is read moving under it,
 as a captured transaction is abandoned, so restoring the landing revives no
-decision taken over it. It is dormant: no recovery road reads it yet.
+decision taken over it. It is dormant: only the guarded recovery operations
+built on those primitives read it (`rewrite_landing_retirement`), and no
+recovery road is handed them yet.
 
 `resolved` is the narrower question of whether evidence for the head was
 already settled or retired -- current, or in the history -- which the

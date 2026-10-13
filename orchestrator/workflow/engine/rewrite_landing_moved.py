@@ -45,8 +45,9 @@ relabelled out of the stages the refresh drives, a landing made for another
 publication or one its record does not account for. What such a park read is
 put right by a human, and the reply then finishes the landing, so the git
 owner asks before every such park (`abandons_unproved`) for the transaction to
-be proved again -- over the issue and comment read afresh, held to the last
-word, none of it needing the fetch an abort could not take -- and abandoned now
+be proved again (`proves_captured`) -- over the issue and comment read afresh,
+held to the last word, none of it needing the fetch an abort could not take --
+and abandoned now
 where anything it rests on moved, a configuration or a pull request repointed
 among the reasons, so putting that back before the reply revives nothing. One
 that still proves, or that only a reading nobody could take holds, is kept
@@ -74,6 +75,14 @@ pending transaction was recorded by another road -- a newer head it
 published, or a newer record about the same one -- and is kept as that road
 wrote it, with its revision floor, whatever this recovery reads, on every road
 it takes.
+
+Evidence a finish already settled for the head and left current behind a tail
+cut short (`rewrite_landing_records.settled`) is none of these helpers' to
+read. The answers that hold it to the same readings -- over a landed reset and
+before a park that keeps the attempt -- are dormant beside them
+(`rewrite_landing_retirement`), built over the captured proof here
+(`proves_captured`) and the finish of a head's landing (`_finish`), and no
+recovery road is handed them yet.
 """
 from __future__ import annotations
 
@@ -99,6 +108,7 @@ from orchestrator.workflow.engine import (
     verification_carries as _carries,
     verification_records as _records,
 )
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING, last_word
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, LandedFinish
 
@@ -191,7 +201,7 @@ def abandons(
     pending = _landing_records.captured(context.state)
     if pending is None:
         return True
-    finish = _finish(context, pending, snapshot, candidate)
+    finish = _finish(context, pending.binding.target.target_head, snapshot, candidate)
     _captured.stands_before_the_route(finish, proof=LEFT_THE_LANDING)
     return _captured.recorded(finish, logged=False) is None
 
@@ -201,30 +211,48 @@ def abandons_unproved(context: _AutoRebaseRecoveryContext) -> bool:
 
     Whether the park may go on -- asked by the git owner ahead of every
     recovery park that keeps the attempt (`git/base_sync/persistence._proves_before_the_park`),
-    over the checkout as it reads now and the branch the comment names. The
-    transaction's binding is proved again over the issue and comment read
-    afresh (`rewrite_finish_captured.proved_again`) and held to the last word
-    beside it (`rewrite_evidence_proof.last_word`), neither of which needs the
-    fetch a failed abort could not take; where either reads movement, the
-    transaction is abandoned unrun -- or, with no room, refused for good --
-    through the last word with that movement as its proof. Nothing is read or
-    written where no transaction is recorded for that head, and one nothing
-    moved under is kept. With no checkout on disk there is nothing to prove
-    the landing over, the checkout it was captured on being gone, so the
-    abandonment is staged on the state the park then writes whole
-    (`abandons_over_the_reset`). False only where movement was read and the
-    transaction still stands once the abandonment was asked, for the git owner
-    to hold the tick with nothing parked.
+    over the checkout as it reads now and the branch the comment names
+    (`proves_captured`). Nothing is read or written where no transaction is
+    recorded for that head, and one nothing moved under is kept. With no
+    checkout on disk there is nothing to prove the landing over, the checkout
+    it was captured on being gone, so the abandonment is staged on the state
+    the park then writes whole (`abandons_over_the_reset`). False only where
+    movement was read and the transaction still stands once the abandonment
+    was asked, for the git owner to hold the tick with nothing parked.
     """
-    pending = _landing_records.captured(context.state)
-    if pending is None:
+    if _landing_records.captured(context.state) is None:
         return True
     if not context.worktree.is_dir():
         abandons_over_the_reset(context, _CHECKOUT_GONE)
         return True
     branch = _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
-    finish = _finish(context, pending, _AutoRebaseRecoverySnapshot(branch=branch, local_head=""), None)
-    proof = _captured.proved_again(finish, pending)
+    return proves_captured(context, _AutoRebaseRecoverySnapshot(branch=branch, local_head=""))
+
+
+def proves_captured(
+    context: _AutoRebaseRecoveryContext,
+    snapshot: _AutoRebaseRecoverySnapshot,
+    moved: ReportEvidence | None = None,
+) -> bool:
+    """Prove the transaction a finish captured for the landed head, abandoning it where it moved; whether none stands.
+
+    Over the landing as `snapshot` read it, a checkout with no head read
+    among it. The transaction's binding is proved again over the issue and
+    comment read afresh (`rewrite_finish_captured.proved_again`) and held to
+    the last word beside it (`rewrite_evidence_proof.last_word`), neither of
+    which needs the fetch a failed abort could not take; where either reads
+    movement, the transaction is abandoned unrun -- or, with no room, refused
+    for good -- through the last word with that movement as its proof.
+    `moved` is movement the caller already read under the transaction -- a
+    record a park's own commit adopted while its notice was posted -- which
+    stands as that proof in place of the proof read again, so no reading taken
+    now hides it by finding it put back.
+    """
+    pending = _landing_records.captured(context.state)
+    if pending is None:
+        return True
+    finish = _finish(context, pending.binding.target.target_head, snapshot, None)
+    proof = moved or _captured.proved_again(finish, pending)
     moved = last_word(finish, pending.binding, earlier=proof)[0]
     if moved is None:
         return True
@@ -234,13 +262,12 @@ def abandons_unproved(context: _AutoRebaseRecoveryContext) -> bool:
 
 def _finish(
     context: _AutoRebaseRecoveryContext,
-    pending: _records.PendingEvidence,
+    head: str,
     snapshot: _AutoRebaseRecoverySnapshot,
     candidate: _RewriteCandidate | None,
 ) -> LandedFinish:
-    """The finish of `pending`'s head's landing as `snapshot` read it, over `candidate` or the checkout read now."""
+    """The finish of `head`'s landing as `snapshot` read it, over `candidate` or the checkout read now."""
     read = candidate or _recovery_push._recovered_candidate(context, snapshot)
-    head = pending.binding.target.target_head
     return LandedFinish(
         gh=context.gh,
         spec=context.spec,

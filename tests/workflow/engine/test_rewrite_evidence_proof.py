@@ -9,12 +9,15 @@ the tip its replay was recorded as made onto, or against a tip the caller hands
 in: gone elsewhere or unread holds, and rewound under the head or never
 recorded defers. The last word reads the
 landing only where it is asked to, and answers with the first movement and the
-first hold side by side. None of them writes, runs, launches, or relabels
-anything.
+first hold side by side; over a head the base advanced past again, settled
+evidence's last word excuses the base readings that made the continuation.
+None of them writes, runs, launches, or relabels anything.
 """
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
+from functools import partial
 
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.workflow.engine import rewrite_evidence_proof as _proof
@@ -49,6 +52,26 @@ _STANDINGS = (
 )
 
 _EARLIER = ReportEvidence(_DEFER, "proved again and refused")
+
+# A base standing behind a continuation, the records settled evidence is held
+# to -- none asked, none refusing anything, or one refusing -- and the last
+# word: only the readings that made the continuation are excused, and only
+# where those records are asked.
+_CONTINUED = (
+    (_BaseStanding.MOVED, None, (_proof.BASE_MOVED, _proof.BASE_MOVED)),
+    (_BaseStanding.MOVED, lambda _state: (), (None, None)),
+    (_BaseStanding.DROPPED, lambda _state: (), (None, None)),
+    (_BaseStanding.UNPROVEN, lambda _state: (), (_proof._REFUSALS[_BaseStanding.UNPROVEN], None)),
+    (_BaseStanding.MOVED, lambda _state: (_EARLIER,), (_EARLIER, None)),
+)
+
+
+def _continued(finish):
+    """`finish` over a candidate that counted the base two commits past the landed head, as a continuation reads it."""
+    candidate = finish.landed.candidate
+    base = replace(candidate.checkout.base, behind=2, readable=True)
+    advanced = replace(candidate, checkout=replace(candidate.checkout, base=base))
+    return replace(finish, landed=replace(finish.landed, candidate=advanced))
 
 
 class ProofAgainTest(unittest.TestCase, captured_support.CapturedEvidenceCase):
@@ -133,6 +156,15 @@ class LastWordTest(unittest.TestCase, captured_support.CapturedEvidenceCase):
 
         self.assertEqual((moved, held.holds), (_EARLIER, True))
         self.assert_dormant()
+
+    def test_a_continuation_excuses_its_base(self) -> None:
+        finish = _continued(self.landed())
+        asks = partial(self.asks, _proof.last_word, finish, self.captured.binding, landing=False)
+        for standing, records, word in _CONTINUED:
+            with self.subTest(standing=standing, asked=records is not None, word=word):
+                self.world.base = standing
+
+                self.assertEqual(asks(records=records), word)
 
 
 if __name__ == "__main__":

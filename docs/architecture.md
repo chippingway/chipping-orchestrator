@@ -975,10 +975,18 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
   park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). Evidence a
   finish already settled for the landed head has dormant primitives beside these, which no finish, recovery, or park
-  road asks yet (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it, and
-  invalidating it into history whole where anything it is bound to moved -- over the comment read afresh or the
-  tick's own copy, the attempt's base tip blanked where the invalidation cannot land, so nothing put back revives it.
-  It runs under its caller's issue writer claim.
+  road asks yet (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it -- the
+  base readings that made a continuation excused over a head the base advanced past again, and proved once more
+  behind any stop of a write the finish makes after it -- and invalidating it into history whole where anything it
+  is bound to moved -- over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the
+  invalidation cannot land, so nothing put back revives it. Dormant guarded recovery operations are built on them,
+  and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof
+  before a park that keeps the attempt (`workflow/engine/rewrite_landing_retirement.py`), which retire settled
+  evidence whole beside a captured run and refuse the attempt's release where history has no room for it; and the
+  reset recorded against captured or settled evidence before git moves the checkout, with every recovery park landed
+  through the guarded commit over the comment read afresh and proving what it keeps once more behind its notice
+  (`workflow/engine/rewrite_recovery_parks.py`), each an optional answer the git owner transports
+  (`records_before_a_reset`, `lands_a_park`). It runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

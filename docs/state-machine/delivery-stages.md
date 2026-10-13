@@ -1494,7 +1494,15 @@ because there it is the claim that this stage has already rerouted rather than a
   counted (`rewrite_recovery.answers_an_unreadable_checkout`) -- is movement, so the transaction is abandoned on the
   state the park writes (`git/base_sync/persistence.py`), in the one write that releases the attempt or not at all; a
   reset that failed keeps both, save a transaction the snapshot already read the landing move under. Publishing and
-  settling the recorded transaction is the finish's own, under the anchor (the bullet above).
+  settling the recorded transaction is the finish's own, under the anchor (the bullet above). Evidence a finish
+  already settled for the head is held to none of these yet: the answers that would hold it to them are dormant,
+  handed to no recovery context -- the reset recorded first by blanking the attempt's base tip in a write decided
+  on the evidence records as the tick read them (`rewrite_recovery_parks.records_the_reset`), settled evidence
+  invalidated whole in the write that releases the attempt, or kept whole beside it with nothing released where
+  history has no room (`rewrite_landing_retirement.retires_over_the_reset`), the proof before a park that keeps the
+  attempt (`rewrite_recovery_parks.proves_before_a_park`), and the park landed through the guarded commit over the
+  comment read afresh and proving what it keeps once more behind its notice
+  (`rewrite_recovery_parks.lands_a_park`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of

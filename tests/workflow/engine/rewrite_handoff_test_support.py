@@ -16,7 +16,8 @@ the event and before the checkpoint, so the retry finds the notice and the
 event with no mark beside them; behind the checkpoint and before the relabel,
 so the retry reads the head as already announced; and behind the relabel and
 before the retirement, so the retry reads the issue as already relabelled
-too.
+too. A boundary can also stand for another road's move behind the call it
+picks rather than a death (`Boundary.moving`).
 
 The death is the process exiting (`sys.exit`): the handler around the
 notice's post catches whatever an `Exception` would raise, to read the
@@ -53,10 +54,21 @@ class Boundary:
         """`live`, the client's own step, killing the process on the call this boundary picks."""
         return partial(self._answers, live)
 
+    def moving(self, live: Callable, move: Callable[[], object]) -> Callable:
+        """`live`, the client's own step, with `move` made once, behind the call this boundary picks."""
+        return partial(self._moves, live, move, [])
+
     def _answers(self, live: Callable, *args, **kwargs):
         if self.kills(*args, **kwargs):
             sys.exit(f"the process was killed {self.name}")
         return live(*args, **kwargs)
+
+    def _moves(self, live: Callable, move: Callable[[], object], moved: list, *args, **kwargs):
+        answered = live(*args, **kwargs)
+        if not moved and self.kills(*args, **kwargs):
+            moved.append(True)
+            move()
+        return answered
 
 
 class _Picks:

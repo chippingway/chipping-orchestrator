@@ -3270,7 +3270,10 @@ The keys that matter for the state machine fall into a few groups:
   refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
   unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand, save a
   verification transaction a finish captured for the landed head, which every recovery park that keeps the attempt
-  has proved again first and abandoned where anything it rests on moved (`proves_before_a_park`).
+  has proved again first and abandoned where anything it rests on moved (`proves_before_a_park`). Each park still
+  writes the tick's state whole: the guarded park that records it over the comment read afresh, and the record of a
+  reset made ahead of it, are dormant answers no recovery context carries yet (`lands_a_park`,
+  `records_before_a_reset`, `workflow/engine/rewrite_recovery_parks.py`).
   **The post-publication route is live too.** The recovery hands every head the pull request already carries, beside
   how far the transfer got, to the workflow's landed road (`workflow/engine/rewrite_landed.py`), which asks
   `landed_recovery` why it may not finish one, and eligibility's open-PR gate hands `terminal_handoff` every
