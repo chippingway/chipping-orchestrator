@@ -5,9 +5,12 @@
 The tree is four layers deep and the dependency runs one way through them: the
 configuration every domain reads sits at the bottom, the domains that do the
 work sit above it, the workflow decides with them, and the launch forms compose
-the lot. An import that points the other way is what turns a package into a
-cycle, and what puts a decision the workflow owns behind an import of the
-infrastructure under it.
+the lot. The service package -- what an installed orchestrator carries for
+setting itself up -- sits with the launch forms, since what it holds serves an
+operator setting up an install and no domain has a reason to read it back. An
+import that points the other way is what turns a package into a cycle, and
+what puts a decision the workflow owns behind an import of the infrastructure
+under it.
 
 The workflow vocabulary is the one domain a lower layer may read, and only
 GitHub and git may do so. Its label, reading, graph, and guard owners are
@@ -48,7 +51,7 @@ _LAYERS = (
     ("config",),
     ("agents", "git", "github", "observability", "scheduler", "skills"),
     ("workflow",),
-    ("__main__", "apps", "cli", "runtime"),
+    ("__main__", "apps", "cli", "runtime", "service"),
 )
 
 _TOP = len(_LAYERS) - 1

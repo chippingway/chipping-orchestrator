@@ -79,7 +79,7 @@ the `done` / `rejected` terminals were never namespaced, so for those the two co
 The map is split by area, and each page below is where the owners of the packages it names are described:
 
 - [`architecture/platform-modules.md`](architecture/platform-modules.md) — the package root and both launch forms,
-  `runtime/`, `config/`, `github/`, `agents/`, `scheduler/`, `git/`, and `skills/`.
+  `runtime/`, `service/`, `config/`, `github/`, `agents/`, `scheduler/`, `git/`, and `skills/`.
 - [`architecture/workflow-modules.md`](architecture/workflow-modules.md) — `workflow/`: the state and transition
   owners, the `engine/` owners one tick is composed of, the `late_split/` domain the late size gate is
   defined by, and the nine stage subpackages the label dispatch routes into.
@@ -105,6 +105,11 @@ orchestrator/
                         process on the host may reclaim them and the one
                         bounded record each candidate is reported as, the
                         self-restart probes, and shutdown
+  service/              what an installed orchestrator carries for setting
+                        itself up: the basic and advanced `.env` templates,
+                        shipped as package data so every install holds the
+                        pair for its own version, and their reader, which
+                        loads no configuration
   config/               the bottom layer: the non-secret `.env` loader, the
                         env parsers and resolver behind the settings surface,
                         the source-checkout versus installed layout check,
@@ -162,7 +167,7 @@ orchestrator/
 ```
 
 Five rules hold for the tree as a whole, each with a check under `tests/repository/` that finds its subjects on disk so
-a module added anywhere is covered the day it lands. The root is the four files above plus the ten packages under
+a module added anywhere is covered the day it lands. The root is the four files above plus the eleven packages under
 them, held to that exact inventory: a module parked beside them would be importable next to the package that owns the
 responsibility, and both would answer. No module wears one of the retired domain families as a prefix. Every family is
 forbidden in the private spelling its compatibility leaves carried (`_dashboard_read_core.py`), and the families whose
@@ -176,10 +181,11 @@ the decomposer's output manifest excepted — and nothing carries a `.pyi` stub 
 rather than on something answering for it.
 
 Imports run one way through four layers — `config/` at the bottom, the domains that do the work above it, `workflow/`
-deciding with them, and `cli.py` / `__main__.py` / `runtime/` / `apps/` composing the lot. The direction is read
-twice, because deferring an import weakens where it lands but not whether it belongs. At module scope, where an import
-decides what a package costs to load and whether it can be loaded at all, only `github/` and `git/` may reach the
-workflow vocabulary: `state.py`, `label_reading.py`, `transitions.py`, and `transition_guard.py`, each named exactly.
+deciding with them, and `cli.py` / `__main__.py` / `runtime/` / `apps/` composing the lot, with `service/` beside them
+at the top. The direction is read twice, because deferring an import weakens where it lands but not whether it belongs.
+At module scope, where an import decides what a package costs to load and whether it can be loaded at all, only
+`github/` and `git/` may reach the workflow vocabulary: `state.py`, `label_reading.py`, `transitions.py`, and
+`transition_guard.py`, each named exactly.
 Over every scope, the only other reaches
 left are declared one by one in `tests/repository/test_layering.py`: three base-sync owners posting a notice or a park
 through the workflow's comment and guard owners, deferred to a call because at module scope they would be a cycle. An

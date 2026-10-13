@@ -43,6 +43,7 @@ _ROOT_PACKAGES = (
     "observability",
     "runtime",
     "scheduler",
+    "service",
     "skills",
     "workflow",
 )
@@ -191,7 +192,7 @@ def _rebuilds_a_surface(stem: str) -> bool:
 
 
 class PackageRootTest(unittest.TestCase):
-    """The root is the declared three leaves and the declared ten packages.
+    """The root is the declared three leaves and the declared eleven packages.
 
     Holding it to an exact inventory is what forbids a flat spelling of an
     owner: a module parked here would be importable beside the package that

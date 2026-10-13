@@ -32,6 +32,15 @@ requires-poetry = ">=2.4,<3"
 # The import package differs from the distribution name, so Poetry needs its
 # location for both editable installs and built distributions.
 packages = [{ include = "orchestrator" }]
+# The `.env` templates are package data an installed version reads its own
+# copies from. They are named here rather than left to the package glob, which
+# drops every file git ignores, and `.gitignore` already lists `.env` beside
+# these two names: a listed file goes into both artifacts whatever the ignore
+# rules come to say.
+include = [
+    { path = "orchestrator/service/.env.example", format = ["sdist", "wheel"] },
+    { path = "orchestrator/service/.env.example.advanced", format = ["sdist", "wheel"] },
+]
 
 # Lock-only Python range: wemake-python-styleguide declares <4.0. This never reaches the published
 # Requires-Python, which stays `>=3.12` above; do not move the cap there.

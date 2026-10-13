@@ -34,17 +34,56 @@ Ignore pipx's `--python is ignored when --force is passed` warning for uv-backed
 On pip-backed environments, a forced install never changes the interpreter, even with `--python`; use
 [`pipx reinstall --python`](#change-the-python-interpreter) to change it on either backend.
 
-Check the installed version with `pipx runpip chipping-orchestrator show chipping-orchestrator`, then download that
+Check the installed version with `pipx runpip chipping-orchestrator show chipping-orchestrator`, then save that
 version's templates below and configure the live settings. Keep configuration and logs outside the pipx environment.
 
-#### Download the chosen release's files
+<a id="download-the-chosen-releases-files"></a>
 
-Replace `X.Y.Z` with the installed version, including any prerelease suffix; its release tag is `vX.Y.Z`.
-Run these blocks in the same shell. Download both templates without cloning the orchestrator repository:
+#### Save the installed version's templates
+
+The basic template `.env.example` and the advanced template `.env.example.advanced` ship inside the package, under
+`orchestrator/service/`, so every installation carries the pair written for its own version and nothing has to be
+downloaded or cloned. An upgrade or rollback replaces them along with the package, so save a copy outside the pipx
+environment for the configuration comparisons below.
+
+Replace `X.Y.Z` with the installed version, including any prerelease suffix. Run these blocks in the same shell.
+The saving block reads both templates from the installed package without loading any configuration, so it works
+before `.env` exists, and it stops without writing anything when the installed version is not `X.Y.Z`. Its `-I` keeps
+the launch directory off the import path, so a source checkout there cannot stand in for the installed package:
 
 ```sh
 ORCHESTRATOR_VERSION='X.Y.Z'
 ORCHESTRATOR_RELEASE_DIR="$HOME/.local/share/chipping-orchestrator/releases/v${ORCHESTRATOR_VERSION:?}"
+ORCHESTRATOR_PYTHON="$(pipx environment --value PIPX_HOME)/venvs/chipping-orchestrator/bin/python"
+(
+  set -eu
+  umask 077
+  "${ORCHESTRATOR_PYTHON:?}" -I -c '
+import sys
+from pathlib import Path
+
+from orchestrator import __version__
+from orchestrator.service.templates import TEMPLATES, template_text
+
+version, directory = sys.argv[1:]
+if __version__ != version:
+    sys.exit(f"the installed version is {__version__}, not {version}")
+Path(directory).mkdir(parents=True, exist_ok=True)
+for name in TEMPLATES:
+    Path(directory, name).write_text(template_text(name), encoding="utf-8")
+' "${ORCHESTRATOR_VERSION:?}" "${ORCHESTRATOR_RELEASE_DIR:?}"
+)
+```
+
+Stop if the block fails. Retain these version-matched files for upgrade comparisons and rollback; their directory
+does not select targets or become a launch directory.
+
+Versions up to v0.13.0 do not carry their templates in the package; the saving block fails on them because they have
+no `orchestrator.service` module. For one of those, such as the previous version of an upgrade from v0.13.0 or the
+recorded version of a [dedicated-venv migration](#moving-from-a-dedicated-venv), download both from the root of its
+release tag into the same directory instead:
+
+```sh
 (
   set -eu
   umask 077
@@ -56,13 +95,10 @@ ORCHESTRATOR_RELEASE_DIR="$HOME/.local/share/chipping-orchestrator/releases/v${O
 )
 ```
 
-Stop if a download fails. Retain these version-matched files for upgrade comparisons and rollback; their directory
-does not select targets or become a launch directory.
-
 #### Configure live settings
 
-For **first setup only**, copy the basic template into the installed configuration location and set an absolute log
-directory outside the Python environment. This block refuses to overwrite an existing `.env`:
+For **first setup only**, copy the saved basic template into the installed configuration location and set an absolute
+log directory outside the Python environment. This block refuses to overwrite an existing `.env`:
 
 ```sh
 (
@@ -85,7 +121,7 @@ environment. Preserve explicit `ANALYTICS_LOG_PATH` and `TRAJECTORY_LOG_PATH` ov
 
 Edit `~/.config/chipping-orchestrator/.env` following [basic setup](../configuration.md#basic-setup): set `REPOS` to
 existing local target clones, `ALLOWED_ISSUE_AUTHORS`, and `HITL_HANDLE`, and adjust agent routing if needed.
-Copy only wanted operational overrides from `.env.example.advanced` into that same file. Keep GitHub tokens in
+Copy only wanted operational overrides from the saved `.env.example.advanced` into that same file. Keep GitHub tokens in
 per-repository token files or the launch environment ([credentials](../configuration.md#github-personal-access-token));
 `.env` does not load them. The launch directory's `.env` is never read by an installed package.
 
@@ -139,8 +175,11 @@ For the v0.13.0 installation route at `~/.local/share/chipping-orchestrator/venv
 its tested runtime dependency pins during migration; upgrade separately using the
 [upgrade checklist](#upgrade-a-package).
 Before stopping, read the recorded release's [notes][package-releases], set `ORCHESTRATOR_VERSION` to that version,
-and download its templates and `constraints.txt` using the [pinned procedure](#pin-a-release-and-runtime-dependencies).
-Retain a configuration backup and the service unit as described under [upgrades](#upgrade-a-package).
+and download its `constraints.txt` using the [pinned procedure](#pin-a-release-and-runtime-dependencies).
+[Save its templates](#save-the-installed-versions-templates) from the dedicated venv, with `ORCHESTRATOR_PYTHON` set to
+`"$HOME/.local/share/chipping-orchestrator/venv/bin/python"`; a version up to v0.13.0 takes the release-tag download
+described there instead. Retain a configuration backup and the service unit as described under
+[upgrades](#upgrade-a-package).
 
 Choose a [safe stopping point](#safe-restart-guidance), run `systemctl --user stop orchestrator.service` (or Ctrl+C
 the foreground poller), and wait for shutdown. Deactivate the dedicated venv if it is active, then run the constrained
@@ -149,7 +188,7 @@ the foreground poller), and wait for shutdown. Deactivate the dedicated venv if 
 so the pipx command is on `PATH`.
 
 Keep `~/.config/chipping-orchestrator/.env` and its absolute `LOG_DIR`, along with any explicit analytics or trajectory
-paths outside the environment. Skip the first-setup template copy. Compare the downloaded templates with the existing
+paths outside the environment. Skip the first-setup template copy. Compare the saved templates with the existing
 settings and run the [compatibility checks](#check-compatibility-and-start). Confirm the installed version matches
 the recorded version before restarting.
 Replace the service's `ExecStart` with the absolute pipx launcher path shown by
@@ -182,8 +221,8 @@ other apps so they do not change the package under a running poller. Before upgr
 
 1. Read the [release notes][package-releases] for the version you intend to install and record that version. Check
    compatibility with the current Python, agents, targets, and live workflow state. Record the current `Version` from
-   `pipx runpip chipping-orchestrator show chipping-orchestrator` and retain its templates; if they are missing, run the
-   [template download](#download-the-chosen-releases-files) for that version first.
+   `pipx runpip chipping-orchestrator show chipping-orchestrator` and retain its templates; if they are missing,
+   [save them](#save-the-installed-versions-templates) now, while that version is still the one installed.
 2. Choose a [safe stopping point](#safe-restart-guidance), preferably with no live agent child. Stop the supervisor
    with `systemctl --user stop orchestrator.service`, or Ctrl+C the foreground command, and wait for shutdown.
    Stop every poller using this pipx environment before changing it.
@@ -235,7 +274,7 @@ other apps so they do not change the package under a running poller. Before upgr
    ```
 
    Leave the poller stopped until the intended version is installed and passes checks.
-5. On every upgrade, repeat the [template download](#download-the-chosen-releases-files) for the intended version and
+5. On every upgrade, [save the templates](#save-the-installed-versions-templates) the intended version installed and
    [compare configuration](#compare-configuration-across-versions) before resuming.
 6. Repeat [compatibility checks](#check-compatibility-and-start), then start `chipping-orchestrator run` again or run
    `systemctl --user start orchestrator.service`. Check startup output and logs for connections and polling.
@@ -350,12 +389,19 @@ startup output and logs. Keep external logs and credentials at their existing pa
 ### Pin a release and runtime dependencies
 
 For reproducible installs, upgrades, or rollback, choose a release whose matching [GitHub release][package-releases]
-includes `constraints.txt`. Set `ORCHESTRATOR_VERSION` to that exact version and use the
-[download block](#download-the-chosen-releases-files) for its templates. Download its runtime constraints too:
+includes `constraints.txt`. Set `ORCHESTRATOR_VERSION` to that exact version, with the same release directory the
+[saving block](#save-the-installed-versions-templates) uses, and download its runtime constraints there:
 
 ```sh
-curl --fail --location --output "${ORCHESTRATOR_RELEASE_DIR:?}/constraints.txt" \
-  "https://github.com/chippingway/chipping-orchestrator/releases/download/v${ORCHESTRATOR_VERSION:?}/constraints.txt"
+ORCHESTRATOR_VERSION='X.Y.Z'
+ORCHESTRATOR_RELEASE_DIR="$HOME/.local/share/chipping-orchestrator/releases/v${ORCHESTRATOR_VERSION:?}"
+(
+  set -eu
+  umask 077
+  mkdir -p "${ORCHESTRATOR_RELEASE_DIR:?}"
+  curl --fail --location --output "${ORCHESTRATOR_RELEASE_DIR:?}/constraints.txt" \
+    "https://github.com/chippingway/chipping-orchestrator/releases/download/v${ORCHESTRATOR_VERSION:?}/constraints.txt"
+)
 ```
 
 Stop if the download fails. Select an installed Python supported by the chosen release; for an existing environment,
@@ -370,7 +416,8 @@ for later upgrades and forced installs. Restore your usual window explicitly on 
 
 Use an absolute `ORCHESTRATOR_RELEASE_DIR` path without whitespace: the uv backend splits constraint paths on
 whitespace even when quoted. If `$HOME` contains spaces, set `ORCHESTRATOR_RELEASE_DIR` to a directory whose absolute
-path has no whitespace and repeat the template and constraint downloads there; retain it for later reinstalls.
+path has no whitespace, download the constraints there, and save the templates there after installing; retain it for
+later reinstalls.
 
 With the poller stopped, install the chosen version using those constraints:
 
@@ -387,9 +434,10 @@ restrict runtime dependency versions; the explicit package requirement selects t
 Keep `--upgrade` out of `--pip-args`: pipx supplies it during upgrades, and uv rejects duplicate flags.
 Use each release's own constraints, compare settings, and repeat compatibility checks before starting.
 
-After a successful installation, run `pipx pin chipping-orchestrator` to exclude the environment from routine
-upgrades. pipx saves the installation's `--pip-args`; unpinning alone leaves the constraint path in place. Upgrade
-a constrained installation by repeating this procedure for the new version with its own templates and constraints.
+After a successful installation, [save its templates](#save-the-installed-versions-templates) into the same release
+directory, then run `pipx pin chipping-orchestrator` to exclude the environment from routine upgrades. pipx saves the
+installation's `--pip-args`; unpinning alone leaves the constraint path in place. Upgrade a constrained installation
+by repeating this procedure for the new version with its own templates and constraints.
 
 To return to the latest release without saved constraints, stop every poller using the environment and run:
 
@@ -426,11 +474,17 @@ when one fails. Branch protection must require `ci (3.12)`, `ci (3.13)`, and `ci
 The packaging steps prove the distribution independently of the editable checkout. `poetry build` uses poetry-core
 and builds both artifacts from the tree; installing the sdist separately catches files missing from the archive even
 when the wheel works. Each smoke step creates its own `python -m venv`, installs the artifact with that environment's
-`python -m pip install`, changes directory outside the checkout, and runs `chipping-orchestrator --help`. The flat
-package is declared under `[tool.poetry].packages`. These environments contain only the distribution and its declared
-runtime dependencies, resolved fresh from PyPI, so an undeclared dependency supplied by the project lock cannot hide a
-packaging error. The smoke steps configure nothing, and need nothing configured: the command line is read before any
-owner that resolves the settings is imported, so `--help` answers even where a `REPOS` value would abort a real launch.
+`python -m pip install`, changes directory outside the checkout, runs `chipping-orchestrator --help`, and reads both
+`.env` templates back out of the installed package. The flat package is declared under `[tool.poetry].packages`, and
+the two templates beside it under `[tool.poetry].include`, by name, so neither artifact depends on a glob or an
+ignore rule to carry them. These environments contain only the distribution and its declared runtime dependencies,
+resolved fresh from PyPI, so an undeclared dependency supplied by the project lock cannot hide a packaging error.
+The smoke steps configure nothing, and need nothing configured: the command line is read before any owner that
+resolves the settings is imported, so `--help` answers even where a `REPOS` value would abort a real launch, and the
+template owner imports no configuration at all.
+[`../../tests/repository/test_distribution_contents.py`](../../tests/repository/test_distribution_contents.py)
+builds both artifacts with `poetry build` into temporary storage and checks that each carries the two templates with
+the text the checkout holds.
 
 The job declares `timeout-minutes: 20`, generous next to the few minutes a green run takes and far under the six-hour
 default GitHub would otherwise cancel it at; the reasoning that ceiling serves is the same one the scans below are

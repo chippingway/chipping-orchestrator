@@ -30,7 +30,8 @@ addresses stay stable is in the [`develop` skill](.agents/skills/develop/SKILL.m
   the role, conversation, and spec pages under [`docs/workflow/`](docs/workflow/)
 - Configuration / env vars: [`docs/configuration.md`](docs/configuration.md) is the reference, with the observability
   settings and the operator runbooks under [`docs/configuration/`](docs/configuration/); basic knobs in
-  [`.env.example`](.env.example), common advanced overrides in [`.env.example.advanced`](.env.example.advanced)
+  [`.env.example`](orchestrator/service/.env.example), common advanced overrides in
+  [`.env.example.advanced`](orchestrator/service/.env.example.advanced), both shipped as package data
 - Observability: [`docs/observability.md`](docs/observability.md) maps every surface, with the event-stream,
   trajectory, database, dashboard, and usage-parser pages under [`docs/observability/`](docs/observability/)
 - Security checklist and operator-owned controls: [`docs/security.md`](docs/security.md)
@@ -47,15 +48,14 @@ Top level only. Which module owns what is in
   `chipping-orchestrator` console script calls), and `__main__.py` (the `python -m orchestrator` form over it); every
   other module lives under a subpackage named after what it owns: `workflow/` (tick loop, label dispatch, and the
   per-label stage handlers under `workflow/stages/`), `github/`, `git/`, `agents/`, `scheduler/`, `config/`,
-  `skills/`, `runtime/` (the polling process), `apps/` (the `streamlit run` targets), and `observability/` (analytics
-  sink, dashboards, usage parser).
+  `skills/`, `runtime/` (the polling process), `service/` (the packaged basic and advanced `.env` templates),
+  `apps/` (the `streamlit run` targets), and `observability/` (analytics sink, dashboards, usage parser).
 - `tests/` — pytest suite, mirroring the package layout (`tests/workflow/`, `tests/github/`, `tests/git/`, …).
   In-memory GitHub doubles live in `tests/support/github/`.
 - `docs/` — architecture, state-machine, workflow, configuration, observability, and security references.
 - `plans/` — human working notes, not specifications (see below).
 - `analytics-db/` — operator-owned local analytics database (see below).
 - `run.sh` — development wrapper that auto-restarts after self-modifying merges.
-- `.env.example` / `.env.example.advanced` — basic and advanced configuration templates.
 
 ## Development
 

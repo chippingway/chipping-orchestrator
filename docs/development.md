@@ -18,12 +18,14 @@ pipx install "poetry==2.5.1"
 git clone https://github.com/chippingway/chipping-orchestrator.git
 cd chipping-orchestrator
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync
-cp .env.example .env
+cp orchestrator/service/.env.example .env
 ```
 
-Keep an existing `.env` when updating a checkout. Edit the checkout's `.env` following
-[basic setup](configuration.md#basic-setup): set `REPOS`, `ALLOWED_ISSUE_AUTHORS`, `HITL_HANDLE`, and any agent
-overrides.
+Both templates are package data under `orchestrator/service/`: `.env.example` is the basic one and
+`.env.example.advanced` holds the optional overrides and the developer settings. Those two files are the only copies,
+and the built distributions ship them, so edit them there. Keep an existing `.env` when updating a checkout. Edit the
+checkout's `.env` following [basic setup](configuration.md#basic-setup): set `REPOS`, `ALLOWED_ISSUE_AUTHORS`,
+`HITL_HANDLE`, and any agent overrides.
 Live runs act on real GitHub issues and can start agents, so use a dedicated test repository. Tokens belong in
 `~/.config/<owner>/<repo>/token` or the launch environment, as described in the
 [credential reference](configuration.md#github-personal-access-token).

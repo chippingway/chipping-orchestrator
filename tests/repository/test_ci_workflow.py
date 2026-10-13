@@ -23,9 +23,9 @@ held against the manifest below.
 The packaging steps decide whether the distribution works at all. The steps
 above them reach the console script through an editable install of the source
 tree, which says nothing about what the build backend packaged, so a wheel
-that ships no package, an entry point naming a module it does not carry, or a
-runtime dependency only the lockfile supplies stays green until someone
-installs the distribution.
+that ships no package, an entry point naming a module it does not carry, a
+runtime dependency only the lockfile supplies, or a `.env` template left out of
+the package data stays green until someone installs the distribution.
 
 Nothing in the tree runs this file -- GitHub does -- so each decision is held
 as the text GitHub has to receive.
@@ -56,20 +56,31 @@ _CONCURRENCY_BLOCK = "\n".join((
 ))
 
 _BUILD_COMMAND = "run: poetry build"
+# Both `.env` templates read back out of the installed package, which fails on
+# an artifact that left either one behind.
+_TEMPLATE_READ = (
+    "  'from orchestrator.service import templates as t; "
+    "print(*map(len, map(t.template_text, t.TEMPLATES)))'"
+)
 # The invocation that proves the built wheel: an environment holding that
 # wheel and the dependencies it declares and nothing else -- no project, no
-# lockfile, no dev group -- running the console script out of it.
+# lockfile, no dev group -- running the console script and reading the
+# templates out of it.
 _WHEEL_SMOKE = (
     'python -m venv "$RUNNER_TEMP/wheel-env"',
     '"$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/*.whl',
     'cd "$RUNNER_TEMP"',
     '"$RUNNER_TEMP/wheel-env/bin/chipping-orchestrator" --help',
+    '"$RUNNER_TEMP/wheel-env/bin/python" -c \\',
+    _TEMPLATE_READ,
 )
 _SDIST_SMOKE = (
     'python -m venv "$RUNNER_TEMP/sdist-env"',
     '"$RUNNER_TEMP/sdist-env/bin/python" -m pip install dist/*.tar.gz',
     'cd "$RUNNER_TEMP"',
     '"$RUNNER_TEMP/sdist-env/bin/chipping-orchestrator" --help',
+    '"$RUNNER_TEMP/sdist-env/bin/python" -c \\',
+    _TEMPLATE_READ,
 )
 
 # The pages that state the tested versions in prose.
