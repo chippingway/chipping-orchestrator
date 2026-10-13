@@ -63,22 +63,22 @@ REPLACEMENT_COUNT = 2
 
 REPLACEMENT_MANIFEST = _manifest(
     '{"decision": "split", "umbrella": true, "rationale": "re-planned", "children": ['
-    '{"title": "A", "body": "the first half, as the edit now asks"}, '
-    '{"title": "B", "body": "the second half, as the edit now asks"}]}'
+    '{"title": "A", "body": "the first half, as the edit now asks", "depends_on": []}, '
+    '{"title": "B", "body": "the second half, as the edit now asks", "depends_on": []}]}'
 )
 
 # The same answer over one replacement, for the cases about one child: a
 # count of one is reached by the first child the loop records.
 ONE_REPLACEMENT_MANIFEST = _manifest(
     '{"decision": "split", "umbrella": true, "rationale": "re-planned", "children": ['
-    '{"title": "A", "body": "the whole of it, as the edit now asks"}]}'
+    '{"title": "A", "body": "the whole of it, as the edit now asks", "depends_on": []}]}'
 )
 
 # The same answer over two replacements, the second waiting on the first:
 # released by a dependency poll after the split, not by the split itself.
 DEPENDENT_MANIFEST = _manifest(
     '{"decision": "split", "umbrella": true, "rationale": "re-planned", "children": ['
-    '{"title": "A", "body": "the groundwork, as the edit now asks"}, '
+    '{"title": "A", "body": "the groundwork, as the edit now asks", "depends_on": []}, '
     '{"title": "B", "body": "the rest of it, on top", "depends_on": [0]}]}'
 )
 
@@ -86,7 +86,7 @@ DEPENDENT_MANIFEST = _manifest(
 # on the first: released together, by one dependency poll, once it is done.
 FANNED_MANIFEST = _manifest(
     '{"decision": "split", "umbrella": true, "rationale": "re-planned", "children": ['
-    '{"title": "A", "body": "the groundwork, as the edit now asks"}, '
+    '{"title": "A", "body": "the groundwork, as the edit now asks", "depends_on": []}, '
     '{"title": "B", "body": "one half of the rest, on top", "depends_on": [0]}, '
     '{"title": "C", "body": "the other half of the rest, on top", "depends_on": [0]}]}'
 )

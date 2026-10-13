@@ -259,7 +259,7 @@ def _slice_naming(*refs: str) -> str:
         "decision": "split",
         "umbrella": True,
         "rationale": "re-planned",
-        "children": [{"title": "A", "body": f"the whole of it; reuse what {told} holds."}],
+        "children": [{"title": "A", "body": f"the whole of it; reuse what {told} holds.", "depends_on": []}],
     }))
 
 

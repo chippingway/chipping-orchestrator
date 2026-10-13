@@ -100,7 +100,8 @@ DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER = 624
 
 SINGLE_MANIFEST_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
 SPLIT_MANIFEST = _manifest(
-    '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
+    '{"decision": "split", "children": ['
+    '{"title": "A", "body": "a", "depends_on": []},{"title": "B", "body": "b", "depends_on": []}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
@@ -151,6 +152,11 @@ _OTHER_PARENT = 999
 KEY_SPLIT_ATTEMPT = "split_attempt"
 # What a pinned comment that would not parse reads back as.
 _UNPARSED = PinnedState(comment_id=1, parsed=False)
+# A fresh split whose second child waits on the first.
+_DEPENDENT_SPLIT = _manifest(
+    '{"decision": "split", "children": ['
+    '{"title": "A", "body": "a", "depends_on": []}, {"title": "B", "body": "needs A", "depends_on": [0]}]}'
+)
 
 
 def _orphan_recovery_fixture():
@@ -234,6 +240,25 @@ class DecompositionRecoveryTest(
         )
         # A split recorded with no attempt names no summary receipt to post behind.
         self.assertEqual(gh.posted_comments, [])
+
+    def test_a_dependent_split_recovers_its_graph(self) -> None:
+        # A split that dies at its finalize recovers from the graph it
+        # recorded, not by asking the decomposer for another manifest.
+        gh = FakeGitHubClient()
+        issue = make_issue(COMPLETE_RECOVERY_PARENT_NUMBER, label=LABEL_DECOMPOSING)
+        gh.add_issue(issue)
+        dying = patch.object(gh, "set_workflow_label", side_effect=KeyboardInterrupt("finalize"))
+        with dying, self.assertRaises(KeyboardInterrupt):
+            self._run_decomposing(gh, issue, run_agent=_agent(last_message=_DEPENDENT_SPLIT))
+        created = [child.number for child in gh.created_child_issues]
+
+        self._run_decomposing(gh, issue, run_agent=_agent())[RUN_AGENT].assert_not_called()
+
+        self.assertEqual([child.number for child in gh.created_child_issues], created)
+        self.assertEqual(gh.label_history, [(COMPLETE_RECOVERY_PARENT_NUMBER, LABEL_BLOCKED)])
+        parent_state = gh.pinned_data(COMPLETE_RECOVERY_PARENT_NUMBER)
+        self.assertEqual(parent_state.get(KEY_CHILDREN), created)
+        self.assertEqual(parent_state.get("dep_graph"), {"1": [0]})
 
     def test_half_complete_awaiting_human_holds(self) -> None:
         # If the prior tick parked awaiting_human after partial child

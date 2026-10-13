@@ -3,7 +3,9 @@
 """Decomposition prompts and the human-facing explanation of an unsplit decision.
 
 The child limit comes from the manifest validator. Prompt markers and manifest
-fields agree with their readers, and file lists remain bounded in the notice."""
+fields agree with their readers -- the `depends_on` list every child is told to
+state is the one a fresh split reply is refused without -- and file lists
+remain bounded in the notice."""
 from __future__ import annotations
 
 from github.Issue import Issue
@@ -50,7 +52,8 @@ def _build_decompose_prompt(
         "  \"rationale\": \"<<= 2 sentences why>\",\n"
         "  \"umbrella\": false,\n"
         "  \"children\": [\n"
-        "    {\"title\": \"...\", \"body\": \"...\", \"depends_on\": []}\n"
+        "    {\"title\": \"...\", \"body\": \"...\", \"depends_on\": []},\n"
+        "    {\"title\": \"...\", \"body\": \"... needs child 0 ...\", \"depends_on\": [0]}\n"
         "  ]\n"
         "}\n"
         "```\n\n"
@@ -65,8 +68,14 @@ def _build_decompose_prompt(
         "encouraged on `\"single\"`.\n\n"
         "Rules for the children list (omit entirely on 'single'):\n"
         f"- At most {_MAX_CHILDREN} children.\n"
-        "- `depends_on` is a list of 0-based indexes into THIS children "
-        "array (not GitHub issue numbers; the orchestrator allocates those).\n"
+        "- Every child MUST carry `depends_on`: a list of 0-based indexes "
+        "into THIS children array (not GitHub issue numbers; the orchestrator "
+        "allocates those). Use `[]` for a child with no prerequisites; a "
+        "missing or null `depends_on` rejects the whole manifest.\n"
+        "- `depends_on` must name exactly the prerequisites the child's body "
+        "describes: a child whose body says it needs another child's work "
+        "lists that child's index, and does not start until that child is "
+        "done.\n"
         "- Self-dependencies and cycles are rejected.\n"
         "- Each child must be small enough to implement in one context "
         "(do not propose a child that itself needs decomposition).\n\n"

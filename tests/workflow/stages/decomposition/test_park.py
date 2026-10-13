@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 
 from tests.support.fakes import (
     FakeComment,
@@ -86,7 +87,8 @@ DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER = 624
 
 SINGLE_MANIFEST_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
 SPLIT_MANIFEST = _manifest(
-    '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
+    '{"decision": "split", "children": ['
+    '{"title": "A", "body": "a", "depends_on": []},{"title": "B", "body": "b", "depends_on": []}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
@@ -97,6 +99,22 @@ _PARK_REASON_QUESTION = "decomposer_question"
 _PARK_REASON_SILENT = "decomposer_silent"
 _ROLE_DECOMPOSER = "decomposer"
 _EVENT_PARK = "park_awaiting_human"
+# Malformed manifest payloads, each beside the reason its park names: one that
+# is not JSON, and a split whose second child leaves the prerequisite its body
+# names unstated, missing or null.
+_MALFORMED_PAYLOADS = MappingProxyType({
+    "{not really json": "invalid JSON",
+    (
+        '{"decision": "split", "umbrella": true, "children": ['
+        '{"title": "A", "body": "a", "depends_on": []}, {"title": "B", "body": "needs A"}]}'
+    ): "child 1 missing depends_on",
+    (
+        '{"decision": "split", "umbrella": true, "children": ['
+        '{"title": "A", "body": "a", "depends_on": []}, {"title": "B", "body": "needs A", "depends_on": null}]}'
+    ): "child 1 depends_on is null",
+})
+# What a split writes on its parent before it creates the first child.
+_SPLIT_TRACKING = ("expected_children_count", "children", "dep_graph", "split_attempt", "umbrella")
 
 
 def _assert_resumed_timeout_park_fail_open(
@@ -209,28 +227,33 @@ class HandleDecomposingParkTest(
         _assert_resumed_timeout_park_fail_open(self, "not-an-int")
 
     def test_decompose_malformed_manifest_parks(self) -> None:
-        gh = FakeGitHubClient()
-        issue = make_issue(MALFORMED_MANIFEST_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
-        gh.add_issue(issue)
-        bad = _manifest("{not really json")
+        # A malformed reply parks before the split writes anything: no child
+        # is created and no split tracking is written, so the human's reply
+        # resumes the decomposer rather than a recovery.
+        for payload, refusal in _MALFORMED_PAYLOADS.items():
+            with self.subTest(refusal=refusal):
+                gh = FakeGitHubClient()
+                issue = make_issue(MALFORMED_MANIFEST_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+                gh.add_issue(issue)
 
-        self._run_decomposing(
-            gh,
-            issue,
-            run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=bad),
-        )
+                self._run_decomposing(
+                    gh,
+                    issue,
+                    run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=_manifest(payload)),
+                )
 
-        state = gh.pinned_data(MALFORMED_MANIFEST_ISSUE_NUMBER)
-        self.assertTrue(state.get(KEY_AWAITING_HUMAN))
-        last_comment = gh.posted_comments[-1][1]
-        self.assertIn("manifest invalid", last_comment)
-        # Last decomposer message quoted into the HITL ping so the human
-        # can see what the agent actually emitted.
-        self.assertIn("not really json", last_comment)
-        # Decomposer session recorded so the resume on human reply uses
-        # the right backend even if DECOMPOSE_AGENT flips between ticks.
-        self.assertEqual(state.get(KEY_DECOMPOSER_SESSION_ID), DECOMPOSER_SESSION)
-        self._assert_decomposer_park_event(gh, _PARK_REASON_INVALID)
+                state = gh.pinned_data(MALFORMED_MANIFEST_ISSUE_NUMBER)
+                self.assertTrue(state.get(KEY_AWAITING_HUMAN))
+                self.assertIn(f"manifest invalid ({refusal}", gh.posted_comments[-1][1])
+                # Last decomposer message quoted into the HITL ping so the human
+                # can see what the agent actually emitted.
+                self.assertIn(payload, gh.posted_comments[-1][1])
+                # Decomposer session recorded so the resume on human reply uses
+                # the right backend even if DECOMPOSE_AGENT flips between ticks.
+                self.assertEqual(state.get(KEY_DECOMPOSER_SESSION_ID), DECOMPOSER_SESSION)
+                self.assertEqual((gh.created_child_issues, gh.label_history), ([], []))
+                self.assertFalse(set(_SPLIT_TRACKING) & set(state), "no split tracking is written")
+                self._assert_decomposer_park_event(gh, _PARK_REASON_INVALID)
 
     def test_decompose_no_manifest_question_parks(self) -> None:
         gh = FakeGitHubClient()

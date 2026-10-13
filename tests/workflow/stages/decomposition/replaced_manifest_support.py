@@ -36,11 +36,11 @@ from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, 
 REPLACEMENT_MANIFESTS = MappingProxyType({
     _support.UMBRELLA: _manifest(
         '{"decision": "split", "umbrella": true, "rationale": "re-planned", '
-        '"children": [{"title": "A", "body": "the whole of it, as the edit now asks"}]}'
+        '"children": [{"title": "A", "body": "the whole of it, as the edit now asks", "depends_on": []}]}'
     ),
     _support.LABEL_BLOCKED: _manifest(
         '{"decision": "split", "umbrella": false, "rationale": "re-planned", '
-        '"children": [{"title": "A", "body": "the groundwork, as the edit now asks"}]}'
+        '"children": [{"title": "A", "body": "the groundwork, as the edit now asks", "depends_on": []}]}'
     ),
 })
 

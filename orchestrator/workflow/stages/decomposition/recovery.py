@@ -10,6 +10,12 @@ the two persistent markers `split` writes are what tells them apart:
 `expected_children_count` goes down before the first child is created, and
 `children` grows after each one is.
 
+Nothing here asks a manifest's rules again. The `dep_graph` the split wrote
+beside those markers is the dependency reading its children were created
+under, and the parent's walk releases them by it once this finalizes, so a
+split recorded before every child had to state its `depends_on` finalizes as
+it was recorded rather than being refused or re-decomposed.
+
 Those same two markers are written by the late split transaction, which owns
 them for as long as its generation is live -- so a live generation stops this
 recovery outright rather than finalizing a split that has not finished
