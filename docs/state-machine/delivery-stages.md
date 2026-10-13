@@ -2740,7 +2740,8 @@ because there it is the claim that this stage has already rerouted rather than a
   if PR feedback bounces the issue to `workflow:fixing` and the dev pushes a fix, the next approval triggers another
   final-docs pass. Also runs on closed-`workflow:documenting` issues so an externally-merged PR finalizes to `done`.
 - **Input**: pinned `pr_number`, `branch`, `dev_agent` / `dev_session_id` (the docs pass reuses the locked dev spec —
-  there is no separate `documenting_agent`), plus `docs_checked_sha` / `docs_verdict` / `silent_park_count`.
+  there is no separate `documenting_agent`), plus `docs_checked_sha` / `docs_verdict` / `silent_park_count`, and the
+  `docs_launched_sha` an Antigravity launch lands ahead of its run (step 7).
 - **Internal flow**:
   0. **What `validating` still owes goes back to it** (`_hands_back_what_validating_owes`), with nothing written --
      asked once steps 1–3 below have let the tick through, so a merged or closed pull request finalizes whatever the
@@ -2991,7 +2992,8 @@ because there it is the claim that this stage has already rerouted rather than a
 
 The docs pass is deliberately a thin dev-session rerun on the existing PR worktree rather than a separate role: there is
 no `documenting_agent` pin and no separate retry budget. The dev session resumes on its locked `(backend, args)` spec,
-so `DEV_AGENT` flips made mid-flight do not retarget the docs pass either.
+so `DEV_AGENT` flips made mid-flight do not retarget the docs pass either — nor the fresh conversation a continue opens
+where an Antigravity quota retired the old one, which runs under that same pinned command.
 
 ## The size gate on a published pull request (every push onto an open PR)
 

@@ -3128,7 +3128,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             Antigravity docs launch lands alone through the guarded commit before it is made, and
                             which stands until the outcome is recorded or proved not to need it, so a tick that ended
                             writing nothing leaves the next one to take the park that pass earned instead of
-                            publishing or rerunning it unasked
+                            publishing or rerunning it unasked -- the pre-tick base refresh holding the branch still
+                            while it stands (`git/base_sync/frozen`)
       subject.py            the single ` (#N)` reference the docs commit's subject is normalized to end in under
                             `PR_REF_IN_SUBJECT`, ahead of the gate. Both numbers this pass knows -- the tracked issue's
                             and the pull request's -- go to the shared `git/publication/pr_references` owner, so the
@@ -3176,12 +3177,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             readings, whose report,
                             pointer, verdict, evidence, or approval records moving sends the issue back too
                             (`_approval_still_stands`); a report, evidence, or comment nobody could read holds the tick
-      parks.py              the shared awaiting-human park and the missing-PR, dirty-tree, question, and unvouched
-                            recovered-commit parks, plus the hold a park taken during a drift unwind applies inside
-                            its OWN write: that road
-                            runs no agent, so the delivery cursor goes back where the tick found it and the notice
-                            just posted is kept as the unwind's boundary instead -- a correction in a second write
-                            is one a crash between them loses, and it loses it in the direction that waits forever.
+      parks.py              the shared awaiting-human park and the missing-PR, dirty-tree, and question parks, the
+                            park a launch whose outcome nothing recorded takes on a later tick, plus the hold a park
+                            taken during a drift unwind applies inside its OWN write: that road runs no agent, so
+                            the delivery cursor goes back where the tick found it and the notice just posted is kept
+                            as the unwind's boundary instead -- a correction in a second write is one a crash
+                            between them loses, and it loses it in the direction that waits forever.
                             `_asked_since` is the reader half, and it is what every road classifying a parked reply
                             asks so the two boundaries cannot be confused for each other
       models.py             the frozen records the owners hand each other, including the one reading of a finished
