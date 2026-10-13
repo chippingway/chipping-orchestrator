@@ -81,13 +81,16 @@ jobs:
       # no dev group. An artifact shipping no `orchestrator` package, an entry
       # point naming a module it does not carry, or a runtime dependency the
       # lockfile supplies but `[project.dependencies]` omits fails here and
-      # passes every step above.
+      # passes every step above. So does an artifact missing either `.env`
+      # template: both are read back out of the installed package.
       - name: Smoke-test the built wheel
         run: |
           python -m venv "$RUNNER_TEMP/wheel-env"
           "$RUNNER_TEMP/wheel-env/bin/python" -m pip install dist/*.whl
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/wheel-env/bin/chipping-orchestrator" --help
+          "$RUNNER_TEMP/wheel-env/bin/python" -c \
+            'from orchestrator.service import templates as t; print(*map(len, map(t.template_text, t.TEMPLATES)))'
 
       # Poetry builds the wheel from the checkout, so installing the sdist
       # independently is what detects a file omitted from the source archive.
@@ -97,3 +100,5 @@ jobs:
           "$RUNNER_TEMP/sdist-env/bin/python" -m pip install dist/*.tar.gz
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/sdist-env/bin/chipping-orchestrator" --help
+          "$RUNNER_TEMP/sdist-env/bin/python" -c \
+            'from orchestrator.service import templates as t; print(*map(len, map(t.template_text, t.TEMPLATES)))'

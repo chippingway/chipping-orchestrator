@@ -6,13 +6,15 @@ description: >-
 # Configuration reference
 
 All settings load from a `.env` file ([which one](#where-env-is-read)) or the process environment.
-[`../.env.example`](../.env.example) is the basic template: `REPOS` and the few other settings a first run needs, for
-one repository or several ([basic setup](#basic-setup)). [`../.env.example.advanced`](../.env.example.advanced) carries
-optional operational overrides and illustrative examples for opt-in settings, then the orchestrator-developer settings
-in a section of their own; [`../tests/repository/test_env_templates.py`](../tests/repository/test_env_templates.py)
-holds that split and parses every `REPOS` value the basic template writes. This page and the two beside it are the
-source of truth — every setting and every default lives on one of them, and both `.env.example*` files keep their
-inline comments terse and link back for the full rationale.
+[`.env.example`](../orchestrator/service/.env.example) is the basic template: `REPOS` and the few other settings a
+first run needs, for one repository or several ([basic setup](#basic-setup)).
+[`.env.example.advanced`](../orchestrator/service/.env.example.advanced) carries optional operational overrides and
+illustrative examples for opt-in settings, then the orchestrator-developer settings in a section of their own. Both
+ship inside the package, under `orchestrator/service/`, so every installation carries the pair written for its own
+version; [`../tests/repository/test_env_templates.py`](../tests/repository/test_env_templates.py) holds that split and
+parses every `REPOS` value the basic template writes. This page and the two beside it are the source of truth — every
+setting and every default lives on one of them, and both `.env.example*` files keep their inline comments terse and
+link back for the full rationale.
 
 The orchestrator keeps no configuration state of its own: every setting here selects backends and budgets at startup,
 or names files/paths outside the repo. Per-issue state lives in the issue's pinned JSON comment on GitHub, beside the
@@ -55,8 +57,8 @@ derived from the targets rather than from it. Both locations refuse the token ke
 ## Basic setup
 
 Install with `pipx install chipping-orchestrator`, then follow the
-[package setup instructions](#package-installation-upgrades-and-rollback) to download `.env.example` and
-`.env.example.advanced` from the installed version's release tag. On first setup, copy the basic template to
+[package setup instructions](#package-installation-upgrades-and-rollback) to save the `.env.example` and
+`.env.example.advanced` the installed version carries in its package. On first setup, copy the basic template to
 `~/.config/chipping-orchestrator/.env` and set an absolute `LOG_DIR` outside the pipx environment. Keep an existing
 file when upgrading or rolling back. The orchestrator's own repository does not need to be cloned;
 [source setup](development.md#source-checkout-setup) is for developers.
@@ -81,11 +83,11 @@ beside it, and give every entry a token — a file at `~/.config/<owner>/<name>/
 all of them ([resolution order](#github-personal-access-token)). Worktrees go under `wt-orchestrator` beside the first
 entry's clone unless `WORKTREES_DIR` says otherwise ([workspace](#workspace-and-agent-identity)).
 
-Nothing else is needed. [`../.env.example.advanced`](../.env.example.advanced) holds optional operational settings,
-each documented below, and closes with the orchestrator-developer settings `REPO`, `TARGET_REPO_ROOT`, `BASE_BRANCH`,
-and `REMOTE_NAME`. Those are for working on the orchestrator itself from its source checkout, against its own
-repository by default ([developer fallback](#developer-fallback-and-target-checks)), and are ignored whenever `REPOS`
-is set.
+Nothing else is needed. [`.env.example.advanced`](../orchestrator/service/.env.example.advanced) holds optional
+operational settings, each documented below, and closes with the orchestrator-developer settings `REPO`,
+`TARGET_REPO_ROOT`, `BASE_BRANCH`, and `REMOTE_NAME`. Those are for working on the orchestrator itself from its source
+checkout, against its own repository by default ([developer fallback](#developer-fallback-and-target-checks)), and are
+ignored whenever `REPOS` is set.
 
 ## Package installation, upgrades, and rollback
 
@@ -94,11 +96,11 @@ upgrade with `pipx upgrade chipping-orchestrator` after stopping the poller and 
 installed version matches the reviewed release before restarting. Constrained installs upgrade by repeating the
 [pinned procedure](configuration/operations.md#pin-a-release-and-runtime-dependencies) with the new release's
 constraints. The [operator instructions](configuration/operations.md#package-installation-upgrades-and-rollback) cover
-version-matched template downloads, checks, backups, upgrades, rollback, optional runtime constraints, and migration
-from v0.13.0's dedicated venv. Installed packages use `~/.config/chipping-orchestrator/.env` and the explicit `REPOS`
-targets above. Review release notes and compare both versions' templates before changing settings: local overrides,
-changed defaults, and validation rules can affect both the upgrade and a later rollback. Package changes are initiated
-by the operator.
+saving the templates the installed version carries, checks, backups, upgrades, rollback, optional runtime constraints,
+and migration from v0.13.0's dedicated venv. Installed packages use `~/.config/chipping-orchestrator/.env` and the
+explicit `REPOS` targets above. Review release notes and compare both versions' templates before changing settings:
+local overrides, changed defaults, and validation rules can affect both the upgrade and a later rollback. Package
+changes are initiated by the operator.
 
 Upgrading past v0.13.0 moves the poller from the bare `chipping-orchestrator` command to `chipping-orchestrator run`:
 the bare command prints help and exits 0, so a launch line, script, or hand-written unit's `ExecStart` that runs it
@@ -162,8 +164,8 @@ each of them, file-backed ones included.
 `REPOS` names the repositories to manage, one entry each, for a single repository as for several, and an installed
 package requires it ([basic setup](#basic-setup)). The single-repo quartet `REPO` / `TARGET_REPO_ROOT` /
 `BASE_BRANCH` / `REMOTE_NAME` is the developer fallback, kept in the developer section of
-[`../.env.example.advanced`](../.env.example.advanced): read only while `REPOS` is unset and the package runs from a
-source checkout, and ignored whenever `REPOS` is set
+[`.env.example.advanced`](../orchestrator/service/.env.example.advanced): read only while `REPOS` is unset and the
+package runs from a source checkout, and ignored whenever `REPOS` is set
 ([which targets a start selects](#developer-fallback-and-target-checks)).
 
 - `REPOS` — default _(unset)_. the managed repositories, entries separated by newlines or `;`

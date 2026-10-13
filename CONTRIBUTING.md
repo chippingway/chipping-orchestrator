@@ -201,13 +201,16 @@ RELEASE_SDIST="$RELEASE_DIST/chipping_orchestrator-${RELEASE_VERSION}.tar.gz"
 
 Inspect the archive lists and the wheel's `METADATA` and sdist's `PKG-INFO`: check the name, version, Python
 requirement, runtime dependency bounds, README, URLs, and license. The wheel carries `orchestrator/` and its
-distribution metadata; the sdist also carries `pyproject.toml`, `README.md`, and `LICENSE`. Neither archive should
-contain `tests/`, `plans/`, agent configuration, or `.env` files. The constraints export contains only the tested
-runtime dependencies, without hashes so pip can also resolve the root package when the file is used as a constraint.
+distribution metadata; the sdist also carries `pyproject.toml`, `README.md`, and `LICENSE`. Both carry the
+`orchestrator/service/.env.example` and `orchestrator/service/.env.example.advanced` templates as package data, the
+version-matched copies operators save from an installation. Neither archive should contain `tests/`, `plans/`, agent
+configuration, or any other `.env` file. The constraints export contains only the tested runtime dependencies,
+without hashes so pip can also resolve the root package when the file is used as a constraint.
 Retain the wheel, sdist, and constraints file unchanged for publishing and retries.
 
-For each interpreter, install the wheel and sdist into separate virtual environments outside the source tree and
-run the installed CLI. A missing interpreter or failed check must stop the release:
+For each interpreter, install the wheel and sdist into separate virtual environments outside the source tree, run
+the installed CLI, and read both templates back out of the installed package. A missing interpreter or failed check
+must stop the release:
 
 ```bash
 (
@@ -220,6 +223,8 @@ run the installed CLI. A missing interpreter or failed check must stop the relea
       "$RELEASE_PYTHON" -m venv "$RELEASE_ENV"
       "$RELEASE_ENV/bin/python" -m pip install --no-cache-dir "$RELEASE_ARTIFACT"
       "$RELEASE_ENV/bin/chipping-orchestrator" --help
+      "$RELEASE_ENV/bin/python" -c \
+        'from orchestrator.service import templates as t; print(*map(len, map(t.template_text, t.TEMPLATES)))'
     done
   done
 )

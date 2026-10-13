@@ -71,9 +71,9 @@ use `pipx install --python python3.12 chipping-orchestrator` with an installed s
 The quick start resolves runtime dependencies from PyPI without `poetry.lock`, tested constraints, or a 14-day hold;
 use the [pinned installation procedure][pinned-installation] for the release's tested dependency versions.
 
-Follow the [package setup instructions][installation] to download the installed version's `.env` templates
-and create `~/.config/chipping-orchestrator/.env`. That setup also sets an absolute `LOG_DIR` outside the pipx
-environment so logs survive package upgrades. The orchestrator's own repository does not need to be cloned.
+Follow the [package setup instructions][installation] to save the `.env` templates the installed version carries in
+its package and create `~/.config/chipping-orchestrator/.env`. That setup also sets an absolute `LOG_DIR` outside the
+pipx environment so logs survive package upgrades. The orchestrator's own repository does not need to be cloned.
 
 Edit `~/.config/chipping-orchestrator/.env` and set at least:
 

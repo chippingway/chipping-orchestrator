@@ -1,7 +1,8 @@
 # Platform modules
 
 This page maps the packages the workflow layer runs on: the package root and its two launch forms, the polling
-`runtime/`, and the `config/`, `github/`, `agents/`, `scheduler/`, `git/`, and `skills/` domains. It is split out of
+`runtime/`, the `service/` package an installed orchestrator sets itself up from, and the `config/`, `github/`,
+`agents/`, `scheduler/`, `git/`, and `skills/` domains. It is split out of
 [`../architecture.md#top-level-layout`](../architecture.md#top-level-layout), which keeps the top-level map and the
 naming rules that hold for the tree as a whole. The `workflow/` package is in
 [`workflow-modules.md`](workflow-modules.md).
@@ -16,7 +17,8 @@ last is held by the loader itself rather than by a check.
 
 - **Layer position.** `config/` is the bottom layer and names nothing above itself; `github/`, `git/`, `agents/`,
   `scheduler/`, and `skills/` sit above it and below `workflow/`; `runtime/` and the two launch forms compose the
-  lot. `tests/repository/test_layering.py` reads that direction twice, because deferring an import weakens where it
+  lot, and `service/` sits beside them at the top, where no domain can reach it.
+  `tests/repository/test_layering.py` reads that direction twice, because deferring an import weakens where it
   lands but not whether it belongs.
 - **At module scope, the workflow vocabulary.** Only `github/` and `git/` may bind the exact workflow owners
   `state.py`, `label_reading.py`, `transitions.py`, and `transition_guard.py`. They read and write the label vocabulary
@@ -101,6 +103,11 @@ last is held by the loader itself rather than by a check.
   `tests/git/publication/test_imports.py`.
 - **Import cost.** `import orchestrator` costs the root module and no owner behind it, and importing a `runtime/`
   owner plants neither the CLI nor an app — `tests/runtime/test_imports.py` and `tests/apps/test_imports.py`.
+- **Templates without configuration.** Importing `service/` or its `templates.py` plants nothing beyond its own
+  chain, `orchestrator.config` above all: that package resolves the settings as it is imported, and an installed
+  package with no `REPOS` exits there, which is the state a first setup reads the templates in —
+  `tests/service/test_imports.py`. The two `.env` templates are package data named under `[tool.poetry].include`, and
+  `tests/repository/test_distribution_contents.py` builds the wheel and the sdist to read both back out of each.
 - **Direction inside `skills/`.** Neither owner may reach the workflow engine, a stage, or an application entry
   point: a catalog is observation the tick drives, not state a handler consults — `tests/skills/test_imports.py`.
 - **Secrets.** `GITHUB_TOKEN` is read from the process environment or a token file outside `REPO_ROOT` — one per
@@ -182,6 +189,13 @@ orchestrator/
                         no claim
     self_update.py      the git probes behind the self-restart guard
     shutdown.py         the signal handler, the bounded-drain watchdog, and the forced exit it ends at
+  service/              what an installed orchestrator carries for setting itself up; a marker initializer
+    templates.py        the reader of the two `.env` templates beside it, through `importlib.resources`, so an
+                        editable checkout and an installed wheel alike hand back the copy matching the running
+                        version; it imports nothing from the package, so it answers on a host with no configuration
+    .env.example        the basic template a setup starts from: `REPOS` and the few settings a first run needs
+    .env.example.advanced
+                        optional operational overrides and examples, then the orchestrator-developer settings
   config/               publishes resolved settings and `RepoSpec`, with parsing owned by its leaves
     __init__.py         reloadable settings bindings, their diagnostic funnel, and the default repo-spec accessor
     environment.py      the env-value parsers and the `_SettingsResolver` that reads and validates every knob

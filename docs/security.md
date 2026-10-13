@@ -112,8 +112,8 @@ Enable both at `Settings → Code security`:
 
 - **Secret scanning** — alerts on tokens found in the repo's history.
 - **Push protection** — blocks pushes that introduce a detected secret pattern. The orchestrator never reads
-  `GITHUB_TOKEN` from `.env` ([`.env.example`](../.env.example)), so push protection is defense-in-depth against an
-  accidental paste.
+  `GITHUB_TOKEN` from `.env` ([`.env.example`](../orchestrator/service/.env.example)), so push protection is
+  defense-in-depth against an accidental paste.
 
 On org-owned repos, set the same defaults at the org level.
 
