@@ -23,12 +23,12 @@ ledger entry reserved over the fresh ledger and kept beside it, and the record
 of the event -- staged before it is prepared, so the announcement is measured
 whole over the fresh comment before anything is said; it is decided
 on the attempt being finished, the report records and claim the debt was
-staged over, the park's flags, the round, and the evidence records, and it
-lands only once the landed head's evidence is resolved: a transaction another
-road recorded beside the one the finish settled or retired -- one recorded
-while the settlement's own answer came back among them -- refuses the
-announcement before its notice is posted, and the attempt stands for the next
-finish to answer it. `EVIDENCE` makes the landed head's
+staged over, the park's flags, the round, and every record the evidence is
+bound through, and it lands only once the landed head's evidence is
+resolved: a transaction another road recorded beside the one the finish
+settled or retired -- one recorded while the settlement's own answer came
+back among them -- refuses the announcement before its notice is posted, and
+the attempt stands for the next finish to answer it. `EVIDENCE` makes the landed head's
 evidence decision durable ahead of its announcement and its route
 (`rewrite_finish_evidence`): the current evidence retired into history, the
 transaction a fresh or carried result is recorded as, with the revision floor
@@ -48,20 +48,23 @@ recorded as made onto too, which an abandonment with no room for its history
 entry blanks.
 `INVALIDATION` invalidates settled evidence a reading established movement
 under where the write staged on the comment read afresh would not land
-(`rewrite_finish_readiness.invalidates`, dormant: no road asks it yet):
-staged on the tick's own copy and decided only on the evidence records and
-the attempt -- landed without the publication's pinned fields among them
-(`lands`, `publication` False), so a pull request or branch another road
-repointed meanwhile is kept as it wrote it rather than refusing the write --
-so a failed reading of the comment does not leave a decision standing that a
-later reading, once the movement is put back, would take as current. It owns
+(`rewrite_finish_readiness.invalidates`): staged on the tick's own copy and
+decided only on the evidence records and the attempt -- landed without the
+publication's pinned fields among them (`lands`, `publication` False), so a
+pull request or branch another road repointed meanwhile is kept as it wrote it
+rather than refusing the write -- so a failed reading of the comment does not
+leave a decision standing that a later reading, once the movement is put back,
+would take as current. It owns
 the base tip the replay was recorded as made onto too, which an invalidation
 with no room for its history entry blanks -- decided on the current record
 as well, so a successor another road settled in that evidence's place is
 never marked moved, however the bounded history reads.
 `ANNOUNCED_EVENT` records the `base_rebased` event a finish is filing for
-the landed head, on its own and right ahead of it, decided on the attempt
-alone, so the event goes out only behind a write proving the attempt stands.
+the landed head, on its own and right ahead of it, decided on the attempt, so
+the event goes out only behind a write proving the attempt stands, and on the
+records settled evidence's binding rests on (`BINDING_RECORDS`), so a report
+or review record another road moved while the notice was posted refuses it
+rather than being taken into its landing unread.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, the claim the checkpoint made durable, and every
@@ -71,7 +74,10 @@ report, review subject, or evidence record another road moved since refuses
 the route rather than letting it carry a decision about a review nobody is
 handed any more. `PARK` records the park a debt with no room takes, decided on
 what the checkpoint would have been -- the round included, since how wide it is
-decides which of the two writes the debt was measured on had no room.
+decides which of the two writes the debt was measured on had no room -- and on
+`BINDING_RECORDS`. So no write behind the evidence lands over a record its
+binding rests on that another road moved: each is refused, and the refusal is
+read as the movement it is (`_stopped`).
 
 Anything but a commit that landed stops the finish there (`lands`,
 `prepares`), and nothing that depends on the write is made: a refusal writes
@@ -128,6 +134,14 @@ _EVIDENCE_RECORDS = frozenset((
     _evidence_records.REVISION_FLOOR,
 ))
 
+# The records a transaction recorded for the landed head is bound through.
+_BOUND = frozenset(_durable._BOUND_RECORDS)
+
+# Those of them settled evidence's binding rests on beyond the evidence records
+# themselves -- the pull request, a report or its debt, a review subject: a
+# write that reads one of them moved has read movement under the evidence.
+BINDING_RECORDS = _BOUND - _EVIDENCE_RECORDS
+
 CHECKPOINT = _commits.ReportWrite(
     owned=frozenset((
         _rewrite_debt.REWRITE_DEBT,
@@ -135,7 +149,7 @@ CHECKPOINT = _commits.ReportWrite(
         _base_sync_state._PENDING_ANNOUNCED_SHA,
         _base_sync_state._PENDING_ANNOUNCED_EVENT,
     )),
-    decided_on=_CLAIM | _ATTEMPT | _PARK_FLAGS | {_ROUND} | _EVIDENCE_RECORDS,
+    decided_on=_CLAIM | _ATTEMPT | _PARK_FLAGS | {_ROUND} | _BOUND,
 )
 
 EVIDENCE = _commits.ReportWrite(
@@ -180,10 +194,12 @@ INVALIDATION = _commits.ReportWrite(
 
 # The record of the `base_rebased` event a finish is filing, landed on its own
 # right ahead of the event and of the checkpoint (`rewrite_finish_events`), so
-# the event goes out only behind a write proving the attempt still stands.
+# the event goes out only behind a write proving the attempt still stands --
+# and over the binding records as the tick read them, so one another road
+# moved while the notice was posted refuses it rather than riding its landing.
 ANNOUNCED_EVENT = _commits.ReportWrite(
     owned=frozenset((_base_sync_state._PENDING_ANNOUNCED_EVENT,)),
-    decided_on=_ATTEMPT,
+    decided_on=_ATTEMPT | BINDING_RECORDS,
 )
 
 FINISH = _commits.ReportWrite(
@@ -195,35 +211,27 @@ FINISH = _commits.ReportWrite(
 
 PARK = _commits.ReportWrite(
     owned=_PARK_FLAGS | {_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID},
-    decided_on=_CLAIM | _ATTEMPT | _PARK_FLAGS | {_ROUND},
+    decided_on=_CLAIM | _ATTEMPT | _PARK_FLAGS | {_ROUND} | BINDING_RECORDS,
 )
 
-# What a write that did not land is answered as.
-# The records a transaction recorded for the landed head is bound through.
-_BOUND = frozenset(_durable._BOUND_RECORDS)
-
-# Those of them settled evidence's binding rests on beyond the evidence records
-# themselves -- the pull request, a report or its debt, a review subject: a
-# write that reads one of them moved has read movement under the evidence.
-BINDING_RECORDS = _BOUND - _EVIDENCE_RECORDS
-
-# What a refusal that read one of them moved observed: movement under any
-# transaction recorded for the head, which the caller hands to the last word as
-# its proof, so a record put back before that word reads it again revives
-# nothing (`rewrite_finish_captured.stands_before_the_route`).
+# What a refusal that read a record of `_BOUND` moved observed: movement under
+# any transaction recorded for the head, which the caller hands to the last
+# word as its proof, so a record put back before that word reads it again
+# revives nothing (`rewrite_finish_captured.stands_before_the_route`).
 _BOUND_MOVED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence is bound through moved under a write finishing the landing",
 )
 
-# The same reading where what moved is one of those records, and not only
-# the evidence records themselves, whose movement is a newer transaction for
-# the head to answer: a caller holding it invalidates settled evidence over it
-# (`rewrite_finish_readiness.invalidates_behind`). No write here collects it
-# yet; `_stopped` collects `_BOUND_MOVED` alone.
+# The same reading where what moved is a record settled evidence's binding
+# rests on -- the pull request, a report or its debt, a review subject -- and
+# not only the evidence records themselves, whose movement is a newer
+# transaction for the head to answer: settled evidence is invalidated over it
+# (`rewrite_finish_readiness.invalidates_behind`).
 BINDING_MOVED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved under a write finishing the landing",
 )
 
+# What a write that did not land is answered as.
 _UNLANDED = MappingProxyType({
     _commit_models.CommitStatus.UNCONFIRMED: FinishOutcome.UNCONFIRMED,
     _commit_models.CommitStatus.REFUSED: FinishOutcome.REFUSED,
@@ -313,25 +321,27 @@ def abandons(finish: LandedFinish, stage: Callable[[PinnedState], bool]) -> bool
     return fits if lands(finish, staged, ABANDONMENT) is None else None
 
 
-def parks(finish: LandedFinish) -> FinishOutcome:
+def parks(finish: LandedFinish, observed: list[ReportEvidence] | None = None) -> FinishOutcome:
     """Park `finish`'s landing for want of room for its debt, prepared before the park's notice is posted.
 
     Nothing is reset and nothing is cleared: the pull request already carries
     the head, and the attempt is what the reply brings back to record the debt
     and finish the route once somebody has made room. A park that would not
-    land posts nothing.
+    land posts nothing. `observed` collects the movement a refusal read
+    (`_stopped`) -- a report record another road moved while the notice was
+    posted among it.
     """
     reason = _base_sync_state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT
     staged = staging(finish)
     staged.set(_base_sync_state._AWAITING_HUMAN, True)
     staged.set(_base_sync_state._PARK_REASON, reason)
-    stopped = prepares(finish, staged, PARK, notice=True)
+    stopped = prepares(finish, staged, PARK, observed, notice=True)
     if stopped is not None:
         return stopped
     message = _debt.unrecorded(finish)
     _guards._park_awaiting_human(finish.gh, finish.issue, staged, message, reason=reason)
     staged.set(_base_sync_state._PARK_REASON, reason)
-    return lands(finish, staged, PARK) or FinishOutcome.PARKED
+    return lands(finish, staged, PARK, observed) or FinishOutcome.PARKED
 
 
 def _stopped(
@@ -343,8 +353,9 @@ def _stopped(
 
     A refusal that names a record the evidence is bound through read that
     record moved, and that reading is appended to `observed` as the movement
-    it is (`_BOUND_MOVED`): the guard read it once, and whatever reads the
-    comment after may find it put back.
+    it is -- `BINDING_MOVED` where a record beyond the evidence records
+    themselves moved, `_BOUND_MOVED` otherwise: the guard read it once, and
+    whatever reads the comment after may find it put back.
     """
     stopped = _UNLANDED.get(outcome.status)
     if stopped is not None:
@@ -354,6 +365,7 @@ def _stopped(
             "posting, relabeling, and clearing nothing behind it",
             finish.issue.number, finish.head, why.value,
         )
-        if observed is not None and _BOUND.intersection(outcome.fields):
-            observed.append(_BOUND_MOVED)
+        moved = _BOUND.intersection(outcome.fields)
+        if observed is not None and moved:
+            observed.append(BINDING_MOVED if moved - _EVIDENCE_RECORDS else _BOUND_MOVED)
     return stopped

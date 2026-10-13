@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from orchestrator.git.base_sync.rewrite_handoffs import (
+    _BaseStanding,
     _CheckoutReading,
     _LandedRewrite,
     _PushOutcome,
@@ -30,6 +31,7 @@ from orchestrator.workflow.engine import rewrite_finish as _finish
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeGitHubClient, FakeIssue, FakePR, FakePRRef, make_issue
+from tests.workflow.git_owners import seam_patch
 from tests.workflow.repo_values import _TEST_SPEC
 
 ISSUE = 7
@@ -194,9 +196,14 @@ class FinishWorld:
             retry=road.retry,
         )
 
-    def finalizes(self, road: Road = PUBLISHED) -> FinishOutcome:
-        """Finish the landing `road` reached through the finalizer."""
-        return _finish.finalizes(self.finish(road))
+    def finalizes(self, road: Road = PUBLISHED, finish: LandedFinish | None = None) -> FinishOutcome:
+        """Finish the landing `road` reached, or `finish` where one is given, through the finalizer.
+
+        The base the landed head was counted against stands where it was:
+        this world has no checkout for a base reading to be taken in.
+        """
+        with seam_patch("_standing_on_the_remote_base", lambda *_args: _BaseStanding.STANDING):
+            return _finish.finalizes(finish or self.finish(road))
 
     def pinned(self) -> dict:
         """The record the pinned comment carries now."""

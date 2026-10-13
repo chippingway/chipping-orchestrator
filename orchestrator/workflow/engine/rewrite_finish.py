@@ -60,7 +60,12 @@ refuses stops the finish there with nothing behind it made:
   and settles nothing this one already settled while the records agree that
   is the last word on the head. Every evidence decision is held to the base
   tip the replay was recorded as made onto once its requests are behind it,
-  so a base that moved meanwhile holds the route too.
+  so a base that moved meanwhile holds the route too. Settled evidence --
+  this finish's own settlement, or an earlier one's -- is proved ready again
+  before any route takes it (`rewrite_finish_readiness`), and invalidated
+  into history whole where anything it is bound to moved since it settled,
+  so the head goes on to the fresh reviewer rather than with a decision
+  about a review, report, requirements, or configuration nobody holds now.
 - Only then is the landing announced: both of its writes prepared over the
   fresh comment first -- the checkpoint whole, the record of its event
   included, and that record's own write ahead of the event -- its notice's
@@ -73,7 +78,14 @@ refuses stops the finish there with nothing behind it made:
   of it (`rewrite_finish_events`) -- and the checkpoint lands the debt, the
   reset round, and the mark while the anchor still stands. A conversation or
   an event stream nobody could read holds the finish there with the attempt
-  standing, nothing filed, and no mark. The checkpoint is
+  standing, nothing filed, and no mark -- the settled evidence proved ready
+  once more before it leaves, since the notice may already be out. The event's record or the checkpoint
+  refused over a report or review record another road moved while the notice
+  was posted has read movement under the settled evidence, which is
+  invalidated before the finish stops
+  (`rewrite_finish_readiness.invalidates_behind`), so putting that record
+  back before the next poll revives nothing; the retirement behind the
+  relabel answers the same. The checkpoint is
   decided on the evidence records too, so a transaction another road recorded
   beside the one this finish resolved -- even while the settlement's own
   answer came back -- refuses it before anything is posted, and the attempt
@@ -84,7 +96,10 @@ refuses stops the finish there with nothing behind it made:
   a transaction an earlier finish recorded for it is abandoned ahead of that
   announcement -- an abandonment that does not land holds the continuation
   with nothing announced, and so does a record another road left unresolved
-  beside the evidence this landing already resolved -- its retirement lands,
+  beside the evidence this landing already resolved -- evidence settled for
+  it is proved ready before the continuation and again behind its
+  announcement, the base advance that made it excused, and invalidated where
+  anything else it rests on moved -- its retirement lands,
   and the caller's ordinary rebase goes on from it, the refresh's selection
   asked again first: a report recorded and unsettled holds that rebase until
   it is settled on the head it is about, as an uninterrupted journey's does.
@@ -93,9 +108,11 @@ refuses stops the finish there with nothing behind it made:
   tick lost between them back, to the mark this finish left and the evidence
   it settled. The retirement is decided on every record the evidence is
   bound through, so a report or review another road moved after the evidence
-  was decided or settled refuses the route rather than riding it. An issue
-  already on `workflow:validating` under its own mark is not relabelled
-  again.
+  was decided or settled refuses the route rather than riding it, and it
+  owns only the attempt, the round, the park's flags, a spent reply, and a
+  failure notice the route no longer owes: evidence and report records stay
+  as the comment carries them. An issue already on `workflow:validating`
+  under its own mark is not relabelled again.
 
 A tick lost anywhere in that tail -- behind the evidence it settled, retired,
 or left to the fresh reviewer and before the announcement, between the
@@ -103,12 +120,15 @@ notice, the event, and the checkpoint, behind the checkpoint and before the
 relabel, or behind the relabel and before the retirement -- leaves the
 attempt standing, so the anchor holds every handler until a later finish
 discharges what it still owes. That finish takes the evidence up where the
-records leave it and reads the rest off the mark, the pull request, the event
-stream, and the label: a head the mark already names gets no second notice,
-`base_rebased` event, or round reset, a notice found on the pull request or
-an event found on the stream with no mark beside them is not said again, and
-an issue already relabelled under the mark gets no second relabel or
-stage-entry event.
+records leave it -- settled evidence proved ready again, a failure notice
+found on the pull request, a decision that recorded nothing taken afresh --
+and reads the rest off the mark, the pull request, the event stream, and the
+label: a head the mark already names gets no second notice, `base_rebased`
+event, or round reset, a notice found on the pull request or an event found
+on the stream with no mark beside them is not said again, and an issue
+already relabelled under the mark gets no second relabel or stage-entry
+event. Nothing on any of those roads pushes, runs a captured decision's
+commands again, posts its artifact again, or launches a developer.
 
 Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
@@ -145,6 +165,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish_captured as _captured,
     rewrite_finish_debt as _debt,
     rewrite_finish_notices as _notices,
+    rewrite_finish_readiness as _readiness,
     rewrite_finish_settlement as _settlement,
     rewrite_finish_writes as _writes,
 )
@@ -162,12 +183,15 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     ROUTED and CONTINUED retired the attempt; every other outcome left it
     standing, and made nothing that depends on a write that did not land. A
     landing the record does not account for leaves the attempt standing
-    beside a transaction an earlier finish captured for its head, so that
-    transaction is proved again first and abandoned where anything it rests
-    on moved (`rewrite_finish_captured.stands_before_the_route`): putting what
-    moved back before a later finish revives nothing.
+    beside evidence an earlier finish settled or captured for its head, so
+    settled evidence is proved ready again first
+    (`rewrite_finish_settlement.stands_ready_if_settled`) and a captured
+    transaction proved again (`rewrite_finish_captured.stands_before_the_route`),
+    each retired where anything it rests on moved: putting what moved back
+    before a later finish revives nothing.
     """
     if not _finishable(finish):
+        _settlement.stands_ready_if_settled(finish)
         captured = _captured.recorded(finish, logged=False)
         proof = None if captured is None else _captured.proved_again(finish, captured)
         return _captured.stands_before_the_route(finish, proof=proof, behind=FinishOutcome.UNFINISHABLE)
@@ -284,32 +308,47 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     The notice and the event are each said once (`rewrite_finish_notices.announces`),
     and what stopped either -- a conversation or event stream that would not
     read, or the event's own record that did not land -- stops the checkpoint
-    with the attempt standing.
+    with the attempt standing. A checkpoint prepared or landed short over a
+    report or review record another road moved has read movement under the
+    evidence settled for the head, which is invalidated before the finish
+    stops (`rewrite_finish_readiness.invalidates_behind`) -- and so has the
+    debt's park, decided on those same records, refused over one another road
+    moved while its notice was posted, and the event's own record, refused
+    over one moved while the notice was posted rather than taking it in. A
+    park whose notice raised proves the evidence again before the error goes
+    on, as any other stop does.
     """
     staged = _writes.staging(finish)
     measured = _writes.staging(finish) if announced else _debt.announcement(staged, finish.head)
+    observed: list = []
     if not _debt.stages(finish, staged, measured):
-        return _writes.parks(finish)
+        try:
+            stopped = _writes.parks(finish, observed)
+        except Exception:
+            _readiness.invalidates_behind(finish, FinishOutcome.UNCONFIRMED, observed)
+            raise
+        return _readiness.invalidates_behind(finish, stopped, observed)
     if announced:
         carried = _commit_models.spelled(finish.state.data, _rewrite_debt.REWRITE_DEBT)
         if _commit_models.spelled(staged.data, _rewrite_debt.REWRITE_DEBT) == carried:
             return None
-        return _writes.lands(finish, staged, _writes.CHECKPOINT)
+        stopped = _writes.lands(finish, staged, _writes.CHECKPOINT, observed)
+        return _readiness.invalidates_behind(finish, stopped, observed)
     staged.set(_base_sync_state._PENDING_ANNOUNCED_EVENT, finish.head)
     staged.set(_base_sync_state._REVIEW_ROUND, 0)
     staged.set(_base_sync_state._PENDING_ANNOUNCED_SHA, finish.head)
-    stopped = _writes.prepares(finish, staged, _writes.CHECKPOINT, ledger_entry=True)
+    stopped = _writes.prepares(finish, staged, _writes.CHECKPOINT, observed, ledger_entry=True)
     if stopped is None:
-        stopped = prepares_the_record(finish)
+        stopped = prepares_the_record(finish, observed)
     if stopped is None:
-        stopped = _notices.announces(finish, staged)
-    if stopped is not None:
-        return stopped
-    log.info(
-        "issue=#%d announced the base rewrite PR #%d landed on %.8s (%s)",
-        finish.issue.number, finish.pr_number, finish.head, method(finish),
-    )
-    return _writes.lands(finish, staged, _writes.CHECKPOINT)
+        stopped = _notices.announces(finish, staged, observed)
+    if stopped is None:
+        log.info(
+            "issue=#%d announced the base rewrite PR #%d landed on %.8s (%s)",
+            finish.issue.number, finish.pr_number, finish.head, method(finish),
+        )
+        stopped = _writes.lands(finish, staged, _writes.CHECKPOINT, observed)
+    return _readiness.invalidates_behind(finish, stopped, observed)
 
 
 def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
@@ -326,14 +365,21 @@ def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     (`rewrite_finish_evidence.continues`), and an abandonment that did not
     land holds it the same way, as does a record another road left unresolved
     beside the evidence this landing already resolved. A debt the comment has no room for runs and
-    records nothing ahead of the park it takes (`rewrite_finish_debt.fits`).
-    A checkpoint that did not land, or the park, stops the route behind the
-    last word over a transaction still recorded for the head.
+    records nothing ahead of the park it takes (`rewrite_finish_debt.fits`),
+    but evidence an earlier finish already settled for the head is proved
+    ready first all the same (`rewrite_finish_settlement.stands_ready_if_settled`):
+    the park keeps it current for the reply that brings the route back, so
+    anything read moving under it now is invalidated before the park, and
+    putting that back before the reply revives nothing; a proof that holds
+    holds the park too. A checkpoint that did not land, or the park, stops the
+    route behind the last word over a transaction still recorded for the head.
     """
     if _debt.fits(finish, announced=announced):
         stopped = _settlement.resolves(finish)
-        if stopped is not None:
-            return stopped
+    else:
+        stopped = _settlement.stands_ready_if_settled(finish)
+    if stopped is not None:
+        return stopped
     stopped = _checkpoints(finish, announced=announced)
     return None if stopped is None else _captured.stands_before_the_route(finish, behind=stopped)
 
@@ -350,16 +396,47 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     comment refuses -- a review or report record another road moved since the
     evidence was decided or settled among the reasons -- stops the route with
     the attempt standing, for the recovery of the push already landed to
-    route the head on a later tick over evidence it settles nothing for again.
+    route the head on a later tick over evidence it settles nothing for again
+    and proves ready again first -- settled evidence the refusal read a report
+    or review record moving under invalidated before the route stops
+    (`rewrite_finish_readiness.invalidates_behind`), so putting that record
+    back first revives nothing. A relabel that landed ahead of a retirement
+    that did not is that recovery's to finish too, under the mark this finish
+    left, with no second relabel -- and so is a relabel that raised, refused
+    or landed with its answer lost, behind which the evidence is proved ready
+    once more before the finish leaves, so a record moved while it was made
+    is invalidated however soon it is put back. Behind the relabel, the last request ahead
+    of the retirement, a routed head is held to its base once more
+    (`rewrite_finish_settlement.stands_ready_if_settled`) -- evidence settled
+    for it proved ready again over the landing and the base, and a head with
+    none current for it -- the fresh reviewer's responsibility, or evidence of
+    the replaced head deferred -- held to the base tip its replay was made
+    onto: a base advanced while the announcement or the relabel was answered,
+    or a landing moved under settled evidence, holds the route with the
+    attempt standing, settled evidence invalidated over it, for the recovery
+    to continue the head to another rebase or read the landing again, rather
+    than retiring the attempt over a reading those requests outlived. A
+    continuation is proved there too, its base advance excused, so the
+    announcement's requests leave no evidence anything moved under for the
+    rebase behind it.
     """
-    stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH)
+    observed: list = []
+    stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)
+    if stopped is not None:
+        return _readiness.invalidates_behind(finish, stopped, observed)
+    if headed is FinishOutcome.ROUTED:
+        try:
+            if not (announced and finish.label == WorkflowLabel.VALIDATING):
+                finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
+        except Exception:
+            _settlement.stands_ready_if_settled(finish)
+            raise
+    stopped = _settlement.stands_ready_if_settled(finish, or_the_base=headed is FinishOutcome.ROUTED)
     if stopped is not None:
         return stopped
-    if headed is FinishOutcome.ROUTED and not (announced and finish.label == WorkflowLabel.VALIDATING):
-        finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
-    stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH)
+    stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH, observed)
     if stopped is not None:
-        return stopped
+        return _readiness.invalidates_behind(finish, stopped, observed)
     log.info(
         "issue=#%d finished the base rewrite PR #%d landed on %.8s: %s",
         finish.issue.number, finish.pr_number, finish.head, headed.value,

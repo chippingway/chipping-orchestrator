@@ -1,15 +1,16 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A dormant guarded park that keeps the attempt, proving its run again behind a notice another road wrote past.
+"""A guarded park that keeps the attempt, proving its run again behind a notice another road wrote past.
 
 The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 rebased head reviewed, its run settled under the anchor -- or only captured,
 the finish dying at its artifact's post -- and the finish killed before its
 announcement. The next tick's recovery can neither fetch the branch nor
-reset the checkout, so the git owner's abort, handed the workflow's dormant
-guarded operations (`guarded_recovery_support`), parks keeping the attempt:
-the reset it recorded first moved nothing, so the base tip that record blanked
-is staged back and the park writes it as the attempt recorded it.
+reset the checkout, so the git owner's abort, handed the workflow's guarded
+operations as every recovery is (`guarded_recovery_support`), parks keeping
+the attempt: the reset it recorded first moved nothing, so the base tip that
+record blanked is staged back and the park writes it as the attempt recorded
+it.
 
 While the park's notice is posted another road settles and reviews report 3
 of the head, replacing the report the run was bound to, and the park's record

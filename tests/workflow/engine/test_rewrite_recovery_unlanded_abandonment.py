@@ -107,14 +107,24 @@ _REPLAYS = (("named", None), ("not yet named", _unnames_the_replay))
 # first: refused outright, or landed with its answer lost.
 _UNCONFIRMED = (("refused", False), ("landed, its answer lost", True))
 
+_AWAITING = "awaiting_human"
+
 # What the notice says of the attempt a landed reset releases.
 _RELEASED_BY_THE_WRITE = "is dropped by the pinned-state write that records this park, and still stands"
 
 
-def _writes_then_dies(write, *called, **options) -> None:
-    """Land a whole pinned-state write, then die before its answer comes back."""
-    write(*called, **options)
-    support.dies()
+def _answers_the_park(edit, lands: bool, issue, state, *, over: dict) -> PinnedEdit:
+    """`edit`, the client's strict edit, answering the park's record as refused -- or, where it `lands`, as lost.
+
+    The park's record is the edit flagging the issue awaiting a human over a
+    comment that does not; every other edit is answered as it always is.
+    """
+    if not state.get(_AWAITING) or over.get(_AWAITING):
+        return edit(issue, state, over=over)
+    if not lands:
+        return PinnedEdit.MOVED
+    edit(issue, state, over=over)
+    return PinnedEdit.UNCONFIRMED
 
 
 class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
@@ -147,7 +157,7 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
             lambda _case, original: original, edit=PinnedEdit.MOVED,
         )
 
-        self.assertFalse(readings.pinned(self).get("awaiting_human"))
+        self.assertFalse(readings.pinned(self).get(_AWAITING))
         self.assert_held(captured)
         _puts_the_checkout_on(self, head)
         self.reconciles()
@@ -206,10 +216,10 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
         """
         self.setUp()
         head, captured = self.captures()
-        write = partial(_writes_then_dies, self.gh.write_pinned_state) if lands else support.dies
+        edit = partial(_answers_the_park, self.gh.edit_pinned_state, lands)
         with (
             patch.object(branch_transport, "_authed_fetch", return_value=_UNFETCHED),
-            patch.object(self.gh, "write_pinned_state", side_effect=write),
+            patch.object(self.gh, "edit_pinned_state", side_effect=edit),
         ):
             self.recovers()
         return head, captured, self.gh.posted_comments[-1][1]

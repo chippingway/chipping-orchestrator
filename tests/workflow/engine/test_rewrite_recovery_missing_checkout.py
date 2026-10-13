@@ -1,14 +1,14 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A checkout gone from disk under a dormant guarded park, its settled run's movement recorded before the park.
+"""A checkout gone from disk under a guarded park, its settled run's movement recorded before the park.
 
 The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 rebased head reviewed, its run settled under the anchor, and the finish killed
 before its announcement. Then the checkout goes from disk and the issue is
 relabelled to a stage the refresh does not drive, so the dispatcher's anchor
 hold answers it with the stranded park that keeps the attempt -- handed the
-workflow's dormant proof and park (`guarded_recovery_support`), which no
-production road hands it yet.
+workflow's proof and park by the dispatcher's own answer
+(`guarded_recovery_support`).
 
 With no checkout there is nothing to prove the landing over, so the run is
 retired on the state the park writes, and the movement is recorded against it

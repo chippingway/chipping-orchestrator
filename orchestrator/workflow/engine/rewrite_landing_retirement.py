@@ -7,17 +7,19 @@ short of its route leaves it pending beside the attempt
 (`rewrite_landing_records.captured`), and one that settled it and then died
 in the tail of its route -- before the announcement, the relabel, or the
 retirement -- leaves it current beside the attempt
-(`rewrite_landing_records.settled`). The recovery's captured-only helpers
-(`rewrite_landing_moved`) abandon the transaction wherever the recovery reads
-the landing moved. These hold settled evidence to the same readings on the two
-roads that end a recovery without that landing's route -- a reset that
-releases the attempt, and a park that keeps it -- and they are dormant: no
-recovery road, park, eligibility gate, or dispatcher hold is handed them yet,
-so every recovery context still carries the captured-only answers alone.
+(`rewrite_landing_records.settled`). The recovery's helpers
+(`rewrite_landing_moved`) retire both wherever a snapshot reads the landing
+moved. These hold both to the same readings on the two roads that end a
+recovery without that landing's route -- a reset that releases the attempt,
+and a park that keeps it -- and every recovery context the workflow builds
+carries them: each recovery road's (`rewrite_recovery.recovers`), the abort
+over an unreadable checkout's, the eligibility gate's park of a label the
+refresh does not drive (`base_rewrite`), and the dispatcher's held anchor
+(`rewrite_recovery_parks.answers_a_held_anchor`).
 
 - Over a reset that landed (`retires_over_the_reset`, the answer a recovery
-  context's `settles_over_a_reset` would carry): the transaction is abandoned
-  on the state the park lands, as the captured-only answer stages it
+  context's `settles_over_a_reset` carries): the transaction is abandoned
+  on the state the park lands, as its own half stages it
   (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
   invalidated into history whole on that same state, its revision, binding,
   and provenance kept, so it goes with the attempt's release or neither goes.
@@ -41,8 +43,9 @@ so every recovery context still carries the captured-only answers alone.
   no reading taken now hides it by finding it put back. With no checkout on
   disk there is nothing to prove the landing over, so both are retired as
   over a reset, on the state the park lands; the movement is recorded against
-  them first, in a write of its own, by the proof that hands this one in
-  (`rewrite_recovery_parks.proves_before_a_park`).
+  them first, in a write of its own, by the proof every recovery context
+  carries (`rewrite_recovery_parks.proves_before_a_park`). The landed road's
+  own holds ask it too (`rewrite_landed`), ahead of a hold's write.
 
 Nothing here posts, parks, resets, or routes anything.
 """
@@ -78,10 +81,9 @@ def retires_over_the_reset(
     A recovery's answer to a reset that landed, asked by the git owner before
     the attempt is dropped from `context.state`: the reset took the checkout
     off the landed head, which is movement under both. The transaction is
-    abandoned as the captured-only answer abandons it
-    (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
-    invalidated on the same state (`_invalidates_over_the_reset`), so both
-    land with the attempt's release or neither does. False only where the
+    abandoned (`rewrite_landing_moved.abandons_over_the_reset`), and settled
+    evidence is invalidated on the same state (`_invalidates_over_the_reset`),
+    so both land with the attempt's release or neither does. False only where the
     settled evidence has no room for its history entry, and is kept whole
     beside the attempt. `why` names the write it rides, logged.
     """

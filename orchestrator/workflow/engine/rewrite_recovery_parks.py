@@ -15,10 +15,13 @@ retire that evidence and put back the report it was superseded by beside it.
 
 These are the answers a recovery context carries for that
 (`_AutoRebaseRecoveryContext.lands_a_park`, `records_before_a_reset`,
-`proves_before_a_park`), and they are dormant: no recovery road, eligibility
-gate, or dispatcher hold the workflow builds a context for is handed them
-yet, so every recovery park is still written whole and every reset made with
-nothing recorded ahead of it.
+`proves_before_a_park`), and the workflow hands them in on every recovery
+context it builds: each recovery road's (`rewrite_recovery.recovers`) -- a
+reset's tail, both replay parks, and a label the refresh does not drive among
+them --, the abort over a checkout whose lag could not be counted
+(`rewrite_recovery.answers_an_unreadable_checkout`), the eligibility gate's
+park of an ineligible label (`base_rewrite`), and the dispatcher's stranded
+park of an anchor it holds a handler back for (`answers_a_held_anchor`).
 
 The park (`lands_a_park`) lands through the guarded commit
 (`report_commits.ReportCommit`) as `PARK`: owning every field the tick staged
@@ -79,6 +82,7 @@ import logging
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
     attempts as _attempts,
+    recovery_holds as _recovery_holds,
     state as _base_sync_state,
 )
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
@@ -162,8 +166,19 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
         _retirement.retires_unproved(context, moved)
 
 
+def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
+    """Answer an anchor the dispatcher holds a handler back for, handed the workflow's proof and park.
+
+    The git owner's answer (`git/base_sync/recovery_holds._answers_a_held_anchor`)
+    restores a checkout, clears the attempt, or parks it stranded; that park
+    keeps the attempt, so it asks the proof first (`proves_before_a_park`) and
+    is recorded as every recovery park is (`lands_a_park`).
+    """
+    _recovery_holds._answers_a_held_anchor(held, proves_before_a_park, lands_a_park)
+
+
 def proves_before_a_park(context: _AutoRebaseRecoveryContext) -> bool:
-    """Whether a recovery park that keeps the attempt may go on, what it keeps proved first.
+    """Whether a recovery park that keeps the attempt may go on, what it keeps proved first; the answer every road gets.
 
     The proof is the recovery's (`rewrite_landing_retirement.retires_unproved`),
     over a transaction a finish captured and evidence one settled alike. A

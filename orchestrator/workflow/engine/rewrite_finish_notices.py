@@ -67,7 +67,7 @@ _SHORT_SHA = 8
 _ANNOUNCES = ":mag:"
 
 
-def announces(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
+def announces(finish: LandedFinish, staged: PinnedState, observed: list | None = None) -> FinishOutcome | None:
     """Say `finish`'s landing once -- its notice, then its `base_rebased` event; None to land the checkpoint.
 
     The notice's comment is recorded on `staged`, the state the announcement
@@ -76,7 +76,8 @@ def announces(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None
     it is not posted again. The event is filed behind it, once
     (`rewrite_finish_events.files`). HELD, with nothing filed, where the
     conversation would not read, or where the post raised and the
-    conversation read again does not show it; the event's outcome otherwise.
+    conversation read again does not show it; the event's outcome otherwise,
+    the movement a refusal of its record read collected on `observed`.
     """
     readable, found = _found(finish)
     if readable and found is None:
@@ -91,7 +92,7 @@ def announces(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None
             if found is None:
                 return FinishOutcome.HELD
             _comments._track_orchestrator_comment(staged, found)
-        return _filing.files(finish, staged)
+        return _filing.files(finish, staged, observed)
     if not readable:
         return FinishOutcome.HELD
     _comments._track_orchestrator_comment(staged, found)
@@ -99,7 +100,7 @@ def announces(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None
         "issue=#%d finds the notice of its landed base rewrite of %.8s already on PR #%d; not posting it again",
         finish.issue.number, finish.head, finish.pr_number,
     )
-    return _filing.files(finish, staged)
+    return _filing.files(finish, staged, observed)
 
 
 def notice(finish: LandedFinish) -> str:

@@ -1,19 +1,23 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A settlement another road made while the recovery published the run, adopted out of step, holds the route.
+"""A settlement another road made while the recovery published the run, adopted out of step with the records beside it.
 
 A finish recorded its run for the landed head and died posting its artifact,
 so the recovery publishes and settles it with the attempt still standing. Just
 as the artifact is posted, another road settles that very run itself and
-leaves the records beside it out of step with it: it records a newer
-transaction and retires it, spending a revision past the run, or it drops the
-handoff that names the run. The recovery's own settlement is refused over that
+leaves the records beside it out of step with it: it drops the handoff that
+names the run, or it records a newer transaction and retires it, spending a
+revision past the run. The recovery's own settlement is refused over that
 moved comment, and the ledger entry it then commits alone takes the comment in
 as it stands. Those records are held to the same agreement the finish asks of
-settled evidence before it resolves anything, so the route is held: nothing
-announced, relabelled, or retired, the round as it was spent, and the records
-exactly as that road left them -- poll after poll. Nothing runs again, nothing
-is pushed, and no developer is launched.
+settled evidence before it resolves anything. A handoff that does not name the
+run leaves nobody able to say which evidence is the latest, so the route is
+held: nothing announced, relabelled, or retired, the round as it was spent,
+and the records exactly as that road left them -- poll after poll. A revision
+spent past it outranks the run for good instead: the run is invalidated whole,
+its revision and binding kept, and the head routed to the fresh reviewer
+rather than held over evidence no reader will be handed. Nothing runs again,
+nothing is pushed, and no developer is launched.
 """
 from __future__ import annotations
 
@@ -60,43 +64,45 @@ def _drops_the_handoff(case: support.CapturedRunCase, captured) -> None:
     case.gh.write_pinned_state(case.issue, state)
 
 
-# What another road leaves beside the run it settled, and the revision floor
-# that leaves: one past the run's, or the run's own.
-_OUT_OF_STEP = (
-    ("a revision spent past it", _spends_a_revision_past, 1),
-    ("its handoff dropped", _drops_the_handoff, 0),
-)
-
-
 class AdoptedSettlementRecoveryTest(support.CapturedRunCase, unittest.TestCase):
-    """Records another road settled out of step while the run was published hold the route, poll after poll."""
+    """Records another road settled out of step while the run was published hold the route, or outrank the run."""
 
     def test_an_adopted_settlement_out_of_step_holds(self) -> None:
-        # The run is current as that road settled it, the records beside it
-        # are left as it wrote them, and the attempt stands with nothing
-        # announced, however often the recovery polls.
-        for beside, settles, past in _OUT_OF_STEP:
-            with self.subTest(beside=beside):
-                captured = self._polls_beside(settles)
+        # The run is current as that road settled it, its handoff dropped
+        # and left so, and the attempt stands with nothing announced,
+        # however often the recovery polls.
+        captured = self._polls_beside(_drops_the_handoff)[1]
 
-                self._assert_held_as_settled(captured, past)
+        self._assert_held_as_settled(captured)
 
-    def _polls_beside(self, settles):
-        """A fresh case's captured run, `settles` made just as the recovery posts it, then three recoveries; the run."""
-        self.setUp()
-        captured = self.captures()[1]
+    def test_an_adopted_settlement_outranked_routes(self) -> None:
+        # That road spent a revision past the run it settled: the recovery
+        # invalidates the run whole, keeping its revision and binding, and
+        # routes the head once, with nothing run or pushed again.
+        head, captured = self._polls_beside(_spends_a_revision_past)
+
+        records = readings.pinned_records(self)
+        self.assertEqual(records[:2], (None, None))
+        outranked, newer = records[2][-2:]
+        self.assertEqual(outranked, (captured.receipt, readings.INVALIDATED))
+        self.assertEqual(newer[1], readings.ABANDONED)
+        self.assert_recovered(head)
+
+    def _polls_beside(self, settles) -> tuple:
+        """A captured run, `settles` made just as the recovery posts it, then three recoveries; the head and the run."""
+        head, captured = self.captures()
         races = _RacesPastTheCall(self.gh.publish_verification_artifact, 1, partial(settles, self, captured))
         self.enterContext(patch.object(self.gh, support.POST, races))
         self.recovers()
         self.recovers()
         self.recovers()
-        return captured
+        return head, captured
 
-    def _assert_held_as_settled(self, captured, past: int) -> None:
-        """`captured` current as the other road settled it, the floor `past` it, the attempt standing, nothing made."""
+    def _assert_held_as_settled(self, captured) -> None:
+        """`captured` current as the other road settled it, the floor its own, the attempt standing, nothing made."""
         pinned = readings.pinned(self)
         self.assertEqual(readings.records(pinned)[1].receipt, captured.receipt)
-        self.assertEqual(pinned[readings.KEY_REVISION_FLOOR], captured.revision + past)
+        self.assertEqual(pinned[readings.KEY_REVISION_FLOOR], captured.revision)
         self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
         self.assert_unannounced()
         made = (self.runs(), self.pushes.call_count, self.developer.call_count)

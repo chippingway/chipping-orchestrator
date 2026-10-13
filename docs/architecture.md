@@ -946,7 +946,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   human's retry spent, and the route to `workflow:validating` taken only for a head the base has not advanced past
   again -- the announcement, the round reset, and the route all made only once the head's evidence is resolved. A
   landing the pinned record does not account for — one that moved nothing, a publication a guard refused,
-  a replay record naming another head, a lag against the base nobody could count — makes nothing, and a head this
+  a replay record naming another head, a lag against the base nobody could count — makes nothing, save proving
+  evidence settled or captured for its head again and retiring it where anything it rests on moved, and a head this
   tick pushed nothing for is announced as one found standing. Every write is a guarded commit, so a refused or
   unconfirmed one stops the finish with nothing behind it made. Its post-push, pre-announcement step is where the
   evidence a landed head is routed with is decided (`workflow/engine/rewrite_evidence.py`) and made durable before
@@ -968,7 +969,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   (`workflow/engine/rewrite_evidence_proof.py`). The finish that completes it runs the commands again only where no
   run was captured, settles a captured one only once it proves again -- over an artifact an earlier post landed,
   found under its receipt, and routing one already settled with nothing posted or settled again while nothing beside
-  it says otherwise -- and abandons it
+  it says otherwise and it proves ready again, invalidated whole where anything it is bound to moved since it settled
+  (`workflow/engine/rewrite_finish_readiness.py`) -- and abandons it
   unrun, then or after, where something it is bound to -- or the base -- moved
   since: refused for good, its base tip blanked, where the comment has no room
   (`workflow/engine/rewrite_finish_captured.py`). Which run is that captured one is the receipt the finish puts on
@@ -978,20 +980,18 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   the captured run the same way where its snapshot reads the
   landing on another head, or its reset takes the checkout off it (`workflow/engine/rewrite_landing_moved.py`), the
   git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
-  park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). Evidence a
-  finish already settled for the landed head has dormant primitives beside these, which no finish, recovery, or park
-  road asks yet (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it -- the
-  base readings that made a continuation excused over a head the base advanced past again, and proved once more
-  behind any stop of a write the finish makes after it -- and invalidating it into history whole where anything it
-  is bound to moved -- over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the
-  invalidation cannot land, so nothing put back revives it. Dormant guarded recovery operations are built on them,
-  and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof
-  before a park that keeps the attempt (`workflow/engine/rewrite_landing_retirement.py`), which retire settled
-  evidence whole beside a captured run and refuse the attempt's release where history has no room for it; and the
-  reset recorded against captured or settled evidence before git moves the checkout, with every recovery park landed
-  through the guarded commit over the comment read afresh and proving what it keeps once more behind its notice
-  (`workflow/engine/rewrite_recovery_parks.py`), each an optional answer the git owner transports
-  (`records_before_a_reset`, `lands_a_park`). It runs under its caller's issue writer claim.
+  park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`); evidence a
+  finish already settled for the head and left behind a tail cut short is invalidated whole on each of those roads
+  too, and kept whole beside the attempt, which is not released, where history has no room for it
+  (`workflow/engine/rewrite_landing_retirement.py`) -- the movement recorded against it by blanking the attempt's
+  recorded base tip, and every reset recorded that way before it moves the checkout, against a captured run as
+  well, in a write decided on the evidence records as the tick read them, so evidence settled since refuses the
+  reset and nothing put back before the next poll revives either; the route over such a head is still held to the
+  base the tick counted it against. Every recovery park is recorded over the comment read afresh (`lands_a_park`,
+  `workflow/engine/rewrite_recovery_parks.py`), so a report or evidence record another road wrote while its notice
+  went out is kept, and what it keeps is proved once more behind its notice. Every recovery context the workflow
+  builds carries these answers -- each recovery road's, the abort over an unreadable checkout's, the eligibility
+  gate's, and the dispatcher's held anchor's. It runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

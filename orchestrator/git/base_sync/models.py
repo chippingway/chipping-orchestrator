@@ -189,15 +189,11 @@ class _AutoRebaseRecoveryContext:
     # dropped from it, so it rides the park's write with that release or not
     # at all (`persistence._reset_clear_and_park`). False keeps the attempt
     # and holds, nothing dropped or parked: a record that cannot go with the
-    # release. Any other answer releases it, so the captured-only answer the
-    # workflow's recovery hands on every road's context, which answers None,
-    # discharges as it always has
-    # (`workflow/engine/rewrite_landing_moved.abandons_over_the_reset`); the
-    # answer that retires settled evidence too, and refuses where history has
-    # no room for it, is dormant
+    # release -- settled evidence with no room left for its history entry.
+    # None owes nothing; the workflow's recovery hands its answer on every
+    # road's context
     # (`workflow/engine/rewrite_landing_retirement.retires_over_the_reset`).
-    # None owes nothing.
-    settles_over_a_reset: Callable[[], bool | None] | None = None
+    settles_over_a_reset: Callable[[], bool] | None = None
     # What the workflow's recovery records before a reset moves the checkout
     # off the head the attempt landed, so that a process lost behind the reset,
     # or a write behind it that does not land, leaves nothing a checkout put
@@ -206,8 +202,8 @@ class _AutoRebaseRecoveryContext:
     # base tip in a write of its own -- decided on the evidence records as the
     # tick read them, so evidence settled since refuses it -- which a reset git
     # refused has staged back. False holds the tick with nothing reset,
-    # dropped, or parked. None records nothing, as every context the workflow
-    # builds does until it hands in the recorder, which is dormant
+    # cleaned, dropped, or parked. None records nothing; the workflow's
+    # recovery hands its recorder in on every context whose road may reset
     # (`workflow/engine/rewrite_recovery_parks.records_the_reset`).
     records_before_a_reset: Callable[[_AutoRebaseRecoveryContext], bool] | None = None
     # What the workflow's recovery asks of this context before any park that
@@ -215,21 +211,19 @@ class _AutoRebaseRecoveryContext:
     # land, an issue relabelled out from under it, a landing made for another
     # publication or one its record does not account for: whether the park may
     # go on, once a verification transaction a finish captured for the landed
-    # head was proved again and abandoned where anything it rests on moved
-    # (`persistence._proves_before_the_park`). False holds the tick with nothing
-    # parked. None asks nothing; the workflow hands its answer in on every
-    # recovery context it builds or has built
-    # (`workflow/engine/rewrite_landing_moved.abandons_unproved`), and the
-    # dormant proof that holds settled evidence to the same readings answers
-    # it too (`workflow/engine/rewrite_recovery_parks.proves_before_a_park`).
+    # head, or evidence one settled for it, was proved again and retired where
+    # anything it rests on moved (`persistence._proves_before_the_park`). False
+    # holds the tick with nothing parked. None asks nothing; the workflow hands
+    # its answer in on every recovery context it builds or has built
+    # (`workflow/engine/rewrite_recovery_parks.proves_before_a_park`).
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None
     # How every park this recovery takes is posted and recorded, given the
     # context, the notice, and the reason (`persistence._parks_the_recovery`):
     # its record lands a notice after the tick read the comment, so the
-    # workflow can land it over the comment read afresh, keeping what another
-    # road wrote meanwhile. None writes the tick's state whole, as every
-    # context the workflow builds does until it hands in that park, which is
-    # dormant (`workflow/engine/rewrite_recovery_parks.lands_a_park`).
+    # workflow lands it over the comment read afresh, keeping what another
+    # road wrote meanwhile. None writes the tick's state whole; the workflow
+    # hands its park in on every recovery context it builds or has built
+    # (`workflow/engine/rewrite_recovery_parks.lands_a_park`).
     lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None
 
 

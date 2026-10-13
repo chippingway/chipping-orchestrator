@@ -20,7 +20,7 @@ from dataclasses import replace
 from types import MappingProxyType
 
 from orchestrator import config
-from orchestrator.workflow.engine import report_record_values as _record_values, rewrite_finish as _finish
+from orchestrator.workflow.engine import report_record_values as _record_values
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
     rewrite_finish_effects_support as effects,
@@ -164,7 +164,7 @@ class DebtRoomTest(unittest.TestCase):
         full = world.pinned()
         finish = world.finish()
 
-        self.assertEqual(_finish.finalizes(finish), FinishOutcome.REFUSED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.REFUSED)
 
         github = world.github
         self.assertEqual((github.posted_comments, github.recorded_events), ([], []))
@@ -196,7 +196,7 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         announcing = effects.room_for(world, **_ANNOUNCED)
         effects.leaves(world, announcing + _SHORT_OF_AN_ENTRY)
 
-        self.assertEqual(_finish.finalizes(finish), FinishOutcome.REFUSED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.REFUSED)
 
         self.assertEqual(world.said(), ([], []))
         self.assertEqual(world.relabels(), ())
@@ -214,7 +214,7 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         finish = world.finish()
         effects.leaves(world, effects.room_for(world, **_CHECKPOINTED))
 
-        self.assertEqual(_finish.finalizes(finish), FinishOutcome.REFUSED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.REFUSED)
 
         durable = world.pinned()
         self.assertEqual(self._said(world), (0, 0, ()))
@@ -255,7 +255,7 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         finish = world.finish()
         world.another_road(**{support.KEY_REVIEW_ROUND: 0})
 
-        self.assertEqual(_finish.finalizes(finish), FinishOutcome.REFUSED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.REFUSED)
 
         github = world.github
         self.assertEqual(github.posted_comments, [])

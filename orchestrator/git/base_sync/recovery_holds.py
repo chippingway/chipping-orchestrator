@@ -178,12 +178,11 @@ def _answers_an_unreadable_checkout(
     workflow recovery's, handed on to the abort's recovery context as every
     recovery road's are (`_AutoRebaseRecoveryContext`), by the workflow's
     recovery (`workflow/engine/rewrite_recovery.answers_an_unreadable_checkout`):
-    what it owes over a reset that landed (`settles_over_a_reset`) and what it
-    asks before the park of one that did not (`proves_before_a_park`), and --
-    once the workflow hands them in, which it does not yet -- what it records
-    before the reset (`records_before_a_reset`) and the park it records either
-    park through (`lands_a_park`). An answer not handed in is the context's
-    None.
+    what it records before the reset (`records_before_a_reset`) and owes over
+    one that landed (`settles_over_a_reset`), what it asks before the park of
+    a reset that did not land (`proves_before_a_park`), and the park it
+    records either park through (`lands_a_park`). An answer not handed in is
+    the context's None.
     """
     return snapshot._abort_recovery_unverified(
         _AutoRebaseRecoveryContext(
@@ -255,7 +254,8 @@ def _answers_a_held_anchor(
     workflow's recovery asks before the stranded park keeps the attempt
     (`_AutoRebaseRecoveryContext.proves_before_a_park`), and `lands_a_park`
     the park it records that one through (`_AutoRebaseRecoveryContext.lands_a_park`),
-    which the dispatcher does not hand in yet, so it writes the state whole.
+    both handed in by the workflow's answer to the dispatcher's hold
+    (`workflow/engine/rewrite_recovery_parks.answers_a_held_anchor`).
     """
     context = replace(context, proves_before_a_park=proves_before_a_park, lands_a_park=lands_a_park)
     if context.label in _PR_REFRESH_DETOUR_LABELS:
