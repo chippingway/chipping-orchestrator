@@ -1,20 +1,25 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Composition point for the orchestrator polling loop.
+"""Composition point for the `chipping-orchestrator` command line.
 
 `main` is what the `chipping-orchestrator` console script and the
-`python -m orchestrator` launch form both call. It reads the options, refuses a
-launch whose author allowlist names nobody, settles logging, creates the state
-one run carries, and hands that state to each owner under
-`orchestrator/runtime/` in turn; the order below is the startup contract and
-lives nowhere else.
+`python -m orchestrator` launch form both call. It parses the command line and
+hands it to the command it names. A launch naming none prints the help listing
+every command and exits 0, and `--version` prints the distribution's version.
+Each command is a subparser whose `dispatch` default is the function that runs
+it, so what a command composes is imported only once it is the one named.
+
+`run` is the polling process. It reads its options, refuses a launch whose
+author allowlist names nobody, settles logging, creates the state one run
+carries, and hands that state to each owner under `orchestrator/runtime/` in
+turn; the order below is the startup contract and lives nowhere else.
 
 The options owner is the only one this module imports with itself. Every other
 owner resolves and validates the configuration as it is imported, so each is
 named inside the function that composes it, once the command line has been
-read: `--help`, and a command line the parser refuses, answer on a host with
-no configuration or a malformed one, while a launch that goes on to run meets
-that validation before anything it composes.
+read: a bare launch, `--help`, `--version`, and a command line the parser
+refuses answer on a host with no configuration or a malformed one, while a
+launch that goes on to run meets that validation before anything it composes.
 
 The signal handler is installed before the first GitHub call, so a stop that
 arrives during a slow connect is honoured rather than swallowed, and the
@@ -41,17 +46,58 @@ turn a presence into exclusive ownership before it may act.
 """
 from __future__ import annotations
 
+import argparse
 from typing import TYPE_CHECKING
 
+from orchestrator import __version__
 from orchestrator.runtime import options as _options
 
 if TYPE_CHECKING:
     from orchestrator.runtime.state import RuntimeState
 
+# Spelled out rather than read off `sys.argv[0]`, so both launch forms print
+# the same usage, the same version line, and the same `run` form a refused
+# flag is answered with.
+_PROG = "chipping-orchestrator"
+
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the launch mode the options name and return its exit code."""
-    launch_options = _options.parse_options(argv)
+    """Run the command the command line names and return its exit code."""
+    parser = _command_parser()
+    arguments = parser.parse_args(argv)
+    if arguments.dispatch is None:
+        parser.print_help()
+        return 0
+    return arguments.dispatch(arguments)
+
+
+def _command_parser() -> argparse.ArgumentParser:
+    """The parser every command is chosen from, with each command beneath it."""
+    parser = argparse.ArgumentParser(
+        prog=_PROG,
+        description="GitHub-Issue-driven AI agent workflow.",
+    )
+    parser.add_argument("--version", action="version", version=f"{_PROG} {__version__}")
+    _options.refuse_before_command(parser)
+    parser.set_defaults(dispatch=None)
+    commands = parser.add_subparsers(title="commands", metavar="<command>")
+    run_parser = commands.add_parser(
+        _options.COMMAND,
+        help="Run the polling process: continuous, one tick, or one cleanup pass.",
+        description=(
+            "Poll the configured repositories until a signal stops the run. "
+            "--once runs a single tick instead, and --cleanup-terminal-artifacts "
+            "a single artifact cleanup pass."
+        ),
+    )
+    _options.add_arguments(run_parser)
+    run_parser.set_defaults(dispatch=_run)
+    return parser
+
+
+def _run(arguments: argparse.Namespace) -> int:
+    """Run the launch mode the `run` options name and return its exit code."""
+    launch_options = _options.polling_options(arguments)
     from orchestrator.runtime import logs, shutdown, startup, state as _runtime_state
 
     startup.require_issue_authors()

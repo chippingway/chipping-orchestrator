@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """How many polling passes a run makes, and the drain it always ends with.
 
-`--once` is a single pass; otherwise the run keeps polling until a signal stops
+`run --once` is a single pass; a bare `run` keeps polling until a signal stops
 it or, when it runs from the orchestrator's own source checkout, that checkout
 moves under it, which exits 0 so the wrapper relaunches the new code. An
 installed package has no checkout to move: only a signal stops its polling.
@@ -18,8 +18,8 @@ this loop has, where the short handlers the last pass submitted have had the
 whole wait to finish. Behind a gate, because the pass is owed once an interval
 or once a window and this loop comes round once a poll. `--once` is a single tick and nothing
 besides -- an operator asking for one pass gets one pass, and the
-maintenance-only launch mode is where a host asks for the reclamation on its
-own.
+maintenance-only launch mode, `run --cleanup-terminal-artifacts`, is where a
+host asks for the reclamation on its own.
 """
 from __future__ import annotations
 

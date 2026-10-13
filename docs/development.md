@@ -43,15 +43,16 @@ the [dependency tooling reference](configuration/operations.md#dependency-toolin
 Run from the checkout with its Poetry environment:
 
 ```sh
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator --once
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator --log-level DEBUG
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator --cleanup-terminal-artifacts
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator run --once
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator run --log-level DEBUG
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator run --cleanup-terminal-artifacts
 ```
 
-`--once` performs a real polling tick, including label setup and possible agent launches. The cleanup mode reclaims
+`run --once` performs a real polling tick, including label setup and possible agent launches. The cleanup mode reclaims
 eligible worktrees and branches without polling issues or writing workflow state; its gates and remote deletions are
 under [run modes](configuration.md#run-modes).
-The module form and `poetry run chipping-orchestrator` both call `orchestrator/cli.py`.
+The module form and `poetry run chipping-orchestrator` both call `orchestrator/cli.py`; a bare launch of either
+prints the help listing every command and exits 0.
 
 For a local startup-settings check without connecting to GitHub:
 
@@ -69,8 +70,9 @@ live workflow-state compatibility still need checking separately.
 ./run.sh
 ```
 
-The wrapper continuously polls and relaunches after every exit except a signal stop. Before each launch it attempts
-`git pull --ff-only origin "$ORCHESTRATOR_BASE_BRANCH"` (default `main`) and refreshes dependencies. A non-base
+The wrapper launches `python -m orchestrator run` with its own arguments, so `./run.sh --log-level DEBUG` passes the
+flag to `run`. It continuously polls and relaunches after every exit except a signal stop. Before each launch it
+attempts `git pull --ff-only origin "$ORCHESTRATOR_BASE_BRANCH"` (default `main`) and refreshes dependencies. A non-base
 checkout skips the pull; a failed fast-forward warns and launches the existing working tree. A self-modifying merge
 can therefore restart the checkout on new code. See the [process model](architecture.md#process-model) for the full
 skip-and-warn contract. Installed packages change version only through an explicit pipx upgrade or reinstall.
@@ -85,6 +87,11 @@ Ctrl+C or `SIGTERM` stops the wrapper and its orchestrator process (`128 + signu
 Ctrl+C terminates immediately. Edit the checkout's `.env`, wait until no agent child is running, stop the wrapper,
 and run it again to apply settings. `ORCHESTRATOR_BASE_BRANCH` is read before the wrapper's loop and requires
 restarting the wrapper itself.
+
+A self-update never reloads the wrapper either: bash keeps the loop of the `run.sh` it started with. A wrapper
+started from a checkout whose `run.sh` still launches the bare `python -m orchestrator` keeps doing so after it pulls
+the `run` form, and every launch then prints help and exits 0, which that wrapper relaunches each second without
+polling. Stop such a wrapper and start it again once the pull has landed.
 
 For a systemd-supervised development checkout, adapt the
 [user service](configuration.md#running-under-systemd-user-service): set
@@ -142,7 +149,7 @@ scheduling. The two Streamlit pages need the optional `dashboard` dependencies, 
 Use a separate checkout environment for the pages; follow the [observability reference](observability.md) for
 their data contracts. Do not access or change `analytics-db/data/`; it is operator-owned runtime data.
 
-Keep this checkout dedicated to tools: do not run a poller here, including `--once` or `run.sh`. The `.env`
+Keep this checkout dedicated to tools: do not run a poller here, including `run --once` or `run.sh`. The `.env`
 settings below point at the packaged poller's log files; a poller in this checkout would write to them too, and
 `TRAJECTORY_LOG_PATH` also enables trajectory writing.
 In the tools checkout's `.env`, leave `REPOS` blank or configure an existing clone, since the tools validate

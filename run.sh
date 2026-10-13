@@ -76,7 +76,9 @@ refresh_dependencies() {
 self_update
 while true; do
     refresh_dependencies
-    .venv/bin/python -m orchestrator "$@"
+    # `run` names the poller: without it the launch prints help and exits 0,
+    # which this loop would relaunch forever. The wrapper's arguments are run's.
+    .venv/bin/python -m orchestrator run "$@"
     rc=$?
     # 130 = SIGINT, 143 = SIGTERM. The orchestrator exits with these codes
     # when it stops because of an explicit signal, which is the user's "I

@@ -78,6 +78,8 @@ def _write_fake_git(fake_bin: Path) -> None:
 
 
 def _write_fake_python(root: Path, *exit_codes: int) -> None:
+    # One line per launch, each argument bracketed so a word the wrapper split
+    # or joined shows up in the record.
     codes = " ".join(
         str(code)
         for code in (exit_codes or (_SIGINT_EXIT_CODE,))
@@ -86,7 +88,8 @@ def _write_fake_python(root: Path, *exit_codes: int) -> None:
         root / ".venv" / "bin" / "python",
         f"""
         #!/usr/bin/env bash
-        echo "$*" >> "$PYTHON_CALLS"
+        printf '<%s>' "$@" >> "$PYTHON_CALLS"
+        echo >> "$PYTHON_CALLS"
         codes=({codes})
         count=0
         [ -f "$PYTHON_COUNT" ] && count=$(cat "$PYTHON_COUNT")
@@ -181,9 +184,10 @@ class _WrapperScenario:
         git_pull_rc: str = "0",
         changed_path: str = "",
         installer_rc: str = "0",
+        wrapper_args: tuple[str, ...] = (),
     ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            ["bash", "run.sh"],
+            ["bash", "run.sh", *wrapper_args],
             cwd=self.root,
             env=_env(
                 self.fake_bin,

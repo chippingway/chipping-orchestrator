@@ -5,26 +5,27 @@
 from __future__ import annotations
 
 import signal
+import sys
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator import cli, config
 from orchestrator.agents import processes as _agent_processes
 from orchestrator.runtime import artifacts, loop, shutdown
-from tests.cli.composition_test_support import composed_run
+from tests.cli.composition_test_support import RUN, RUN_ONCE, composed_run
 from tests.runtime import polling_test_support as _support
 
 _TERMINATE_ATTR = "terminate_all_running"
 _WORKTREES_ATTR = "WORKTREES_DIR"
 _DRIVE_POLLING_ATTR = "drive_polling"
 _MAINTENANCE_PASS_ATTR = "run_maintenance_pass"
-_DEBUG_ARGS = ("--once", "--log-level", "DEBUG")
+_DEBUG_ARGS = (*RUN_ONCE, "--log-level", "DEBUG")
 _MISSING_ALLOWLIST = (
     "ALLOWED_ISSUE_AUTHORS must contain at least one GitHub login. "
     "Configure it before starting the orchestrator, for example: "
     "ALLOWED_ISSUE_AUTHORS=alice,bob"
 )
-_LAUNCH_ARGS = ((), _support.ONCE_ARGS, ("--cleanup-terminal-artifacts",))
+_LAUNCH_ARGS = (RUN, RUN_ONCE, (*RUN, "--cleanup-terminal-artifacts"))
 
 
 def _restart_after_signal(state, _options, _clients, _scheduler) -> int:
@@ -76,6 +77,21 @@ class ComposedStartupTest(unittest.TestCase):
 
             run.seams.configured_logging.assert_called_once_with("DEBUG")
             run.seams.installed_handlers.assert_called_once_with(run.state)
+
+
+class ProcessCommandLineTest(unittest.TestCase):
+    """With no `argv`, `main` reads the process's own, which is how both
+    launch forms call it.
+    """
+
+    def test_absent_argv_reads_the_process_argv(self) -> None:
+        with composed_run([_support.BETA_REPO]) as run, patch.object(
+            sys, "argv", ["chipping-orchestrator", *RUN_ONCE],
+        ):
+            exit_code = cli.main()
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(run.recorder.slugs, [_support.BETA_REPO])
 
 
 class AuthorAllowlistStartupTest(unittest.TestCase):
@@ -204,7 +220,7 @@ class ComposedExitTest(unittest.TestCase):
                 _DRIVE_POLLING_ATTR,
                 side_effect=_restart_after_signal,
             ):
-                exit_code = run.main([])
+                exit_code = run.main(RUN)
 
             self.assertEqual(exit_code, 0)
 

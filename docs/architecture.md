@@ -92,10 +92,11 @@ The rules under the map hold for the whole tree, the packages on those pages inc
 ```
 orchestrator/
   __init__.py           the distribution version, published as `__version__`, without loading runtime owners
-  cli.py                `chipping-orchestrator` console-script entry point and
+  cli.py                `chipping-orchestrator` console-script entry point: the
+                        command line, `--version`, and the `run` command that is
                         the polling process's composition point
   __main__.py           `python -m orchestrator` launch form over `cli.main`;
-                        the target `run.sh` launches
+                        `run.sh` launches its `run` command
   runtime/              the polling process's own owners: the state one run
                         carries, the command line, the log destinations,
                         startup, one pass over
@@ -224,12 +225,15 @@ label wherever that rename could not run, are in
 
 ## Process model
 
-There is **only one long-lived process**: `chipping-orchestrator`, the command installed by pipx. A systemd user
-service can supervise it. Developer source checkouts also offer a module launcher and `run.sh` so the loop can
-self-exit and be restarted with new source code; those launch commands are in the [developer guide](development.md).
+There is **only one long-lived process**: `chipping-orchestrator run`, the polling command of the package installed
+by pipx. A systemd user service can supervise it. Developer source checkouts also offer a module launcher and `run.sh`
+so the loop can self-exit and be restarted with new source code; those launch commands are in the
+[developer guide](development.md). The bare command, `--help`, and `--version` poll nothing: they print and exit 0
+before any configuration is read, and a polling flag given before any command is refused with the `run` form that
+means it.
 
-- **Trigger**: started manually (or by a wrapper). Optional `--once` for a single tick, or
-  `--cleanup-terminal-artifacts` for a maintenance-only run: it connects read-only clients (no label bootstrap)
+- **Trigger**: started manually (or by a wrapper) as `run`. Optional `run --once` for a single tick, or
+  `run --cleanup-terminal-artifacts` for a maintenance-only run: it connects read-only clients (no label bootstrap)
   *before* claiming the host, since a client that lands in a rate-limit backoff sleeps for as long as the reset takes
   and nothing unbounded may sit inside the claim, then reclaims the artifacts of finished issues and exits without
   polling. It writes no *workflow* state — no label, no
@@ -243,10 +247,11 @@ self-exit and be restarted with new source code; those launch commands are in th
   [`configuration.md#developer-fallback-and-target-checks`](configuration.md#developer-fallback-and-target-checks).
 - **Startup refusal** (`runtime.startup.require_issue_authors`): every launch mode reads its options and then stops
   with exit status 1 while `ALLOWED_ISSUE_AUTHORS` names nobody, before logging, the signal handler, the host claim,
-  any GitHub client, or the scheduler exists, because an empty allowlist would trust every author. The options are
-  read by `runtime.options`, which loads no configuration, and `cli.py` imports every other runtime owner -- each of
-  which resolves and validates the settings as it is imported -- only after that, so `--help` answers on a host with
-  no configuration or a malformed `REPOS`, while a launch that goes on to run still meets that validation first. The
+  any GitHub client, or the scheduler exists, because an empty allowlist would trust every author. The `run` options
+  are defined by `runtime.options`, which loads no configuration, and `cli.py` imports every other runtime owner --
+  each of which resolves and validates the settings as it is imported -- only after the command line is parsed, so
+  `--help`, `--version`, and `run --help` answer on a host with no configuration or a malformed `REPOS`, while a
+  launch that goes on to run still meets that validation first. The
   setting is under [`configuration.md#required`](configuration.md#required).
 - **Host exclusivity** (`runtime.exclusion`): one `flock`-based claim on `WORKTREES_DIR/.artifact-maintenance.lock`
   decides which process may touch this host's artifacts. Every polling run holds it **shared** for its whole life (a

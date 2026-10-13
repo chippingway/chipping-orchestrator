@@ -99,7 +99,7 @@ Store each repository's GitHub token at `~/.config/<owner>/<name>/token`, or exp
 each configured agent is logged in, then run:
 
 ```sh
-chipping-orchestrator
+chipping-orchestrator run
 ```
 
 On first start, the orchestrator creates its labels and begins polling open issues. Each issue gets its own worktree
@@ -111,6 +111,8 @@ examples. The [operations guide][operations] covers run modes, upgrades and roll
 on one host, and systemd deployment. For unconstrained, unpinned installs, use `pipx upgrade chipping-orchestrator`
 after stopping the poller and reviewing release notes. Constrained installs upgrade by repeating the pinned
 procedure in the operations guide with the new release's constraints. Package upgrades are operator-initiated.
+Upgrading from v0.13.0 or earlier moves the poller to `chipping-orchestrator run`: the bare command prints help
+and exits, so read the [upgrade notes][installation] before upgrading a host whose scripts or systemd unit run it.
 
 ## Asking the orchestrator a question
 

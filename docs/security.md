@@ -276,7 +276,7 @@ Once every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` (a day by default), or o
 `TERMINAL_ARTIFACT_CLEANUP_WINDOW` where one is set, the polling process reclaims what the issues it has finished with
 left behind — the per-issue checkouts on this host, and the `orchestrator/`-namespaced branches those issues were
 published under, in the clone *and* on the remote. The same pass runs on demand under
-[`--cleanup-terminal-artifacts`](configuration/operations.md#run-modes). It is the one deletion path here that no
+[`run --cleanup-terminal-artifacts`](configuration/operations.md#run-modes). It is the one deletion path here that no
 issue transition triggers, so what bounds it is worth an operator's attention.
 
 The window is scheduling, not a safeguard. It decides only when a pass may *start* — read again after the pass has
@@ -468,7 +468,7 @@ Operator drill checklist (run at least once after setup, then on a recurring cad
    `WORKTREES_DIR` before the first poller starts. Where it cannot be restored, list every Issue an Antigravity
    developer ran on whose record did not read `{}`, and settle or write each one by hand on the new host, as the
    [runbook](configuration/operations.md#running-more-than-one-poller) describes, before any poller runs.
-4. Verify that restoring target clones, that directory, and running `chipping-orchestrator` against the restored
+4. Verify that restoring target clones, that directory, and running `chipping-orchestrator run` against the restored
    `WORKTREES_DIR` recovers in-flight Issues from their labels + pinned comments and those records — the documented
    restart contract ([`configuration.md#what-survives-a-restart`](configuration.md#what-survives-a-restart)).
 5. Confirm each configured repository's `~/.config/<owner>/<repo>/token` (or whatever `ORCHESTRATOR_TOKEN_FILE` points

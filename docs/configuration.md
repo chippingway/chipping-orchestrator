@@ -100,6 +100,11 @@ targets above. Review release notes and compare both versions' templates before 
 changed defaults, and validation rules can affect both the upgrade and a later rollback. Package changes are initiated
 by the operator.
 
+Upgrading past v0.13.0 moves the poller from the bare `chipping-orchestrator` command to `chipping-orchestrator run`:
+the bare command prints help and exits 0, so a launch line, script, or hand-written unit's `ExecStart` that runs it
+needs `run` appended before the upgraded package starts. The
+[upgrade warning](configuration/operations.md#upgrade-a-package) covers the unit and a rollback.
+
 The [v0.13.0 upgrade notes](release-timeline.md#v0130) cover the required author allowlist, installed targets,
 Poetry migration, worktree paths, and the report and verification contracts when upgrading from v0.12.0.
 
@@ -354,7 +359,7 @@ examples.
   maintenance passes run: the bounded reclamation of the worktrees and branches of issues this orchestrator has
   finished with. With no `TERMINAL_ARTIFACT_CLEANUP_WINDOW` set, the polling loop fits one in *between* passes (never
   inside a tick) once this long has elapsed on its own monotonic clock; a set window replaces this cadence for the
-  polling loop, and `chipping-orchestrator --cleanup-terminal-artifacts` runs one on demand regardless of either.
+  polling loop, and `chipping-orchestrator run --cleanup-terminal-artifacts` runs one on demand regardless of either.
   Must be `>= 1`: a zero or negative interval would put a host-wide teardown between every pair of polling passes,
   each one holding scheduler admission closed while it proved the host quiet. Nothing is persisted, so a restart
   costs at most one extra pass — a repeated pass reads the host again and reports whatever is already gone as done.
@@ -943,11 +948,13 @@ summarizes itself with, and the one-time repository settings are in
 
 ## Run modes
 
-The installed `chipping-orchestrator` command polls continuously. Add `--once` for a single tick or `--log-level DEBUG`
-for verbose logs; see [run modes](configuration/operations.md#run-modes). Use `--cleanup-terminal-artifacts` for a
-maintenance-only run that reclaims eligible worktrees and branches, locally and on the remote, without polling or
-writing workflow state; see the
-[cleanup runbook](configuration/operations.md#reclaiming-a-finished-issues-artifacts).
+The installed `chipping-orchestrator run` polls continuously. Add `--once` after `run` for a single tick or
+`--log-level DEBUG` for verbose logs; see [run modes](configuration/operations.md#run-modes). Use
+`run --cleanup-terminal-artifacts` for a maintenance-only run that reclaims eligible worktrees and branches, locally
+and on the remote, without polling or writing workflow state; see the
+[cleanup runbook](configuration/operations.md#reclaiming-a-finished-issues-artifacts). The polling flags are accepted
+only after `run`. The bare `chipping-orchestrator` prints the help listing every command, and
+`chipping-orchestrator --version` prints the installed version; both work without any configuration.
 
 ### Launcher dependency refresh
 
@@ -963,7 +970,7 @@ the `loginctl enable-linger` that boot-time start requires, and the day-to-day `
 
 ## Applying `.env` changes
 
-`~/.config/chipping-orchestrator/.env` is read once, when `chipping-orchestrator` starts, so most edits take effect
+`~/.config/chipping-orchestrator/.env` is read once, when `chipping-orchestrator run` starts, so most edits take effect
 on the next process start. There is no signal to make a running process re-read configuration. Which restart is safe,
 what each launch style needs, and when each individual setting takes effect are in
 [`configuration/operations.md#applying-env-changes`](configuration/operations.md#applying-env-changes).

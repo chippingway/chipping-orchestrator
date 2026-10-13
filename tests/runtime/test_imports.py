@@ -64,7 +64,7 @@ _RETIRED_MODULES = (
 # initializer to its own chain and nothing besides.
 _ROOT_MODULES = (_ORCHESTRATOR,)
 
-# The owner `--help` is answered from, read before any owner that resolves the
+# The owner `run --help` is answered from, read before any owner that resolves the
 # configuration is imported.
 _OPTIONS_MODULE = f"{_PACKAGE}.options"
 
