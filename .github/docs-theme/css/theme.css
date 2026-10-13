@@ -22,6 +22,23 @@
     --bs-dropdown-link-hover-bg: #b84a14;
 }
 
+/* Links take the top bar's hue. The bar's own colour clears 4.5:1 against the light page and its striped table rows,
+   but not against the dark page, which gets a lighter tint of it instead. */
+:root,
+[data-bs-theme="light"] {
+    --bs-link-color: #b84a14;
+    --bs-link-color-rgb: 184, 74, 20;
+    --bs-link-hover-color: #933c10;
+    --bs-link-hover-color-rgb: 147, 60, 16;
+}
+
+[data-bs-theme="dark"] {
+    --bs-link-color: #ec8451;
+    --bs-link-color-rgb: 236, 132, 81;
+    --bs-link-hover-color: #f1a57e;
+    --bs-link-hover-color-rgb: 241, 165, 126;
+}
+
 .ai-chat-links {
     display: flex;
     align-items: center;
