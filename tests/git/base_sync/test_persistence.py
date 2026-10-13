@@ -1,6 +1,12 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The parks and the reset-and-park tail on the `persistence` owner."""
+"""The parks and the reset-and-park tail on the `persistence` owner, and the recovery answers it transports.
+
+A recovery context may carry what its recovery owes over a landed reset, what
+it records before the reset moves the checkout, and the park every recovery
+park is recorded through. Each is optional, and a context carrying none takes
+the tail exactly as a refresh's own context does.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +18,13 @@ from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import commands
-from orchestrator.git.base_sync import persistence, recovery_holds
+from orchestrator.git.base_sync import (
+    persistence,
+    recovery_holds,
+    replay_publication_parks,
+    replay_transfer_parks,
+)
+from orchestrator.git.base_sync.models import _AutoRebaseRecoverySnapshot
 from tests.git.base_sync import base_sync_helpers as fixtures
 from tests.git.base_sync.base_sync_helpers import _OrderedCall, _recorded_calls
 
@@ -24,6 +36,9 @@ CLEAN_ARGS = ("clean", "-fd")
 
 REASON_FIELD = "reason"
 
+# The reason a recovery that keeps a stranded attempt parks under.
+PARK_FAILED = "auto_base_rebase_failed"
+
 PARK_EVENT = "park_awaiting_human"
 
 # The client calls whose order is the contract these owners publish through.
@@ -34,6 +49,8 @@ EMIT_EVENT = "emit_event"
 WRITE_STATE = "write_pinned_state"
 
 KEY_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
+
+KEY_REWRITE_BASE = "pending_auto_base_rebase_rewrite_base"
 
 # The base tip the attempt's replay was made onto.
 ONTO_SHA = "0e70ba5e" * 5
@@ -50,6 +67,23 @@ SETTLED = "settled"
 _ANSWERED = ([fixtures.PRE_REBASE_SHA], SETTLED, None, [WRITE_STATE])
 
 _UNANSWERED = ([], None, fixtures.PRE_REBASE_SHA, [WRITE_STATE])
+
+# What a landed reset whose answer may not go with the release leaves: the
+# answer asked, nothing written, and the anchor kept.
+_HELD = ([fixtures.PRE_REBASE_SHA], None, fixtures.PRE_REBASE_SHA, [])
+
+# The record a recovery makes before its reset, as the order of calls names it.
+_RECORDED = "recorded"
+
+_RESETTING = f"{fixtures.GIT_HARDENED}:reset"
+
+# A recorded reset git answers with each exit code, and the anchor and base tip
+# the park leaves: released over a reset that landed, kept whole over one that
+# did not.
+_RECORDED_RESETS = (
+    (0, (None, None)),
+    (fixtures.GIT_FAILURE_EXIT_CODE, (fixtures.PRE_REBASE_SHA, ONTO_SHA)),
+)
 
 # Everything one interrupted attempt carries past the anchor: the replay it
 # recorded making, the base tip it made it onto, and the publication it made
@@ -70,10 +104,16 @@ _OUTCOMES = (
     (False, False, ("did not land", "`git clean -fd` failed too")),
 )
 
+# What git answers a reset or a clean that landed, and one that failed.
+_GIT_ANSWERS = MappingProxyType({
+    True: fixtures._git_result(),
+    False: fixtures._git_result(returncode=fixtures.GIT_FAILURE_EXIT_CODE, stderr="fatal: bad object\n"),
+})
+
 _IN_FLIGHT = MappingProxyType({
     fixtures.KEY_PENDING_PUSH_SHA: fixtures.PRE_REBASE_SHA,
     "pending_auto_base_rebase_rewrite_sha": fixtures.RECOVERED_SHA,
-    "pending_auto_base_rebase_rewrite_base": ONTO_SHA,
+    KEY_REWRITE_BASE: ONTO_SHA,
     "pending_auto_base_rebase_rewrite_pr": fixtures.PR_NUMBER,
     "pending_auto_base_rebase_rewrite_stage": fixtures.VALIDATING,
     KEY_ANNOUNCED_SHA: fixtures.RECOVERED_SHA,
@@ -136,13 +176,6 @@ class ParkAutoRebaseFailureTest(unittest.TestCase):
                 message=PARK_MESSAGE,
                 reason="reviewer_timeout",
             )
-
-
-def _answered(*, landed: bool):
-    """What git answers a reset or a clean that landed, or one that failed."""
-    if landed:
-        return fixtures._git_result()
-    return fixtures._git_result(returncode=fixtures.GIT_FAILURE_EXIT_CODE, stderr="fatal: bad object\n")
 
 
 class ResetClearAndParkTest(unittest.TestCase):
@@ -242,7 +275,7 @@ class ResetClearAndParkTest(unittest.TestCase):
 
     def _notice(self, *, resets: bool, cleans: bool | None) -> str:
         """The notice a park posts behind a reset that `resets` lands and a clean `cleans` says came to."""
-        answers = (_answered(landed=resets), _answered(landed=bool(cleans)))
+        answers = (_GIT_ANSWERS[resets], _GIT_ANSWERS[bool(cleans)])
         hardened = MagicMock(side_effect=answers)
         context, _, _ = self._reset_and_park(hardened=hardened, clean=cleans is not None)
         return context.gh.posted_comments[-1][1]
@@ -288,9 +321,38 @@ class ResetAnswerTest(unittest.TestCase):
             with self.subTest(road=road.__name__, exit_code=exit_code):
                 self.assertEqual(self._takes(road, exit_code), _UNANSWERED if exit_code else _ANSWERED)
 
-    def _takes(self, road, exit_code: int) -> tuple:
-        """Take `road` over a reset git answers with `exit_code`, and read back what it left."""
-        owed = _Owed()
+    def test_only_a_refusing_answer_holds(self) -> None:
+        # An answer that settles says True and releases; one that says False
+        # keeps the attempt guarding its record, nothing written or parked.
+        for road, releases in product((_resets, _aborts), (True, False)):
+            with self.subTest(road=road.__name__, releases=releases):
+                left = _ANSWERED if releases else _HELD
+                self.assertEqual(self._takes(road, 0, releases=releases), left)
+
+    def test_an_unrecorded_reset_is_not_made(self) -> None:
+        # Nothing is reset, written, or parked, and the attempt stands with
+        # its base tip for the next tick to record again.
+        for road in (_resets, _aborts):
+            with self.subTest(road=road.__name__):
+                ordered, published = self._records(road, recorded=False, exit_code=0)
+
+                standing = (published[fixtures.KEY_PENDING_PUSH_SHA], published[KEY_REWRITE_BASE])
+                self.assertEqual((ordered, standing), ([_RECORDED], (fixtures.PRE_REBASE_SHA, ONTO_SHA)))
+
+    def test_the_record_comes_before_the_reset(self) -> None:
+        # A reset that lands is released in the park's write; one git refused
+        # moved nothing, so the tip the record blanked is staged back for the
+        # park that keeps the attempt.
+        for exit_code, kept in _RECORDED_RESETS:
+            with self.subTest(exit_code=exit_code):
+                ordered, published = self._records(_resets, recorded=True, exit_code=exit_code)
+
+                standing = (published.get(fixtures.KEY_PENDING_PUSH_SHA), published.get(KEY_REWRITE_BASE))
+                self.assertEqual((ordered, standing), ([_RECORDED, _RESETTING, WRITE_STATE], kept))
+
+    def _takes(self, road, exit_code: int, *, releases: bool | None = None) -> tuple:
+        """Take `road` over a reset git answers with `exit_code`, owed an answer of `releases`, and read it back."""
+        owed = _Owed(releases)
         context, takes = road(owed)
         ordered: list[str] = []
         with _recorded_calls(ordered, context.gh, WRITE_STATE), patch.object(
@@ -300,37 +362,124 @@ class ResetAnswerTest(unittest.TestCase):
         published = context.gh.pinned_data(fixtures.ISSUE)
         return owed.asked, published.get(KEY_SETTLED), published.get(fixtures.KEY_PENDING_PUSH_SHA), ordered
 
+    def _records(self, road, *, recorded: bool, exit_code: int) -> tuple:
+        """Take `road` handed a record of its reset that `recorded`, over a reset git answers with `exit_code`."""
+        owed = _Owed(recorded=recorded)
+        context, takes = road(owed, records_before_a_reset=owed.records)
+        answer = MagicMock(return_value=_GIT_ANSWERS[not exit_code])
+        hardened = _OrderedCall(owed.ordered, fixtures.GIT_HARDENED, answer)
+        with _recorded_calls(owed.ordered, context.gh, WRITE_STATE), patch.object(
+            commands, fixtures.GIT_HARDENED, hardened,
+        ):
+            takes()
+        return owed.ordered, context.gh.pinned_data(fixtures.ISSUE)
+
 
 class _Owed:
-    """A recovery's answer to its landed reset: a record staged on `state`, the anchor standing as it is asked."""
+    """A recovery's answers over its reset: a record staged on `state` once it landed, and one made ahead of it.
 
-    def __init__(self) -> None:
+    `releases` is what the answer to a landed reset says: None as the
+    captured-only answer does, which releases the attempt as True does, or
+    False to keep it. `recorded` is whether the record made ahead of the reset
+    (`records`) lands, blanking the base tip on the tick's state; each one is
+    noted in `ordered`.
+    """
+
+    def __init__(self, releases: bool | None = None, *, recorded: bool = True) -> None:
         self.state = None
         self.asked: list[str | None] = []
+        self.ordered: list[str] = []
+        self._releases = releases
+        self._recorded = recorded
 
-    def __call__(self) -> None:
+    def __call__(self) -> bool | None:
         self.asked.append(self.state.get(fixtures.KEY_PENDING_PUSH_SHA))
         self.state.set(KEY_SETTLED, SETTLED)
+        return self._releases
+
+    def records(self, context) -> bool:
+        """Record the reset ahead of it: the base tip blanked on `context`'s state, where the record lands."""
+        self.ordered.append(_RECORDED)
+        if self._recorded:
+            context.state.set(KEY_REWRITE_BASE, None)
+        return self._recorded
 
 
-def _resets(owed: _Owed):
-    """A recovery context carrying `owed`, and the reset-and-park tail it takes."""
+class RecoveryParkTest(unittest.TestCase):
+    """A recovery context's own park records every recovery park; a context with none writes the state whole."""
+
+    def test_a_carried_park_records_each_park(self) -> None:
+        # The reset tail, over a reset that landed or not, and the parks that
+        # never reset: each is handed to the context's park with its reason,
+        # and nothing posts or writes the tick's state whole.
+        for name, parks, exit_code, reason in _CARRIED_PARKS:
+            with self.subTest(park=name):
+                self.assertEqual(self._parks(parks, exit_code), ([reason], []))
+
+    def test_a_carried_park_refuses_a_foreign_reason(self) -> None:
+        foreign = partial(persistence._parks_the_recovery, message=PARK_MESSAGE, reason="reviewer_timeout")
+
+        with self.assertRaises(AssertionError):
+            self._parks(foreign)
+
+    def _parks(self, parks, exit_code: int = 0) -> tuple:
+        """Take `parks` over a context carrying its own park and a reset git answers with `exit_code`.
+
+        The reasons that park was handed, and the client calls made beside it.
+        """
+        park = MagicMock()
+        context = fixtures._recovery_context(**_IN_FLIGHT)
+        ordered: list[str] = []
+        with _recorded_calls(ordered, context.gh, ISSUE_COMMENT, WRITE_STATE), patch.object(
+            commands, fixtures.GIT_HARDENED, MagicMock(return_value=_GIT_ANSWERS[not exit_code]),
+        ):
+            parks(replace(context, lands_a_park=park))
+        reasons = [handed.args[2] for handed in park.call_args_list]
+        return reasons, ordered
+
+
+_TAIL = partial(
+    persistence._reset_clear_and_park,
+    reset_sha=fixtures.PRE_REBASE_SHA,
+    message=PARK_MESSAGE,
+    reason=fixtures.PARK_PUSH_FAILED,
+)
+
+_UNFINISHED = partial(
+    replay_transfer_parks._park_unfinished_recovery,
+    recovery_snapshot=_AutoRebaseRecoverySnapshot(branch=fixtures.BRANCH, local_head=fixtures.RECOVERED_SHA),
+    detail="the route could not close",
+)
+
+# Every park a recovery takes, the reset git answers it with, and its reason.
+_CARRIED_PARKS = (
+    ("the tail over a landed reset", _TAIL, 0, fixtures.PARK_PUSH_FAILED),
+    ("the tail over a failed reset", _TAIL, fixtures.GIT_FAILURE_EXIT_CODE, fixtures.PARK_PUSH_FAILED),
+    ("the unfinished park", _UNFINISHED, 0, fixtures.PARK_PUSH_FAILED),
+    ("the stranded park", replay_publication_parks._park_stranded_recovery, 0, PARK_FAILED),
+)
+
+
+def _resets(owed: _Owed, **answers):
+    """A recovery context carrying `owed` and `answers`, and the reset-and-park tail it takes."""
     context = fixtures._recovery_context(**_IN_FLIGHT)
     owed.state = context.state
     return context, partial(
         persistence._reset_clear_and_park,
-        replace(context, settles_over_a_reset=owed),
+        replace(context, settles_over_a_reset=owed, **answers),
         fixtures.PRE_REBASE_SHA,
         message=PARK_MESSAGE,
         reason=fixtures.PARK_PUSH_FAILED,
     )
 
 
-def _aborts(owed: _Owed):
-    """A refresh's context over a checkout nobody could count, and the abort it takes, handed `owed`."""
+def _aborts(owed: _Owed, **answers):
+    """A refresh's context over a checkout nobody could count, and the abort it takes, handed `owed` and `answers`."""
     context = fixtures._sync_context(pending_pre_rebase_sha=fixtures.PRE_REBASE_SHA, **_IN_FLIGHT)
     owed.state = context.state
-    return context, partial(recovery_holds._answers_an_unreadable_checkout, context, None, settles_over_a_reset=owed)
+    return context, partial(
+        recovery_holds._answers_an_unreadable_checkout, context, None, settles_over_a_reset=owed, **answers,
+    )
 
 
 if __name__ == "__main__":

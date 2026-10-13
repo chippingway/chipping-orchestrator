@@ -177,6 +177,12 @@ _REFUSALS = MappingProxyType({
     ),
 })
 
+# The base readings a continuation is made over -- the base gone past the
+# landed head since its replay -- which move nothing under settled evidence
+# the continuation keeps for the rebase behind it to decide over
+# (`last_word`); a tip blanked to record movement is no such reading.
+ADVANCED = (BASE_MOVED, _REFUSALS[_BaseStanding.DROPPED])
+
 
 def proves_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _evidence_models.ReportEvidence:
     """The whole proof of `binding` over the issue and pinned comment read afresh, or the HOLD nobody could read.
@@ -237,7 +243,13 @@ def last_word(
     the evidence records settled evidence is held to
     (`rewrite_finish_readiness`). The network is read first and the local
     readings last (`_answers_locally`), so nothing read before a request is
-    taken on trust behind it.
+    taken on trust behind it. Settled evidence for a head the base advanced
+    past again -- `records` asked of a landing whose candidate counted the base
+    ahead of it, which a continuation keeps that evidence over for the rebase
+    behind it -- does not count the base readings that made the continuation
+    (`ADVANCED`): they are dropped before the first movement and the first
+    hold are taken, so none of them hides a reading behind it. Only the
+    dormant readiness proof asks `records`, so no route asks that yet.
 
     Every reading is taken, and none nobody could take hides one that read
     movement. `moved` is the first that establishes that something the route
@@ -248,7 +260,9 @@ def last_word(
     or one of those two. Either is None where no reading says so.
     """
     answered = _answers_locally(finish, binding, _hears(finish, binding, landing, records), landing)
+    excused = ADVANCED if finish.behind and records is not None else ()
     found = [refused for refused in (earlier, *answered) if refused and not refused.proved]
+    found = [refused for refused in found if refused not in excused]
     movements = (refused for refused in found if not refused.holds or refused in MOVEMENT)
     holds = (refused for refused in found if refused.holds)
     return next(movements, None), next(holds, None)

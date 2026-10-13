@@ -195,7 +195,11 @@ another road's, and kept as it wrote it. Every recovery park or hold that keeps 
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
 anything moved, so putting that input back before the attempt is taken up again revives nothing. Proving settled
 evidence ready again before its route, and invalidating it whole wherever anything it rests on moved, are dormant
-primitives no road asks yet (`workflow/engine/rewrite_finish_readiness.py`). A tick lost behind
+primitives no road asks yet (`workflow/engine/rewrite_finish_readiness.py`), and so are the guarded recovery
+operations built on them: a reset recorded against captured or settled evidence before git moves the checkout,
+settled evidence retired whole with a landed reset's release or kept whole beside the attempt where history has no
+room, and every recovery park landed over the comment read afresh (`workflow/engine/rewrite_landing_retirement.py`,
+`workflow/engine/rewrite_recovery_parks.py`). A tick lost behind
 the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
 checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
 recovery, which reads what was done off the mark, the pull request, the event stream, and the label
