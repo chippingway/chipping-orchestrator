@@ -94,6 +94,15 @@ child's own diff is what decides whether that child is oversized, and the
 prompt says so rather than leaving an agent to think a declared number buys it
 anything.
 
+The dependency list is asked for as an obligation for the same reason: the
+reply parser refuses a child that leaves its `depends_on` missing or null, so
+the prompt says every child states one -- `[]` for none -- and that it names
+exactly the prerequisites the child's body describes. A child read as having
+no prerequisites is released the moment the split lands, beside the sibling
+its own body says it waits on. The template shows both shapes, a root and a
+child waiting on it, because a template is copied: one that only ever showed
+`[]` would be teaching that the list is decoration.
+
 The false positives are named out loud because the gate is a size gate and
 size is not the question. A diff dominated by legitimate generated or data
 artifacts is a small change with a large diff and gets a fast `single`; the
@@ -331,7 +340,9 @@ def _block_rules(threshold: int | None) -> str:
         '  "rationale": "<<= 2 sentences why>",\n'
         '  "children": [\n'
         '    {"title": "...", "body": "...", "depends_on": [], '
-        f'"{_budget.ESTIMATE}": {example}}}\n'
+        f'"{_budget.ESTIMATE}": {example}}},\n'
+        '    {"title": "...", "body": "... needs child 0 ...", '
+        f'"depends_on": [0], "{_budget.ESTIMATE}": {example}}}\n'
         "  ]\n"
         "}\n"
         "```\n\n"
@@ -350,10 +361,15 @@ def _block_rules(threshold: int | None) -> str:
         "reason worth counting.\n"
         f'- On `"split"`: `"children"` is a non-empty list of at most '
         f'{_MAX_CHILDREN} entries, each with a non-empty `"title"`, a '
-        f'non-empty `"body"`, and an `"{_budget.ESTIMATE}"`. `"depends_on"` is a '
+        'non-empty `"body"`, a `"depends_on"`, and an '
+        f'`"{_budget.ESTIMATE}"`. `"depends_on"` is REQUIRED on every child: a '
         "list of 0-based indexes into THIS children array (not GitHub issue "
-        "numbers; the orchestrator allocates those). Self-dependencies and "
-        "cycles are rejected.\n"
+        "numbers; the orchestrator allocates those), `[]` for a child with no "
+        "prerequisites. A missing or null `depends_on` refuses the whole "
+        "manifest. It must name exactly the prerequisites the child's body "
+        "describes: a child whose body says it needs another child's work "
+        "lists that child's index, and does not start until that child is "
+        "done. Self-dependencies and cycles are rejected.\n"
         '- On `"question"`: omit `"children"`, and give `"question"` (the one '
         'specific thing you are asking) and `"category"`.\n\n'
         '`"rationale"` (<= 2 sentences) is OPTIONAL on `"single"` and '

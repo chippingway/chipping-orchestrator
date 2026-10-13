@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Read frozen late-run records and recover their adjudication and resume identity.
 
-Stored children pass manifest validation, stored agent specs stay locked,
-a stored rationale reads back only where it is one a `single` or `split`
-could have recorded, and a session resumes only against the same candidate
-generation.
+Stored children pass the shared manifest validation a record is read with,
+where a missing or null `depends_on` still means no prerequisites, stored
+agent specs stay locked, a stored rationale reads back only where it is one a
+`single` or `split` could have recorded, and a session resumes only against
+the same candidate generation.
 """
 from __future__ import annotations
 
@@ -113,11 +114,17 @@ def _recorded_rationale(
 def _recorded_children(state: _pinned_state.PinnedState) -> tuple[dict, ...]:
     """Return the recorded child manifest, or nothing if it is not one.
 
-    Held to the same rules the reply was: the child cap, the shape of each
+    Held to the shared rules the reply was: the child cap, the shape of each
     child, and the acyclicity of the graph they declare. A manifest a hand
     edit or an older binary left in a shape this validator refuses is not one
     children may be created from, and reading it back as empty is what sends
     the adjudicator round again instead of creating half of a split.
+
+    What it is NOT held to is the fresh reply's demand that every child state
+    its `depends_on` list. A slice recorded with the list missing or null was
+    recorded under the reading where that means no prerequisites, so it is
+    read back and released that way rather than refused, which would buy a
+    second run free to decide something else entirely.
     """
     recorded = state.get(_LATE_RESULT_CHILDREN)
     if not isinstance(recorded, list) or not recorded:

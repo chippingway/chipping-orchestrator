@@ -22,7 +22,12 @@ a second copy of it. The child cap, the shape of a child, and the acyclicity
 of the graph they declare are properties of a manifest that is about to become
 GitHub issues, and that is the same manifest either mode produces -- so a rule
 tightened there tightens here, and the number the late prompt states is still
-the number the reply is judged against.
+the number the reply is judged against. It is asked through the validator's
+fresh-reply entry point, the one an initial reply is held to as well, so every
+child has to state its `depends_on` list -- `[]` for none -- and one that leaves
+it missing or null is refused naming the child and the field. Read as no
+prerequisites, it would be created and released beside the sibling its own
+body says it waits on.
 
 `single` carries one field the other two do not: the explanation of what
 stopped a split. The verdict says the committed work is one change AND that no
@@ -67,7 +72,9 @@ what an agent just said. The same validator reads recorded manifests back off
 the pinned comment, and a live issue's recorded split was written before any
 budget was asked for -- so a requirement placed there would read every one of
 them as no manifest at all and send a candidate that has already been
-adjudicated round again.
+adjudicated round again. The dependency list is held apart the same way: the
+fresh entry point demands it, while the shared reading a record goes through
+still takes a missing or null one as no prerequisites.
 
 What this owner does NOT decide is whether a `split` is allowed at all. The
 lineage bound is the record's invariant and is enforced where the generation
@@ -188,13 +195,15 @@ def _single_adjudication(
 def _split_adjudication(
     late_manifest: dict, threshold: int | None,
 ) -> tuple[_LateAdjudication | None, str | None]:
-    """Validate a late split against the split rules and the budget.
+    """Validate a late split against the fresh-reply rules and the budget.
 
-    The shared rules first, because they are what says these are children at
+    The split rules first, because they are what says these are children at
     all: a budget read off something that is not a child object would be
-    reporting the wrong fault about the wrong thing.
+    reporting the wrong fault about the wrong thing. They are the fresh
+    reply's, so a child with no stated `depends_on` list is refused here,
+    before anything is recorded or created from it.
     """
-    split_error = _validation._split_manifest_error(late_manifest)
+    split_error = _validation._fresh_split_manifest_error(late_manifest)
     if split_error is not None:
         return None, split_error
     children = tuple(late_manifest.get("children") or ())

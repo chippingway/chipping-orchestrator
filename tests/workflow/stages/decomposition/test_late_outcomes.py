@@ -124,6 +124,29 @@ class DeclinedRunTest(LateCase, unittest.TestCase):
         self.assertIn(_reply_support.LATE_FENCE, self.github.posted_comments[-1][1])
         self.assertNotIn(_support.KEYS.verdict, self._pinned())
 
+    def test_unstated_dependencies_create_nothing(self) -> None:
+        # Read as having no prerequisites, the dependent slice would be created
+        # and released beside the one its body waits on. So the reply parks as
+        # the malformed manifest it is, naming the slice and the field, before
+        # a split is recorded -- with the real transaction armed behind it, so
+        # a split that got through would have created its children.
+        for unstated, diagnostic in _support.UNSTATED_DEPENDENCIES:
+            with self.subTest(unstated=unstated):
+                self.setUp()
+
+                outcome, spawn = self._adjudicate(
+                    agent_reply(_support.split_reply(unstated=unstated)),
+                    transact=True,
+                )
+
+                spawn.assert_called_once()
+                self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
+                self.assertEqual(self._pinned()[_support.KEYS.park_reason], PARK_UNPARSED)
+                self.assertIn(diagnostic, self.github.posted_comments[-1][1])
+                self.assertNotIn(_support.KEYS.verdict, self._pinned())
+                self.assertNotIn(_support.KEYS.children, self._pinned())
+                self.assertEqual(self.github.created_child_issues, [])
+
 
 class DecidedOutcomeTest(LateCase, unittest.TestCase):
     """What a verdict records, and what it deliberately does not do."""

@@ -2445,7 +2445,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a missing or null one as no prerequisites
       validation.py         bounded nonempty child envelopes, umbrella flags, and graph acyclicity after child
                             validation, asked through two entry points: `_fresh_split_manifest_error` for a fresh
-                            decomposer reply, and the shared `_split_manifest_error` a stored record is read with
+                            reply, the initial decomposer's or the late adjudicator's, and the shared
+                            `_split_manifest_error` a stored record is read with
       outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
                             dispositions after it: the unparsed park, the `single` finalize, and the `split` hand-off
       replacement_lineage.py
@@ -2595,8 +2596,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it shows drift, withholds guidance, or is not covered at all, where only the shared
                             watermark moves
       late_run_reading.py   read the pinned role, locked spec, session, source pair, and validated verdict payload,
-                            with a rationale only beside a `single` or `split` and within its bound, absent otherwise;
-                            recover adjudications and resume only a session bound to this candidate generation
+                            with a rationale only beside a `single` or `split` and within its bound, absent otherwise,
+                            and a recorded manifest held to the stored-record split reading, where a missing or null
+                            `depends_on` still means no prerequisites; recover adjudications and resume only a
+                            session bound to this candidate generation
       late_result_payloads.py
                             encode verdicts, bounded rationales, and child estimates, and measure the actual
                             serialized pinned payload against the whole-comment budget with notice headroom
@@ -2907,13 +2910,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             rationale a `single` or a `split` keeps apart from that explanation, with the length the
                             record cuts it at read off `late_result_models`, the dependency-ordered slices and
                             dormant prerequisites a split has to consider before that answer, what every child body
-                            owns, and the addition budget each child declares under this generation's own ceiling
+                            owns, the `depends_on` list every child states -- `[]` for none, naming exactly the
+                            prerequisites its body describes, shown for a root and a child waiting on it -- and the
+                            addition budget each child declares under this generation's own ceiling
                             -- the figure its own JSON template shows scaled to that ceiling, since a template is
                             copied verbatim and a standing one would be a child the reply contract refuses wherever
                             the ceiling is narrower than it
       late_reply.py         the late reply envelope and its three structured decisions; fresh split replies use the
-                            shared child validator and budget bounds, and a single decision must explain why no safe
-                            split exists before it can be presented for a human decision
+                            shared validator's fresh-reply entry point, which refuses a child whose `depends_on` is
+                            missing or null by its index and the field, and then the budget bounds, and a single
+                            decision must explain why no safe split exists before it can be presented for a human
+                            decision
       late_content.py       WHICH content the two late-local fingerprints are taken over -- the title and body, and
                             the trusted-thread run the ratcheting watermark covers -- what a comparison against a
                             recorded baseline says moved, and the floor a comment has to clear to be a REPLY rather

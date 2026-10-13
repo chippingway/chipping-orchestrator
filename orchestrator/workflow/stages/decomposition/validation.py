@@ -6,11 +6,12 @@ The envelope requires a bounded nonempty child list and a boolean umbrella
 flag when present. Every child validates before cycle detection indexes the
 graph, so malformed references remain refusals instead of traversal errors.
 
-Two entry points ask the same rules of different writers. A fresh decomposer
-reply goes through `_fresh_split_manifest_error`, which also requires every
-child to state its `depends_on` list. `_split_manifest_error` is the shared
-reading that a stored record is held to as well, where a missing or null list
-keeps meaning no prerequisites (`child_validation`).
+Two entry points ask the same rules of different writers. A fresh reply --
+the initial decomposer's, or a late adjudicator's split -- goes through
+`_fresh_split_manifest_error`, which also requires every child to state its
+`depends_on` list. `_split_manifest_error` is the shared reading that a stored
+record is held to as well, where a missing or null list keeps meaning no
+prerequisites (`child_validation`).
 """
 from __future__ import annotations
 
