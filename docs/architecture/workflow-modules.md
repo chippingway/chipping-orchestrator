@@ -1263,8 +1263,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             newer transaction recorded for the head is answered and settled over it -- or, abandoned
                             instead, leaves that evidence outranked, proved and invalidated before the route
                             (`settles`, over `rewrite_finish_readiness.stands_ready`) -- and
-                            any other disagreement holds, as does a pending record about any other head beside the
-                            head's own retired evidence with nothing current (`rewrite_landing_records.resolved`);
+                            any other disagreement holds -- behind the readiness proof of that evidence, so what it
+                            reads moving is invalidated before the hold -- as does a pending record about any other
+                            head beside the head's own retired evidence with nothing current
+                            (`rewrite_landing_records.resolved`);
                             the records the answer itself leaves are held to the same agreement before anything is
                             announced or routed (`_holds_out_of_step`), so a settlement another road made while the
                             run was published with a handoff not naming its evidence, which comes in with the
@@ -1336,14 +1338,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             filed only where the stream does not carry it, recorded on the attempt ahead of it
                             (`pending_auto_base_rebase_announced_event`, in a write of its own,
                             `rewrite_finish_writes.ANNOUNCED_EVENT`) so it goes out only for an attempt still
-                            standing -- that write prepared ahead of the notice too (`prepares_the_record`), over the
+                            standing, a report or review record moved under the notice refusing it -- that write
+                            prepared ahead of the notice too (`prepares_the_record`), over the
                             round the checkpoint has yet to reset; an unreadable log holds the finish with nothing
                             filed
     rewrite_finish_writes.py
                             the guarded commits the finish writes through, under the tick-state guard
                             (`report_commits.py`) and decided on the publication's pinned fields as well: the
                             checkpoint, decided on the attempt, the report records and claim, the park's flags, the
-                            round, and the evidence records -- so a transaction another road recorded beside the one
+                            round, and every record the evidence is bound through -- so a transaction another road
+                            recorded beside the one
                             the finish resolved refuses the announcement before its notice -- and prepared whole,
                             the record of the event staged on it too, with its notice's ledger entry reserved over
                             the fresh ledger;
@@ -1365,8 +1369,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             fields (`lands`, `publication` False), so a repointed pull request is kept rather than
                             refusing it -- the fallback of `rewrite_finish_readiness.invalidates`; the record of the
                             `base_rebased` event a finish files (`ANNOUNCED_EVENT`), owning that member alone and
-                            decided on the attempt; and the records settled evidence's binding rests on beyond the
-                            evidence records themselves (`BINDING_RECORDS`): a refusal naming a record the evidence is
+                            decided on the attempt and on the records settled evidence's binding rests on beyond the
+                            evidence records themselves (`BINDING_RECORDS`), which the checkpoint and the debt's park
+                            are decided on too, so none of them takes a move of one in unread: a refusal naming a
+                            record the evidence is
                             bound through is collected for the caller as movement -- `BINDING_MOVED` where one of
                             those moved, which `rewrite_finish_readiness.invalidates_behind` invalidates settled
                             evidence over

@@ -78,9 +78,10 @@ refuses stops the finish there with nothing behind it made:
   of it (`rewrite_finish_events`) -- and the checkpoint lands the debt, the
   reset round, and the mark while the anchor still stands. A conversation or
   an event stream nobody could read holds the finish there with the attempt
-  standing, nothing filed, and no mark. A checkpoint refused over a report
-  record another road moved while the notice was posted has read movement
-  under the settled evidence, which is invalidated before the finish stops
+  standing, nothing filed, and no mark. The event's record or the checkpoint
+  refused over a report or review record another road moved while the notice
+  was posted has read movement under the settled evidence, which is
+  invalidated before the finish stops
   (`rewrite_finish_readiness.invalidates_behind`), so putting that record
   back before the next poll revives nothing; the retirement behind the
   relabel answers the same. The checkpoint is
@@ -301,12 +302,12 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     and what stopped either -- a conversation or event stream that would not
     read, or the event's own record that did not land -- stops the checkpoint
     with the attempt standing. A checkpoint prepared or landed short over a
-    report record another road moved has read movement under the evidence
-    settled for the head, which is invalidated before the finish stops
-    (`rewrite_finish_readiness.invalidates_behind`) -- and so has the debt's
-    park, decided on those same records, refused over one another road moved
-    while its notice was posted, and the event's own record, refused over the
-    pull request the publication is resolved from.
+    report or review record another road moved has read movement under the
+    evidence settled for the head, which is invalidated before the finish
+    stops (`rewrite_finish_readiness.invalidates_behind`) -- and so has the
+    debt's park, decided on those same records, refused over one another road
+    moved while its notice was posted, and the event's own record, refused
+    over one moved while the notice was posted rather than taking it in.
     """
     staged = _writes.staging(finish)
     measured = _writes.staging(finish) if announced else _debt.announcement(staged, finish.head)

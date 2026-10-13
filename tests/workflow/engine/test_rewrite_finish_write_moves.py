@@ -17,7 +17,10 @@ the route held with the attempt standing where the write was refused, and
 taken on to the fresh reviewer where the proof read it -- and putting the
 earlier report and review back before the next poll revives nothing: the head
 ends routed with nothing current, its notice and `base_rebased` event said
-once.
+once. The report moved under the notice refuses the event's own record before
+anything is filed, rather than riding into it unread, so the earlier report
+put back behind the next finish's record of the event -- that finish killed
+before it files the event, or not -- revives nothing either.
 
 Or the base advances while the notice is posted or the relabel made: the
 proof behind the relabel reads it, invalidates the run, and holds the route
@@ -35,10 +38,10 @@ from typing import NamedTuple
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import verification_settlement_state as _settlement
-from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
+    rewrite_handoff_test_support as handoff,
     rewrite_verification_recovery_support as support,
     verification_report_fixture as _report,
 )
@@ -53,22 +56,6 @@ _MOVED_RECORDS = (
 )
 
 _CURRENT_REPORT = "developer_report_current"
-
-
-def _announcing(_pr_number, body: str, *_args, **_kwargs) -> bool:
-    """Whether a pull-request post is a landing's announcement."""
-    return body.startswith(":mag:")
-
-
-def _relabelling(_issue, label, *_args, **_kwargs) -> bool:
-    """Whether a label write is the route to `workflow:validating`."""
-    return label == WorkflowLabel.VALIDATING
-
-
-def _retiring(_issue, state, *, over: dict) -> bool:
-    """Whether a pinned-comment edit is the one that retires the attempt the comment still carries."""
-    retires = state.get(readings.KEY_PENDING_PUSH) is None
-    return retires and over.get(readings.KEY_PENDING_PUSH) is not None
 
 
 class _Window(NamedTuple):
@@ -136,16 +123,58 @@ class _LaterReport:
 # checkpoint behind it refuses; the relabel, which the proof behind it reads;
 # and the retirement's own edit, which the comment moving under it refuses.
 _REPORT_WINDOWS = (
-    _Window("while the notice is posted", "pr_comment", _announcing),
-    _Window("while the relabel is made", "set_workflow_label", _relabelling, standing=False),
-    _Window("while the retirement is sent", "edit_pinned_state", _retiring, ahead=True),
+    _Window("while the notice is posted", "pr_comment", handoff.BEFORE_THE_ANNOUNCEMENT.kills),
+    _Window("while the relabel is made", "set_workflow_label", handoff.BEFORE_THE_RELABEL.kills, standing=False),
+    _Window("while the retirement is sent", "edit_pinned_state", handoff.BEFORE_THE_RETIREMENT.kills, ahead=True),
 )
 
 # Each final step the base advances under, read by the proof behind the relabel.
 _BASE_WINDOWS = _REPORT_WINDOWS[:2]
 
 
-class FinalStepMoveTest(support.CapturedRunCase, unittest.TestCase):
+class _FinalStepCase(support.CapturedRunCase):
+    """Issue #7's reviewed rebase finished with something moved under one of its final steps, and read back."""
+
+    def _finishes(self, head: str, window: _Window, move) -> None:
+        """Publish `head`'s finish with `move` made on the call of the client's step `window` names."""
+        stepping = _Step(getattr(self.gh, window.step), window, move)
+        with patch.object(self.gh, window.step, stepping):
+            self.finishes(head)
+
+    def _held(self) -> tuple:
+        """The anchor the attempt still stands on, or None, and the revision of the report settled current."""
+        pinned = readings.pinned(self)
+        return pinned[readings.KEY_PENDING_PUSH], pinned[_CURRENT_REPORT]["revision"]
+
+    def _tested(self) -> list[str]:
+        """The head every evidence record tested, where all went into history invalidated; [] where any did not."""
+        records = readings.pinned_records(self)
+        reasons = {why for _receipt, why in records[2]}
+        if records[:2] != (None, None):
+            return []
+        if reasons != {readings.INVALIDATED}:
+            return []
+        history = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))
+        return [entry.binding.tested_sha for entry in history]
+
+    def _assert_routed_once(self, *heads: str) -> None:
+        """Each of `heads` filed as `base_rebased` and announced once, in order, and the attempt retired."""
+        said = (support.announced(self), len(readings.notices(self)))
+        self.assertEqual(said, (list(heads), len(heads)))
+        self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
+
+    def _assert_invalidated(self, settled) -> None:
+        """`settled` invalidated whole behind the anchor's evidence and nothing current, its command run once."""
+        retired = (*git_support.invalidated(self), (settled.receipt, readings.INVALIDATED))
+        self.assertEqual(readings.pinned_records(self), (None, None, retired))
+        entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
+        self.assertEqual((entry.revision, entry.binding), (settled.revision, settled.binding))
+        made = (self.runs(), self.developer.call_count)
+        self.assertEqual(made, (1, 0))
+
+
+
+class FinalStepMoveTest(_FinalStepCase, unittest.TestCase):
     """A run something moved under during a final step is invalidated before the route is retired over it."""
 
     def test_a_moved_report_invalidates_the_run(self) -> None:
@@ -186,42 +215,33 @@ class FinalStepMoveTest(support.CapturedRunCase, unittest.TestCase):
                 self._assert_routed_once(head, git_support.remote_head(self))
                 self.assertEqual((self.runs(), self.pushes.call_count), (1, 1))
 
-    def _finishes(self, head: str, window: _Window, move) -> None:
-        """Publish `head`'s finish with `move` made on the call of the client's step `window` names."""
-        stepping = _Step(getattr(self.gh, window.step), window, move)
-        with patch.object(self.gh, window.step, stepping):
-            self.finishes(head)
 
-    def _held(self) -> tuple:
-        """The anchor the attempt still stands on, or None, and the revision of the report settled current."""
-        pinned = readings.pinned(self)
-        return pinned[readings.KEY_PENDING_PUSH], pinned[_CURRENT_REPORT]["revision"]
+class EventRecordMoveTest(_FinalStepCase, unittest.TestCase):
+    """A report moved under the notice refuses the event's record rather than riding into it unread."""
 
-    def _tested(self) -> list[str]:
-        """The head every evidence record tested, where all went into history invalidated; [] where any did not."""
-        records = readings.pinned_records(self)
-        reasons = {why for _receipt, why in records[2]}
-        if records[:2] != (None, None):
-            return []
-        if reasons != {readings.INVALIDATED}:
-            return []
-        history = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))
-        return [entry.binding.tested_sha for entry in history]
+    def test_a_moved_report_refuses_the_event_record(self) -> None:
+        # The report moved while the notice is posted refuses the event's
+        # record, nothing filed, and the run is invalidated there and then;
+        # the earlier report put back behind the next finish's record of the
+        # event, killed before it files the event or not, revives nothing.
+        for boundary in (None, handoff.BEFORE_THE_EVENT):
+            with self.subTest(boundary=getattr(boundary, "name", "uninterrupted")):
+                self.setUp()
+                head = self.lands_a_reviewed_rebase()
+                moves = _LaterReport(self, head)
+                self._finishes(head, _REPORT_WINDOWS[0], moves)
 
-    def _assert_routed_once(self, *heads: str) -> None:
-        """Each of `heads` filed as `base_rebased` and announced once, in order, and the attempt retired."""
-        said = (support.announced(self), len(readings.notices(self)))
-        self.assertEqual(said, (list(heads), len(heads)))
-        self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
+                self._assert_invalidated(moves.settled)
+                recorded = readings.pinned(self).get(readings.KEY_ANNOUNCED_EVENT)
+                self.assertEqual((support.announced(self), recorded), ([], None))
+                restores = handoff.BEFORE_THE_EVENT_RECORD.moving(self.gh.edit_pinned_state, moves.restores)
+                with patch.object(self.gh, "edit_pinned_state", restores):
+                    handoff.dies_at(self.gh, boundary, self.recovers)
+                self.recovers()
+                self.recovers()
 
-    def _assert_invalidated(self, settled) -> None:
-        """`settled` invalidated whole behind the anchor's evidence and nothing current, its command run once."""
-        retired = (*git_support.invalidated(self), (settled.receipt, readings.INVALIDATED))
-        self.assertEqual(readings.pinned_records(self), (None, None, retired))
-        entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
-        self.assertEqual((entry.revision, entry.binding), (settled.revision, settled.binding))
-        made = (self.runs(), self.developer.call_count)
-        self.assertEqual(made, (1, 0))
+                self._assert_invalidated(moves.settled)
+                self._assert_routed_once(head)
 
 
 if __name__ == "__main__":

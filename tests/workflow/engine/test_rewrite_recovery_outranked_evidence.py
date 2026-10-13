@@ -14,8 +14,10 @@ report that moved, so the recovery invalidates it whole, its revision and
 binding kept, and routes the head to the fresh reviewer -- even where that
 recovery dies before its relabel and a later one finishes it -- rather than
 routing the run as current or holding every later poll over the revision
-spent past it. The run is never made again, nothing is pushed, and no
-developer is launched.
+spent past it. So does a revision floor nobody can read beside that history:
+the revision the abandoned transaction spent still reads on its own, so the
+run is invalidated rather than held over the floor for good. The run is never
+made again, nothing is pushed, and no developer is launched.
 """
 from __future__ import annotations
 
@@ -24,6 +26,7 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
+    verification_carries as _carries,
     verification_record_state as _record_state,
     verification_settlement_state as _settlement,
 )
@@ -80,6 +83,23 @@ class OutrankedRunTest(support.CapturedRunCase, unittest.TestCase):
 
         self._assert_routed_over(head, settled, newer)
         self.assertEqual(self.posted(newer), [newer.commands])
+
+    def test_outranked_beside_an_unreadable_floor(self) -> None:
+        # The newer transaction is abandoned into history and the revision
+        # floor stops reading: the entry still outranks the run, which the
+        # recovery invalidates before any hold over that floor, and the head
+        # is routed rather than held poll after poll.
+        head, settled, newer = self._outranks()
+        state = self.gh.read_pinned_state(self.issue)
+        self.assertTrue(_carries.abandons(state, newer))
+        state.set(readings.KEY_REVISION_FLOOR, "unreadable")
+        self.gh.write_pinned_state(self.issue, state)
+
+        self.recovers()
+        self.recovers()
+
+        self._assert_routed_over(head, settled, newer)
+        self.assertEqual(self.posted(newer), [])
 
     def _outranks(self) -> tuple:
         """Settle a captured run under the anchor, unannounced, and record a newer one beside it; head and both.

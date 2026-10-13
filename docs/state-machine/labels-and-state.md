@@ -715,7 +715,8 @@ routed as captured only once it proves again -- abandoned into history, nothing 
 the landing, or the base moved since -- over an artifact an earlier post landed, found under its receipt, and one an
 earlier finish already settled is routed with nothing posted or settled again while nothing beside it says
 otherwise -- a newer transaction for the head is settled over it, one abandoned beside it outranks it and has it
-invalidated, and a handoff out of step or a revision floor nobody can read holds the route -- with the invalidation
+invalidated, and a handoff out of step or a revision floor nobody can read holds the route, behind the readiness
+proof that invalidates whatever it reads moving -- with the invalidation
 a moved context now owes landed before the route, that settled evidence's own
 included: a configuration moved since it settled invalidates it with nothing run again, rather than leaving it to
 hold the route behind a revision spent past it -- or, with no room for that, records the movement against it as
@@ -3245,10 +3246,12 @@ The keys that matter for the state machine fall into a few groups:
   -- so a comment another road filled meanwhile, or one whose wide round leaves no room for the record, posts and
   files nothing.
   The event goes out only behind it, so it is filed only for an attempt still standing as the finish read it, and the
-  member says the event may be out. Its absence proves nothing: a finish from before this member
-  existed filed the event and could die behind it with none written. So until the mark is down, every finish asks
-  the event stream first, member or no member (`github/events.filed`: the client's in-memory tail, then the whole
-  audit log, however much it grew since, and every rotated copy of it beside it), and files the event only where
+  member says the event may be out. The record's write is decided on the pull request, report, and review records
+  too, so one another road moves while the notice is posted refuses it rather than riding in unread. Its absence
+  proves nothing: a finish from before this member existed filed the event and could die behind it with none
+  written. So until the mark is down, every finish asks the event stream first, member or no member
+  (`github/events.filed`: the client's in-memory tail, then the whole audit log, however much it grew since, and
+  every rotated copy of it beside it), and files the event only where
   the stream does not carry it; a log or copy the process cannot read is no answer, and holds the finish -- nothing
   filed, relabelled, or retired -- for the next tick to ask again. With no audit log configured, an event a lost
   process filed went nowhere durable, so the live tail is all there is to ask; a copy the log's retention deleted,

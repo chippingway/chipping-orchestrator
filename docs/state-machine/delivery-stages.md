@@ -1592,12 +1592,13 @@ because there it is the claim that this stage has already rerouted rather than a
     afresh before it is posted -- the checkpoint whole, the record staged on it too, and the record's own write over
     the round the checkpoint has yet to reset -- so a comment with no room for either posts and files nothing. The
     event's record or the checkpoint refused or never confirmed stops the finish with the attempt standing, and the
-    next finish finds what went out ahead of it rather than saying it again. The checkpoint is decided on the
-    report records, so a report another road settled while the notice was posted refuses it -- and that refusal is
-    movement read under the settled evidence, invalidated there and then, before the finish stops
-    (`rewrite_finish_readiness.invalidates_behind`), with the attempt and the newer report kept. The event's own
-    record is decided on the pull request the publication is resolved from, so a pull request repointed while the
-    notice was posted refuses it, and that refusal is movement invalidated the same way, however soon it is put back.
+    next finish finds what went out ahead of it rather than saying it again. The event's record and the checkpoint
+    are each decided on every record the evidence's binding rests on -- the pull request, the report records, and
+    the review subjects -- so a report another road settled while the notice was posted refuses the first of them,
+    rather than riding in unread with that record for the report to be put back before the checkpoint, and that
+    refusal is movement read under the settled evidence, invalidated there and then, before the finish stops
+    (`rewrite_finish_readiness.invalidates_behind`), with the attempt and the newer report kept, however soon the
+    report is put back; the event is filed by the next finish, once.
   - **The retirement is proved over once more.** The announcement and the relabel are requests made after the
     evidence was resolved, so behind the relabel, the last request before the retirement, a routed head is held to
     its base again (`rewrite_finish_settlement.stands_ready_if_settled`). Settled evidence for it is proved ready

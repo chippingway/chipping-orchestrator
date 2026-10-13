@@ -136,11 +136,12 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     the evidence step decides the head afresh: where that does not land --
     no room for its history entry among the reasons -- the movement is
     recorded against it and the route held, so putting the configuration back
-    before room is made revives nothing. Any
-    of those out of step holds the route, since nobody can say what was owed
-    -- and so does any pending record about another head beside evidence an
-    earlier finish of this landing already retired for it, current evidence
-    or none (`_holds_out_of_step`) -- by the records, or by the receipt the finish
+    before room is made revives nothing. Any of those out of step holds the
+    route, since nobody can say what was owed -- behind the readiness proof
+    all the same, so movement it reads is invalidated before the hold -- and
+    so does any pending record about another head beside evidence an earlier
+    finish of this landing already retired for it, current evidence or none
+    (`_holds_out_of_step`) -- by the records, or by the receipt the finish
     put on the attempt once the history no longer keeps the run: that record
     was written after this landing's own,
     which recording its own would have retired, so it is another road's,
@@ -315,12 +316,19 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
     name it and a revision floor nobody can read
     (`rewrite_finish_readiness.beside_current`). A readable revision spent
     past it is no hold: it outranks that evidence, which the readiness proof
-    then invalidates rather than holding every later poll over it.
+    then invalidates rather than holding every later poll over it. Settled
+    evidence for the head is proved ready before any of those holds is
+    applied (`rewrite_finish_readiness.stands_ready`), so what a reading
+    establishes moved under it -- requirements edited beside a handoff that
+    does not name it, or a revision a readable history entry spent past it
+    beside a floor nobody can read -- is invalidated whole before the route is
+    held, and putting the record and the input back revives nothing.
     """
     state = finish.state
     current = None if finish.behind else _settlement.read_current_evidence(state)
     if current is not None and current.binding.target.target_head != finish.head:
         current = None
+    proved = current
     if invalidates_current(finish):
         current = None
     settled = resolved(state, finish.head) or capture_answered(state)
@@ -329,6 +337,8 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
         out_of_step = beside_current(state, current)
     if not out_of_step:
         return None
+    if proved is not None:
+        stands_ready(finish, proved)
     log.warning(
         "issue=#%d holding the route of %.8s: the verification evidence already resolved for it is out of step: %s",
         finish.issue.number, finish.head, out_of_step,
