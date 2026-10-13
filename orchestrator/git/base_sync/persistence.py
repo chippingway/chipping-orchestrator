@@ -285,7 +285,11 @@ def _proves_before_the_park(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
     and not behind the reply -- by which time what moved may be back. False is a
     movement it read and could not record: nothing is parked, the anchor still
     holds every handler, and the next tick's recovery asks again. A refresh's
-    own context, ahead of any recovery, has captured nothing to prove.
+    own context, ahead of any recovery, has captured nothing to prove. The
+    dispatcher's holds that keep the attempt with nothing posted ask it too
+    (`recovery_holds._answers_a_held_anchor`,
+    `replay_publication_parks._park_stranded_recovery`), their answer the
+    hold they take either way.
     """
     proves = context.proves_before_a_park if isinstance(context, _AutoRebaseRecoveryContext) else None
     if proves is None or proves(context):

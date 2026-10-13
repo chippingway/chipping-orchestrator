@@ -19,12 +19,15 @@ import subprocess
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.git import branch_transport
 from orchestrator.git.base_sync import attempt_records as _attempt_records, snapshot as _snapshot
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
+from orchestrator.github.verification_evidence import VerifiedCommand
 from orchestrator.workflow.engine import (
     dispatch_guards as _dispatch_guards,
     rewrite_recovery as _rewrite_recovery,
+    verification_record_state as _record_state,
     verification_settlement_state as _settlement,
 )
 from tests.workflow.engine import (
@@ -82,6 +85,22 @@ def recovery_context(case) -> _AutoRebaseRecoveryContext:
     with patch.object(_snapshot, "_fetch_recovery_snapshot", handed.append):
         _rewrite_recovery.recovers(read)
     return handed[0]
+
+
+def records_a_newer_run(case):
+    """Record a newer transaction beside `case`'s settled run, carrying its binding, as another road would; it.
+
+    Its transcript is the configured command passing, as the settled run's own
+    reads, and it raises the revision floor past that run.
+    """
+    state = case.gh.read_pinned_state(case.issue)
+    binding = readings.pinned_records(case)[1].binding
+    command = config.VERIFY_COMMANDS[0]
+    passed = (VerifiedCommand(command=command, exit_status=0, output=git_support.CHECKED),)
+    newer = _record_state.mint_pending_evidence(state, git_support.ISSUE, binding, passed)
+    case.assertTrue(_record_state.record_pending_evidence(state, newer))
+    case.gh.write_pinned_state(case.issue, state)
+    return newer
 
 
 def answers_a_held_anchor(case) -> None:

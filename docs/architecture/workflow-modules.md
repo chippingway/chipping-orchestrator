@@ -2033,7 +2033,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `rewrite_landing_retirement.retires_unproved`) records the same blank first over a
                             checkout gone from disk, whose evidence it retires only on the state the park writes.
                             The dispatcher's answer to an anchor it holds is handed the same park beside that proof
-                            (`answers_a_held_anchor`)
+                            (`answers_a_held_anchor`), which its quiet holds ask too. And the hold the landed road
+                            takes where a publication gate held its leased no-op proves what it keeps, then lands
+                            what the tick staged since its reading as `HOLD`, decided on the attempt alone
+                            (`lands_a_hold`), so a newer transaction another road recorded while the gate answered
+                            is kept pending with the revision floor it raised
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written
                             only once it saw the push land: whether any record -- pending, current, retired, or a

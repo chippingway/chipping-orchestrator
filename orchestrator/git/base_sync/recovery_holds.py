@@ -25,6 +25,7 @@ from github.Issue import Issue
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
     frozen as _frozen,
+    persistence as _persistence,
     refresh_selection as _refresh_selection,
     replay_cleanup as _replay_cleanup,
     replay_publication_parks as _replay_publication_parks,
@@ -233,7 +234,12 @@ def _answers_a_held_anchor(
     the one thing it can be missing is a checkout to walk: only the checkouts
     that exist are walked, so one that is not on disk is brought back and
     nothing else, and the next refresh classifies the anchor over whatever the
-    local branch still names.
+    local branch still names. The hold keeps the attempt for that refresh as
+    a park keeps it for a reply, so what the workflow captured or settled for
+    the landed head is proved first all the same
+    (`persistence._proves_before_the_park`), with nothing posted: a
+    requirement edited while the hold stands and put back before the refresh
+    reaches the anchor is read moving now, rather than routed unread then.
 
     Where it does not, what the refresh would answer is the ineligible road,
     which reads no pull request and fetches nothing -- so it is taken here
@@ -261,6 +267,7 @@ def _answers_a_held_anchor(
     if context.label in _PR_REFRESH_DETOUR_LABELS:
         if not context.worktree.is_dir():
             _restores_the_checkout(context.spec, context.issue.number, context.state)
+        _persistence._proves_before_the_park(context)
         return
     if context.worktree.is_dir():
         _replay_cleanup._answers_an_ineligible_label(context)

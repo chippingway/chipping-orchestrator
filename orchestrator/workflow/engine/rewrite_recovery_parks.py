@@ -21,7 +21,11 @@ reset's tail, both replay parks, and a label the refresh does not drive among
 them --, the abort over a checkout whose lag could not be counted
 (`rewrite_recovery.answers_an_unreadable_checkout`), the eligibility gate's
 park of an ineligible label (`base_rewrite`), and the dispatcher's stranded
-park of an anchor it holds a handler back for (`answers_a_held_anchor`).
+park of an anchor it holds a handler back for (`answers_a_held_anchor`),
+whose holds that post nothing ask the same proof. The landed road's hold
+behind a publication gate that held its leased no-op is recorded here too
+(`lands_a_hold`): its proof taken first, and only what the tick staged since
+its reading landed, as `HOLD`, over the comment read afresh.
 
 The park (`lands_a_park`) lands through the guarded commit
 (`report_commits.ReportCommit`) as `PARK`: owning every field the tick staged
@@ -108,6 +112,11 @@ _MOVED_UNDER_THE_NOTICE = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved while a park's notice was posted",
 )
 
+# What a recovery hold records: whatever the tick staged since its reading --
+# a publication gate's own record of the no-op it held -- decided on the
+# attempt it keeps, so every evidence record stays as the comment carries it.
+HOLD = _commits.ReportWrite(owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS))
+
 # A park's record, decided on the attempt it keeps or drops, the park's own
 # flags, and the evidence records a landed reset retires beside the attempt.
 PARK = _commits.ReportWrite(
@@ -164,6 +173,36 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     moved = _adopted(landed.reading, read)
     if context.worktree.is_dir():
         _retirement.retires_unproved(context, moved)
+
+
+def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
+    """Prove what a recovery hold keeps, then record the hold over the comment read afresh, as `HOLD`.
+
+    The landed road's leased no-op that a publication gate held keeps the
+    attempt for a later tick (`rewrite_landed`), so what a finish captured or
+    settled for the head is proved first
+    (`rewrite_landing_retirement.retires_unproved`). The gate's answer is a
+    request after the tick read the comment, long enough for another road to
+    record a newer transaction for the head, with the revision floor it
+    raised: written whole, the tick's state would put back the floor and drop
+    that transaction. So only what the tick staged since its reading lands,
+    and every other field stays as the fresh comment carries it; a record
+    refused or never confirmed withholds the tick's state
+    (`ReportCommit.withholds`), for the next tick to answer the attempt again.
+    A state nothing was read into is written whole.
+    """
+    _retirement.retires_unproved(context)
+    if context.state.synced is None:
+        context.gh.write_pinned_state(context.issue, context.state)
+        return
+    commit = _commits.ReportCommit(context.gh, context.issue, context.state)
+    landed = commit.lands(context.state, HOLD)
+    if landed.status is not _commit_models.CommitStatus.COMMITTED:
+        log.warning(
+            "issue=#%d the hold of its auto-rebase recovery did not land (%s); nothing is recorded, "
+            "and the next tick's recovery answers the comment as it then stands",
+            context.issue.number, (landed.refusal or landed.status).value,
+        )
 
 
 def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:

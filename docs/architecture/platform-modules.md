@@ -756,7 +756,8 @@ orchestrator/
                         the remote lost, or an undone rebase whose abandoned bookkeeping must be retired
       replay_publication_parks.py
                         keep the checkout and pinned evidence when the issue's publication or label changed; a
-                        stranded park is recorded once so repeated ticks do not advance the reply watermark, and
+                        stranded park is recorded once so repeated ticks do not advance the reply watermark --
+                        each of them still proving the evidence it keeps, with nothing posted -- and
                         beside a live adjudication it asks for the record to be reconciled by hand rather than for
                         a label that adjudication's guard restores; both parks are recorded as every recovery park
                         is (`persistence._parks_the_recovery`)
@@ -768,7 +769,8 @@ orchestrator/
                         hold -- whether a standing anchor keeps a stage handler back,
                         which every label the refresh does not drive does, and one it drives does unless a late
                         claim the reconciliation answers freezes the refresh out -- with a missing checkout
-                        restored where the refresh drives the label and the ineligible answer taken where it does
+                        restored where the refresh drives the label, and the evidence the anchor keeps proved
+                        there with nothing posted, and the ineligible answer taken where it does
                         not, over a context built apart (`_held_anchor_context`) so the dispatcher can hand it the
                         workflow's answer before a park keeps the attempt and the park that one is recorded
                         through. An anchor beside a live adjudication

@@ -117,6 +117,7 @@ from orchestrator.workflow.engine import (
     rewrite_landing_moved as _landing_moved,
     rewrite_landing_retirement as _retirement,
     rewrite_publication as _rewrite_publication,
+    rewrite_recovery_parks as _recovery_parks,
 )
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
@@ -241,7 +242,9 @@ def _settles(
     the permit, and the permit decides whether the permission may be spent.
     A hold the gate takes keeps the attempt for a later tick, so what an
     earlier finish captured or settled for the head is proved again ahead of
-    the hold's write (`rewrite_landing_retirement.retires_unproved`).
+    the hold's write, and that write lands over the comment read afresh
+    rather than whole (`rewrite_recovery_parks.lands_a_hold`), keeping a
+    newer transaction another road recorded while the gate answered.
     """
     landed = completed.head
     if not _transfer_permits._permits_the_publication(context, landed):
@@ -258,8 +261,7 @@ def _settles(
         transport=push,
     )
     if published.held and not published.refused:
-        _retirement.retires_unproved(context)
-        context.gh.write_pinned_state(context.issue, context.state)
+        _recovery_parks.lands_a_hold(context)
         return True
     unsettled = _unsettled(context, landed, published, push)
     if unsettled:

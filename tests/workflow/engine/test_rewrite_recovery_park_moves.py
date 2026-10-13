@@ -34,10 +34,8 @@ from itertools import product
 from typing import NamedTuple
 from unittest.mock import patch
 
-from orchestrator import config
 from orchestrator.git import branch_transport
-from orchestrator.github.verification_evidence import VerifiedCommand
-from orchestrator.workflow.engine import base_refresh, verification_record_state as _record_state
+from orchestrator.workflow.engine import base_refresh
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_git_support as git_support,
@@ -60,18 +58,8 @@ def _settles_a_later_report(case, head: str) -> None:
 
 
 def _records_a_newer_run(case, _head: str) -> str:
-    """Record a newer transaction beside the settled run, carrying its binding, as another road would; its receipt.
-
-    Its transcript is the configured command passing, as the settled run's own reads.
-    """
-    state = case.gh.read_pinned_state(case.issue)
-    binding = readings.pinned_records(case)[1].binding
-    command = config.VERIFY_COMMANDS[0]
-    passed = (VerifiedCommand(command=command, exit_status=0, output=git_support.CHECKED),)
-    newer = _record_state.mint_pending_evidence(state, git_support.ISSUE, binding, passed)
-    case.assertTrue(_record_state.record_pending_evidence(state, newer))
-    case.gh.write_pinned_state(case.issue, state)
-    return newer.receipt
+    """Record a newer transaction beside the settled run, as another road would; its receipt."""
+    return guarded.records_a_newer_run(case).receipt
 
 
 def _kept(answers: list, writes, *args) -> None:

@@ -1496,8 +1496,14 @@ because there it is the claim that this stage has already rerouted rather than a
   the reply revives nothing, while one that still proves is kept for that finish; a checkout gone from disk has the
   base tip blanked against it in a write of its own first, so a park write that fails or never lands still leaves it
   read moving, and abandons it in the park's own write -- or, with no room for its history entry, drops it,
-  so the attempt that park keeps runs nothing for that landing again. An abandonment no write lands holds the tick with
-  nothing reset, cleared, or parked, the anchor keeping the reconciliation off the transaction. A reset that lands --
+  so the attempt that park keeps runs nothing for that landing again. The dispatcher's holds that post nothing ask
+  the same proof: one under a label the refresh drives, which leaves the anchor to the refresh, and one that finds
+  its own stranded park already standing, which posts no second notice -- so an edit made while the attempt is held
+  and put back before the refresh or the reply reaches it is read moving all the same. The landed road's hold behind
+  a publication gate that held its leased no-op proves the same way, and lands its own record over the comment read
+  afresh (`rewrite_recovery_parks.lands_a_hold`), keeping a newer transaction another road recorded meanwhile. An
+  abandonment no write lands holds the tick with nothing reset, cleared, or parked, the anchor keeping the
+  reconciliation off the transaction. A reset that lands --
   every road's, and the abort over a snapshot nobody could take or a checkout whose lag against base could not be
   counted (`rewrite_recovery.answers_an_unreadable_checkout`) -- is movement, so the transaction is abandoned on the
   state the park writes (`git/base_sync/persistence.py`), in the one write that releases the attempt or not at all; a
