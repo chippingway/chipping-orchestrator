@@ -1529,9 +1529,10 @@ because there it is the claim that this stage has already rerouted rather than a
   records then refuses the park, nothing written, for the next tick's recovery to park around; a process lost
   before the park lands is answered by that tick the same way. A park that keeps the attempt proves what it keeps
   once more behind its notice, landed or not, so that later report is read moving under the evidence and abandons a
-  captured run or invalidates a settled one before the tick ends; a report the park's own record adopted is that
-  movement already, handed to the proof as read, so putting the earlier report back -- even between the park's
-  commit and the proof, or before the reply -- revives nothing.
+  captured run or invalidates a settled one before the tick ends; a report the park's own record carried -- landed,
+  or sent with its answer lost -- spelled otherwise than the tick read it is that movement already, handed to the
+  proof as read, so putting the earlier report back -- even between the park's commit and the proof, or before the
+  reply -- revives nothing.
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of

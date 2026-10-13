@@ -12,10 +12,12 @@ report records and refused over that move; or under a recovery park that keeps
 the attempt behind a fetch and a reset that both failed, whose record keeps
 the report as the comment then carries it -- over a run settled, or one only
 captured and never settled. Either way the run is read moving before the tick
-ends -- by the refused park, or by the park's record that adopted report 3,
-handed to the proof taken once more behind the notice -- and invalidated or
-abandoned whole, so putting report 2 back, even right behind that record and
-before the proof, revives nothing.
+ends -- by the refused park, or by the park's record that carried report 3,
+landed or sent with its answer lost, handed to the proof taken once more
+behind the notice -- and invalidated or abandoned whole, so putting report 2
+back, even right behind that record and before the proof, revives nothing. So
+does report 2 written back in another spelling of its revision and put back
+right behind that record.
 
 And a checkout gone from disk under a label the refresh does not drive, which
 the dispatcher's stranded park answers by retiring the run on the state that
@@ -31,7 +33,7 @@ from __future__ import annotations
 import subprocess
 import unittest
 from functools import partial
-from itertools import product
+from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.git import commands
@@ -67,6 +69,23 @@ _SHORT_OF_THE_DEBT = 250
 # How a park's record fails to land: GitHub refusing it, or the process killed ahead of it.
 _RECORD_FAILURES = ("refused", "killed")
 
+# Report 2 put back right behind a park's record, before the proof behind it.
+_RESTORED = MappingProxyType({"restoring": True})
+
+# Each park behind a failed fetch and reset: whether its run was only captured,
+# and how its notice and record go (`_posting_moves_the_report`) -- report 2 put
+# back only after the tick or right behind the record, that record's answer
+# lost, or report 2 respelled rather than report 3 settled.
+_KEPT_PARKS = (
+    (False, {}),
+    (False, _RESTORED),
+    (True, {}),
+    (True, _RESTORED),
+    (False, {**_RESTORED, "lost": True}),
+    (True, {**_RESTORED, "lost": True}),
+    (False, {**_RESTORED, "respelled": True}),
+)
+
 # A park's record: the edit that puts the park's flag on a comment that lacks it.
 _BEFORE_THE_RECORD = handoff.Boundary(
     "before the park is recorded",
@@ -77,12 +96,20 @@ _BEFORE_THE_RECORD = handoff.Boundary(
 )
 
 
-def _settles_a_later_report(case: support.CapturedRunCase, head: str, replaced: list) -> None:
-    """Settle and review report 3 of `head` as another road would, keeping in `replaced` the records it moves."""
+def _settles_a_later_report(case: support.CapturedRunCase, head: str, replaced: list, *, respelled=False) -> None:
+    """Settle and review report 3 of `head` as another road would, keeping in `replaced` the records it moves.
+
+    `respelled` writes report 2 back with its revision spelled as a float instead, which reads as the same number.
+    """
     pinned = readings.pinned(case)
     replaced.append({key: pinned.get(key) for key in _MOVED_RECORDS})
     case.state = case.gh.read_pinned_state(case.issue)
-    _report.settles_report(case, 3, "Implemented the change and covered a base that moved twice.", head=head)
+    if respelled:
+        current = dict(pinned[_MOVED_RECORDS[0]])
+        current["revision"] = float(current["revision"])
+        case.state.set(_MOVED_RECORDS[0], current)
+    else:
+        _report.settles_report(case, 3, "Implemented the change and covered a base that moved twice.", head=head)
     case.gh.write_pinned_state(case.issue, case.state)
 
 
@@ -111,18 +138,25 @@ def _refuses(original, *called, **options) -> subprocess.CompletedProcess:
     return original(*called, **options)
 
 
-def _refusing(live, issue, state, *, over: dict):
-    """`live`, the client's pinned edit, refused as moved where it is a park's record."""
-    if _BEFORE_THE_RECORD.kills(issue, state, over=over):
-        return PinnedEdit.MOVED
-    return live(issue, state, over=over)
+def _answering(answer: PinnedEdit, live, issue, state, *, over: dict):
+    """`live`, the client's pinned edit, answered as `answer` where it is a park's record.
+
+    EDITED leaves it as GitHub answers; MOVED refuses it with nothing sent;
+    UNCONFIRMED lands it and loses the answer.
+    """
+    if answer is PinnedEdit.EDITED or not _BEFORE_THE_RECORD.kills(issue, state, over=over):
+        return live(issue, state, over=over)
+    if answer is PinnedEdit.UNCONFIRMED:
+        live(issue, state, over=over)
+    return answer
 
 
 def _held_by_the_dispatcher(case: support.CapturedRunCase, *, refusing: bool = False) -> None:
     """Have the dispatcher's anchor hold answer `case`'s issue, a park's record refused where `refusing`."""
     label = case.gh.workflow_label(case.issue)
     state = case.gh.read_pinned_state(case.issue)
-    edit = partial(_refusing, case.gh.edit_pinned_state) if refusing else case.gh.edit_pinned_state
+    answer = PinnedEdit.MOVED if refusing else PinnedEdit.EDITED
+    edit = partial(_answering, answer, case.gh.edit_pinned_state)
     with patch.object(case.gh, "edit_pinned_state", edit):
         dispatch_guards._anchor_holds_the_tick(case.gh, case._spec, case.issue, label, state)
 
@@ -136,7 +170,7 @@ class ParkNoticeMoveTest(support.CapturedRunCase, unittest.TestCase):
         # and room made, the head is routed with nothing current.
         head, settled = self._settles_then_dies()
         _fills_short_of_the_debt(self)
-        replaced = self._posting_moves_the_report(head, self.recovers)
+        replaced = self._posting_moves_the_report(head)
 
         self.assertFalse(readings.pinned(self).get(_AWAITING))
         self._assert_retired(settled)
@@ -149,16 +183,17 @@ class ParkNoticeMoveTest(support.CapturedRunCase, unittest.TestCase):
 
     def test_a_kept_park_proves_behind_its_notice(self) -> None:
         # The park behind a fetch and a reset that failed keeps the attempt
-        # and records report 3 as the comment carries it -- report 2 put back
-        # right behind that record, before the proof, or only after the tick:
+        # and records report 3 as the comment carries it, its answer lost or
+        # not -- report 2 put back right behind that record, before the proof,
+        # or only after the tick, and report 2 respelled and put back alike:
         # the run, settled or only captured, is invalidated or abandoned, and
         # once the park is continued the head is routed with nothing current.
-        for captures, restoring in product((False, True), (False, True)):
-            with self.subTest(captured=captures, restored_behind_the_record=restoring):
+        for captures, kept in _KEPT_PARKS:
+            with self.subTest(captured=captures, **kept):
                 self.setUp()
                 head, run = self.captures() if captures else self._settles_then_dies()
                 with patch.object(commands, _GIT, partial(_refuses, getattr(commands, _GIT))):
-                    replaced = self._posting_moves_the_report(head, self.recovers, restoring=restoring)
+                    replaced = self._posting_moves_the_report(head, **kept)
 
                 self.assertTrue(readings.pinned(self).get(_AWAITING))
                 self._assert_retired(run, captured=captures)
@@ -200,22 +235,25 @@ class ParkNoticeMoveTest(support.CapturedRunCase, unittest.TestCase):
         handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
         return head, readings.pinned_records(self)[1]
 
-    def _posting_moves_the_report(self, head: str, finishing, *, restoring: bool = False) -> list:
-        """Run `finishing` with report 3 of `head` settled behind the first issue-thread post; the records it moved.
+    def _posting_moves_the_report(self, head: str, *, restoring=False, lost=False, respelled=False) -> list:
+        """Recover with report 3 of `head` settled behind the first issue-thread post; the records it moved.
 
         `restoring` puts them back right behind the park's record, before
-        anything behind it reads the comment again.
+        anything behind it reads the comment again; `lost` lands that record
+        and loses its answer; `respelled` respells report 2 instead.
         """
         replaced: list = []
-        races = _RacesPastTheCall(self.gh.comment, 1, partial(_settles_a_later_report, self, head, replaced))
-        edit = self.gh.edit_pinned_state
+        moves = partial(_settles_a_later_report, self, head, replaced, respelled=respelled)
+        races = _RacesPastTheCall(self.gh.comment, 1, moves)
+        answer = PinnedEdit.UNCONFIRMED if lost else PinnedEdit.EDITED
+        edit = partial(_answering, answer, self.gh.edit_pinned_state)
         if restoring:
             edit = _BEFORE_THE_RECORD.moving(edit, partial(_puts_back, self, replaced))
         with (
             patch.object(self.gh, "comment", races),
             patch.object(self.gh, "edit_pinned_state", edit),
         ):
-            finishing()
+            self.recovers()
         return replaced
 
     def _assert_retired(self, run, *, captured: bool = False) -> None:

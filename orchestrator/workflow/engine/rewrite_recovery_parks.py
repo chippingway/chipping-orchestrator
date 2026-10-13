@@ -52,8 +52,10 @@ brings the recovery back, and that evidence is proved before the park
 enough for another road to settle a later report, which the park's record then
 keeps as the fresh comment carries it. So the evidence is proved once more
 behind the notice (`lands_a_park`), and a report moved meanwhile is movement
-read under it, invalidated or recorded against it before the tick ends:
-putting the earlier report back before the reply revives nothing. A checkout
+read under it, invalidated or recorded against it before the tick ends --
+one the park's own commit carried, landed or sent with its answer lost,
+handed to that proof as read: putting the earlier report back before the
+reply revives nothing. A checkout
 gone from disk has nothing to prove the landing over, so its evidence is
 retired on the state the park writes -- and the reset recorded against it
 first, in a write of its own, so a park write that fails or never lands
@@ -92,8 +94,8 @@ log = logging.getLogger("orchestrator.workflow")
 
 _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PARK_REASON))
 
-# What a park's record read where it adopted a record the evidence's binding
-# rests on that another road moved while its notice was posted.
+# What a park's record read where the record it landed or sent carried one the
+# evidence's binding rests on that another road moved while its notice was posted.
 _MOVED_UNDER_THE_NOTICE = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved while a park's notice was posted",
 )
@@ -121,11 +123,13 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     more over the comment read afresh (`rewrite_landing_moved.abandons_unproved`),
     so a report another road settled while the notice was posted is read
     moving under it now rather than put back unread before the reply. Where
-    the record that landed already adopted such a move -- a record the
-    evidence's binding rests on reading otherwise than the tick read it
-    (`rewrite_finish_writes.BINDING_RECORDS`) -- that is movement read, handed
-    to the proof as its answer, so a record put back between the park's
-    commit and the proof revives nothing.
+    the record the commit made of the comment already carried such a move --
+    a record the evidence's binding rests on
+    (`rewrite_finish_writes.BINDING_RECORDS`) spelled otherwise than the tick
+    read it, in the record that landed or in the one sent with its answer
+    lost, which is never laid over the tick's state -- that is movement read,
+    handed to the proof as its answer, so a record put back between the
+    park's commit and the proof revives nothing.
     """
     state = context.state
     _guards._park_awaiting_human(context.gh, context.issue, state, message, reason=reason)
@@ -133,7 +137,7 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     if state.synced is None:
         context.gh.write_pinned_state(context.issue, state)
         return
-    read = {key: state.get(key) for key in _writes.BINDING_RECORDS}
+    read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}
     landed = _commits.ReportCommit(context.gh, context.issue, state).lands(state, PARK)
     if landed.status is not _commit_models.CommitStatus.COMMITTED:
         log.warning(
@@ -141,7 +145,7 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
             "and the next tick's recovery answers the comment as it then stands",
             context.issue.number, (landed.refusal or landed.status).value,
         )
-    moved = _adopted(state, read)
+    moved = _adopted(landed.reading, read)
     if context.worktree.is_dir():
         _landing_moved.abandons_unproved(context, moved)
 
@@ -208,7 +212,13 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     return False
 
 
-def _adopted(state: PinnedState, read: dict) -> ReportEvidence | None:
-    """The movement a park's record adopted: `state` carrying a binding record otherwise than `read` had it, or None."""
-    carried = {key: state.get(key) for key in read}
+def _adopted(reading: PinnedState | None, read: dict) -> ReportEvidence | None:
+    """The movement a park's record carried: `reading` spelling a binding record otherwise than `read` did, or None.
+
+    `reading` is the record the park's commit made of the comment -- landed,
+    or sent with no answer -- and None where it was refused with nothing sent.
+    """
+    if reading is None:
+        return None
+    carried = {key: _commit_models.spelled(reading.data, key) for key in read}
     return None if carried == read else _MOVED_UNDER_THE_NOTICE
