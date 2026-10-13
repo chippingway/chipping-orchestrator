@@ -139,7 +139,12 @@ file is the durable record.
   provider-refusal phrasings as a prefix and reading an empty message as a silent exit — but it reports the branch
   that ran rather than the text that selected it, so the vocabulary stays closed. That is also why an
   `agent_question` record sits beside a pinned `park_reason` of null: the event names the classification, and null on
-  the durable field is what tells a later tick this park needs a human's actual guidance.
+  the durable field is what tells a later tick this park needs a human's actual guidance. The docs pass hands it a
+  failed Antigravity run — a failure record, an unfinished step, or a process that exited nonzero behind a terminal
+  that said it succeeded — with no final message, so a response that run wrote first is never reported as an
+  `agent_question`; and a docs launch whose outcome nothing recorded (a tick a live pause or a refused quota retirement
+  ended without a write) is parked on a later tick through `_park_awaiting_human` as `agent_silent`, with no agent run
+  behind that tick's event.
 
   The returned-verdict parks (`stages/validating/review_parks.py`), which a live reviewer round's verdict takes through
   the disposition, emit for themselves as well, and only once the write that lands the park is down:

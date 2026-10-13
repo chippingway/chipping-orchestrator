@@ -138,8 +138,10 @@ of a replay its crash kept off the pull request and the finish of a push it find
 candidate and its exact-candidate push or observation, and the recovery's readings, refusals, and parks are the git
 `base_sync` owners' that route delegates to. A branch is left where it is while a record somebody wrote ahead of
 the thing it describes stands -- a developer report recorded or bound and not yet settled among them, since a
-rebase in that window would hand the report a head it never described -- and that holds for the rebase behind an
-interrupted attempt's recovery too, which has the selection asked again once the anchor is down. Each worktree
+rebase in that window would hand the report a head it never described, and an Antigravity docs launch whose outcome
+nothing recorded (`docs_launched_sha`), which the documenting handler parks before anything that pass left is rebased
+or pushed -- and that holds for the rebase behind an interrupted attempt's recovery too, which has the selection
+asked again once the anchor is down. Each worktree
 is synced under its issue's writer claim — the one every dispatch path takes, on the same key — held from before the
 issue is read until its route ends, recovery and settlement included, so an issue another poller on the host is
 dispatching or refreshing is left untouched for the tick and synced on a later one. A pre-PR
