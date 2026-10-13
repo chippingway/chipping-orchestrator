@@ -11,8 +11,21 @@ parks as `agent_timeout`. The dirty-tree check is third and blocks every
 outcome after it: a push ships only committed work, so an agent that edited
 files without committing would have its edits silently dropped by the
 publication path and silently abandoned by the no-change and question paths
-alike. Only then does the `before_sha` comparison get to say whether THIS run
-produced a commit.
+alike.
+
+A run that did not succeed is refused every outcome past that
+(`failed_pass._fell_short`): an unfinished tool step, the failure record a
+backend keeps of a run it normalized to a failure -- Antigravity's error,
+cancelled, interrupted, or missing terminal result -- or an Antigravity
+process that exited nonzero behind a terminal that said it succeeded. Its
+commit, the tool calls it completed, and a `DOCS: NO_CHANGE` it wrote are none
+of them a finished pass, so it parks through the shared question classifier,
+handed no final message, which names a quota as the session limit, an
+unfinished step as an execution failure, and the rest as a silent exit. The
+commit stays on the branch unpublished, and the retry a human authorizes
+reruns the full documentation prompt over it, so only a pass that succeeds
+publishes it. Only then does the `before_sha` comparison get to say whether
+THIS run produced a commit.
 
 On a clean tree with no new commit the agent either checked the diff and found
 nothing to write, or it stopped for some other reason. The explicit
@@ -22,11 +35,14 @@ advancing an issue whose docs were never actually reviewed.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from orchestrator import config
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import completion_verdicts as _completion_verdicts
 from orchestrator.workflow.stages.documenting import (
+    failed_pass as _failed_pass,
     models as _models,
     parks as _parks,
     publication as _publication,
@@ -65,7 +81,8 @@ def _parks_a_quota_stop(
     reason, so the bare continue a quota needs would be refused. Nothing is
     published either way, and the uncommitted edits stay in the checkout for
     the developer that continue resumes. A quota stop over a clean tree reads
-    on like any other run.
+    on to the failed-run park below, whose classifier names it the session
+    limit too.
     """
     agent_result = run.agent_result
     if not _session_read._is_session_limit(agent_result):
@@ -79,13 +96,17 @@ def _parks_a_quota_stop(
 def _dispose_documenting_outcome(
     ctx: _models._DocumentingContext, run: _models._DocumentingRun,
 ) -> None:
-    """Route the post-agent outcome: timeout / dirty / commit / no-change
-    / question.
+    """Route the post-agent outcome: timeout / dirty / failed run / commit /
+    no-change / question.
 
     Writes pinned state on every terminal branch; the caller returns
     unconditionally.
     """
     wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
+    # Every branch below writes pinned state, and that write records what
+    # answers for the launch -- a park or a publication -- so the record the
+    # launch landed goes with it.
+    _failed_pass._forget(ctx.state)
     if _parks_a_quota_stop(ctx, run, wt):
         return
     if run.agent_result.timed_out:
@@ -110,9 +131,13 @@ def _dispose_documenting_outcome(
         _parks._park_documenting_dirty(ctx, run.agent_result, dirty)
         return
 
-    if run.agent_result.unfinished_steps:
+    if _failed_pass._fell_short(ctx, run.agent_result):
+        # Classified with no final message, as Antigravity hands back every
+        # run it failed: a response its own nonzero exit followed is no answer
+        # a human owes guidance on, so it parks as the retryable silent exit
+        # rather than as a question a bare continue would be refused on.
         _parks._park_documenting_question(
-            ctx, run.agent_result, before_sha=run.before_sha,
+            ctx, replace(run.agent_result, last_message=""), before_sha=run.before_sha,
         )
         return
 

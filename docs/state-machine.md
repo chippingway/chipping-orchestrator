@@ -470,7 +470,8 @@ Antigravity cancellation the quota caused read as a shutdown-sweep kill, so it i
 quota stop left publishes only where it needs no report and stands over a tree provably clean -- implementing's own,
 timed out or not, as any incomplete run's commit there is, and a fix or a resolution on the roads that ask for none.
 Over any other tree, and on the review roads that hold a reportless commit for the report it is missing, it takes the
-session limit instead, recording the same report debt and undescribed work the missing-report park would. Every
+session limit instead, recording the same report debt and undescribed work the missing-report park would; the docs
+pass publishes no commit a failed Antigravity run left, a quota's included (see below). Every
 stage that parks through the shared question park takes it the same way: retryable under the pinned `agent_silent`,
 reported as `agent_session_limit`, and on implementing routes keeping the failed run's `pre_implement_sha` floor, so a
 continue retry can still publish what that run committed. An Antigravity notice explains the exhausted
@@ -527,7 +528,20 @@ fresh attempt, charged to both budgets, before a human's continue.
 
 The single docs pass on the existing PR worktree, reached only via the final-docs handoff in `_handle_validating`'s
 approval branch. It reuses the locked dev session — there is no `documenting_agent` and no separate retry budget —
-and advances to `in_review` on either a pushed docs commit or an explicit `DOCS: NO_CHANGE` verdict. Under
+and advances to `in_review` on either a pushed docs commit or an explicit `DOCS: NO_CHANGE` verdict, from a run that
+succeeded. A run that fell short — an unfinished tool step, an Antigravity error, interrupted, or missing terminal
+result, or an Antigravity process that exited nonzero behind a terminal that said it succeeded — parks through the
+shared question park, handed no final message, whatever it committed, whatever tool calls it completed, and whatever
+`DOCS: NO_CHANGE` it wrote: a quota as the session limit, an unfinished step as an execution failure, the rest as a
+silent exit, with no `docs_verdict` stamped and its commit left on the branch unpublished. The
+`/orchestrator continue` that answers it reruns the full docs prompt over that worktree and the issue's thread, in a
+fresh conversation where the quota retired the old one, under the pinned `dev_agent` command and the issue's one
+lifetime run ledger, and only a pass that succeeds publishes the commit and advances. An Antigravity `CANCELED` or
+`INTERRUPTED` terminal is such a failure here unless an OS signal killed the process. Every Antigravity docs launch
+first lands `docs_launched_sha`, alone, and is not made without it; it stands until the outcome is recorded or proved
+not to need it, so a pass that fell short under a live pause, a tick a refused quota retirement withheld, or a poller
+that died mid-run leaves it, and the next tick takes that park rather than publish or rerun anything unasked — the
+pre-tick base refresh holding the branch still while it stands, so nothing is rebased or pushed ahead of it. Under
 `PR_REF_IN_SUBJECT` that docs commit goes out with its subject ending in exactly one ` (#N)`, naming the pull request:
 before the size gate it is replaced by a commit bound to the one the pass made — same author, tree, and body — so the
 gate, a hold, the push, and the recorded SHAs all name the replacement. Both this issue's number and the request's are

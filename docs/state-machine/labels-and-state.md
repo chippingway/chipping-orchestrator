@@ -173,7 +173,8 @@ stays inert. The pinned state those transitions move an issue through is [below]
   `workflow:validating`.
 - `workflow:documenting` — The single docs pass on the existing PR worktree, reached only via the final-docs handoff
   in `_handle_validating`'s approval branch (after verify + squash). Advances to `in_review` after a pushed docs
-  commit OR an explicit `DOCS: NO_CHANGE` verdict.
+  commit OR an explicit `DOCS: NO_CHANGE` verdict, from a run that succeeded: a run its backend recorded as failed
+  parks for a `/orchestrator continue` whatever it committed or wrote, its commit left on the branch unpublished.
 - `workflow:validating` — The reviewer agent is checking the diff; on `VERDICT: APPROVED` the local verify gate runs
   `VERIFY_COMMANDS` before the squash + `workflow:documenting` handoff. `CHANGES_REQUESTED` relabels to
   `workflow:fixing` before the dev spawn.
@@ -461,8 +462,12 @@ and is bound to whichever one the code-publication receipt names when the bindin
 head it was written about, so a rebase in that window would bind a report to a head no developer read or leave one
 about a head the pull request has left, which the report hold can only park on. The binding and the settlement write
 each `null`, so the first refresh behind the settlement rebases as it always would, and a rewritten-head report debt
-it leaves is refreshed afresh. Two PARKS freeze the branch as well, and by the park
-rather than by a record, because neither can leave one. A standing `late_measurement_failed` is the first: the
+it leaves is refreshed afresh. So does `docs_launched_sha` holding anything but `null` — an Antigravity docs launch
+whose outcome nothing recorded, which the documenting handler parks for a continue: rebased first, the commit that
+pass left is rewritten and pushed to the pull request, or with none the base is pushed and the issue handed back to
+review, with no pass having finished. The park that answers it drops the record in its own write, and the refresh
+then stands down on that park as it does on every one it does not own. Two PARKS freeze the branch as well, and by
+the park rather than by a record, because neither can leave one. A standing `late_measurement_failed` is the first: the
 sharpest of those refusals is taken before any commit could be named, so there is nothing on the pinned comment to
 freeze by — and rebased under it, the exact-pair retry has lost its commit and the refusal that substitutes nothing
 for a pair nobody froze is standing on the base. A standing `agent_timeout` is the second, and its watermark names a
@@ -2972,6 +2977,15 @@ The keys that matter for the state machine fall into a few groups:
   the docs pass it just bought. So the relabel window keeps no receipt, and it does not need one: what it leaves is
   the record a same-head approval leaves, and the next tick runs the pass rather than handing off on evidence that
   could belong to either.
+  `docs_launched_sha` (additive) is the head an Antigravity docs pass was launched on, landed alone through the
+  guarded commit ahead of the launch — a launch it did not land on is not made — and standing until the run's outcome
+  is recorded or proved not to need it: the disposition drops it in the write that records the outcome, and a paused
+  pass that succeeded or a run no disposition may read (a shutdown-sweep kill, a launch never made) drops it alone. A
+  pass that fell short under a live pause, a tick a quota retirement withheld, or a poller that died mid-run writes
+  nothing and leaves it, so the next tick not answering a park takes the park the pass earned (retryable
+  `agent_silent`) instead of publishing what it left through the recovered-commit shortcut or launching a pass
+  unasked, and drops it in that park's own write; a stamped docs verdict and a drift unwind that resets the commits
+  away drop it too.
   `ready_ping_sha` records the head the in_review handler already posted a `:bell:` HITL ping for. Both it and
   `docs_verdict` are keyed on a head alone, so a recorded approval retires both (below): an approval of a new report
   on the head they name would otherwise be read as documented before its docs pass ran, and pinged by nobody.

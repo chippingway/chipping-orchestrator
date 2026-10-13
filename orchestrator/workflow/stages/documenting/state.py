@@ -40,6 +40,14 @@ _UNWIND_ASKED_AT = "docs_drift_unwind_asked_at"
 # beside it name another.
 _CHECKED_DOCS_SHA = "docs_checked_sha"
 
+# The head an Antigravity docs pass was launched on, landed alone ahead of the
+# launch and standing until the run's outcome is recorded or proved not to need
+# it. A tick that ends before any disposition -- a live pause over a pass that
+# fell short, a quota retirement that withheld the tick -- writes nothing and
+# leaves it, so the next tick parks rather than publishing the pass's commit or
+# launching another unasked. Additive: an issue without it has no launch out.
+_LAUNCHED_DOCS_SHA = "docs_launched_sha"
+
 # The head a docs pass produced and the size gate held before it reached the
 # pull request. Written inside the gate's own routed write, ahead of the
 # relabel to `workflow:decomposing`, because a hold is the end of this stage's

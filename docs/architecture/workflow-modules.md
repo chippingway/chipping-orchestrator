@@ -3103,7 +3103,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             open-round and in-flight publication markers, the three park predicates, and the
                             stage, role, and two route names a record is attributed by
     documenting/            `workflow:documenting`
-      handler.py            the order one final-docs tick asks its questions in
+      handler.py            the order one final-docs tick asks its questions in, and which run it drops unread: an
+                            OS signal's kill or a launch never made, never an Antigravity run that cancelled itself,
+                            which the disposition parks as a failed run
       preconditions.py      the terminals, the missing-`pr_number` guard, the parked-no-input fast path, and the
                             refused bare continue -- classified over the batch written since the park ASKED, which
                             on a half-finished drift unwind is that road's own notice rather than the delivery
@@ -3112,10 +3114,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       run.py                the branch refresh and diverged-worktree guard, the verdict an earlier pass left dropped
                             as this one begins -- every shape re-anchors the checked head, so a stale verdict beside
                             it would advertise a head no pass has documented as ready to merge -- plus the resume,
-                            recovered-commit, and fresh-spawn shapes
-      outcomes.py           the timeout / dirty / commit / `DOCS: NO_CHANGE` order a finished run is read in, a
-                            timeout or a tree not proved clean an account quota's stop left parked as the session
-                            limit rather than `agent_timeout` or the tree's park, the edits left in the checkout
+                            recovered-commit, and fresh-spawn shapes, behind the park a pass that did not finish
+                            and was never parked earned (`failed_pass`)
+      outcomes.py           the timeout / dirty / failed run / commit / `DOCS: NO_CHANGE` order a finished run is
+                            read in, a timeout or a tree not proved clean an account quota's stop left parked as the
+                            session limit rather than `agent_timeout` or the tree's park, the edits left in the
+                            checkout, and a pass that fell short parked through the shared question classifier,
+                            handed no final message, whatever it committed or wrote, its commit left unpublished
+                            for the retry
+      failed_pass.py        what a pass that fell short is -- an unfinished tool step, an Antigravity error,
+                            cancelled, interrupted, or missing terminal result, or an Antigravity process that exited
+                            nonzero behind a terminal that said it succeeded -- and `docs_launched_sha`, which every
+                            Antigravity docs launch lands alone through the guarded commit before it is made, and
+                            which stands until the outcome is recorded or proved not to need it, so a tick that ended
+                            writing nothing leaves the next one to take the park that pass earned instead of
+                            publishing or rerunning it unasked
       subject.py            the single ` (#N)` reference the docs commit's subject is normalized to end in under
                             `PR_REF_IN_SUBJECT`, ahead of the gate. Both numbers this pass knows -- the tracked issue's
                             and the pull request's -- go to the shared `git/publication/pr_references` owner, so the
@@ -3163,8 +3176,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             readings, whose report,
                             pointer, verdict, evidence, or approval records moving sends the issue back too
                             (`_approval_still_stands`); a report, evidence, or comment nobody could read holds the tick
-      parks.py              the shared awaiting-human park and the missing-PR, dirty-tree, and question parks, plus
-                            the hold a park taken during a drift unwind applies inside its OWN write: that road
+      parks.py              the shared awaiting-human park and the missing-PR, dirty-tree, question, and unvouched
+                            recovered-commit parks, plus the hold a park taken during a drift unwind applies inside
+                            its OWN write: that road
                             runs no agent, so the delivery cursor goes back where the tick found it and the notice
                             just posted is kept as the unwind's boundary instead -- a correction in a second write
                             is one a crash between them loses, and it loses it in the direction that waits forever.

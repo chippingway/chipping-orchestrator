@@ -25,18 +25,25 @@ refusals both precede the disposition and both return WITHOUT writing pinned
 state, so the mutations the pass staged -- the advanced watermark, the
 pre-spawn `docs_checked_sha` -- are discarded and the next process re-derives
 the tick from what durable state still says. Committed docs work stays on the
-branch and republishes through the recovered-commit shortcut.
+branch and republishes through the recovered-commit shortcut -- unless the
+paused run fell short of success, or a quota retirement withheld the tick: the
+record an Antigravity launch landed ahead of the run then stands, and the next
+tick parks instead (`failed_pass`). Only an OS signal's kill is an
+interruption here: a backend that cancelled its own run reported a failure,
+and the disposition parks it.
 """
 from __future__ import annotations
 
 from github.Issue import Issue
 
+from orchestrator.agents.models import AgentResult, TerminalFailure, is_signal_interrupted
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import guards as _guards, usage as _usage
 from orchestrator.workflow.stages.documenting import (
     drift as _drift,
+    failed_pass as _failed_pass,
     handoff as _handoff,
     models as _models,
     outcomes as _outcomes,
@@ -52,8 +59,9 @@ def _drive_documenting_pass(ctx: _models._DocumentingContext):
     Returns a `_DocumentingRun` ready for disposition, or None when the tick
     is already fully handled and the caller must return without disposition:
     a fetch / diverged-branch park, a docs pass a settled adjudication
-    finished, an awaiting-human resume with no new comment, a shutdown-sweep
-    interruption, or an operator pause.
+    finished, an awaiting-human resume with no new comment, commits a failed
+    pass left that the recovered-commit shortcut parked rather than
+    published, a shutdown-sweep interruption, or an operator pause.
     """
     wt = _worktree_creation._ensure_pr_worktree(
         ctx.spec, ctx.issue.number, branch=ctx.branch,
@@ -70,8 +78,10 @@ def _drive_documenting_pass(ctx: _models._DocumentingContext):
     # synthesizes its own non-interrupted result, so only a real resume /
     # fresh-docs spawn can land here). Ignore it and return WITHOUT writing
     # pinned state -- the pre-spawn `docs_checked_sha` / watermark mutations
-    # are discarded so the next process re-runs the docs pass.
-    if _guards._ignore_if_interrupted(ctx.issue, run.agent_result):
+    # are discarded so the next process re-runs the docs pass. The one write
+    # made drops the launch record alone, since no failure is known here.
+    if _ignores_the_run(ctx, run.agent_result):
+        _failed_pass._settle(ctx)
         return None
 
     # Live pause applied while the docs agent ran: honor the decision the
@@ -79,11 +89,33 @@ def _drive_documenting_pass(ctx: _models._DocumentingContext):
     # and reports False). Stop before the disposition posts a PR comment,
     # pushes, advances to `in_review`, or writes pinned state. The committed
     # docs work stays on the branch and republishes through the
-    # recovered-worktree path once the label is removed.
+    # recovered-worktree path once the label is removed -- save from a pass
+    # that fell short, which leaves the record its launch landed standing, so
+    # the next tick parks it instead.
     if run.paused:
+        if not _failed_pass._fell_short(ctx, run.agent_result):
+            _failed_pass._settle(ctx)
         return None
 
     return run
+
+
+def _ignores_the_run(ctx: _models._DocumentingContext, agent_result: AgentResult) -> bool:
+    """Whether the run is one no disposition may read: a shutdown-sweep kill, or a launch never made.
+
+    The shared guard also takes a backend's own cancellation for the sweep's
+    kill -- an Antigravity `CANCELED` or `INTERRUPTED` terminal its process
+    exited behind on its own -- and a run it drops writes nothing, so a commit
+    that run made would be published by the next tick's recovered-commit
+    shortcut, with no agent having finished a pass. So a run carrying the
+    backend's failure record is dropped here only where an OS signal killed
+    its process, which is what the sweep sends; any other is a failed run the
+    disposition parks.
+    """
+    failure = getattr(agent_result, "terminal_failure", None)
+    if isinstance(failure, TerminalFailure) and not is_signal_interrupted(agent_result):
+        return False
+    return _guards._ignore_if_interrupted(ctx.issue, agent_result)
 
 
 def _documenting_run(ctx: _models._DocumentingContext, wt):

@@ -14,7 +14,11 @@ resume may be the first time this session sees the docs contract at all, and a
 session that only remembers `DOCS: NO_CHANGE` from an earlier spawn would
 advance the issue without ever checking the diff. A worktree already ahead of
 the remote is a push an earlier tick was interrupted before finishing, so it
-synthesizes a result and spawns nothing. Everything else is a fresh pass.
+synthesizes a result and spawns nothing. Ahead of that shape and the fresh
+one, a launch whose outcome nothing recorded takes the park it earned, so
+nothing it left is published or rerun without a human's continue, and both
+spawning shapes land that launch's record before they launch (`failed_pass`).
+Everything else is a fresh pass.
 
 Both spawning shapes persist `docs_checked_sha` BEFORE the run, because a
 no-change verdict afterwards is only trustworthy against the head the agent was
@@ -40,6 +44,7 @@ from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.github.comments import filter_trusted
 from orchestrator.workflow.engine import prompt_context as _prompt_context, prompts as _prompts
 from orchestrator.workflow.stages.documenting import (
+    failed_pass as _failed_pass,
     models as _models,
     parks as _parks,
     state as _state,
@@ -164,8 +169,18 @@ def _resume_documenting_dev(
     issue body AND the full conversation via `_recent_comments_text`, so the
     human's latest reply is naturally included.
 
-    Returns a `_DocumentingRun`, or None when there is no new trusted comment
-    and the tick should end without disposition.
+    This is also the continue a failed pass's park is answered by, and which
+    conversation it runs in is the shared resume's to decide: one an
+    Antigravity quota retired is never resumed, so the full prompt goes to a
+    fresh conversation over this same worktree, under the pinned `dev_agent`
+    command whatever `DEV_AGENT` says by then, charged to the issue's one
+    lifetime run ledger. The commit the failed pass left is still ahead of
+    the remote, so a `DOCS: NO_CHANGE` here publishes it rather than
+    advancing past it.
+
+    Returns a `_DocumentingRun`, or None when there is no new trusted comment,
+    or the record an Antigravity launch lands first did not land, and the tick
+    should end without disposition.
     """
     # Drop untrusted authors before the resume signal / watermark advance:
     # with `ALLOWED_ISSUE_AUTHORS` set an outsider reply must not resume the
@@ -190,6 +205,8 @@ def _resume_documenting_dev(
     # on this resume relies on this watermark to identify the confirmed commit.
     before_sha = _verification_probes._head_sha(wt)
     ctx.state.set(_state._CHECKED_DOCS_SHA, before_sha or "")
+    if not _failed_pass._armed(ctx, before_sha or ""):
+        return None
     wt, documentation_result, paused = _dev_resume._resume_dev_with_text(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, _documentation_prompt(ctx),
         followup_has_tracked_repos=True,
@@ -253,11 +270,16 @@ def _fresh_documenting_run(
     rotating. Persist the spec so a backend hiccup that yields no session id
     still leaves a durable role-identity record; matches
     `_handle_implementing`'s fresh-spawn branch.
+
+    Returns None, launching nothing, where the record an Antigravity launch
+    lands first did not land (`failed_pass._armed`).
     """
     before_sha = _verification_probes._head_sha(wt)
     ctx.state.set(_state._CHECKED_DOCS_SHA, before_sha or "")
     dev_spec, _, _, _ = _dev_session_read._read_dev_session(ctx.state)
     ctx.state.set("dev_agent", dev_spec)
+    if not _failed_pass._armed(ctx, before_sha or ""):
+        return None
     wt, documentation_result, paused = _dev_resume._resume_dev_with_text(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, _documentation_prompt(ctx),
         followup_has_tracked_repos=True,
@@ -275,14 +297,18 @@ def _run_documenting_dev(
 ):
     """Run the docs pass and return its `_DocumentingRun` for disposition.
 
-    Three entry shapes, in priority order:
+    The entry shapes, in priority order:
       * awaiting-human resume -> rerun the FULL documentation prompt.
+      * a launch whose outcome nothing recorded -- its record still standing
+        (`failed_pass._unfinished_pass_owed`) -> take the park it earned, for
+        the continue that reruns the pass.
       * recovered worktree (`ahead > 0`) -> synthesize a non-interrupted
         result for previously-committed docs and skip the agent spawn.
       * fresh spawn -> resume the dev session with the docs prompt.
 
     Returns a `_DocumentingRun`, or None when an awaiting-human resume finds
-    no new comments and the tick should end without disposition.
+    no new comments, an unfinished pass parked, or a launch was held for
+    want of its record, and the tick should end without disposition.
 
     Whichever shape runs, the verdict an EARLIER pass left is dropped first,
     because from here on a `docs_verdict` on the record means "this pass
@@ -301,6 +327,9 @@ def _run_documenting_dev(
         ctx.state.set(_DOCS_VERDICT, None)
     if ctx.state.get(_state._AWAITING_HUMAN):
         return _resume_documenting_dev(ctx, wt, ahead, remote_head)
+    if _failed_pass._unfinished_pass_owed(ctx):
+        _parks._park_documenting_unvouched(ctx, ahead)
+        return None
     if ahead > 0:
         return _recovered_documenting_run(ctx, wt, ahead, remote_head)
     return _fresh_documenting_run(ctx, wt, ahead, remote_head)

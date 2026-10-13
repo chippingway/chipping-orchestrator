@@ -32,6 +32,7 @@ from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     LABEL_DISCUSSION,
+    LABEL_DOCUMENTING,
     LABEL_IMPLEMENTING,
     LABEL_QUESTION,
     LABEL_VALIDATING,
@@ -57,6 +58,7 @@ _PENDING_COLLAPSE_ISSUE_NUMBER = 1025
 _PARTIAL_COLLAPSE_ISSUE_NUMBER = 1030
 _REPORT_IN_FLIGHT_ISSUE_NUMBER = 1035
 _REPORT_SETTLED_ISSUE_NUMBER = 1040
+_LAUNCH_IN_FLIGHT_ISSUE_NUMBER = 1045
 _HANDED_ON_ISSUE_NUMBER = 1002
 _PUBLISHED_EXEMPTION_ISSUE_NUMBER = 1003
 _UNREAD_MEASUREMENT_ISSUE_NUMBER = 998
@@ -470,6 +472,11 @@ class ReportInFlightSkipTest(_SkipCase, unittest.TestCase):
     developer read or leaves a transaction about a head the pull request has
     left, which the hold can only park on. The binding and the settlement
     write each record `null`, so the freeze ends with the publication.
+
+    An Antigravity docs launch nothing answered for is read the same way, and
+    holds until the park that answers it: that park reruns the pass over
+    whatever it left, and a rewrite first would publish that work -- or, with
+    none, the base -- as though a pass had finished.
     """
 
     def test_a_report_in_flight_holds_the_branch(self) -> None:
@@ -488,7 +495,19 @@ class ReportInFlightSkipTest(_SkipCase, unittest.TestCase):
             _REPORT_SETTLED_ISSUE_NUMBER,
             developer_report_delivery=None,
             developer_report_pending=None,
+            docs_launched_sha=None,
         )
+
+    def test_a_launch_in_flight_holds_the_branch(self) -> None:
+        # Read against `null`, so a launch whose head could not be read, which
+        # records an empty string, still holds.
+        for offset, launched in enumerate((_ACCEPTED_COMMIT, "")):
+            with self.subTest(launched=launched):
+                self._assert_skipped(
+                    _LAUNCH_IN_FLIGHT_ISSUE_NUMBER + offset,
+                    LABEL_DOCUMENTING,
+                    docs_launched_sha=launched,
+                )
 
 
 class LateRecordBaseRefreshEndTest(_SkipCase, unittest.TestCase):
