@@ -23,6 +23,7 @@ _LOCK_NAME = "poetry.lock"
 _REFRESH_WARNING = "WARNING: dependency refresh failed -- the environment may be partially updated"
 _INSTALLER_CALL = "install --no-interaction\n"
 _INSTALLER_FAILURE = "'poetry install --no-interaction' failed or timed out (300s limit)."
+_RUN_LAUNCH = ("-m", "orchestrator", "run")
 
 
 def _assert_launches(
@@ -30,11 +31,14 @@ def _assert_launches(
     completed: subprocess.CompletedProcess[str],
     *,
     count: int,
+    wrapper_args: tuple[str, ...] = (),
 ) -> None:
+    arguments = (*_RUN_LAUNCH, *wrapper_args)
+    launch = "".join(f"<{argument}>" for argument in arguments)
     assert completed.returncode == _SIGINT_EXIT_CODE
     assert "command not found" not in completed.stderr
     assert scenario.python_calls.read_text(encoding=_TEXT_ENCODING) == (
-        "-m orchestrator\n" * count
+        f"{launch}\n" * count
     )
 
 
@@ -94,15 +98,18 @@ def test_self_update_launches_without_crash_loop(
 def test_self_restart_applies_clean_fast_forward(
     tmp_path: Path,
 ) -> None:
+    # Every relaunch is the same `run` command line, each wrapper argument
+    # passed through as one word however it is spelled.
+    wrapper_args = ("--log-level", "DEBUG", "--once", "two words")
     scenario = _WrapperScenario.create(
         tmp_path,
         0,
         _SIGINT_EXIT_CODE,
         record_sleep=True,
     )
-    completed = scenario.run()
+    completed = scenario.run(wrapper_args=wrapper_args)
 
-    _assert_launches(scenario, completed, count=2)
+    _assert_launches(scenario, completed, count=2, wrapper_args=wrapper_args)
     assert scenario.git_calls.read_text(
         encoding=_TEXT_ENCODING,
     ).splitlines() == [
@@ -154,7 +161,8 @@ class TestDependencyRefresh:
             scenario.root / ".venv" / "bin" / "python",
             r"""
             #!/usr/bin/env bash
-            echo "$*" >> "$PYTHON_CALLS"
+            printf '<%s>' "$@" >> "$PYTHON_CALLS"
+            echo >> "$PYTHON_CALLS"
             printf '%s\n' "$CONDA_PREFIX" "$CONDA_DEFAULT_ENV" "$CONDA_SHLVL" >> "$LAUNCH_ENV_CAPTURE"
             exit 130
             """,

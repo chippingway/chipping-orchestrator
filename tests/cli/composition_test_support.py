@@ -51,6 +51,11 @@ _ALLOWLIST_ATTR = "ALLOWED_ISSUE_AUTHORS"
 
 TRUSTED_AUTHORS = ("operator",)
 
+# The polling process's command, and the one-tick launch of it every composed
+# run makes unless a test names another.
+RUN = ("run",)
+RUN_ONCE = (*RUN, *_support.ONCE_ARGS)
+
 
 class StateFactory:
     """`RuntimeState` stand-in that keeps the state a run created.
@@ -103,7 +108,7 @@ class ComposedRun:
     def scheduler(self) -> IssueScheduler:
         return self.schedulers.built[-1]
 
-    def main(self, argv=_support.ONCE_ARGS) -> int:
+    def main(self, argv=RUN_ONCE) -> int:
         """Drive `cli.main` the way a launch form does."""
         return cli.main(list(argv))
 

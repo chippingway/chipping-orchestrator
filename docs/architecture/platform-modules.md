@@ -116,16 +116,18 @@ The entries below name defining owners and the deliberate public package surface
 ```
 orchestrator/
   __init__.py           the distribution version, published as `__version__`, without loading runtime owners
-  cli.py                the `chipping-orchestrator` console script: the polling process's composition point
-  __main__.py           the `python -m orchestrator` launch form over `cli.main`, and what `run.sh` starts
+  cli.py                the `chipping-orchestrator` console script: the command line, `--version`, and the `run`
+                        command that is the polling process's composition point
+  __main__.py           the `python -m orchestrator` launch form over `cli.main`, whose `run` is what `run.sh` starts
   runtime/              the polling process's own owners
     state.py            the mutable state one run carries -- the stop flag, the signal, the scheduler a handler may
                         close, the host claim a pass turns into exclusive ownership, and the drain's event -- plus
                         the shell-style code a signal stop exits with
     logs.py             the stderr and rotating-file destinations a run settles before its first client
-    options.py          which launch mode a run is and how loud, read without loading any configuration -- the one
-                        owner here `cli.py` imports before the command line is parsed, so `--help` answers on a
-                        host with no settings or a malformed `REPOS`
+    options.py          the `run` command's flags -- which launch mode a run is and how loud -- and the refusal of
+                        one given before any command, read without loading any configuration: the one owner here
+                        `cli.py` imports before the command line is parsed, so `run --help` answers on a host with
+                        no settings or a malformed `REPOS`
     startup.py          the stop of every launch whose author allowlist names nobody, one client per configured
                         repo -- in the bootstrapping form a tick needs and the read-only form a run that will not
                         tick may have, which is the one write a connect makes -- and the scheduler every tick shares

@@ -749,7 +749,7 @@ operator's own host rather than a sink.
 
 **Analytics only, no audit twin.** The audit log is written through `GitHubClient.emit_event` and records workflow
 events against an issue the tick is driving. This pass drives nothing: it writes no label, no pinned state, and no
-comment, it runs between polling passes (and under `--cleanup-terminal-artifacts` with read-only clients), and every
+comment, it runs between polling passes (and under `run --cleanup-terminal-artifacts` with read-only clients), and every
 issue it is about has already ended. So the record goes to the metric sink and the audit stream stays what it says it
 is.
 

@@ -8,8 +8,9 @@ event the drain announces itself on. Every owner here is handed one rather than
 reading it back off a module, so two runs in one interpreter never share it and
 a test drives the state it created.
 
-``options`` reads the arguments without loading any configuration, so
-`--help` answers on a host that has none or a malformed one.
+``options`` is the `run` command's flags, read without loading any
+configuration, so `run --help` answers on a host that has none or a malformed
+one.
 ``logs`` settles where the process writes, ``startup`` stops a launch whose
 author allowlist names nobody and builds the
 collaborators a run is composed from -- in the bootstrapping form a tick needs
@@ -27,9 +28,9 @@ threads -- ``self_update`` answers whether the source checkout
 the process runs from has moved, and ``shutdown`` owns the signal handler, the
 watchdog behind it, and the forced exit it ends at.
 
-``orchestrator/cli.py`` is the composition point above all of them: it reads
-the options, imports the rest only then, creates the state, and hands it to
-each owner in the order a startup depends on. No owner here names that
-composition, and this initializer binds nothing, so naming one owner never
+``orchestrator/cli.py`` is the composition point above all of them: its `run`
+command reads the options, imports the rest only then, creates the state, and
+hands it to each owner in the order a startup depends on. No owner here names
+that composition, and this initializer binds nothing, so naming one owner never
 costs the rest.
 """

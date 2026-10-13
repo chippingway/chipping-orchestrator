@@ -30,12 +30,12 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.runtime import artifacts, exclusion, shutdown, startup
-from tests.cli.composition_test_support import composed_run
+from tests.cli.composition_test_support import RUN, composed_run
 from tests.runtime import polling_test_support as _support
 
 _PASS_ATTR = "run_maintenance_pass"
 _CLIENT_ATTR = "GitHubClient"
-_CLEANUP_ARGS = ("--cleanup-terminal-artifacts",)
+_CLEANUP_ARGS = (*RUN, "--cleanup-terminal-artifacts")
 _BOTH_REPOS = (_support.ALPHA_REPO, _support.BETA_REPO)
 
 

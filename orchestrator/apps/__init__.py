@@ -6,8 +6,8 @@ The destination for the targets an operator starts something with, as opposed
 to the domain owners those targets compose. An app names owners; no owner names
 an app, which is the direction the observability tree's own layering check
 enforces from the other side. Both Streamlit pages have their target here; the
-polling loop is composed at ``orchestrator/cli.py``, which the console script
-and the ``python -m orchestrator`` form both call.
+polling loop is the ``run`` command composed at ``orchestrator/cli.py``, which
+the console script and the ``python -m orchestrator`` form both call.
 
 ``bootstrap`` is what every app here shares: the repo-root ``sys.path`` shim a
 launcher that executes a file as a top-level script needs, since such a launch

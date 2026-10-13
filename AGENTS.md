@@ -71,9 +71,9 @@ The repo targets Python 3.12+ and installs from the lockfile with
 [Poetry 2.5.1](https://python-poetry.org/docs/#installation):
 
 ```sh
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync                               # runtime + dev deps from poetry.lock
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run pytest tests                   # run the test suite
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator --once  # one polling tick then exit
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync                                   # runtime + dev deps from poetry.lock
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run pytest tests                       # run the test suite
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator run --once  # one polling tick then exit
 ```
 
 Run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` in each fresh worktree before checks; `poetry run` does not

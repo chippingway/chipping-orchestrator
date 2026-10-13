@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a launch targets, and that one refused for its targets touches nothing.
 
-Each launch is a real process started the way `python -m orchestrator` starts,
+Each launch is a real process started the way `python -m orchestrator run` starts,
 from this checkout, with an audit hook that stops it on its first DNS lookup or
 socket connect: a polling run and a maintenance pass both begin by connecting
 to GitHub, before any label bootstrap, poll, or artifact is touched, so a run
@@ -65,8 +65,8 @@ _LAUNCH_OWNED = frozenset((
     "ORCHESTRATOR_TOKEN_FILE",
     "PYTHONPATH",
 ))
-_ONCE = ("--once",)
-_MAINTENANCE = ("--cleanup-terminal-artifacts",)
+_ONCE = ("run", "--once")
+_MAINTENANCE = ("run", "--cleanup-terminal-artifacts")
 _REPOS_REQUIRED = "orchestrator: REPOS is unset, and an installed package has no default target"
 _UNOPENABLE = "has git metadata git cannot open"
 # Configs appended to a fresh clone's own that git will not open a checkout

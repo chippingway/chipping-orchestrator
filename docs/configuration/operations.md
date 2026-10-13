@@ -93,7 +93,7 @@ per-repository token files or the launch environment ([credentials](../configura
 
 `pipx list` shows the installed package and its exposed command. Use `pipx runpip chipping-orchestrator` for package
 inspection and dependency checks; it selects the package's isolated environment without activating it.
-`command -v chipping-orchestrator` shows the absolute launcher path to use in a service unit.
+`command -v chipping-orchestrator` shows the absolute launcher path to use, followed by `run`, in a service unit.
 
 ### Check compatibility and start
 
@@ -117,13 +117,14 @@ Changing to `$HOME` keeps the configuration check outside an orchestrator source
 package. The check reads `~/.config/chipping-orchestrator/.env`, validates local settings and target checkouts,
 and checks the required author allowlist without connecting to GitHub or polling. Run it as the service user with
 the same pipx location and process/service overrides as the real launch. It does not prove token permissions,
-agent authentication, or compatibility with live issue state. `--help` checks the CLI only; `--once` performs a real
-polling tick and can start agents. Stop on a failed check and repair the settings before starting or resuming polling.
+agent authentication, or compatibility with live issue state. `--help` checks the CLI only; `run --once` performs a
+real polling tick and can start agents. Stop on a failed check and repair the settings before starting or resuming
+polling.
 
 Start in the foreground:
 
 ```sh
-chipping-orchestrator
+chipping-orchestrator run
 ```
 
 Startup diagnostics identify invalid settings, missing `REPOS`, invalid target checkouts, or an empty
@@ -152,7 +153,8 @@ paths outside the environment. Skip the first-setup template copy. Compare the d
 settings and run the [compatibility checks](#check-compatibility-and-start). Confirm the installed version matches
 the recorded version before restarting.
 Replace the service's `ExecStart` with the absolute pipx launcher path shown by
-`command -v chipping-orchestrator`. Run `systemctl --user daemon-reload` and
+`command -v chipping-orchestrator`. v0.13.0 polls from that bare command; add `run` only when an upgrade moves past
+it, as the [upgrade warning](#upgrade-a-package) describes. Run `systemctl --user daemon-reload` and
 `systemctl --user start orchestrator.service`, then check startup output and polling logs.
 
 Keep the dedicated venv until the new installation passes these checks. If migration fails, stop the new poller,
@@ -161,6 +163,19 @@ the release's [rollback restrictions](#return-to-the-previous-package-version). 
 successful migration; subsequent upgrades and rollback use the pipx procedures below.
 
 ### Upgrade a package
+
+**Upgrading past v0.13.0 breaks the bare launch command.** Later releases start the polling process only as
+`chipping-orchestrator run`. The bare command prints the help listing every command and exits 0, and a polling flag
+given before any command is a usage error naming its `run` form, for example `chipping-orchestrator run --once`.
+Before starting the upgraded package, append `run` to every launch line, script, and timer that runs the bare command,
+and move any polling flag after it.
+
+A hand-written unit whose `ExecStart` is the bare command would exit 0 on every start, and `Restart=always` would
+relaunch it every `RestartSec` without it ever polling. Append `run` to its `ExecStart`, as the
+[unit file](#unit-file) below shows, and run `systemctl --user daemon-reload` before starting it. Alternatively, on a
+release that provides `chipping-orchestrator init`, migrate the host to the user service `init` installs in place of
+the hand-written unit. A [rollback](#return-to-the-previous-package-version) to v0.13.0 or earlier needs the bare form
+back, since those releases refuse `run`.
 
 Package changes are operator-initiated. Use `pipx upgrade-all --skip chipping-orchestrator` for routine updates of
 other apps so they do not change the package under a running poller. Before upgrading:
@@ -222,7 +237,7 @@ other apps so they do not change the package under a running poller. Before upgr
    Leave the poller stopped until the intended version is installed and passes checks.
 5. On every upgrade, repeat the [template download](#download-the-chosen-releases-files) for the intended version and
    [compare configuration](#compare-configuration-across-versions) before resuming.
-6. Repeat [compatibility checks](#check-compatibility-and-start), then start `chipping-orchestrator` again or run
+6. Repeat [compatibility checks](#check-compatibility-and-start), then start `chipping-orchestrator run` again or run
    `systemctl --user start orchestrator.service`. Check startup output and logs for connections and polling.
    A changed unit needs `systemctl --user daemon-reload`; editing `.env` alone does not.
 
@@ -325,6 +340,9 @@ diff -u "$HOME/.config/chipping-orchestrator/.env" "$HOME/.config/chipping-orche
 `diff` exits 1 when files differ. Reconcile edits made since the backup with the older version's supported settings,
 keeping compatible target paths, author lists, log paths, and other deliberate overrides. Review process/service
 overrides too.
+
+Returning to v0.13.0 or earlier also returns the poller to the bare command: remove `run` from launch lines and from
+the unit's `ExecStart`, or restore the unit retained before the upgrade, and run `systemctl --user daemon-reload`.
 
 Repeat [compatibility checks](#check-compatibility-and-start), confirm the restored version, then restart and inspect
 startup output and logs. Keep external logs and credentials at their existing paths throughout.
@@ -819,9 +837,9 @@ configuration examples lead back to the repository; the site does not publish th
 
 Use the command installed by pipx:
 
-- `chipping-orchestrator` — continuous polling.
-- `chipping-orchestrator --once` — one real polling tick, including label setup and possible agent launches.
-- `chipping-orchestrator --cleanup-terminal-artifacts` — reclaim the worktrees and branches of finished issues, then
+- `chipping-orchestrator run` — continuous polling.
+- `chipping-orchestrator run --once` — one real polling tick, including label setup and possible agent launches.
+- `chipping-orchestrator run --cleanup-terminal-artifacts` — reclaim the worktrees and branches of finished issues, then
   exit. Polls no issue, ensures no labels, and writes **no workflow state** — no label, no pinned state, no comment.
   It does delete refs, which is what it is for: the orchestrator-owned branches it proved reclaimable go from the
   local clone *and* from the remote, after the fail-closed gates cleared each one. It connects read-only clients and
@@ -843,7 +861,12 @@ Use the command installed by pipx:
   pass between polling passes — every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS`, or inside
   `TERMINAL_ARTIFACT_CLEANUP_WINDOW` where one is set ([When it runs](#when-it-runs)) — and the timer will simply
   defer.
-- `chipping-orchestrator --log-level DEBUG` — verbose logs.
+- `chipping-orchestrator run --log-level DEBUG` — verbose logs.
+
+The polling flags belong to `run`: given before any command, as in `chipping-orchestrator --once`, they are a usage
+error (exit status 2) naming the `run` form that means them. The bare `chipping-orchestrator` prints the help listing
+every command and exits 0, as `--help` does, and `chipping-orchestrator --version` prints the installed version. All
+three answer before any configuration is read, so they work on a host with no `.env` or an invalid one.
 
 Source-checkout module launches and the restart wrapper are for developers; see the
 [developer guide](../development.md#direct-launch-commands).
@@ -867,7 +890,7 @@ environment before upgrading or reinstalling the package.
 ## Running more than one poller
 
 The supported topology is **one host**. More than one polling process may run there against the same repositories —
-a second daemon, or a `--once` run beside one — provided every one of them resolves the same `WORKTREES_DIR`, and
+a second daemon, or a `run --once` beside one — provided every one of them resolves the same `WORKTREES_DIR`, and
 the in-process scheduler guards (a duplicate active issue, the caps, the family slot) still apply first inside each.
 Left unset, `WORKTREES_DIR` defaults beside the first configured target — the first `REPOS` entry, or
 `TARGET_REPO_ROOT` without `REPOS` ([default](../configuration.md#workspace-and-agent-identity)) — so pollers whose
@@ -876,7 +899,7 @@ lists start with different repositories resolve different roots unless every one
 The shared issue claims coordinate workflow work. Set the same `WORKTREES_DIR` in every poller's process or service
 environment. Installed pollers under one account read the same `~/.config/chipping-orchestrator/.env`; use process
 or service overrides for different `REPOS` lists and a distinct absolute `LOG_DIR` for each poller, including
-concurrent `--once` runs. Override any explicit `ANALYTICS_LOG_PATH` and `TRAJECTORY_LOG_PATH` with distinct absolute
+each `run --once` beside it. Override any explicit `ANALYTICS_LOG_PATH` and `TRAJECTORY_LOG_PATH` with distinct absolute
 paths per poller too; the default analytics path follows `LOG_DIR`. Runtime log rotation and analytics retention
 rewrites do not coordinate across processes, so sharing these files can lose records even when issue claims are
 separate. Stop every process using a shared pipx environment before upgrading it. Developer source wrappers also
@@ -999,7 +1022,7 @@ unit silently does nothing at boot unless linger is enabled. Keep `screen` / `tm
 ### Unit file
 
 Drop this at `~/.config/systemd/user/orchestrator.service`. Replace `<user>` with the account that installed the
-package, and adjust `ExecStart` to the path shown by `command -v chipping-orchestrator`:
+package, and adjust `ExecStart` to the path shown by `command -v chipping-orchestrator`, keeping the `run` after it:
 
 ```ini
 [Unit]
@@ -1009,7 +1032,7 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/home/<user>
-ExecStart=/home/<user>/.local/bin/chipping-orchestrator
+ExecStart=/home/<user>/.local/bin/chipping-orchestrator run
 Restart=always
 RestartSec=5
 Environment=PATH=/home/<user>/.local/bin:/usr/local/bin:/usr/bin:/bin
@@ -1380,7 +1403,7 @@ cannot change what GitHub says happened.
   - **Scheduling state is in memory only.** A restart outside the window waits for the next one; a restart inside it
     may repeat a pass the previous process already made that night, which is safe — the pass reads the host again
     and reports whatever is already gone as done. Nothing guarantees exactly one pass per window across restarts.
-- **On demand.** `chipping-orchestrator --cleanup-terminal-artifacts` runs exactly the same pass once and exits,
+- **On demand.** `chipping-orchestrator run --cleanup-terminal-artifacts` runs exactly the same pass once and exits,
   regardless of the interval or the window — the form to point a nightly service timer at on hosts whose orchestrator
   is not always up. See [Run modes](#run-modes) for what that mode connects and why it exits 0 when it defers.
 - **Only on a quiet host.** Before it reads anything, the pass closes its own scheduler's admission (`submit` refuses
@@ -1567,7 +1590,7 @@ own at a candidate boundary, and never blocks workflow progress either way.
 
 ## Applying `.env` changes
 
-`~/.config/chipping-orchestrator/.env` is read once, when `chipping-orchestrator` starts. Most edits take effect
+`~/.config/chipping-orchestrator/.env` is read once, when `chipping-orchestrator run` starts. Most edits take effect
 on the next process start; there is no signal to reload configuration. Restart the foreground command or systemd
 service at a safe stopping point. [Developer checkouts](../development.md) use their own root `.env`.
 
@@ -1628,7 +1651,7 @@ journalctl --user -u orchestrator.service -f   # systemd users
 1. Edit `~/.config/chipping-orchestrator/.env`.
 2. Wait for a safe stopping point without an agent child; inspect processes with `pgrep -af 'codex|claude|agy'`.
 3. Ctrl+C the command and wait for shutdown.
-4. Start `chipping-orchestrator` again.
+4. Start `chipping-orchestrator run` again.
 
 **systemd user service.**
 
@@ -1640,7 +1663,7 @@ journalctl --user -u orchestrator.service -f   # systemd users
 When `GITHUB_TOKEN` is supplied via the unit's `EnvironmentFile=`, edit that file and restart. Changing an inline
 `Environment=` value requires editing the unit and running `daemon-reload` before restarting.
 
-Each `chipping-orchestrator --once` invocation starts a new process and reads current settings. Restarts keep the
+Each `chipping-orchestrator run --once` invocation starts a new process and reads current settings. Restarts keep the
 installed package version; [package upgrades](#upgrade-a-package) are explicit operator actions. Development
 wrapper restarts are described in the [developer guide](../development.md#development-restart-wrapper).
 
