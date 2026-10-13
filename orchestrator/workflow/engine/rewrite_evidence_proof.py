@@ -177,6 +177,13 @@ _REFUSALS = MappingProxyType({
     ),
 })
 
+# The base readings a continuation is made over -- the base gone past the
+# landed head since its replay -- which move nothing under evidence the
+# continuation keeps for the rebase behind it to decide over
+# (`rewrite_finish_settlement`); a tip blanked to record movement is no such
+# reading.
+ADVANCED = (BASE_MOVED, _REFUSALS[_BaseStanding.DROPPED])
+
 
 def proves_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _evidence_models.ReportEvidence:
     """The whole proof of `binding` over the issue and pinned comment read afresh, or the HOLD nobody could read.

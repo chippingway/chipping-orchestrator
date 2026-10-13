@@ -180,12 +180,15 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     ROUTED and CONTINUED retired the attempt; every other outcome left it
     standing, and made nothing that depends on a write that did not land. A
     landing the record does not account for leaves the attempt standing
-    beside a transaction an earlier finish captured for its head, so that
-    transaction is proved again first and abandoned where anything it rests
-    on moved (`rewrite_finish_captured.stands_before_the_route`): putting what
-    moved back before a later finish revives nothing.
+    beside evidence an earlier finish settled or captured for its head, so
+    settled evidence is proved ready again first
+    (`rewrite_finish_settlement.stands_ready_if_settled`) and a captured
+    transaction proved again (`rewrite_finish_captured.stands_before_the_route`),
+    each retired where anything it rests on moved: putting what moved back
+    before a later finish revives nothing.
     """
     if not _finishable(finish):
+        _settlement.stands_ready_if_settled(finish)
         captured = _captured.recorded(finish, logged=False)
         proof = None if captured is None else _captured.proved_again(finish, captured)
         return _captured.stands_before_the_route(finish, proof=proof, behind=FinishOutcome.UNFINISHABLE)

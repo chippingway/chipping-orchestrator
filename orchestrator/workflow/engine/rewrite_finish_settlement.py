@@ -322,14 +322,16 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
     establishes moved under it -- requirements edited beside a handoff that
     does not name it, or a revision a readable history entry spent past it
     beside a floor nobody can read -- is invalidated whole before the route is
-    held, and putting the record and the input back revives nothing.
+    held, and putting the record and the input back revives nothing -- a
+    continuation's included, whose proof reads the base gone past the head as
+    the continuation's own rather than as movement.
     """
     state = finish.state
-    current = None if finish.behind else _settlement.read_current_evidence(state)
+    current = _settlement.read_current_evidence(state)
     if current is not None and current.binding.target.target_head != finish.head:
         current = None
     proved = current
-    if invalidates_current(finish):
+    if finish.behind or invalidates_current(finish):
         current = None
     settled = resolved(state, finish.head) or capture_answered(state)
     out_of_step = ""

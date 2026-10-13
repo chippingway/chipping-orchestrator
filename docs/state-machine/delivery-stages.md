@@ -1637,7 +1637,9 @@ because there it is the claim that this stage has already rerouted rather than a
     rebase, as it holds an uninterrupted journey's: the report reconciliation ahead of the next handler settles it on
     the head it is about, with no park, and the refresh behind it rebases onto the advanced base. A reply the recovery
     did not spend is left unspent for that rebase. The evidence settled for the continued head stays in place for
-    that rebase's own finish to decide over, invalidated whole where the new head's tree or the configuration moved:
+    that rebase's own finish to decide over -- proved ready before any hold or stop of the continuation all the same,
+    the base gone past the head read as the continuation's own rather than as movement, so anything else read
+    moving under it invalidates it there -- and invalidated whole where the new head's tree or the configuration moved:
     the continuation hands the new head no earlier binding, nor holds behind the anchor -- its report refresh is owed
     afresh, and its fresh reviewer is handed that report and owes its evidence.
 

@@ -123,7 +123,14 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.rewrite_evidence_proof import Refusals, Word, _reads_again, last_word
+from orchestrator.workflow.engine.rewrite_evidence_proof import (
+    _RECONFIGURED,
+    ADVANCED,
+    Refusals,
+    Word,
+    _reads_again,
+    last_word,
+)
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_current import _handoff_describes
 from orchestrator.workflow.engine.verification_history_fields import historical_from
@@ -169,8 +176,20 @@ def stands_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> Fin
     (`beside_current`): a newer transaction recorded meanwhile is the next
     finish's to answer, never one the route may leave owed behind a cleared
     attempt.
+
+    A head the base has advanced past again is continued rather than routed,
+    and the evidence stays for the rebase behind it to decide over: the base
+    gone past the head is what made that continuation
+    (`rewrite_evidence_proof.ADVANCED`), so it moves nothing under the
+    evidence -- a configuration moved past it, which that base reading would
+    sort behind it, is still movement, and so is anything else the proof
+    reads moving. Every caller holding a continuation holds it whatever this
+    answers.
     """
     moved, held = settled_word(finish, current)
+    if finish.behind and moved in ADVANCED:
+        reconfigured = current.binding.context_revision != _proof.configured_context_revision()
+        moved = _RECONFIGURED if reconfigured else None
     why = "" if held is None else f"it could not be proved ready again ({held.refusal})"
     if moved is not None and invalidates(finish, current):
         log.info(

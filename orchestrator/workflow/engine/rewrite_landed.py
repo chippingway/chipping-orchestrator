@@ -71,7 +71,8 @@ made, which is not made again. Evidence the dead tick settled for the head is
 proved ready again before that route takes it, and invalidated whole where
 anything it is bound to moved since (`rewrite_finish_readiness`). One that finds
 the remote no longer on the head, or a base it cannot count the head against,
-makes nothing, and the next tick classifies whatever it then finds.
+makes nothing but that proof, and the next tick classifies whatever it then
+finds.
 
 The evidence decision resumes where the dead tick left it
 (`rewrite_finish_evidence`). A tick that died before its evidence write

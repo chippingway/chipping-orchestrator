@@ -1134,8 +1134,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             counts),
                             a mark naming another head, a lag against the base that could not be counted, or an attempt
                             a finish already retired -- makes nothing, leaving the attempt, the label, and the round as
-                            they are, save a transaction an earlier finish captured for its head, proved again first and
-                            abandoned where anything it rests on moved.
+                            they are, save evidence an earlier finish settled for its head, proved ready again first
+                            and invalidated where anything it rests on moved, and a transaction one captured for it,
+                            proved again first and abandoned likewise.
                             Otherwise the report debt is measured on the whole announcement write and on the
                             comment as it stands (`rewrite_finish_debt.fits`), and one with no room parks
                             `auto_base_rebase_unrecorded_debt` with the push and the attempt kept, before anything runs

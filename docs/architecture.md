@@ -941,7 +941,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   human's retry spent, and the route to `workflow:validating` taken only for a head the base has not advanced past
   again -- the announcement, the round reset, and the route all made only once the head's evidence is resolved. A
   landing the pinned record does not account for — one that moved nothing, a publication a guard refused,
-  a replay record naming another head, a lag against the base nobody could count — makes nothing, and a head this
+  a replay record naming another head, a lag against the base nobody could count — makes nothing, save proving
+  evidence settled or captured for its head again and retiring it where anything it rests on moved, and a head this
   tick pushed nothing for is announced as one found standing. Every write is a guarded commit, so a refused or
   unconfirmed one stops the finish with nothing behind it made. Its post-push, pre-announcement step is where the
   evidence a landed head is routed with is decided (`workflow/engine/rewrite_evidence.py`) and made durable before
