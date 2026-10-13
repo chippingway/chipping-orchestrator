@@ -978,7 +978,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   finish already settled for the head and left behind a tail cut short is invalidated whole on each of those roads
   too, and kept whole beside the attempt, which is not released, where history has no room for it -- the movement
   recorded against it by blanking the attempt's recorded base tip, and every reset recorded that way before it moves
-  the checkout, against a captured run as well, so nothing put back before the next poll revives either; the route
+  the checkout, against a captured run as well, in a write decided on the evidence records as the tick read them, so
+  evidence settled since refuses the reset and nothing put back before the next poll revives either; the route
   over such a head is still held to the base the tick counted it against. Every recovery
   park is recorded over the comment read afresh (`lands_a_park`, `workflow/engine/rewrite_recovery_parks.py`), so a
   report or evidence record another road wrote while its notice went out is kept. It runs under its caller's issue

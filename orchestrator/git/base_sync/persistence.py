@@ -359,7 +359,10 @@ def _resets(
     recovery records the reset first, in a write of its own
     (`_AutoRebaseRecoveryContext.records_before_a_reset`): the base tip the
     attempt recorded its replay as made onto, blanked, which every later proof
-    of the decision reads as movement. None where that record did not land,
+    of the decision reads as movement -- decided on the decision's records as
+    the tick read them, so one another road made since refuses it, and the
+    reset is never made under a decision the tick did not see. None where that
+    record did not land,
     logged: nothing is reset, dropped, or parked, and the next tick asks again.
     A reset git refused moved nothing, so the tip is staged back on the state
     for the park that keeps the attempt to write, and the decision stands for

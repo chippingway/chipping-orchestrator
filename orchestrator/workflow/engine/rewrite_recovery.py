@@ -178,7 +178,8 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     while its notice went out and proving what it keeps once more behind it,
     and every reset is recorded against evidence a finish captured or settled
     for the landed head before it moves the checkout
-    (`rewrite_recovery_parks.records_the_reset`).
+    (`rewrite_recovery_parks.records_the_reset`), in a write decided on the
+    evidence records as the tick read them, so evidence settled since holds it.
     """
     owing = replace(
         context,

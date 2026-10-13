@@ -198,8 +198,10 @@ class _AutoRebaseRecoveryContext:
     # or a write behind it that does not land, leaves nothing a checkout put
     # back would revive (`persistence._resets`): what a finish captured or
     # settled for that head marked moved by blanking the attempt's recorded
-    # base tip in a write of its own, which a reset git refused has staged
-    # back. False holds the tick with nothing reset, dropped, or parked. None
+    # base tip in a write of its own -- decided on the evidence records as the
+    # tick read them, so evidence settled since refuses it -- which a reset git
+    # refused has staged back. False holds the tick with nothing reset,
+    # dropped, or parked. None
     # records nothing; the workflow's recovery hands its answer on every
     # road's context (`workflow/engine/rewrite_recovery_parks.records_the_reset`).
     records_before_a_reset: Callable[[_AutoRebaseRecoveryContext], bool] | None = None

@@ -41,8 +41,12 @@ which only shrinks the comment, and with no tip nothing proves which base the
 head was replayed onto, so every later proof of that evidence defers
 (`rewrite_evidence_proof.standing_refusal`), abandoning a captured run and
 invalidating a settled one whole once the comment has room; the base itself is
-still read, so no route over the head goes without a base reading. A blank
-that does not land holds the tick with nothing reset. A reset git refused
+still read, so no route over the head goes without a base reading. The
+blank is made ahead of every reset whose attempt records a tip, whatever
+evidence the tick read, and decided on every evidence record as the tick read
+them, so evidence another road recorded or settled since refuses it, and
+evidence settled behind it reads it as movement. A blank that does not land
+holds the tick with nothing reset. A reset git refused
 moved nothing, and the git owner stages the tip back for the park that keeps
 the attempt, so the evidence stands for that park's proof as it did before.
 
@@ -85,7 +89,6 @@ from orchestrator.workflow.engine import (
     report_commits as _commits,
     rewrite_finish_writes as _writes,
     rewrite_landing_moved as _landing_moved,
-    rewrite_landing_records as _landing_records,
     verification_records as _evidence_records,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
@@ -182,32 +185,32 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     """Record a reset about to move the checkout against evidence for the landed head; may the reset go on.
 
     The recovery's answer ahead of every reset (`_AutoRebaseRecoveryContext.records_before_a_reset`):
-    where a finish of the attempt captured a transaction for the head or
-    settled evidence for it, and the attempt still records the base tip its
-    replay was made onto, that tip is blanked through the guarded commit as
-    the finish's own abandonment is (`rewrite_finish_writes.ABANDONMENT`), and
-    laid over the tick's state. True where nothing needed recording or the
-    blank landed; False, logged, where it was refused or went unconfirmed, for
-    the git owner to hold with nothing reset.
+    where the attempt still records the base tip its replay was made onto,
+    that tip is blanked through the guarded commit and laid over the tick's
+    state -- whatever evidence the tick read, since the write is decided on
+    every evidence record and the attempt as the tick read them
+    (`rewrite_finish_writes.INVALIDATION`): a transaction a finish captured or
+    evidence it settled, or one another road recorded or settled since that
+    reading, so evidence the tick never saw refuses the reset rather than
+    being left for a checkout put back to revive, and evidence settled behind
+    the blank reads it as movement. An attempt with no tip proves no base for
+    any evidence already. True where nothing needed recording or the blank
+    landed; False, logged, where it was refused or went unconfirmed, for the
+    git owner to hold with nothing reset.
     """
-    guarded = _landing_records.captured(context.state) or _landing_records.settled(context.state)
-    if guarded is None or not _attempt_records._recorded_onto(context.state):
+    if not _attempt_records._recorded_onto(context.state):
         return True
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)
     staged = commit.staging()
     staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
-    landed = commit.lands(staged, _writes.ABANDONMENT)
+    landed = commit.lands(staged, _writes.INVALIDATION)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
-        log.info(
-            "issue=#%d recorded the reset ahead of it against verification evidence revision %d for %.8s",
-            context.issue.number, guarded.revision, guarded.binding.target.target_head,
-        )
+        log.info("issue=#%d recorded the reset ahead of it by blanking the attempt's base tip", context.issue.number)
         return True
     log.warning(
-        "issue=#%d the reset could not be recorded against verification evidence revision %d for %.8s "
-        "(%s); nothing is reset until a later tick records it",
-        context.issue.number, guarded.revision, guarded.binding.target.target_head,
-        (landed.refusal or landed.status).value,
+        "issue=#%d the reset could not be recorded ahead of it over the evidence records the tick read (%s); "
+        "nothing is reset until a later tick records it",
+        context.issue.number, (landed.refusal or landed.status).value,
     )
     return False
 

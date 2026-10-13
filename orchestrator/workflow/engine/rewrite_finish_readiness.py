@@ -86,8 +86,10 @@ proof, and a report or review record another road moves while the notice is
 posted or the relabel made refuses them. Such a refusal
 (`rewrite_finish_writes.BINDING_MOVED`) is movement read under the evidence
 too, which is invalidated before the finish stops (`invalidates_behind`)
-however soon the record is put back; any other refusal has the evidence
-proved ready once more.
+however soon the record is put back; any other stop behind the proof -- a
+refusal naming none, a write nobody confirmed, an event stream that would not
+read behind the posted notice, the debt's park, or a relabel that raised --
+has the evidence proved ready once more before the finish leaves.
 
 The recovery's helpers (`rewrite_landing_moved`) ask the same proof
 (`settled_word`) and the same invalidation (`invalidates`) of evidence a
@@ -282,7 +284,7 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
 def invalidates_behind(
     finish: LandedFinish, stopped: FinishOutcome | None, observed: list[_evidence_models.ReportEvidence],
 ) -> FinishOutcome | None:
-    """`stopped`, behind invalidating evidence settled for the landed head that a refused write read moving under.
+    """`stopped`, behind proving again evidence settled for the landed head that the finish leaves standing.
 
     For the finish's announcement -- its checkpoint, its event's record, or
     the debt's park -- and its retirement (`rewrite_finish`), each guarded by
@@ -292,16 +294,16 @@ def invalidates_behind(
     (`rewrite_finish_writes.BINDING_MOVED` in `observed`) is movement read
     under the evidence, so it is invalidated now (`invalidates`), the attempt
     and the newer records kept as the comment carries them, and putting the
-    record back before the next poll revives nothing. A refusal that named
-    none -- the comment moved under the edit itself, or only a newer
-    transaction recorded for the head, the next finish's to answer -- has the
-    evidence proved ready once more right away (`stands_ready`), which
-    invalidates it only where a reading then establishes movement. A write
-    that landed, one nobody confirmed, and a stop that was no write pass
-    through with nothing read.
+    record back before the next poll revives nothing. Any other stop -- a
+    refusal that named none, a write nobody confirmed, a conversation or
+    event stream that would not read behind a notice already posted, the
+    debt's park -- leaves the evidence standing behind requests made since
+    it was proved, so it is proved ready once more right away
+    (`stands_ready`), which invalidates it where a reading then establishes
+    movement. A finish that went on passes through with nothing read.
     """
     current = _settlement.read_current_evidence(finish.state)
-    if stopped is not FinishOutcome.REFUSED or current is None:
+    if stopped is None or current is None:
         return stopped
     if current.binding.target.target_head != finish.head:
         return stopped

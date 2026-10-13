@@ -3194,7 +3194,8 @@ The keys that matter for the state machine fall into a few groups:
   dropped with this member blanked, in a write that only shrinks the comment, so no later reading proves a base for it
   and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`). Settled evidence
   is held to it the same way: an invalidation that does not land, and every reset about to take the checkout off a
-  landed head with captured or settled evidence beside it, blank this member in a write of its own first
+  landed head -- decided on the evidence records as the tick read them, so evidence settled since refuses the reset --
+  blank this member in a write of its own first
   (`workflow/engine/rewrite_finish_readiness.py`, `workflow/engine/rewrite_recovery_parks.records_the_reset`), so
   every later proof reads the evidence moved and retires it once room is made, whatever is put back meanwhile; a
   reset git refused has it staged back for the park that keeps the attempt. The route still reads the base over a

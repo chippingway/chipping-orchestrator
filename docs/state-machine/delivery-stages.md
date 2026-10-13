@@ -1516,8 +1516,11 @@ because there it is the claim that this stage has already rerouted rather than a
   -- a write that only shrinks the comment -- so every later proof reads movement, abandoning the captured run and
   invalidating the settled one whole once room is made, the checkout put back on the head meanwhile or not. A process
   lost behind the reset, or a park write behind it that does not land, so leaves nothing a restored checkout revives,
-  and a blank that does not land holds the tick with nothing reset. A reset git refused moved nothing, so the git
-  owner stages the tip back for the park that keeps the attempt, and both stand for that park's proof as before.
+  and a blank that does not land holds the tick with nothing reset. The blank is made ahead of every reset whose
+  attempt records a tip, whatever evidence the tick read, and is decided on every evidence record as the tick read
+  them, so a run another road records or settles while the recovery runs refuses it and nothing is reset under evidence
+  the tick never saw. A reset git refused moved nothing, so the git owner stages the tip back for the park that keeps
+  the attempt, and both stand for that park's proof as before.
   Where the landed reset
   then finds no room on the comment for the history entry, the evidence stays current and whole beside the attempt,
   which is not released; nothing is parked until room is made, and the anchor keeps holding every handler. Every
@@ -1621,7 +1624,10 @@ because there it is the claim that this stage has already rerouted rather than a
     recovery revives nothing. A refusal that named no such record -- the comment moved under the write itself --
     has the evidence proved ready once more right away, invalidating it where a reading then establishes movement,
     and one that read only the evidence records move -- a newer transaction recorded for the head -- invalidates
-    nothing by itself: that transaction is the next finish's to answer.
+    nothing by itself: that transaction is the next finish's to answer. Every other stop behind the proof is answered
+    the same way before the finish leaves -- a write nobody confirmed, an event stream that would not read behind the
+    posted notice, the debt's park, or a relabel that raised, refused or landed with its answer lost -- so a report
+    moved while that request was made is invalidated however soon it is put back.
   - **The rebase behind a continuation is the refresh's again.** A landed head the base advanced past again is
     announced only where the dead tick had not announced it, its attempt is retired unrouted, and a rebase replaces
     it. The refresh chose the worktree beside the anchor, so only the late claims were asked to hold it; once the

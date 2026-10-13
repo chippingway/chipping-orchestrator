@@ -26,7 +26,12 @@ process killed behind the reset, before anything else is written, leaves the
 reset recorded, so the checkout put back on the landed head before the next
 poll revives nothing -- the settled run is invalidated, and the captured one
 abandoned rather than settled. A blank GitHub refuses holds the tick with
-nothing reset, and the next tick records it and resets.
+nothing reset, and the next tick records it and resets. So does a run another
+road settles while the recovery's fetch fails, which the tick never read: the
+blank is decided on the evidence records as the tick read them, so it is
+refused and nothing is reset, and the next tick records the reset against
+that run, resets, and invalidates it, so putting the checkout back revives
+nothing.
 """
 from __future__ import annotations
 
@@ -39,6 +44,7 @@ from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
 from orchestrator.workflow.engine import verification_settlement_state as _settlement
+from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_moves as finish_moves,
@@ -55,6 +61,9 @@ _FETCHES = "_authed_fetch"
 
 _RESET = "reset"
 
+# A hard reset of the checkout, as somebody putting it back on a head would make it.
+_PUTS_BACK = (_RESET, "--quiet", "--hard")
+
 
 def _unfetched(spec, ref: str, **options) -> subprocess.CompletedProcess:
     """The branch transport's fetch, failing for issue #7's branch alone."""
@@ -70,6 +79,11 @@ def _blanking(_issue, state, *, over: dict) -> bool:
 
 
 _BEFORE_THE_BLANK = handoff.Boundary("before the base tip is blanked", "edit_pinned_state", _blanking)
+
+# The recovery's fetch of issue #7's branch, behind which another road settles the run.
+_BEHIND_THE_FETCH = handoff.Boundary(
+    "behind the branch's fetch", _FETCHES, lambda _spec, ref, **_options: "issue-7" in ref,
+)
 
 # The reset git made, behind which the process is killed before anything else is written.
 _RESETTING = handoff.Boundary("behind the reset", "_git_hardened", lambda verb, *_args, **_kwargs: verb == _RESET)
@@ -138,7 +152,7 @@ class ResetRoomTest(support.CapturedRunCase, unittest.TestCase):
         settled = self._dies_and_fills(head)
         with patch.object(branch_transport, _FETCHES, _unfetched):
             self.recovers()
-        self._git(_RESET, "--quiet", "--hard", head, cwd=self._wt)
+        self._git(*_PUTS_BACK, head, cwd=self._wt)
         finish_moves.makes_room(self)
         self.recovers()
 
@@ -184,7 +198,7 @@ class ResetRecordTest(support.CapturedRunCase, unittest.TestCase):
                 head = self.lands_a_reviewed_rebase()
                 settled = self._settles_and_resets(head, full=full)
 
-                self._git(_RESET, "--quiet", "--hard", head, cwd=self._wt)
+                self._git(*_PUTS_BACK, head, cwd=self._wt)
                 if full:
                     finish_moves.makes_room(self)
                 self.recovers()
@@ -209,7 +223,7 @@ class ResetRecordTest(support.CapturedRunCase, unittest.TestCase):
         self.assertEqual(readings.pinned_records(self)[0], captured)
         self.assertIsNone(readings.pinned(self)[readings.KEY_REWRITE_BASE])
 
-        self._git(_RESET, "--quiet", "--hard", head, cwd=self._wt)
+        self._git(*_PUTS_BACK, head, cwd=self._wt)
         self.recovers()
 
         self.assert_abandoned(captured)
@@ -231,6 +245,35 @@ class ResetRecordTest(support.CapturedRunCase, unittest.TestCase):
 
         _assert_invalidated(self, settled)
         self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
+
+    def test_a_run_settled_meanwhile_holds_the_reset(self) -> None:
+        # Another road settles the run while the recovery's fetch fails, over
+        # an attempt the tick read with nothing recorded: the blank refuses it
+        # and nothing is reset; the next tick resets and invalidates the run in
+        # the write that parks, and the checkout put back revives nothing.
+        head = self.lands_a_reviewed_rebase()
+        git_support.pins_the_attempt(self, head)
+        settles = _BEHIND_THE_FETCH.moving(_unfetched, partial(self._settles_elsewhere, head))
+        with patch.object(branch_transport, _FETCHES, settles):
+            self.recovers()
+        settled = readings.pinned_records(self)[1]
+        self._assert_standing(head, settled, blank=False)
+
+        with patch.object(branch_transport, _FETCHES, _unfetched):
+            self.recovers()
+        self._git(*_PUTS_BACK, head, cwd=self._wt)
+        self.recovers()
+
+        _assert_invalidated(self, settled)
+        pinned = readings.pinned(self)
+        parked = (pinned[_AWAITING], readings.attempt(pinned))
+        self.assertEqual(parked, (True, readings.RETIRED))
+
+    def _settles_elsewhere(self, head: str) -> None:
+        """Settle `head`'s run as another road's finish of the landing would, dying before its announcement."""
+        finishing = partial(self.finishes, head, FinishRoad.RECOVERY)
+        with patch.object(branch_transport, _FETCHES, _FETCH):
+            handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, finishing)
 
     def _settles_and_resets(self, head: str, *, full: bool):
         """Settle `head`'s run, kill its finish, fill the comment where `full`, and die behind an abort's reset.

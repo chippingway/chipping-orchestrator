@@ -74,7 +74,9 @@ never over the tick's whole reading, so a report another road settled, or a
 transaction it recorded, while the park's notice went out is kept rather than
 put back. The reset moves the checkout ahead of that write, so the
 transaction and settled evidence have the reset recorded against them before
-it is made (`rewrite_recovery_parks.records_the_reset`): a process lost
+it is made (`rewrite_recovery_parks.records_the_reset`), in a write decided
+on the evidence records as the tick read them, so one another road recorded
+or settled since refuses the reset rather than being moved under: a process lost
 between them leaves both read as moved by every later proof, however the
 checkout is put back. A reset git refused moved nothing, and the git owner
 stages that record back for the park that keeps the attempt.

@@ -20,7 +20,10 @@ ends routed with nothing current, its notice and `base_rebased` event said
 once. The report moved under the notice refuses the event's own record before
 anything is filed, rather than riding into it unread, so the earlier report
 put back behind the next finish's record of the event -- that finish killed
-before it files the event, or not -- revives nothing either.
+before it files the event, or not -- revives nothing either. Nor does report
+2 put back behind a step that failed while report 3 was settled: an event
+stream that would not read behind the posted notice, or a relabel that landed
+with its answer lost. The finish proves the run once more before it leaves.
 
 Or the base advances while the notice is posted or the relabel made: the
 proof behind the relabel reads it, invalidates the run, and holds the route
@@ -37,6 +40,7 @@ from functools import partial
 from typing import NamedTuple
 from unittest.mock import patch
 
+from orchestrator.github import events as _github_events
 from orchestrator.workflow.engine import verification_settlement_state as _settlement
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
@@ -242,6 +246,47 @@ class EventRecordMoveTest(_FinalStepCase, unittest.TestCase):
 
                 self._assert_invalidated(moves.settled)
                 self._assert_routed_once(head)
+
+
+
+class FailedStepMoveTest(_FinalStepCase, unittest.TestCase):
+    """A run a report moved under while a final step was made that then failed is proved before the finish leaves."""
+
+    def test_a_failed_step_proves_the_run_again(self) -> None:
+        # The event stream will not read behind the posted notice, or the
+        # relabel lands and its answer is lost: report 3, settled while either
+        # was made, invalidates the run before the finish leaves, and report 2
+        # put back before the next poll revives nothing.
+        for failing in (self._unread_stream, self._lost_answer):
+            with self.subTest(failure=failing.__name__):
+                self.setUp()
+                head = self.lands_a_reviewed_rebase()
+                moves = _LaterReport(self, head)
+                failing(head, moves)
+
+                self._assert_invalidated(moves.settled)
+                self.assertEqual(self._held(), (self.anchor, 3))
+                moves.restores()
+                self.recovers()
+
+                self._assert_invalidated(moves.settled)
+                self._assert_routed_once(head)
+                self.assertEqual(readings.relabels(self), readings.ROUTED)
+
+    def _unread_stream(self, head: str, moves) -> None:
+        """Finish `head` with `moves` made while the notice is posted, the event stream unreadable behind it."""
+        with patch.object(_github_events, "filed", return_value=None):
+            self._finishes(head, _REPORT_WINDOWS[0], moves)
+
+    def _lost_answer(self, head: str, moves) -> None:
+        """Finish `head` with `moves` made while the relabel is made, the relabel's answer lost behind it."""
+        with self.assertRaises(RuntimeError):
+            self._finishes(head, _REPORT_WINDOWS[1], partial(self._loses, moves))
+
+    def _loses(self, moves) -> None:
+        """Make `moves`, then lose the answer of the relabel it was made behind."""
+        moves()
+        raise RuntimeError("the relabel's answer was lost")
 
 
 if __name__ == "__main__":

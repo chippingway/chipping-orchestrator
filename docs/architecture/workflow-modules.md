@@ -1307,9 +1307,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             hides. The finish's announcement checkpoint and retirement, refused over a report or review
                             record another road moved after that proof (`rewrite_finish_writes.BINDING_MOVED`),
                             invalidate the evidence the same way before the finish stops however soon the record is put
-                            back (`invalidates_behind`); evidence the evidence step left current beside a newer
-                            transaction it abandoned is proved the same way (from `rewrite_finish_settlement.settles`),
-                            so no poll holds over evidence no reader is handed. The recovery's helpers
+                            back (`invalidates_behind`), and any other stop behind the proof -- a write nobody
+                            confirmed, an event stream unread behind the posted notice, the debt's park, a relabel
+                            that raised -- proves it ready once more first; evidence the evidence step left current
+                            beside a newer transaction it abandoned is proved the same way (from
+                            `rewrite_finish_settlement.settles`), so no poll holds over evidence no reader is handed.
+                            The recovery's helpers
                             (`rewrite_landing_moved.py`, `rewrite_recovery_parks.py`) ask the same proof
                             (`settled_word`) and invalidation of evidence a finish of the attempt settled
     rewrite_finish_failures.py
@@ -1999,10 +2002,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             written whole. Ahead of every reset it records the reset against a transaction a
                             finish captured or evidence it settled for the landed head (`records_the_reset`, which
                             the git owner asks before it moves the checkout): the attempt's recorded base tip
-                            blanked in a write of its own, so a process lost behind the reset or a park write that
-                            does not land leaves every later proof reading the evidence moved, and a blank that
-                            does not land holds with nothing reset. The proof every park that keeps the attempt
-                            asks first (`proves_before_a_park`, over `rewrite_landing_moved.abandons_unproved`)
+                            blanked in a write of its own, decided on every evidence record as the tick read them
+                            -- evidence settled since refuses it -- so a process lost behind the reset or a park
+                            write that does not land leaves every later proof reading the evidence moved, and a
+                            blank that does not land holds with nothing reset. The proof every park that keeps the
+                            attempt asks first (`proves_before_a_park`, over `rewrite_landing_moved.abandons_unproved`)
                             records the same blank first over a checkout gone from disk, whose evidence it retires
                             only on the state the park writes; and every park proves what it keeps once more behind
                             its notice, landed or not, so a report another road settled meanwhile is read moving --
