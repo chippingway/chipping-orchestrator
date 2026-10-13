@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.workflow.engine import pickup as _pickup
+from orchestrator.workflow.stages.decomposition import blocked as _blocked
 from tests.support.fakes import (
     FakeGitHubClient,
     make_issue,
@@ -84,10 +85,34 @@ DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER = 624
 
 SINGLE_MANIFEST_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
 SPLIT_MANIFEST = _support._manifest(
-    '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
+    '{"decision": "split", "children": ['
+    '{"title": "A", "body": "a", "depends_on": []},{"title": "B", "body": "b", "depends_on": []}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = _support._reported()
+# Where a released prerequisite stands at each dependency walk: released and
+# not yet picked up, being implemented, and done.
+_PREREQUISITE_STAGES = (_support.LABEL_READY, _support.LABEL_IMPLEMENTING, _support.LABEL_DONE)
+
+
+def _poll_dependencies(case: _DecomposingWorkflowMixin, gh: FakeGitHubClient, parent) -> None:
+    """One dependency walk of a split parent, as its `blocked` poll runs it."""
+    case._run(
+        lambda: _blocked._handle_blocked(gh, _support._TEST_SPEC, parent),
+        run_agent=_support._agent(),
+    )
+
+
+def _dependent_labels(
+    case: _DecomposingWorkflowMixin, gh: FakeGitHubClient, parent, children: list,
+) -> list[list[str]]:
+    """The second child's labels after one walk with the first at each of `_PREREQUISITE_STAGES`."""
+    seen = []
+    for stage in _PREREQUISITE_STAGES:
+        gh.set_workflow_label(children[0], stage, guarded=False)
+        _poll_dependencies(case, gh, parent)
+        seen.append([label.name for label in children[1].labels])
+    return seen
 
 
 class HandleDecomposingDecisionTest(
@@ -251,8 +276,8 @@ class HandleDecomposingDecisionTest(
         manifest = _support._manifest(
             '{"decision": "split", "umbrella": true, '
             '"rationale": "parent is just a tracker", "children": ['
-            '{"title": "A", "body": "a"},'
-            '{"title": "B", "body": "b"}'
+            '{"title": "A", "body": "a", "depends_on": []},'
+            '{"title": "B", "body": "b", "depends_on": []}'
             "]}"
         )
 
@@ -303,7 +328,9 @@ class HandleDecomposingDecisionTest(
             label=_support.LABEL_DECOMPOSING,
         )
         gh.add_issue(issue)
-        manifest = _support._manifest('{"decision": "split", "children": [{"title": "A", "body": "a"}]}')
+        manifest = _support._manifest(
+            '{"decision": "split", "children": [{"title": "A", "body": "a", "depends_on": []}]}',
+        )
 
         self._run_decomposing(
             gh,
@@ -327,6 +354,9 @@ class HandleDecomposingDecisionTest(
         )
 
     def test_split_with_deps_persists_graph(self) -> None:
+        # The explicit `[]` / `[0]` lists are what the parent's dependency
+        # walk releases by: the root at once, the dependent only once its
+        # prerequisite is done.
         gh = FakeGitHubClient()
         issue = make_issue(DEPENDENCY_SPLIT_ISSUE_NUMBER, label=_support.LABEL_DECOMPOSING)
         gh.add_issue(issue)
@@ -367,3 +397,9 @@ class HandleDecomposingDecisionTest(
                 gh.pinned_data(child.number).get(_support.KEY_PARENT_NUMBER),
                 DEPENDENCY_SPLIT_ISSUE_NUMBER,
             )
+
+        self.assertEqual(
+            _dependent_labels(self, gh, issue, children),
+            [[_support.LABEL_BLOCKED], [_support.LABEL_BLOCKED], [_support.LABEL_READY]],
+            "the dependent waits while its prerequisite is ready or implementing, and is released once it is done",
+        )

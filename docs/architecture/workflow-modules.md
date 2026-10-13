@@ -2440,8 +2440,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       manifest.py           the fenced-block envelope rules both modes are held to, the JSON decode, and the parse entry
                             point the stage routes on
       child_validation.py   child text and dependency shapes; dependency indices must be real integers naming another
-                            child in this manifest, and every malformed field is refused before graph traversal
-      validation.py         bounded nonempty child envelopes, umbrella flags, and graph acyclicity after child validation
+                            child in this manifest, and every malformed field is refused before graph traversal; a
+                            fresh reply must state each child's `depends_on` list, while a stored record still reads
+                            a missing or null one as no prerequisites
+      validation.py         bounded nonempty child envelopes, umbrella flags, and graph acyclicity after child
+                            validation, asked through two entry points: `_fresh_split_manifest_error` for a fresh
+                            decomposer reply, and the shared `_split_manifest_error` a stored record is read with
       outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
                             dispositions after it: the unparsed park, the `single` finalize, and the `split` hand-off
       replacement_lineage.py

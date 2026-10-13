@@ -90,7 +90,8 @@ DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER = 624
 
 SINGLE_MANIFEST_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
 SPLIT_MANIFEST = _support._manifest(
-    '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
+    '{"decision": "split", "children": ['
+    '{"title": "A", "body": "a", "depends_on": []},{"title": "B", "body": "b", "depends_on": []}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"

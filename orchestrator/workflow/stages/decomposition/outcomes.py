@@ -14,6 +14,11 @@ the issue to `ready` -- the comment rather than a body edit, because rewriting
 the body would move the user-content hash and re-decompose the issue on the
 next tick. `split` creates the children and leaves the parent waiting on them.
 
+A `split` is usable only once every child states its `depends_on` list, since
+a child read as having no prerequisites is released at once. One that leaves
+the list missing or null is a malformed manifest naming the child and the
+field, parked before the split writes a marker or creates a child.
+
 Everything else parks awaiting a human, and the park distinguishes two cases
 the parse cannot: a malformed manifest is the agent getting the contract wrong,
 while no manifest at all is the agent asking a question -- or saying nothing,

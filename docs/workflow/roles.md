@@ -788,8 +788,10 @@ The reply ends in exactly one fenced `orchestrator-late-manifest` block — a di
   about a REPLY and never about a record — results predating the key are on live issues, still decide their
   candidate, and are read back with a fixed stand-in sentence rather than sent round for a second run to recover
   prose.
-- `split` — a child manifest that partitions the declared scope completely, held to the same rules the initial mode
-  uses: the child cap, each child's shape, and the acyclicity of the graph they declare. The prompt requires
+- `split` — a child manifest that partitions the declared scope completely, held to the shared split rules the initial
+  mode also uses: the child cap, each child's shape, and the acyclicity of the graph they declare. A fresh late reply
+  is not held to the initial mode's further requirement that every child state its `depends_on` list, so a missing or
+  `null` one still reads as no prerequisites here, as it does on a recorded manifest. The prompt requires
   dependency-ordered implementation slices to be considered *before* a `single` is answered, because that is the way
   out an agent otherwise talks itself out of: work that will not cut across features almost always cuts along its
   dependencies, and a prerequisite may land dormant — built, tested directly, reached by nothing in production — with

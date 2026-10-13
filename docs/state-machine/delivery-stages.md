@@ -598,7 +598,14 @@ because there it is the claim that this stage has already rerouted rather than a
      overwrite the durable `agent_run_limit` one the refusal took
      ([The agent-run circuit](labels-and-state.md#the-agent-run-circuit)).
   7. **Parse the manifest** via `_parse_manifest` (regex captures the fenced ` ```orchestrator-manifest ` block):
-     - invalid manifest → park with the parse error.
+     - invalid manifest → park `decomposer_invalid_manifest` with the parse error. A `split` is held to the fresh-reply
+       rules (`_fresh_split_manifest_error`): every child states a `depends_on` list of indexes into the children
+       array, `[]` for none, so a child that leaves it missing or `null` is refused by its zero-based index and the
+       field (`child 1 missing depends_on`, `child 1 depends_on is null`) — read as no prerequisites, it would be
+       released beside a sibling its body says it needs. The refusal lands before the lineage decision below, so no
+       child is created and no split marker is written; the human's reply resumes the decomposer. A split already
+       recorded is never held to it: step 3 finalizes it from its markers, and the dependency walk releases its
+       children by the `dep_graph` it was written with.
      - no fenced block → treat as a question; park.
      - `decision == "single"` → post the collected-context comment (rationale plus the manifest's optional
        `affected_files` / `notes`, built by `_build_single_decision_comment`) so the implementer inherits the

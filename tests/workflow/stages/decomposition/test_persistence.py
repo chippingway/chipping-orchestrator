@@ -100,7 +100,8 @@ DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER = 624
 
 SINGLE_MANIFEST_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
 SPLIT_MANIFEST = _manifest(
-    '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
+    '{"decision": "split", "children": ['
+    '{"title": "A", "body": "a", "depends_on": []},{"title": "B", "body": "b", "depends_on": []}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
@@ -123,9 +124,9 @@ class DecompositionChildPersistenceTest(
         gh.add_issue(issue)
         manifest = _manifest(
             '{"decision": "split", "children": ['
-            '{"title": "A", "body": "a"},'
-            '{"title": "B", "body": "b"},'
-            '{"title": "C", "body": "c"}'
+            '{"title": "A", "body": "a", "depends_on": []},'
+            '{"title": "B", "body": "b", "depends_on": []},'
+            '{"title": "C", "body": "c", "depends_on": []}'
             "]}"
         )
 

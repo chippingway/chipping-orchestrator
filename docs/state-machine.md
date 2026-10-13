@@ -383,7 +383,9 @@ generation is not waiting to be decomposed — its implementation is committed a
 whole tick belongs to the late coordinator and nothing below runs for it. Everything else is the initial
 decomposition: the decomposer runs read-only in a scratch worktree and its fenced `orchestrator-manifest` block is
 parsed, where `single` posts the collected-context comment and flips to `workflow:ready`, and `split` creates children
-labeled `workflow:blocked` and leaves the parent on `workflow:blocked` or `workflow:umbrella`. A split of an issue
+labeled `workflow:blocked` and leaves the parent on `workflow:blocked` or `workflow:umbrella`. Every child of a fresh
+`split` states its `depends_on` list, `[]` for none; one missing or `null` parks the reply as an invalid manifest
+naming the child and the field, before any child or split marker is written. A split of an issue
 inside a late lineage seeds each child one level below it under the same root, pointed only at a snapshot the
 parent's own split still holds and records it on, and parks before creating anything where that lineage cannot be
 proved. Half-finished splits recover rather than re-spawn — adopting a child created and never recorded by the

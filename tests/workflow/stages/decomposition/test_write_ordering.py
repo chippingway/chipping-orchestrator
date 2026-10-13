@@ -82,7 +82,8 @@ DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER = 624
 
 SINGLE_MANIFEST_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
 SPLIT_MANIFEST = _manifest(
-    '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
+    '{"decision": "split", "children": ['
+    '{"title": "A", "body": "a", "depends_on": []},{"title": "B", "body": "b", "depends_on": []}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
@@ -130,7 +131,7 @@ class DecompositionWriteOrderingTest(
         gh = FakeGitHubClient()
         issue = make_issue(CHILD_STATE_ORDER_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
         gh.add_issue(issue)
-        manifest = _manifest('{"decision": "split", "children": [{"title": "A", "body": "a"}]}')
+        manifest = _manifest('{"decision": "split", "children": [{"title": "A", "body": "a", "depends_on": []}]}')
 
         recorder = _ChildSeedOrderRecorder(gh, issue.number)
         gh.write_pinned_state = recorder

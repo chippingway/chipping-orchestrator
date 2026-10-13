@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.engine import decomposition_prompts as _decomposition_prompts
-from orchestrator.workflow.stages.decomposition import manifest as _decompose_manifest
+from orchestrator.workflow.stages.decomposition import manifest as _decompose_manifest, validation as _validation
 from tests.support.fakes import make_issue
 from tests.workflow.fixtures import _TEST_SPEC, _manifest
 
@@ -13,6 +13,18 @@ KEY_DECISION = "decision"
 KEY_RATIONALE = "rationale"
 DECISION_SINGLE = "single"
 EXCESSIVE_CHILD_COUNT = 11
+# Children leaving `depends_on` unstated, by where and how, each beside the
+# refusal a fresh reply is parked with: the only child, and a later one behind
+# a child that stated its list.
+_UNSTATED_DEPENDENCIES = (
+    ('{"title": "A", "body": "a"}', "child 0 missing depends_on"),
+    ('{"title": "A", "body": "a", "depends_on": null}', "child 0 depends_on is null"),
+    ('{"title": "A", "body": "a", "depends_on": []}, {"title": "B", "body": "needs A"}', "child 1 missing depends_on"),
+    (
+        '{"title": "A", "body": "a", "depends_on": []}, {"title": "B", "body": "needs A", "depends_on": null}',
+        "child 1 depends_on is null",
+    ),
+)
 
 
 class ParseManifestDecisionTest(unittest.TestCase):
@@ -92,7 +104,8 @@ class ParseManifestChildValidationTest(unittest.TestCase):
 
     def test_too_many_children_rejected(self) -> None:
         children = ",".join(
-            f'{{"title": "T{child_index}", "body": "b{child_index}"}}' for child_index in range(EXCESSIVE_CHILD_COUNT)
+            f'{{"title": "T{child_index}", "body": "b{child_index}", "depends_on": []}}'
+            for child_index in range(EXCESSIVE_CHILD_COUNT)
         )
         child_manifest, child_error = _decompose_manifest._parse_manifest(
             _manifest(f'{{"decision": "split", "children": [{children}]}}')
@@ -120,6 +133,18 @@ class ParseManifestChildValidationTest(unittest.TestCase):
         )
         self.assertIsNone(child_manifest)
         self.assertIn("title or body", child_error)
+
+    def test_unstated_depends_on_rejected(self) -> None:
+        # Read as "no prerequisites", a child whose body says it needs a
+        # sibling would be released beside it. A fresh reply is refused
+        # naming the child and the field; a stored record keeps reading the
+        # same children as having none, since a split already acted on that.
+        for children, refusal in _UNSTATED_DEPENDENCIES:
+            with self.subTest(refusal=refusal):
+                payload = f'{{"decision": "split", "children": [{children}]}}'
+                self.assertEqual(_decompose_manifest._parse_manifest(_manifest(payload)), (None, refusal))
+                stored, _ = _decompose_manifest._decode_manifest(payload)
+                self.assertIsNone(_validation._split_manifest_error(stored))
 
 
 class ParseManifestEnvelopeTest(unittest.TestCase):
@@ -162,19 +187,17 @@ class ParseManifestEnvelopeTest(unittest.TestCase):
         self.assertEqual(envelope_manifest[KEY_DECISION], DECISION_SINGLE)
 
     def test_scalar_falsy_depends_on_rejected(self) -> None:
-        # `child.get("depends_on") or []` previously collapsed every
-        # falsy scalar (0, False, "") to [] before the list-type check.
-        # A envelope_manifest like `"depends_on": 0` -- a clear malformed list,
-        # not "no deps" -- would be silently accepted and child 1
-        # activated before child 0 instead of waiting on it. Reject
-        # any non-list, non-null value so the standard invalid-envelope_manifest
-        # HITL/resume loop catches the typo.
+        # A falsy scalar (0, False, "") is a malformed list, not "no
+        # deps": collapsed to [] it would activate child 1 before child 0
+        # instead of waiting on it. Reject any non-list value so the
+        # standard invalid-envelope_manifest HITL/resume loop catches the
+        # typo.
         for raw in ("0", "false", '""', "0.0"):
             with self.subTest(raw=raw):
                 envelope_manifest, envelope_error = _decompose_manifest._parse_manifest(
                     _manifest(
                         '{"decision": "split", "children": ['
-                        '{"title": "A", "body": "a"},'
+                        '{"title": "A", "body": "a", "depends_on": []},'
                         f'{{"title": "B", "body": "b", "depends_on": {raw}}}'
                         "]}"
                     )
@@ -184,28 +207,18 @@ class ParseManifestEnvelopeTest(unittest.TestCase):
 
 
 class ParseManifestOptionsTest(unittest.TestCase):
-    def test_null_depends_on_treated_as_empty(self) -> None:
-        # Explicit JSON null is treated the same as a missing key:
-        # both signal "no dependencies". Only a non-list, non-null
-        # value is a contract violation. This locks in the forgiving
-        # behavior so a future tighten-up doesn't accidentally start
-        # rejecting `"depends_on": null`.
-        options_manifest, options_error = _decompose_manifest._parse_manifest(
-            _manifest('{"decision": "split", "children": [{"title": "A", "body": "a", "depends_on": null}]}')
-        )
-        self.assertIsNone(options_error)
-        self.assertIsNotNone(options_manifest)
-
     def test_umbrella_flag_accepted(self) -> None:
         options_manifest, options_error = _decompose_manifest._parse_manifest(
-            _manifest('{"decision": "split", "umbrella": true, "children": [{"title": "A", "body": "a"}]}')
+            _manifest(
+                '{"decision": "split", "umbrella": true, "children": [{"title": "A", "body": "a", "depends_on": []}]}',
+            )
         )
         self.assertIsNone(options_error)
         self.assertTrue(options_manifest.get("umbrella"))
 
     def test_umbrella_default_missing(self) -> None:
         options_manifest, options_error = _decompose_manifest._parse_manifest(
-            _manifest('{"decision": "split", "children": [{"title": "A", "body": "a"}]}')
+            _manifest('{"decision": "split", "children": [{"title": "A", "body": "a", "depends_on": []}]}')
         )
         self.assertIsNone(options_error)
         self.assertIsNone(options_manifest.get("umbrella"))
@@ -215,7 +228,9 @@ class ParseManifestOptionsTest(unittest.TestCase):
         # truthy if we coerced; reject so the standard invalid-options_manifest
         # HITL/resume loop catches it instead of mislabeling the parent.
         options_manifest, options_error = _decompose_manifest._parse_manifest(
-            _manifest('{"decision": "split", "umbrella": "yes", "children": [{"title": "A", "body": "a"}]}')
+            _manifest(
+                '{"decision": "split", "umbrella": "yes", "children": [{"title": "A", "body": "a", "depends_on": []}]}',
+            )
         )
         self.assertIsNone(options_manifest)
         self.assertIn("umbrella", options_error)

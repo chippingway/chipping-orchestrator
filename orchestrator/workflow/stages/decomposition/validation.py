@@ -5,6 +5,12 @@
 The envelope requires a bounded nonempty child list and a boolean umbrella
 flag when present. Every child validates before cycle detection indexes the
 graph, so malformed references remain refusals instead of traversal errors.
+
+Two entry points ask the same rules of different writers. A fresh decomposer
+reply goes through `_fresh_split_manifest_error`, which also requires every
+child to state its `depends_on` list. `_split_manifest_error` is the shared
+reading that a stored record is held to as well, where a missing or null list
+keeps meaning no prerequisites (`child_validation`).
 """
 from __future__ import annotations
 
@@ -65,11 +71,14 @@ def _has_dep_cycle(children: list[dict]) -> bool:
     )
 
 
-def _manifest_children_error(children: list) -> str | None:
+def _manifest_children_error(
+    children: list, *, explicit_dependencies: bool,
+) -> str | None:
     """Validate every child and then the dependency graph as a whole."""
     for child_index, child in enumerate(children):
         child_error = _child_validation._manifest_child_error(
             child, child_index, len(children),
+            explicit_dependencies=explicit_dependencies,
         )
         if child_error is not None:
             return child_error
@@ -78,12 +87,32 @@ def _manifest_children_error(children: list) -> str | None:
     return None
 
 
-def _split_manifest_error(manifest: dict) -> str | None:
-    """Return the first split-only manifest validation error."""
+def _split_manifest_error(
+    manifest: dict, *, explicit_dependencies: bool = False,
+) -> str | None:
+    """Return the first split-only manifest validation error.
+
+    The default is the reading a stored record is held to: a manifest
+    recorded before every child had to state its dependencies still reads
+    as the split it was acted on as, rather than as no split at all.
+    """
     children, children_error = _split_manifest_children(manifest)
     if children_error is not None:
         return children_error
     umbrella_error = _manifest_umbrella_error(manifest)
     if umbrella_error is not None:
         return umbrella_error
-    return _manifest_children_error(children or [])
+    return _manifest_children_error(
+        children or [], explicit_dependencies=explicit_dependencies,
+    )
+
+
+def _fresh_split_manifest_error(manifest: dict) -> str | None:
+    """Return the first error a fresh split reply is refused for.
+
+    The shared rules, plus a `depends_on` list on every child. Asked of a
+    reply before anything is created from it, so a child that leaves its
+    prerequisites unstated parks the reply rather than being released
+    ahead of them.
+    """
+    return _split_manifest_error(manifest, explicit_dependencies=True)

@@ -4,8 +4,17 @@
 
 A dependency must be a real integer naming another child in this manifest.
 Invalid text or dependency shape is reported before the graph is walked.
+
+What an absent dependency list means depends on who wrote it. A fresh reply is
+held to the prompt, which asks every child to state its list -- `[]` for none
+-- so a missing or null one is refused naming the child and the field: read as
+"no prerequisites" it would release a child its own body says must wait. A
+stored record keeps the reading it was written under, where missing and null
+both mean no prerequisites, since a split has already acted on that reading.
 """
 from __future__ import annotations
+
+_DEPENDS_ON = "depends_on"
 
 
 def _is_nonempty_text(text_value: object) -> bool:
@@ -25,15 +34,30 @@ def _manifest_child_text_error(
     return None
 
 
-def _manifest_child_dependencies(
-    child: dict, child_index: int,
+def _absent_dependencies(
+    child: dict, child_index: int, *, explicit: bool,
 ) -> tuple[list | None, str | None]:
-    """Normalize null dependencies and reject every other non-list shape."""
-    dependencies = child.get("depends_on")
-    if dependencies is None:
+    """Read a missing or null list as no prerequisites, or refuse it by name."""
+    if not explicit:
         return [], None
+    if _DEPENDS_ON in child:
+        return None, f"child {child_index} {_DEPENDS_ON} is null"
+    return None, f"child {child_index} missing {_DEPENDS_ON}"
+
+
+def _manifest_child_dependencies(
+    child: dict, child_index: int, *, explicit: bool,
+) -> tuple[list | None, str | None]:
+    """Return one child's dependency list, or why it is not one.
+
+    `explicit` is a fresh reply's rule: the list has to be stated. Every
+    other non-list shape is refused whoever wrote it.
+    """
+    dependencies = child.get(_DEPENDS_ON)
+    if dependencies is None:
+        return _absent_dependencies(child, child_index, explicit=explicit)
     if not isinstance(dependencies, list):
-        return None, f"child {child_index} depends_on must be a list"
+        return None, f"child {child_index} {_DEPENDS_ON} must be a list"
     return dependencies, None
 
 
@@ -54,14 +78,14 @@ def _is_valid_dependency(
 
 
 def _manifest_child_error(
-    child: object, child_index: int, child_count: int,
+    child: object, child_index: int, child_count: int, *, explicit_dependencies: bool,
 ) -> str | None:
     """Return the first structural error for one split child."""
     text_error = _manifest_child_text_error(child, child_index)
     if text_error is not None:
         return text_error
     dependencies, dependency_error = _manifest_child_dependencies(
-        child, child_index,
+        child, child_index, explicit=explicit_dependencies,
     )
     if dependency_error is not None:
         return dependency_error

@@ -99,7 +99,7 @@ def _manifest_validation_error(manifest: dict) -> str | None:
         return "decision must be 'single' or 'split'"
     if decision == "single":
         return None
-    return _validation._split_manifest_error(manifest)
+    return _validation._fresh_split_manifest_error(manifest)
 
 
 def _parse_manifest(
@@ -110,7 +110,8 @@ def _parse_manifest(
     Returns `(manifest, error_reason)`:
       * `(dict, None)` -- a valid manifest. `decision` is `"single"` or
         `"split"`; for `"split"`, `children` is non-empty and each entry has
-        `title`/`body` and a structurally-valid `depends_on` index list. On
+        `title`/`body` and an explicit, structurally-valid `depends_on`
+        index list (`[]` for no prerequisites). On
         `"single"` only `decision` is validated -- the optional context
         fields (`rationale`, `affected_files`, `notes`) pass through
         unvalidated and are sanitized where rendered.

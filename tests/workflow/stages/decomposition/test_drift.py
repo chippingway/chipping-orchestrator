@@ -61,7 +61,7 @@ KEY_LATE_CONSUMERS = "late_consumers"
 KEY_LATE_DEPTH = "late_lineage_depth"
 REPLACEMENT_MANIFEST = _manifest(
     '{"decision": "split", "umbrella": true, "rationale": "re-planned", '
-    '"children": [{"title": "A", "body": "a"}, {"title": "B", "body": "b"}]}'
+    '"children": [{"title": "A", "body": "a", "depends_on": []}, {"title": "B", "body": "b", "depends_on": []}]}'
 )
 
 
