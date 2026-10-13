@@ -14,7 +14,7 @@ the pinned fields the publication is resolved from
 (`ReportWrite.on_the_publication`), and keeping every other field -- unknown
 ones included -- as the fresh reading carries it.
 
-Six writes, and each lists what it has to land exactly among the records it
+Seven writes, and each lists what it has to land exactly among the records it
 is decided on as well as among its own, since a field staged as it was read is
 no move of the write's and would otherwise be left to whatever another road
 did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
@@ -46,6 +46,19 @@ the attempt, so one comment reading that failed or one move under the write
 does not leave the transaction standing. It owns the base tip the replay was
 recorded as made onto too, which an abandonment with no room for its history
 entry blanks.
+`INVALIDATION` invalidates settled evidence a reading established movement
+under where the write staged on the comment read afresh would not land
+(`rewrite_finish_readiness.invalidates`): staged on the tick's own copy and
+decided only on the evidence records and the attempt -- landed without the
+publication's pinned fields among them (`lands`, `publication` False), so a
+pull request or branch another road repointed meanwhile is kept as it wrote
+it rather than refusing the write -- so a failed reading of the comment does
+not leave a decision standing that a later reading, once the movement is put
+back, would take as current. It owns
+the base tip the replay was recorded as made onto too, which an invalidation
+with no room for its history entry blanks -- decided on the current record
+as well, so a successor another road settled in that evidence's place is
+never marked moved, however the bounded history reads.
 `ANNOUNCED_EVENT` records the `base_rebased` event a finish is filing for
 the landed head, on its own and right ahead of it, decided on the attempt
 alone, so the event goes out only behind a write proving the attempt stands.
@@ -147,6 +160,24 @@ ABANDONMENT = _commits.ReportWrite(
     decided_on=frozenset((_evidence_records.PENDING_EVIDENCE, _evidence_records.EVIDENCE_HISTORY)) | _ATTEMPT,
 )
 
+# An invalidation of settled evidence staged on the tick's own copy, where the
+# comment read afresh would not take one (`rewrite_finish_readiness.invalidates`),
+# or the base tip it blanks where that has no room: decided only on the
+# evidence records it retires, the transaction beside them, and the attempt --
+# never on the publication's pinned fields (`lands`, `publication` False) -- so
+# a review, report, or publication record another road moved -- the very
+# movement the invalidation answers, often -- lands as the fresh comment
+# carries it rather than refusing it, while a successor settled in place of
+# that evidence refuses both.
+INVALIDATION = _commits.ReportWrite(
+    owned=frozenset((
+        _evidence_records.CURRENT_EVIDENCE, _evidence_records.EVIDENCE_HISTORY, _base_sync_state._PENDING_REWRITE_BASE,
+    )),
+    decided_on=frozenset((
+        _evidence_records.PENDING_EVIDENCE, _evidence_records.CURRENT_EVIDENCE, _evidence_records.EVIDENCE_HISTORY,
+    )) | _ATTEMPT,
+)
+
 # The record of the `base_rebased` event a finish is filing, landed on its own
 # right ahead of the event and of the checkpoint (`rewrite_finish_events`), so
 # the event goes out only behind a write proving the attempt still stands.
@@ -171,12 +202,25 @@ PARK = _commits.ReportWrite(
 # The records a transaction recorded for the landed head is bound through.
 _BOUND = frozenset(_durable._BOUND_RECORDS)
 
+# Those of them settled evidence's binding rests on beyond the evidence records
+# themselves -- the pull request, a report or its debt, a review subject: a
+# write that reads one of them moved has read movement under the evidence.
+BINDING_RECORDS = _BOUND - _EVIDENCE_RECORDS
+
 # What a refusal that read one of them moved observed: movement under any
 # transaction recorded for the head, which the caller hands to the last word as
 # its proof, so a record put back before that word reads it again revives
 # nothing (`rewrite_finish_captured.stands_before_the_route`).
 _BOUND_MOVED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence is bound through moved under a write finishing the landing",
+)
+
+# The same reading where what moved is one of those records, and not only
+# the evidence records themselves, whose movement is a newer transaction for
+# the head to answer: a caller holding it invalidates settled evidence over it
+# (`rewrite_finish_readiness.invalidates_behind`).
+BINDING_MOVED = ReportEvidence(
+    ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved under a write finishing the landing",
 )
 
 _UNLANDED = MappingProxyType({
@@ -240,15 +284,21 @@ def lands(
     staged: PinnedState,
     write: _commits.ReportWrite,
     observed: list[ReportEvidence] | None = None,
+    *,
+    publication: bool = True,
 ) -> FinishOutcome | None:
     """Land `staged` as `write` over the fresh comment: None where it landed, laid over the tick's state.
 
     REFUSED where it was refused with nothing written, and UNCONFIRMED where it
     went out and nothing confirmed it. `observed` collects the movement a
-    refusal read (`_stopped`).
+    refusal read (`_stopped`). `publication` False decides it on what `write`
+    declares alone, the publication's pinned fields kept as the fresh comment
+    carries them -- for `INVALIDATION`, which only ever makes evidence the
+    tick read count for less.
     """
     commit = _commits.ReportCommit(finish.gh, finish.issue, finish.state)
-    return _stopped(finish, commit.lands(staged, write.on_the_publication()), observed)
+    decided = write.on_the_publication() if publication else write
+    return _stopped(finish, commit.lands(staged, decided), observed)
 
 
 def abandons(finish: LandedFinish, stage: Callable[[PinnedState], bool]) -> bool | None:

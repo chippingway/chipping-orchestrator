@@ -193,7 +193,9 @@ the landing read moving by the recovery's first snapshot -- or reset off by its 
 finish put on the attempt in the write that recorded it (`pending_auto_base_rebase_evidence_receipt`); any other is
 another road's, and kept as it wrote it. Every recovery park or hold that keeps the attempt for a later tick or a
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
-anything moved, so putting that input back before the attempt is taken up again revives nothing. A tick lost behind
+anything moved, so putting that input back before the attempt is taken up again revives nothing. Proving settled
+evidence ready again before its route, and invalidating it whole wherever anything it rests on moved, are dormant
+primitives no road asks yet (`workflow/engine/rewrite_finish_readiness.py`). A tick lost behind
 the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
 checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
 recovery, which reads what was done off the mark, the pull request, the event stream, and the label
