@@ -977,8 +977,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   finish already settled for the landed head has dormant primitives beside these, which no finish, recovery, or park
   road asks yet (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it, and
   invalidating it into history whole where anything it is bound to moved -- over the comment read afresh or the
-  tick's own copy, the attempt's base tip blanked where history has no room, so nothing put back revives it. It runs
-  under its caller's issue writer claim.
+  tick's own copy, the attempt's base tip blanked where the invalidation cannot land, so nothing put back revives it.
+  It runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from
