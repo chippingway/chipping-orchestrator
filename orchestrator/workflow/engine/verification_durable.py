@@ -124,6 +124,20 @@ _UNCONFIRMED = ReportEvidence(
     "the pinned comment was written and the write was never confirmed",
 )
 
+# How a refusal of moved bound records reads, around the records it names (`_moved`).
+_MOVED_SPELLING = ("the pinned comment's ", " moved since this tick read it")
+
+# This domain's own records among the bound ones, which another road moves by
+# recording, settling, or retiring a transaction rather than by moving
+# anything a binding rests on.
+_EVIDENCE_RECORDS = frozenset((
+    _records.PENDING_EVIDENCE,
+    _records.CURRENT_EVIDENCE,
+    _records.EVIDENCE_HISTORY,
+    _records.EVIDENCE_HANDOFF,
+    _records.REVISION_FLOOR,
+))
+
 
 def guarded(
     state: PinnedState, owned: Iterable[str], rests_on: Iterable[str] = (),
@@ -194,9 +208,24 @@ def refusal_of(outcome: _commit_models.CommitOutcome) -> ReportEvidence | None:
     return _REFUSALS[outcome.refusal]
 
 
+def moves_only_the_evidence(refused: ReportEvidence) -> bool:
+    """Whether `refused` is a refusal of moved bound records (`_moved`) naming none but this domain's own.
+
+    Such a refusal reads another road recording, settling, or retiring a
+    transaction -- the evidence records' own moves -- and nothing a binding
+    rests on moving: a caller that adopts that other road's settlement reads
+    no movement under the evidence in it. Any other refusal is not one.
+    """
+    prefix, suffix = _MOVED_SPELLING
+    spelled = refused.refusal
+    if not (spelled.startswith(prefix) and spelled.endswith(suffix)):
+        return False
+    named = spelled.removeprefix(prefix).removesuffix(suffix)
+    return set(named.split(", ")) <= _EVIDENCE_RECORDS
+
+
 def _moved(fields: tuple[str, ...]) -> ReportEvidence:
     """The refusal the bound records `fields` earn by moving."""
+    prefix, suffix = _MOVED_SPELLING
     named = ", ".join(fields)
-    return ReportEvidence(
-        ReportEvidenceVerdict.DEFER, f"the pinned comment's {named} moved since this tick read it",
-    )
+    return ReportEvidence(ReportEvidenceVerdict.DEFER, f"{prefix}{named}{suffix}")

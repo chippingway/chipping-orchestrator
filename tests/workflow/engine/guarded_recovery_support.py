@@ -141,6 +141,15 @@ class GuardedRecoveryCase(support.CapturedRunCase):
         self.assertEqual(said, ([], ()))
         self.assert_made_once()
 
+    def assert_routed(self, head: str, current=None) -> None:
+        """`head` announced once and routed, its attempt retired, `current` current with nothing pending; run once."""
+        announced = (support.announced(self), len(readings.notices(self)))
+        self.assertEqual(announced, ([head], 1))
+        self.assertEqual(readings.relabels(self), readings.ROUTED)
+        self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
+        self.assertEqual(readings.pinned_records(self)[:2], (None, current))
+        self.assert_made_once()
+
     def assert_made_once(self) -> None:
         """The run made once, by the finish that died, and nothing pushed or launched."""
         made = (self.runs(), self.pushes.call_count, self.developer.call_count)

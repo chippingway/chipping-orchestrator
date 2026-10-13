@@ -28,7 +28,6 @@ from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
-    rewrite_verification_recovery_support as support,
 )
 
 _EDITED_BODY = "Also cover a base that moved twice."
@@ -81,7 +80,7 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 road.releases(self)
                 self.recovers()
 
-                self._assert_routed(head)
+                self.assert_routed(head)
 
     def _holds_over_an_edit(self, road: _Road) -> None:
         """Bring the hold to `road`, then have the dispatcher hold the anchor with the issue edited, put back behind.
@@ -103,15 +102,6 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             self.assert_abandoned(run)
         else:
             self.assert_invalidated(run)
-
-    def _assert_routed(self, head: str) -> None:
-        """`head` announced and routed once with nothing current, the attempt retired, the run made once."""
-        announced = (support.announced(self), len(readings.notices(self)))
-        self.assertEqual(announced, ([head], 1))
-        self.assertEqual(readings.relabels(self), readings.ROUTED)
-        self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
-        self.assertEqual(readings.pinned_records(self)[:2], (None, None))
-        self.assert_made_once()
 
 
 if __name__ == "__main__":

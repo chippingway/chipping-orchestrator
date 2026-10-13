@@ -1249,7 +1249,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for room or a moved comment, an issue no longer live work -- is proved again and held to
                             the last word -- over the first movement the answer itself read
                             (`ProofReading.observed`), each refusal kept as it was read and sorted as the last word
-                            sorts its own (`rewrite_evidence_proof.MOVEMENT`), where it read any -- abandoned where
+                            sorts its own (`rewrite_evidence_proof.MOVEMENT`), where it read any -- and a settlement
+                            the answer adopted from another road is invalidated whole over that movement too, the
+                            evidence records' own moves aside (`verification_durable.moves_only_the_evidence`) --
+                            abandoned where
                             any reading establishes
                             movement and otherwise HELD, for
                             the recovery of the push already landed to find its artifact under the receipt and settle
@@ -1730,7 +1733,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             in hand and the reading it is synced with (`lands`); and what a guarded write's outcome
                             refuses in this domain's words (`refusal_of`): an unread or replaced comment and an
                             unconfirmed write HOLD, and every other refusal -- a moved record, a comment moved under the
-                            edit, no room -- DEFERS
+                            edit, no room -- DEFERS; and whether a moved-record refusal names nothing but the
+                            evidence records themselves (`moves_only_the_evidence`), which another road settling or
+                            retiring a transaction moves rather than anything a binding rests on
     verification_transaction.py
                             the evidence reconciliation the dispatcher runs directly behind the report
                             transaction: holds behind a standing auto-rebase anchor, whoever calls it, leaving a
@@ -2008,7 +2013,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             again (`rewrite_landing_moved.proves_captured`) and settled evidence proved ready
                             (`rewrite_finish_readiness.settled_word`) and invalidated where it moved, movement a
                             caller already read standing as the proof; a checkout gone from disk retires both as
-                            over a reset
+                            over a reset. Which evidence that is, by receipt (`receipts`), is what a park's or a
+                            hold's record compares across its write before it hands that proof movement it read
     rewrite_recovery_parks.py
                             the park every recovery context the workflow builds carries (`lands_a_park`, which
                             `git/base_sync/persistence.py` records each recovery park through): the notice posted
@@ -2040,7 +2046,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             what the tick staged since its reading as `HOLD`, decided on the attempt alone
                             (`lands_a_hold`), so a newer transaction another road recorded while the gate answered
                             is kept pending with the revision floor it raised -- and behind that record proves it
-                            once more, as behind every park, over the movement the record itself carried
+                            once more, as behind every park, over the movement the record itself carried while the
+                            evidence behind it is the one the tick held (`rewrite_landing_retirement.receipts`), a
+                            successor proved on its own readings instead
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written
                             only once it saw the push land: whether any record -- pending, current, retired, or a

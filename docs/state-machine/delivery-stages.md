@@ -1419,6 +1419,10 @@ because there it is the claim that this stage has already rerouted rather than a
   or else over its proof taken again (`rewrite_finish_captured.proved_again`), which abandons it where any reading
   establishes movement and lets the route go on where nothing holds it; one nothing
   moved under holds the route (`HELD`) with the attempt standing, nothing announced, relabelled, retired, or reset.
+  A settlement another road made of that very transaction while the answer ran, which the answer adopts, is held to
+  the same movement: one the answer read under its binding -- a report or review record moved, put back since or
+  not -- invalidates it whole before the records are resolved afresh, while the evidence records' own moves, which
+  that settlement makes, are no such movement.
   The route goes on only once the transaction is settled -- its artifact posted once, its transcript, revision,
   tested commit and tree, and source as recorded -- or retired, behind the last word over the landing and the base,
   and what settled only once it proves ready again (**Base-rewrite evidence, handed off** below).
@@ -1503,7 +1507,8 @@ because there it is the claim that this stage has already rerouted rather than a
   a publication gate that held its leased no-op proves the same way, and lands its own record over the comment read
   afresh (`rewrite_recovery_parks.lands_a_hold`), keeping a newer transaction another road recorded meanwhile; a
   report that record took in from the comment is movement read under the run, proved once more behind it however
-  soon it is put back, as behind every park. An
+  soon it is put back, as behind every park -- but only while the same evidence stands behind the record: a newer
+  run another road settled beside that report is proved on its own readings instead. An
   abandonment no write lands holds the tick with nothing reset, cleared, or parked, the anchor keeping the
   reconciliation off the transaction. A reset that lands --
   every road's, and the abort over a snapshot nobody could take or a checkout whose lag against base could not be

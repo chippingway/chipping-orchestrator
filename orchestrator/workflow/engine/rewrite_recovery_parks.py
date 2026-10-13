@@ -265,10 +265,16 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
     Whether the record landed or not, the proof behind it is handed the move
     the record carried (`_adopted`), and taken only over a checkout on disk:
     one gone from disk had its evidence retired on the state the record wrote.
-    `named` is the record, logged where it did not land.
+    That move was read against the evidence the tick held, so it is handed on
+    only while the same evidence stands behind the record
+    (`rewrite_landing_retirement.receipts`): a successor another road recorded
+    or settled meanwhile, which the record took in beside the report it is
+    bound to, is proved on its own readings instead. `named` is the record,
+    logged where it did not land.
     """
     state = context.state
     read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}
+    held = _retirement.receipts(state)
     landed = _commits.ReportCommit(context.gh, context.issue, state).lands(state, write)
     if landed.status is not _commit_models.CommitStatus.COMMITTED:
         log.warning(
@@ -277,6 +283,8 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
             context.issue.number, named, (landed.refusal or landed.status).value,
         )
     moved = _adopted(landed.reading, read)
+    if _retirement.receipts(context.state) != held:
+        moved = None
     if context.worktree.is_dir():
         _retirement.retires_unproved(context, moved)
 

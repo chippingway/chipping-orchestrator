@@ -1,45 +1,31 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A run settled for a landed head, under a park whose notice another road writes past, or whose record never lands.
+"""A run settled for a landed head, under the debt park whose notice another road writes past.
 
 The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 rebased head reviewed, its run settled under the anchor, and the finish killed
-before its announcement. The next tick parks rather than route the head, and
-while the park's notice is posted another road settles and reviews report 3 of
-the head, the report the run was bound to replaced: under the park a finish
-takes for want of room for the landing's report debt, which is decided on the
-report records and refused over that move; or under a recovery park that keeps
-the attempt behind a fetch and a reset that both failed, whose record keeps
-the report as the comment then carries it -- over a run settled, or one only
-captured and never settled. Either way the run is read moving before the tick
-ends -- by the refused park, or by the park's record that carried report 3,
-landed or sent with its answer lost, handed to the proof taken once more
-behind the notice -- and invalidated or abandoned whole, so putting report 2
-back, even right behind that record and before the proof, revives nothing. So
-does report 2 written back in another spelling of its revision and put back
-right behind that record.
+before its announcement. The next tick parks for want of room for the
+landing's report debt rather than route the head, and while the park's notice
+is posted another road settles and reviews report 3 of the head, the report
+the run was bound to replaced. The park is decided on the report records and
+refused over that move, which reads the run moving before the tick ends: it is
+invalidated whole, so putting report 2 back revives nothing.
 
-And a checkout gone from disk under a label the refresh does not drive, which
-the dispatcher's stranded park answers by retiring the run on the state that
-park writes: the movement is recorded against the run in a write of its own
-first, so a park record refused, or a process killed before it, leaves the run
-read moving once the checkout and the label are put back.
-
-Each time the head is then routed with nothing current, its notice said once,
-the run never made again, and no developer launched.
+Room made, the head is then routed with nothing current, its notice said
+once, the run never made again, and no developer launched. The recovery parks
+that keep the attempt -- behind a fetch and a reset that both failed, or over
+a checkout gone from disk under a label the refresh does not drive -- are
+journeys of their own (`test_rewrite_recovery_kept_park_moves`,
+`test_rewrite_recovery_missing_checkout`).
 """
 from __future__ import annotations
 
-import subprocess
 import unittest
 from functools import partial
-from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.git import commands
-from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedEdit, pinned_state_body
-from orchestrator.workflow.engine import dispatch_guards, verification_settlement_state as _settlement
-from tests.support.fakes import FakeLabel
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
+from orchestrator.workflow.engine import verification_settlement_state as _settlement
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_moves as finish_moves,
@@ -51,8 +37,6 @@ from tests.workflow.engine import (
 from tests.workflow.interleaving import _RacesPastTheCall
 
 _AWAITING = "awaiting_human"
-
-_GIT = "_git_hardened"
 
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = (
@@ -66,50 +50,14 @@ _MOVED_RECORDS = (
 # it, and short of the landing's report debt and the announcement it rides.
 _SHORT_OF_THE_DEBT = 250
 
-# How a park's record fails to land: GitHub refusing it, or the process killed ahead of it.
-_RECORD_FAILURES = ("refused", "killed")
-
-# Report 2 put back right behind a park's record, before the proof behind it.
-_RESTORED = MappingProxyType({"restoring": True})
-
-# Each park behind a failed fetch and reset: whether its run was only captured,
-# and how its notice and record go (`_posting_moves_the_report`) -- report 2 put
-# back only after the tick or right behind the record, that record's answer
-# lost, or report 2 respelled rather than report 3 settled.
-_KEPT_PARKS = (
-    (False, {}),
-    (False, _RESTORED),
-    (True, {}),
-    (True, _RESTORED),
-    (False, {**_RESTORED, "lost": True}),
-    (True, {**_RESTORED, "lost": True}),
-    (False, {**_RESTORED, "respelled": True}),
-)
-
-# A park's record: the edit that puts the park's flag on a comment that lacks it.
-_BEFORE_THE_RECORD = handoff.Boundary(
-    "before the park is recorded",
-    "edit_pinned_state",
-    lambda _issue, state, *, over: (
-        bool(state.get(_AWAITING)) and not over.get(_AWAITING)
-    ),
-)
 
 
-def _settles_a_later_report(case: support.CapturedRunCase, head: str, replaced: list, *, respelled=False) -> None:
-    """Settle and review report 3 of `head` as another road would, keeping in `replaced` the records it moves.
-
-    `respelled` writes report 2 back with its revision spelled as a float instead, which reads as the same number.
-    """
+def _settles_a_later_report(case: support.CapturedRunCase, head: str, replaced: list) -> None:
+    """Settle and review report 3 of `head` as another road would, keeping in `replaced` the records it moves."""
     pinned = readings.pinned(case)
     replaced.append({key: pinned.get(key) for key in _MOVED_RECORDS})
     case.state = case.gh.read_pinned_state(case.issue)
-    if respelled:
-        current = dict(pinned[_MOVED_RECORDS[0]])
-        current["revision"] = float(current["revision"])
-        case.state.set(_MOVED_RECORDS[0], current)
-    else:
-        _report.settles_report(case, 3, "Implemented the change and covered a base that moved twice.", head=head)
+    _report.settles_report(case, 3, "Implemented the change and covered a base that moved twice.", head=head)
     case.gh.write_pinned_state(case.issue, case.state)
 
 
@@ -130,39 +78,8 @@ def _fills_short_of_the_debt(case: support.CapturedRunCase) -> None:
     case.gh.write_pinned_state(case.issue, filled)
 
 
-def _refuses(original, *called, **options) -> subprocess.CompletedProcess:
-    """`original` git, save a fetch of issue #7's branch or a reset, each failing as git does."""
-    fetches = any("issue-7" in str(arg) for arg in called)
-    if fetches or called[0] == "reset":
-        return subprocess.CompletedProcess(called, 1, "", "refused")
-    return original(*called, **options)
-
-
-def _answering(answer: PinnedEdit, live, issue, state, *, over: dict):
-    """`live`, the client's pinned edit, answered as `answer` where it is a park's record.
-
-    EDITED leaves it as GitHub answers; MOVED refuses it with nothing sent;
-    UNCONFIRMED lands it and loses the answer.
-    """
-    if answer is PinnedEdit.EDITED or not _BEFORE_THE_RECORD.kills(issue, state, over=over):
-        return live(issue, state, over=over)
-    if answer is PinnedEdit.UNCONFIRMED:
-        live(issue, state, over=over)
-    return answer
-
-
-def _held_by_the_dispatcher(case: support.CapturedRunCase, *, refusing: bool = False) -> None:
-    """Have the dispatcher's anchor hold answer `case`'s issue, a park's record refused where `refusing`."""
-    label = case.gh.workflow_label(case.issue)
-    state = case.gh.read_pinned_state(case.issue)
-    answer = PinnedEdit.MOVED if refusing else PinnedEdit.EDITED
-    edit = partial(_answering, answer, case.gh.edit_pinned_state)
-    with patch.object(case.gh, "edit_pinned_state", edit):
-        dispatch_guards._anchor_holds_the_tick(case.gh, case._spec, case.issue, label, state)
-
-
 class ParkNoticeMoveTest(support.CapturedRunCase, unittest.TestCase):
-    """A park leaves no run a report moved under, or a checkout left, for the next poll to take up as current."""
+    """A debt park refused over a moved report leaves no run for the next poll to take up as current."""
 
     def test_a_debt_park_refused_over_a_moved_report(self) -> None:
         # The debt park, decided on the report records, is refused over
@@ -181,89 +98,22 @@ class ParkNoticeMoveTest(support.CapturedRunCase, unittest.TestCase):
         self._assert_retired(settled)
         self._assert_routed(head)
 
-    def test_a_kept_park_proves_behind_its_notice(self) -> None:
-        # The park behind a fetch and a reset that failed keeps the attempt
-        # and records report 3 as the comment carries it, its answer lost or
-        # not -- report 2 put back right behind that record, before the proof,
-        # or only after the tick, and report 2 respelled and put back alike:
-        # the run, settled or only captured, is invalidated or abandoned, and
-        # once the park is continued the head is routed with nothing current.
-        for captures, kept in _KEPT_PARKS:
-            with self.subTest(captured=captures, **kept):
-                self.setUp()
-                head, run = self.captures() if captures else self._settles_then_dies()
-                with patch.object(commands, _GIT, partial(_refuses, getattr(commands, _GIT))):
-                    replaced = self._posting_moves_the_report(head, **kept)
-
-                self.assertTrue(readings.pinned(self).get(_AWAITING))
-                self._assert_retired(run, captured=captures)
-                _puts_back(self, replaced)
-                self.continues()
-                self.recovers()
-                self._assert_routed(head)
-
-    def test_a_missing_checkout_park_that_never_lands(self) -> None:
-        # The stranded park's record is refused, or the process is killed
-        # ahead of it: the movement was recorded against the run first, so
-        # the checkout and the label put back leave the run read moving, and
-        # the head is routed with nothing current.
-        for failing in _RECORD_FAILURES:
-            with self.subTest(record=failing):
-                self.setUp()
-                head, settled = self._settles_then_dies()
-                away = self._wt.parent / "checkout-away"
-                self._wt.rename(away)
-                self.issue.labels = [FakeLabel("workflow:resolving_conflict")]
-                if failing == "killed":
-                    handoff.dies_at(self.gh, _BEFORE_THE_RECORD, partial(_held_by_the_dispatcher, self))
-                else:
-                    _held_by_the_dispatcher(self, refusing=True)
-                away.rename(self._wt)
-                self.issue.labels = [FakeLabel(git_support.REVIEWING)]
-
-                self.assertEqual(
-                    (readings.pinned_records(self)[1], readings.pinned(self)[readings.KEY_REWRITE_BASE]),
-                    (settled, None),
-                )
-                self.recovers()
-                self._assert_retired(settled)
-                self._assert_routed(head)
-
     def _settles_then_dies(self) -> tuple:
         """Land a reviewed rebase, settle its run, and kill its finish before the announcement; the head and the run."""
         head = self.lands_a_reviewed_rebase()
         handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
         return head, readings.pinned_records(self)[1]
 
-    def _posting_moves_the_report(self, head: str, *, restoring=False, lost=False, respelled=False) -> list:
-        """Recover with report 3 of `head` settled behind the first issue-thread post; the records it moved.
-
-        `restoring` puts them back right behind the park's record, before
-        anything behind it reads the comment again; `lost` lands that record
-        and loses its answer; `respelled` respells report 2 instead.
-        """
+    def _posting_moves_the_report(self, head: str) -> list:
+        """Recover with report 3 of `head` settled behind the first issue-thread post; the records it moved."""
         replaced: list = []
-        moves = partial(_settles_a_later_report, self, head, replaced, respelled=respelled)
-        races = _RacesPastTheCall(self.gh.comment, 1, moves)
-        answer = PinnedEdit.UNCONFIRMED if lost else PinnedEdit.EDITED
-        edit = partial(_answering, answer, self.gh.edit_pinned_state)
-        if restoring:
-            edit = _BEFORE_THE_RECORD.moving(edit, partial(_puts_back, self, replaced))
-        with (
-            patch.object(self.gh, "comment", races),
-            patch.object(self.gh, "edit_pinned_state", edit),
-        ):
+        races = _RacesPastTheCall(self.gh.comment, 1, partial(_settles_a_later_report, self, head, replaced))
+        with patch.object(self.gh, "comment", races):
             self.recovers()
         return replaced
 
-    def _assert_retired(self, run, *, captured: bool = False) -> None:
-        """`run` abandoned whole where it was only `captured`, else invalidated whole, its revision and binding kept.
-
-        Behind the anchor's own evidence the rewrite invalidated, and run once.
-        """
-        if captured:
-            self.assert_abandoned(run)
-            return
+    def _assert_retired(self, run) -> None:
+        """`run` invalidated whole, its revision and binding kept, behind the anchor's own evidence; run once."""
         retired = (*git_support.invalidated(self), (run.receipt, readings.INVALIDATED))
         self.assertEqual(readings.pinned_records(self), (None, None, retired))
         entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]

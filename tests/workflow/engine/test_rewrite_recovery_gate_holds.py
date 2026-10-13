@@ -34,15 +34,22 @@ from __future__ import annotations
 
 import contextlib
 import unittest
+from dataclasses import replace
 from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git.base_sync import transfer_permits as _transfer_permits, transfers as _transfers
 from orchestrator.git.base_sync.transfer_values import _Handoff
-from orchestrator.workflow.engine import report_commits as _commits, rewrite_recovery_parks as _parks
+from orchestrator.workflow.engine import (
+    report_commits as _commits,
+    rewrite_recovery_parks as _parks,
+    verification_record_state as _record_state,
+    verification_settlement_state as _settlement,
+)
 from orchestrator.workflow.stages.implementing import late_push as _late_push
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
+    rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
     verification_report_fixture as _report,
@@ -89,20 +96,38 @@ def _holds_beside_a_newer_run(case, recorded: list, *_called, **_options):
     return _HELD
 
 
+def _settles_a_successor(case, subject):
+    """Settle a newer run bound to report `subject` over `case.state`, as another road would; the evidence now current.
+
+    It carries the settled run's binding but for the report, and the
+    configured command's transcript the anchor's evidence was taken with.
+    """
+    earlier = _settlement.read_current_evidence(case.state)
+    target = replace(earlier.binding.target, subject=subject.recorded())
+    binding = replace(earlier.binding, target=target)
+    pending = _record_state.mint_pending_evidence(case.state, case.issue.number, binding, case.source.commands)
+    case.assertTrue(_record_state.record_pending_evidence(case.state, pending))
+    artifact = case.gh.publish_verification_artifact(case.pull_request, pending.artifact)
+    case.state = _settlement.settled_state(case.state, pending, artifact.landed_id, git_support.REVIEWING)
+    return _settlement.read_current_evidence(case.state)
+
+
 class _AroundTheHold:
     """The guarded commit, report 3 of `head` settled ahead of a hold's record, which goes as `failing` says.
 
     `failing` names the client's pinned-edit failure the record meets, ""
     where it lands; `restores` puts report 2 back right behind the record,
-    before anything behind it reads the comment again.
+    before anything behind it reads the comment again; `successor` settles a
+    newer run bound to report 3 beside it, kept as `successor`.
     """
 
-    def __init__(self, case, head: str, failing: str, *, restores: bool) -> None:
+    def __init__(self, case, head: str, failing: str = "", *, restores: bool = False, successor: bool = False) -> None:
         self._case = case
         self._head = head
         self._failing = failing
         self._restores = restores
         self._replaced: dict = {}
+        self.successor = successor
 
     def __call__(self, commit, staged, write):
         if write is not _parks.HOLD or self._replaced:
@@ -111,7 +136,9 @@ class _AroundTheHold:
         pinned = readings.pinned(case)
         self._replaced = {key: pinned.get(key) for key in _MOVED_RECORDS}
         case.state = case.gh.read_pinned_state(case.issue)
-        _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
+        subject = _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
+        if self.successor:
+            self.successor = _settles_a_successor(case, subject)
         case.gh.write_pinned_state(case.issue, case.state)
         failures = getattr(case.gh.pinned_failures, self._failing) if self._failing else set()
         failures.add(case.issue.number)
@@ -151,7 +178,7 @@ class GateHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self._assert_held()
         self.recovers()
 
-        self._assert_routed(head, current=None)
+        self.assert_routed(head, current=None)
         retired = readings.pinned_records(self)[2]
         self.assertEqual(retired[-1], (settled.receipt, readings.INVALIDATED))
 
@@ -173,7 +200,22 @@ class GateHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._assert_held()
                 around.puts_back()
                 self.recovers()
-                self._assert_routed(head, current=None)
+                self.assert_routed(head, current=None)
+
+    def test_a_settled_successor_survives_the_hold(self) -> None:
+        # Another road settles report 3 and a newer run bound to it ahead of
+        # the hold's record, which takes both in: the newer run is proved on
+        # its own readings rather than over report 2's move, kept current,
+        # and routed with the head once the gate lets the poll through.
+        head = self.settles_then_dies()[0]
+        around = _AroundTheHold(self, head, successor=True)
+        with _gate_holds(), patch.object(_commits.ReportCommit, "lands", side_effect=around, autospec=True):
+            self.recovers()
+
+        self.assertEqual(readings.pinned_records(self)[1], around.successor)
+        self._assert_held()
+        self.recovers()
+        self.assert_routed(head, current=around.successor)
 
     def test_a_newer_run_survives_the_hold(self) -> None:
         # Another road records a newer transaction for the head while the gate
@@ -192,7 +234,7 @@ class GateHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.recovers()
 
         settles = readings.pinned_records(self)
-        self._assert_routed(head, current=settles[1])
+        self.assert_routed(head, current=settles[1])
         self.assertEqual(settles[1].receipt, newer.receipt)
         self.assertEqual(settles[2][-1], (settled.receipt, _SUPERSEDED))
 
@@ -208,7 +250,7 @@ class GateHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self._assert_held()
         self.recovers()
 
-        self._assert_routed(head, current=settled)
+        self.assert_routed(head, current=settled)
 
     def _assert_held(self) -> None:
         """The attempt standing on its anchor, unparked, with nothing announced, relabelled, or made again."""
@@ -216,15 +258,6 @@ class GateHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual((bool(parked), anchor), (False, self.anchor))
         self.assertEqual(support.announced(self), [])
         self.assertEqual(readings.relabels(self), ())
-        self.assert_made_once()
-
-    def _assert_routed(self, head: str, current) -> None:
-        """`head` announced and routed once with `current` the evidence current, the attempt retired, run once."""
-        announced = (support.announced(self), len(readings.notices(self)))
-        self.assertEqual(announced, ([head], 1))
-        self.assertEqual(readings.relabels(self), readings.ROUTED)
-        self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
-        self.assertEqual(readings.pinned_records(self)[1], current)
         self.assert_made_once()
 
 

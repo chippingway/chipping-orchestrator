@@ -62,7 +62,12 @@ What the answer comes to decides the route:
   (`verification_proof.ProofReading.observed`), kept as it was read, a bound
   record read moved under the settlement and a base read gone elsewhere among
   them, is that movement however the world reads by then, so one put back
-  before the last word reads it is abandoned over all the same. One nothing moved under is HELD
+  before the last word reads it is abandoned over all the same. So is a
+  settlement another road made of the transaction while the answer ran, which
+  the answer adopts: movement the answer read under its binding invalidates
+  it whole before anything is resolved afresh, the evidence records' own
+  moves -- which that settlement makes -- aside
+  (`verification_durable.moves_only_the_evidence`). One nothing moved under is HELD
   with nothing announced and the attempt standing, and the recovery of the
   push already landed answers it again on a later tick: an artifact an earlier
   post landed, its response lost included, is found under its receipt rather
@@ -107,6 +112,7 @@ from orchestrator.workflow.engine.rewrite_evidence_proof import MOVEMENT, _reads
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.rewrite_finish_readiness import beside_current, invalidates, stands_ready
 from orchestrator.workflow.engine.rewrite_landing_records import capture_answered, resolved
+from orchestrator.workflow.engine.verification_durable import moves_only_the_evidence
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -201,7 +207,9 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     nothing is recorded for the head any more -- settled or retired by the
     answer, or abandoned by the last word behind it -- the records that left
     are resolved afresh (`resolves`), with nothing recorded to answer this
-    time, before anything is announced or routed: a settlement another road
+    time, before anything is announced or routed -- a settlement the answer
+    adopted from another road invalidated first over movement the answer read
+    under its binding (`_behind_the_answer`): a settlement another road
     made while this one was published with a handoff that does not name its
     current evidence comes in with the comment the answer adopted and holds
     the route with the attempt standing, current evidence the configuration
@@ -233,9 +241,41 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
             finish.issue.number, finish.head, pending.revision,
         )
         return FinishOutcome.HELD
+    return _behind_the_answer(finish, pending, observed)
+
+
+def _behind_the_answer(
+    finish: LandedFinish, pending: _records.PendingEvidence, observed: list[ReportEvidence],
+) -> FinishOutcome | None:
+    """Where the route goes once `pending` was answered, over the movement the answer read; None to route.
+
+    Movement is sorted as the last word sorts its own readings: every refusal
+    that defers, and the two holds that read movement rather than a reading
+    that did not happen -- a landing off its head, a base gone elsewhere
+    (`rewrite_evidence_proof.MOVEMENT`). A transaction still owed goes to the
+    last word over the first such movement, or over its proof taken again
+    where the answer read none. One settled -- by this answer, or by another
+    road whose settlement the answer adopted -- is invalidated whole over
+    movement the answer read under its binding before the records are
+    resolved afresh, however soon what moved was put back: the evidence
+    records' own moves, which adopting another road's settlement reads
+    (`verification_durable.moves_only_the_evidence`), are no such movement.
+    """
+    movements = [refused for refused in observed if not refused.holds or refused in MOVEMENT]
     if _captured.recorded(finish, logged=False) is None:
-        return resolves(finish)
-    stopped = _captured.stands_before_the_route(finish, proof=_proof_behind(finish, pending, observed))
+        current = _settlement.read_current_evidence(finish.state)
+        stays = current is None or current.receipt != pending.receipt
+        stays = stays or all(map(moves_only_the_evidence, movements))
+        if stays or invalidates(finish, current):
+            return resolves(finish)
+        log.warning(
+            "issue=#%d holding the route of %.8s: verification evidence revision %d was read moving while it "
+            "settled, and could not be invalidated",
+            finish.issue.number, finish.head, pending.revision,
+        )
+        return FinishOutcome.HELD
+    proof = movements[0] if movements else _captured.proved_again(finish, pending)
+    stopped = _captured.stands_before_the_route(finish, proof=proof)
     if stopped is not None or _captured.recorded(finish, logged=False) is None:
         return stopped or resolves(finish)
     log.warning(
@@ -243,21 +283,6 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
         finish.issue.number, finish.head, pending.revision,
     )
     return FinishOutcome.HELD
-
-
-def _proof_behind(
-    finish: LandedFinish, pending: _records.PendingEvidence, observed: list[ReportEvidence],
-) -> ReportEvidence:
-    """What the last word over `pending` is handed as its proof: the first movement the answer read, or a fresh proof.
-
-    Movement is sorted as the last word sorts its own readings: every refusal
-    that defers, and the two holds that read movement rather than a reading
-    that did not happen -- a landing off its head, a base gone elsewhere
-    (`rewrite_evidence_proof.MOVEMENT`). Where the answer read none, the
-    transaction is proved again over the issue and comment read afresh.
-    """
-    movements = (refused for refused in observed if not refused.holds or refused in MOVEMENT)
-    return next(movements, None) or _captured.proved_again(finish, pending)
 
 
 def _anchored(finish: LandedFinish) -> ReportEvidence | None:

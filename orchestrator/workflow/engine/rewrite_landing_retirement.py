@@ -47,6 +47,10 @@ refresh does not drive (`base_rewrite`), and the dispatcher's held anchor
   carries (`rewrite_recovery_parks.proves_before_a_park`). The landed road's
   own holds ask it too (`rewrite_landed`), ahead of a hold's write.
 
+The receipts of what stands (`receipts`) say whether movement a caller read
+before a write took another road's records in was read under the evidence
+still standing behind that write.
+
 Nothing here posts, parks, resets, or routes anything.
 """
 from __future__ import annotations
@@ -121,6 +125,17 @@ def retires_unproved(context: _AutoRebaseRecoveryContext, moved: ReportEvidence 
     finish = _landing_moved._finish(context, settled.binding.target.target_head, unread, None)
     word = moved or _readiness.settled_word(finish, settled)[0]
     return word is None or _readiness.invalidates(finish, settled)
+
+
+def receipts(state) -> frozenset[str]:
+    """The receipts of what a finish captured or settled for the landed head, as `state` carries them.
+
+    What a caller that read movement before a write took another road's
+    records in compares across that write: movement read under one receipt is
+    no proof about evidence standing under another.
+    """
+    recorded = (_landing_records.captured(state), _landing_records.settled(state))
+    return frozenset(record.receipt for record in recorded if record is not None)
 
 
 def _invalidates_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext, why: str) -> bool:

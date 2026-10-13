@@ -16,8 +16,10 @@ first, in a write of its own, by blanking the base tip the attempt recorded
 its replay as made onto. A park record that lands keeps the attempt and
 retires the run whole; one GitHub refuses, or a process killed before it,
 leaves the run current, but read moving once the checkout and the label are
-put back, so the proof a park that keeps the attempt asks invalidates it whole.
-Nothing is run again, announced, relabelled, pushed, or launched.
+put back, so the proof a park that keeps the attempt asks invalidates it whole,
+and the recovery behind it routes the head with nothing current. Nothing is
+run again or pushed, nothing is announced or relabelled ahead of that route,
+and no developer is launched.
 """
 from __future__ import annotations
 
@@ -54,7 +56,7 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def test_a_landed_park_retires_the_run(self) -> None:
         # The stranded park keeps the attempt and lands the run's
         # invalidation in its own record, over the tip already blanked.
-        settled = self._settles_then_strands()
+        settled = self._settles_then_strands()[1]
         guarded.answers_a_held_anchor(self)
         self._returns()
 
@@ -66,11 +68,12 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # The stranded park's record is refused, or the process is killed
         # ahead of it: the movement was recorded against the run first, so
         # with the checkout and the label put back the run reads moved, and
-        # the proof invalidates it whole.
+        # the proof invalidates it whole; the recovery behind it routes the
+        # head with nothing current.
         for failing in ("refused", "killed"):
             with self.subTest(record=failing):
                 self.setUp()
-                settled = self._settles_then_strands()
+                head, settled = self._settles_then_strands()
                 self._strands_unrecorded(failing)
                 self._returns()
 
@@ -78,10 +81,12 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assertEqual(self.pinned_fields(readings.KEY_REWRITE_BASE), (None,))
                 self.assertTrue(self.proves())
                 self.assert_invalidated(settled)
+                self.recovers()
+                self.assert_routed(head)
 
-    def _settles_then_strands(self):
-        """Settle a reviewed rebase's run, kill its finish, move the checkout away, and relabel; the settled run."""
-        settled = self.settles_then_dies()[1]
+    def _settles_then_strands(self) -> tuple:
+        """Settle a reviewed rebase's run, kill its finish, move the checkout away, and relabel; the head, the run."""
+        settled = self.settles_then_dies()
         self._wt.rename(self._wt.parent / _AWAY)
         self.issue.labels = [FakeLabel(_UNDRIVEN)]
         return settled

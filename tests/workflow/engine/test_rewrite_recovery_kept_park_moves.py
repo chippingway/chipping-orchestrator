@@ -18,11 +18,14 @@ keeps report 3 as the comment then carries it. That record -- landed, or sent
 with its answer lost -- carried the move, which is handed to the proof taken
 once more behind the notice as movement already read: the run is invalidated,
 or abandoned, whole, even where report 2 is put back right behind that record
-and before the proof reads the comment again. So is the run behind the
+and before the proof reads the comment again -- and so it is where report 2 is
+only written back in another spelling of its revision. Once the park is
+continued, the head is routed with nothing current. So is the run behind the
 stranded park the dispatcher's hold takes under a label the refresh does not
 drive, whose notice's post raises after report 3 settled: the proof is taken
-before the error goes on, and nothing is parked. Nothing is run again,
-announced, relabelled, pushed, or launched.
+before the error goes on, and nothing is parked. Nothing is run again or
+pushed, nothing is announced or relabelled ahead of that route, and no
+developer is launched.
 """
 from __future__ import annotations
 
@@ -56,13 +59,16 @@ _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "revie
 _RESTORED = MappingProxyType({"restoring": True})
 
 # Each park: whether its run was only captured, and how its record goes --
-# report 2 put back only after the tick or right behind the record, or that
-# record's answer lost.
+# report 2 put back only after the tick or right behind the record, that
+# record's answer lost, or report 2 respelled rather than report 3 settled.
 _KEPT_PARKS = (
     (False, {}),
     (False, _RESTORED),
+    (True, {}),
     (True, _RESTORED),
     (False, {**_RESTORED, "lost": True}),
+    (True, {**_RESTORED, "lost": True}),
+    (False, {**_RESTORED, "respelled": True}),
 )
 
 
@@ -82,11 +88,19 @@ def _answering(answer: PinnedEdit, live, issue, state, *, over: dict):
     return answer
 
 
-def _settles_a_later_report(case, head: str, replaced: list) -> None:
-    """Settle report 3 of `head` and hand a reviewer it, as another road would; what it moved, into `replaced`."""
+def _settles_a_later_report(case, head: str, replaced: list, *, respelled: bool = False) -> None:
+    """Settle report 3 of `head` and hand a reviewer it, as another road would; what it moved, into `replaced`.
+
+    `respelled` writes report 2 back with its revision spelled as a float instead, which reads as the same number.
+    """
     case.state = case.gh.read_pinned_state(case.issue)
     replaced.append({key: case.state.get(key) for key in _MOVED_RECORDS})
-    _report.settles_report(case, 3, "Implemented the change and covered a base that moved twice.", head=head)
+    if respelled:
+        current = dict(case.state.get(_MOVED_RECORDS[0]))
+        current["revision"] = float(current["revision"])
+        case.state.set(_MOVED_RECORDS[0], current)
+    else:
+        _report.settles_report(case, 3, "Implemented the change and covered a base that moved twice.", head=head)
     case.gh.write_pinned_state(case.issue, case.state)
 
 
@@ -111,8 +125,10 @@ class KeptParkProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # The park keeps the attempt, its base tip as recorded, and records
         # report 3 as the comment carries it, its answer lost or not --
         # report 2 put back right behind that record, before the proof, or
-        # only after the tick: the run, settled or only captured, is
-        # invalidated or abandoned whole.
+        # only after the tick, or report 2 respelled and put back alike: the
+        # run, settled or only captured, is invalidated or abandoned whole,
+        # and once the park is continued the head is routed with nothing
+        # current.
         for captures, kept in _KEPT_PARKS:
             with self.subTest(captured=captures, **kept):
                 self.setUp()
@@ -122,6 +138,9 @@ class KeptParkProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
                 self._assert_kept(head, onto)
                 self._assert_retired(run, captured=captures)
+                self.continues()
+                self.recovers()
+                self.assert_routed(head)
 
     def test_a_raised_notice_proves_behind_it(self) -> None:
         # The dispatcher's hold strands the attempt under a label the refresh
@@ -139,16 +158,17 @@ class KeptParkProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
         self.assert_invalidated(settled)
 
-    def _parks_under_a_later_report(self, head: str, *, restoring=False, lost=False) -> None:
+    def _parks_under_a_later_report(self, head: str, *, restoring=False, lost=False, respelled=False) -> None:
         """Recover over a refused fetch and reset with report 3 of `head` settled behind the park's notice.
 
         `restoring` puts the records it moved back right behind the park's
         record, before anything behind it reads the comment again, and they
         are put back behind the tick either way; `lost` lands that record and
-        loses its answer.
+        loses its answer; `respelled` respells report 2 instead.
         """
         replaced: list = []
-        races = _RacesPastTheCall(self.gh.comment, 1, partial(_settles_a_later_report, self, head, replaced))
+        moves = partial(_settles_a_later_report, self, head, replaced, respelled=respelled)
+        races = _RacesPastTheCall(self.gh.comment, 1, moves)
         edit = partial(_answering, PinnedEdit.UNCONFIRMED if lost else PinnedEdit.EDITED, self.gh.edit_pinned_state)
         if restoring:
             edit = guarded.BEFORE_THE_RECORD.moving(edit, partial(_puts_back, self, replaced))
