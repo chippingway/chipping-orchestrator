@@ -1309,8 +1309,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             record another road moved after that proof (`rewrite_finish_writes.BINDING_MOVED`),
                             invalidate the evidence the same way before the finish stops however soon the record is put
                             back (`invalidates_behind`), and any other stop behind the proof -- a write nobody
-                            confirmed, an event stream unread behind the posted notice, the debt's park, a relabel
-                            that raised -- proves it ready once more first; evidence the evidence step left current
+                            confirmed, an event stream unread behind the posted notice, the debt's park or its
+                            notice that raised, a relabel that raised -- proves it ready once more first, and a
+                            continuation proves it before it retires the attempt and behind its announcement, the
+                            base advance that made it excused before the last word takes its first reading; evidence the evidence step left current
                             beside a newer transaction it abandoned is proved the same way (from
                             `rewrite_finish_settlement.settles`), so no poll holds over evidence no reader is handed.
                             The recovery's helpers
@@ -2010,7 +2012,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             attempt asks first (`proves_before_a_park`, over `rewrite_landing_moved.abandons_unproved`)
                             records the same blank first over a checkout gone from disk, whose evidence it retires
                             only on the state the park writes; and every park proves what it keeps once more behind
-                            its notice, landed or not, so a report another road settled meanwhile is read moving --
+                            its notice, landed, refused, or raised, so a report another road settled meanwhile is
+                            read moving --
                             one its own record carried, landed or sent with its answer lost, spelled otherwise than
                             the tick read it, handed to that proof as movement already read, however soon it is put
                             back.

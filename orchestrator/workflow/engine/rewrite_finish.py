@@ -96,7 +96,10 @@ refuses stops the finish there with nothing behind it made:
   a transaction an earlier finish recorded for it is abandoned ahead of that
   announcement -- an abandonment that does not land holds the continuation
   with nothing announced, and so does a record another road left unresolved
-  beside the evidence this landing already resolved -- its retirement lands,
+  beside the evidence this landing already resolved -- evidence settled for
+  it is proved ready before the continuation and again behind its
+  announcement, the base advance that made it excused, and invalidated where
+  anything else it rests on moved -- its retirement lands,
   and the caller's ordinary rebase goes on from it, the refresh's selection
   asked again first: a report recorded and unsettled holds that rebase until
   it is settled on the head it is about, as an uninterrupted journey's does.
@@ -311,13 +314,20 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     stops (`rewrite_finish_readiness.invalidates_behind`) -- and so has the
     debt's park, decided on those same records, refused over one another road
     moved while its notice was posted, and the event's own record, refused
-    over one moved while the notice was posted rather than taking it in.
+    over one moved while the notice was posted rather than taking it in. A
+    park whose notice raised proves the evidence again before the error goes
+    on, as any other stop does.
     """
     staged = _writes.staging(finish)
     measured = _writes.staging(finish) if announced else _debt.announcement(staged, finish.head)
     observed: list = []
     if not _debt.stages(finish, staged, measured):
-        return _readiness.invalidates_behind(finish, _writes.parks(finish, observed), observed)
+        try:
+            stopped = _writes.parks(finish, observed)
+        except Exception:
+            _readiness.invalidates_behind(finish, FinishOutcome.UNCONFIRMED, observed)
+            raise
+        return _readiness.invalidates_behind(finish, stopped, observed)
     if announced:
         carried = _commit_models.spelled(finish.state.data, _rewrite_debt.REWRITE_DEBT)
         if _commit_models.spelled(staged.data, _rewrite_debt.REWRITE_DEBT) == carried:
@@ -405,7 +415,10 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     or a landing moved under settled evidence, holds the route with the
     attempt standing, settled evidence invalidated over it, for the recovery
     to continue the head to another rebase or read the landing again, rather
-    than retiring the attempt over a reading those requests outlived.
+    than retiring the attempt over a reading those requests outlived. A
+    continuation is proved there too, its base advance excused, so the
+    announcement's requests leave no evidence anything moved under for the
+    rebase behind it.
     """
     observed: list = []
     stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)
@@ -418,7 +431,7 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
         except Exception:
             _settlement.stands_ready_if_settled(finish)
             raise
-        stopped = _settlement.stands_ready_if_settled(finish, or_the_base=True)
+    stopped = _settlement.stands_ready_if_settled(finish, or_the_base=headed is FinishOutcome.ROUTED)
     if stopped is not None:
         return stopped
     stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH, observed)

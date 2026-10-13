@@ -88,7 +88,8 @@ posted or the relabel made refuses them. Such a refusal
 too, which is invalidated before the finish stops (`invalidates_behind`)
 however soon the record is put back; any other stop behind the proof -- a
 refusal naming none, a write nobody confirmed, an event stream that would not
-read behind the posted notice, the debt's park, or a relabel that raised --
+read behind the posted notice, the debt's park or its notice that raised, or a
+relabel that raised --
 has the evidence proved ready once more before the finish leaves.
 
 The recovery's helpers (`rewrite_landing_moved`) ask the same proof
@@ -123,14 +124,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.rewrite_evidence_proof import (
-    _RECONFIGURED,
-    ADVANCED,
-    Refusals,
-    Word,
-    _reads_again,
-    last_word,
-)
+from orchestrator.workflow.engine.rewrite_evidence_proof import Refusals, Word, _reads_again, last_word
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_current import _handoff_describes
 from orchestrator.workflow.engine.verification_history_fields import historical_from
@@ -180,16 +174,12 @@ def stands_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> Fin
     A head the base has advanced past again is continued rather than routed,
     and the evidence stays for the rebase behind it to decide over: the base
     gone past the head is what made that continuation
-    (`rewrite_evidence_proof.ADVANCED`), so it moves nothing under the
-    evidence -- a configuration moved past it, which that base reading would
-    sort behind it, is still movement, and so is anything else the proof
-    reads moving. Every caller holding a continuation holds it whatever this
-    answers.
+    (`rewrite_evidence_proof.ADVANCED`), so the last word drops it before it
+    takes the first movement and the first hold: it neither moves nor holds
+    anything there, and hides nothing else the proof reads moving -- the
+    requirements, a record, or the configuration.
     """
     moved, held = settled_word(finish, current)
-    if finish.behind and moved in ADVANCED:
-        reconfigured = current.binding.context_revision != _proof.configured_context_revision()
-        moved = _RECONFIGURED if reconfigured else None
     why = "" if held is None else f"it could not be proved ready again ({held.refusal})"
     if moved is not None and invalidates(finish, current):
         log.info(

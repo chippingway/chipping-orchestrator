@@ -117,7 +117,11 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     A head the base advanced past again is routed with none: a transaction an
     earlier finish recorded for it is abandoned before its continuation is
     announced (`rewrite_finish_evidence.continues`), and nothing is decided or
-    settled for it. For any other head the evidence step decides and records it
+    settled for it -- evidence an earlier finish settled for it is kept for
+    the rebase behind it, proved ready first all the same, the base advance
+    that made the continuation excused (`stands_ready_if_settled`), so
+    anything else it rests on that moved invalidates it before the attempt is
+    retired. For any other head the evidence step decides and records it
     (`rewrite_finish_evidence.settles`) and a transaction it recorded is
     published and settled here (`settles`) -- and so is a newer transaction
     recorded for the head beside evidence an earlier finish already settled
@@ -153,7 +157,7 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     if held is not None:
         return held
     if finish.behind:
-        return _evidence.continues(finish)
+        return stands_ready_if_settled(finish) or _evidence.continues(finish)
     current = _settlement.read_current_evidence(finish.state)
     standing = current is not None and current.binding.target.target_head == finish.head
     captured = _captured.recorded(finish, logged=False)

@@ -1531,11 +1531,11 @@ because there it is the claim that this stage has already rerouted rather than a
   another road settles and reviews while the park's notice is posted stands beside the park, and a transaction it
   records then refuses the park, nothing written, for the next tick's recovery to park around; a process lost
   before the park lands is answered by that tick the same way. A park that keeps the attempt proves what it keeps
-  once more behind its notice, landed or not, so that later report is read moving under the evidence and abandons a
-  captured run or invalidates a settled one before the tick ends; a report the park's own record carried -- landed,
-  or sent with its answer lost -- spelled otherwise than the tick read it is that movement already, handed to the
-  proof as read, so putting the earlier report back -- even between the park's commit and the proof, or before the
-  reply -- revives nothing.
+  once more behind its notice, landed, refused, or raised, so that later report is read moving under the evidence
+  and abandons a captured run or invalidates a settled one before the tick ends; a report the park's own record
+  carried -- landed, or sent with its answer lost -- spelled otherwise than the tick read it is that movement
+  already, handed to the proof as read, so putting the earlier report back -- even between the park's commit and
+  the proof, or before the reply -- revives nothing.
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
@@ -1626,7 +1626,8 @@ because there it is the claim that this stage has already rerouted rather than a
     and one that read only the evidence records move -- a newer transaction recorded for the head -- invalidates
     nothing by itself: that transaction is the next finish's to answer. Every other stop behind the proof is answered
     the same way before the finish leaves -- a write nobody confirmed, an event stream that would not read behind the
-    posted notice, the debt's park, or a relabel that raised, refused or landed with its answer lost -- so a report
+    posted notice, the debt's park or its notice that raised, or a relabel that raised, refused or landed with its
+    answer lost -- so a report
     moved while that request was made is invalidated however soon it is put back.
   - **The rebase behind a continuation is the refresh's again.** A landed head the base advanced past again is
     announced only where the dead tick had not announced it, its attempt is retired unrouted, and a rebase replaces
@@ -1637,7 +1638,8 @@ because there it is the claim that this stage has already rerouted rather than a
     rebase, as it holds an uninterrupted journey's: the report reconciliation ahead of the next handler settles it on
     the head it is about, with no park, and the refresh behind it rebases onto the advanced base. A reply the recovery
     did not spend is left unspent for that rebase. The evidence settled for the continued head stays in place for
-    that rebase's own finish to decide over -- proved ready before any hold or stop of the continuation all the same,
+    that rebase's own finish to decide over -- proved ready before the continuation retires the attempt, again behind
+    its announcement, and before any hold or stop of it all the same,
     the base gone past the head read as the continuation's own rather than as movement, so anything else read
     moving under it invalidates it there -- and invalidated whole where the new head's tree or the configuration moved:
     the continuation hands the new head no earlier binding, nor holds behind the anchor -- its report refresh is owed

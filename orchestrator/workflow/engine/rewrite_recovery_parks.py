@@ -55,7 +55,8 @@ brings the recovery back, and that evidence is proved before the park
 (`proves_before_a_park`) -- but its notice is a request after that proof, long
 enough for another road to settle a later report, which the park's record then
 keeps as the fresh comment carries it. So the evidence is proved once more
-behind the notice (`lands_a_park`), and a report moved meanwhile is movement
+behind the notice (`lands_a_park`) -- landed, refused, or raised -- and a
+report moved meanwhile is movement
 read under it, invalidated or recorded against it before the tick ends --
 one the park's own commit carried, landed or sent with its answer lost,
 handed to that proof as read: putting the earlier report back before the
@@ -132,10 +133,18 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     read it, in the record that landed or in the one sent with its answer
     lost, which is never laid over the tick's state -- that is movement read,
     handed to the proof as its answer, so a record put back between the
-    park's commit and the proof revives nothing.
+    park's commit and the proof revives nothing. A notice whose post raised --
+    refused, or posted with its answer lost -- records nothing, and the proof
+    is taken before the error goes on, so a report moved while it was posted
+    is read moving all the same.
     """
     state = context.state
-    _guards._park_awaiting_human(context.gh, context.issue, state, message, reason=reason)
+    try:
+        _guards._park_awaiting_human(context.gh, context.issue, state, message, reason=reason)
+    except Exception:
+        if context.worktree.is_dir():
+            _landing_moved.abandons_unproved(context)
+        raise
     state.set(_base_sync_state._PARK_REASON, reason)
     if state.synced is None:
         context.gh.write_pinned_state(context.issue, state)
