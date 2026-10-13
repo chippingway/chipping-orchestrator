@@ -26,6 +26,12 @@ from tests.workflow.stages.decomposition import late_reply_support as _reply_sup
 # what a case checks is the figure an agent would copy.
 _TEMPLATE_ESTIMATE = re.compile(f'"{_budget.ESTIMATE}": ([0-9]+)')
 
+# The whole JSON template, fence included, so a case can hand it to the parser
+# exactly as an agent copying it would send it.
+_TEMPLATE_BLOCK = re.compile(
+    f"```{_reply_support.LATE_FENCE}\n.*?\n```", re.DOTALL,
+)
+
 # Ceilings the template has to stay under. The default this suite measures
 # against, the narrow one an operator may configure -- where the standing
 # example figure is itself an oversized child -- and the narrowest ceiling
@@ -270,6 +276,30 @@ class LateSplitPlanTest(unittest.TestCase):
         ):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, composed)
+
+    def test_every_child_states_its_dependencies(self) -> None:
+        # The parser refuses a slice that leaves its list unsaid, so the
+        # prompt asks for one on every child -- `[]` for none, and exactly the
+        # prerequisites its body describes -- and the template it shows,
+        # copied as it stands, is a split accepted with both shapes stated.
+        composed = _prompt_for()
+
+        for fragment in (
+            '`"depends_on"` is REQUIRED on every child',
+            "`[]` for a child with no prerequisites",
+            "A missing or null `depends_on` refuses the whole manifest",
+            "must name exactly the prerequisites the child's body describes",
+            "does not start until that child is done",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, composed)
+        template, refusal = _late_reply._parse_late_reply(
+            _TEMPLATE_BLOCK.search(composed).group(0), _support.THRESHOLD,
+        )
+        self.assertIsNone(refusal)
+        self.assertEqual(
+            [child["depends_on"] for child in template.children], [[], [0]],
+        )
 
     def test_the_budget_it_asks_for_is_required(self) -> None:
         # What the number has to cover, what it has to clear, and what it

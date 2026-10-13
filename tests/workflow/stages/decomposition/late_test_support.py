@@ -214,14 +214,31 @@ FIRST_ESTIMATE = 400
 SECOND_ESTIMATE = 600
 
 
-def split_reply(rationale: str = SPLIT_RATIONALE) -> str:
-    """The standard two-slice split, arguing for itself with this rationale."""
+# Each way the dependent slice below can leave its list unsaid, beside the
+# diagnostic a fresh reply is refused with: the slice by its index, and the
+# field by name.
+UNSTATED_DEPENDENCIES = (
+    (_reply_support.OMITTED, "child 1 missing depends_on"),
+    (_reply_support.NULL, "child 1 depends_on is null"),
+)
+
+
+def split_reply(rationale: str = SPLIT_RATIONALE, unstated: str | None = None) -> str:
+    """The standard two-slice split, arguing for itself with this rationale.
+
+    The second slice waits on the first. `unstated` is how it leaves that
+    unsaid instead (`late_reply_support.unstated`), which is the slice that,
+    read as having no prerequisites, would be released beside the first.
+    """
+    dependent = _reply_support.proposed_slice("B", "b", SECOND_ESTIMATE, depends_on=(0,))
+    if unstated is not None:
+        dependent = _reply_support.unstated(dependent, unstated)
     return _reply_support.late_block(json.dumps({
         "decision": "split",
         "rationale": rationale,
         "children": [
             _reply_support.proposed_slice("A", "a", FIRST_ESTIMATE),
-            _reply_support.proposed_slice("B", "b", SECOND_ESTIMATE, depends_on=(0,)),
+            dependent,
         ],
     }))
 

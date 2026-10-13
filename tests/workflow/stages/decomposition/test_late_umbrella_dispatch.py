@@ -17,7 +17,10 @@ walk, and a split's own children would be the one thing it can leave
 permanently unreleased.
 
 Driven from the transaction rather than from a seeded umbrella, so what the
-dispatcher reads is the record the retirement actually writes.
+dispatcher reads is the record the retirement actually writes. The release a
+fresh reply's stated dependencies earn is driven from one step further back,
+the adjudication itself, so the graph each walk reads is the one the reply
+stated.
 """
 from __future__ import annotations
 
@@ -31,10 +34,13 @@ from tests.workflow.fixtures import (
     KEY_AWAITING_HUMAN,
     KEY_PARK_REASON,
 )
+from tests.workflow.stages.decomposition import late_test_support as _late_support
 from tests.workflow.stages.decomposition.late_published_split_support import (
     PublishedSplitCase,
 )
+from tests.workflow.stages.decomposition.late_run_support import adjudicate, agent_reply
 from tests.workflow.stages.decomposition.late_transaction_support import (
+    KEY_DEP_GRAPH,
     label_of,
 )
 
@@ -46,6 +52,10 @@ LABEL_DONE = "done"
 # take under. A settled split owes no reading, so nothing writes this on the
 # road under test; a case about a flag already standing seeds it.
 PARK_MEASUREMENT_FAILED = "late_measurement_failed"
+
+# Where a released prerequisite stands at each later walk of its umbrella:
+# picked up, being implemented, and done.
+_PREREQUISITE_STAGES = (WorkflowLabel.READY, WorkflowLabel.IMPLEMENTING, WorkflowLabel.DONE)
 
 
 class SettledSplitUmbrellaDispatchTest(PublishedSplitCase, unittest.TestCase):
@@ -113,6 +123,40 @@ class SettledSplitUmbrellaDispatchTest(PublishedSplitCase, unittest.TestCase):
             _TEST_SPEC,
             self.issue,
             self.github.workflow_label(self.issue),
+        )
+
+
+class AdjudicatedSplitReleaseTest(unittest.TestCase):
+    """The dependencies a fresh reply stated, from its verdict to the walks that honour them."""
+
+    def test_stated_dependencies_order_the_release(self) -> None:
+        # The `[]` and `[0]` the reply states are the graph the umbrella
+        # records and walks: the root starts with the split, and the slice
+        # that waits on it stays held through every later walk until the root
+        # is done.
+        github, issue = _late_support.seeded_late_issue()
+
+        adjudicate(github, issue, agent_reply(_late_support.SPLIT_REPLY), transact=True)
+
+        children = github.created_child_issues
+        self.assertEqual(
+            github.pinned_data(issue.number)[KEY_DEP_GRAPH],
+            {"1": [0]},
+        )
+        self.assertEqual(
+            [label_of(github, child.number) for child in children],
+            [WorkflowLabel.READY, WorkflowLabel.BLOCKED],
+        )
+        released = []
+        for reached in _PREREQUISITE_STAGES:
+            github.set_workflow_label(children[0], reached, guarded=False)
+            _issue_processing._route_issue_to_handler(
+                github, _TEST_SPEC, issue, github.workflow_label(issue),
+            )
+            released.append(label_of(github, children[1].number))
+        self.assertEqual(
+            released,
+            [WorkflowLabel.BLOCKED, WorkflowLabel.BLOCKED, WorkflowLabel.READY],
         )
 
 

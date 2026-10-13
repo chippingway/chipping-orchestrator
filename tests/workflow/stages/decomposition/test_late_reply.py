@@ -50,6 +50,10 @@ _REFUSED_REPLIES = (
         ),
         "cycle",
     ),
+    *(
+        (f"a dependent slice whose depends_on is {how}", _support.split_reply(unstated=how), diagnostic)
+        for how, diagnostic in _support.UNSTATED_DEPENDENCIES
+    ),
     (
         "question with nothing asked",
         _reply_support.late_block('{"decision": "question", "category": "unsafe_split"}'),
@@ -150,7 +154,11 @@ class LateReplyTest(unittest.TestCase):
         self.assertEqual(
             [child["title"] for child in adjudication.children], ["A", "B"],
         )
-        self.assertEqual(adjudication.children[1]["depends_on"], [0])
+        # Each slice's list as it was stated, `[]` for the root included:
+        # that is the graph the split is created and released by.
+        self.assertEqual(
+            [child["depends_on"] for child in adjudication.children], [[], [0]],
+        )
 
     def test_question_carries_what_it_asks(self) -> None:
         adjudication, error = _late_reply._parse_late_reply(

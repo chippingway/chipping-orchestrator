@@ -790,8 +790,14 @@ The reply ends in exactly one fenced `orchestrator-late-manifest` block — a di
   prose.
 - `split` — a child manifest that partitions the declared scope completely, held to the shared split rules the initial
   mode also uses: the child cap, each child's shape, and the acyclicity of the graph they declare. A fresh late reply
-  is not held to the initial mode's further requirement that every child state its `depends_on` list, so a missing or
-  `null` one still reads as no prerequisites here, as it does on a recorded manifest. The prompt requires
+  goes through the same fresh-reply entry point an initial reply does, so every child states its `depends_on`
+  list — `[]` for none, naming exactly the prerequisites its body describes, as the prompt asks and its JSON template
+  shows — and one that leaves it missing or `null` is refused by the child's zero-based index and the field
+  (`child 1 missing depends_on`, `child 1 depends_on is null`). That refusal parks the reply `late_manifest_invalid`
+  before a split is recorded or a child created: read as no prerequisites, the child would be released beside the
+  sibling its own body says it waits on. It is about a REPLY and never about a record — a `late_result_children`
+  manifest whose slices leave the list missing or `null` is still this candidate's answer, recovered without another
+  run, and its slices are created and released as having no prerequisites. The prompt requires
   dependency-ordered implementation slices to be considered *before* a `single` is answered, because that is the way
   out an agent otherwise talks itself out of: work that will not cut across features almost always cuts along its
   dependencies, and a prerequisite may land dormant — built, tested directly, reached by nothing in production — with

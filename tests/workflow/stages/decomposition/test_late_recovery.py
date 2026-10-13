@@ -18,12 +18,14 @@ from orchestrator.workflow.stages.decomposition.late_result_models import (
     RATIONALE_TRUNCATION_MARKER,
     _LateDisposition,
 )
+from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     LateCase,
     adjudicate,
     agent_reply,
 )
+from tests.workflow.stages.decomposition.late_transaction_support import KEY_DEP_GRAPH, label_of
 
 NEXT_CYCLE_ID = _support.CYCLE_ID + 1
 
@@ -170,6 +172,37 @@ class SplitRecoveryTest(LateCase, unittest.TestCase):
             ["A", "B"],
         )
         self.assertNotIn(ESTIMATE, recovered.adjudication.children[0])
+
+    def test_a_record_without_dependencies_answers(self) -> None:
+        # A split recorded before every slice had to state its list is read
+        # the way it was recorded, where a missing or null `depends_on` means
+        # no prerequisites: the verdict comes back without another run, and
+        # its slices are created and released on that reading rather than
+        # refused as the fresh reply they no longer are.
+        for unstated in (_reply_support.OMITTED, _reply_support.NULL):
+            with self.subTest(unstated=unstated):
+                self.setUp()
+                self._adjudicate(agent_reply(_support.SPLIT_REPLY))
+                self.github.seed_state(_support.LATE_ISSUE_NUMBER, **{
+                    **self._pinned(),
+                    _support.KEYS.children: [
+                        _reply_support.unstated(child, unstated)
+                        for child in self._pinned()[_support.KEYS.children]
+                    ],
+                })
+
+                recovered, unspawned = self._adjudicate(transact=True)
+
+                unspawned.assert_not_called()
+                self.assertEqual(recovered.disposition, _LateDisposition.SETTLED)
+                self.assertEqual(
+                    [
+                        label_of(self.github, child.number)
+                        for child in self.github.created_child_issues
+                    ],
+                    [WorkflowLabel.READY, WorkflowLabel.READY],
+                )
+                self.assertIsNone(self._pinned().get(KEY_DEP_GRAPH))
 
 
 class RationaleRecoveryTest(LateCase, unittest.TestCase):

@@ -9,6 +9,14 @@ from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
 
 LATE_FENCE = "orchestrator-late-manifest"
 
+DEPENDS_ON = "depends_on"
+
+# The two ways a slice can leave its prerequisites unsaid: the key left off,
+# and the key stated as JSON null. A fresh reply is refused for either, each
+# under its own diagnostic; a recorded manifest reads both as no prerequisites.
+OMITTED = "omitted"
+NULL = "null"
+
 
 def late_block(payload: str) -> str:
     """Wrap a payload in the fence a late reply is read out of."""
@@ -29,10 +37,18 @@ def proposed_slice(
     slice that declared no budget at all: what the reply contract refuses, and
     what a manifest recorded before this domain kept budgets reads back as.
     """
-    proposed = {"title": title, "body": body, "depends_on": list(depends_on)}
+    proposed = {"title": title, "body": body, DEPENDS_ON: list(depends_on)}
     if estimated is not None:
         proposed[ESTIMATE] = estimated
     return proposed
+
+
+def unstated(proposed: dict, how: str) -> dict:
+    """The same slice with its dependency list `OMITTED`, or stated as `NULL`."""
+    kept = {field: declared for field, declared in proposed.items() if field != DEPENDS_ON}
+    if how == NULL:
+        kept[DEPENDS_ON] = None
+    return kept
 
 
 def split_reply_of(*declared: object) -> str:
