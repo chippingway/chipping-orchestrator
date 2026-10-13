@@ -244,7 +244,8 @@ def _settles(
     earlier finish captured or settled for the head is proved again ahead of
     the hold's write, and that write lands over the comment read afresh
     rather than whole (`rewrite_recovery_parks.lands_a_hold`), keeping a
-    newer transaction another road recorded while the gate answered.
+    newer transaction another road recorded while the gate answered, with the
+    evidence proved once more behind it.
     """
     landed = completed.head
     if not _transfer_permits._permits_the_publication(context, landed):

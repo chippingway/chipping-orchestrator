@@ -23,11 +23,15 @@ advances while its notice is posted or its relabel made still holds the route,
 read against the base the finish counted the head against -- an attempt
 already announced that carries no evidence receipt, as one recorded before
 that member existed, included. And so is the head of a legacy attempt, pinned
-before the base tip was among its members, that a recovery finishes.
+before the base tip was among its members, that a recovery finishes. A base
+advanced on the remote while the relabel is made, with the checkout's own base
+ref rewound under the head meanwhile, holds either route too: the local count
+reads the base no longer the one counted, which leaves the remote unasked.
 """
 from __future__ import annotations
 
 import unittest
+from collections.abc import Callable
 from functools import partial
 from itertools import product
 from typing import NamedTuple
@@ -46,6 +50,19 @@ def _hands_the_reviewer(case: support.CapturedRunCase) -> str:
     """Rebase and push the branch over a base that changed it, with no reviewer handed the head; that head."""
     git_support.advances_the_base(case)
     return case.rebases_by_hand()
+
+
+def _advances_over_a_rewound_ref(case: support.CapturedRunCase) -> None:
+    """Advance `case`'s base on the remote, and rewind the checkout's own base ref to the commit before the one counted.
+
+    The head stands over that earlier commit, so the local count reads the base
+    rewound under it rather than advanced, and leaves the remote unasked.
+    """
+    spec = case._spec
+    base = f"refs/remotes/{spec.remote_name}/{spec.base_branch}"
+    earlier = case._git("rev-parse", f"{base}~1", cwd=case._wt).strip()
+    support.advances_the_base_again(case)
+    case._git("update-ref", base, earlier, cwd=case._wt)
 
 
 def _defers_the_evidence(case: support.CapturedRunCase) -> str:
@@ -78,17 +95,31 @@ class _Blank(NamedTuple):
 
     `receipted` False drops the attempt's evidence receipt once the tip is
     blanked, as an attempt recorded before that member existed carries none.
+    `moves` is how the base advances: on the remote alone, or with the
+    checkout's own base ref rewound under the head besides.
     """
 
     died: handoff.Boundary
     step: handoff.Boundary
     receipted: bool
+    moves: Callable = support.advances_the_base_again
 
 
 _BLANKS = (
     _Blank(handoff.BEFORE_THE_ANNOUNCEMENT, handoff.BEFORE_THE_ANNOUNCEMENT, receipted=True),
     _Blank(handoff.BEFORE_THE_ANNOUNCEMENT, handoff.BEFORE_THE_RELABEL, receipted=True),
     _Blank(handoff.BEFORE_THE_RELABEL, handoff.BEFORE_THE_RELABEL, receipted=False),
+    _Blank(
+        handoff.BEFORE_THE_ANNOUNCEMENT, handoff.BEFORE_THE_RELABEL, receipted=True, moves=_advances_over_a_rewound_ref,
+    ),
+)
+
+# Each final step the base of a legacy attempt advances under, and how: on the
+# remote alone, or -- while the relabel is made -- with the checkout's own base
+# ref rewound under the head besides.
+_LEGACY_MOVES = (
+    *((step, support.advances_the_base_again) for step in _STEPS),
+    (handoff.BEFORE_THE_RELABEL, _advances_over_a_rewound_ref),
 )
 
 
@@ -119,11 +150,12 @@ class UnprovedRouteMoveTest(support.CapturedRunCase, unittest.TestCase):
         # continues the head to another rebase.
         for blank in _BLANKS:
             named = {"died": blank.died.name, "step": blank.step.name}
-            with self.subTest(receipted=blank.receipted, **named):
+            moved = blank.moves.__name__
+            with self.subTest(receipted=blank.receipted, moves=moved, **named):
                 self.setUp()
                 head = self.lands_a_reviewed_rebase()
                 self._blanks_the_tip(head, blank)
-                self._moving(blank.step, self.recovers)
+                self._moving(blank.step, self.recovers, blank.moves)
 
                 pinned = readings.pinned(self)
                 self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
@@ -136,16 +168,18 @@ class UnprovedRouteMoveTest(support.CapturedRunCase, unittest.TestCase):
         # The attempt records no base tip at all, so nothing proves which base
         # the head was replayed onto; the recovery that finishes it still holds
         # the route where the base advanced under its final steps, read against
-        # the base the tick counted the head against.
-        for step in _STEPS:
-            with self.subTest(step=step.name):
+        # the base the tick counted the head against -- a local base ref
+        # rewound under the head meanwhile included, which reads the base no
+        # longer that count.
+        for step, moves in _LEGACY_MOVES:
+            with self.subTest(step=step.name, moves=moves.__name__):
                 self.setUp()
                 head = _hands_the_reviewer(self)
                 git_support.pins_the_attempt(self, head)
                 state = self.gh.read_pinned_state(self.issue)
                 state.data.pop(readings.KEY_REWRITE_BASE)
                 self.gh.write_pinned_state(self.issue, state)
-                self._moving(step, self.recovers)
+                self._moving(step, self.recovers, moves)
 
                 self.assertEqual(readings.pinned(self)[readings.KEY_PENDING_PUSH], self.anchor)
                 self.recovers()
@@ -172,10 +206,10 @@ class UnprovedRouteMoveTest(support.CapturedRunCase, unittest.TestCase):
             state.set(readings.KEY_EVIDENCE_RECEIPT, None)
             self.gh.write_pinned_state(self.issue, state)
 
-    def _moving(self, step: handoff.Boundary, finishing) -> None:
-        """Run `finishing` with the base advanced again behind the call of the client's step `step` picks."""
+    def _moving(self, step: handoff.Boundary, finishing, moves: Callable = support.advances_the_base_again) -> None:
+        """Run `finishing` with the base advanced again by `moves` behind the call of the client's step `step` picks."""
         live = getattr(self.gh, step.step)
-        moving = step.moving(live, partial(support.advances_the_base_again, self))
+        moving = step.moving(live, partial(moves, self))
         with patch.object(self.gh, step.step, moving):
             finishing()
 

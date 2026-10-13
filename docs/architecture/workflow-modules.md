@@ -1277,7 +1277,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             routed head is held to its base once more (`stands_ready_if_settled`): to the tip its
                             replay was recorded as made onto, or -- where the attempt records none, blanked by a
                             record of movement or never written by a legacy attempt -- to the base the tick counted
-                            the head against, so no route is retired without a base reading
+                            the head against, so no route is retired without a base reading that still reads as
+                            that count: one advanced, one the local base ref was rewound under, or one nobody could
+                            read holds the route
     rewrite_finish_readiness.py
                             evidence a finish of the landing settled for its head, proved ready again before every
                             route that takes it -- the settling tick's own and every recovery of a tail cut short
@@ -2037,7 +2039,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             takes where a publication gate held its leased no-op proves what it keeps, then lands
                             what the tick staged since its reading as `HOLD`, decided on the attempt alone
                             (`lands_a_hold`), so a newer transaction another road recorded while the gate answered
-                            is kept pending with the revision floor it raised
+                            is kept pending with the revision floor it raised -- and behind that record proves it
+                            once more, as behind every park, over the movement the record itself carried
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written
                             only once it saw the push land: whether any record -- pending, current, retired, or a

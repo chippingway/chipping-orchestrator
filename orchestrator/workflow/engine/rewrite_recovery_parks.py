@@ -162,17 +162,7 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     if state.synced is None:
         context.gh.write_pinned_state(context.issue, state)
         return
-    read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}
-    landed = _commits.ReportCommit(context.gh, context.issue, state).lands(state, PARK)
-    if landed.status is not _commit_models.CommitStatus.COMMITTED:
-        log.warning(
-            "issue=#%d the park of its auto-rebase recovery did not land (%s); nothing is recorded, "
-            "and the next tick's recovery answers the comment as it then stands",
-            context.issue.number, (landed.refusal or landed.status).value,
-        )
-    moved = _adopted(landed.reading, read)
-    if context.worktree.is_dir():
-        _retirement.retires_unproved(context, moved)
+    _lands_then_proves(context, PARK, "park")
 
 
 def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
@@ -189,20 +179,20 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
     and every other field stays as the fresh comment carries it; a record
     refused or never confirmed withholds the tick's state
     (`ReportCommit.withholds`), for the next tick to answer the attempt again.
-    A state nothing was read into is written whole.
+    A report another road settles between that proof and the record is one
+    the record takes in from the fresh comment, decided on nothing the
+    evidence is bound through, so behind the record -- landed, refused, or
+    sent with its answer lost -- the evidence is proved once more, and a
+    binding record the record itself carried spelled otherwise than the tick
+    read it is handed to that proof as movement already read, however soon it
+    is put back, as behind every park (`lands_a_park`). A state nothing was
+    read into is written whole.
     """
     _retirement.retires_unproved(context)
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
         return
-    commit = _commits.ReportCommit(context.gh, context.issue, context.state)
-    landed = commit.lands(context.state, HOLD)
-    if landed.status is not _commit_models.CommitStatus.COMMITTED:
-        log.warning(
-            "issue=#%d the hold of its auto-rebase recovery did not land (%s); nothing is recorded, "
-            "and the next tick's recovery answers the comment as it then stands",
-            context.issue.number, (landed.refusal or landed.status).value,
-        )
+    _lands_then_proves(context, HOLD, "hold")
 
 
 def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
@@ -267,6 +257,28 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
         context.issue.number, (landed.refusal or landed.status).value,
     )
     return False
+
+
+def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, named: str) -> None:
+    """Land the tick's state as `write` over the comment read afresh, then prove once more what it keeps.
+
+    Whether the record landed or not, the proof behind it is handed the move
+    the record carried (`_adopted`), and taken only over a checkout on disk:
+    one gone from disk had its evidence retired on the state the record wrote.
+    `named` is the record, logged where it did not land.
+    """
+    state = context.state
+    read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}
+    landed = _commits.ReportCommit(context.gh, context.issue, state).lands(state, write)
+    if landed.status is not _commit_models.CommitStatus.COMMITTED:
+        log.warning(
+            "issue=#%d the %s of its auto-rebase recovery did not land (%s); nothing is recorded, "
+            "and the next tick's recovery answers the comment as it then stands",
+            context.issue.number, named, (landed.refusal or landed.status).value,
+        )
+    moved = _adopted(landed.reading, read)
+    if context.worktree.is_dir():
+        _retirement.retires_unproved(context, moved)
 
 
 def _adopted(reading: PinnedState | None, read: dict) -> ReportEvidence | None:

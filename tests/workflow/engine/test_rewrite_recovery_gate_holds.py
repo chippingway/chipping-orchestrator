@@ -24,7 +24,11 @@ nothing pushed or launched.
 The hold's own record lands over the comment read afresh, never written whole:
 a newer transaction another road records for the head while the gate answers
 is kept pending with the revision floor it raised, and the poll the gate lets
-through settles it over the run and routes the head.
+through settles it over the run and routes the head. Behind that record the
+run is proved once more: a report another road settles between the first
+proof and the record -- which the record lands, sends with its answer lost,
+or is refused over -- is read moving under the run, even where the earlier
+report is put back right behind a record that carried the later one.
 """
 from __future__ import annotations
 
@@ -35,11 +39,13 @@ from unittest.mock import patch
 
 from orchestrator.git.base_sync import transfer_permits as _transfer_permits, transfers as _transfers
 from orchestrator.git.base_sync.transfer_values import _Handoff
+from orchestrator.workflow.engine import report_commits as _commits, rewrite_recovery_parks as _parks
 from orchestrator.workflow.stages.implementing import late_push as _late_push
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
+    verification_report_fixture as _report,
 )
 from tests.workflow.engine.rewrite_retry_permits_support import gated
 
@@ -50,6 +56,16 @@ _SUPERSEDED = "superseded"
 
 # What the gate answered the permit-only no-op: held, with nothing pushed.
 _HELD = _late_push._PushedCandidate(held=True)
+
+# The guarded commit, read before any case stands in for it.
+_LANDS = _commits.ReportCommit.lands
+
+# The report and review records report 3's settlement moves, as the pinned comment spells them.
+_MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
+
+# How the hold's record goes once report 3 settled ahead of it -- landed, its
+# answer lost, or refused -- and whether report 2 is put back right behind it.
+_AT_THE_RECORD = (("", True), ("lost", True), ("refused", False))
 
 
 @contextlib.contextmanager
@@ -71,6 +87,46 @@ def _holds_beside_a_newer_run(case, recorded: list, *_called, **_options):
     """The gate's answer, held once another road recorded a newer transaction beside the run, kept in `recorded`."""
     recorded.append(guarded.records_a_newer_run(case))
     return _HELD
+
+
+class _AroundTheHold:
+    """The guarded commit, report 3 of `head` settled ahead of a hold's record, which goes as `failing` says.
+
+    `failing` names the client's pinned-edit failure the record meets, ""
+    where it lands; `restores` puts report 2 back right behind the record,
+    before anything behind it reads the comment again.
+    """
+
+    def __init__(self, case, head: str, failing: str, *, restores: bool) -> None:
+        self._case = case
+        self._head = head
+        self._failing = failing
+        self._restores = restores
+        self._replaced: dict = {}
+
+    def __call__(self, commit, staged, write):
+        if write is not _parks.HOLD or self._replaced:
+            return _LANDS(commit, staged, write)
+        case = self._case
+        pinned = readings.pinned(case)
+        self._replaced = {key: pinned.get(key) for key in _MOVED_RECORDS}
+        case.state = case.gh.read_pinned_state(case.issue)
+        _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
+        case.gh.write_pinned_state(case.issue, case.state)
+        failures = getattr(case.gh.pinned_failures, self._failing) if self._failing else set()
+        failures.add(case.issue.number)
+        landed = _LANDS(commit, staged, write)
+        failures.discard(case.issue.number)
+        if self._restores:
+            self.puts_back()
+        return landed
+
+    def puts_back(self) -> None:
+        """Write the report and review records back as they stood before report 3 moved them."""
+        state = self._case.gh.read_pinned_state(self._case.issue)
+        for key, recorded in self._replaced.items():
+            state.set(key, recorded)
+        self._case.gh.write_pinned_state(self._case.issue, state)
 
 
 class GateHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
@@ -98,6 +154,26 @@ class GateHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self._assert_routed(head, current=None)
         retired = readings.pinned_records(self)[2]
         self.assertEqual(retired[-1], (settled.receipt, readings.INVALIDATED))
+
+    def test_a_report_moved_at_the_record_is_read(self) -> None:
+        # Report 3 settles behind the proof and ahead of the hold's record,
+        # which lands it, loses its answer, or is refused; report 2 put back
+        # right behind a record that carried report 3 still leaves the run
+        # moved. The run is invalidated whole with the attempt kept, and the
+        # poll the gate lets through routes the head with nothing current.
+        for failing, restores in _AT_THE_RECORD:
+            with self.subTest(record=failing or "landed"):
+                self.setUp()
+                head, settled = self.settles_then_dies()
+                around = _AroundTheHold(self, head, failing, restores=restores)
+                with _gate_holds(), patch.object(_commits.ReportCommit, "lands", side_effect=around, autospec=True):
+                    self.recovers()
+
+                self.assert_invalidated(settled)
+                self._assert_held()
+                around.puts_back()
+                self.recovers()
+                self._assert_routed(head, current=None)
 
     def test_a_newer_run_survives_the_hold(self) -> None:
         # Another road records a newer transaction for the head while the gate

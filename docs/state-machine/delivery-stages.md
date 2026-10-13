@@ -1501,7 +1501,9 @@ because there it is the claim that this stage has already rerouted rather than a
   its own stranded park already standing, which posts no second notice -- so an edit made while the attempt is held
   and put back before the refresh or the reply reaches it is read moving all the same. The landed road's hold behind
   a publication gate that held its leased no-op proves the same way, and lands its own record over the comment read
-  afresh (`rewrite_recovery_parks.lands_a_hold`), keeping a newer transaction another road recorded meanwhile. An
+  afresh (`rewrite_recovery_parks.lands_a_hold`), keeping a newer transaction another road recorded meanwhile; a
+  report that record took in from the comment is movement read under the run, proved once more behind it however
+  soon it is put back, as behind every park. An
   abandonment no write lands holds the tick with nothing reset, cleared, or parked, the anchor keeping the
   reconciliation off the transaction. A reset that lands --
   every road's, and the abort over a snapshot nobody could take or a checkout whose lag against base could not be
@@ -1629,7 +1631,8 @@ because there it is the claim that this stage has already rerouted rather than a
     the same way, so the attempt is never retired, nor a handler released, over a head the base left behind. Where
     the attempt records no tip -- blanked to record movement under its evidence, or never written by a legacy attempt
     -- the head is held instead to the base this tick counted it against, so a base advanced while the announcement
-    or the relabel was answered still holds it.
+    or the relabel was answered still holds it, and so do a local base ref rewound under the head, which leaves the
+    remote unasked, and a base nobody could read: only a base still reading as that count lets the route retire.
   - **The retirement is the guarded one.** It owns the attempt, the round, the park's flags, a spent reply, and a
     failure notice the route no longer owes, and is decided on every record the evidence is bound through, so the
     evidence and report records stay as the comment carries them: a record another road moved -- while the relabel

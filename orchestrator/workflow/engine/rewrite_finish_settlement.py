@@ -379,7 +379,11 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
     onto, which every proof reads as refusing the evidence rather than the
     route: its head is held instead to the base this tick counted it against
     (`rewrite_evidence_proof.standing_refusal`), so a base advanced while the
-    announcement or the relabel was answered still holds the route.
+    announcement or the relabel was answered still holds the route. Only a
+    base that still reads as that count stands there: one advanced, one the
+    local base ref was rewound or repointed under -- which leaves the remote
+    unasked -- and one nobody could read each hold the route with the attempt
+    standing, for the next tick's fetch to count the head again.
     """
     current = _settlement.read_current_evidence(finish.state)
     stopped = None
@@ -392,7 +396,7 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
         return stopped
     counted = finish.landed.candidate.checkout
     moved = standing_refusal(finish, onto=counted.base.tip)
-    if moved is None or not moved.holds:
+    if moved is None:
         return None
     log.warning(
         "issue=#%d holding the route of %.8s: its attempt records no base tip, and the base this tick counted "
