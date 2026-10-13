@@ -5347,8 +5347,8 @@ stage's own, which describe the RUN that adjudicates one:
 - `late_result_verdict`, `late_result_category`, `late_result_question`, `late_result_split_blocker`,
   `late_result_children`, and `late_result_rationale` — what it completed with: the verdict, the category beside it,
   the sentence a `question` asked, the explanation a `single` gave for what stopped a split, the ordered child
-  manifest a `split` decided on, each slice of it carrying the addition budget it was proposed at, and the bounded
-  rationale a `single` or a `split` argued with.
+  manifest a `split` decided on, each slice of it carrying its `depends_on` list and the addition budget it was
+  proposed at, and the bounded rationale a `single` or a `split` argued with.
 
 They are written by [`late_session.py`](../../orchestrator/workflow/stages/decomposition/late_session.py) and are
 deliberately NOT in `LATE_STATE_KEYS`: clearing late mode drops exactly the domain's group, and a locked backend
@@ -5404,6 +5404,13 @@ round again. Those children are created exactly as they always were, and their i
 here invents a number an agent did not give. A value that is not a whole count of at least one line is not one
 either — a bool, a float, a numeric string, and zero are each a size nobody estimated — so a hand edit cannot put
 prose where a child issue states a budget.
+
+The dependency list is held to the opposite rule on the way in and the same one on the way back. Every slice is
+written with an explicit `depends_on` list, `[]` for none, because a fresh reply that leaves one missing or `null`
+is refused where it is read (`late_manifest_invalid`) and never becomes a record: read as no prerequisites, that
+slice would be released beside the sibling its body says it waits on. A record is read through the shared split
+rules, where a missing or `null` list still means no prerequisites, so a manifest carrying one is this candidate's
+answer, recovered without a second run, and its children are created and released as having none.
 
 The explanation is the one of those a result may be missing and still be an answer, and the compatibility rule is the
 same in both directions. `late_result_split_blocker` is written only where the reply gave one, so results recorded
