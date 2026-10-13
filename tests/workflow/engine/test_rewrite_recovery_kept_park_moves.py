@@ -23,7 +23,10 @@ only written back in another spelling of its revision. Once the park is
 continued, the head is routed with nothing current. So is the run behind the
 stranded park the dispatcher's hold takes under a label the refresh does not
 drive, whose notice's post raises after report 3 settled: the proof is taken
-before the error goes on, and nothing is parked. Nothing is run again or
+before the error goes on, and nothing is parked. And so is a captured run
+another finish settles while that park's proof abandons it over an edited
+issue, put back by then: the refused abandonment still invalidates the run
+that settled under the same receipt. Nothing is run again or
 pushed, nothing is announced or relabelled ahead of that route, and no
 developer is launched.
 """
@@ -37,6 +40,7 @@ from unittest.mock import patch
 
 from orchestrator.git import commands
 from orchestrator.github.pinned_state import PinnedEdit
+from orchestrator.workflow.engine import verification_durable as _durable
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
@@ -45,7 +49,7 @@ from tests.workflow.engine import (
     rewrite_verification_recovery_support as support,
     verification_report_fixture as _report,
 )
-from tests.workflow.interleaving import _RacesPastTheCall
+from tests.workflow.interleaving import _RacesPastTheCall, _RacesTheStep
 
 _GIT = "_git_hardened"
 
@@ -54,6 +58,8 @@ _UNDRIVEN = "workflow:resolving_conflict"
 
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
+
+_EDITED_BODY = "Also cover a base that moved twice."
 
 # Report 2 put back right behind a park's record, before the proof behind it.
 _RESTORED = MappingProxyType({"restoring": True})
@@ -141,6 +147,29 @@ class KeptParkProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.continues()
                 self.recovers()
                 self.assert_routed(head)
+
+    def test_a_run_settled_under_its_abandonment(self) -> None:
+        # The stranded park's proof reads the issue edited under the captured
+        # run, and another finish puts the issue back and settles that very
+        # run as the abandonment reads the comment, which refuses it: the
+        # movement it was asked over invalidates the run that settled, so the
+        # park is taken, and continued, the head is routed with nothing current.
+        head, captured = self.captures()
+        written = self.issue.body
+        self.issue.body = _EDITED_BODY
+        self.issue.labels = [FakeLabel(_UNDRIVEN)]
+        raced: list = []
+        elsewhere = partial(guarded.settles_elsewhere, self, head, written, raced)
+        with patch.object(_durable, "durable_comment", _RacesTheStep(_durable.durable_comment, elsewhere)):
+            guarded.answers_a_held_anchor(self)
+
+        self.assertEqual(raced, [head])
+        self.assertTrue(self.pinned_fields(guarded.AWAITING)[0])
+        self.assert_invalidated(captured)
+        self.issue.labels = [FakeLabel(git_support.REVIEWING)]
+        self.continues()
+        self.recovers()
+        self.assert_routed(head)
 
     def test_a_raised_notice_proves_behind_it(self) -> None:
         # The dispatcher's hold strands the attempt under a label the refresh

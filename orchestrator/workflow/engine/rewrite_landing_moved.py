@@ -108,7 +108,9 @@ from orchestrator.workflow.engine import (
     rewrite_finish_readiness as _readiness,
     rewrite_landing_records as _landing_records,
     verification_carries as _carries,
+    verification_durable as _durable,
     verification_records as _records,
+    verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING, last_word
@@ -208,7 +210,7 @@ def abandons(
     if pending is not None:
         finish = _finish(context, pending.binding.target.target_head, snapshot, candidate)
         _captured.stands_before_the_route(finish, proof=LEFT_THE_LANDING)
-        if _captured.recorded(finish, logged=False) is not None:
+        if not _abandoned_or_settled_since(finish, pending, LEFT_THE_LANDING):
             return False
     settled = _landing_records.settled(context.state)
     if settled is None:
@@ -245,7 +247,37 @@ def proves_captured(
     if moved is None:
         return True
     _captured.stands_before_the_route(finish, proof=moved)
-    return _captured.recorded(finish, logged=False) is None
+    return _abandoned_or_settled_since(finish, pending, moved)
+
+
+def _abandoned_or_settled_since(
+    finish: LandedFinish, pending: _records.PendingEvidence, moved: ReportEvidence,
+) -> bool:
+    """Whether nothing of `pending` stands once its abandonment over `moved` was asked; invalidated where it settled.
+
+    The abandonment is decided on the evidence records as the tick read them,
+    so another road that settled that very transaction while it was asked --
+    a finish of the same landing, over records put back by then -- refuses
+    it, and the tick's reading still carries it pending. The movement was
+    read under the transaction all the same, so evidence the comment read
+    afresh now carries current under `pending`'s receipt is invalidated whole
+    over it (`rewrite_finish_readiness.invalidates`), however the records read
+    by then. Evidence under any other receipt -- a successor another road
+    settled -- is another decision, kept as that road wrote it, and so is a
+    comment nobody could read: False, for the caller to hold.
+    """
+    if _captured.recorded(finish, logged=False) is None:
+        return True
+    durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
+    current = None if durable is None else _settlement.read_current_evidence(durable)
+    if current is None or current.receipt != pending.receipt:
+        return False
+    log.info(
+        "issue=#%d invalidating verification evidence revision %d another road settled for %.8s while its "
+        "abandonment was asked, over the movement read under it: %s",
+        finish.issue.number, current.revision, finish.head, moved.refusal,
+    )
+    return _readiness.invalidates(finish, current)
 
 
 def _finish(

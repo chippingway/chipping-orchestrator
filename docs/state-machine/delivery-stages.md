@@ -1510,7 +1510,9 @@ because there it is the claim that this stage has already rerouted rather than a
   soon it is put back, as behind every park -- but only while the same evidence stands behind the record: a newer
   run another road settled beside that report is proved on its own readings instead. An
   abandonment no write lands holds the tick with nothing reset, cleared, or parked, the anchor keeping the
-  reconciliation off the transaction. A reset that lands --
+  reconciliation off the transaction -- save one refused because another finish settled that very transaction
+  meanwhile, whose settlement the movement already read invalidates whole, a distinct successor kept. A reset
+  that lands --
   every road's, and the abort over a snapshot nobody could take or a checkout whose lag against base could not be
   counted (`rewrite_recovery.answers_an_unreadable_checkout`) -- is movement, so the transaction is abandoned on the
   state the park writes (`git/base_sync/persistence.py`), in the one write that releases the attempt or not at all; a

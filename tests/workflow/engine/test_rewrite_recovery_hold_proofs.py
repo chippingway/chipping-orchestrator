@@ -27,7 +27,9 @@ binding kept, the run made once -- and putting it back revives nothing:
   was posted -- a recovery's stranded park, or the finish's own park for a
   report debt with no room -- which proves the run before the error goes on,
   nothing parked, so report 2 put back, with the label or the room the park
-  asked for, routes the head with nothing current.
+  asked for, routes the head with nothing current; and the debt park's record
+  refused over report 3 settled while its notice was posted, which invalidates
+  the run the same way.
 """
 from __future__ import annotations
 
@@ -299,7 +301,7 @@ class ContinuationProofTest(_HoldCase, unittest.TestCase):
 
 
 class ParkNoticeProofTest(_HoldCase, unittest.TestCase):
-    """A park whose notice raised -- a recovery's or the finish's own -- proves the run before the error goes on."""
+    """A park a report moved under while its notice was posted, raised or refused, proves the run before it stops."""
 
     def test_a_raised_park_notice_proves_the_run(self) -> None:
         # The issue is relabelled out from under the attempt, and while the
@@ -309,41 +311,52 @@ class ParkNoticeProofTest(_HoldCase, unittest.TestCase):
         # nothing current.
         head = self.settles_then_dies()
         self.issue.labels = [FakeLabel("workflow:resolving_conflict")]
-        replaced: list = []
-        moves = partial(_loses_the_answer, partial(_settles_a_later_report, self, head, replaced))
-        with patch.object(self.gh, "comment", _RacesPastTheCall(self.gh.comment, 1, moves)):
-            self.recovers()
+        replaced = self._settles_under_the_notice(head, raises=True)
 
         self.assert_invalidated(standing=self.anchor)
         self.assertFalse(readings.pinned(self).get("awaiting_human"))
-        self._puts_back(replaced[0])
+        self._puts_back(replaced)
         self.issue.labels = [FakeLabel(git_support.REVIEWING)]
         self.recovers()
 
         self.assert_invalidated(standing=None)
         self.assert_routed_once(head)
 
-    def test_a_raised_debt_park_notice_proves_the_run(self) -> None:
+    def test_a_debt_park_notice_proves_the_run(self) -> None:
         # The comment has no room for the landing's report debt, and while
-        # the debt park's notice is posted report 3 of the head is settled
-        # and the post's answer lost: the run is invalidated before the error
-        # goes on, so report 2 put back and room made route the head with
-        # nothing current.
-        head = self.settles_then_dies()
-        finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
+        # the debt park's notice is posted report 3 of the head is settled --
+        # which refuses the park's record, decided on the report records, or
+        # is followed by the post's answer lost: the run is invalidated before
+        # the finish stops, so report 2 put back and room made route the head
+        # with nothing current.
+        for raises in (False, True):
+            with self.subTest(raised=raises):
+                self.setUp()
+                head = self.settles_then_dies()
+                finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
+                replaced = self._settles_under_the_notice(head, raises=raises)
+
+                self.assert_invalidated(standing=self.anchor)
+                self.assertFalse(readings.pinned(self).get("awaiting_human"))
+                self._puts_back(replaced)
+                finish_moves.makes_room(self)
+                self.recovers()
+
+                self.assert_invalidated(standing=None)
+                self.assert_routed_once(head)
+
+    def _settles_under_the_notice(self, head: str, *, raises: bool) -> dict:
+        """Recover with report 3 of `head` settled as the first notice is posted, its answer lost where `raises`.
+
+        What report 3 moved, as it read before.
+        """
         replaced: list = []
-        moves = partial(_loses_the_answer, partial(_settles_a_later_report, self, head, replaced))
+        moves = partial(_settles_a_later_report, self, head, replaced)
+        if raises:
+            moves = partial(_loses_the_answer, moves)
         with patch.object(self.gh, "comment", _RacesPastTheCall(self.gh.comment, 1, moves)):
             self.recovers()
-
-        self.assert_invalidated(standing=self.anchor)
-        self.assertFalse(readings.pinned(self).get("awaiting_human"))
-        self._puts_back(replaced[0])
-        finish_moves.makes_room(self)
-        self.recovers()
-
-        self.assert_invalidated(standing=None)
-        self.assert_routed_once(head)
+        return replaced[0]
 
     def _puts_back(self, recorded: dict) -> None:
         """Write the report and review records back as `recorded` kept them, before report 3 moved them."""

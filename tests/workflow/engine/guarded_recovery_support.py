@@ -30,6 +30,7 @@ from orchestrator.workflow.engine import (
     verification_record_state as _record_state,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
@@ -101,6 +102,19 @@ def records_a_newer_run(case):
     case.assertTrue(_record_state.record_pending_evidence(state, newer))
     case.gh.write_pinned_state(case.issue, state)
     return newer
+
+
+def settles_elsewhere(case, head: str, written: str, raced: list) -> None:
+    """Put the issue back as `written` and settle `head`'s captured run as another finish would, once; into `raced`.
+
+    That finish dies before its announcement, so the attempt still stands.
+    """
+    if raced:
+        return
+    raced.append(head)
+    case.issue.body = written
+    finishing = partial(case.finishes, head, FinishRoad.RECOVERY)
+    handoff.dies_at(case.gh, handoff.BEFORE_THE_ANNOUNCEMENT, finishing)
 
 
 def answers_a_held_anchor(case) -> None:
