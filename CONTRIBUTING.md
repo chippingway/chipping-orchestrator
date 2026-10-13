@@ -95,8 +95,8 @@ release tag explicitly with SSH. Signing records the maintainer's deliberate rel
    Update affected documentation and submit the release preparation as a PR to `main`.
 3. Run the [full pre-push checklist](.agents/skills/develop/SKILL.md#pre-push-checklist), merge the PR, and wait for
    CI on the exact release commit to pass on Python 3.12, 3.13, and 3.14. The
-   [CI reference](docs/configuration.md#continuous-integration) explains the lint, test, build, and installed-CLI
-   checks.
+   [CI reference](docs/configuration.md#continuous-integration) explains the lint, test, build, installed-CLI, and
+   packaged-template checks.
 4. Use a separate, clean release checkout. Confirm that the selected commit is on `main` and both version fields
    match the chosen version. Confirm the tag ruleset protects `v*` against unauthorized creation, updates, and
    deletion under the

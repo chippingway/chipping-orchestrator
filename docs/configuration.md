@@ -917,8 +917,9 @@ and optional dashboard dependencies; setup and launch commands are in the
 
 [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs `ruff check orchestrator tests`,
 `flake8 orchestrator tests --select=WPS`, pytest with an informational missing-line coverage report, `poetry build`,
-and launches of `chipping-orchestrator --help` from the wheel and sdist in fresh environments with their declared
-runtime dependencies, as separate mandatory steps for every push to `main` and every pull request. The whole set
+and, from the wheel and sdist in fresh environments with their declared runtime dependencies, a launch of
+`chipping-orchestrator --help` and a read of both packaged `.env` templates, as separate mandatory steps for every
+push to `main` and every pull request. The whole set
 runs on Python 3.12, 3.13, and 3.14 — the versions a run proves, out of the
 open-ended range `requires-python = ">=3.12"` admits — under a 20-minute job timeout. A second push to a pull request
 cancels the run its earlier push started, while a run on `main` is cancelled by nothing, queued or started. Dependabot
