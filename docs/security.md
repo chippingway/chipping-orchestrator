@@ -52,7 +52,8 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   [`../poetry.lock`](../poetry.lock); CI installs via `poetry sync`
   ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)). The wheel and sdist smoke
   installs use separate throwaway environments that resolve the distribution's declared runtime dependencies fresh
-  from PyPI and run `chipping-orchestrator --help` outside the checkout. These prove what a package installer receives.
+  from PyPI, run `chipping-orchestrator --help` outside the checkout, and read both packaged `.env` templates back out
+  of the installed package. These prove what a package installer receives.
   The default `pipx install chipping-orchestrator` resolves runtime dependencies within the manifest's ranges from
   PyPI; it does not use `poetry.lock`, the tested `constraints.txt`, or Poetry's 14-day release-age hold. Use the
   [constrained package procedure](configuration/operations.md#pin-a-release-and-runtime-dependencies) for the release's
@@ -373,7 +374,8 @@ Mark these checks **required** in the branch-protection rule (job names as they 
 
 - `ci (3.12)`, `ci (3.13)`, and `ci (3.14)` from [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) —
   Ruff, WPS (`flake8 orchestrator tests --select=WPS`), pytest with an informational coverage report, and a launch of
-  `chipping-orchestrator --help` from the built wheel and sdist in fresh pip environments. Lint and tests install
+  `chipping-orchestrator --help` and a read of both packaged `.env` templates from the built wheel and sdist in fresh
+  pip environments. Lint and tests install
   from [`../poetry.lock`](../poetry.lock). The job is a matrix over the three tested interpreters, and each matrix job
   reports its own check name
   ([`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration)).
@@ -421,8 +423,9 @@ separate mechanism from the required-status-check names above. See [CodeQL advan
 ### No CI publishing / deploys outside protected refs
 
 No package-publishing workflow exists in [`../.github/workflows/`](../.github/workflows/). CI builds a distribution
-on every push and pull request, but only to install the wheel and check that the console script launches from it: no
-step uploads that artifact, keeps it past the job, or holds a registry credential it could be pushed with
+on every push and pull request, but only to install the wheel and sdist and check that the console script launches
+and the packaged `.env` templates read from each: no step uploads those artifacts, keeps them past the job, or holds a
+registry credential they could be pushed with
 ([`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration)).
 The [documentation workflow](../.github/workflows/docs.yml) publishes the static site on pushes to `main` and manual
 runs on `main`, through the `github-pages` environment. Restrict that environment's deployment branches to `main`
@@ -493,8 +496,9 @@ Every PR opened by the orchestrator is AI-generated, so the policy is the workfl
   `VERIFY_COMMANDS=python3 -m pytest -q;ruff check .` (or your project equivalent) so an AI-produced regression is
   caught locally before the PR is advertised to humans for merge.
 - **CI on every PR.** [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) re-runs Ruff, WPS, and tests with a
-  report-only coverage summary on Python 3.12, 3.13, and 3.14, then installs the built wheel and launches the console
-  script from it; [`../.github/workflows/dependency-review.yml`](../.github/workflows/dependency-review.yml) blocks
+  report-only coverage summary on Python 3.12, 3.13, and 3.14, then installs the built wheel and sdist, launching the
+  console script and reading the packaged `.env` templates from each;
+  [`../.github/workflows/dependency-review.yml`](../.github/workflows/dependency-review.yml) blocks
   vulnerable / non-compliant deps; [`../.github/workflows/docs.yml`](../.github/workflows/docs.yml) builds the
   documentation site strictly and checks its links. Mark every one of those checks **required** in branch protection
   (see [Required checks](#required-checks)).
