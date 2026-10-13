@@ -1610,8 +1610,11 @@ because there it is the claim that this stage has already rerouted rather than a
     (`rewrite_finish_readiness.invalidates_behind`), with the attempt and the newer report kept, however soon the
     report is put back; the event is filed by the next finish, once.
   - **The retirement is proved over once more.** The announcement and the relabel are requests made after the
-    evidence was resolved, so behind the relabel, the last request before the retirement, a routed head is held to
-    its base again (`rewrite_finish_settlement.stands_ready_if_settled`). Settled evidence for it is proved ready
+    evidence was resolved. So settled evidence is proved ready again ahead of the relabel, where what moved while
+    the notice or the event was answered still reads moved -- it could be put back as the relabel is made -- and a
+    proof there that holds keeps the attempt with no relabel made. Behind the relabel, the last request before the
+    retirement, a routed head is held to its base again (`rewrite_finish_settlement.stands_ready_if_settled`).
+    Settled evidence for it is proved ready
     over the landing and the base: a base advanced or a landing moved meanwhile invalidates it and holds the route
     with the attempt standing -- the next tick continues the head to another rebase, or reads the landing again --
     and a report or review record moved meanwhile invalidates it and lets the route go on to the fresh reviewer. A

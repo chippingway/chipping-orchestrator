@@ -11,8 +11,10 @@ Another road settles and reviews a later report of the head: while the
 announcement's notice is posted, which refuses the checkpoint; while the
 relabel is made, which the run's proof taken once more behind the relabel
 reads; or while the retirement itself is sent, which the comment moving under
-that write refuses. The run is invalidated into history whole either way, its
-revision and binding kept, the later report left as that road wrote it --
+that write refuses. Or the issue is edited while the notice is posted and put
+back as the relabel is made, which the proof taken ahead of the relabel reads.
+The run is invalidated into history whole either way, its revision and binding
+kept, the later report left as that road wrote it --
 the route held with the attempt standing where the write was refused, and
 taken on to the fresh reviewer where the proof read it -- and putting the
 earlier report and review back before the next poll revives nothing: the head
@@ -135,6 +137,13 @@ _REPORT_WINDOWS = (
 # Each final step the base advances under, read by the proof behind the relabel.
 _BASE_WINDOWS = _REPORT_WINDOWS[:2]
 
+# The relabel, with a move made ahead of its call rather than behind it.
+_AHEAD_OF_THE_RELABEL = _Window(
+    "ahead of the relabel", "set_workflow_label", handoff.BEFORE_THE_RELABEL.kills, ahead=True,
+)
+
+_EDITED_BODY = "Also cover a base that moved twice."
+
 
 class _FinalStepCase(support.CapturedRunCase):
     """Issue #7's reviewed rebase finished with something moved under one of its final steps, and read back."""
@@ -143,6 +152,19 @@ class _FinalStepCase(support.CapturedRunCase):
         """Publish `head`'s finish with `move` made on the call of the client's step `window` names."""
         stepping = _Step(getattr(self.gh, window.step), window, move)
         with patch.object(self.gh, window.step, stepping):
+            self.finishes(head)
+
+    def _edits_under_the_announcement(self, head: str) -> None:
+        """Publish `head`'s finish with the issue edited as its notice is posted and put back ahead of the relabel."""
+        written = self.issue.body
+        edits = partial(setattr, self.issue, "body", _EDITED_BODY)
+        restores = partial(setattr, self.issue, "body", written)
+        posted = _Step(self.gh.pr_comment, _REPORT_WINDOWS[0], edits)
+        relabelled = _Step(self.gh.set_workflow_label, _AHEAD_OF_THE_RELABEL, restores)
+        with (
+            patch.object(self.gh, "pr_comment", posted),
+            patch.object(self.gh, "set_workflow_label", relabelled),
+        ):
             self.finishes(head)
 
     def _held(self) -> tuple:
@@ -200,6 +222,21 @@ class FinalStepMoveTest(_FinalStepCase, unittest.TestCase):
 
                 self._assert_invalidated(moves.settled)
                 self._assert_routed_once(head)
+
+    def test_a_restored_edit_invalidates_the_run(self) -> None:
+        # The issue is edited while the notice is posted and put back as the
+        # relabel is made: the proof ahead of the relabel reads the edit, so
+        # the run is invalidated whole and the head goes on to the fresh
+        # reviewer with nothing current, said once, and the poll behind it
+        # changes nothing.
+        head = self.lands_a_reviewed_rebase()
+        self._edits_under_the_announcement(head)
+        self.recovers()
+
+        self.assertEqual(self._tested(), [self.anchor, head])
+        self._assert_routed_once(head)
+        self.assertEqual(readings.relabels(self), readings.ROUTED)
+        self.assertEqual((self.runs(), self.developer.call_count), (1, 0))
 
     def test_a_moved_base_holds_the_route(self) -> None:
         # The proof behind the relabel reads the base gone elsewhere: the run

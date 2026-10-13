@@ -1145,7 +1145,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             step (`rewrite_finish_evidence.py`), and a transaction it recorded published and settled,
                             or retired, with the anchor still standing -- evidence an earlier finish already settled
                             for the head routed while nothing beside it says otherwise, and settled evidence proved
-                            ready again first (`rewrite_finish_readiness.py`) -- and once more behind the relabel,
+                            ready again first (`rewrite_finish_readiness.py`) -- again ahead of the relabel, so
+                            what moved while the notice or the event was answered is read before the relabel could
+                            see it put back -- and once more behind the relabel,
                             ahead of the retirement, where every routed head is held to its base
                             (`rewrite_finish_settlement.stands_ready_if_settled`), so a base that advanced, or a
                             landing that moved under settled evidence, while the announcement or the relabel was

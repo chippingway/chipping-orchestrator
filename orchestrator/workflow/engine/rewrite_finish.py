@@ -104,9 +104,10 @@ refuses stops the finish there with nothing behind it made:
   asked again first: a report recorded and unsettled holds that rebase until
   it is settled on the head it is about, as an uninterrupted journey's does.
 - The write that retires the attempt is prepared before the relabel to
-  `workflow:validating`, then lands behind it -- the anchor is what brings a
-  tick lost between them back, to the mark this finish left and the evidence
-  it settled. The retirement is decided on every record the evidence is
+  `workflow:validating`, settled evidence is proved ready once more ahead of
+  that relabel and again behind it, and the retirement lands behind both --
+  the anchor is what brings a tick lost between them back, to the mark this
+  finish left and the evidence it settled. The retirement is decided on every record the evidence is
   bound through, so a report or review another road moved after the evidence
   was decided or settled refuses the route rather than riding it, and it
   owns only the attempt, the round, the park's flags, a spent reply, and a
@@ -405,7 +406,13 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     left, with no second relabel -- and so is a relabel that raised, refused
     or landed with its answer lost, behind which the evidence is proved ready
     once more before the finish leaves, so a record moved while it was made
-    is invalidated however soon it is put back. Behind the relabel, the last request ahead
+    is invalidated however soon it is put back. Settled evidence is proved
+    ready once more ahead of the relabel too
+    (`rewrite_finish_settlement.stands_ready_if_settled`): the announcement's
+    notice and event are requests made after the evidence was resolved, and
+    what moved while they were answered could be put back as the relabel is
+    made, before any reading behind it; a proof there that holds keeps the
+    attempt with no relabel made. Behind the relabel, the last request ahead
     of the retirement, a routed head is held to its base once more
     (`rewrite_finish_settlement.stands_ready_if_settled`) -- evidence settled
     for it proved ready again over the landing and the base, and a head with
@@ -424,10 +431,12 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)
     if stopped is not None:
         return _readiness.invalidates_behind(finish, stopped, observed)
-    if headed is FinishOutcome.ROUTED:
+    if headed is FinishOutcome.ROUTED and not (announced and finish.label == WorkflowLabel.VALIDATING):
+        stopped = _settlement.stands_ready_if_settled(finish)
+        if stopped is not None:
+            return stopped
         try:
-            if not (announced and finish.label == WorkflowLabel.VALIDATING):
-                finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
+            finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
         except Exception:
             _settlement.stands_ready_if_settled(finish)
             raise
