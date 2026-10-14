@@ -11,7 +11,7 @@ from unittest.mock import patch
 from orchestrator.service.clone_defaults import clone_entry
 from orchestrator.service.repos_entry import RepositoryEntry
 from orchestrator.service.validation import validate_clone
-from tests.service.service_test_support import refusal
+from tests.service.service_test_support import add_remote, refusal
 from tests.support.checkouts import committed_checkout
 from tests.support.git import _run_git
 
@@ -47,12 +47,7 @@ class _CloneCase(unittest.TestCase):
         self._clone = committed_checkout(self._scratch / "clone")
 
     def _add_remote(self, name: str, url: str, default_branch: str | None = None) -> None:
-        """Add a remote, recording `default_branch` as its HEAD the way a clone does."""
-        _run_git(_REMOTE, "add", name, url, cwd=self._clone)
-        if default_branch is not None:
-            branch = f"refs/remotes/{name}/{default_branch}"
-            _run_git("update-ref", branch, "HEAD", cwd=self._clone)
-            _run_git("symbolic-ref", f"refs/remotes/{name}/HEAD", branch, cwd=self._clone)
+        add_remote(self._clone, name, url, default_branch)
 
 
 class DerivedEntryTest(_CloneCase):

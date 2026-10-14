@@ -97,33 +97,49 @@ release tag into the same directory instead:
 
 #### Configure live settings
 
-For **first setup only**, copy the saved basic template into the installed configuration location and set an absolute
-log directory outside the Python environment. This block refuses to overwrite an existing `.env`:
+For **first setup only**, write `~/.config/chipping-orchestrator/.env` with `configure`, naming the top of a local
+clone of the repository to manage and the GitHub logins whose issues and comments the orchestrator may act on:
 
 ```sh
-(
-  set -eu
-  umask 077
-  mkdir -p "$HOME/.config/chipping-orchestrator" "$HOME/.local/state/chipping-orchestrator/logs"
-  test ! -e "$HOME/.config/chipping-orchestrator/.env"
-  cp "${ORCHESTRATOR_RELEASE_DIR:?}/.env.example" "$HOME/.config/chipping-orchestrator/.env"
-  printf '\nLOG_DIR=%s\n' "$HOME/.local/state/chipping-orchestrator/logs" >> "$HOME/.config/chipping-orchestrator/.env"
-)
+chipping-orchestrator configure --clone "$HOME/src/acme-api" --authors alice
 ```
 
-The block appends the expanded absolute `LOG_DIR` path at the end of `.env`; the file does not expand `$HOME` or `~`.
-To change the path, edit that line rather than add another assignment: the first occurrence in `.env` wins.
+`configure` asks nothing, so a script can run it as well as an operator. It writes the basic template the installed
+version carries, with `REPOS`, `ALLOWED_ISSUE_AUTHORS`, `HITL_HANDLE`, `DEV_AGENT`, `REVIEW_AGENT`, and
+`DECOMPOSE_AGENT` set on the template's own lines and every comment kept, and appends `LOG_DIR` naming the absolute
+path of `~/.local/state/chipping-orchestrator/logs`. It creates the configuration directory with mode 0700, as it does
+`~/.config` where that is missing, whatever the umask, and writes the file whole, with mode 0600. Only `--clone` and
+`--authors` are required; each other option replaces a default:
+
+- `--repo OWNER/NAME` — the repository the clone's GitHub remote names. That remote is `origin` when it points at
+  GitHub, otherwise the only remote that does, and the `REPOS` entry then records the remote by name.
+- `--base-branch BRANCH` — that remote's default branch as the clone recorded it, otherwise the branch checked out.
+  Nothing is fetched. A branch given has to be a name git allows for one.
+- `--notify LOGINS` — the `--authors` logins, for `HITL_HANDLE`.
+- `--dev-agent`, `--review-agent`, and `--decompose-agent` — `claude`, `codex`, and `claude`. Each has to be
+  `claude`, `codex`, or `agy`, with an executable of that name on the `PATH` `configure` runs with.
+
+`--authors` has no default because it decides whose issues and comments the orchestrator trusts. `configure` checks
+every answer before it reads the clone for the rest of the entry, and all of it before it writes anything
+([setup checks](../configuration.md#setup-checks-and-clone-defaults)). It exits 1 with one message on stderr, having
+written nothing, when an answer is refused or the `REPOS` entry cannot carry it, the message naming the option; when
+`.env` already exists, since it never overwrites one; and when it runs from a source checkout of the orchestrator,
+which reads its own `.env` ([development](../development.md)).
+It writes no token into `.env` and loads no configuration, so it runs on a host that has none yet.
+
+`.env` does not expand `$HOME` or `~`, which is why `LOG_DIR` is written as an absolute path. To change it, edit that
+line rather than add another assignment: the first occurrence in `.env` wins.
 `orchestrator.log` and the default `analytics.jsonl` then live under `~/.local/state/chipping-orchestrator/logs`.
 Without this override, `LOG_DIR` defaults to `<REPO_ROOT>/logs`, inside the installed environment's `site-packages`.
 Recreating or uninstalling that environment can delete those logs. For an existing installation using the default,
 stop the poller, copy its logs to the external directory, and set an absolute `LOG_DIR` before replacing the
 environment. Preserve explicit `ANALYTICS_LOG_PATH` and `TRAJECTORY_LOG_PATH` overrides outside the environment too.
 
-Edit `~/.config/chipping-orchestrator/.env` following [basic setup](../configuration.md#basic-setup): set `REPOS` to
-existing local target clones, `ALLOWED_ISSUE_AUTHORS`, and `HITL_HANDLE`, and adjust agent routing if needed.
-Copy only wanted operational overrides from the saved `.env.example.advanced` into that same file. Keep GitHub tokens in
-per-repository token files or the launch environment ([credentials](../configuration.md#github-personal-access-token));
-`.env` does not load them. The launch directory's `.env` is never read by an installed package.
+Edit `~/.config/chipping-orchestrator/.env` to change any of these, or to manage more repositories as further `REPOS`
+entries, following [basic setup](../configuration.md#basic-setup). Copy only wanted operational overrides from the
+saved `.env.example.advanced` into that same file. Keep GitHub tokens in per-repository token files or the launch
+environment ([credentials](../configuration.md#github-personal-access-token)); `.env` does not load them. The launch
+directory's `.env` is never read by an installed package.
 
 ### Select an existing environment
 
@@ -188,7 +204,7 @@ the foreground poller), and wait for shutdown. Deactivate the dedicated venv if 
 so the pipx command is on `PATH`.
 
 Keep `~/.config/chipping-orchestrator/.env` and its absolute `LOG_DIR`, along with any explicit analytics or trajectory
-paths outside the environment. Skip the first-setup template copy. Compare the saved templates with the existing
+paths outside the environment. Skip the first-setup `configure`. Compare the saved templates with the existing
 settings and run the [compatibility checks](#check-compatibility-and-start). Confirm the installed version matches
 the recorded version before restarting.
 Replace the service's `ExecStart` with the absolute pipx launcher path shown by
@@ -1130,7 +1146,8 @@ journalctl --user-unit orchestrator.service -f      # tail the supervised comman
 
 systemd's journal captures the supervised command's stdout/stderr (process lifecycle, exit codes, restart messages).
 The orchestrator's own structured log lives at `LOG_DIR/orchestrator.log` (rotated, ~10 MiB × 5).
-Package setup above records an absolute `LOG_DIR` pointing to `~/.local/state/chipping-orchestrator/logs`.
+The `configure` step of package setup above records an absolute `LOG_DIR` pointing to
+`~/.local/state/chipping-orchestrator/logs`.
 `WorkingDirectory` does not select the default log location.
 Check the journal first for "did it start / did it die", then `LOG_DIR/orchestrator.log` for per-issue handler detail.
 

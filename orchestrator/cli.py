@@ -7,19 +7,25 @@
 hands it to the command it names. A launch naming none prints the help listing
 every command and exits 0, and `--version` prints the distribution's version.
 Each command is a subparser whose `dispatch` default is the function that runs
-it, so what a command composes is imported only once it is the one named.
+it, so what `run` composes is imported only once it is the one named.
 
 `run` is the polling process. It reads its options, refuses a launch whose
 author allowlist names nobody, settles logging, creates the state one run
 carries, and hands that state to each owner under `orchestrator/runtime/` in
 turn; the order below is the startup contract and lives nowhere else.
 
-The options owner is the only one this module imports with itself. Every other
-owner resolves and validates the configuration as it is imported, so each is
-named inside the function that composes it, once the command line has been
-read: a bare launch, `--help`, `--version`, and a command line the parser
-refuses answer on a host with no configuration or a malformed one, while a
-launch that goes on to run meets that validation before anything it composes.
+The setup commands are put on the parser by
+`orchestrator/service/commands.py`, which runs each through its core under
+`orchestrator/service/`. Those owners load no configuration at all, since a
+setup is what writes one, so they are imported with this module.
+
+Of the polling process, the options owner is the only one this module imports
+with itself. Every other owner resolves and validates the configuration as it
+is imported, so each is named inside the function that composes it, once the
+command line has been read: a bare launch, `--help`, `--version`, a setup
+command, and a command line the parser refuses answer on a host with no
+configuration or a malformed one, while a launch that goes on to run meets
+that validation before anything it composes.
 
 The signal handler is installed before the first GitHub call, so a stop that
 arrives during a slow connect is honoured rather than swallowed, and the
@@ -51,6 +57,7 @@ from typing import TYPE_CHECKING
 
 from orchestrator import __version__
 from orchestrator.runtime import options as _options
+from orchestrator.service import commands as _setup_commands
 
 if TYPE_CHECKING:
     from orchestrator.runtime.state import RuntimeState
@@ -92,6 +99,7 @@ def _command_parser() -> argparse.ArgumentParser:
     )
     _options.add_arguments(run_parser)
     run_parser.set_defaults(dispatch=_run)
+    _setup_commands.add_commands(commands)
     return parser
 
 

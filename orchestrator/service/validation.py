@@ -14,6 +14,9 @@ them.
   passes there too.
 - The repository is written ``owner/name``, in the characters GitHub allows in
   each, which also keeps it whole inside a ``REPOS`` entry.
+- The base branch is a name git allows for a branch, as
+  ``git check-ref-format --branch`` reads one; whether a ``REPOS`` entry can
+  carry it is the entry's own check, made as ``repos_entry`` writes it.
 - A login list names at least one GitHub login, split on commas with a leading
   ``@`` dropped and repeats kept once, the way the configuration reads
   ``ALLOWED_ISSUE_AUTHORS`` and ``HITL_HANDLE`` back.
@@ -42,7 +45,23 @@ _AGENT_CHOICES = ", ".join(AGENTS)
 _LOGIN = re.compile(r"[A-Za-z0-9-]+(?:\[bot\])?")
 _REPOSITORY = re.compile(r"[A-Za-z0-9-]+/[A-Za-z0-9._-]+")
 
+# What git refuses in a branch name, rule by rule from git-check-ref-format(1)
+# for the name under `refs/heads/`, and the leading `-` `--branch` adds.
+_NOT_IN_BRANCH = re.compile(
+    r"""
+    [\x00-\x20\x7f~^:?*\[\\]  # a control character, a space, ~ ^ : ? * [, or a backslash
+    | \.\. | @\{ | //            # a `..`, a `@{`, or an empty component
+    | (?:^|/)\.                  # a component beginning with `.`
+    | \.lock(?:/|$)              # a component ending in `.lock`
+    | ^[-/] | [./]$              # a leading `-` or `/`, a trailing `.` or `/`
+    """,
+    re.VERBOSE,
+)
+# Names git reads as `HEAD` itself rather than as a branch.
+_NOT_BRANCHES = frozenset(("@", "HEAD"))
+
 _CLONE_ADVICE = "give the top of a local clone or linked worktree"
+_BRANCH_ADVICE = "name the branch pull requests target, such as main"
 
 
 class FieldError(ValueError):
@@ -75,11 +94,6 @@ def _absolute(raw: str) -> Path:
             raise NotADirectoryError(errno.ENOTDIR, os.strerror(errno.ENOTDIR), str(walked))
         walked = real.parent
     return walked
-
-
-def _login(part: str) -> str:
-    """One comma-separated part of a login list, as the configuration reads it."""
-    return part.strip().lstrip("@").strip()
 
 
 def validate_clone(raw: str) -> Path:
@@ -117,9 +131,21 @@ def validate_repository(raw: str) -> str:
     return repository
 
 
+def validate_branch(raw: str) -> str:
+    """The branch ``raw`` names, without surrounding blanks."""
+    branch = raw.strip()
+    if not branch:
+        raise FieldError(f"no branch was given; {_BRANCH_ADVICE}")
+    if branch in _NOT_BRANCHES or _NOT_IN_BRANCH.search(branch) is not None:
+        raise FieldError(f"{branch!r} is not a name git allows for a branch; {_BRANCH_ADVICE}")
+    return branch
+
+
 def validate_logins(raw: str) -> tuple[str, ...]:
     """The GitHub logins ``raw`` lists, in order and each once."""
-    named = map(_login, raw.split(","))
+    # Each part as the configuration reads it: blanks and a leading `@` dropped.
+    unmarked = (part.strip().lstrip("@") for part in raw.split(","))
+    named = map(str.strip, unmarked)
     logins = tuple(dict.fromkeys(login for login in named if login))
     if not logins:
         raise FieldError(

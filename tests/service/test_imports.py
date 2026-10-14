@@ -18,18 +18,52 @@ _CHECKOUTS = "checkouts"
 
 _VALIDATION = "validation"
 
+_TEMPLATES = "templates"
+
+_PATHS = "paths"
+
+_REMOTE_URLS = "remote_urls"
+
+_REPOS_ENTRY = "repos_entry"
+
+_CLONE_DEFAULTS = "clone_defaults"
+
+_DOTENV_TEXT = "dotenv_text"
+
+_PRIVATE_FILES = "private_files"
+
+_CONFIGURE = "configure"
+
+# What `configure` composes: every setup leaf it writes the `.env` through.
+_CONFIGURE_CHAIN = (
+    _CHECKOUTS,
+    _CLONE_DEFAULTS,
+    _DOTENV_TEXT,
+    _PATHS,
+    _PRIVATE_FILES,
+    _REMOTE_URLS,
+    _REPOS_ENTRY,
+    _TEMPLATES,
+    _VALIDATION,
+)
+
 # Each owner, and the owners beside it that importing it loads too. Only the
 # setup's own leaves read each other: the checkout check under the layout and
-# the clone validator, the validator's refusal under the entry it writes, and
-# all of them under the clone's derived entry.
+# the clone validator, the validator's refusal under the entry it writes and
+# the `.env` lines, all of them under the clone's derived entry, and every
+# leaf under `configure` and the command line above it.
 _OWNERS = MappingProxyType({
-    "templates": (),
+    _TEMPLATES: (),
     _CHECKOUTS: (),
-    "paths": (_CHECKOUTS,),
+    _PATHS: (_CHECKOUTS,),
     _VALIDATION: (_CHECKOUTS,),
-    "remote_urls": (),
-    "repos_entry": (_CHECKOUTS, _VALIDATION),
-    "clone_defaults": (_CHECKOUTS, "remote_urls", "repos_entry", _VALIDATION),
+    _REMOTE_URLS: (),
+    _REPOS_ENTRY: (_CHECKOUTS, _VALIDATION),
+    _CLONE_DEFAULTS: (_CHECKOUTS, _REMOTE_URLS, _REPOS_ENTRY, _VALIDATION),
+    _DOTENV_TEXT: (_CHECKOUTS, _VALIDATION),
+    _PRIVATE_FILES: (),
+    _CONFIGURE: _CONFIGURE_CHAIN,
+    "commands": (*_CONFIGURE_CHAIN, _CONFIGURE),
 })
 
 # The declared inventory: the owners above, and the two templates `templates`

@@ -71,11 +71,17 @@ use `pipx install --python python3.12 chipping-orchestrator` with an installed s
 The quick start resolves runtime dependencies from PyPI without `poetry.lock`, tested constraints, or a 14-day hold;
 use the [pinned installation procedure][pinned-installation] for the release's tested dependency versions.
 
-Follow the [package setup instructions][installation] to save the `.env` templates the installed version carries in
-its package and create `~/.config/chipping-orchestrator/.env`. That setup also sets an absolute `LOG_DIR` outside the
-pipx environment so logs survive package upgrades. The orchestrator's own repository does not need to be cloned.
+Then write `~/.config/chipping-orchestrator/.env` for the repository a local clone names, trusting the GitHub logins
+given as authors; the [package setup instructions][installation] cover the other options:
 
-Edit `~/.config/chipping-orchestrator/.env` and set at least:
+```sh
+chipping-orchestrator configure --clone /home/alice/src/acme-api --authors alice
+```
+
+That setup also sets an absolute `LOG_DIR` outside the pipx environment so logs survive package upgrades. The
+orchestrator's own repository does not need to be cloned.
+
+`configure` sets these in that file; edit it to change any of them:
 
 - `REPOS` — the repository to manage, written `owner/name|target_root|base_branch`: its GitHub `owner/name`, the
   absolute path to an existing local clone of it, and the branch its pull requests target. For example:
@@ -86,10 +92,11 @@ Edit `~/.config/chipping-orchestrator/.env` and set at least:
 
   The template explains the two optional trailing fields; [several repositories][multiple-repos] are
   more entries in the same setting.
-- `HITL_HANDLE` — GitHub users to notify when human input is needed.
-- `ALLOWED_ISSUE_AUTHORS` — required: the GitHub logins whose issues and comments the orchestrator acts on; it
-  refuses to start while this names nobody.
-- `DEV_AGENT`, `REVIEW_AGENT`, and `DECOMPOSE_AGENT` — only when changing the default agent routing.
+- `HITL_HANDLE` — GitHub users to notify when human input is needed: `--notify`, else the authors.
+- `ALLOWED_ISSUE_AUTHORS` — required: the GitHub logins whose issues and comments the orchestrator acts on, given as
+  `--authors`; it refuses to start while this names nobody.
+- `DEV_AGENT`, `REVIEW_AGENT`, and `DECOMPOSE_AGENT` — the agent each role runs: `claude`, `codex`, and `claude`
+  unless `--dev-agent`, `--review-agent`, or `--decompose-agent` says otherwise.
 
 Nothing from `.env.example.advanced` is needed: it holds optional operational settings and, in a section of their own,
 the developer settings for working on the orchestrator itself.

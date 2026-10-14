@@ -20,6 +20,14 @@ repository a remote's URL names; ``clone_defaults`` derives a clone's
 repository, remote, and base branch from its remotes; and ``repos_entry``
 writes the ``REPOS`` entry those fields make.
 
+Then the writing. ``dotenv_text`` sets a setting in a ``.env``'s text on the
+line the configuration reads it from, and ``private_files`` writes a file
+whole, mode 0600, into a directory made with mode 0700, as is each parent
+missing above it. ``configure`` is the
+command that writes an installed package's ``.env`` from the basic template
+with all of the above, its core called in process with the answers as typed,
+and ``commands`` puts it on the command line ``orchestrator/cli.py`` parses.
+
 Nothing here imports ``orchestrator.config``. That package resolves and
 validates the settings as it is imported, and an installed package with no
 ``REPOS`` exits there -- which is exactly the state a first setup starts from.
