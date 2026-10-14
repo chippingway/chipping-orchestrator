@@ -32,9 +32,11 @@ the policy every road selects has it, reading nothing more.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
   answer read under its binding, the announcement a finish of this landing
-  made of it aside, before anything is resolved afresh, and
-  `stands_as_read` says whether the attempt that answer left is the one the
-  finish captured: unmoved, or advanced by its own announcement.
+  made of it aside, before anything is resolved afresh -- and, where another
+  finish's route took the attempt off the comment meanwhile or another road
+  replaced it, over the comment as it stands; and `stands_as_read` says
+  whether the attempt that answer left is the one the finish captured:
+  unmoved, or advanced by its own announcement.
 
 Nothing here runs the configured commands, posts an artifact, launches a
 developer, or announces anything.
@@ -43,7 +45,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.git.base_sync import attempt_records as _attempt_records
+from orchestrator.git.base_sync import attempt_records as _attempt_records, attempts as _attempts
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
@@ -57,6 +59,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_proof import standing_refusal
+from orchestrator.workflow.engine.rewrite_finish_announced import advanced_by_the_announcement
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
@@ -253,28 +256,34 @@ def retires_the_adopted(
     movements: list[ReportEvidence],
     attempt: _commit_models.PinnedCommit,
 ) -> bool:
-    """Whether the records the answer to `pending` left, nothing recorded for the head any more, resolve afresh.
+    """Whether the records the answer to `pending` left resolve afresh, evidence it read moving retired first.
 
     Always, with nothing read, for a finish not held to the settled-evidence
-    policy. For one that is, evidence the comment carries current under
-    `pending`'s receipt -- settled by this answer, or by another road whose
-    settlement the answer adopted -- is invalidated whole first
-    (`rewrite_finish_readiness.invalidates`) over the movement the answer read
-    under its binding (`movements`), however soon it was put back: the
-    evidence records' own moves, which that settlement makes, are no such
-    movement (`verification_durable.moves_only_the_evidence`), and neither are
-    the mark and the record of the event a finish of this landing put down on
-    `attempt`, the one this finish captured before the answer, in announcing
-    that settlement (`stands_as_read`). False, logged, where that invalidation
-    did not land, the movement recorded against the evidence instead where the
-    attempt still records a base tip.
+    policy or with nothing current under `pending`'s receipt. Otherwise that
+    evidence -- settled by this answer, or adopted from another road -- is
+    invalidated whole over movement the answer read under its binding
+    (`movements`), however soon it was put back. The evidence records' own
+    moves are no such movement (`verification_durable.moves_only_the_evidence`),
+    nor the attempt's: the announcement a finish of this landing put on
+    `attempt`, the one captured before the answer (`stands_as_read`), or any
+    member where another finish's route or another road took `attempt` off
+    the comment -- over which, holding the route whatever this says, the
+    evidence is invalidated as the comment stands
+    (`rewrite_finish_unconfirmed.retires_as_it_stands`). False, logged, where
+    that invalidation did not land.
     """
     current = _settlement.read_current_evidence(finish.state)
     if not finish.proves_settled or current is None or current.receipt != pending.receipt:
         return True
-    announced = _unconfirmed.advanced_by_the_announcement(finish, attempt, finish.state.data) or ()
-    unmoved = all(_durable.moves_only_the_evidence(moved, announced) for moved in movements)
-    if unmoved or _readiness.invalidates(finish, current):
+    captured = stands_as_read(finish, attempt, finish.state)
+    excused = advanced_by_the_announcement(finish, attempt, finish.state.data) if captured else _attempts._ATTEMPT_KEYS
+    if all(_durable.moves_only_the_evidence(moved, excused or ()) for moved in movements):
+        return True
+    if captured:
+        invalidated = _readiness.invalidates(finish, current)
+    else:
+        invalidated = _unconfirmed.retires_as_it_stands(finish, pending.receipt, attempt)
+    if invalidated:
         return True
     log.warning(
         "issue=#%d holding the route of %.8s: verification evidence revision %d was read moving while it "
@@ -290,10 +299,10 @@ def stands_as_read(finish: LandedFinish, attempt: _commit_models.PinnedCommit, s
     Unmoved; or -- for a finish held to the settled-evidence policy -- advanced
     by its own announcement alone, the mark and the record of its event put
     down for the landed head by a finish of this very landing
-    (`rewrite_finish_unconfirmed.advanced_by_the_announcement`), which leaves
+    (`rewrite_finish_announced.advanced_by_the_announcement`), which leaves
     the settlement that finish made this finish's to invalidate over what its
     answer read rather than an attempt another road put in its place.
     """
     if not attempt.moved(state.data):
         return True
-    return finish.proves_settled and _unconfirmed.advanced_by_the_announcement(finish, attempt, state.data) is not None
+    return finish.proves_settled and advanced_by_the_announcement(finish, attempt, state.data) is not None

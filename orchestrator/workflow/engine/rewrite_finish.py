@@ -174,14 +174,22 @@ at every step that keeps, routes, or parks the attempt:
   -- or, with no room, the movement recorded by blanking that attempt's base
   tip, or, with no room for the attempt either, by dropping the evidence's
   handoff -- so the next finish of the landing retires the evidence whole.
-  A settlement another finish of the landing made and announced while this
-  one's answer was published leaves the attempt advanced, not replaced, so
-  the movement that answer read still invalidates it -- while the mark and
-  the event's record that announcement left are no movement of their own,
-  and a settlement nothing else was read moving under stays current.
+  An announcement another finish of the landing made while this one's
+  requests were answered leaves the attempt advanced, not replaced: its mark
+  and the event's record are no movement of their own, and are taken in
+  ahead of every invalidation (`rewrite_finish_announced`), so movement this
+  finish's proof or answer read still invalidates the evidence over the
+  attempt as it stands, and a settlement nothing else was read moving under
+  stays current. One that finish settled and routed whole, retiring the
+  attempt, or that another road put a new attempt beside, is invalidated
+  over the comment as it stands instead, that attempt kept
+  (`rewrite_finish_settled.retires_the_adopted`).
 - Settled evidence is proved ready once more ahead of the relabel and again
   behind it, the retirement landing behind both; a relabel that raised has it
-  proved before the error goes on. Behind the relabel a head with no evidence
+  proved before the error goes on. The announcement and the relabel are
+  decided on the mark the attempt carries by then and the label read afresh,
+  so neither is made again behind another finish of the landing that made
+  it meanwhile, nor the relabel's stage-entry event. Behind the relabel a head with no evidence
   current for it is held to the base tip its replay was made onto -- or, where
   the attempt records none, blanked or never written, to the base this tick
   counted it against -- so a base advanced while the announcement or the
@@ -226,6 +234,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish_settlement as _settlement,
     rewrite_finish_writes as _writes,
 )
+from orchestrator.workflow.engine.rewrite_finish_announced import marked, relabelled
 from orchestrator.workflow.engine.rewrite_finish_events import method, prepares_the_record
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.engine.rewrite_finish_unconfirmed import retires_the_marked
@@ -455,7 +464,7 @@ def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
         return stopped
     observed: list = []
     try:
-        stopped = _checkpoints(finish, observed, announced=announced)
+        stopped = _checkpoints(finish, observed, announced=marked(finish, already=announced))
     except Exception:
         if finish.proves_settled:
             _settled.behind_the_announcement(finish, FinishOutcome.UNCONFIRMED, observed)
@@ -510,13 +519,16 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     than retiring the attempt over a reading those requests outlived. A
     continuation is proved there too, its base advance excused, so the
     announcement's requests leave no evidence anything moved under for the
-    rebase behind it.
+    rebase behind it. The relabel itself is decided on the mark the attempt
+    carries now and the label read afresh (`rewrite_finish_announced.relabelled`),
+    so one another finish of the landing made while this one's requests were
+    answered is not made again, nor its stage-entry event.
     """
     observed: list = []
     stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)
     if stopped is not None:
         return _settled.behind_the_write(finish, stopped, observed)
-    if headed is FinishOutcome.ROUTED and not (announced and finish.label == WorkflowLabel.VALIDATING):
+    if headed is FinishOutcome.ROUTED and not relabelled(finish, announced=announced):
         stopped = _settled.stands_ready_if_settled(finish)
         if stopped is not None:
             return stopped

@@ -226,7 +226,11 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     committed alone over a comment carrying a new attempt, or a newer
     transaction recorded in place of `pending` (`_answered_alone`) -- holds
     before anything proves, abandons, announces, or clears over it, so that
-    record stands as its road wrote it, for the next finish to answer. Once
+    record stands as its road wrote it, for the next finish to answer --
+    save, under the settled-evidence policy, evidence another finish settled
+    under `pending`'s receipt before its route took the attempt, which the
+    movement this answer read invalidates all the same
+    (`rewrite_finish_settled.retires_the_adopted`). Once
     nothing is recorded for the head any more -- settled or retired by the
     answer, or abandoned by the last word behind it -- the records that left
     are resolved afresh (`resolves`), with nothing recorded to answer this
@@ -260,26 +264,28 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
             finish.gh, finish.spec, read[0], finish.state, anchored=partial(_anchored, finish),
             rests_on=tuple(_attempts._ATTEMPT_KEYS), observed=observed,
         ), pending)
+    movements = [refused for refused in observed if not refused.holds or refused in MOVEMENT]
     if read is None or not _answered_alone(finish, pending, attempt):
         log.warning(
             "issue=#%d holding the route of %.8s: the issue would not read again, or another road's attempt or "
             "evidence record stands where verification evidence revision %d was answered",
             finish.issue.number, finish.head, pending.revision,
         )
+        retires_the_adopted(finish, pending, movements, attempt)
         return FinishOutcome.HELD
-    return _behind_the_answer(finish, pending, observed, attempt)
+    return _behind_the_answer(finish, pending, movements, attempt)
 
 
 def _behind_the_answer(
     finish: LandedFinish,
     pending: _records.PendingEvidence,
-    observed: list[ReportEvidence],
+    movements: list[ReportEvidence],
     attempt: _commit_models.PinnedCommit,
 ) -> FinishOutcome | None:
     """Where the route goes once `pending` was answered, over the movement the answer read; None to route.
 
-    Movement is sorted as the last word sorts its own readings
-    (`rewrite_evidence_proof.MOVEMENT`). A transaction still owed goes to the
+    `movements` is what the answer read, sorted as the last word sorts its
+    own readings (`rewrite_evidence_proof.MOVEMENT`). A transaction still owed goes to the
     last word over the first such movement, or over its proof taken again. One
     settled is resolved afresh; a finish held to the settled-evidence policy
     first invalidates it whole over movement read under its binding -- settled
@@ -288,7 +294,6 @@ def _behind_the_answer(
     announcement another finish of this landing made of it over `attempt`, the
     attempt captured before the answer, no such movement.
     """
-    movements = [refused for refused in observed if not refused.holds or refused in MOVEMENT]
     if _captured.recorded(finish, logged=False) is None:
         return resolves(finish) if retires_the_adopted(finish, pending, movements, attempt) else FinishOutcome.HELD
     proof = movements[0] if movements else _captured.proved_again(finish, pending)

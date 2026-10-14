@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a landed rewrite finish's own write nobody confirmed left of its attempt, before movement behind it is recorded.
+"""What a finish's own write nobody confirmed, or another finish, left of its attempt, before movement is recorded.
 
 The invalidation of settled evidence a proof read moving
 (`rewrite_finish_readiness.invalidates`) is decided on the attempt as the
@@ -20,12 +20,10 @@ Only the dormant settled-evidence policy asks these
 
 - `takes_in_the_announcement` takes in the announcement's bookkeeping where
   the comment read afresh carries this attempt otherwise exactly as the
-  finish read it, those members naming the landed head, so the invalidation
-  behind the record or the checkpoint is decided on the attempt as it stands.
-  The same bookkeeping another finish of the landing put down announcing a
-  settlement it made while this finish's abandonment was asked is taken in
-  before that settlement is invalidated
-  (`rewrite_finish_captured._abandoned`), for the same reason.
+  finish read it, those members naming the landed head
+  (`rewrite_finish_announced.takes_in_the_announcement`), so the proof and
+  the abandonment behind the record or the checkpoint are decided on the
+  attempt as it stands, as the invalidation itself is.
 - `stands_back` puts the attempt back exactly as the finish read it where the
   comment carries it blanked as the finish's own retirement leaves it, and the
   same evidence still current, so the movement is invalidated or recorded
@@ -38,12 +36,12 @@ Only the dormant settled-evidence policy asks these
   no attempt to finish, retires the evidence whole over once room is made
   (`retires_the_marked`).
 
-`advanced_by_the_announcement` tells an attempt a finish of this very landing
-advanced -- its mark and the record of its event put down for the landed head
--- from one another road put in its place, for the announcement's
-bookkeeping above and for a settlement adopted behind a finish's own answer
-(`rewrite_finish_settled.stands_as_read`), whose movement that bookkeeping is
-no part of (`rewrite_finish_settled.retires_the_adopted`).
+Another finish's route can retire the attempt meanwhile, or another road
+replace it: `retires_as_it_stands` then invalidates evidence current under a
+receipt this finish read moving over the comment as it stands, by the same
+dropped handoff where history has no room, never by blanking another
+attempt's base tip; `retires_the_settled` does so for a settlement made while
+this finish's abandonment was asked (`rewrite_finish_captured._abandoned`).
 
 A comment that would not read is asked once more, since the movement already
 read has no other way to be recorded. Another attempt, other members moved,
@@ -53,14 +51,12 @@ from __future__ import annotations
 
 import copy
 import logging
-from collections.abc import Mapping
-from typing import Any
 
-from orchestrator.git.base_sync import attempts as _attempts, state as _base_sync_state
+from orchestrator.git.base_sync import attempts as _attempts
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    pinned_commit as _commit,
     pinned_commit_models as _commit_models,
+    rewrite_finish_announced as _announced,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_writes as _writes,
     verification_durable as _durable,
@@ -71,8 +67,8 @@ from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
 
-# The attempt's members the announcement writes: the record of its event, and the mark.
-_ANNOUNCING = frozenset((_base_sync_state._PENDING_ANNOUNCED_EVENT, _base_sync_state._PENDING_ANNOUNCED_SHA))
+# What an invalidation writes: the current record, and the history it enters.
+_INVALIDATES = (_records.CURRENT_EVIDENCE, _records.EVIDENCE_HISTORY)
 
 
 def takes_in_the_announcement(finish: LandedFinish) -> None:
@@ -87,15 +83,8 @@ def takes_in_the_announcement(finish: LandedFinish) -> None:
     Anything else leaves the tick's state as it was.
     """
     durable = _read_afresh(finish)
-    if durable is None:
-        return
-    read = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
-    moved = advanced_by_the_announcement(finish, read, durable.data)
-    if moved is None:
-        return
-    for member in moved:
-        finish.state.set(member, durable.get(member))
-    _commit.takes_in(finish.state, durable.data, moved)
+    if durable is not None:
+        _announced.takes_in_the_announcement(finish, durable)
 
 
 def stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
@@ -122,7 +111,7 @@ def stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
         durable.set(member, finish.state.get(member))
     if _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None:
         return True
-    _marks(finish, marked, current)
+    _marks(finish, marked, current, "the attempt its retirement took could not be put back")
     return False
 
 
@@ -148,38 +137,73 @@ def retires_the_marked(finish: LandedFinish) -> None:
         _readiness.invalidates(finish, current)
 
 
-def advanced_by_the_announcement(
-    finish: LandedFinish, read: _commit_models.PinnedCommit, carried: Mapping[str, Any],
-) -> tuple[str, ...] | None:
-    """The attempt members `carried` spells otherwise than `read` captured, where its own announcement alone moved them.
+def retires_as_it_stands(finish: LandedFinish, receipt: str, attempt: _commit_models.PinnedCommit) -> bool:
+    """Invalidate the evidence the comment carries current under `receipt` over another attempt; whether it landed.
 
-    Every one has to be a member the announcement writes -- the mark, or the
-    record of its event -- naming `finish`'s landed head: that is this very
-    attempt advanced by a finish of its landing. None where any other member
-    moved, or one names another head: another attempt, or another road's.
+    Only where the comment no longer carries `attempt`, the one the finish
+    captured, nor that attempt advanced by its own announcement. Staged on the
+    comment read afresh and guarded by it, so the attempt standing is kept and
+    a successor under another receipt, or a write since, refuses it; where
+    history has no room, the movement is recorded by dropping the handoff
+    (`_marks`).
     """
-    moved = read.moved(carried)
-    named = {carried.get(member) for member in moved}
-    if not _ANNOUNCING.issuperset(moved) or not named <= {finish.head}:
+    durable = _read_afresh(finish)
+    current = None if durable is None else _settlement.read_current_evidence(durable)
+    if current is None or current.receipt != receipt:
+        return False
+    if _announced.advanced_by_the_announcement(finish, attempt, durable.data) is not None:
+        return False
+    marked = copy.deepcopy(durable)
+    guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
+    if _settlement.retire_current_evidence(durable):
+        refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
+        if refused is None:
+            return True
+    _marks(finish, marked, current, "its invalidation did not land over the attempt that stands")
+    return False
+
+
+def retires_the_settled(finish: LandedFinish, pending: _records.PendingEvidence, why: str) -> bool | None:
+    """Invalidate a settlement another finish made of `pending` while its abandonment was asked; whether it landed.
+
+    None where the comment carries nothing current under `pending`'s receipt.
+    Otherwise its records are taken in (`verification_durable.takes_in_a_settlement`)
+    and invalidated over what the abandonment read (`why`): over this finish's
+    attempt (`rewrite_finish_readiness.invalidates`), or over the comment as
+    it stands where that finish's route took it (`retires_as_it_stands`).
+    """
+    settled = _durable.takes_in_a_settlement(finish.gh, finish.issue, finish.state, pending.receipt)
+    if settled is None:
         return None
-    return moved
+    log.info(
+        "issue=#%d invalidating verification evidence revision %d another finish settled for %.8s while its "
+        "abandonment was asked: %s",
+        finish.issue.number, settled.revision, finish.head, why,
+    )
+    if _readiness.invalidates(finish, settled):
+        return True
+    # Behind that invalidation, which laid what it took in or landed over the
+    # tick's state, so only another attempt is decided on as it stands.
+    read = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
+    retires_as_it_stands(finish, pending.receipt, read)
+    return False
 
 
-def _marks(finish: LandedFinish, durable: PinnedState, current: _records.CurrentEvidence) -> None:
-    """Record movement read under `current` by dropping its handoff, over `durable` as `stands_back` read it.
+def _marks(finish: LandedFinish, durable: PinnedState, current: _records.CurrentEvidence, why: str) -> None:
+    """Record movement read under `current` by dropping its handoff, over `durable` as read, where `why`.
 
-    Guarded by that reading -- the attempt blanked as the retirement left it
-    and every bound record, `current` among them, as read -- so another
-    attempt or a successor settled since refuses it. The write only shrinks
-    the comment, so a comment with no room for the attempt still takes it.
+    Guarded by that reading -- the attempt and every bound record, `current`
+    among them, as read -- so another attempt or a successor settled since
+    refuses it. The write only shrinks the comment, so a comment with no room
+    for the attempt or the history entry still takes it.
     """
     guard = _durable.guarded(durable, (_records.EVIDENCE_HANDOFF,), _attempts._ATTEMPT_KEYS)
     durable.set(_records.EVIDENCE_HANDOFF, None)
     refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
     log.warning(
-        "issue=#%d could not put back the attempt its retirement took over verification evidence revision %d "
-        "read moving; recording that movement by dropping its handoff: %s",
-        finish.issue.number, current.revision, "landed" if refused is None else refused.refusal,
+        "issue=#%d recording movement read under verification evidence revision %d by dropping its handoff, "
+        "since %s: %s",
+        finish.issue.number, current.revision, why, "landed" if refused is None else refused.refusal,
     )
 
 

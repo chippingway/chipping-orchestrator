@@ -132,6 +132,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_evidence_proof import Refusals, Word, _reads_again, last_word
+from orchestrator.workflow.engine.rewrite_finish_announced import takes_in_the_announcement
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_current import _handoff_describes
 from orchestrator.workflow.engine.verification_history_fields import historical_from
@@ -282,12 +283,19 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
     comment carries another attempt or no longer carries `current` as current,
     and where neither reading took the invalidation -- for want of room, or a
     write that did not land -- the movement then recorded against `current`
-    instead.
+    instead. For a finish held to the dormant settled-evidence policy, an
+    attempt another finish of the landing advanced by announcing it -- its
+    mark and the record of its event put down meanwhile -- is no other
+    attempt: that bookkeeping is taken in first
+    (`rewrite_finish_announced.takes_in_the_announcement`), so the
+    invalidation, or the movement recorded where history has no room, is
+    decided on the attempt as it stands.
     """
-    attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
     if durable is None:
         return _invalidates_on_the_tick(finish, current)
+    takes_in_the_announcement(finish, durable)
+    attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     if attempt.moved(durable.data) or _settlement.read_current_evidence(durable) != current:
         return False
     guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)

@@ -139,14 +139,16 @@ class SettledGuardedCase(_guarded.GuardedRecoveryCase):
     def assert_invalidated_then_routed(self, head: str, settled) -> None:
         """`settled` invalidated whole, its revision and binding kept, and `head` routed once, nothing parked.
 
-        Another poll leaves the comment exactly as it is, with nothing said,
-        relabelled, run, pushed, or launched again.
+        The route's relabel files one stage-entry event, and another poll
+        leaves the comment exactly as it is, with nothing said, relabelled,
+        run, pushed, or launched again.
         """
         entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
         whole = (entry.receipt, entry.retired.value, entry.revision, entry.binding)
         self.assertEqual(whole, (settled.receipt, _readings.INVALIDATED, settled.revision, settled.binding))
         self.assertFalse(_readings.pinned(self).get(_guarded.AWAITING))
         self.assert_routed(head)
+        self.assertEqual(_handoff.stage_entries(self.gh, _git_support.ISSUE), ["validating"])
         routed = _readings.pinned(self)
         self.recovers()
         self.assertEqual(_readings.pinned(self), routed)

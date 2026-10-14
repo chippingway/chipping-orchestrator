@@ -44,9 +44,10 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad
-from orchestrator.workflow.engine.verification_settlement_state import settled_state
+from orchestrator.workflow.engine.verification_settlement_state import read_evidence_handoff, settled_state
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
+    rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
     rewrite_verification_recovery_support as support,
@@ -94,6 +95,16 @@ _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "revie
 # The proof's observation of a refusal, read before any case stands in for it.
 _OBSERVES = _proof.ProofReading.observes
 
+# Whether another finish routes the run before report 3 moves, what is made
+# behind that route, and how the run then reads (`_assert_invalidated`).
+_ROUTED_ELSEWHERE = (
+    (True, None, readings.INVALIDATED),
+    (False, None, readings.INVALIDATED),
+    (True, finish_moves.fills_the_comment, None),
+    (False, finish_moves.fills_the_comment, None),
+    (True, partial(settled.records_a_newer_run, settles=True), "superseded"),
+)
+
 
 class _MovesTheReport:
     """Another road settling the run and then report 3 of its head, report 2 put back once the proof read it."""
@@ -101,6 +112,7 @@ class _MovesTheReport:
     def __init__(self) -> None:
         self._case = None
         self._replaced: dict = {}
+        self._behind = None
 
     def __call__(self, reading, refused) -> None:
         _OBSERVES(reading, refused)
@@ -110,6 +122,10 @@ class _MovesTheReport:
                 state.set(key, recorded)
             self._case.gh.write_pinned_state(self._case.issue, state)
             self._replaced = {}
+            behind = self._behind
+            self._behind = None
+            if behind is not None:
+                behind()
 
     def settles(self, case: support.CapturedRunCase, captured) -> None:
         """Settle `captured` over the artifact just posted, then report 3 of its head, as another road would."""
@@ -121,6 +137,22 @@ class _MovesTheReport:
         case.announces_elsewhere(captured)
         case.state = case.gh.read_pinned_state(case.issue)
         self._moves(case, captured.binding.target.target_head)
+
+    def finishes_around(self, case: _AdoptionCase, captured, first: bool = True, then=None) -> None:
+        """Have another finish route `captured` whole, `then` behind it, before report 3 moves or once it is read."""
+        routes = partial(self._routes, case, captured, then)
+        if first:
+            routes()
+        else:
+            self._behind = routes
+        case.state = case.gh.read_pinned_state(case.issue)
+        self._moves(case, captured.binding.target.target_head)
+
+    def _routes(self, case: _AdoptionCase, captured, then) -> None:
+        """Route `captured` whole as another finish of the landing would, `then` made behind it."""
+        case.announces_elsewhere(captured, None)
+        if then is not None:
+            then(case)
 
     def _moves(self, case: support.CapturedRunCase, head: str) -> None:
         """Settle and review report 3 of `head` over `case.state`, keeping the records it replaces."""
@@ -147,10 +179,22 @@ class _AdoptionCase(support.CapturedRunCase):
         self.recovers()
         return head, captured
 
-    def announces_elsewhere(self, captured) -> None:
-        """Have another finish of the landing settle `captured` and announce it, dying at its relabel."""
+    def announces_elsewhere(self, captured, died: handoff.Boundary | None = handoff.BEFORE_THE_RELABEL) -> None:
+        """Have another finish of the landing settle `captured` and announce it, dying at `died` or routing it whole."""
         finishing = partial(self.finishes, captured.binding.target.target_head, FinishRoad.RECOVERY)
-        handoff.dies_at(self.gh, handoff.BEFORE_THE_RELABEL, finishing)
+        handoff.dies_at(self.gh, died, finishing)
+
+    def polls_beside_a_route(self, *, first: bool, then=None) -> tuple:
+        """`polls_beside` another finish routing the run whole around report 3 (`_MovesTheReport.finishes_around`)."""
+        moves = _MovesTheReport()
+        with patch.object(_proof.ProofReading, "observes", side_effect=moves, autospec=True):
+            return self.polls_beside(partial(moves.finishes_around, first=first, then=then))
+
+    def assert_routed_once(self, head: str) -> None:
+        """`head` routed, announced, relabelled, and entered once, its attempt retired; the run made once."""
+        self.assert_recovered(head)
+        self.assertEqual(handoff.stage_entries(self.gh, git_support.ISSUE), ["validating"])
+        self.assertEqual(self.runs(), 1)
 
     def assert_held_as_settled(self, captured, past: int = 0) -> None:
         """`captured` current as the other road settled it, the floor `past` it, the attempt standing, nothing made."""
@@ -227,26 +271,47 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
         self.assert_recovered(head)
 
     def test_an_announced_settlement_stays_current(self) -> None:
-        # Another finish of the landing settles the run just as the recovery
-        # posts it, announces it, and dies at its relabel, and nothing else
-        # moves. The evidence records that settlement moved, and the mark and
-        # the event's record its announcement put down on this attempt, are no
-        # movement under the run: it stays current under its receipt, and the
-        # head is routed once with it, with nothing run, said, or pushed again.
-        head, captured = self.polls_beside(_AdoptionCase.announces_elsewhere)
+        # Another finish settles and announces the run just as the recovery
+        # posts it, dying at its relabel or its retirement or routing it
+        # whole; nothing else moves, so the run stays current and the head is
+        # routed once -- one relabel and one stage-entry event.
+        for died in (handoff.BEFORE_THE_RELABEL, handoff.BEFORE_THE_RETIREMENT, None):
+            with self.subTest(died=getattr(died, "name", "routed")):
+                head, captured = self.polls_beside(partial(_AdoptionCase.announces_elsewhere, died=died))
 
-        pending, current, retired = readings.pinned_records(self)
-        self.assertEqual((pending, current.receipt), (None, captured.receipt))
-        self.assertNotIn((captured.receipt, readings.INVALIDATED), retired)
-        self.assertEqual(self.runs(), 1)
-        self.assert_recovered(head)
+                left = readings.pinned_records(self)
+                self.assertEqual(left[::2], (None, git_support.invalidated(self)))
+                self.assertEqual(left[1].receipt, captured.receipt)
+                self.assert_routed_once(head)
 
-    def _assert_invalidated(self, captured) -> None:
-        """`captured` invalidated whole into history with nothing current or pending, report 2 current as put back."""
-        records = readings.pinned_records(self)
-        self.assertEqual(records[:2], (None, None))
-        retired = records[2][-1]
-        self.assertEqual(retired, (captured.receipt, readings.INVALIDATED))
+    def test_a_run_routed_elsewhere_is_invalidated(self) -> None:
+        # Another finish routes the run whole before report 3 moves, or right
+        # behind the proof that read it, report 2 put back: the movement
+        # outlives that route, so the run is invalidated as the comment
+        # stands -- or, the comment full, its handoff dropped -- and a
+        # successor settled under its own receipt is kept.
+        for first, then, retired in _ROUTED_ELSEWHERE:
+            with self.subTest(first=first, retired=retired):
+                head, captured = self.polls_beside_a_route(first=first, then=then)
+
+                self._assert_invalidated(captured, retired)
+                self.assert_routed_once(head)
+
+    def _assert_invalidated(self, captured, retired: str | None = readings.INVALIDATED) -> None:
+        """`captured` retired into history as `retired` with nothing pending, report 2 current as put back.
+
+        Invalidated, nothing is current; superseded, the successor is. None is
+        `captured` still current with its handoff dropped: the movement read
+        under it, recorded where history had no room.
+        """
+        pending, current, history = readings.pinned_records(self)
+        self.assertIsNone(pending)
+        if retired is None:
+            handed = read_evidence_handoff(self.gh.read_pinned_state(self.issue))
+            self.assertEqual((current.receipt, handed), (captured.receipt, None))
+        else:
+            self.assertEqual(history[-1], (captured.receipt, retired))
+            self.assertEqual(current is None, retired == readings.INVALIDATED)
         report = readings.pinned(self)[_MOVED_RECORDS[0]]
         self.assertEqual(report["revision"], 2)
 
