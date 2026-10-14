@@ -11,6 +11,8 @@ cannot be put back, the mark (`marks`) replaces the evidence's handoff with
 one naming only the receipt that moved: no reader takes it for a handoff
 (`verification_settled_fields.handoff_from`), and only a later finish finding
 that very receipt current retires the evidence whole (`carries_the_mark`).
+Where even the mark has no room, the evidence is retired whole at once, its
+current record removed rather than left null, which only shrinks the comment.
 """
 from __future__ import annotations
 
@@ -50,11 +52,14 @@ def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> 
     Only where that comment still carries `current` as current, guarded by it
     (`_lands`), so a successor settled since refuses it; a comment that moved
     under the edit, a report put back meanwhile among it, is read and marked
-    once more. The mark is shorter than any handoff, so a comment with no room
-    for the attempt or the history entry still takes it.
+    once more. The mark is shorter than a handoff, but not than one missing or
+    damaged: where it still finds no room, `current` is retired whole into
+    history with its current record removed rather than left null, the one
+    write that only shrinks the comment, so restoring a handoff revives nothing.
     """
     landed = _lands(finish, read_afresh(finish), current, marked=True)
     landed = landed or _lands(finish, read_afresh(finish), current, marked=True)
+    landed = landed or _lands(finish, read_afresh(finish), current, compact=True)
     log.warning(
         "issue=#%d recording movement read under verification evidence revision %d by marking its handoff, "
         "since %s: %s",
@@ -112,22 +117,32 @@ def read_afresh(finish: LandedFinish) -> PinnedState | None:
 
 
 def _lands(
-    finish: LandedFinish, durable: PinnedState | None, current: _records.CurrentEvidence, *, marked: bool = False,
+    finish: LandedFinish,
+    durable: PinnedState | None,
+    current: _records.CurrentEvidence,
+    *,
+    marked: bool = False,
+    compact: bool = False,
 ) -> bool:
     """Whether `current`'s retirement into history -- or, `marked`, the mark of its movement -- landed over `durable`.
 
     `durable` is a reading of the comment that still has to carry `current`,
     and the write is guarded by it -- every bound record and the attempt.
+    `compact` retires `current` whole even where the comment has no room for
+    that as it stands, its current record removed rather than left null.
     """
     if durable is None or _settlement.read_current_evidence(durable) != current:
         return False
     if marked:
         guard = _durable.guarded(durable, (_records.EVIDENCE_HANDOFF,), _attempts._ATTEMPT_KEYS)
         durable.set(_records.EVIDENCE_HANDOFF, {_MOVED: current.receipt})
-    else:
-        guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
-        if not _settlement.retire_current_evidence(durable):
+        return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
+    guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
+    if not _settlement.retire_current_evidence(durable):
+        if not compact:
             return False
+        _settlement._appends_history(durable, _records.HistoricalEvidence.of(current, _records.Retirement.INVALIDATED))
+        durable.data.pop(_records.CURRENT_EVIDENCE)
     return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
 
 

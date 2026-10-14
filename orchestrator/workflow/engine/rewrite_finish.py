@@ -151,7 +151,9 @@ anything it is bound to moved since it settled (`rewrite_finish_readiness`):
   as it stands (`rewrite_finish_marks`), the route held;
 - with no room, by blanking the attempt's base tip, or, with no attempt to
   carry it, by the mark naming the evidence's receipt in its handoff's place,
-  so a later finish retires the evidence whole once room is made.
+  so a later finish retires the evidence whole once room is made -- or, where
+  even the mark has no room, by retiring it whole at once, its current record
+  removed rather than left null.
 
 A settlement another road made of a transaction this finish published or
 abandoned is adopted and invalidated over movement read under it, a
@@ -207,17 +209,10 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     on moved (`rewrite_finish_captured.stands_before_the_route`): putting what
     moved back before a later finish revives nothing. A finish held to the
     dormant settled-evidence policy (`LandedFinish.proves_settled`) proves
-    evidence an earlier finish settled for the head ready again first as well
-    (`rewrite_finish_settled.stands_ready_if_settled`), retired where
-    anything it rests on moved -- but only while the attempt anchored to the
-    head the landing replaced still stands. One finding that attempt retired
-    by an earlier route, or replaced by another, reads nothing more: the
-    evidence that route handed on, and any transaction another road has
-    recorded for the head since, are no longer this landing's to prove --
-    save evidence for the head carrying the mark of movement an earlier
-    finish read under that very receipt, which is invalidated whole once room
-    allows
-    (`rewrite_finish_unconfirmed.retires_the_marked`).
+    settled evidence ready first too (`rewrite_finish_settled.stands_ready_if_settled`)
+    while its attempt stands; one finding it retired or replaced reads
+    nothing more, save evidence carrying the mark of movement an earlier
+    finish recorded under that receipt (`rewrite_finish_unconfirmed.retires_the_marked`).
     """
     if not _finishable(finish):
         standing = finish.anchor and finish.state.get(_base_sync_state._PENDING_PUSH_SHA) == finish.anchor

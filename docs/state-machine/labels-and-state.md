@@ -2845,7 +2845,8 @@ The keys that matter for the state machine fall into a few groups:
   settlement: that evidence still current, its artifact still the one that settled and carrying exactly the commands
   copied, or the carry is refused. `verification_evidence_current` is the evidence the pull request
   carries: the same binding without the commands, plus the artifact's evidence digest (`content`), the comment it landed
-  as (`comment`), and whether at least one command ran and every one exited 0 (`passed`); `null` once invalidated.
+  as (`comment`), and whether at least one command ran and every one exited 0 (`passed`); `null` once invalidated --
+  or, retired by the dormant settled-evidence policy where not even its movement mark had room, removed.
   `verification_evidence_history` is the five highest-revision retired records, in revision order rather than the order
   they retired -- each with its receipt, revision, whole binding (the report revision and digest and the complete review
   subject included, since the artifact names only the subject's head), digest, `passed`, `comment` (`null` exactly for

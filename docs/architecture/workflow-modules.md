@@ -1293,7 +1293,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             another road took the attempt, over the comment as it stands (`retires_as_it_stands`),
                             every attempt and successor kept, and with no room the mark
                             `{"moved": <receipt>}` in the evidence's handoff place (`marks`), which no reader takes for
-                            a handoff and only that very receipt answers to (`carries_the_mark`)
+                            a handoff and only that very receipt answers to (`carries_the_mark`) -- or, where even the
+                            mark has no room, the evidence retired whole with its current record removed
     rewrite_finish_unconfirmed.py
                             what the finish's own write nobody confirmed left of its attempt, for the dormant policy:
                             the announcement's bookkeeping taken in (`takes_in_the_announcement`), the attempt put back

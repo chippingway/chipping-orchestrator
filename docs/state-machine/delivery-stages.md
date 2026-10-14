@@ -1582,7 +1582,8 @@ because there it is the claim that this stage has already rerouted rather than a
     `{"moved": <receipt>}` in the evidence's handoff place (`workflow/engine/rewrite_finish_marks.py`), which no reader
     takes for a handoff; a later direct finish that finds no attempt and that very receipt current retires the
     evidence whole once room is made -- a handoff missing or unreadable is no mark -- and nothing re-enters the
-    landing by itself;
+    landing by itself; where the mark has no room either, a handoff missing or shorter than it, the evidence is
+    retired whole at once with its current record removed rather than left null, which only shrinks the comment;
   - a readable revision spent past the evidence outranks it for good, while a handoff not naming it or a floor nobody
     can read still holds; a settlement another road made of the run while this finish answered or abandoned it is
     adopted and invalidated over movement read under it, the evidence records' and announcement's own moves aside

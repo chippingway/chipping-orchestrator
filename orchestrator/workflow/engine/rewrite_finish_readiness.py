@@ -266,30 +266,17 @@ def beside_current(state: PinnedState, current: _records.CurrentEvidence | None)
 def invalidates(finish: LandedFinish, current: _records.CurrentEvidence, *, as_it_stands: bool = True) -> bool:
     """Whether `current`'s invalidation into history landed, in a write of its own; the caller logs it.
 
-    Staged on the comment read afresh and committed guarded by that reading
-    and by the attempt as `finish` read it, so only the current record and the
-    history are written and every other field stays as the comment carries
-    it. Where that comment would not read again, or that write was refused or
-    went unconfirmed, the invalidation is made over the tick's own copy
-    instead (`_invalidates_on_the_tick`) -- once the comment, read and
-    reconciled again, refused it a second time
-    (`rewrite_finish_marks.retires_over_the_attempt`) -- so movement the caller
-    already read is never left behind a comment that would not read, for a
-    later poll to find put back and take the decision as current. False where the
-    comment carries another attempt or no longer carries `current` as current,
-    and where neither reading took the invalidation -- for want of room, or a
-    write that did not land -- the movement then recorded against `current`
-    instead. For a finish held to the dormant settled-evidence policy, an
-    attempt another finish of the landing advanced by announcing it -- its
-    mark and the record of its event put down meanwhile -- is no other
-    attempt: that bookkeeping is taken in first, so the invalidation, or the
-    movement recorded where history has no room, is decided on the attempt as
-    it stands. Over any other attempt -- another finish's route retired it, or
-    another road replaced it -- that finish still retires the same receipt
-    over the comment as it stands, or marks it, and answers False so its route
-    holds; `as_it_stands` False
-    leaves that to a caller that puts its own attempt back first
-    (`rewrite_finish_settled.behind_the_write`).
+    Staged on the comment read afresh, guarded by that reading and the attempt
+    as `finish` read it -- an announcement another finish of the landing put on
+    it taken in first, and a refused write read, reconciled, and retried once
+    (`rewrite_finish_marks.retires_over_the_attempt`). Where neither reading
+    took it, it is made over the tick's own copy (`_invalidates_on_the_tick`),
+    so movement already read is never left for a later poll to find put back.
+    False where the comment carries another evidence or another attempt --
+    over which a dormant finish still retires or marks the same receipt as the
+    comment stands, unless `as_it_stands` is False for a caller that puts its
+    own attempt back first (`rewrite_finish_settled.behind_the_write`) -- and
+    where nothing took it, the movement then recorded against `current`.
     """
     retired = retires_over_the_attempt(finish, current, as_it_stands=as_it_stands)
     return _invalidates_on_the_tick(finish, current) if retired is None else retired
