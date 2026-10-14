@@ -5,6 +5,7 @@
 import contextlib
 import os
 import stat
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,7 @@ from unittest.mock import patch
 from orchestrator.service.validation import (
     AGENTS,
     validate_agent,
+    validate_branch,
     validate_clone,
     validate_logins,
     validate_repository,
@@ -25,6 +27,16 @@ _CLONE_ADVICE = "give the top of a local clone or linked worktree"
 _NOT_TOP = "has no .git of its own, so it is not the top of a git checkout"
 _LINKED = "linked"
 _UP = ".."
+_BRANCH_ADVICE = "name the branch pull requests target, such as main"
+
+# Branch names git takes, and ones it refuses, rule by rule; git itself is
+# asked about each too, so the validator cannot drift from what it mirrors.
+_BRANCHES = ("main", "release/2.x", "release;2.x", "a|b", "foo@bar", "x/HEAD", "foo.lock.x", "\u00fcn\u00efcode")
+_NOT_BRANCHES = (
+    "feature branch", "-foo", "foo.", "foo/", "/foo", "foo//bar", ".foo", "foo/.bar", "foo.lock",
+    "foo.lock/bar", "foo..bar", "foo@{bar", "@{-1}", "foo~1", "foo^", "foo:bar", "foo?", "foo*",
+    "foo[", r"foo\bar", "foo\tbar", "foo\x7f",
+)
 
 
 # A path to refuse, and each error the refusal may carry for it.
@@ -164,8 +176,10 @@ class UnreadableClonePathTest(_ClonesCase):
                 self.assertTrue(refused.endswith(f"); {_CLONE_ADVICE}"), refused)
 
 
-class RepositoryValidatorTest(unittest.TestCase):
-    """A repository is one GitHub owner and one name, joined by one slash."""
+class EntryFieldValidatorTest(unittest.TestCase):
+    """A repository is one GitHub owner and one name, joined by one slash;
+    a base branch is a name git allows for one, without the blanks around it.
+    """
 
     def test_owner_and_name_pass(self) -> None:
         for raw, expected in (
@@ -183,6 +197,48 @@ class RepositoryValidatorTest(unittest.TestCase):
                     f"repository {raw!r} is not written owner/name; give a GitHub owner "
                     "and repository name joined by one '/', such as acme/api",
                 )
+
+    def test_names_git_allows_pass(self) -> None:
+        for branch in _BRANCHES:
+            with self.subTest(branch=branch):
+                self.assertTrue(self._git_allows(branch))
+                self.assertEqual(validate_branch(f" {branch} \n"), branch)
+
+    def test_names_git_refuses_are_refused(self) -> None:
+        for branch in _NOT_BRANCHES:
+            with self.subTest(branch=branch):
+                self.assertFalse(self._git_allows(branch))
+                self.assertEqual(
+                    refusal(validate_branch, branch),
+                    f"{branch!r} is not a name git allows for a branch; {_BRANCH_ADVICE}",
+                )
+
+    def test_names_for_head_are_refused(self) -> None:
+        # Not asked of git: `--branch` reads `@` as `HEAD`, and only newer
+        # versions refuse `HEAD` itself as a branch name.
+        for branch in ("HEAD", "@"):
+            with self.subTest(branch=branch):
+                self.assertEqual(
+                    refusal(validate_branch, branch),
+                    f"{branch!r} is not a name git allows for a branch; {_BRANCH_ADVICE}",
+                )
+
+    def test_a_blank_branch_is_refused(self) -> None:
+        for raw in ("", " \t\n"):
+            with self.subTest(raw=raw):
+                self.assertEqual(refusal(validate_branch, raw), f"no branch was given; {_BRANCH_ADVICE}")
+
+    def _git_allows(self, branch: str) -> bool:
+        """Whether git takes ``branch`` for a branch, asked outside every repository."""
+        outside = self.enterContext(tempfile.TemporaryDirectory())
+        checked = subprocess.run(
+            ("git", "check-ref-format", "--branch", branch),
+            cwd=outside,
+            env={**os.environ, "GIT_CEILING_DIRECTORIES": str(Path(outside).parent)},
+            capture_output=True,
+            check=False,
+        )
+        return checked.returncode == 0
 
 
 class LoginValidatorTest(unittest.TestCase):

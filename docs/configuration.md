@@ -56,16 +56,28 @@ derived from the targets rather than from it. Both locations refuse the token ke
 
 ## Basic setup
 
-Install with `pipx install chipping-orchestrator`, then follow the
-[package setup instructions](#package-installation-upgrades-and-rollback) to save the `.env.example` and
-`.env.example.advanced` the installed version carries in its package. On first setup, copy the basic template to
-`~/.config/chipping-orchestrator/.env` and set an absolute `LOG_DIR` outside the pipx environment. Keep an existing
-file when upgrading or rolling back. The orchestrator's own repository does not need to be cloned;
-[source setup](development.md#source-checkout-setup) is for developers.
+Install with `pipx install chipping-orchestrator`, then write the first setup without any prompt, naming a local
+clone of the repository to manage and the GitHub logins the orchestrator takes work from:
 
-Then edit the copy. `REPOS` names what to manage, one `owner/name|target_root|base_branch` entry per repository
-([syntax](#repos-syntax)): the repository on GitHub, the absolute path to the top of an existing local clone of it, and
-the branch its pull requests target. One repository is one entry:
+```sh
+chipping-orchestrator configure --clone /home/alice/src/acme-api --authors alice
+```
+
+`configure` writes `~/.config/chipping-orchestrator/.env` from the basic template the installed version carries in
+its package. It reads the repository, its remote, and the branch pull requests target off the clone's GitHub remote,
+sets `ALLOWED_ISSUE_AUTHORS` and `HITL_HANDLE` to the authors and the agent roles to the template's own routing, and
+appends an absolute `LOG_DIR` outside the pipx environment. `--repo`, `--base-branch`, `--notify`, `--dev-agent`,
+`--review-agent`, and `--decompose-agent` replace those defaults; `--authors` has none, since it decides whose issues
+and comments the orchestrator trusts. Every answer is checked before anything is written, and an existing `.env` is
+never overwritten, so the file survives upgrades and rollbacks. The
+[package setup instructions](#package-installation-upgrades-and-rollback) cover the options and refusals, and saving
+the `.env.example` and `.env.example.advanced` the installed version carries for later comparison. The orchestrator's
+own repository does not need to be cloned; [source setup](development.md#source-checkout-setup) is for developers.
+
+The file `configure` writes is edited like any other. `REPOS` names what to manage, one
+`owner/name|target_root|base_branch` entry per repository ([syntax](#repos-syntax)): the repository on GitHub, the
+absolute path to the top of an existing local clone of it, and the branch its pull requests target. One repository
+is one entry:
 
 ```dotenv
 REPOS=acme/api|/home/alice/src/acme-api|main
@@ -78,10 +90,10 @@ REPOS=acme/api|/home/alice/src/acme-api|main;acme/web|/home/alice/src/acme-web|m
 ```
 
 The second entry also sets both optional fields: `upstream` is the git remote in that clone that points at `acme/web`,
-and `2` lets two `acme/web` issues run at once. Set `ALLOWED_ISSUE_AUTHORS` ([required](#required)) and `HITL_HANDLE`
-beside it, and give every entry a token — a file at `~/.config/<owner>/<name>/token` each, or one `GITHUB_TOKEN` for
-all of them ([resolution order](#github-personal-access-token)). Worktrees go under `wt-orchestrator` beside the first
-entry's clone unless `WORKTREES_DIR` says otherwise ([workspace](#workspace-and-agent-identity)).
+and `2` lets two `acme/web` issues run at once. `ALLOWED_ISSUE_AUTHORS` ([required](#required)) and `HITL_HANDLE`
+sit beside it, and every entry needs a token — a file at `~/.config/<owner>/<name>/token` each, or one `GITHUB_TOKEN`
+for all of them ([resolution order](#github-personal-access-token)). Worktrees go under `wt-orchestrator` beside the
+first entry's clone unless `WORKTREES_DIR` says otherwise ([workspace](#workspace-and-agent-identity)).
 
 Nothing else is needed. [`.env.example.advanced`](../orchestrator/service/.env.example.advanced) holds optional
 operational settings, each documented below, and closes with the orchestrator-developer settings `REPO`,
@@ -231,6 +243,10 @@ from a hand-edited `.env`, which is read as described above.
   path written holds no `..`.
 - **Repository** — `owner/name` in the characters GitHub allows: letters, digits, and `-` in the owner, and `.` and
   `_` besides in the name.
+- **Base branch** — a name git allows for a branch, by the rules of `git check-ref-format --branch`: no blank, control
+  character, `~`, `^`, `:`, `?`, `*`, `[`, or `\`, no `..` or `@{`, no component beginning with `.` or ending in
+  `.lock`, no leading `-` or `/`, and no trailing `.` or `/`. `HEAD` and `@`, which git reads as `HEAD`, are refused
+  too, so `feature branch` never reaches an entry.
 - **Logins** (`ALLOWED_ISSUE_AUTHORS`, `HITL_HANDLE`) — at least one GitHub login, separated by commas, with a leading
   `@` dropped and repeats kept once, as the settings read them. A login is letters, digits, and `-`, with an optional
   `[bot]` suffix, so `alice bob` is refused rather than kept as one login nobody has.
@@ -253,7 +269,8 @@ with nothing fetched:
 The entry is written in the fewest fields that carry it: the remote field only when the remote is not `origin` or a
 parallel limit follows it, so a clone that reaches GitHub through `upstream` is recorded as
 `owner/name|path|branch|upstream`. A field this syntax would split or strip — one holding `|`, `;`, or a line break,
-or blanks at either end — is refused.
+or blanks at either end — is refused, under the option answering for it: `--clone` for the path, and `--base-branch`
+for a branch whether given or read off the clone, since another one given there replaces it.
 
 Setup uses the installed package's own locations under the home it runs with: settings in
 `~/.config/chipping-orchestrator/.env`, the file an installed package reads
@@ -922,7 +939,7 @@ error.
   (`orchestrator.log`, rotated ~10 MiB × 5). Also the default parent for `ANALYTICS_LOG_PATH`
   (`LOG_DIR/analytics.jsonl`). In a source checkout this is `<checkout>/logs`; in an installed package it is inside
   the Python environment's `site-packages`, where recreating or uninstalling the environment can delete logs.
-  [Package setup](#package-installation-upgrades-and-rollback) sets an absolute `LOG_DIR` outside that environment.
+  `configure` ([basic setup](#basic-setup)) sets an absolute `LOG_DIR` outside that environment.
 - `AGENT_GIT_NAME` — default `chipping-orchestrator`. `GIT_AUTHOR_NAME`/`GIT_COMMITTER_NAME` injected into agent
   spawns, and the name on the commits the orchestrator creates itself: the approval squash is authored and committed
   under it, and the documenting pass's `PR_REF_IN_SUBJECT` replacement of the `docs:` commit is committed under it

@@ -133,8 +133,9 @@ The entries below name defining owners and the deliberate public package surface
 ```
 orchestrator/
   __init__.py           the distribution version, published as `__version__`, without loading runtime owners
-  cli.py                the `chipping-orchestrator` console script: the command line, `--version`, and the `run`
-                        command that is the polling process's composition point
+  cli.py                the `chipping-orchestrator` console script: the command line, `--version`, the `run`
+                        command that is the polling process's composition point, and the setup commands
+                        `service/commands.py` puts on it, imported with it since they load no configuration
   __main__.py           the `python -m orchestrator` launch form over `cli.main`, whose `run` is what `run.sh` starts
   runtime/              the polling process's own owners
     state.py            the mutable state one run carries -- the stop flag, the signal, the scheduler a handler may
@@ -215,16 +216,32 @@ orchestrator/
                         stays installed; where an installed package keeps its `.env` and logs under the home; and
                         the refusal a setup command gives a source checkout, naming its own `.env`, guide, and
                         `run.sh`. `config/` reads the layout and the `.env` location here
-    validation.py       one validator per setup field -- the clone, the `owner/name` repository, a login list, an
-                        agent on a supplied `PATH` -- each returning the value a setup writes or raising
-                        `FieldError` with the whole diagnostic, so every command and prompt prints the same words
+    validation.py       one validator per setup field -- the clone, the `owner/name` repository, a base branch git
+                        allows by the `check-ref-format --branch` rules, a login list, an agent on a supplied `PATH`
+                        -- each returning the value a setup writes or raising `FieldError` with the whole
+                        diagnostic, so every command and prompt prints the same words
     remote_urls.py      the `owner/name` a git remote's URL points at on GitHub, in each form git accepts for one,
                         the SSH forms on GitHub's port-443 endpoint `ssh.github.com` included
     clone_defaults.py   the `REPOS` entry a clone implies: the repository, remote, and base branch read off its
                         remotes and its recorded and checked-out branches, keeping any field the caller chose and
                         recording a remote other than `origin` under its own name; nothing is fetched
     repos_entry.py      the `RepositoryEntry` record and the `REPOS` entry it renders, in the fewest positional
-                        fields that carry it, refusing a field the configuration would read back changed
+                        fields that carry it, refusing a field the configuration would read back changed through
+                        `writable_field`, which a caller also asks of one field to name the answer it came from
+    dotenv_text.py      a setting set in a `.env`'s text on the line the configuration takes it from, every other
+                        line kept byte for byte, and the refusal of a value that loader would read back changed
+    private_files.py    the 0700 directories a setup creates, each missing parent included, and the 0600 file it
+                        writes whole or not at all, every mode set exactly whatever the umask: a temporary sibling
+                        flushed to disk, then renamed over the name or hard-linked to it, the link being what
+                        refuses a file that appeared since it was checked for
+    configure.py        `configure`, in process: the answers as typed, each field's validator and the option it
+                        names in a refusal, then the clone's derived entry, its clone and branch fields refused
+                        under their options where the entry cannot carry them, and the basic template with
+                        `REPOS`, `HITL_HANDLE`, `ALLOWED_ISSUE_AUTHORS`, and the three agent roles set in place
+                        and `LOG_DIR` appended, written to the installed `.env` after the source-checkout and
+                        existing-file refusals, never over a file
+    commands.py         the setup commands' options and the function each runs, reading the options into its core's
+                        answers and printing a refusal alone on stderr with exit status 1
     .env.example        the basic template a setup starts from: `REPOS` and the few settings a first run needs
     .env.example.advanced
                         optional operational overrides and examples, then the orchestrator-developer settings

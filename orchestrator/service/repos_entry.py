@@ -13,7 +13,8 @@ breaks, an entry into fields on ``|``, and strips the blanks around each
 field, so a field holding one of those, or blanks at either end, would come
 back as something else. ``render`` refuses such a field rather than write it,
 and holds the repository to the ``owner/name`` its validator accepts, which is
-also what keeps an entry from reading as a comment.
+also what keeps an entry from reading as a comment. ``writable_field`` is that
+refusal for one field, so a caller can name the answer a field came from.
 
 Nothing here imports ``orchestrator.config``, which parses the entry back:
 the format is the contract the two sides share, and a setup writes it on a
@@ -29,8 +30,8 @@ from orchestrator.service.validation import FieldError, validate_repository
 DEFAULT_REMOTE = "origin"
 
 
-def _require_writable(field: str) -> None:
-    """Refuse a field the configuration would not read back as written."""
+def writable_field(field: str) -> str:
+    """``field`` as an entry writes it, refused if it would be read back changed."""
     # Split the way a `REPOS` value is read: what comes back has to be the
     # field alone, and stripping it must leave it as it was.
     pieces = field.replace("|", "\n").replace(";", "\n").splitlines()
@@ -39,6 +40,7 @@ def _require_writable(field: str) -> None:
             f"{field!r} cannot be written into a REPOS entry, which splits on "
             "'|', ';', and line breaks and strips the blanks around each field",
         )
+    return field
 
 
 @dataclass(frozen=True)
@@ -68,5 +70,5 @@ class RepositoryEntry:
                 )
             fields.append(str(self.parallel_limit))
         for field in fields:
-            _require_writable(field)
+            writable_field(field)
         return "|".join(fields)

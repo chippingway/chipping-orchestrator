@@ -93,8 +93,9 @@ The rules under the map hold for the whole tree, the packages on those pages inc
 orchestrator/
   __init__.py           the distribution version, published as `__version__`, without loading runtime owners
   cli.py                `chipping-orchestrator` console-script entry point: the
-                        command line, `--version`, and the `run` command that is
-                        the polling process's composition point
+                        command line, `--version`, the `run` command that is
+                        the polling process's composition point, and the
+                        setup commands `service/` puts on it
   __main__.py           `python -m orchestrator` launch form over `cli.main`;
                         `run.sh` launches its `run` command
   runtime/              the polling process's own owners: the state one run
@@ -113,8 +114,11 @@ orchestrator/
                         installed layout with the installed paths and the
                         refusal a source checkout gets, one validator per
                         setup field, and the repository, remote, and branch
-                        a clone implies, written as a `REPOS` entry -- all of
-                        it loading no configuration
+                        a clone implies, written as a `REPOS` entry; the
+                        `.env` lines a setup sets and the private files it
+                        writes, and the `configure` command that writes an
+                        installed package's `.env` from them -- all of it
+                        loading no configuration
   config/               the bottom layer: the non-secret `.env` loader, the
                         env parsers and resolver behind the settings surface,
                         target selection holding every target to the
@@ -244,7 +248,8 @@ by pipx. A systemd user service can supervise it. Developer source checkouts als
 so the loop can self-exit and be restarted with new source code; those launch commands are in the
 [developer guide](development.md). The bare command, `--help`, and `--version` poll nothing: they print and exit 0
 before any configuration is read, and a polling flag given before any command is refused with the `run` form that
-means it.
+means it. `configure` polls nothing either: it writes an installed package's `.env` and exits, reading no
+configuration ([basic setup](configuration.md#basic-setup)).
 
 - **Trigger**: started manually (or by a wrapper) as `run`. Optional `run --once` for a single tick, or
   `run --cleanup-terminal-artifacts` for a maintenance-only run: it connects read-only clients (no label bootstrap)
