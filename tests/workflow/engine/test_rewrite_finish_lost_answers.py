@@ -2,34 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 """A landed rewrite's final writes landing with their answers lost while the requirements its run rests on move.
 
-The real-git finish case (`rewrite_verification_recovery_support`), every
-finish held to the dormant settled-evidence policy (`settled_finish_support`)
-and handed over directly: issue #7's rebased head reviewed, its run settled
-under the anchor and proved ready, and one of the finish's final writes --
-the record of its `base_rebased` event, the checkpoint behind it, or the
-retirement behind the relabel -- landing with its answer lost. The issue is
-edited while that write is sent, and put back before the finish is handed
-over again.
-
-The proof behind the write reads the edit, so the run is no decision any route
-may carry. The record and the checkpoint leave the attempt standing with their
-bookkeeping on it -- the record of the event, the mark -- which is taken in as
-this finish's own before the run is invalidated over it. The retirement takes
-the attempt with it, so the attempt is put back where the retirement took it
-and the run invalidated over it -- or, the comment filled to its limit as the
-relabel was made, the movement recorded by blanking that attempt's base tip;
-or, the comment filled right behind the retirement so the attempt no longer
-fits, by dropping the run's handoff -- and a pinned-comment read lost once
-behind the proof, at the invalidation or at the putting back, loses nothing. The attempt standing brings the next
-finish back: with room made it retires the run whole, its revision and binding
-kept, and routes the head with nothing current and every notice, `base_rebased`
-event, and relabel said once. With nothing edited the run stays current: the
-next finish routes it behind an unconfirmed announcement, and finds no attempt
-and makes nothing behind an unconfirmed retirement -- save a run its handoff
-was dropped from, which it retires whole once room is made. A successor another road
-settled behind the retirement or the checkpoint is kept as that road wrote it,
-with nothing put back or invalidated under it. The run is made once, nothing is
-pushed, and no developer is launched.
+Every finish held to the dormant settled-evidence policy and handed over
+directly (`settled_finish_support`): issue #7's run settled and proved ready,
+and the record of the `base_rebased` event, the checkpoint, or the retirement
+landing with its answer lost while the issue is edited, then put back. The
+proof behind the write reads the edit: the record's or checkpoint's
+bookkeeping is taken in, or the attempt the retirement took put back, and
+the run invalidated over it -- or, with no room, recorded by blanking the
+base tip, or, the attempt no longer fitting, by the mark naming the run's
+receipt in its handoff's place -- a pinned-comment read lost once losing
+nothing. The next finish, room made, retires the run whole and routes the
+head with everything said once; with nothing edited the run stays current,
+and a successor another road settled meanwhile is kept as it wrote it.
 """
 from __future__ import annotations
 
@@ -228,7 +212,8 @@ class LostAnswerTest(settled.SettledRunCase, unittest.TestCase):
         kept = loss.fills or loss.crowds or not loss.edited
         self.assertEqual(getattr(current, "receipt", None), run.receipt if kept else None)
         self.assertEqual(pinned[readings.KEY_REWRITE_BASE] is None, loss.blanked)
-        self.assertEqual(pinned.get(_HANDOFF) is None, loss.crowds)
+        marked = {"moved": run.receipt}
+        self.assertEqual(pinned.get(_HANDOFF) == marked, loss.crowds)
 
     def _assert_superseded(self, run) -> None:
         """A successor another road settled current, and `run` superseded into history under it as that road left it."""

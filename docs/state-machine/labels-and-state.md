@@ -2858,8 +2858,9 @@ The keys that matter for the state machine fall into a few groups:
   index of artifacts that all stay on the pull request. `verification_evidence_handoff` is the receipt of the last
   settled transaction with its pull request (`pr`), revision, target head (`head`), and, where it could be read, the
   label the issue carried as it settled (`under`); a landed rewrite's finish held to the dormant settled-evidence
-  policy drops it as the mark of movement read under that evidence where it can record the movement no other way
-  (`workflow/engine/rewrite_finish_unconfirmed.py`), and no reader hands on evidence its handoff does not describe.
+  policy replaces it with the mark `{"moved": <receipt>}` where it can record movement read under that evidence no
+  other way (`workflow/engine/rewrite_finish_marks.py`): no reader takes the mark for a handoff, so none hands that
+  evidence on, and only a later finish of the landing finding that very receipt current retires it whole.
   `verification_evidence_revision` is the highest revision any
   transaction on the issue was recorded under, raised in the same write as each record, so a revision whose artifact may
   already be on the pull request stays spent after its record is damaged, dropped, or evicted from the history.

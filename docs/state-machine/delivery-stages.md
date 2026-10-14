@@ -1581,15 +1581,18 @@ because there it is the claim that this stage has already rerouted rather than a
     retirement took it -- guarded so another attempt or a successor under another receipt is kept -- and the evidence
     invalidated over it, or, with no room, its movement recorded by blanking that attempt's base tip, so the next
     finish retires it whole and the attempt behind it, however soon what moved was put back; where the comment, filled
-    behind the retirement, has no room for the attempt either, the movement is recorded by dropping the evidence's
-    handoff, which no reader hands evidence on without, and a later finish of the landing that finds no attempt
-    retires that evidence whole once room is made (`workflow/engine/rewrite_finish_unconfirmed.py`);
+    behind the retirement, has no room for the attempt either, the movement is recorded by the mark
+    `{"moved": <receipt>}` in the evidence's handoff place (`workflow/engine/rewrite_finish_marks.py`), which no
+    reader takes for a handoff, and a later finish of the landing that finds no attempt and that very receipt current
+    retires the evidence whole once room is made -- a handoff missing or unreadable is no mark;
   - an announcement another finish of the landing made while this finish's requests were answered -- its mark and
     the record of its event -- is this attempt advanced, not replaced: no reason to hold and no movement of its own,
     it is taken in before any invalidation is decided on the attempt (`workflow/engine/rewrite_finish_announced.py`),
     so evidence this finish's proof or answer read moving is invalidated over the attempt as it stands -- or, with no
-    room, its movement recorded by blanking the base tip -- and the relabel is decided on the mark as the attempt now
-    carries it and the label read afresh, so a relabel that finish made is not made again, nor its stage-entry event;
+    room, its movement recorded by blanking the base tip; where that finish's route retired the attempt, or another
+    road replaced it, the same receipt is invalidated over the comment as it stands, or marked, and the route held.
+    The relabel is decided on the mark as the attempt now carries it and the label read afresh, so a relabel that
+    finish made is not made again, nor its stage-entry event, and a label nobody could read holds the route;
   - the checkpoint, the event's record, the park, and the retirement are decided on the records the evidence's binding
     rests on (`rewrite_finish_writes.BINDING_RECORDS`), and a refusal over one of them is movement read under the
     evidence (`BINDING_MOVED`), invalidated before the finish stops however soon the record is put back;
@@ -1603,9 +1606,8 @@ because there it is the claim that this stage has already rerouted rather than a
     with the mark and event record that finish's announcement left, and invalidated over what the abandonment was
     asked on -- or, the comment full, its movement recorded by blanking the base tip; where that finish's route
     retired the attempt meanwhile, or another road replaced it, either settlement the finish read moving is
-    invalidated over the comment as it stands, that attempt kept, or with no room its movement recorded by dropping
-    its handoff (`workflow/engine/rewrite_finish_unconfirmed.py`), never by blanking another attempt's base tip; a
-    successor settled under another receipt is kept as its road wrote it;
+    invalidated over the comment as it stands, that attempt kept, or with no room marked, never by blanking another
+    attempt's base tip; a successor settled under another receipt is kept as its road wrote it;
   - behind the relabel a routed head with no evidence current for it is held to the base tip its replay was made
     onto, or -- where the attempt records none, blanked or legacy -- to the base the tick counted it against, so a
     base advanced while the announcement or the relabel was answered holds the route with the attempt standing;

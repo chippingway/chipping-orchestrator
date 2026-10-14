@@ -1014,8 +1014,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   before and behind every step that keeps, routes, or parks the attempt, the announcement's writes, the debt's park,
   and the retirement decided on the records the evidence's binding rests on and a refusal over one of them read as
   movement, a settlement another road made of the run while the finish answered or abandoned it invalidated over what
-  that finish read -- over the comment as it stands where another finish's route took the attempt -- an announcement
-  or relabel another finish of the landing made meanwhile taken in rather than refused or made again, and a routed
+  that finish read -- any movement it read retired as the comment stands, or marked, where another finish's route
+  took the attempt -- an announcement or relabel another finish made meanwhile not made again, and a routed
   head with no recorded base tip held to the base the tick counted it against. Dormant guarded recovery operations
   are built on them,
   and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof

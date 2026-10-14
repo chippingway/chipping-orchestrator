@@ -50,6 +50,10 @@ _CHARGED = MappingProxyType({
 })
 
 
+# The handoff's place on the pinned comment.
+_HANDOFF = "verification_evidence_handoff"
+
+
 class RepeatedFinishTest(settled.SettledRunCase, unittest.TestCase):
     """Direct finishes behind one killed at any boundary route the settled run once and repeat nothing."""
 
@@ -90,6 +94,26 @@ class RepeatedFinishTest(settled.SettledRunCase, unittest.TestCase):
         self.assertEqual(readings.pinned(self), pinned)
         self.assertEqual(readings.pinned_records(self)[0], later)
         self._assert_charged_as_left()
+
+    def test_a_handoff_out_of_step_is_no_mark(self) -> None:
+        # The landing is routed and another road settles a newer run for the
+        # head under its own receipt, whose handoff then reads missing or
+        # damaged. Nothing marked movement under that run, so the landing
+        # handed over again finds no attempt and leaves the successor current.
+        for damaged in (None, "unreadable"):
+            with self.subTest(handoff=damaged):
+                self.setUp()
+                head = self.lands_a_reviewed_rebase()
+                self.assertEqual(self.finishes(head), FinishOutcome.ROUTED)
+                later = settled.records_a_newer_run(self, settles=True)
+                state = self.gh.read_pinned_state(self.issue)
+                state.set(_HANDOFF, damaged)
+                self.gh.write_pinned_state(self.issue, state)
+
+                self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.UNFINISHABLE)
+
+                self.assertEqual(self.gh.read_pinned_state(self.issue).data, state.data)
+                self.assertEqual(readings.pinned_records(self)[1].receipt, later.receipt)
 
     def _charges(self) -> None:
         """Leave the run ledger another road's launch charged (`_CHARGED`) on the comment as it stands."""

@@ -122,7 +122,6 @@ from orchestrator.git.base_sync import (
 )
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    pinned_commit_models as _commit_models,
     report_evidence_models as _evidence_models,
     rewrite_finish_writes as _writes,
     verification_durable as _durable,
@@ -132,7 +131,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_evidence_proof import Refusals, Word, _reads_again, last_word
-from orchestrator.workflow.engine.rewrite_finish_announced import takes_in_the_announcement
+from orchestrator.workflow.engine.rewrite_finish_marks import holds_the_attempt
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_current import _handoff_describes
 from orchestrator.workflow.engine.verification_history_fields import historical_from
@@ -269,7 +268,7 @@ def beside_current(state: PinnedState, current: _records.CurrentEvidence | None)
     return ""
 
 
-def invalidates(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
+def invalidates(finish: LandedFinish, current: _records.CurrentEvidence, *, as_it_stands: bool = True) -> bool:
     """Whether `current`'s invalidation into history landed, in a write of its own; the caller logs it.
 
     Staged on the comment read afresh and committed guarded by that reading
@@ -286,17 +285,21 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
     instead. For a finish held to the dormant settled-evidence policy, an
     attempt another finish of the landing advanced by announcing it -- its
     mark and the record of its event put down meanwhile -- is no other
-    attempt: that bookkeeping is taken in first
-    (`rewrite_finish_announced.takes_in_the_announcement`), so the
-    invalidation, or the movement recorded where history has no room, is
-    decided on the attempt as it stands.
+    attempt: that bookkeeping is taken in first, so the invalidation, or the
+    movement recorded where history has no room, is decided on the attempt as
+    it stands. Over any other attempt -- another finish's route retired it, or
+    another road replaced it -- that finish still retires the same receipt
+    over the comment as it stands, or marks it, and answers False so its route
+    holds (`rewrite_finish_marks.holds_the_attempt`); `as_it_stands` False
+    leaves that to a caller that puts its own attempt back first
+    (`rewrite_finish_settled.behind_the_write`).
     """
     durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
     if durable is None:
         return _invalidates_on_the_tick(finish, current)
-    takes_in_the_announcement(finish, durable)
-    attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
-    if attempt.moved(durable.data) or _settlement.read_current_evidence(durable) != current:
+    if not holds_the_attempt(finish, durable, current.receipt, as_it_stands=as_it_stands):
+        return False
+    if _settlement.read_current_evidence(durable) != current:
         return False
     guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
     if not _settlement.retire_current_evidence(durable):

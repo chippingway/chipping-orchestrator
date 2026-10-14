@@ -1306,21 +1306,25 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a finish's announcement on the attempt as only the dormant policy reads it: an attempt
                             advanced by it rather than replaced (`advanced_by_the_announcement`), its mark and event
                             record taken in ahead of every invalidation (`takes_in_the_announcement`), and the mark and
-                            the label read afresh before the relabel (`marked`, `relabelled`), so nothing is made twice
+                            the label read afresh before the relabel (`marked`, `relabelled`, a label nobody could read
+                            holding the route), so nothing is made twice
+    rewrite_finish_marks.py
+                            movement a dormant finish read under settled evidence where its own attempt cannot carry it:
+                            the evidence current under that receipt retired over the comment as it stands where another
+                            finish's route or another road took the attempt (`holds_the_attempt`,
+                            `retires_as_it_stands`), every attempt and successor kept, and with no room the mark
+                            `{"moved": <receipt>}` in the evidence's handoff place (`marks`), which no reader takes for
+                            a handoff and only that very receipt answers to (`carries_the_mark`)
     rewrite_finish_unconfirmed.py
-                            what the finish's own write nobody confirmed, or another finish of the landing, left of its
-                            attempt, reconciled for the dormant settled-evidence policy before movement read behind it
-                            is invalidated or recorded: the announcement's bookkeeping the record or the checkpoint
-                            landed, taken in off the comment read afresh (`takes_in_the_announcement`); the attempt put
-                            back exactly as read where the comment carries it blanked as the finish's retirement
-                            leaves it and the same evidence current (`stands_back`), so every later finish comes back
-                            to retire that evidence whole -- or, where the attempt no longer fits, the evidence's
-                            handoff dropped as the movement mark, which a later finish finding no attempt retires
-                            whole once room allows (`retires_the_marked`); evidence a finish read moving invalidated
-                            over the comment as it stands, or its handoff dropped, where another finish's route or
-                            another road took the attempt (`retires_as_it_stands`, and `retires_the_settled` for an
-                            abandonment's settlement). Another attempt or a successor under another receipt is left as
-                            its road wrote it, and a comment that would not read is asked once more
+                            what the finish's own write nobody confirmed left of its attempt, reconciled for the dormant
+                            settled-evidence policy before movement read behind it is invalidated or recorded: the
+                            announcement's bookkeeping the record or the checkpoint landed taken in
+                            (`takes_in_the_announcement`); the attempt put back exactly as read where the comment
+                            carries it blanked as the finish's retirement leaves it and the same evidence current
+                            (`stands_back`) -- or, where it no longer fits, the movement marked -- and evidence carrying
+                            that mark retired whole by a later finish finding no attempt, once room allows
+                            (`retires_the_marked`); and a settlement another finish made while this one's abandonment
+                            was asked invalidated (`retires_the_settled`)
     rewrite_finish_readiness.py
                             dormant -- asked only by the dormant settled-evidence finish policy
                             (`rewrite_finish_settled.py`) and the recovery's dormant guarded operations, so by no
@@ -1344,10 +1348,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             falling back to the tick's own reading (`rewrite_finish_writes.INVALIDATION`) where that
                             comment will not read or that write does not land (`invalidates`) -- for a dormant finish
                             behind the announcement another finish of the landing put down on the attempt meanwhile,
-                            taken in first (`rewrite_finish_announced.takes_in_the_announcement`); an attempt or
-                            evidence another road put in place is left as it wrote it, and where neither write lands --
-                            no room for the history entry, or a write refused or unconfirmed -- the movement is recorded
-                            instead by blanking the attempt's recorded base tip under the same guard -- refused where a
+                            taken in first, and over an attempt another finish's route or another road took, the same
+                            receipt retired as the comment stands or marked (`rewrite_finish_marks.holds_the_attempt`),
+                            the route held; an attempt or evidence another road put in place is left as it wrote it, and
+                            where neither write lands -- no room for the history entry, or a write refused or
+                            unconfirmed -- the movement is recorded instead by blanking the attempt's recorded base tip
+                            under the same guard -- refused where a
                             successor settled in the evidence's place -- so putting back what moved revives nothing. A
                             reading nobody could take, or a record beside it nobody can resolve
                             (`beside_current`: a pending record, a handoff not naming it, a revision floor nobody can

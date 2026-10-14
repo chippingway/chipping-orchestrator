@@ -2,33 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """A landed rewrite routed with no evidence current for its head, and the base advancing under its final steps.
 
-The real-git finish case (`rewrite_verification_recovery_support`), every
-finish -- handed over directly or reached by a refresh -- held to the dormant
-settled-evidence policy (`settled_finish_support`): issue #7's head rebased
-and pushed with no reviewer handed it, so nothing is run or recorded for it --
-the fresh reviewer owes its evidence, the anchor's settled run invalidated
-where the rebase moved the tree, or left standing on the replaced head's
-review, deferred, where the base moved and came back so the rebased head
-carries the tested tree. Then the base advances again while the announcement's
-notice is posted, or while the relabel is made. Behind the relabel the head is
-held to the base tip its replay was made onto once more, which reads it: the
-route is held with the attempt standing rather than retired over a head the
-base left behind, so no handler is released onto it, and the next tick
-continues the head to another rebase it routes -- each head announced once,
-nothing run, and no developer launched.
-
-So is a head whose run a finish settled and a later tick read moving -- the
-requirements edited on a comment with no room to invalidate it -- which blanks
-the base tip its replay was recorded as made onto: with the requirements put
-back and room made, the next finish invalidates the run, and a base that
-advances while its notice is posted or its relabel made still holds the route,
-read against the base the finish counted the head against -- an attempt
-already announced that carries no evidence receipt, as one recorded before
-that member existed, included. And so is the head of a legacy attempt, pinned
-before the base tip was among its members, that a recovery finishes. A base
-advanced on the remote while the relabel is made, with the checkout's own base
-ref rewound under the head meanwhile, holds either route too: the local count
-reads the base no longer the one counted, which leaves the remote unasked.
+Every finish held to the dormant settled-evidence policy (`settled_finish_support`):
+issue #7's head rebased with nothing run for it, then the base advances while
+the notice is posted or the relabel made. Behind the relabel the head is held
+to the base tip its replay was made onto, so the route holds with the attempt
+standing and the next tick continues the head, each head announced once. A
+base tip blanked to record movement, or missing from a legacy attempt, holds
+the route against the base the finish counted instead -- and so does a base
+advanced on the remote while the local base ref is rewound under the head.
 """
 from __future__ import annotations
 

@@ -2,39 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """Settled evidence the finish holds, continues, or parks the attempt over, proved ready before it does.
 
-The real-git finish case (`rewrite_verification_recovery_support`), every
-finish held to the dormant settled-evidence policy (`settled_finish_support`):
-issue #7's rebased head reviewed, its run settled under the anchor, and the
-finish killed at a final handoff boundary (`rewrite_handoff_test_support`).
+Every finish held to the dormant settled-evidence policy (`settled_finish_support`):
+issue #7's run settled and its finish killed at a final handoff boundary.
 Something the run rests on then moves beside whatever keeps the next finish
-from routing the head, and each road the finish takes proves the run before it
-keeps or retires the attempt, so the movement invalidates it into history
-whole -- its revision and binding kept, the run made once -- and putting it
-back revives nothing:
-
-- the evidence handoff no longer naming the run, which holds the route out of
-  step, with the issue edited;
-- a landing the pinned record does not account for, handed to the finish
-  directly -- its base count nobody could take, its remote not shown on the
-  head, its publication refused, or its attempt made for another pull
-  request -- which finishes nothing, with the issue edited;
-- a base that advanced past the head again without changing a tree, whose
-  continuation is proved before it retires the attempt and again behind its
-  announcement -- the issue edited before the tick or while its notice is
-  posted, put back while that notice is posted, behind the retirement, or
-  after the tick killed before it -- so the rebase behind it carries nothing;
-  and one held beside a pending record nobody can read, the issue edited
-  before the hold or between the proof's two readings of it. The base advance
-  itself is the continuation's own: with nothing else moved the held
-  continuation keeps the run for the rebase behind it;
-- the finish's own park for a report debt with no room, its notice raising
-  once report 3 of the head was settled while it was posted, which proves the
-  run before the error goes on, nothing parked, so report 2 put back with the
-  room the park asked for routes the head with nothing current; and the debt
-  park's record refused over report 3 settled while its notice was posted,
-  which invalidates the run the same way -- and abandons a run only captured,
-  even with report 2 put back right behind that refusal, the run never made
-  again.
+from routing, and the finish proves the run first, so the movement
+invalidates it whole -- revision and binding kept, the run made once -- and
+putting it back revives nothing: an out-of-step handoff; an unfinishable
+typed landing (its base count, remote, publication, or pull request); a
+continuation over a base advanced without changing a tree, proved before and
+behind its announcement, and one held beside an unreadable pending record --
+the base advance itself excused; and the finish's own debt park, its notice
+raising or its record refused over report 3, which abandons a captured run.
 """
 from __future__ import annotations
 

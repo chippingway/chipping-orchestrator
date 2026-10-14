@@ -44,7 +44,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad
-from orchestrator.workflow.engine.verification_settlement_state import read_evidence_handoff, settled_state
+from orchestrator.workflow.engine.verification_settlement_state import settled_state
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_moves as finish_moves,
@@ -94,6 +94,9 @@ _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "revie
 
 # The proof's observation of a refusal, read before any case stands in for it.
 _OBSERVES = _proof.ProofReading.observes
+
+# The handoff's place on the pinned comment, which the movement mark takes.
+_HANDOFF = "verification_evidence_handoff"
 
 # Whether another finish routes the run before report 3 moves, what is made
 # behind that route, and how the run then reads (`_assert_invalidated`).
@@ -288,7 +291,7 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
         # Another finish routes the run whole before report 3 moves, or right
         # behind the proof that read it, report 2 put back: the movement
         # outlives that route, so the run is invalidated as the comment
-        # stands -- or, the comment full, its handoff dropped -- and a
+        # stands -- or, the comment full, marked in its handoff -- and a
         # successor settled under its own receipt is kept.
         for first, then, retired in _ROUTED_ELSEWHERE:
             with self.subTest(first=first, retired=retired):
@@ -301,14 +304,14 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
         """`captured` retired into history as `retired` with nothing pending, report 2 current as put back.
 
         Invalidated, nothing is current; superseded, the successor is. None is
-        `captured` still current with its handoff dropped: the movement read
-        under it, recorded where history had no room.
+        `captured` still current with the mark naming it in its handoff's
+        place: the movement read under it, recorded where history had no room.
         """
         pending, current, history = readings.pinned_records(self)
         self.assertIsNone(pending)
         if retired is None:
-            handed = read_evidence_handoff(self.gh.read_pinned_state(self.issue))
-            self.assertEqual((current.receipt, handed), (captured.receipt, None))
+            self.assertEqual(current.receipt, captured.receipt)
+            self.assertEqual(readings.pinned(self)[_HANDOFF], {"moved": captured.receipt})
         else:
             self.assertEqual(history[-1], (captured.receipt, retired))
             self.assertEqual(current is None, retired == readings.INVALIDATED)

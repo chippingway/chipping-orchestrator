@@ -60,6 +60,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_proof import standing_refusal
 from orchestrator.workflow.engine.rewrite_finish_announced import advanced_by_the_announcement
+from orchestrator.workflow.engine.rewrite_finish_marks import retires_as_it_stands
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
@@ -69,37 +70,18 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
     """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None to go on.
 
     Asked only of a finish held to the dormant settled-evidence policy: any
-    other finish goes on from here with nothing read. For a route whose
-    evidence step left nothing recorded for the head
-    (`rewrite_finish_settlement.settles`): where a newer transaction recorded
-    beside settled evidence was abandoned, that evidence is still current,
-    and the route may not carry it unproved. And for the retirement behind the
-    relabel (`rewrite_finish`), the last write of the route, `or_the_base`
-    set: the announcement and the relabel are requests made after the
-    evidence was resolved, and a base advanced while they were answered has
-    the route held with the attempt standing rather than retired over a head
-    the base has left behind -- settled evidence proved ready over the landing
-    and the base and invalidated over what moved, and a head with none
-    current for it (the fresh reviewer's responsibility handed off, or
-    evidence of the replaced head deferred) held to the base tip its replay
-    was made onto alone, by the last word over the base
+    other finish goes on from here with nothing read. `or_the_base` is set for
+    the retirement behind the relabel, the route's last write: a base
+    advanced while the announcement or the relabel was answered holds the
+    route with the attempt standing, a head with no evidence current held to
+    the base tip its replay was made onto
     (`rewrite_finish_captured.stands_before_the_route`), so the recovery
-    continues the head to another rebase. Such a head carries no decision the
-    landing could move under: a head pushed over it meanwhile is the pull
-    request's to show the validating stage, which reads it afresh.
-    An attempt that records no such tip -- one blanked to record movement
-    under the evidence (`rewrite_finish_readiness`,
-    `rewrite_recovery_parks.records_the_reset`), one blanked because the base
-    moved while git ran, or a legacy attempt pinned before the tip was among
-    its members -- proves nothing about which base the head was replayed
-    onto, which every proof reads as refusing the evidence rather than the
-    route: its head is held instead to the base this tick counted it against
-    (`rewrite_evidence_proof.standing_refusal`), so a base advanced while the
-    announcement or the relabel was answered still holds the route. Only a
-    base that still reads as that count stands there: one advanced, one the
-    local base ref was rewound or repointed under -- which leaves the remote
-    unasked -- and one nobody could read each hold the route with the attempt
-    standing, for the next tick's fetch to count the head again.
+    continues it to another rebase. An attempt that records no tip -- blanked
+    to record movement, blanked because the base moved while git ran, or a
+    legacy attempt -- proves no base, so its head is held to the base this
+    tick counted it against (`rewrite_evidence_proof.standing_refusal`): one
+    advanced, rewound or repointed under the local ref, or unreadable holds
+    the route for the next tick's fetch to count the head again.
     """
     if not finish.proves_settled:
         return None
@@ -128,16 +110,10 @@ def ahead_of_the_park(finish: LandedFinish) -> FinishOutcome | None:
     """Prove what an earlier finish made for the head ahead of the park a debt with no room takes; None to park.
 
     Nothing is read for a finish not held to the settled-evidence policy. For
-    one that is, evidence already settled for the head is proved ready
-    (`stands_ready_if_settled`): the park keeps it current for the reply that
-    brings the route back, so anything read moving under it now is
-    invalidated before the park, and putting that back before the reply
-    revives nothing; a proof that holds holds the park too. A transaction
-    captured for the head is proved again whole -- the settled report re-read
-    at its location among it -- and held to the last word, and abandoned where
-    anything moved (`rewrite_finish_captured.stands_before_the_route`), or,
-    where another finish settled it while that abandonment was asked, its
-    settlement invalidated over the movement instead.
+    one that is, settled evidence is proved ready (`stands_ready_if_settled`),
+    since the park keeps it for the reply, a proof that holds holding the park
+    too; and a captured transaction is proved again whole and abandoned where
+    anything moved (`rewrite_finish_captured.stands_before_the_route`).
     """
     if not finish.proves_settled:
         return None
@@ -154,21 +130,14 @@ def behind_the_announcement(
 
     The last word is taken over a transaction still recorded for the head
     behind any stop (`rewrite_finish_captured.stands_before_the_route`). A
-    finish held to the settled-evidence policy -- which asks this behind an
-    announcement or a park whose request raised as well, as UNCONFIRMED,
-    before the error goes on -- proves settled evidence ready once more
-    first, invalidated over a binding record a refusal read moved
-    (`rewrite_finish_readiness.invalidates_behind`), and has the transaction
-    proved again whole, since the notice was posted after the first proof:
-    the first movement a guarded write's refusal read (`observed`) is handed
-    to the word as its proof in place of the proof taken again, so a record
-    put back before that word revives nothing, and a report edited while the
-    notice was posted is read by the proof however soon it is put back after.
-    Behind the record of the event or the checkpoint nobody confirmed, the
-    bookkeeping either may have landed on the attempt is taken in first
-    (`rewrite_finish_unconfirmed.takes_in_the_announcement`), so movement the
-    proof reads is invalidated over the attempt as it stands rather than
-    refused as though another attempt stood in its place.
+    finish held to the settled-evidence policy -- which asks this behind a
+    request that raised too, as UNCONFIRMED -- first takes in the bookkeeping
+    an unconfirmed record or checkpoint may have landed
+    (`rewrite_finish_unconfirmed.takes_in_the_announcement`), proves settled
+    evidence ready once more, invalidated over a binding record a refusal read
+    moved (`rewrite_finish_readiness.invalidates_behind`), and proves the
+    transaction again whole, the first movement a refusal read (`observed`)
+    handed to the word as its proof, so a record put back revives nothing.
     """
     if stopped is None:
         return None
@@ -193,23 +162,14 @@ def behind_the_write(
     with nothing read.
 
     A retirement nobody confirmed may have landed all the same, taking the
-    attempt every write recording movement is decided on -- and the base tip
-    the movement is recorded by where history has no room -- with it.
-    Settled evidence for the head is proved over the attempt as this finish
-    read it, its base tip among it, so a retirement that landed reads no
-    movement of its own. Where the proof reads movement -- the requirements
-    edited, say, while the retirement was sent -- the evidence is invalidated
-    over the attempt as read, which a retirement that did not land leaves in
-    place; where that retirement landed instead, the attempt is put back
-    first, exactly as this finish read it
-    (`rewrite_finish_unconfirmed.stands_back`), and the same
-    receipt invalidated over it -- or, with no room for its history entry,
-    the movement recorded against it by blanking the base tip. The attempt
-    standing again brings every later finish of this landing back to retire
-    the evidence whole once room is made, however soon what moved is put
-    back, and to retire the attempt behind it with nothing said or relabelled
-    twice. A successor settled under another receipt, or another attempt in
-    this one's place, is kept as its road wrote it.
+    attempt with it. Settled evidence is proved over the attempt as this
+    finish read it; where the proof reads movement, the evidence is
+    invalidated over that attempt -- put back first, exactly as read, where
+    that retirement took it (`rewrite_finish_unconfirmed.stands_back`) -- or,
+    with no room, the movement recorded by blanking its base tip, so every
+    later finish of the landing retires the evidence whole and the attempt
+    behind it with nothing said or relabelled twice. A successor under
+    another receipt, or another attempt in this one's place, is kept.
     """
     if not finish.proves_settled:
         return stopped
@@ -220,9 +180,9 @@ def behind_the_write(
     moved = _readiness.settled_word(finish, current)[0]
     if moved is None:
         return stopped
-    invalidated = _readiness.invalidates(finish, current)
+    invalidated = _readiness.invalidates(finish, current, as_it_stands=False)
     if not invalidated and _unconfirmed.stands_back(finish, current):
-        invalidated = _readiness.invalidates(finish, current)
+        invalidated = _readiness.invalidates(finish, current, as_it_stands=False)
     log.warning(
         "issue=#%d verification evidence revision %d settled for %.8s moved behind a retirement nobody confirmed "
         "(%s); invalidated: %s",
@@ -269,7 +229,7 @@ def retires_the_adopted(
     member where another finish's route or another road took `attempt` off
     the comment -- over which, holding the route whatever this says, the
     evidence is invalidated as the comment stands
-    (`rewrite_finish_unconfirmed.retires_as_it_stands`). False, logged, where
+    (`rewrite_finish_marks.retires_as_it_stands`). False, logged, where
     that invalidation did not land.
     """
     current = _settlement.read_current_evidence(finish.state)
@@ -282,7 +242,7 @@ def retires_the_adopted(
     if captured:
         invalidated = _readiness.invalidates(finish, current)
     else:
-        invalidated = _unconfirmed.retires_as_it_stands(finish, pending.receipt, attempt)
+        invalidated = retires_as_it_stands(finish, pending.receipt, attempt)
     if invalidated:
         return True
     log.warning(

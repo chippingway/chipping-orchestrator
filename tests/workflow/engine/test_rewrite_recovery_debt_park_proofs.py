@@ -2,37 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """A captured run the finish's own debt park keeps, proved whole before the park and again behind its notice.
 
-The real-git finish case (`rewrite_verification_recovery_support`), every
-finish -- handed over directly or reached by a refresh -- held to the dormant
-settled-evidence policy (`settled_finish_support`): issue #7's rebased head
-reviewed and its run captured by a finish that died posting its artifact, and
-the pinned comment then left without room for the landing's report debt, so
-the recovery's finish parks for that debt and keeps the run for the reply that
-brings the route back. The run's binding is proved again whole -- the report
-it answers for re-read at its location -- ahead of the park and again behind
-its notice, so the report edited before the tick and put back while the notice
-is posted, or edited while the notice is posted -- its post answered or
-raising -- and put back behind the tick, has the run abandoned whole: room
-made and any park answered, the head is routed with nothing current.
-
-The issue's requirements edited before the tick have the run abandoned ahead
-of the park, and another finish settles that very run, the edit put back,
-while the abandonment's own write is asked: the settlement is invalidated over
-the edit already read and the debt parked -- or, the comment full, the movement
-is recorded by the base tip blanked and the settlement invalidated once room
-is made -- and a newer run another road settled over it under its own receipt
-is left as it stands. So is a settlement whose finish also recorded the debt
-and announced the landing before dying at its relabel, its mark and the record
-of its event taken in as this attempt advanced: with room, the head is routed
-in the same tick with the announcement said once; with the comment full, the
-base tip is blanked and the next finish, once room is made, invalidates the
-run whole and routes the head. The run is made once, and nothing is pushed or
-launched.
-
-The policy every road selects proves no captured run whole ahead of the park:
-with the report edited before the tick and put back while the notice is
-posted, its park keeps the run recorded, where the settled-evidence policy
-abandons it.
+Every finish held to the dormant settled-evidence policy (`settled_finish_support`):
+issue #7's run captured and the comment left without room for the landing's
+report debt, so the finish parks for it. The run's binding is proved whole
+ahead of the park and behind its notice, so the report edited around the
+notice -- answered or raising -- abandons the run, and the head is later
+routed with nothing current. Requirements edited before the tick abandon the
+run while another finish settles it: that settlement is invalidated over the
+edit, or with the comment full its movement recorded, a successor under its
+own receipt kept -- also where that finish announced before dying at its
+relabel. The baseline policy keeps the run recorded across the same park.
 """
 from __future__ import annotations
 

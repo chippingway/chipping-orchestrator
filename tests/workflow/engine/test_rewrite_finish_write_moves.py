@@ -2,39 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """What moves under a landed rewrite's final steps -- its announcement, relabel, and retirement -- and the run over it.
 
-The real-git finish case (`rewrite_verification_recovery_support`), every
-finish -- handed over directly or reached by a refresh -- held to the dormant
-settled-evidence policy (`settled_finish_support`): issue #7's rebased head
-reviewed and its finish publishing the landing, the run of the configured
-command settled under the anchor and proved ready before the announcement.
-Then something it rests on moves while a final step is answered.
-
-Another road settles and reviews a later report of the head: while the
-announcement's notice is posted, which refuses the checkpoint; while the
-relabel is made, which the run's proof taken once more behind the relabel
-reads; or while the retirement itself is sent, which the comment moving under
-that write refuses. Or the issue is edited while the notice is posted and put
-back as the relabel is made, which the proof taken ahead of the relabel reads.
-The run is invalidated into history whole either way, its revision and binding
-kept, the later report left as that road wrote it --
-the route held with the attempt standing where the write was refused, and
-taken on to the fresh reviewer where the proof read it -- and putting the
-earlier report and review back before the next poll revives nothing: the head
-ends routed with nothing current, its notice and `base_rebased` event said
-once. The report moved under the notice refuses the event's own record before
-anything is filed, rather than riding into it unread, so the earlier report
-put back behind the next finish's record of the event -- that finish killed
-before it files the event, or not -- revives nothing either. Nor does report
-2 put back behind a step that failed while report 3 was settled: an event
-stream that would not read behind the posted notice, or a relabel that landed
-with its answer lost. The finish proves the run once more before it leaves.
-
-Or the base advances while the notice is posted or the relabel made: the
-proof behind the relabel reads it, invalidates the run, and holds the route
-with the attempt standing, and the next tick continues the head to another
-rebase it routes, each head announced once.
-
-The run is never made again, and no developer is launched.
+Every finish held to the dormant settled-evidence policy (`settled_finish_support`):
+issue #7's run settled and proved ready before the announcement, then
+another road settles report 3 while the notice is posted, the relabel made,
+or the retirement sent, or the issue is edited under the notice and put back
+at the relabel. The run is invalidated whole either way, the later report
+left as written, the route held where a write was refused and routed to the
+fresh reviewer where a proof read it; putting report 2 back revives nothing,
+and the head ends routed once. A report moved under the notice refuses the
+event's own record before anything is filed; a step that failed meanwhile has
+the run proved once more; and a base advanced under the notice or relabel
+holds the route for the next tick to continue the head. Nothing runs again.
 """
 from __future__ import annotations
 
