@@ -2,25 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """A landed rewrite finished again and again under the dormant settled-evidence policy, saying and making all once.
 
-The real-git finish case (`rewrite_verification_recovery_support`), every
-finish held to the dormant settled-evidence policy (`settled_finish_support`)
-and handed over directly: issue #7's rebased head reviewed beside the run ledger
-another road's launch charged -- runs spent on both meters, and a launch
-reserved and started under its fingerprint -- its finish running
-and settling the configured command under the anchor and killed at one of the
-final handoff boundaries (`rewrite_handoff_test_support`). Nothing the run
-rests on moves. The direct finish behind it proves the settled run ready and
-routes the head. Another road then records a later transaction for the head
-under a receipt of its own, and the finish handed over once more finds no
-attempt anchored to the head the landing replaced -- retired by that route, or
-replaced by a later rebase's own -- and reads and writes nothing: the pinned
-comment stays exactly as it was, the later transaction pending as its road
-wrote it. Whichever boundary the first died at, the issue ends with one notice
-and one `base_rebased` event, one artifact and one settlement of the run, its
-whole binding current, the round reset and one relabel to
-`workflow:validating`, the attempt retired, the command run once, nothing
-pushed or launched, and the run ledger exactly as charged: no finish spends,
-reserves, or releases an agent run.
+Every finish held to the dormant settled-evidence policy and handed over
+directly (`settled_finish_support`): issue #7's run settled beside another
+road's charged run ledger, its finish killed at each final handoff boundary,
+nothing the run rests on moving. The next finish routes the head; one after
+that finds no attempt -- retired, replaced, or beside a successor whose
+handoff is missing or damaged -- and touches nothing. The issue ends with one
+notice, event, artifact, settlement, round reset, and relabel, the command run
+once, nothing pushed or launched, and the run ledger exactly as charged.
 """
 from __future__ import annotations
 

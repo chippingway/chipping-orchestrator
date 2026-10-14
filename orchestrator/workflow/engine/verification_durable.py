@@ -225,14 +225,11 @@ def takes_in_a_settlement(
 ) -> _records.CurrentEvidence | None:
     """Evidence another road settled current under `receipt` since `state` was read, laid over `state`; or None.
 
-    For a caller about to retire that settlement over movement it already read
-    under the transaction `receipt` names: where the comment read afresh
-    carries evidence current under `receipt`, every evidence record it carries
-    is laid over `state` and remembered as read, so the retirement is staged
-    and decided on the records that settlement left -- and a comment with no
-    room for the retirement has the movement recorded against them instead.
-    None, with `state` as it was, where the comment would not read or carries
-    nothing current under `receipt`.
+    For a caller about to retire that settlement over movement it already read:
+    every evidence record the comment read afresh carries is laid over `state`
+    and remembered as read, so the retirement is decided on the records that
+    settlement left. None, with `state` as it was, where the comment would not
+    read or carries nothing current under `receipt`.
     """
     durable = durable_comment(gh, issue, state)[0]
     current = None if durable is None else _settlement.read_current_evidence(durable)
@@ -251,10 +248,8 @@ def moves_only_the_evidence(refused: ReportEvidence, besides: Iterable[str] = ()
     """Whether `refused` is a refusal of moved records (`_moved`) naming none but this domain's own and `besides`.
 
     Such a refusal reads another road recording, settling, or retiring a
-    transaction, and nothing a binding rests on moving. `besides` names the
-    records a caller's own decision rests on beyond the bound ones that it
-    already knows moved as its own road wrote them, which are no movement
-    under the evidence either.
+    transaction, and nothing a binding rests on moving; `besides` names other
+    records the caller knows its own road moved.
     """
     prefix, suffix = _MOVED_SPELLING
     spelled = refused.refusal

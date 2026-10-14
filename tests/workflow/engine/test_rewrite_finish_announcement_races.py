@@ -8,7 +8,8 @@ and right behind the next finish's proof the edit is put back while another
 finish announces the landing -- the attempt advanced, so the run is
 invalidated over it, or its tip blanked with no room -- or routes it whole, so
 the run is retired as the comment stands, or marked, even with report 2 put
-back under the very write; and a retry that cannot read its label holds.
+back under the very write, or announces it under the invalidation's write;
+and a retry that cannot read its label holds.
 """
 from __future__ import annotations
 
@@ -37,6 +38,9 @@ _THE_LABELS_READING = 3
 
 # The handoff's place on the pinned comment, which the movement mark takes.
 _HANDOFF = "verification_evidence_handoff"
+
+# The current evidence's place on the pinned comment, which an invalidation clears.
+_CURRENT = "verification_evidence_current"
 
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
@@ -202,6 +206,59 @@ class RestoredUnderTheRetirementTest(settled.SettledGuardedCase, unittest.TestCa
         for key, recorded in records.items():
             state.set(key, recorded)
         self.gh.write_pinned_state(self.issue, state)
+
+
+
+class AnnouncedUnderTheInvalidationTest(settled.SettledGuardedCase, unittest.TestCase):
+    """A run read moving whose invalidation another finish of the landing announces under."""
+
+    def test_the_movement_outlives_the_announcement(self) -> None:
+        # The proof reads the issue edited; as the invalidation is sent, the
+        # edit is put back and another finish announces the landing, dying at
+        # its relabel, so the write is refused. Read and reconciled once more,
+        # the run is retired over the attempt that announcement advanced --
+        # or, the comment full, its base tip blanked, and the next finish
+        # retires it -- and it is never routed as current again.
+        for full in (False, True):
+            with self.subTest(full=full):
+                self.setUp()
+                head, settled_run = self._announces_under_the_invalidation(full=full)
+                if full:
+                    self.assertIsNone(readings.pinned(self)[readings.KEY_REWRITE_BASE])
+                    finish_moves.makes_room(self)
+                    self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.ROUTED)
+                self.assert_invalidated_then_routed(head, settled_run)
+
+    def _announces_under_the_invalidation(self, *, full: bool) -> tuple:
+        """Settle the run, edit the issue, and finish again as another finish announces under the invalidation."""
+        head = self.lands_a_reviewed_rebase()
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
+        settled_run = readings.pinned_records(self)[1]
+        self._race = partial(self._announces, head, self.issue.body, full)
+        self.issue.body = _EDITED_BODY
+        edits = partial(self._ahead_of_the_invalidation, self.gh.edit_pinned_state)
+        expected = FinishOutcome.HELD if full else FinishOutcome.ROUTED
+        with patch.object(self.gh, "edit_pinned_state", edits):
+            self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), expected)
+        self.assertIsNone(self._race)
+        return head, settled_run
+
+    def _ahead_of_the_invalidation(self, live, issue, state, *, over: dict):
+        """`live`, the client's pinned edit, with the race made ahead of the first edit retiring current evidence."""
+        race = self._race
+        held = over.get(_CURRENT) is not None
+        if race is not None and held and state.get(_CURRENT) is None:
+            self._race = None
+            race()
+        return live(issue, state, over=over)
+
+    def _announces(self, head: str, written: str, full: bool) -> None:
+        """Put the issue back as `written` and announce `head` as another finish would, dying at its relabel."""
+        self.issue.body = written
+        finishing = partial(self.finishes, head, FinishRoad.RECOVERY)
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_RELABEL, finishing)
+        if full:
+            finish_moves.fills_the_comment(self)
 
 
 if __name__ == "__main__":

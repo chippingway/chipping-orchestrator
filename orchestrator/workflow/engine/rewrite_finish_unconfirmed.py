@@ -1,45 +1,24 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a finish's own write nobody confirmed, or another finish, left of its attempt, before movement is recorded.
+"""What a finish's own write nobody confirmed left of its attempt, before movement read behind it is recorded.
 
-The invalidation of settled evidence a proof read moving
-(`rewrite_finish_readiness.invalidates`) is decided on the attempt as the
-finish read it, so one another road put in its place refuses it. A finish's
-own write can change that attempt too: the record of its `base_rebased`
-event and the checkpoint put the announcement's bookkeeping on it -- the
-record of the event and the mark, each naming the landed head -- and the
-retirement behind the relabel blanks it whole, the base tip the movement is
-recorded by where history has no room among it. A write whose answer was
-lost may have landed all the same, and an invalidation decided on the attempt
-as the tick read it is then refused as though another road had replaced it,
-so movement a proof read behind that write would outlive it unrecorded and a
-later finish would route the evidence once what moved was put back.
+A write whose answer was lost may have landed: the record of the
+`base_rebased` event or the checkpoint putting the announcement's
+bookkeeping on the attempt, or the retirement behind the relabel blanking it
+whole. Only the dormant settled-evidence policy asks these
+(`rewrite_finish_settled`), so movement a proof read behind that write is
+recorded over the attempt as it stands rather than refused as though another
+road had replaced it:
 
-Only the dormant settled-evidence policy asks these
-(`rewrite_finish_settled`), behind the write that went unconfirmed:
-
-- `takes_in_the_announcement` takes in the announcement's bookkeeping where
-  the comment read afresh carries this attempt otherwise exactly as the
-  finish read it, those members naming the landed head
-  (`rewrite_finish_announced.takes_in_the_announcement`), so the proof and
-  the abandonment behind the record or the checkpoint are decided on the
-  attempt as it stands, as the invalidation itself is.
-- `stands_back` puts the attempt back exactly as the finish read it where the
-  comment carries it blanked as the finish's own retirement leaves it, and the
-  same evidence still current, so the movement is invalidated or recorded
-  against it and every later finish of the landing comes back to retire the
-  evidence whole. Where that write does not land -- a comment another road
-  filled behind the retirement has no room for the attempt -- the movement is
-  recorded by the receipt-scoped mark in place of the evidence's handoff
-  (`rewrite_finish_marks.marks`), which a later finish of the landing, finding
-  no attempt to finish, retires the evidence whole over once room is made
-  (`retires_the_marked`).
+- `takes_in_the_announcement` takes in that bookkeeping, naming the landed
+  head (`rewrite_finish_announced.takes_in_the_announcement`).
+- `stands_back` puts the attempt back exactly as read where the comment
+  carries it blanked as this finish's retirement leaves it and the same
+  evidence current, or -- where it no longer fits -- marks the movement
+  (`rewrite_finish_marks.marks`); `retires_the_marked` lets a later finish
+  finding no attempt retire marked evidence whole once room is made.
 - `retires_the_settled` invalidates a settlement another finish made while
   this finish's abandonment was asked (`rewrite_finish_captured._abandoned`).
-
-A comment that would not read is asked once more, since the movement already
-read has no other way to be recorded. Another attempt, other members moved,
-or a successor settled under another receipt is left as its road wrote it.
 """
 from __future__ import annotations
 

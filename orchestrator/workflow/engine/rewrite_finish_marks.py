@@ -1,23 +1,16 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Movement a dormant finish read under settled evidence, recorded where its own attempt cannot carry it.
+"""Movement a dormant finish read under settled evidence, recorded however the attempt has moved since.
 
-A finish held to the dormant settled-evidence policy invalidates evidence a
-proof read moving over the attempt as it read it
-(`rewrite_finish_readiness.invalidates`), and with no room for the history
-entry blanks that attempt's base tip. Where the comment no longer carries
-that attempt -- another finish's route retired it while this finish's
-requests were answered, or another road put a new one in its place -- the
-evidence still current under the receipt read moving is retired over the
-comment as it stands (`holds_the_attempt`, `retires_as_it_stands`), every
-attempt and successor kept as its road wrote it. Where history has no room, or the attempt cannot
-be put back (`rewrite_finish_unconfirmed.stands_back`), the movement is
-recorded by the mark (`marks`): the evidence's handoff replaced by one naming
-only the receipt that moved. No reader takes it for a handoff
-(`verification_settled_fields.handoff_from`), so none hands that evidence
-on, and only a later finish of the landing finding that very receipt current
-under it retires the evidence whole (`carries_the_mark`) -- a handoff that is
-missing or will not read is no mark.
+The invalidation is decided on the attempt as reconciled -- an announcement
+of this landing taken in, a refused write read and retried once
+(`retires_over_the_attempt`) -- or, where another finish's route or another
+road took the attempt, on the comment as it stands (`retires_as_it_stands`),
+every attempt and successor kept. Where history has no room, or the attempt
+cannot be put back, the mark (`marks`) replaces the evidence's handoff with
+one naming only the receipt that moved: no reader takes it for a handoff
+(`verification_settled_fields.handoff_from`), and only a later finish finding
+that very receipt current retires the evidence whole (`carries_the_mark`).
 """
 from __future__ import annotations
 
@@ -69,23 +62,22 @@ def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> 
     )
 
 
-def holds_the_attempt(finish: LandedFinish, durable: PinnedState, receipt: str, *, as_it_stands: bool = True) -> bool:
-    """Whether `durable`, read afresh, carries the attempt `finish` read, so evidence is decided on it.
+def retires_over_the_attempt(
+    finish: LandedFinish, current: _records.CurrentEvidence, *, as_it_stands: bool = True,
+) -> bool | None:
+    """Whether `current`'s invalidation landed over the attempt `finish` read, on the comment read afresh; or None.
 
-    An announcement another finish of the landing put down on that attempt
-    meanwhile is taken in first (`rewrite_finish_announced.takes_in_the_announcement`).
-    Over any other attempt, a finish held to the settled-evidence policy
-    retires the evidence current under `receipt` over the comment as it
-    stands, or marks it (`retires_as_it_stands`) -- unless `as_it_stands` is
-    False -- and the answer is False all the same.
+    An announcement another finish of the landing put down on that attempt is
+    taken in first (`rewrite_finish_announced.takes_in_the_announcement`), and
+    a write refused -- an announcement landing under it among the reasons --
+    is read, reconciled, and made once more. False where the comment carries
+    another evidence or another attempt, over which a finish held to the
+    settled-evidence policy retires or marks the same receipt as the comment
+    stands (`retires_as_it_stands`) unless `as_it_stands` is False. None where
+    neither reading took the invalidation, for the tick's own copy to try.
     """
-    takes_in_the_announcement(finish, durable)
-    attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
-    if not attempt.moved(durable.data):
-        return True
-    if finish.proves_settled and as_it_stands:
-        retires_as_it_stands(finish, receipt, attempt)
-    return False
+    first = _over_the_attempt(finish, current, as_it_stands)
+    return _over_the_attempt(finish, current, as_it_stands) if first is None else first
 
 
 def retires_as_it_stands(finish: LandedFinish, receipt: str, attempt: _commit_models.PinnedCommit) -> bool:
@@ -137,3 +129,19 @@ def _lands(
         if not _settlement.retire_current_evidence(durable):
             return False
     return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
+
+
+def _over_the_attempt(finish: LandedFinish, current: _records.CurrentEvidence, as_it_stands: bool) -> bool | None:
+    """One reading of `retires_over_the_attempt`: landed, refused for good (False), or not taken (None)."""
+    durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
+    if durable is None:
+        return None
+    takes_in_the_announcement(finish, durable)
+    attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
+    if attempt.moved(durable.data):
+        if finish.proves_settled and as_it_stands:
+            retires_as_it_stands(finish, current.receipt, attempt)
+        return False
+    if _settlement.read_current_evidence(durable) != current:
+        return False
+    return _lands(finish, durable, current) or None

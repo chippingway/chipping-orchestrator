@@ -27,13 +27,10 @@ finish read it, and the record tells whoever reads the comment that the event
 may be out. It lands over a copy of the tick's state, and the tick takes in
 that one field and nothing else the write read, so the checkpoint behind it
 is still decided on every other record as the tick read it. A finish held to
-the dormant settled-evidence policy decides it on the records settled
-evidence's binding rests on as well (`rewrite_finish_writes.BINDING_RECORDS`),
-so a report or review record another road moved while the notice was posted
-refuses it rather than riding into that copy unread: the refusal is movement
-read under that evidence, which that finish invalidates before it stops
-(`rewrite_finish_readiness.invalidates_behind`), so putting the record back
-before the checkpoint or the next poll revives nothing. A record that did not
+the dormant settled-evidence policy decides it on the binding records too
+(`rewrite_finish_writes.BINDING_RECORDS`), a refusal over one of them read as
+movement under the evidence (`rewrite_finish_readiness.invalidates_behind`).
+A record that did not
 land is where the finish stops, with nothing filed. That write is
 prepared ahead of the notice too (`prepares_the_record`), beside the
 checkpoint's own preparation: it is made over the comment as the tick read

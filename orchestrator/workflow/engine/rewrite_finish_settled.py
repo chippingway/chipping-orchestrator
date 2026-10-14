@@ -168,8 +168,11 @@ def behind_the_write(
     that retirement took it (`rewrite_finish_unconfirmed.stands_back`) -- or,
     with no room, the movement recorded by blanking its base tip, so every
     later finish of the landing retires the evidence whole and the attempt
-    behind it with nothing said or relabelled twice. A successor under
-    another receipt, or another attempt in this one's place, is kept.
+    behind it with nothing said or relabelled twice. Where another road put a
+    new attempt in this one's place before the proof, the same receipt is
+    retired over the comment as it stands, or marked
+    (`rewrite_finish_marks.retires_as_it_stands`), that attempt and a
+    successor under another receipt kept.
     """
     if not finish.proves_settled:
         return stopped
@@ -183,6 +186,9 @@ def behind_the_write(
     invalidated = _readiness.invalidates(finish, current, as_it_stands=False)
     if not invalidated and _unconfirmed.stands_back(finish, current):
         invalidated = _readiness.invalidates(finish, current, as_it_stands=False)
+    elif not invalidated:
+        read = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
+        invalidated = retires_as_it_stands(finish, current.receipt, read)
     log.warning(
         "issue=#%d verification evidence revision %d settled for %.8s moved behind a retirement nobody confirmed "
         "(%s); invalidated: %s",

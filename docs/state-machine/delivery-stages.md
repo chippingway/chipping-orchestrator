@@ -1575,9 +1575,9 @@ because there it is the claim that this stage has already rerouted rather than a
     rests on (`rewrite_finish_writes.BINDING_RECORDS`), a refusal over one of them read as movement (`BINDING_MOVED`);
   - over the attempt as a write whose answer was lost may have left it -- bookkeeping taken in, or the attempt put back
     where its own retirement took it -- or as another finish of the landing advanced it by announcing
-    (`workflow/engine/rewrite_finish_announced.py`); where another finish's route or another road took the attempt,
-    the same receipt is retired over the comment as it stands, read afresh and retried once where the comment moved
-    under the write, a successor under another receipt kept, and the route held;
+    (`workflow/engine/rewrite_finish_announced.py`), a refused write read, reconciled, and retried once; where another
+    finish's route or another road took the attempt -- before or behind a retirement whose answer was lost -- the same
+    receipt is retired over the comment as it stands, retried the same way, a successor kept and the route held;
   - with no room, by blanking the attempt's base tip, or, with no attempt to carry it, by the mark
     `{"moved": <receipt>}` in the evidence's handoff place (`workflow/engine/rewrite_finish_marks.py`), which no reader
     takes for a handoff; a later direct finish that finds no attempt and that very receipt current retires the

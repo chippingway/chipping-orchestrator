@@ -117,21 +117,19 @@ from github.Issue import Issue
 
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
-    attempts as _attempts,
     state as _base_sync_state,
 )
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     rewrite_finish_writes as _writes,
-    verification_durable as _durable,
     verification_proof as _proof,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_evidence_proof import Refusals, Word, _reads_again, last_word
-from orchestrator.workflow.engine.rewrite_finish_marks import holds_the_attempt
+from orchestrator.workflow.engine.rewrite_finish_marks import retires_over_the_attempt
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_current import _handoff_describes
 from orchestrator.workflow.engine.verification_history_fields import historical_from
@@ -158,9 +156,6 @@ _UNDESCRIBED = _evidence_models.ReportEvidence(
     _evidence_models.ReportEvidenceVerdict.DEFER,
     "the evidence handoff does not describe the settled record",
 )
-
-# What an invalidation writes: the current record, and the history it enters.
-_INVALIDATES = (_records.CURRENT_EVIDENCE, _records.EVIDENCE_HISTORY)
 
 
 def stands_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> FinishOutcome | None:
@@ -276,9 +271,11 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence, *, as_i
     history are written and every other field stays as the comment carries
     it. Where that comment would not read again, or that write was refused or
     went unconfirmed, the invalidation is made over the tick's own copy
-    instead (`_invalidates_on_the_tick`) -- so movement the caller already
-    read is never left behind a comment that would not read, for a later poll
-    to find put back and take the decision as current. False where the
+    instead (`_invalidates_on_the_tick`) -- once the comment, read and
+    reconciled again, refused it a second time
+    (`rewrite_finish_marks.retires_over_the_attempt`) -- so movement the caller
+    already read is never left behind a comment that would not read, for a
+    later poll to find put back and take the decision as current. False where the
     comment carries another attempt or no longer carries `current` as current,
     and where neither reading took the invalidation -- for want of room, or a
     write that did not land -- the movement then recorded against `current`
@@ -290,22 +287,12 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence, *, as_i
     it stands. Over any other attempt -- another finish's route retired it, or
     another road replaced it -- that finish still retires the same receipt
     over the comment as it stands, or marks it, and answers False so its route
-    holds (`rewrite_finish_marks.holds_the_attempt`); `as_it_stands` False
+    holds; `as_it_stands` False
     leaves that to a caller that puts its own attempt back first
     (`rewrite_finish_settled.behind_the_write`).
     """
-    durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
-    if durable is None:
-        return _invalidates_on_the_tick(finish, current)
-    if not holds_the_attempt(finish, durable, current.receipt, as_it_stands=as_it_stands):
-        return False
-    if _settlement.read_current_evidence(durable) != current:
-        return False
-    guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
-    if not _settlement.retire_current_evidence(durable):
-        return _invalidates_on_the_tick(finish, current)
-    refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
-    return refused is None or _invalidates_on_the_tick(finish, current)
+    retired = retires_over_the_attempt(finish, current, as_it_stands=as_it_stands)
+    return _invalidates_on_the_tick(finish, current) if retired is None else retired
 
 
 def invalidates_behind(

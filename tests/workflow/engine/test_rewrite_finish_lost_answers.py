@@ -13,7 +13,8 @@ base tip, or, the attempt no longer fitting, by the mark naming the run's
 receipt in its handoff's place -- a pinned-comment read lost once losing
 nothing. The next finish, room made, retires the run whole and routes the
 head with everything said once; with nothing edited the run stays current,
-and a successor another road settled meanwhile is kept as it wrote it.
+and a successor or a replacement attempt another road wrote meanwhile is
+kept as it wrote it, the run retired over the comment as it stands.
 """
 from __future__ import annotations
 
@@ -129,6 +130,20 @@ class _LostAnswer:
         return live(*args, **kwargs)
 
 
+def _pins_a_replacement(case: settled.SettledRunCase, head: str) -> None:
+    """Pin an attempt of a later rebase, anchored on `head`, as that rebase would."""
+    state = case.gh.read_pinned_state(case.issue)
+    state.set(readings.KEY_PENDING_PUSH, head)
+    case.gh.write_pinned_state(case.issue, state)
+
+
+def _assert_superseded(case: settled.SettledRunCase, run) -> None:
+    """A successor another road settled current, and `run` superseded into history under it as that road left it."""
+    current, retired = readings.pinned_records(case)[1:]
+    case.assertNotEqual(current.receipt, run.receipt)
+    case.assertEqual(retired[-1], (run.receipt, "superseded"))
+
+
 class LostAnswerTest(settled.SettledRunCase, unittest.TestCase):
     """Movement read behind a final write nobody confirmed outlives it until a later finish retires the run whole."""
 
@@ -168,7 +183,24 @@ class LostAnswerTest(settled.SettledRunCase, unittest.TestCase):
 
         self.assertEqual(readings.pinned(self), pinned)
         self.assertEqual(pinned[readings.KEY_PENDING_PUSH], None)
-        self._assert_superseded(lost.settled)
+        _assert_superseded(self, lost.settled)
+
+    def test_a_replacement_is_kept(self) -> None:
+        # A later rebase pins an attempt of its own right behind the
+        # retirement, the issue edited while it was sent: the run read moving
+        # is invalidated whole over the comment as it stands, that attempt
+        # kept, and the finish handed over again leaves the comment as it is.
+        head = self.lands_a_reviewed_rebase()
+        pins = partial(_pins_a_replacement, self, head)
+        lost = self._finishes_losing(head, _LOSSES[1], then=pins)
+        pinned = readings.pinned(self)
+        self.assertEqual(pinned[readings.KEY_PENDING_PUSH], head)
+        retired = (*git_support.invalidated(self), (lost.settled.receipt, readings.INVALIDATED))
+        self.assertEqual(readings.pinned_records(self), (None, None, retired))
+
+        self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.UNFINISHABLE)
+
+        self.assertEqual(readings.pinned(self), pinned)
 
     def test_a_successor_behind_a_checkpoint_is_kept(self) -> None:
         # Another road settles a newer run of the head right behind a
@@ -178,11 +210,11 @@ class LostAnswerTest(settled.SettledRunCase, unittest.TestCase):
         head = self.lands_a_reviewed_rebase()
         newer = partial(settled.records_a_newer_run, self, settles=True)
         lost = self._finishes_losing(head, _LOSSES[6], then=newer)
-        self._assert_superseded(lost.settled)
+        _assert_superseded(self, lost.settled)
 
         self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.ROUTED)
 
-        self._assert_superseded(lost.settled)
+        _assert_superseded(self, lost.settled)
         self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
 
     def _finishes_losing(self, head: str, loss: _Loss, then=None) -> _LostAnswer:
@@ -214,12 +246,6 @@ class LostAnswerTest(settled.SettledRunCase, unittest.TestCase):
         self.assertEqual(pinned[readings.KEY_REWRITE_BASE] is None, loss.blanked)
         marked = {"moved": run.receipt}
         self.assertEqual(pinned.get(_HANDOFF) == marked, loss.crowds)
-
-    def _assert_superseded(self, run) -> None:
-        """A successor another road settled current, and `run` superseded into history under it as that road left it."""
-        current, retired = readings.pinned_records(self)[1:]
-        self.assertNotEqual(current.receipt, run.receipt)
-        self.assertEqual(retired[-1], (run.receipt, "superseded"))
 
     def _assert_routed_once(self, head: str, run, edited: bool) -> None:
         """`head` announced and relabelled once, its attempt retired, `run` invalidated whole where `edited`."""

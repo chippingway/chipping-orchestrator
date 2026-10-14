@@ -3,15 +3,12 @@
 """What a finish of a landed rewrite announced on the attempt, as the dormant settled-evidence policy reads it.
 
 A finish's announcement puts the record of its `base_rebased` event and the
-mark on the attempt for the landed head, and its relabel follows. Another
-finish of the landing, or this finish's own write whose answer was lost, can
-put them down while this finish's requests are answered: the attempt
-advanced, not replaced, and no movement under the evidence. Only a finish
-held to the dormant policy (`rewrite_finish_models.LandedFinish.proves_settled`)
-reads it -- `advanced_by_the_announcement` tells it from another attempt,
-`takes_in_the_announcement` lays it over the tick's state ahead of every
-invalidation (`rewrite_finish_readiness.invalidates`), and `marked` and
-`relabelled` keep the announcement and the relabel from being made twice.
+mark on the attempt, and its relabel follows; another finish of the landing
+may put them down meanwhile -- the attempt advanced, not replaced. Only a
+finish held to the dormant policy reads it: `advanced_by_the_announcement`
+tells it from another attempt, `takes_in_the_announcement` lays it over the
+tick's state, and `marked` and `relabelled` keep the announcement and the
+relabel from being made twice.
 """
 from __future__ import annotations
 

@@ -60,16 +60,9 @@ the landing's evidence again or route over it. Every other record on the
 comment stays as it reads. Under the dormant settled-evidence policy
 (`rewrite_finish_models.LandedFinish.proves_settled`), an abandonment another
 finish refused by settling that very transaction meanwhile retires the
-settlement instead, taken in off the comment read afresh and invalidated
-over what the abandonment was asked on
-(`rewrite_finish_unconfirmed.retires_the_settled`), so putting what moved
-back revives neither -- the mark and the record of its event that finish's
-announcement left taken in first
-(`rewrite_finish_announced.takes_in_the_announcement`), since that is this
-attempt advanced rather than replaced, and the comment as it stands decided
-on where that finish's route took the attempt off it; a successor settled
-under another receipt is kept as its road wrote it. Every other finish holds
-the route there, the settlement left standing.
+settlement instead (`rewrite_finish_unconfirmed.retires_the_settled`), a
+successor under another receipt kept. Every other finish holds the route
+there, the settlement left standing.
 
 Only a record about the landed head is read here: while the attempt stands the
 anchor holds every other road, so nothing but a finish of this landing records
@@ -286,20 +279,12 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     the transaction standing for a later route to take once the landing is
     put back. Another finish that settled `pending` while this was asked
     refuses both, yet what this abandons it over was read under it all the
-    same: a finish held to the settled-evidence policy takes in the evidence
-    the comment read afresh carries current under `pending`'s receipt and
-    invalidates it whole over that reading
-    (`rewrite_finish_unconfirmed.retires_the_settled`), which lets the route
-    go on as a landed abandonment does. That finish may have announced the
-    landing too before it stopped, its mark and the record of its event put
-    down for the landed head: that is this attempt advanced, not replaced,
-    and the invalidation takes it in first
-    (`rewrite_finish_announced.takes_in_the_announcement`), so it -- or the
-    movement recorded where it has no room -- is decided on the attempt as it
-    stands. Where the comment has no room for that, the movement is recorded
-    against it by blanking the base tip, and the route is held -- as it is
-    where that finish's route took the attempt and the evidence is retired
-    over the comment as it stands. Only where nothing lands is the route held
+    same: a finish held to the settled-evidence policy takes that settlement
+    in and invalidates it whole over that reading
+    (`rewrite_finish_unconfirmed.retires_the_settled`), its announcement taken
+    in and the route going on as a landed abandonment does -- or held, the
+    movement recorded, where there is no room or that finish's route took the
+    attempt. Only where nothing lands is the route held
     with the transaction kept, logged: the comment taking no write at all,
     carrying another attempt -- which every write here is decided on -- or
     no longer recording `pending` with no settlement of it current that the

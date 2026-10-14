@@ -350,12 +350,10 @@ def parks(finish: LandedFinish, observed: list[ReportEvidence] | None = None) ->
     the head, and the attempt is what the reply brings back to record the debt
     and finish the route once somebody has made room. A park that would not
     land posts nothing. `observed` collects the movement a refusal read
-    (`_stopped`) -- for a finish held to the settled-evidence policy, a report
-    record another road moved while the notice was posted among it. That
-    policy reuses a park the tick reads standing for the debt where no reply
-    was handed in to answer it: the landing is already parked, so no second
-    notice or `park_awaiting_human` event goes out, while the evidence is
-    proved around it all the same (`rewrite_finish_settled`).
+    (`_stopped`). A finish held to the settled-evidence policy reuses a park
+    the tick reads standing for the debt with no reply handed in, posting no
+    second notice or `park_awaiting_human` event; the evidence is still proved
+    around it (`rewrite_finish_settled`).
     """
     reason = _base_sync_state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT
     standing = finish.state.get(_base_sync_state._AWAITING_HUMAN) is True
