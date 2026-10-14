@@ -1568,8 +1568,9 @@ because there it is the claim that this stage has already rerouted rather than a
   the configuration -- and invalidate it into history whole, its revision and binding kept, wherever any of them moved
   since it settled, so the head goes on to the fresh reviewer and putting what moved back revives nothing:
   - before every route that takes it, a resumed finish's included, and before an out-of-step hold, a landing the
-    record does not account for beside a standing attempt -- one repeated behind a retired attempt reads nothing --
-    a continuation, the base advance that made it excused, and the debt's park, ahead of which a captured
+    record does not account for beside a standing attempt -- one whose attempt an earlier route retired or another
+    attempt replaced reads and writes nothing, a transaction recorded for the head since kept as its road wrote it
+    -- a continuation, the base advance that made it excused, and the debt's park, ahead of which a captured
     transaction is proved again whole too;
   - behind every stop of the announcement or the park -- a write refused or unconfirmed, a conversation or event
     stream that would not read behind a posted notice, a park notice whose answer was lost -- and ahead of the relabel

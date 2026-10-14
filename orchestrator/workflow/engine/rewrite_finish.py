@@ -146,7 +146,9 @@ at every step that keeps, routes, or parks the attempt:
   name it or a floor nobody can read still holds, behind that proof. A
   landing the record does not account for beside a standing attempt, an
   out-of-step hold, and a continuation -- the base advance that made it
-  excused -- prove it first too.
+  excused -- prove it first too; one whose attempt was retired by an earlier
+  route or replaced by another reads and writes nothing, a transaction
+  another road recorded for the head since kept as that road wrote it.
 - Evidence settled or captured for the head is proved ahead of the debt's
   park and again behind its notice, a captured transaction's binding whole
   each time, and retired where anything moved (`_resolves`), so the reply
@@ -230,13 +232,17 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     dormant settled-evidence policy (`LandedFinish.proves_settled`) proves
     evidence an earlier finish settled for the head ready again first as well
     (`rewrite_finish_settled.stands_ready_if_settled`), retired where
-    anything it rests on moved -- while the attempt anchored to the head the
-    landing replaced still stands beside it: a finish repeated behind one that
-    already retired the attempt reads nothing of evidence that route handed on.
+    anything it rests on moved -- but only while the attempt anchored to the
+    head the landing replaced still stands. One finding that attempt retired
+    by an earlier route, or replaced by another, reads and writes nothing at
+    all: the evidence that route handed on, and any transaction another road
+    has recorded for the head since, are no longer this landing's to prove.
     """
     if not _finishable(finish):
-        if finish.anchor and finish.state.get(_base_sync_state._PENDING_PUSH_SHA) == finish.anchor:
-            _settled.stands_ready_if_settled(finish)
+        standing = finish.anchor and finish.state.get(_base_sync_state._PENDING_PUSH_SHA) == finish.anchor
+        if finish.proves_settled and not standing:
+            return FinishOutcome.UNFINISHABLE
+        _settled.stands_ready_if_settled(finish)
         return _captured.stands_before_the_route(finish, behind=FinishOutcome.UNFINISHABLE, whole=True)
     announced = _attempts._already_announced(finish.state, finish.head)
     stopped = _resolves(finish, announced=announced)

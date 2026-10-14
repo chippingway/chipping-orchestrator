@@ -1172,7 +1172,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             selects (`rewrite_finish_settled.py`): settled evidence proved ready again before and behind
                             every route, hold, continuation, park, announcement, and relabel and invalidated whole where
                             anything it rests on moved, the announcement's writes, the park, and the retirement decided
-                            on the records its binding rests on and a refusal over one of them read as that movement
+                            on the records its binding rests on and a refusal over one of them read as that movement,
+                            and a landing whose attempt was retired or replaced left with nothing read or written
     rewrite_finish_models.py
                             the finish's input -- the typed landing, the issue, its pinned state and label, the road
                             (`FinishRoad`), the lag the publication's notice reports, and the human reply a recovery
