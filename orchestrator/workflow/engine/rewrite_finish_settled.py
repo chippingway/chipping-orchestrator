@@ -129,6 +129,8 @@ def ahead_of_the_park(finish: LandedFinish) -> FinishOutcome | None:
     where another finish settled it while that abandonment was asked, its
     settlement invalidated over the movement instead.
     """
+    if not finish.proves_settled:
+        return None
     stopped = stands_ready_if_settled(finish)
     if stopped is not None or _captured.recorded(finish, logged=False) is None:
         return stopped

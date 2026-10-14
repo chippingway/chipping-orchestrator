@@ -22,6 +22,11 @@ the edit already read and the debt parked -- or, the comment full, the movement
 is recorded by the base tip blanked and the settlement invalidated once room
 is made -- and a newer run another road settled over it under its own receipt
 is left as it stands. The run is made once, and nothing is pushed or launched.
+
+The policy every road selects proves no captured run whole ahead of the park:
+with the report edited before the tick and put back while the notice is
+posted, its park keeps the run recorded, where the settled-evidence policy
+abandons it.
 """
 from __future__ import annotations
 
@@ -73,29 +78,10 @@ def _abandoning(state, over: dict) -> bool:
     return drops and over.get(_records.PENDING_EVIDENCE) is not None
 
 
-class DebtParkReportEditTest(settled.SettledGuardedCase, unittest.TestCase):
-    """A report edited around the debt park's notice abandons the run, however soon it is put back."""
+class _DebtParkCase(guarded.GuardedRecoveryCase):
+    """A captured run the recovery's finish parks for the landing's debt, its report edited around the park."""
 
-    def test_a_report_edit_abandons_the_run(self) -> None:
-        # The run is abandoned whole ahead of the park or behind its notice,
-        # whichever the edit was read by, and once room is made and any park
-        # answered the head is routed with nothing current.
-        for window, before, raises in _REPORT_EDITS:
-            with self.subTest(window=window):
-                self.setUp()
-                head, captured = self.captures()
-                self._parks_over_an_edit(before=before, raises=raises)
-
-                self.assert_abandoned(captured)
-                finish_moves.makes_room(self)
-                if not raises:
-                    self.continues()
-                self.recovers()
-
-                self.assert_abandoned(captured)
-                self.assert_routed(head)
-
-    def _parks_over_an_edit(self, *, before: bool, raises: bool) -> None:
+    def parks_over_an_edit(self, *, before: bool, raises: bool) -> None:
         """Recover the debt's park over the report edited `before` the tick or under the notice, which `raises`.
 
         An edit made before the tick is put back while the notice is posted;
@@ -116,6 +102,54 @@ class DebtParkReportEditTest(settled.SettledGuardedCase, unittest.TestCase):
         posted.body = written
         parked = self.pinned_fields(guarded.AWAITING)[0]
         self.assertEqual(bool(parked), not raises)
+
+
+class DebtParkPolicyTest(_DebtParkCase, unittest.TestCase):
+    """Only a finish held to the settled-evidence policy proves a captured run whole ahead of the debt's park."""
+
+    def test_a_report_put_back_under_the_notice(self) -> None:
+        # The report the run answers for is edited before the tick and put
+        # back while the debt park's notice is posted. The policy every road
+        # selects parks over the run still recorded, its last word never
+        # re-reading the report at its location; the settled-evidence policy
+        # proves the run whole ahead of the park and abandons it. Either way
+        # the debt is parked and the run was made once. The baseline goes
+        # first, so the policy the second case selects outlives neither.
+        for proves_settled in (False, True):
+            with self.subTest(proves_settled=proves_settled):
+                self.setUp()
+                if proves_settled:
+                    self.enterContext(settled.selected())
+                captured = self.captures()[1]
+                self.parks_over_an_edit(before=True, raises=False)
+
+                pending, _current, retired = readings.pinned_records(self)
+                self.assertEqual(pending, None if proves_settled else captured)
+                self.assertEqual((captured.receipt, readings.ABANDONED) in retired, proves_settled)
+                self.assert_made_once()
+
+
+class DebtParkReportEditTest(_DebtParkCase, settled.SettledGuardedCase, unittest.TestCase):
+    """A report edited around the debt park's notice abandons the run, however soon it is put back."""
+
+    def test_a_report_edit_abandons_the_run(self) -> None:
+        # The run is abandoned whole ahead of the park or behind its notice,
+        # whichever the edit was read by, and once room is made and any park
+        # answered the head is routed with nothing current.
+        for window, before, raises in _REPORT_EDITS:
+            with self.subTest(window=window):
+                self.setUp()
+                head, captured = self.captures()
+                self.parks_over_an_edit(before=before, raises=raises)
+
+                self.assert_abandoned(captured)
+                finish_moves.makes_room(self)
+                if not raises:
+                    self.continues()
+                self.recovers()
+
+                self.assert_abandoned(captured)
+                self.assert_routed(head)
 
 
 class SettledUnderTheAbandonmentTest(settled.SettledGuardedCase, unittest.TestCase):
