@@ -21,7 +21,6 @@ missing or will not read is no mark.
 """
 from __future__ import annotations
 
-import copy
 import logging
 
 from orchestrator.git.base_sync import attempts as _attempts
@@ -52,21 +51,21 @@ def carries_the_mark(state: PinnedState, current: _records.CurrentEvidence) -> b
     return state.get(_records.EVIDENCE_HANDOFF) == {_MOVED: current.receipt}
 
 
-def marks(finish: LandedFinish, durable: PinnedState, current: _records.CurrentEvidence, why: str) -> None:
-    """Record movement read under `current` by the mark in place of its handoff, over `durable` as read, where `why`.
+def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> None:
+    """Record movement read under `current` by the mark in place of its handoff, over the comment afresh, where `why`.
 
-    Guarded by that reading -- the attempt and every bound record, `current`
-    among them, as read -- so another attempt or a successor settled since
-    refuses it. The mark is shorter than any handoff, so a comment with no
-    room for the attempt or the history entry still takes it.
+    Only where that comment still carries `current` as current, guarded by it
+    (`_lands`), so a successor settled since refuses it; a comment that moved
+    under the edit, a report put back meanwhile among it, is read and marked
+    once more. The mark is shorter than any handoff, so a comment with no room
+    for the attempt or the history entry still takes it.
     """
-    guard = _durable.guarded(durable, (_records.EVIDENCE_HANDOFF,), _attempts._ATTEMPT_KEYS)
-    durable.set(_records.EVIDENCE_HANDOFF, {_MOVED: current.receipt})
-    refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
+    landed = _lands(finish, read_afresh(finish), current, marked=True)
+    landed = landed or _lands(finish, read_afresh(finish), current, marked=True)
     log.warning(
         "issue=#%d recording movement read under verification evidence revision %d by marking its handoff, "
         "since %s: %s",
-        finish.issue.number, current.revision, why, "landed" if refused is None else refused.refusal,
+        finish.issue.number, current.revision, why, "landed" if landed else "not landed",
     )
 
 
@@ -94,9 +93,11 @@ def retires_as_it_stands(finish: LandedFinish, receipt: str, attempt: _commit_mo
 
     Only where the comment no longer carries `attempt`, the one the finish
     captured, nor that attempt advanced by its own announcement. Staged on the
-    comment read afresh and guarded by it, so the attempt standing is kept and
-    a successor under another receipt, or a write since, refuses it; where
-    history has no room, the movement is marked instead (`marks`).
+    comment read afresh and guarded by it (`_lands`), so the attempt standing
+    is kept and a successor under another receipt refuses it; a comment that
+    moved under the write -- a report put back meanwhile among it -- is read
+    and retired once more. Where neither lands, for want of room among the
+    reasons, the movement is marked instead (`marks`).
     """
     durable = read_afresh(finish)
     current = None if durable is None else _settlement.read_current_evidence(durable)
@@ -104,13 +105,9 @@ def retires_as_it_stands(finish: LandedFinish, receipt: str, attempt: _commit_mo
         return False
     if advanced_by_the_announcement(finish, attempt, durable.data) is not None:
         return False
-    marked = copy.deepcopy(durable)
-    guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
-    if _settlement.retire_current_evidence(durable):
-        refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
-        if refused is None:
-            return True
-    marks(finish, marked, current, "its invalidation did not land over the attempt that stands")
+    if _lands(finish, durable, current) or _lands(finish, read_afresh(finish), current):
+        return True
+    marks(finish, current, "its invalidation did not land over the attempt that stands")
     return False
 
 
@@ -120,3 +117,23 @@ def read_afresh(finish: LandedFinish) -> PinnedState | None:
     if durable is None:
         durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
     return durable
+
+
+def _lands(
+    finish: LandedFinish, durable: PinnedState | None, current: _records.CurrentEvidence, *, marked: bool = False,
+) -> bool:
+    """Whether `current`'s retirement into history -- or, `marked`, the mark of its movement -- landed over `durable`.
+
+    `durable` is a reading of the comment that still has to carry `current`,
+    and the write is guarded by it -- every bound record and the attempt.
+    """
+    if durable is None or _settlement.read_current_evidence(durable) != current:
+        return False
+    if marked:
+        guard = _durable.guarded(durable, (_records.EVIDENCE_HANDOFF,), _attempts._ATTEMPT_KEYS)
+        durable.set(_records.EVIDENCE_HANDOFF, {_MOVED: current.receipt})
+    else:
+        guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
+        if not _settlement.retire_current_evidence(durable):
+            return False
+    return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None

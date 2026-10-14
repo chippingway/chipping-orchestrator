@@ -351,9 +351,20 @@ def parks(finish: LandedFinish, observed: list[ReportEvidence] | None = None) ->
     and finish the route once somebody has made room. A park that would not
     land posts nothing. `observed` collects the movement a refusal read
     (`_stopped`) -- for a finish held to the settled-evidence policy, a report
-    record another road moved while the notice was posted among it.
+    record another road moved while the notice was posted among it. That
+    policy reuses a park the tick reads standing for the debt where no reply
+    was handed in to answer it: the landing is already parked, so no second
+    notice or `park_awaiting_human` event goes out, while the evidence is
+    proved around it all the same (`rewrite_finish_settled`).
     """
     reason = _base_sync_state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT
+    standing = finish.state.get(_base_sync_state._AWAITING_HUMAN) is True
+    standing = standing and finish.state.get(_base_sync_state._PARK_REASON) == reason
+    if finish.proves_settled and finish.retry is None and standing:
+        log.info(
+            "issue=#%d already parked for its debt over %.8s; posting nothing again", finish.issue.number, finish.head,
+        )
+        return FinishOutcome.PARKED
     staged = staging(finish)
     staged.set(_base_sync_state._AWAITING_HUMAN, True)
     staged.set(_base_sync_state._PARK_REASON, reason)

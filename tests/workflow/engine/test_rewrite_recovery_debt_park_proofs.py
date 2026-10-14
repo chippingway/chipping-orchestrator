@@ -115,6 +115,28 @@ class DebtParkPolicyTest(_DebtParkCase, unittest.TestCase):
                 self.assertEqual((captured.receipt, readings.ABANDONED) in retired, proves_settled)
                 self.assert_made_once()
 
+    def test_a_repeated_finish_keeps_its_park(self) -> None:
+        # The debt has no room and the landing is finished directly twice,
+        # with no reply between. The settled-evidence policy proves the run
+        # again and finds its park standing, so the second finish posts no
+        # notice and files no park event; the policy every road selects parks
+        # anew. Either way the run stays recorded and was made once.
+        for proves_settled, parks in ((False, 2), (True, 1)):
+            with self.subTest(proves_settled=proves_settled):
+                self.setUp()
+                if proves_settled:
+                    self.enterContext(settled.selected())
+                head, captured = self.captures()
+                finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
+                self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.PARKED)
+                self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.PARKED)
+
+                events = [event.get("event") for event in self.gh.recorded_events]
+                self.assertEqual(events.count("park_awaiting_human"), parks)
+                self.assertEqual(len(self.gh.posted_comments), parks)
+                self.assertEqual(readings.pinned_records(self)[0], captured)
+                self.assert_made_once()
+
 
 class DebtParkReportEditTest(_DebtParkCase, settled.SettledGuardedCase, unittest.TestCase):
     """A report edited around the debt park's notice abandons the run, however soon it is put back."""

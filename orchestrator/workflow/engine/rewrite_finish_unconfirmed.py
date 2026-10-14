@@ -43,7 +43,6 @@ or a successor settled under another receipt is left as its road wrote it.
 """
 from __future__ import annotations
 
-import copy
 import logging
 
 from orchestrator.git.base_sync import attempts as _attempts
@@ -96,13 +95,12 @@ def stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
         return False
     if _settlement.read_current_evidence(durable) != current:
         return False
-    marked = copy.deepcopy(durable)
     guard = _durable.guarded(durable, _attempts._ATTEMPT_KEYS, _attempts._ATTEMPT_KEYS)
     for member in _attempts._ATTEMPT_KEYS:
         durable.set(member, finish.state.get(member))
     if _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None:
         return True
-    marks(finish, marked, current, "the attempt its retirement took could not be put back")
+    marks(finish, current, "the attempt its retirement took could not be put back")
     return False
 
 

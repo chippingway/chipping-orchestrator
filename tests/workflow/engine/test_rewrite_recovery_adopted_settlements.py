@@ -2,34 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 """A settlement another road made while the recovery published the run, adopted out of step with the records beside it.
 
-A finish recorded its run for the landed head and died posting its artifact,
-so the recovery publishes and settles it with the attempt still standing. Just
-as the artifact is posted, another road settles that very run itself and
-leaves the records beside it out of step with it: it records a newer
-transaction and retires it, spending a revision past the run, or it drops the
-handoff that names the run. The recovery's own settlement is refused over that
-moved comment, and the ledger entry it then commits alone takes the comment in
-as it stands. Those records are held to the same agreement the finish asks of
-settled evidence before it resolves anything, so the route is held: nothing
-announced, relabelled, or retired, the round as it was spent, and the records
-exactly as that road left them -- poll after poll.
+A finish recorded its run and died posting its artifact; as the recovery
+posts it, another road settles that very run and leaves the records beside
+it out of step -- a newer transaction recorded and retired past it, or its
+handoff dropped. The adopted records hold the route, poll after poll, with
+nothing announced or retired.
 
-A finish held to the dormant settled-evidence policy (`settled_finish_support`)
-holds over the dropped handoff the same way, since nobody can say which
-evidence is the latest. A run another finish of the landing settles and
-announces before dying at its relabel, with nothing else moving, stays
-current: the evidence records its settlement moves and the mark and event's
-record its announcement leaves are no movement under it, and the head is
-routed with it. A revision spent past the run outranks it for good
-instead: the run is invalidated whole, its revision and binding kept, and the
-head routed to the fresh reviewer rather than held over evidence no reader
-will be handed. So is a run that road settled and then moved report 3 under:
-the recovery's proof reads the report moving, and putting report 2 back right
-behind that reading, before the settlement is adopted, revives nothing -- the
-run is invalidated whole over the movement the proof read -- even where the
-road is another finish of the landing that announced the run before dying at
-its relabel, its mark and event's record this attempt advanced, not replaced. Nothing runs again,
-nothing is pushed, and no developer is launched.
+Under the dormant settled-evidence policy (`settled_finish_support`) the
+dropped handoff holds the same way, a revision spent past the run outranks
+it, and a run read moving under report 3 is invalidated whole however soon
+report 2 is put back -- also where another finish of the landing announced
+or routed it meanwhile, over the comment as it stands; a run settled and
+announced with nothing else moving stays current. Nothing runs again.
 """
 from __future__ import annotations
 

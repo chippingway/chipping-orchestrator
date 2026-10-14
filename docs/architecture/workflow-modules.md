@@ -1283,25 +1283,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             in a write of its own -- the movement recorded against it where that has no room -- and a
                             settlement the answer adopted is invalidated over movement the answer read under its binding
     rewrite_finish_settled.py
-                            where the finish takes each step its two policies differ in, answering for both and reading
-                            nothing more for a finish not built with `proves_settled`: settled evidence proved ready,
-                            and behind the relabel a routed head with none held to the base tip its replay was made
-                            onto -- or, with no tip recorded, to the base the tick counted it against
-                            (`stands_ready_if_settled`); settled and captured evidence proved ahead of the debt's park
-                            (`ahead_of_the_park`); the last word behind a stopped or raised announcement or park, the
-                            evidence proved once more and invalidated over a binding record a refusal read moved, over
-                            the attempt as an unconfirmed record or checkpoint may have left it
-                            (`behind_the_announcement`), and the same behind a retirement that did not land -- one
-                            nobody confirmed proved over the attempt as read, and where the evidence reads moving the
-                            attempt put back where that retirement took it and the evidence invalidated, or its
-                            movement recorded by the blanked base tip, over it (`behind_the_write`); why records
-                            beside settled evidence hold the route (`out_of_step`); a settlement the settlement step's
-                            answer left current invalidated over movement that answer read, the evidence records' own
-                            moves and the attempt's own -- the mark and event record a finish of this landing
-                            announcing it left, or every member where another finish's route took the attempt off the
-                            comment or another road replaced it, the evidence then invalidated over the comment as it
-                            stands -- aside (`retires_the_adopted`); and whether the attempt that answer left is the one
-                            captured -- unmoved, or advanced by its own announcement (`stands_as_read`)
+                            where the finish takes each step its two policies differ in, reading nothing more for a
+                            finish not built with `proves_settled`: settled evidence proved ready, a routed head with
+                            none held to its replay's base tip or, with none recorded, the base counted
+                            (`stands_ready_if_settled`); proved ahead of the debt's park (`ahead_of_the_park`); proved
+                            once more behind a stopped or raised announcement, park, or retirement, invalidated over a
+                            binding record a refusal read moved (`behind_the_announcement`, `behind_the_write`); why
+                            records beside it hold the route (`out_of_step`); a settlement the answer left current
+                            invalidated over movement it read (`retires_the_adopted`); and whether the attempt that
+                            answer left is the one captured (`stands_as_read`)
     rewrite_finish_announced.py
                             a finish's announcement on the attempt as only the dormant policy reads it: an attempt
                             advanced by it rather than replaced (`advanced_by_the_announcement`), its mark and event
@@ -1312,7 +1302,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             movement a dormant finish read under settled evidence where its own attempt cannot carry it:
                             the evidence current under that receipt retired over the comment as it stands where another
                             finish's route or another road took the attempt (`holds_the_attempt`,
-                            `retires_as_it_stands`), every attempt and successor kept, and with no room the mark
+                            `retires_as_it_stands`), read afresh and retried once where the comment moved under the
+                            write, every attempt and successor kept, and with no room the mark
                             `{"moved": <receipt>}` in the evidence's handoff place (`marks`), which no reader takes for
                             a handoff and only that very receipt answers to (`carries_the_mark`)
     rewrite_finish_unconfirmed.py

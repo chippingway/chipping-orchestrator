@@ -2,26 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """A run settled for the landed head, outranked by a newer transaction the next recovery abandons, is invalidated.
 
-The real-git finish case (`rewrite_verification_recovery_support`), every
-finish -- handed over directly or reached by a refresh -- held to the dormant
-settled-evidence policy (`settled_finish_support`): a finish recorded its run
-for the landed head and died posting its artifact, and the recovery settled
-that run under the anchor and died before announcing it. Another road then
-recorded a newer transaction for the head beside the run, spending a revision
-past it. The settled report both are bound to moves -- before the next
-recovery proves the newer transaction, or while that recovery publishes it --
-so the newer transaction is abandoned into history. The run it outranked is no
-reader's current evidence any more, and it was bound to the report that moved,
-so the recovery invalidates it whole, its revision and binding kept, and
-routes the head to the fresh reviewer -- even where that recovery dies before
-its relabel and a later one finishes it -- rather than routing the run as
-current or holding every later poll over the revision spent past it. So does a
-revision floor nobody can read beside that history: the revision the abandoned
-transaction spent still reads on its own, so the run is invalidated rather
-than held over the floor for good -- and so does a floor raised past the run
-with nothing left recorded, the newer transaction dropped, behind a recovery
-that settled and announced the run and died at its relabel. The run is never
-made again, nothing is pushed, and no developer is launched.
+Every finish held to the dormant settled-evidence policy (`settled_finish_support`):
+issue #7's run settled under the anchor, then another road records a newer
+transaction beside it, spending a revision past it, and the settled report
+both are bound to moves, so the newer one is abandoned. The run it outranked
+is invalidated whole and the head routed to the fresh reviewer, even across a
+recovery that dies before its relabel, rather than routed as current or held
+over the spent revision -- also beside a floor nobody can read, and where the
+newer transaction was dropped with only the floor left raised.
 """
 from __future__ import annotations
 

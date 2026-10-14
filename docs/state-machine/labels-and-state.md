@@ -591,7 +591,8 @@ proves verification evidence an earlier finish already settled for the landed he
 transaction it captured proved again whole -- retiring either into history where anything it rests on moved, so the
 park keeps no decision for the reply that brings the route back; it decides the park on the report and review records
 the evidence's binding rests on as well, so a report another road moves while the park's notice is posted refuses it,
-and that refusal, or a notice whose answer was lost, has the evidence proved and retired before the finish stops.
+and that refusal, or a notice whose answer was lost, has the evidence proved and retired before the finish stops. A
+park the tick reads standing for the debt, with no reply handed in, is not posted again.
 
 A clean rebase whose candidate the size gate hands to an adjudication instead of pushing leaves two owners over one
 unpublished replay: the attempt's anchor, and the live late generation whose candidate that replay is. Left that way

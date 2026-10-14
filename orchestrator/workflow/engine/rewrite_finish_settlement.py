@@ -64,14 +64,9 @@ What the answer comes to decides the route:
   (`verification_proof.ProofReading.observed`), kept as it was read, a bound
   record read moved under the settlement and a base read gone elsewhere among
   them, is that movement however the world reads by then, so one put back
-  before the last word reads it is abandoned over all the same. Under the
-  settled-evidence policy so is a settlement another road made of the
-  transaction while the answer ran, which the answer adopts: movement the
-  answer read under its binding invalidates it whole before anything is
-  resolved afresh, the evidence records' own moves -- which that settlement
-  makes -- aside (`verification_durable.moves_only_the_evidence`), and so is
-  the mark and the record of the event another finish of this landing put
-  down announcing it. One nothing moved under is HELD
+  before the last word reads it is abandoned over all the same -- under the
+  settled-evidence policy, so is a settlement the answer adopted
+  (`rewrite_finish_settled.retires_the_adopted`). One nothing moved under is HELD
   with nothing announced and the attempt standing, and the recovery of the
   push already landed answers it again on a later tick: an artifact an earlier
   post landed, its response lost included, is found under its receipt rather
@@ -87,16 +82,10 @@ the handoff naming it, and no revision spent past it. A newer transaction
 recorded for the head beside it is answered as any captured one is, and
 supersedes it once it settles; any other disagreement holds the route.
 
-A finish held to the dormant settled-evidence policy -- which no production
-road selects -- takes that evidence up as well when the tail behind the
-settlement died before the announcement, the relabel, or the retirement, but
-asks a revision floor somebody can read rather than none spent past it, and
-proves the evidence ready again before every route takes it
-(`rewrite_finish_readiness.stands_ready`) -- one a newer transaction was
-abandoned beside included (`rewrite_finish_settled.stands_ready_if_settled`):
-anything it is bound to that moved since its settlement, or a revision spent
-past it, which outranks it for good, invalidates it into history whole, and
-the head goes on to the fresh reviewer.
+A finish held to the dormant settled-evidence policy asks a revision floor
+somebody can read rather than none spent past it, and proves the evidence
+ready again before every route takes it (`rewrite_finish_readiness.stands_ready`),
+invalidating it whole where anything moved or a revision outranks it.
 """
 from __future__ import annotations
 
@@ -155,17 +144,10 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
 
     The settled-evidence policy asks a revision floor somebody can read rather
     than none spent past it, and takes the evidence only once it proves ready
-    again (`rewrite_finish_readiness.stands_ready`), which invalidates it where
-    anything it is bound to moved since it settled, a revision spent past it
-    included -- a newer transaction abandoned beside it outranks it for good,
-    which no route may carry and no poll may hold over -- and holds the route
-    where a reading could not be taken. One taken under a configuration no
-    longer in place is invalidated there as every movement under settled
-    evidence is (`rewrite_finish_readiness.invalidates`), before the evidence
-    step decides the head afresh: where that does not land -- no room for its
-    history entry among the reasons -- the movement is recorded against it
-    and the route held, so putting the configuration back before room is made
-    revives nothing.
+    again (`rewrite_finish_readiness.stands_ready`), invalidated where
+    anything moved or a revision outranks it; evidence taken under a moved
+    configuration is invalidated before the head is decided afresh, the route
+    held where that does not land.
 
     Any of those out of step holds the route, since nobody can say what was
     owed -- behind the readiness proof all the same under that policy, so
@@ -240,13 +222,9 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     comment the answer adopted and holds the route with the attempt standing,
     and current evidence the configuration moved past is invalidated, with
     nothing run again, rather than routed or held over. Under the
-    settled-evidence policy a settlement the answer adopted from another road
-    is invalidated first over movement the answer read under its binding
-    (`_behind_the_answer`), a revision spent past current evidence outranks it
-    rather than holding the route, and current evidence for the head -- the
-    one this answer settled, or one an earlier finish settled that a revision
-    this answer retired outranks -- is proved ready again before the route
-    takes it. A
+    settled-evidence policy a settlement the answer adopted is invalidated
+    first over movement the answer read (`_behind_the_answer`), and current
+    evidence is proved ready again before the route takes it. A
     transaction still owed goes to the last word over the first movement the
     answer read, where it read any -- a refusal of its binding, a bound record
     read moved, or a base read gone elsewhere, put back since or not, sorted as

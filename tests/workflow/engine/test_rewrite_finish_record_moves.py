@@ -2,19 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """A landed head's announcement whose event record is refused over a pull request repointed under it.
 
-The real-git finish case (`rewrite_verification_recovery_support`), every
-finish -- handed over directly or reached by a refresh -- held to the dormant
-settled-evidence policy (`settled_finish_support`): issue #7's rebased head
-reviewed and its finish publishing the landing, the run of the configured
-command settled under the anchor and proved ready before the announcement.
-While the announcement's notice is posted, another road repoints the issue at
-another pull request, and puts it back before anything reads the issue again.
-The record of the `base_rebased` event, decided on the pull request the
-publication is resolved from, is refused over that move: the refusal is
-movement read under the run, invalidated whole there and then rather than
-proved once more over an issue already put back. The next poll routes the head
-with nothing current, its notice and event said once, the run never made
-again, and no developer launched.
+Every finish held to the dormant settled-evidence policy (`settled_finish_support`):
+issue #7's run settled and proved ready, and while the notice is posted
+another road repoints the issue at another pull request and puts it back.
+The record of the `base_rebased` event, decided on that pull request, is
+refused: movement read under the run, which is invalidated there and then,
+and the next poll routes the head with everything said once.
 """
 from __future__ import annotations
 

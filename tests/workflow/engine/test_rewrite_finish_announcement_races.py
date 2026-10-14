@@ -3,14 +3,12 @@
 """Another finish of the landing announcing while a direct finish proves its settled run, the proof's movement kept.
 
 Every finish held to the dormant settled-evidence policy and handed over
-directly (`settled_finish_support`): issue #7's run settled and its finish
-killed before its announcement, the issue edited, and the next finish's proof
-reading the edit. Right behind that proof the edit is put back and another
-finish announces the landing and dies before its relabel -- the attempt
-advanced, not replaced -- so the run is invalidated whole over the attempt as
-it stands and the head routed, everything said and relabelled once; with the
-comment filled behind that announcement, the base tip is blanked instead and
-the next finish, room made, invalidates the run and routes the head.
+directly (`settled_finish_support`): issue #7's run settled, the issue edited,
+and right behind the next finish's proof the edit is put back while another
+finish announces the landing -- the attempt advanced, so the run is
+invalidated over it, or its tip blanked with no room -- or routes it whole, so
+the run is retired as the comment stands, or marked, even with report 2 put
+back under the very write; and a retry that cannot read its label holds.
 """
 from __future__ import annotations
 
@@ -25,6 +23,7 @@ from tests.workflow.engine import (
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
     settled_finish_support as settled,
+    verification_report_fixture as _report,
 )
 from tests.workflow.interleaving import _RacesPastTheCall
 
@@ -38,6 +37,9 @@ _THE_LABELS_READING = 3
 
 # The handoff's place on the pinned comment, which the movement mark takes.
 _HANDOFF = "verification_evidence_handoff"
+
+# The report and review records report 3's settlement moves, as the pinned comment spells them.
+_MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
 
 
 def _loses_the_issue() -> None:
@@ -130,6 +132,76 @@ class AnnouncementRaceTest(settled.SettledGuardedCase, unittest.TestCase):
         handoff.dies_at(self.gh, died, finishing)
         if full:
             finish_moves.fills_the_comment(self)
+
+
+
+class RestoredUnderTheRetirementTest(settled.SettledGuardedCase, unittest.TestCase):
+    """A run read moving under report 3, retired while another finish's route and report 2 put back race it."""
+
+    def test_the_movement_outlives_the_restore(self) -> None:
+        # Behind the proof that read report 3, report 2 is put back while
+        # another finish routes the head whole, then report 3 returns, and
+        # report 2 is put back once more under the proving finish's very
+        # write. The run is retired over the comment read again -- or, the
+        # comment full, marked, and the next direct finish retires it whole.
+        for full in (False, True):
+            with self.subTest(full=full):
+                self.setUp()
+                head, run = self._restores_under_the_write(full=full)
+                if full:
+                    self.assertEqual(readings.pinned(self)[_HANDOFF], {"moved": run.receipt})
+                    finish_moves.makes_room(self)
+                    self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.UNFINISHABLE)
+                self.assert_invalidated_then_routed(head, run)
+
+    def _restores_under_the_write(self, *, full: bool) -> tuple:
+        """Settle the run, move report 3 under it, and finish again over the race; the head and the run."""
+        head = self.lands_a_reviewed_rebase()
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
+        run = readings.pinned_records(self)[1]
+        self._reports = (self._records(), None)
+        self.state = self.gh.read_pinned_state(self.issue)
+        _report.settles_report(self, 3, "Covered a base that moved twice as well.", head=head)
+        self.gh.write_pinned_state(self.issue, self.state)
+        self._reports = (self._reports[0], self._records())
+        self._armed = False
+        routes = partial(self._routes, head, full)
+        reads = _RacesPastTheCall(self.gh.get_issue, _THE_LAST_WORDS_READING, routes)
+        edits = partial(self._puts_back, self.gh.edit_pinned_state)
+        self.enterContext(patch.object(self.gh, "edit_pinned_state", edits))
+        with patch.object(self.gh, "get_issue", reads):
+            self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.HELD)
+        self.assertFalse(self._armed)
+        return head, run
+
+    def _routes(self, head: str, full: bool) -> None:
+        """Put report 2 back, route `head` whole as another finish would, and move report 3 under it again."""
+        written, moved = self._reports
+        self._writes(written)
+        self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.ROUTED)
+        self._writes(moved)
+        if full:
+            finish_moves.fills_the_comment(self)
+        self._armed = True
+
+    def _puts_back(self, live, issue, state, *, over: dict):
+        """`live`, the client's pinned edit, with report 2 put back ahead of the first edit once armed."""
+        if self._armed:
+            self._armed = False
+            self._writes(self._reports[0])
+        return live(issue, state, over=over)
+
+    def _records(self) -> dict:
+        """The report and review records the pinned comment carries now."""
+        pinned = readings.pinned(self)
+        return {key: pinned.get(key) for key in _MOVED_RECORDS}
+
+    def _writes(self, records: dict) -> None:
+        """Write `records` onto the pinned comment as another road would."""
+        state = self.gh.read_pinned_state(self.issue)
+        for key, recorded in records.items():
+            state.set(key, recorded)
+        self.gh.write_pinned_state(self.issue, state)
 
 
 if __name__ == "__main__":

@@ -2,25 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """The dormant settled-evidence finish policy, selected for every finish a case hands the coordinator in a scope.
 
-No production road builds a finish that selects it
-(`rewrite_finish_models.LandedFinish.proves_settled`), so a case driving the
-policy selects it itself. `selected` holds every finish the coordinator
-(`rewrite_finish.finalizes`) is handed in its scope to the policy: one a case
-builds and hands it directly -- over a fresh pinned reading and the real
-checkout (`RealGitFinishCase.finishes`), or over the in-memory world
-(`FinishWorld.finalizes`) -- and one a whole per-tick base refresh reaches
-through the publication or the recovery of a push already landed. Nothing else
-about those roads changes, so a case reads back exactly what the policy made
-of each finish; outside the scope every finish keeps the policy its road hands
-over. A real-git case selecting it for every test is a `SettledRunCase`, and
-one whose every refresh takes the git owner's guarded abort as well is a
-`SettledGuardedCase`; both hold the push transport and the agent runner to the
-case's own recorders for the whole test (`_counts_side_effects`), so a push or
-a launch a direct finish made is counted as one a refresh made would be.
-Beside them, a case racing a finish's settlement records a newer run beside
-the one settled (`records_a_newer_run`) or settles a captured run as another
-finish would, dying before its announcement or at its relabel
-(`settles_elsewhere`).
+No production road selects it (`rewrite_finish_models.LandedFinish.proves_settled`),
+so `selected` holds every finish `rewrite_finish.finalizes` is handed in its
+scope to the policy -- one a case hands over directly, or one a whole refresh
+reaches -- and nothing else about those roads changes. `SettledRunCase` and
+`SettledGuardedCase` select it for a whole real-git test and hold the push
+transport and agent runner to the case's recorders, so pushes and launches a
+direct finish made are counted. `records_a_newer_run` and `settles_elsewhere`
+race a finish's settlement as another road or finish would.
 """
 from __future__ import annotations
 
