@@ -190,7 +190,9 @@ class EntryFieldValidatorTest(unittest.TestCase):
                 self.assertEqual(validate_repository(raw), expected)
 
     def test_other_spellings_are_refused(self) -> None:
-        for raw in ("", "acme", "acme/", "/api", "acme/api/extra", "acme api/x", "acme/a|b"):
+        for raw in (
+            "", "acme", "acme/", "/api", "acme/api/extra", "acme api/x", "acme/a|b", "acme/.", "acme/..",
+        ):
             with self.subTest(raw=raw):
                 self.assertEqual(
                     refusal(validate_repository, raw),

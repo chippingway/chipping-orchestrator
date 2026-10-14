@@ -25,12 +25,17 @@ line the configuration reads it from, and ``private_files`` writes a file
 whole, mode 0600, into a directory made with mode 0700, as is each parent
 missing above it. ``configure`` is the
 command that writes an installed package's ``.env`` from the basic template
-with all of the above, its core called in process with the answers as typed,
-and ``commands`` puts it on the command line ``orchestrator/cli.py`` parses.
+with all of the above, its core called in process with the answers as typed.
+``tokens`` is the one that keeps a repository's token: read from standard
+input -- at a terminal through ``token_prompt``, which refuses one that would
+show it -- proved by ``token_probe``, read-only GitHub calls made with the
+standard library, and written through ``private_files``. ``commands`` puts
+both on the command line ``orchestrator/cli.py`` parses.
 
-Nothing here imports ``orchestrator.config``. That package resolves and
-validates the settings as it is imported, and an installed package with no
-``REPOS`` exits there -- which is exactly the state a first setup starts from.
+Nothing here imports ``orchestrator.config``, or the GitHub client that reads
+its token through it. That package resolves and validates the settings as it
+is imported, and an installed package with no ``REPOS`` exits there -- which
+is exactly the state a first setup starts from.
 The configuration reads ``checkouts`` and ``paths`` back instead, to hold its
 targets to the same check and to choose the ``.env`` it loads, which those two
 can serve from below it because they import nothing beyond each other. This

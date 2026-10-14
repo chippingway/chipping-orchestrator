@@ -34,6 +34,12 @@ _PRIVATE_FILES = "private_files"
 
 _CONFIGURE = "configure"
 
+_TOKEN_PROBE = "token_probe"
+
+_TOKEN_PROMPT = "token_prompt"
+
+_TOKENS = "tokens"
+
 # What `configure` composes: every setup leaf it writes the `.env` through.
 _CONFIGURE_CHAIN = (
     _CHECKOUTS,
@@ -47,11 +53,22 @@ _CONFIGURE_CHAIN = (
     _VALIDATION,
 )
 
+# What `set-token` composes: the repository validator, the hidden prompt, the
+# GitHub probe, and the private file writer it keeps the token through.
+_TOKENS_CHAIN = (
+    _CHECKOUTS,
+    _PRIVATE_FILES,
+    _TOKEN_PROBE,
+    _TOKEN_PROMPT,
+    _VALIDATION,
+)
+
 # Each owner, and the owners beside it that importing it loads too. Only the
 # setup's own leaves read each other: the checkout check under the layout and
 # the clone validator, the validator's refusal under the entry it writes and
-# the `.env` lines, all of them under the clone's derived entry, and every
-# leaf under `configure` and the command line above it.
+# the `.env` lines, all of them under the clone's derived entry, every leaf
+# under `configure` or `tokens`, and both of those under the command line
+# above them.
 _OWNERS = MappingProxyType({
     _TEMPLATES: (),
     _CHECKOUTS: (),
@@ -63,7 +80,10 @@ _OWNERS = MappingProxyType({
     _DOTENV_TEXT: (_CHECKOUTS, _VALIDATION),
     _PRIVATE_FILES: (),
     _CONFIGURE: _CONFIGURE_CHAIN,
-    "commands": (*_CONFIGURE_CHAIN, _CONFIGURE),
+    _TOKEN_PROBE: (),
+    _TOKEN_PROMPT: (),
+    _TOKENS: _TOKENS_CHAIN,
+    "commands": (*_CONFIGURE_CHAIN, _CONFIGURE, *_TOKENS_CHAIN, _TOKENS),
 })
 
 # The declared inventory: the owners above, and the two templates `templates`
@@ -78,7 +98,8 @@ _PACKAGE_DATA = (".env.example", ".env.example.advanced")
 # What a fresh import of each module may plant under the package: its own
 # chain and nothing besides. `orchestrator.config` above all stays out, since
 # importing it resolves the settings and an installed package with no `REPOS`
-# exits there -- the state a first setup starts in. The configuration reads
+# exits there -- the state a first setup starts in -- and so does the GitHub
+# client, which reads its token through it. The configuration reads
 # `checkouts` and `paths` back, which is what these exact chains make safe.
 _IMPORT_CHAINS = (
     (_PACKAGE, frozenset((_ORCHESTRATOR, _PACKAGE))),

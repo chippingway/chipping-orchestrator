@@ -22,6 +22,8 @@ _PACKAGE = "orchestrator"
 _CONSOLE_SCRIPT = "chipping-orchestrator"
 _RUN = "run"
 _CONFIGURE = "configure"
+_SET_TOKEN = "set-token"
+_HELP = "--help"
 _LAUNCH_TIMEOUT_SECONDS = 60
 _MISSING_SCRIPT_REASON = f"{_CONSOLE_SCRIPT} is not installed; run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync`"
 # A host that configures nothing, and one whose `REPOS` a run aborts on.
@@ -30,6 +32,7 @@ _NOTHING = r"\A\Z"
 _COMMAND_LISTING = (
     rf"(?ms)\Ausage: {_CONSOLE_SCRIPT} .*^commands:$.*^ +{_RUN} +Run the polling process"
     rf".*^ +{_CONFIGURE} +Write the installed package's \.env"
+    rf".*^ +{_SET_TOKEN} +Verify a repository's GitHub token"
 )
 _VERSION_LINE = f"{_CONSOLE_SCRIPT} {__version__}"
 _USAGE_ERROR = 2
@@ -61,17 +64,22 @@ def _refused(*args: str) -> _Answer:
 
 _ANSWERS = (
     _Answer((), 0, _COMMAND_LISTING),
-    _Answer(("--help",), 0, _COMMAND_LISTING),
+    _Answer((_HELP,), 0, _COMMAND_LISTING),
     _Answer(("--version",), 0, rf"\A{re.escape(_VERSION_LINE)}\n\Z"),
     _Answer(
-        (_RUN, "--help"),
+        (_RUN, _HELP),
         0,
         rf"(?s)\Ausage: {_CONSOLE_SCRIPT} {_RUN} .*--once.*--cleanup-terminal-artifacts.*--log-level",
     ),
     _Answer(
-        (_CONFIGURE, "--help"),
+        (_CONFIGURE, _HELP),
         0,
         rf"(?s)\Ausage: {_CONSOLE_SCRIPT} {_CONFIGURE} .*--clone PATH --authors LOGINS.*--decompose-agent",
+    ),
+    _Answer(
+        (_SET_TOKEN, _HELP),
+        0,
+        rf"(?s)\Ausage: {_CONSOLE_SCRIPT} {_SET_TOKEN} \[-h\] OWNER/NAME\n.*standard input",
     ),
     _refused("--once"),
     _refused("--cleanup-terminal-artifacts"),
@@ -125,9 +133,10 @@ class UnconfiguredLaunchTest(unittest.TestCase):
     read: on a host that configures no repository, and on one whose `REPOS` a
     run aborts on. A bare launch, like `--help`, prints the help listing every
     command; `--version` prints the distribution's; `run --help` lists the
-    polling flags and `configure --help` the setup options; and a polling flag
-    given before any command is a usage error naming the `run` form that
-    means it.
+    polling flags, `configure --help` the setup options, and `set-token --help`
+    the repository it takes and standard input as where the token comes from;
+    and a polling flag given before any command is a usage error naming the
+    `run` form that means it.
 
     Only those are spared that validation: a launch that goes on to run is
     stopped by the same `REPOS`, as `test_entrypoints` shows.

@@ -91,9 +91,11 @@ REPOS=acme/api|/home/alice/src/acme-api|main;acme/web|/home/alice/src/acme-web|m
 
 The second entry also sets both optional fields: `upstream` is the git remote in that clone that points at `acme/web`,
 and `2` lets two `acme/web` issues run at once. `ALLOWED_ISSUE_AUTHORS` ([required](#required)) and `HITL_HANDLE`
-sit beside it, and every entry needs a token — a file at `~/.config/<owner>/<name>/token` each, or one `GITHUB_TOKEN`
-for all of them ([resolution order](#github-personal-access-token)). Worktrees go under `wt-orchestrator` beside the
-first entry's clone unless `WORKTREES_DIR` says otherwise ([workspace](#workspace-and-agent-identity)).
+sit beside it, and every entry needs a token — a file at `~/.config/<owner>/<name>/token` each, which
+`chipping-orchestrator set-token <owner>/<name>` proves and writes ([storing a token](#storing-a-token-with-set-token)),
+or one `GITHUB_TOKEN` for all of them ([resolution order](#github-personal-access-token)). Worktrees go under
+`wt-orchestrator` beside the first entry's clone unless `WORKTREES_DIR` says otherwise
+([workspace](#workspace-and-agent-identity)).
 
 Nothing else is needed. [`.env.example.advanced`](../orchestrator/service/.env.example.advanced) holds optional
 operational settings, each documented below, and closes with the orchestrator-developer settings `REPO`,
@@ -165,11 +167,45 @@ Token resolution order, for each configured repository — every `REPOS` entry, 
 2. `ORCHESTRATOR_TOKEN_FILE`, when set: one file for every repository alike.
 3. The file at `~/.config/<owner>/<repo>/token`, path derived from that repository's own `owner/name`. A `REPOS`-only
    setup therefore needs one file per entry and no `REPO`. Pick a path the agent worktree cannot reach via known
-   relatives, and `chmod 600` it.
+   relatives, and `chmod 600` it; [`set-token`](#storing-a-token-with-set-token) writes this one owner-only.
 
 The GitHub client and the git fetch and push each resolve their repository's token when they need it. Startup also
 resolves every configured repository's token once, so the stderr and command output the orchestrator surfaces mask
 each of them, file-backed ones included.
+
+#### Storing a token with set-token
+
+`set-token` writes a repository's token file, the third source above, after proving the token reaches the repository:
+
+```sh
+chipping-orchestrator set-token acme/api              # on a terminal: paste the token at the hidden prompt
+chipping-orchestrator set-token acme/api < token.txt  # in a script: pipe or redirect the token in
+```
+
+The token is read from standard input, never from an argument, since arguments land in shell history and the process
+list. A command line naming `set-token` that cannot be parsed — a further argument, an option such as `--token=...`,
+or a value given to a flag that takes none, anywhere on the line, the command's own flags and those before it alike —
+is refused with status 2 without any of it printed back, and a repository that is not written `owner/name` is refused
+with status 1 without being quoted, since either may be the token; `--help` and `--version` still answer. The
+repository is held to the [setup check](#setup-checks-and-clone-defaults) before anything is read, so a mistyped one
+asks for no token. At a terminal the prompt does not echo, and a terminal whose echo cannot be turned off is refused
+with status 1 before anything is read from it. The blanks and line ends around the token are dropped, and input that
+is then not one run of visible ASCII — two tokens, or text around one — is refused without being quoted.
+
+The proof is one read-only call, `GET /repos/<owner>/<name>` on `api.github.com`, made with Python's standard library
+and without loading any configuration, so it works before `.env` exists. It shows the token is valid and can read the
+repository, not that it holds the write permissions listed above. A redirect is refused rather than followed, so the
+token goes to no other host, and a renamed or transferred repository is asked for under its current name. A refusal
+names GitHub's status and message, with the token masked: 401 for a mistyped, expired, or revoked token, 403 when
+GitHub refuses it access, its message saying why, 404 for a repository the token cannot see, and GitHub being
+unreachable.
+
+A proved token is written to `~/.config/<owner>/<name>/token`, replacing any token there. The file is mode 0600 in a
+directory made 0700 even where a looser one already stood, and an owner directory or `~/.config` it has to create is
+made 0700 too; each mode is set outright, whatever the umask. The file is written whole beside the old one and renamed
+over it. Empty input, a terminal that cannot hide the token, a refused token, an unreachable GitHub, and a failed write
+each exit 1 and leave an existing token as it was; Ctrl+C at the prompt exits 130 and writes nothing. `.env` is never
+touched, and an exported `GITHUB_TOKEN` or `ORCHESTRATOR_TOKEN_FILE` still answers in front of the file it writes.
 
 ## Target repository
 
@@ -243,11 +279,13 @@ hand-edited `.env`, which is read as described above.
   `api/README.md/..` are refused with the error the lookup itself raises. Every other symlink stays as typed, and the
   path written holds no `..`.
 - **Repository** — `owner/name` in the characters GitHub allows: letters, digits, and `-` in the owner, and `.` and
-  `_` besides in the name.
+  `_` besides in a name that is not `.` or `..`.
 - **Base branch** — a name git allows for a branch, by the rules of `git check-ref-format --branch`: no blank, control
   character, `~`, `^`, `:`, `?`, `*`, `[`, or `\`, no `..` or `@{`, no component beginning with `.` or ending in
   `.lock`, no leading `-` or `/`, and no trailing `.` or `/`. `HEAD` and `@`, which git reads as `HEAD`, are refused
   too, so `feature branch` never reaches an entry.
+- **Token** — one run of visible ASCII once the blanks around it are dropped, refused without being quoted;
+  [`set-token`](#storing-a-token-with-set-token) also proves it reads the repository before writing it.
 - **Logins** (`ALLOWED_ISSUE_AUTHORS`, `HITL_HANDLE`) — at least one GitHub login, separated by commas, with a leading
   `@` dropped and repeats kept once, as the settings read them. A login is letters, digits, and `-`, with an optional
   `[bot]` suffix, so `alice bob` is refused rather than kept as one login nobody has.

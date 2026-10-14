@@ -141,6 +141,18 @@ saved `.env.example.advanced` into that same file. Keep GitHub tokens in per-rep
 environment ([credentials](../configuration.md#github-personal-access-token)); `.env` does not load them. The launch
 directory's `.env` is never read by an installed package.
 
+Store each `REPOS` repository's token with `set-token`, at its hidden prompt or from a file a script redirects in:
+
+```sh
+chipping-orchestrator set-token acme/api
+chipping-orchestrator set-token acme/web < "$HOME/acme-web-token.txt"
+```
+
+Each run proves the token with one read-only GitHub call for that repository and only then writes
+`~/.config/<owner>/<name>/token`, mode 0600 in a 0700 directory, replacing any token there; a token GitHub refuses
+leaves the old one in place. It reads no configuration, so it works before `.env` is written, and it never edits
+`.env`. Running it again is how a token is rotated ([set-token](../configuration.md#storing-a-token-with-set-token)).
+
 ### Select an existing environment
 
 `pipx list` shows the installed package and its exposed command. Use `pipx runpip chipping-orchestrator` for package
@@ -1776,7 +1788,8 @@ When each setting's change takes effect:
 - `REVIEW_AGENT` — next reviewer spawn after the next Python start (not pinned per issue)
 - `GITHUB_TOKEN` — not loaded from `.env`. Update the process environment or rewrite the token file before the next
   start: the one `ORCHESTRATOR_TOKEN_FILE` names, or else each configured repository's own
-  `~/.config/<owner>/<repo>/token`
+  `~/.config/<owner>/<repo>/token`, which `chipping-orchestrator set-token <owner>/<repo>` replaces once the new token
+  reaches the repository
 - `ORCHESTRATOR_BASE_BRANCH` — developer source wrappers capture this before the restart loop, so editing it requires
   restarting the wrapper itself ([developer guide](../development.md#development-restart-wrapper)). The Python
   process picks it up on the same next start. An installed package never uses it: the

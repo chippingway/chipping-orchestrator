@@ -17,7 +17,12 @@ turn; the order below is the startup contract and lives nowhere else.
 The setup commands are put on the parser by
 `orchestrator/service/commands.py`, which runs each through its core under
 `orchestrator/service/`. Those owners load no configuration at all, since a
-setup is what writes one, so they are imported with this module.
+setup is what writes one, so they are imported with this module. The same
+owner chooses the class the command line is parsed with: one naming
+`set-token` may carry the token anywhere on it, and every refusal argparse
+writes quotes what it refused, so such a line is parsed by a class that
+refuses it without printing any of it back, in this parser and every one
+beneath it alike.
 
 Of the polling process, the options owner is the only one this module imports
 with itself. Every other owner resolves and validates the configuration as it
@@ -53,6 +58,7 @@ turn a presence into exclusive ownership before it may act.
 from __future__ import annotations
 
 import argparse
+import sys
 from typing import TYPE_CHECKING
 
 from orchestrator import __version__
@@ -70,17 +76,18 @@ _PROG = "chipping-orchestrator"
 
 def main(argv: list[str] | None = None) -> int:
     """Run the command the command line names and return its exit code."""
-    parser = _command_parser()
-    arguments = parser.parse_args(argv)
+    command_line = sys.argv[1:] if argv is None else argv
+    parser = _command_parser(_setup_commands.parser_class(command_line))
+    arguments = parser.parse_args(command_line)
     if arguments.dispatch is None:
         parser.print_help()
         return 0
     return arguments.dispatch(arguments)
 
 
-def _command_parser() -> argparse.ArgumentParser:
+def _command_parser(parser_class: type[argparse.ArgumentParser]) -> argparse.ArgumentParser:
     """The parser every command is chosen from, with each command beneath it."""
-    parser = argparse.ArgumentParser(
+    parser = parser_class(
         prog=_PROG,
         description="GitHub-Issue-driven AI agent workflow.",
     )
