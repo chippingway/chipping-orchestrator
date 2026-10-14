@@ -18,10 +18,13 @@ or base that moved since leaves evidence that no longer answers for the head
 it would be routed with.
 
 These are the primitives a route that takes settled evidence as it stands
-proves it ready with (`stands_ready`), and they are dormant: no finish,
-recovery, announcement, dispatcher, or park road asks any of them yet, so the
-finish routes such evidence behind the settlement step's own record check and
-the last word over the landing and the base
+proves it ready with (`stands_ready`), and they are dormant: only the
+evidence phase of a finish held to the dormant settled-evidence policy asks
+them (`rewrite_finish_models.LandedFinish.proves_settled`,
+`rewrite_finish_settled`), and no production finish, recovery, announcement,
+dispatcher, or park road selects that policy or asks them otherwise, so every
+route those roads take reads such evidence behind the settlement step's own
+record check and the last word over the landing and the base
 (`rewrite_finish_captured.stands_before_the_route`). The proof
 (`settled_word`) reads the evidence records over the issue and pinned comment
 read afresh, and the requirements of that issue, then, where they neither
@@ -111,21 +114,19 @@ from github.Issue import Issue
 
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
-    attempts as _attempts,
     state as _base_sync_state,
 )
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    pinned_commit_models as _commit_models,
     report_evidence_models as _evidence_models,
     rewrite_finish_writes as _writes,
-    verification_durable as _durable,
     verification_proof as _proof,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_evidence_proof import Refusals, Word, _reads_again, last_word
+from orchestrator.workflow.engine.rewrite_finish_marks import retires_over_the_attempt
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_current import _handoff_describes
 from orchestrator.workflow.engine.verification_history_fields import historical_from
@@ -152,9 +153,6 @@ _UNDESCRIBED = _evidence_models.ReportEvidence(
     _evidence_models.ReportEvidenceVerdict.DEFER,
     "the evidence handoff does not describe the settled record",
 )
-
-# What an invalidation writes: the current record, and the history it enters.
-_INVALIDATES = (_records.CURRENT_EVIDENCE, _records.EVIDENCE_HISTORY)
 
 
 def stands_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> FinishOutcome | None:
@@ -262,33 +260,23 @@ def beside_current(state: PinnedState, current: _records.CurrentEvidence | None)
     return ""
 
 
-def invalidates(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
+def invalidates(finish: LandedFinish, current: _records.CurrentEvidence, *, as_it_stands: bool = True) -> bool:
     """Whether `current`'s invalidation into history landed, in a write of its own; the caller logs it.
 
-    Staged on the comment read afresh and committed guarded by that reading
-    and by the attempt as `finish` read it, so only the current record and the
-    history are written and every other field stays as the comment carries
-    it. Where that comment would not read again, or that write was refused or
-    went unconfirmed, the invalidation is made over the tick's own copy
-    instead (`_invalidates_on_the_tick`) -- so movement the caller already
-    read is never left behind a comment that would not read, for a later poll
-    to find put back and take the decision as current. False where the
-    comment carries another attempt or no longer carries `current` as current,
-    and where neither reading took the invalidation -- for want of room, or a
-    write that did not land -- the movement then recorded against `current`
-    instead.
+    Staged on the comment read afresh, guarded by that reading and the attempt
+    as `finish` read it -- an announcement another finish of the landing put on
+    it taken in first, and a refused write read, reconciled, and retried once
+    (`rewrite_finish_marks.retires_over_the_attempt`). Where neither reading
+    took it, it is made over the tick's own copy (`_invalidates_on_the_tick`),
+    so movement already read is never left for a later poll to find put back.
+    False where the comment carries another evidence or another attempt --
+    over which a dormant finish still retires or marks the same receipt as the
+    comment stands, unless `as_it_stands` is False for a caller that puts its
+    own attempt back first (`rewrite_finish_unconfirmed.stands_back`) -- and
+    where nothing took it, the movement then recorded against `current`.
     """
-    attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
-    durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
-    if durable is None:
-        return _invalidates_on_the_tick(finish, current)
-    if attempt.moved(durable.data) or _settlement.read_current_evidence(durable) != current:
-        return False
-    guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
-    if not _settlement.retire_current_evidence(durable):
-        return _invalidates_on_the_tick(finish, current)
-    refused = _durable.lands(finish.gh, finish.issue, finish.state, guard, durable)
-    return refused is None or _invalidates_on_the_tick(finish, current)
+    retired = retires_over_the_attempt(finish, current, as_it_stands=as_it_stands)
+    return _invalidates_on_the_tick(finish, current) if retired is None else retired
 
 
 def invalidates_behind(

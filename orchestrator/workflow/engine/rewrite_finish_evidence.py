@@ -140,7 +140,10 @@ def continues(finish: LandedFinish) -> FinishOutcome | None:
     abandoned in a write of its own over the comment read afresh before the
     continuation is announced or the attempt retires; one that does not land
     holds the continuation with nothing announced. Nothing is decided, run, or
-    invalidated for the head itself.
+    invalidated for the head itself, save -- for a finish held to the dormant
+    settled-evidence policy -- a settlement another finish made of that very
+    transaction while its abandonment was asked, which is invalidated in its
+    place.
     """
     return _captured.sets_aside(finish)
 

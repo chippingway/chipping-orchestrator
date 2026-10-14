@@ -1008,12 +1008,20 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   landing on another head, or its reset takes the checkout off it (`workflow/engine/rewrite_landing_moved.py`), the
   git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
   park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). Evidence a
-  finish already settled for the landed head has dormant primitives beside these, which no finish, recovery, or park
-  road asks yet (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it -- the
+  finish already settled for the landed head has dormant primitives beside these
+  (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it -- the
   base readings that made a continuation excused over a head the base advanced past again, and proved once more
   behind any stop of a write the finish makes after it -- and invalidating it into history whole where anything it
   is bound to moved -- over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the
-  invalidation cannot land, so nothing put back revives it. Dormant guarded recovery operations are built on them,
+  invalidation cannot land, so nothing put back revives it. In a finish only the evidence phase of a dormant
+  settled-evidence policy asks them: a caller selects it by building the finish with `proves_settled` and asking
+  `rewrite_finish_settlement.resolves` directly, which announces, relabels, parks, and retires nothing, and no
+  production road builds such a finish (`workflow/engine/rewrite_finish_settled.py`). That phase proves settled
+  evidence ready before the route goes on, invalidates a settlement adopted from another road over movement read
+  under it, and records that movement under the evidence's own receipt however the attempt or the comment moved
+  since (`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_unconfirmed.py`); the
+  coordinator takes none of the policy's proofs around its announcement, park, relabel, or retirement yet.
+  Dormant guarded recovery operations are built on them,
   and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof
   before a park that keeps the attempt (`workflow/engine/rewrite_landing_retirement.py`), which retire settled
   evidence whole beside a captured run and refuse the attempt's release where history has no room for it; and the

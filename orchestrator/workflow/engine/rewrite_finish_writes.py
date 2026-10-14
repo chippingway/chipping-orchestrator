@@ -48,13 +48,14 @@ recorded as made onto too, which an abandonment with no room for its history
 entry blanks.
 `INVALIDATION` invalidates settled evidence a reading established movement
 under where the write staged on the comment read afresh would not land
-(`rewrite_finish_readiness.invalidates`, dormant: no road asks it yet):
-staged on the tick's own copy and decided only on the evidence records and
-the attempt -- landed without the publication's pinned fields among them
-(`lands`, `publication` False), so a pull request or branch another road
-repointed meanwhile is kept as it wrote it rather than refusing the write --
-so a failed reading of the comment does not leave a decision standing that a
-later reading, once the movement is put back, would take as current. It owns
+(`rewrite_finish_readiness.invalidates`, asked only by the dormant
+settled-evidence policy and the recovery's dormant answers): staged on the
+tick's own copy and decided only on the evidence records and the attempt --
+landed without the publication's pinned fields among them (`lands`,
+`publication` False), so a pull request or branch another road repointed
+meanwhile is kept as it wrote it rather than refusing the write -- so a failed
+reading of the comment does not leave a decision standing that a later
+reading, once the movement is put back, would take as current. It owns
 the base tip the replay was recorded as made onto too, which an invalidation
 with no room for its history entry blanks -- decided on the current record
 as well, so a successor another road settled in that evidence's place is

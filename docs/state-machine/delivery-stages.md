@@ -1283,8 +1283,9 @@ because there it is the claim that this stage has already rerouted rather than a
   past it spent, its handoff, its artifact re-read at the recorded comment with the pass flag its commands earn, and
   then the whole proof above -- so newer evidence posted and never settled, a deleted or edited artifact, or a flag it
   contradicts is not reported as current. Its live readers are three (the dormant readiness proof of a landed
-  rewrite's settled evidence, `workflow/engine/rewrite_finish_readiness.py`, asks it too, though no road asks that
-  yet): the approval's proof over the evidence its verdict
+  rewrite's settled evidence, `workflow/engine/rewrite_finish_readiness.py`, asks it too, though only the evidence
+  phase of the dormant settled-evidence finish policy asks that -- **Base-rewrite evidence, the dormant
+  settled-evidence policy** below): the approval's proof over the evidence its verdict
   names (`stages/validating/approved_evidence.py`); the squash handoff, which proves a settled carry whole again before
   the label moves over it (`stages/validating/squash_evidence.py`); and `stages/validating/review_evidence.py`, which
   hands a reviewer the current evidence only where the record is bound to exactly the subject that reviewer is
@@ -1567,6 +1568,43 @@ because there it is the claim that this stage has already rerouted rather than a
   `base_rebased` event per rewrite that actually landed, no round reset, relabel, stage-entry event, or evidence
   publication repeated, and no developer launched on any recovery road -- the report refreshes a later
   `workflow:validating` tick asks for are the same ones the uninterrupted journey asks for.
+- **Base-rewrite evidence, the dormant settled-evidence policy**: beside the evidence step every road hands over
+  stands a dormant one, which a caller selects only by building the finish with `proves_settled`
+  (`rewrite_finish_models.LandedFinish`) and asking its evidence phase (`rewrite_finish_settlement.resolves`)
+  directly. No production road does, so none of the bullets above changes for a live issue; the phase announces,
+  relabels, parks, and retires nothing, and the coordinator takes none of the policy's proofs around those steps yet.
+  Its steps (`workflow/engine/rewrite_finish_settled.py`) prove evidence settled for the landed head ready again
+  (`rewrite_finish_readiness.stands_ready`) -- the evidence records, the requirements, the artifact under its receipt,
+  the review and report records, the landing, the base, and the configuration -- and invalidate it into history
+  whole, its revision and binding kept, wherever any of them moved since it settled, so the head goes on to the fresh
+  reviewer, who owes the evidence, and putting what moved back revives nothing:
+  - a readable revision spent past the evidence outranks it for good, even beside a floor nobody can read, while a
+    handoff not naming it or a floor nobody can read still holds; a configuration moved since it settled invalidates
+    it before the head is decided afresh, and the route holds where that invalidation does not land;
+  - a settlement another road made of the run while the phase answered or abandoned it is adopted -- its evidence
+    records taken in (`verification_durable.takes_in_a_settlement`) -- and invalidated over movement read under it,
+    the evidence records' own moves and this landing's announcement aside
+    (`verification_durable.moves_only_the_evidence`);
+  - the invalidation is made over the attempt as reconciled -- an announcement another finish of the landing put on
+    it taken in (`workflow/engine/rewrite_finish_announced.py`), a refused write read afresh and retried once -- or,
+    where another finish's route or another road took the attempt, over the comment as it stands, the route held and
+    every attempt and every successor under another receipt kept (`workflow/engine/rewrite_finish_marks.py`);
+  - with no room, the movement is recorded by blanking the attempt's base tip, or, with no attempt to carry it, by
+    the mark `{"moved": <receipt>}` in the evidence's handoff place, which no reader takes for a handoff, and where
+    the mark has no room either, the evidence is retired whole at once, its current record, a pending record left
+    null, and an unreadable handoff removed rather than left null.
+
+  Beside the phase stand primitives a caller holding such a finish asks directly, which no coordinator asks yet.
+  Behind a write of the finish's own whose answer was lost, the announcement's bookkeeping is taken in, and the
+  attempt a lost retirement took is put back exactly as read, every other field kept, so the movement read under the
+  evidence is still invalidated over it (`workflow/engine/rewrite_finish_unconfirmed.py`); a finish of the landing
+  that finds no attempt and that very receipt marked current retires the evidence whole once room is made
+  (`retires_the_marked`) -- a handoff that names it, is missing, or is left null is no mark; and a head with no
+  evidence current, asked for its base (`rewrite_finish_settled.stands_ready_if_settled`), is held to its replay's
+  base tip, or -- that tip blank, or missing from a legacy attempt -- to the base the tick counted it against.
+
+  The phase runs no command again, posts no artifact and settles no run twice, launches no developer, and spends,
+  reserves, or releases no agent run; a retired run stays one historical execution, never a new one.
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims

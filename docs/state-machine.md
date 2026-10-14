@@ -197,7 +197,11 @@ another road's, and kept as it wrote it. Every recovery park or hold that keeps 
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
 anything moved, so putting that input back before the attempt is taken up again revives nothing. Proving settled
 evidence ready again before its route, and invalidating it whole wherever anything it rests on moved, are dormant
-primitives no road asks yet (`workflow/engine/rewrite_finish_readiness.py`), and so are the guarded recovery
+primitives (`workflow/engine/rewrite_finish_readiness.py`) that only the evidence phase of a dormant
+settled-evidence finish policy asks -- one a caller selects explicitly and asks directly, which no production road
+builds and which announces, relabels, parks, and retires nothing (`workflow/engine/rewrite_finish_settled.py`): it
+adopts a settlement another road made and invalidates it over movement read under it, and records that movement
+under the evidence's own receipt however the attempt or the comment moved since -- and so are the guarded recovery
 operations built on them: a reset recorded against captured or settled evidence before git moves the checkout,
 settled evidence retired whole with a landed reset's release or kept whole beside the attempt where history has no
 room, and every recovery park landed over the comment read afresh (`workflow/engine/rewrite_landing_retirement.py`,
