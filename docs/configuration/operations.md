@@ -187,12 +187,12 @@ directories the service is given.
 It resolves the settings and target checkouts as a start does, refuses an empty author allowlist, finds a token for
 every `REPOS` entry, and finds every agent binary the three roles run on that `PATH`, honoring `CLAUDE_BIN`,
 `CODEX_BIN`, and `AGY_BIN` from `.env` and refusing a relative path among them, all in a fresh interpreter started as
-the service's process starts. Then it
-proves each token reads its repository with one read-only GitHub call per entry; `chipping-orchestrator check --local`
-leaves those calls out. It exits 0 with one line on stdout, or 1 with one line on stderr per problem, and never polls
-an issue, writes a label or workflow state, or starts an agent. It does not prove the token's write permissions, agent
-authentication, or compatibility with live issue state. `--help` checks the CLI only; `run --once` performs a real
-polling tick and can start agents. Stop on a failed check and repair the settings before starting or resuming polling.
+the service's process starts. Then it proves each token reads its repository with one read-only GitHub call per entry;
+`chipping-orchestrator check --local` leaves those calls out. It exits 0 with one line on stdout, or 1 with one line on
+stderr per problem, and never polls an issue, writes a label or workflow state, or starts an agent. It does not prove
+the token's write permissions, agent authentication, or compatibility with live issue state. `--help` checks the CLI
+only; `run --once` performs a real polling tick and can start agents. Stop on a failed check and repair the settings
+before starting or resuming polling.
 
 Releases up to v0.13.0 have no `check` command. On one of them, as after [migrating](#moving-from-a-dedicated-venv)
 with that version or [returning](#return-to-the-previous-package-version) to it, leave that line out and check the
@@ -1752,12 +1752,15 @@ journalctl --user -u orchestrator.service -f   # systemd users
 **systemd user service.**
 
 1. Edit `~/.config/chipping-orchestrator/.env`.
-2. Run `systemctl --user daemon-reload` only if the `.service` unit changed; it reloads unit definitions, not `.env`.
-3. When safe, run `systemctl --user restart orchestrator.service`.
-4. Tail logs with `journalctl --user -u orchestrator.service -f`.
+2. Run `chipping-orchestrator check` as the service user and repair what it reports
+   ([compatibility check](#check-compatibility-and-start)).
+3. Run `systemctl --user daemon-reload` only if the `.service` unit changed; it reloads unit definitions, not `.env`.
+4. When safe, run `systemctl --user restart orchestrator.service`.
+5. Tail logs with `journalctl --user -u orchestrator.service -f`.
 
 When `GITHUB_TOKEN` is supplied via the unit's `EnvironmentFile=`, edit that file and restart. Changing an inline
-`Environment=` value requires editing the unit and running `daemon-reload` before restarting.
+`Environment=` value requires editing the unit and running `daemon-reload` before restarting. `check` reads tokens
+from the token files alone, so it reports a repository whose token comes from `EnvironmentFile=` as having none.
 
 Each `chipping-orchestrator run --once` invocation starts a new process and reads current settings. Restarts keep the
 installed package version; [package upgrades](#upgrade-a-package) are explicit operator actions. Development

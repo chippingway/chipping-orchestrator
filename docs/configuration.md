@@ -218,7 +218,9 @@ Token resolution order, for each configured repository — every `REPOS` entry, 
 
 The GitHub client and the git fetch and push each resolve their repository's token when they need it. Startup also
 resolves every configured repository's token once, so the stderr and command output the orchestrator surfaces mask
-each of them, file-backed ones included.
+each of them, file-backed ones included. [`check`](#checking-a-setup) resolves them the same way in the service's
+environment, where nothing is exported: only an `ORCHESTRATOR_TOKEN_FILE` set in `.env` and the per-repository files
+answer there.
 
 #### Storing a token with set-token
 

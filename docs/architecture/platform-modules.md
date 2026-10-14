@@ -138,8 +138,7 @@ orchestrator/
   cli.py                the `chipping-orchestrator` console script: the command line, `--version`, the `run`
                         command that is the polling process's composition point, and the setup commands
                         `service/commands.py` puts on it, imported with it since they load no configuration in its
-                        process. The
-                        same owner chooses the class a command line is parsed with
+                        process. The same owner chooses the class a command line is parsed with
   __main__.py           the `python -m orchestrator` launch form over `cli.main`, whose `run` is what `run.sh` starts
   runtime/              the polling process's own owners
     state.py            the mutable state one run carries -- the stop flag, the signal, the scheduler a handler may
