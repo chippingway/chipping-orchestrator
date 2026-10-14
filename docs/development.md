@@ -105,8 +105,8 @@ started from a checkout whose `run.sh` still launches the bare `python -m orches
 the `run` form, and every launch then prints help and exits 0, which that wrapper relaunches each second without
 polling. Stop such a wrapper and start it again once the pull has landed.
 
-For a systemd-supervised development checkout, adapt the
-[user service](configuration.md#running-under-systemd-user-service): set
+For a systemd-supervised development checkout, write a unit like the one `init` installs for a
+[user service](configuration.md#running-under-systemd-user-service), since `init` refuses a source checkout: set
 `WorkingDirectory=/path/to/chipping-orchestrator`, `ExecStart=/path/to/chipping-orchestrator/run.sh`, and include
 the directory containing Poetry on the unit's `PATH`. `SIGTERM` from `systemctl stop` propagates through the wrapper,
 which exits without relaunching; source updates are handled by the wrapper.

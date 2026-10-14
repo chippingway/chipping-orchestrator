@@ -15,10 +15,11 @@ carries, and hands that state to each owner under `orchestrator/runtime/` in
 turn; the order below is the startup contract and lives nowhere else.
 
 The setup commands are put on the parser by
-`orchestrator/service/commands.py`, which runs each through its core under
-`orchestrator/service/`. Those owners load no configuration in this process,
-since a setup is what writes one and `check` reads it in an interpreter of its
-own, so they are imported with this module. The same owner chooses the class
+`orchestrator/service/commands.py`, and `init`, which installs the systemd
+user service, by `orchestrator/service/service_commands.py`; each runs its
+command through a core under `orchestrator/service/`. Those owners load no
+configuration in this process, since a setup is what writes one and `check`
+reads it in an interpreter of its own, so they are imported with this module. The same owner chooses the class
 the command line is parsed with: one naming `set-token` may carry the token
 anywhere on it, and every refusal argparse writes quotes what it refused, so
 such a line is parsed by a class that refuses it without printing any of it
@@ -63,7 +64,7 @@ from typing import TYPE_CHECKING
 
 from orchestrator import __version__
 from orchestrator.runtime import options as _options
-from orchestrator.service import commands as _setup_commands
+from orchestrator.service import commands as _setup_commands, service_commands as _service_commands
 
 if TYPE_CHECKING:
     from orchestrator.runtime.state import RuntimeState
@@ -107,6 +108,7 @@ def _command_parser(parser_class: type[argparse.ArgumentParser]) -> argparse.Arg
     _options.add_arguments(run_parser)
     run_parser.set_defaults(dispatch=_run)
     _setup_commands.add_commands(commands)
+    _service_commands.add_commands(commands)
     return parser
 
 

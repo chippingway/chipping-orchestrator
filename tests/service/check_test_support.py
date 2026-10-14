@@ -79,6 +79,17 @@ sys.exit(status)
 """
 
 
+def install_with_fake_github(site_packages: Path) -> Path:
+    """Copy the package into ``site_packages``, its GitHub the fake; return the fake's directory."""
+    installed_copy(site_packages)
+    probe = site_packages / "orchestrator" / "service" / "token_probe.py"
+    with probe.open("a", encoding=ENCODING) as module:
+        module.write(_FAKE_HTTP_GET)
+    fake = site_packages / _FAKE_GITHUB
+    fake.mkdir()
+    return fake
+
+
 def repository_url(repository: str) -> str:
     """The URL GitHub is asked for ``repository`` at."""
     return f"{_GITHUB_API}/repos/{repository}"
@@ -126,12 +137,8 @@ class CheckCase(unittest.TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         scratch = Path(cls.enterClassContext(tempfile.TemporaryDirectory())).resolve()
-        cls._site_packages = installed_copy(scratch / "site-packages")
-        probe = cls._site_packages / "orchestrator" / "service" / "token_probe.py"
-        with probe.open("a", encoding=ENCODING) as module:
-            module.write(_FAKE_HTTP_GET)
-        cls._fake = cls._site_packages / _FAKE_GITHUB
-        cls._fake.mkdir()
+        cls._site_packages = scratch / "site-packages"
+        cls._fake = install_with_fake_github(cls._site_packages)
 
     def setUp(self) -> None:
         self.root = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()

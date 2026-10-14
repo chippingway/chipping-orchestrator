@@ -119,7 +119,8 @@ last is held by the loader itself rather than by a check.
   two `.env` templates are package data named under `[tool.poetry].include`, and
   `tests/repository/test_distribution_contents.py` builds the wheel and the sdist to read both back out of each.
   `settings_report.py` imports the configuration inside its call, which runs only in the interpreter `checks.py`
-  starts with the service's environment, so `check` answers on a host whose settings would stop an import.
+  starts with the service's environment, so `check`, and `init` which runs it, answer on a host whose settings would
+  stop an import.
 - **Direction inside `skills/`.** Neither owner may reach the workflow engine, a stage, or an application entry
   point: a catalog is observation the tick drives, not state a handler consults — `tests/skills/test_imports.py`.
 - **Secrets.** `GITHUB_TOKEN` is read from the process environment or a token file outside `REPO_ROOT` — one per
@@ -137,8 +138,9 @@ orchestrator/
   __init__.py           the distribution version, published as `__version__`, without loading runtime owners
   cli.py                the `chipping-orchestrator` console script: the command line, `--version`, the `run`
                         command that is the polling process's composition point, and the setup commands
-                        `service/commands.py` puts on it, imported with it since they load no configuration in its
-                        process. The same owner chooses the class a command line is parsed with
+                        `service/commands.py` and the service commands `service/service_commands.py` put on it,
+                        imported with it since they load no configuration in its process. The setup owner chooses
+                        the class a command line is parsed with
   __main__.py           the `python -m orchestrator` launch form over `cli.main`, whose `run` is what `run.sh` starts
   runtime/              the polling process's own owners
     state.py            the mutable state one run carries -- the stop flag, the signal, the scheduler a handler may
@@ -285,6 +287,28 @@ orchestrator/
                         class `cli.py` parses a command line with: one naming `set-token` gets a parser whose every
                         refusal, in that parser and each beneath it, prints back none of what it was given, since
                         the token may stand anywhere on it
+    unit_file.py        the systemd user unit `init` installs, `~/.config/systemd/user/chipping-orchestrator.service`:
+                        `-m orchestrator run` under the installing interpreter, in the home, with the captured
+                        `PATH`, restarting on failure every 30 seconds with no start limit and taking the
+                        `128 + signum` of a graceful stop as success. Both values are double-quoted with each
+                        backslash and quote escaped and every `%` doubled, and one systemd would refuse or still
+                        rewrite -- a control character, or a quote, backslash, or `$` in the interpreter -- is
+                        refused as `UnitValueError`. It also refuses the hand-written `orchestrator.service` beside
+                        it, naming the stop, disable, and delete that clear it; it imports nothing from the package
+    systemd.py          the user manager and logind through `systemctl --user` and `loginctl`, each call run to
+                        completion with standard input closed and bounded at 30 seconds, a timeout or a binary that
+                        cannot run answered as a `Completed` with no status rather than raised. `run_command` is the
+                        seam a test fakes systemd at; `manager_problem` reads why the manager cannot be reached and
+                        `linger_enabled` whether logind lingers a user. It imports nothing from the package
+    installation.py     `init`: the source-checkout, hand-written-unit, uncarried-value, and unreachable-manager
+                        refusals, then the installed `.env` -- kept where it exists, handed to an onboarding at a
+                        terminal where one is given, refused naming `set-token` and `configure` otherwise -- and the
+                        full check through `checks.py`, all before anything is written; then the unit written
+                        through `private_files.py`, `daemon-reload`, and `enable` without a start, linger enabled
+                        where logind does not report it, or the `sudo loginctl enable-linger` advice where it
+                        refuses, and the start or restart the service needs named last
+    service_commands.py the service commands on the command line: `init`, which hands this process's environment
+                        and standard input to `installation.py`
     .env.example        the basic template a setup starts from: `REPOS` and the few settings a first run needs
     .env.example.advanced
                         optional operational overrides and examples, then the orchestrator-developer settings
