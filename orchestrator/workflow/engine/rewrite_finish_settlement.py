@@ -126,11 +126,9 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     earlier finish recorded for it is abandoned before its continuation is
     announced (`rewrite_finish_evidence.continues`), and nothing is decided or
     settled for it -- evidence an earlier finish settled for it is kept for
-    the rebase behind it, which a finish held to the settled-evidence policy
-    proves ready first all the same, the base advance that made the
-    continuation excused (`rewrite_finish_settled.stands_ready_if_settled`),
-    so anything else it rests on that moved invalidates it before the attempt
-    is retired. For any other head the evidence step decides and records it
+    the rebase behind it, proved ready first under the settled-evidence
+    policy (`rewrite_finish_settled.stands_ready_if_settled`). For any other
+    head the evidence step decides and records it
     (`rewrite_finish_evidence.settles`) and a transaction it recorded is
     published and settled here (`settles`) -- and so is a newer transaction
     recorded for the head beside evidence an earlier finish already settled
@@ -194,13 +192,10 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
 
     None too where nothing is recorded for the head -- the decision ran or
     recorded nothing, or the last word behind it abandoned what it recorded --
-    since the evidence is then the fresh reviewer's -- save, for a finish held
-    to the settled-evidence policy, evidence an earlier finish settled for the
-    head that is still current beside a newer transaction the decision
-    abandoned: that is proved ready again
-    (`rewrite_finish_settled.stands_ready_if_settled`), and the revision the
-    abandoned transaction spent past it alone invalidates it, so no route
-    carries it and no later poll holds over it. Anything else is where
+    since the evidence is then the fresh reviewer's -- save, under the
+    settled-evidence policy, evidence still current beside a transaction the
+    decision abandoned, which is proved ready again
+    (`rewrite_finish_settled.stands_ready_if_settled`). Anything else is where
     the finish stops, with nothing announced, relabelled, or retired. Every
     write the answer makes is decided on the attempt as this finish read it
     (`verification_proof.ProofReading.rests_on`), and a finish whose state
@@ -349,16 +344,9 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
     (`rewrite_finish_settled.out_of_step`).
 
     Under the settled-evidence policy a readable revision spent past it is no
-    hold: it outranks that evidence, which the readiness proof then
-    invalidates rather than holding every later poll over it. Settled
-    evidence for the head is proved ready there before any of those holds is
-    applied (`rewrite_finish_readiness.stands_ready`), so what a reading
-    establishes moved under it -- requirements edited beside a handoff that
-    does not name it, or a revision a readable history entry spent past it
-    beside a floor nobody can read -- is invalidated whole before the route is
-    held, and putting the record and the input back revives nothing -- a
-    continuation's included, whose proof reads the base gone past the head as
-    the continuation's own rather than as movement.
+    hold but outranks it, and the evidence is proved ready before any of
+    those holds (`rewrite_finish_readiness.stands_ready`), so movement read
+    under it is invalidated whole before the route is held.
     """
     current = _settlement.read_current_evidence(finish.state)
     if current is not None and current.binding.target.target_head != finish.head:

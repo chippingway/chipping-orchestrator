@@ -12,7 +12,7 @@ one naming only the receipt that moved: no reader takes it for a handoff
 (`verification_settled_fields.handoff_from`), and only a later finish finding
 that very receipt current retires the evidence whole (`carries_the_mark`).
 Where even the mark has no room, the evidence is retired whole at once, its
-current record removed rather than left null, which only shrinks the comment.
+current record and the evidence records left null or unreadable removed.
 """
 from __future__ import annotations
 
@@ -40,6 +40,10 @@ _MOVED = "moved"
 # What an invalidation writes: the current record, and the history it enters.
 _INVALIDATES = (_records.CURRENT_EVIDENCE, _records.EVIDENCE_HISTORY)
 
+# What a compact one may remove as well: a pending record left null, and a
+# handoff nobody can read (`verification_settlement_state.retire_current_evidence`).
+_COMPACTS = (*_INVALIDATES, _records.PENDING_EVIDENCE, _records.EVIDENCE_HANDOFF)
+
 
 def carries_the_mark(state: PinnedState, current: _records.CurrentEvidence) -> bool:
     """Whether `state` carries the mark of movement read under `current` in place of its handoff."""
@@ -52,10 +56,10 @@ def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> 
     Only where that comment still carries `current` as current, guarded by it
     (`_lands`), so a successor settled since refuses it; a comment that moved
     under the edit, a report put back meanwhile among it, is read and marked
-    once more. The mark is shorter than a handoff, but not than one missing or
-    damaged: where it still finds no room, `current` is retired whole into
-    history with its current record removed rather than left null, the one
-    write that only shrinks the comment, so restoring a handoff revives nothing.
+    once more. Where even the mark finds no room -- a handoff missing or
+    shorter than it -- `current` is retired whole at once, made to fit by
+    removing the records left null or unreadable (`_lands`), save beside a
+    pending transaction, whose revision already outranks it.
     """
     landed = _lands(finish, read_afresh(finish), current, marked=True)
     landed = landed or _lands(finish, read_afresh(finish), current, marked=True)
@@ -129,7 +133,8 @@ def _lands(
     `durable` is a reading of the comment that still has to carry `current`,
     and the write is guarded by it -- every bound record and the attempt.
     `compact` retires `current` whole even where the comment has no room for
-    that as it stands, its current record removed rather than left null.
+    that as it stands, removing its current record and the evidence records
+    left null or unreadable rather than leaving them null.
     """
     if durable is None or _settlement.read_current_evidence(durable) != current:
         return False
@@ -137,12 +142,9 @@ def _lands(
         guard = _durable.guarded(durable, (_records.EVIDENCE_HANDOFF,), _attempts._ATTEMPT_KEYS)
         durable.set(_records.EVIDENCE_HANDOFF, {_MOVED: current.receipt})
         return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
-    guard = _durable.guarded(durable, _INVALIDATES, _attempts._ATTEMPT_KEYS)
-    if not _settlement.retire_current_evidence(durable):
-        if not compact:
-            return False
-        _settlement._appends_history(durable, _records.HistoricalEvidence.of(current, _records.Retirement.INVALIDATED))
-        durable.data.pop(_records.CURRENT_EVIDENCE)
+    guard = _durable.guarded(durable, _COMPACTS if compact else _INVALIDATES, _attempts._ATTEMPT_KEYS)
+    if not _settlement.retire_current_evidence(durable, compact=compact):
+        return False
     return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
 
 

@@ -1011,12 +1011,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   invalidation cannot land, so nothing put back revives it. Only a dormant settled-evidence finish policy asks them,
   which a caller selects by building the finish with `proves_settled` and handing it to `rewrite_finish.finalizes`
   directly, and no production road does (`workflow/engine/rewrite_finish_settled.py`): settled evidence proved ready
-  before and behind every step that keeps, routes, or parks the attempt, the announcement's writes, the debt's park,
-  and the retirement decided on the records the evidence's binding rests on and a refusal over one of them read as
-  movement, a settlement another road made of the run while the finish answered or abandoned it invalidated over what
-  that finish read -- any movement it read retired as the comment stands, or marked, where another finish's route
-  took the attempt -- an announcement or relabel another finish made meanwhile not made again, and a routed
-  head with no recorded base tip held to the base the tick counted it against. Dormant guarded recovery operations
+  before and behind every step that keeps, routes, or parks the attempt, and movement any proof or refusal read
+  retired or recorded however the attempt or the comment moved since. Dormant guarded recovery operations
   are built on them,
   and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof
   before a park that keeps the attempt (`workflow/engine/rewrite_landing_retirement.py`), which retire settled

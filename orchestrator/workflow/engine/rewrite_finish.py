@@ -153,7 +153,7 @@ anything it is bound to moved since it settled (`rewrite_finish_readiness`):
   carry it, by the mark naming the evidence's receipt in its handoff's place,
   so a later finish retires the evidence whole once room is made -- or, where
   even the mark has no room, by retiring it whole at once, its current record
-  removed rather than left null.
+  and the evidence records left null or unreadable removed to make it fit.
 
 A settlement another road made of a transaction this finish published or
 abandoned is adopted and invalidated over movement read under it, a

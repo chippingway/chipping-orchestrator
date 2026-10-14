@@ -1294,7 +1294,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             every attempt and successor kept, and with no room the mark
                             `{"moved": <receipt>}` in the evidence's handoff place (`marks`), which no reader takes for
                             a handoff and only that very receipt answers to (`carries_the_mark`) -- or, where even the
-                            mark has no room, the evidence retired whole with its current record removed
+                            mark has no room, the evidence retired whole, its current record and the evidence records
+                            left null or unreadable removed (`verification_settlement_state.retire_current_evidence`)
     rewrite_finish_unconfirmed.py
                             what the finish's own write nobody confirmed left of its attempt, for the dormant policy:
                             the announcement's bookkeeping taken in (`takes_in_the_announcement`), the attempt put back

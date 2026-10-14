@@ -42,10 +42,18 @@ _HANDOFF = "verification_evidence_handoff"
 # The current evidence's place on the pinned comment, which an invalidation clears.
 _CURRENT = "verification_evidence_current"
 
-# How the run's handoff is spelled behind the other finish's route: as settled,
-# missing, or too short for the movement mark.
+# The run's handoff behind the other finish's route, and whether its history stands.
 _IN_PLACE = "as settled"
-_HANDOFFS = (("in place", _IN_PLACE), ("missing", None), ("short", "x"))
+_HANDOFFS = (
+    ("in place", (_IN_PLACE, True)),
+    ("missing", (None, True)),
+    ("short", ("x", True)),
+    ("missing, no history", (None, False)),
+    ("short, no history", ("x", False)),
+)
+
+# The evidence history's place on the pinned comment.
+_HISTORY = "verification_evidence_history"
 
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
@@ -89,18 +97,16 @@ class AnnouncementRaceTest(settled.SettledGuardedCase, unittest.TestCase):
         self.assert_invalidated_then_routed(head, run)
 
     def test_a_full_comment_marks_the_completed_route(self) -> None:
-        # The comment filled behind that route: with the run's handoff in
-        # place, the run stays current, the mark naming its receipt in that
-        # place; with the handoff missing or too short for the mark, the run
-        # is retired whole at once, its current record removed, so restoring
-        # the handoff revives nothing. Room made, the next direct finish finds
-        # no attempt, and the run ends retired whole.
-        for label, spelled in _HANDOFFS:
+        # The comment filled behind that route: the run is marked where its
+        # handoff stands, and otherwise -- missing or short, the history absent
+        # too on a first settlement -- retired whole at once, so restoring the
+        # handoff revives nothing; room made, it ends retired whole.
+        for label, case in _HANDOFFS:
             with self.subTest(handoff=label):
                 self.setUp()
-                self._handoff = spelled
+                self._handoff = case
                 head, run = self._proves_beside_an_announcement(full=True, died=None)
-                if spelled is _IN_PLACE:
+                if case[0] is _IN_PLACE:
                     self.assertEqual(readings.pinned(self)[_HANDOFF], {"moved": run.receipt})
                     self.assertEqual(readings.pinned_records(self)[1].receipt, run.receipt)
                 else:
@@ -154,11 +160,13 @@ class AnnouncementRaceTest(settled.SettledGuardedCase, unittest.TestCase):
         self.issue.body = written
         finishing = partial(self.finishes, head, FinishRoad.RECOVERY)
         handoff.dies_at(self.gh, died, finishing)
-        spelled = getattr(self, "_handoff", _IN_PLACE)
+        spelled, kept = getattr(self, "_handoff", (_IN_PLACE, True))
         if spelled is not _IN_PLACE:
             state = self.gh.read_pinned_state(self.issue)
             self._written = state.get(_HANDOFF)
             state.set(_HANDOFF, spelled)
+            if not kept:
+                state.data.pop(_HISTORY)
             self.gh.write_pinned_state(self.issue, state)
         if full:
             finish_moves.fills_the_comment(self)

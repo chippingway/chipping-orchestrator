@@ -1583,7 +1583,9 @@ because there it is the claim that this stage has already rerouted rather than a
     takes for a handoff; a later direct finish that finds no attempt and that very receipt current retires the
     evidence whole once room is made -- a handoff missing or unreadable is no mark -- and nothing re-enters the
     landing by itself; where the mark has no room either, a handoff missing or shorter than it, the evidence is
-    retired whole at once with its current record removed rather than left null, which only shrinks the comment;
+    retired whole at once, its current record, a pending record left null, and an unreadable handoff removed rather
+    than left null, which fits wherever the comment carried the record save beside a pending transaction, whose
+    revision already outranks it;
   - a readable revision spent past the evidence outranks it for good, while a handoff not naming it or a floor nobody
     can read still holds; a settlement another road made of the run while this finish answered or abandoned it is
     adopted and invalidated over movement read under it, the evidence records' and announcement's own moves aside
