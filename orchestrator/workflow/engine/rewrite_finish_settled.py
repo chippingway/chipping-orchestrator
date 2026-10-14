@@ -25,9 +25,10 @@ the policy every road selects has it, reading nothing more.
 - `behind_the_announcement` and `behind_the_write` answer a step of the
   announcement or the route that stopped, or raised, with settled evidence
   proved ready once more, invalidated over a binding record a refusal read
-  moved, and a captured transaction proved again whole.
-- `out_of_step` says why the records beside settled evidence hold the route,
-  and `takes_as_it_stands` routes settled evidence nothing stands beside.
+  moved, and a captured transaction proved again whole -- behind a
+  retirement nobody confirmed, over the attempt that retirement may have
+  left (`_takes_in_the_retirement`).
+- `out_of_step` says why the records beside settled evidence hold the route.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
   answer read under its binding, before anything is resolved afresh.
@@ -39,10 +40,13 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.git.base_sync import attempt_records as _attempt_records
+from orchestrator.git.base_sync import attempt_records as _attempt_records, attempts as _attempts
 from orchestrator.workflow.engine import (
+    pinned_commit as _commit,
+    pinned_commit_models as _commit_models,
     rewrite_finish_captured as _captured,
     rewrite_finish_readiness as _readiness,
+    rewrite_finish_writes as _writes,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
@@ -50,7 +54,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_proof import standing_refusal
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
-from orchestrator.workflow.engine.verification_durable import moves_only_the_evidence
+from orchestrator.workflow.engine.verification_durable import durable_comment, moves_only_the_evidence
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -174,10 +178,34 @@ def behind_the_write(
     where the refusal read none (`rewrite_finish_readiness.invalidates_behind`),
     so putting that record back first revives nothing; any other finish stops
     with nothing read.
+
+    A retirement nobody confirmed may have landed all the same, taking the
+    attempt the invalidation is decided on with it. Settled evidence for the
+    head is proved over the attempt as this finish read it, its base tip
+    among it, so a retirement that landed reads no movement of its own; where
+    the proof reads movement -- the requirements edited, say, while the
+    retirement was sent -- the attempt that retirement left is taken in first
+    where the comment carries it (`_takes_in_the_retirement`), and the same
+    receipt is invalidated whole over it, however soon what moved is put back
+    and whatever a later finish then finds no attempt to read. A successor
+    settled under another receipt is kept as its road wrote it.
     """
     if not finish.proves_settled:
         return stopped
-    return _readiness.invalidates_behind(finish, stopped, observed)
+    current = _settlement.read_current_evidence(finish.state)
+    unconfirmed = stopped is FinishOutcome.UNCONFIRMED and current is not None
+    if not unconfirmed or current.binding.target.target_head != finish.head:
+        return _readiness.invalidates_behind(finish, stopped, observed)
+    moved = _readiness.settled_word(finish, current)[0]
+    if moved is not None:
+        _takes_in_the_retirement(finish)
+        invalidated = _readiness.invalidates(finish, current)
+        log.warning(
+            "issue=#%d verification evidence revision %d settled for %.8s moved behind a retirement nobody "
+            "confirmed (%s); invalidated: %s",
+            finish.issue.number, current.revision, finish.head, moved.refusal, invalidated,
+        )
+    return stopped
 
 
 def out_of_step(finish: LandedFinish, current: _records.CurrentEvidence | None) -> str:
@@ -197,21 +225,6 @@ def out_of_step(finish: LandedFinish, current: _records.CurrentEvidence | None) 
     if _record_state._latest_revision(finish.state) == current.revision:
         return ""
     return "a revision past it was spent"
-
-
-def takes_as_it_stands(finish: LandedFinish, current: _records.CurrentEvidence) -> FinishOutcome | None:
-    """Route `current`, settled for the landed head with nothing beside it, behind its last word; None to route.
-
-    The last word over the landing and the base
-    (`rewrite_finish_captured.stands_before_the_route`), or -- for a finish
-    held to the settled-evidence policy -- the readiness proof
-    (`rewrite_finish_readiness.stands_ready`), which reads them behind its own
-    readings and invalidates `current` where anything it is bound to moved
-    since it settled.
-    """
-    if finish.proves_settled:
-        return _readiness.stands_ready(finish, current)
-    return _captured.stands_before_the_route(finish)
 
 
 def retires_the_adopted(
@@ -240,3 +253,24 @@ def retires_the_adopted(
         finish.issue.number, finish.head, pending.revision,
     )
     return False
+
+
+def _takes_in_the_retirement(finish: LandedFinish) -> None:
+    """Lay the attempt `finish`'s own retirement left over the tick's state, where the comment carries it so.
+
+    The comment read afresh carrying every member of the attempt exactly as
+    the retirement staged it (`rewrite_finish_writes.retirement`) -- blanked
+    -- says that retirement landed, or that the attempt was ended just as it
+    would have ended it; either way no other attempt stands in its place.
+    Those members are taken in as read, so a write decided on the attempt
+    behind it is decided on the attempt as the comment carries it. A comment
+    that will not read, or that carries any other attempt, leaves the tick's
+    state as it was.
+    """
+    durable = durable_comment(finish.gh, finish.issue, finish.state)[0]
+    left = _commit_models.PinnedCommit.capture(_writes.retirement(finish), prerequisites=_attempts._ATTEMPT_KEYS)
+    if durable is None or left.moved(durable.data):
+        return
+    for key in _attempts._ATTEMPT_KEYS:
+        finish.state.set(key, durable.get(key))
+    _commit.takes_in(finish.state, durable.data, _attempts._ATTEMPT_KEYS)

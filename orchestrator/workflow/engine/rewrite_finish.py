@@ -164,7 +164,12 @@ at every step that keeps, routes, or parks the attempt:
   the evidence -- a write refused or unconfirmed, a conversation or event
   stream that would not read behind a posted notice, a park or its notice
   that raised -- has the evidence proved ready once more before the finish
-  leaves, and a captured transaction proved again whole.
+  leaves, and a captured transaction proved again whole. Behind a retirement
+  nobody confirmed, which may have landed and taken the attempt with it, the
+  proof reads the attempt as this finish read it, and evidence it reads moving
+  is invalidated over the attempt that retirement left where the comment
+  carries it so (`rewrite_finish_settled.behind_the_write`), so a later finish
+  that finds no attempt standing has nothing left to retire.
 - Settled evidence is proved ready once more ahead of the relabel and again
   behind it, the retirement landing behind both; a relabel that raised has it
   proved before the error goes on. Behind the relabel a head with no evidence
@@ -461,7 +466,10 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     review record moving under settled evidence invalidates it before the
     route stops (`rewrite_finish_readiness.invalidates_behind`), so putting
     that record back first revives nothing; any other stop there proves it
-    ready once more. A relabel that landed ahead of a retirement that did not
+    ready once more -- a retirement nobody confirmed over the attempt as this
+    finish read it, the evidence it reads moving invalidated over the attempt
+    that retirement may have left (`rewrite_finish_settled.behind_the_write`).
+    A relabel that landed ahead of a retirement that did not
     is the recovery's to finish, under the mark this finish left, with no
     second relabel -- and so is a relabel that raised, refused or landed with
     its answer lost, behind which the evidence is proved ready once more

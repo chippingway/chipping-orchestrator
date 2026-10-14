@@ -121,7 +121,6 @@ from orchestrator.workflow.engine.rewrite_finish_settled import (
     out_of_step,
     retires_the_adopted,
     stands_ready_if_settled,
-    takes_as_it_stands,
 )
 from orchestrator.workflow.engine.rewrite_landing_records import capture_answered, resolved
 
@@ -202,7 +201,7 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
         "issue=#%d already settled verification evidence revision %d for %.8s; settling and running nothing again",
         finish.issue.number, current.revision, finish.head,
     )
-    return takes_as_it_stands(finish, current)
+    return _takes_as_it_stands(finish, current)
 
 
 def settles(finish: LandedFinish) -> FinishOutcome | None:
@@ -387,3 +386,18 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
         finish.issue.number, finish.head, beside,
     )
     return FinishOutcome.HELD
+
+
+def _takes_as_it_stands(finish: LandedFinish, current: _records.CurrentEvidence) -> FinishOutcome | None:
+    """Route `current`, settled for the landed head with nothing beside it, behind its last word; None to route.
+
+    The last word over the landing and the base
+    (`rewrite_finish_captured.stands_before_the_route`), or -- for a finish
+    held to the settled-evidence policy -- the readiness proof
+    (`rewrite_finish_readiness.stands_ready`), which reads them behind its own
+    readings and invalidates `current` where anything it is bound to moved
+    since it settled.
+    """
+    if finish.proves_settled:
+        return stands_ready(finish, current)
+    return _captured.stands_before_the_route(finish)

@@ -1284,10 +1284,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stands_ready_if_settled`); settled and captured evidence proved ahead of the debt's park
                             (`ahead_of_the_park`); the last word behind a stopped or raised announcement or park, the
                             evidence proved once more and invalidated over a binding record a refusal read moved
-                            (`behind_the_announcement`), and the same behind a retirement that did not land
+                            (`behind_the_announcement`), and the same behind a retirement that did not land -- one
+                            nobody confirmed proved over the attempt as read, and the evidence it reads moving
+                            invalidated over the attempt that retirement left where the comment carries it so
                             (`behind_the_write`); why records beside settled evidence hold the route (`out_of_step`);
-                            settled evidence nothing stands beside routed behind its last word or its readiness proof
-                            (`takes_as_it_stands`); and a settlement the settlement step's answer left current
+                            and a settlement the settlement step's answer left current
                             invalidated over movement that answer read, the evidence records' own moves aside
                             (`retires_the_adopted`)
     rewrite_finish_readiness.py

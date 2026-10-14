@@ -27,7 +27,11 @@ put back behind the next finish's record of the event -- that finish killed
 before it files the event, or not -- revives nothing either. Nor does report
 2 put back behind a step that failed while report 3 was settled: an event
 stream that would not read behind the posted notice, or a relabel that landed
-with its answer lost. The finish proves the run once more before it leaves.
+with its answer lost. The finish proves the run once more before it leaves --
+behind a retirement that landed with its answer lost as well, the issue edited
+while it was sent: the run is invalidated over the attempt that retirement
+left, so the issue put back before the finish is handed over again revives
+nothing, and that finish finds no attempt standing and makes nothing.
 
 Or the base advances while the notice is posted or the relabel made: the
 proof behind the relabel reads it, invalidates the run, and holds the route
@@ -46,6 +50,7 @@ from unittest.mock import patch
 
 from orchestrator.github import events as _github_events
 from orchestrator.workflow.engine import verification_settlement_state as _settlement
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
@@ -313,6 +318,29 @@ class FailedStepMoveTest(_FinalStepCase, unittest.TestCase):
                 self._assert_routed_once(head)
                 self.assertEqual(readings.relabels(self), readings.ROUTED)
 
+    def test_a_lost_retirement_keeps_the_movement(self) -> None:
+        # The retirement lands with its answer lost, the issue edited while it
+        # is sent or not. The proof behind it reads the edit and invalidates
+        # the run over the attempt that retirement left -- or reads nothing,
+        # and the run stays current -- and with the issue put back the finish
+        # handed over again makes nothing: the head routed once.
+        for edited in (False, True):
+            with self.subTest(edited=edited):
+                self.setUp()
+                head = self.lands_a_reviewed_rebase()
+                written = self.issue.body
+                body = _EDITED_BODY if edited else written
+                retiring = partial(self._loses_the_retirement, self.gh.edit_pinned_state, body)
+                with patch.object(self.gh, "edit_pinned_state", retiring):
+                    self.assertEqual(self.finishes(head), FinishOutcome.UNCONFIRMED)
+                self.issue.body = written
+
+                self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.UNFINISHABLE)
+
+                self._assert_kept_unless(edited, head)
+                self._assert_routed_once(head)
+                self.assertEqual((self.runs(), self.developer.call_count), (1, 0))
+
     def _unread_stream(self, head: str, moves) -> None:
         """Finish `head` with `moves` made while the notice is posted, the event stream unreadable behind it."""
         with patch.object(_github_events, "filed", return_value=None):
@@ -327,6 +355,21 @@ class FailedStepMoveTest(_FinalStepCase, unittest.TestCase):
         """Make `moves`, then lose the answer of the relabel it was made behind."""
         moves()
         raise RuntimeError("the relabel's answer was lost")
+
+    def _loses_the_retirement(self, live, body: str, issue, state, *, over: dict):
+        """`live`, the client's pinned edit; the retirement writes `body` as the issue's and lands, its answer lost."""
+        if not handoff.BEFORE_THE_RETIREMENT.kills(issue, state, over=over):
+            return live(issue, state, over=over)
+        self.issue.body = body
+        with patch.object(self.gh.pinned_failures, "lost", {self.issue.number}):
+            return live(issue, state, over=over)
+
+    def _assert_kept_unless(self, edited: bool, head: str) -> None:
+        """The run invalidated whole beside the anchor's evidence where `edited`, and current as settled otherwise."""
+        current = readings.pinned_records(self)[1]
+        self.assertEqual(current is None, edited)
+        invalidated = [self.anchor, head] if edited else []
+        self.assertEqual(self._tested(), invalidated)
 
 
 if __name__ == "__main__":

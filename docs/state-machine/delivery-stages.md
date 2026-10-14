@@ -1574,7 +1574,10 @@ because there it is the claim that this stage has already rerouted rather than a
     transaction is proved again whole too;
   - behind every stop of the announcement or the park -- a write refused or unconfirmed, a conversation or event
     stream that would not read behind a posted notice, a park notice whose answer was lost -- and ahead of the relabel
-    and again behind it, a relabel that raised included;
+    and again behind it, a relabel that raised included; behind a retirement whose answer was lost the proof reads the
+    attempt as the finish read it, and evidence it reads moving is invalidated over the attempt that retirement left,
+    so the issue put back before the next finish -- which finds no attempt standing and makes nothing -- revives
+    nothing;
   - the checkpoint, the event's record, the park, and the retirement are decided on the records the evidence's binding
     rests on (`rewrite_finish_writes.BINDING_RECORDS`), and a refusal over one of them is movement read under the
     evidence (`BINDING_MOVED`), invalidated before the finish stops however soon the record is put back;
