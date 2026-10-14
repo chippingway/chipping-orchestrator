@@ -10,13 +10,16 @@ module-level attribute so callers and tests keep patching them on
 `orchestrator.config` itself. The resolution lives in the leaves: `_dotenv`
 owns the `.env` loader, `environment` the env-value parsers and the resolver,
 `credentials` the token resolver and the secret redactor every stderr /
-verify-output / trajectory consumer masks with, `checkouts` whether a
-directory is the top of a git checkout, as git itself answers, `layout` the
-source-checkout versus installed distinction and the worktree root's default,
-`models` the repository-config data types (`RepoSpec`, `RepoEnvEntry`), and
-`repositories` the `REPOS` parsing, the choice of targets, and the refusal of
-any target that is not a checkout. `default_repo_specs` here returns a copy of
-the resolved list.
+verify-output / trajectory consumer masks with, `layout` the worktree root's
+default, `models` the repository-config data types (`RepoSpec`,
+`RepoEnvEntry`), and `repositories` the `REPOS` parsing, the choice of
+targets, and the refusal of any target that is not a checkout.
+`default_repo_specs` here returns a copy of the resolved list. Two answers the
+resolution turns on are read from `orchestrator.service`, where a setup asks
+them on a host with no configuration: `service.checkouts` whether a
+directory is the top of a git checkout, as git itself answers, and
+`service.paths` the source-checkout versus installed distinction and where an
+installed package keeps its `.env`.
 
 Secrets are deliberately NOT loaded from any .env. The implementer agent runs
 in a sibling worktree with sandbox bypass, so anything readable inside
@@ -422,7 +425,7 @@ def default_repo_specs() -> list[RepoSpec]:
 
 # Base branch of the orchestrator's *own* repo (REPO_ROOT). Used only by the
 # self-update path, and only when REPO_ROOT is the orchestrator's own source
-# checkout (`layout.is_source_checkout`): there
+# checkout (`service.paths.is_source_checkout`): there
 # `self_update.self_modifying_merge_happened` watches `origin/<this>` for new
 # commits under `orchestrator/`, and `run.sh` fast-forwards to it on every
 # restart. An installed package never fetches it. Decoupled from BASE_BRANCH

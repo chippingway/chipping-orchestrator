@@ -28,9 +28,13 @@ more the same way, from inside. With its own ``.git`` already proved whole,
 that discovery stops at it rather than walking up, and what it can refuse is
 the ownership git would refuse every later command on.
 
-``layout`` proves a source checkout with this, and ``repositories`` holds every
-configured target to it. Running git as a program imports nothing from
-``orchestrator.git``, which keeps the package below the git layer.
+``paths`` proves a source checkout with this, ``validation`` holds a setup's
+clone to it, ``clone_defaults`` reads that clone's remotes and branches through
+``ask_git``, and ``orchestrator.config.repositories`` holds every configured
+target to it. Running git as a program imports nothing from the package --
+neither ``orchestrator.git`` nor ``orchestrator.config`` -- so a setup asks it
+on a host with no configuration, and the configuration reads it back from the
+bottom layer without loading anything above itself.
 """
 from __future__ import annotations
 
@@ -64,11 +68,14 @@ _REPOSITORY_LOCATING_ENV = frozenset((
 ))
 
 
-def _ask_git(real_root: Path, *arguments: str) -> subprocess.CompletedProcess[bytes]:
+def ask_git(real_root: Path, *arguments: str) -> subprocess.CompletedProcess[bytes]:
     """Git with ``arguments``, run in ``real_root`` and pointed nowhere else.
 
     Its output stays bytes: decoding text folds a carriage return into a line
-    end, and the path git prints is compared as git wrote it.
+    end, and the path git prints is compared as git wrote it. A caller that
+    lets git discover the repository from ``real_root`` -- every one without a
+    ``--git-dir`` -- has proved it a checkout's top first, so discovery stops
+    at that checkout's own ``.git``.
     """
     probe_environment = {
         name: env_value
@@ -100,7 +107,7 @@ def _without_dot_git(real_root: Path) -> str:
     Git is asked about the directory as a repository in its own right, so a
     bare clone is named for what it is rather than as a plain directory.
     """
-    answer = _ask_git(real_root, f"--git-dir={real_root}", *_PROBE)
+    answer = ask_git(real_root, f"--git-dir={real_root}", *_PROBE)
     if answer.stdout.startswith(_BARE_ANSWER):
         return _BARE_REPOSITORY
     return "has no .git of its own, so it is not the top of a git checkout"
@@ -132,7 +139,7 @@ def _ownership_problem(real_root: Path) -> str | None:
     Called only once ``real_root``'s own ``.git`` has passed, so discovery
     stops there; a refusal is git declining a checkout another user owns.
     """
-    answer = _ask_git(real_root, *_DISCOVERY)
+    answer = ask_git(real_root, *_DISCOVERY)
     if answer.returncode == 0:
         return None
     reason = _first_line(answer)
@@ -147,7 +154,7 @@ def _problem(root: Path) -> str | None:
     dot_git = real_root / ".git"
     if not dot_git.exists():
         return _without_dot_git(real_root)
-    problem = _verdict(real_root, _ask_git(real_root, f"--git-dir={dot_git}", *_PROBE))
+    problem = _verdict(real_root, ask_git(real_root, f"--git-dir={dot_git}", *_PROBE))
     if problem is None:
         problem = _ownership_problem(real_root)
     return problem

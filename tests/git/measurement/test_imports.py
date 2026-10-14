@@ -8,7 +8,7 @@ import unittest
 from importlib.util import find_spec
 
 from orchestrator.git import measurement
-from tests.support.import_probes import probe_import
+from tests.support.import_probes import CONFIGURATION_READS, probe_import
 
 _MODULES = (
     "orchestrator.git.measurement",
@@ -33,7 +33,9 @@ _FLAT_MODULES = (
 # an import back down would put the decision inside the reading.
 _ALLOWED_ROOTS = ("orchestrator.config", "orchestrator.git")
 
-_ALLOWED_MODULES = ("orchestrator",)
+# The root package, and what the settings read with them: the service's
+# install facts, named exactly.
+_ALLOWED_MODULES = ("orchestrator", *sorted(CONFIGURATION_READS))
 
 # The initializer binds nothing, so each name stays reachable only through the
 # owner that defines it -- which is where a test intercepting one has to patch.

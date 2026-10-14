@@ -30,6 +30,17 @@ from functools import cache
 # reads the planted set against.
 _ORCHESTRATOR = "orchestrator"
 
+# What importing `orchestrator.config` plants outside its own package: the two
+# service owners it reads the install facts from -- whether a directory is a
+# git checkout, and the installed layout -- and their marker package. A guard
+# that lets a module pay for the configuration lets it pay for these with it,
+# named exactly, so no other service owner rides along unnoticed.
+CONFIGURATION_READS = frozenset((
+    f"{_ORCHESTRATOR}.service",
+    f"{_ORCHESTRATOR}.service.checkouts",
+    f"{_ORCHESTRATOR}.service.paths",
+))
+
 # `sys.modules` in full rather than narrowed to one prefix: an entrypoint guard
 # holds a launch path to its own chain *and* to the optional dependency group
 # it must not cost, and both are answered off the one recorded set.

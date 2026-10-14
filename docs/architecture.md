@@ -108,14 +108,19 @@ orchestrator/
   service/              what an installed orchestrator carries for setting
                         itself up: the basic and advanced `.env` templates,
                         shipped as package data so every install holds the
-                        pair for its own version, and their reader, which
-                        loads no configuration
+                        pair for its own version, and their reader; the
+                        git-checkout check, the source-checkout versus
+                        installed layout with the installed paths and the
+                        refusal a source checkout gets, one validator per
+                        setup field, and the repository, remote, and branch
+                        a clone implies, written as a `REPOS` entry -- all of
+                        it loading no configuration
   config/               the bottom layer: the non-secret `.env` loader, the
                         env parsers and resolver behind the settings surface,
-                        the source-checkout versus installed layout check,
-                        target selection and the git-checkout check every
-                        target passes, credential resolution and secret
-                        redaction, and the repository-config types
+                        target selection holding every target to the
+                        service's git-checkout check, the worktree root's
+                        default, credential resolution and secret redaction,
+                        and the repository-config types
   github/               the composed `GitHubClient` and the pinned durable-
                         state model over one owner per GitHub surface: issue
                         operations and the one walk over them a tick is served
@@ -185,17 +190,20 @@ deciding with them, and `cli.py` / `__main__.py` / `runtime/` / `apps/` composin
 at the top. The direction is read twice, because deferring an import weakens where it lands but not whether it belongs.
 At module scope, where an import decides what a package costs to load and whether it can be loaded at all, only
 `github/` and `git/` may reach the workflow vocabulary: `state.py`, `label_reading.py`, `transitions.py`, and
-`transition_guard.py`, each named exactly.
+`transition_guard.py`, each named exactly. Only `config/` may reach the service's install facts, at any scope:
+`service/checkouts.py` and `service/paths.py`, the git-checkout check every target passes and the source-checkout
+versus installed layout that picks the `.env`, which a setup asks before any configuration exists and which import
+nothing beyond each other.
 Over every scope, the only other reaches
 left are declared one by one in `tests/repository/test_layering.py`: three base-sync owners posting a notice or a park
 through the workflow's comment and guard owners, deferred to a call because at module scope they would be a cycle. An
 undeclared hop fails wherever it is written, and a declared one fails if it is bound at module scope after all. The
-launch forms compose each other and are reached from nothing below them at any scope, and no import anywhere is
-relative, because a relative target names its module by position and no layer can be read off it. Most package
-initializers are markers that import and bind nothing. The declared public packages retain their explicit
-`__all__` surfaces, including the root's version, reloadable `config` bindings, and the lazy `workflow.tick`
-entry point. Other operations are imported from their defining modules. The source and namespace checks distinguish
-these deliberate publishers from marker packages; the policy is described under
+launch forms compose each other and are reached from nothing below them at any scope but those two install facts,
+and no import anywhere is relative, because a relative target names its module by position and no layer can be read
+off it. Most package initializers are markers that import and bind nothing. The declared public packages retain
+their explicit `__all__` surfaces, including the root's version, reloadable `config` bindings, and the lazy
+`workflow.tick` entry point. Other operations are imported from their defining modules. The source and namespace
+checks distinguish these deliberate publishers from marker packages; the policy is described under
 [`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration).
 
 
@@ -364,7 +372,7 @@ means it.
   the new commits touch `orchestrator/`, the loop exits 0 so the wrapper can re-exec the new code. The branch is
   decoupled from `BASE_BRANCH` so a target repo with a different default branch does not interfere with self-update
   detection. The guard runs only in the orchestrator's own source checkout — an ordinary clone, a linked worktree, or
-  an editable install — as `config.layout.is_source_checkout` proves it at the package root itself. An installed
+  an editable install — as `service.paths.is_source_checkout` proves it at the package root itself. An installed
   package has no startup HEAD, even inside an enclosing git repository, so it runs no git for this guard, never
   fetches, and never exits for a self-modifying merge; its version changes only through an explicit pipx upgrade or
   reinstall.
@@ -1041,7 +1049,7 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
 
 - **`cli.main` polling loop** — long-lived Python process. Trigger: manual start (or wrapper). Cadence: every
   `POLL_INTERVAL`s.
-- **target checks (`config.checkouts`)** — read-only `git rev-parse` subprocesses. Trigger: the configuration import
+- **target checks (`service.checkouts`)** — read-only `git rev-parse` subprocesses. Trigger: the configuration import
   every launch makes once its options are read, before any GitHub client. Cadence: once per start — up to two per
   selected target, and the same for the package root when proving a source checkout
   ([`configuration.md#developer-fallback-and-target-checks`](configuration.md#developer-fallback-and-target-checks)).

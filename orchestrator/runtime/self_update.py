@@ -4,7 +4,7 @@
 
 They run only in the orchestrator's own source checkout -- an ordinary clone,
 a linked worktree, or an editable install of either, the checkout `run.sh`
-relaunches on new code -- as `config.layout.is_source_checkout` proves it at
+relaunches on new code -- as `service.paths.is_source_checkout` proves it at
 `REPO_ROOT` itself. An installed package's root is an environment's
 `site-packages`, where git would discover whatever repository happens to
 enclose it, so an installed package gets no restart baseline: it never runs
@@ -22,7 +22,7 @@ from __future__ import annotations
 import subprocess
 
 from orchestrator import config
-from orchestrator.config import layout as _config_layout
+from orchestrator.service import paths as _service_paths
 
 _RUNTIME_SOURCE_PREFIX = "orchestrator/"
 
@@ -45,7 +45,7 @@ def own_head_sha() -> str | None:
     repository's never stands in, and the ``None`` returned there keeps the
     loop from probing for a merge at all.
     """
-    if not _config_layout.is_source_checkout(config.REPO_ROOT):
+    if not _service_paths.is_source_checkout(config.REPO_ROOT):
         return None
     head_revision = git("rev-parse", "HEAD")
     return (

@@ -213,6 +213,54 @@ Slugs whose repo name contains `.lock`, `..`, or a trailing `.` (all rejected by
 `owner/foo.lock` and `owner/foo_lock`) stay on distinct branches. The worktree directory keeps the readable
 `<owner>__<name>` form because filesystems tolerate these characters; only the branch ref carries the hash.
 
+### Setup checks and clone defaults
+
+The setup code an installed package carries, under [`orchestrator/service/`](architecture/platform-modules.md#the-map),
+checks every answer before it writes anything and reads the rest of a `REPOS` entry off the clone. Each check refuses
+with one message, the same whether the answer came from an option or a prompt, and none of it loads this
+configuration, so it answers on a host with no `.env` at all. These rules are stricter than what the settings accept
+from a hand-edited `.env`, which is read as described above.
+
+- **Clone** — the top of a local clone or linked worktree, by the same check every
+  [target](#developer-fallback-and-target-checks) passes. `~` is expanded, a `~user` naming no account is refused,
+  and only a path still relative after that is read against the current directory, so an absolute path does not
+  depend on it, while a relative one under a directory since removed is refused. A `..` steps to the parent of
+  wherever the path so far leads, as the filesystem does, so `link/../api` beside a symlink into another directory is
+  the clone beside the link's target, and it steps out only of a directory that is there: `api/missing/..` and
+  `api/README.md/..` are refused, naming the component the lookup failed on. Every other symlink stays as typed, and
+  the path written holds no `..`.
+- **Repository** — `owner/name` in the characters GitHub allows: letters, digits, and `-` in the owner, and `.` and
+  `_` besides in the name.
+- **Logins** (`ALLOWED_ISSUE_AUTHORS`, `HITL_HANDLE`) — at least one GitHub login, separated by commas, with a leading
+  `@` dropped and repeats kept once, as the settings read them. A login is letters, digits, and `-`, with an optional
+  `[bot]` suffix, so `alice bob` is refused rather than kept as one login nobody has.
+- **Agents** — `claude`, `codex`, or `agy`, with an executable of that name on the `PATH` it is checked against.
+
+Unless an answer gives them, the repository, the remote, and the base branch come from the clone itself, read locally
+with nothing fetched:
+
+- The remote is `origin` when its URL names a repository on GitHub, otherwise the only remote that does, and the
+  entry then records that remote's name. A URL is read after any `insteadOf` rewrite, in each form git accepts for
+  `github.com` — `https://`, `ssh://`, `git://`, and `git@github.com:owner/name` — and in the SSH forms on
+  `ssh.github.com`, GitHub's endpoint on port 443. A host alias out of the SSH config names no repository. Several
+  candidates with no `origin` among them, or none, are refused rather than guessed.
+- A repository given outright selects the remote naming it. Where none does, an `origin` whose URL names no GitHub
+  repository, such as an SSH host alias, stands for it; one naming another GitHub repository does not.
+- The base branch is the remote's default branch as the clone recorded it, `refs/remotes/<remote>/HEAD`, which
+  `git clone` sets, and otherwise the branch checked out. A detached `HEAD` with nothing recorded needs the branch
+  given.
+
+The entry is written in the fewest fields that carry it: the remote field only when the remote is not `origin` or a
+parallel limit follows it, so a clone that reaches GitHub through `upstream` is recorded as
+`owner/name|path|branch|upstream`. A field this syntax would split or strip — one holding `|`, `;`, or a line break,
+or blanks at either end — is refused.
+
+Setup uses the installed package's own locations under the home it runs with: settings in
+`~/.config/chipping-orchestrator/.env`, the file an installed package reads
+([where `.env` is read](#where-env-is-read)), and logs in `~/.local/state/chipping-orchestrator/logs`. A package
+running from a source checkout reads its own `.env` instead, so setup that writes the installed file refuses to run
+from one and points at the checkout's [developer guide](development.md#source-checkout-setup) and `run.sh`.
+
 ### Developer fallback and target checks
 
 Which targets a start selects depends on where the running package sits ([source or installed](#where-env-is-read)):

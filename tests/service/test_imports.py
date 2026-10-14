@@ -6,37 +6,66 @@ from __future__ import annotations
 import unittest
 from importlib import import_module
 from pathlib import Path
+from types import MappingProxyType
 
-from tests.support.import_probes import probe_import
+from tests.support.import_probes import CONFIGURATION_READS, probe_import
 
 _ORCHESTRATOR = "orchestrator"
 
 _PACKAGE = f"{_ORCHESTRATOR}.service"
 
-_TEMPLATES_OWNER = f"{_PACKAGE}.templates"
+_CHECKOUTS = "checkouts"
 
-# The declared inventory: the one owner, and the two templates it reads as
-# package data. A new file here is a deliberate edit and an entry in the module
-# map, which is what the inventory check compares the directory against -- and
-# a second copy of a template beside these would be one nothing reads.
-_OWNER_FILES = ("templates.py",)
+_VALIDATION = "validation"
+
+# Each owner, and the owners beside it that importing it loads too. Only the
+# setup's own leaves read each other: the checkout check under the layout and
+# the clone validator, the validator's refusal under the entry it writes, and
+# all of them under the clone's derived entry.
+_OWNERS = MappingProxyType({
+    "templates": (),
+    _CHECKOUTS: (),
+    "paths": (_CHECKOUTS,),
+    _VALIDATION: (_CHECKOUTS,),
+    "remote_urls": (),
+    "repos_entry": (_CHECKOUTS, _VALIDATION),
+    "clone_defaults": (_CHECKOUTS, "remote_urls", "repos_entry", _VALIDATION),
+})
+
+# The declared inventory: the owners above, and the two templates `templates`
+# reads as package data. A new file here is a deliberate edit and an entry in
+# the module map, which is what the inventory check compares the directory
+# against -- and a second copy of a template beside these would be one
+# nothing reads.
+_OWNER_FILES = tuple(f"{owner}.py" for owner in _OWNERS)
 
 _PACKAGE_DATA = (".env.example", ".env.example.advanced")
 
 # What a fresh import of each module may plant under the package: its own
 # chain and nothing besides. `orchestrator.config` above all stays out, since
 # importing it resolves the settings and an installed package with no `REPOS`
-# exits there -- the state a first setup reads the templates from.
+# exits there -- the state a first setup starts in. The configuration reads
+# `checkouts` and `paths` back, which is what these exact chains make safe.
 _IMPORT_CHAINS = (
     (_PACKAGE, frozenset((_ORCHESTRATOR, _PACKAGE))),
-    (_TEMPLATES_OWNER, frozenset((_ORCHESTRATOR, _PACKAGE, _TEMPLATES_OWNER))),
+    *(
+        (
+            f"{_PACKAGE}.{owner}",
+            frozenset((
+                _ORCHESTRATOR,
+                _PACKAGE,
+                *(f"{_PACKAGE}.{loaded}" for loaded in (owner, *beside)),
+            )),
+        )
+        for owner, beside in _OWNERS.items()
+    ),
 )
 
 _RESOLVER_HOOKS = ("__dir__", "__getattr__")
 
 
 class ServiceInventoryTest(unittest.TestCase):
-    """The declared owner and package data are the files on disk."""
+    """The declared owners and package data are the files on disk."""
 
     def test_declared_files_are_the_ones_on_disk(self) -> None:
         directory = Path(import_module(_PACKAGE).__file__).parent
@@ -53,7 +82,8 @@ class CleanProcessImportTest(unittest.TestCase):
 
     A fresh interpreter per module is the only place a stray import shows: a
     suite that has already imported the settings would resolve them off what
-    that left behind, and the template read would look free when it is not.
+    that left behind, and a template read, a field check, or a derived entry
+    would look free when it is not.
     """
 
     def test_each_module_costs_only_its_own_chain(self) -> None:
@@ -62,6 +92,25 @@ class CleanProcessImportTest(unittest.TestCase):
                 probe = probe_import(module)
                 self.assertEqual(probe.returncode, 0, msg=probe.stderr)
                 self.assertEqual(probe.orchestrator_modules, chain)
+
+
+class ConfigurationReadsTest(unittest.TestCase):
+    """Importing the configuration plants the install facts and no other owner.
+
+    The configuration reads `checkouts` and `paths` back from below, and the
+    guards that let a module pay for the settings admit exactly the set
+    declared beside the probes; this is where that set is held to what an
+    import of the configuration really loads.
+    """
+
+    def test_config_plants_only_the_install_facts(self) -> None:
+        probe = probe_import(f"{_ORCHESTRATOR}.config")
+        self.assertEqual(probe.returncode, 0, msg=probe.stderr)
+        planted = frozenset(
+            name for name in probe.orchestrator_modules
+            if name == _PACKAGE or name.startswith(f"{_PACKAGE}.")
+        )
+        self.assertEqual(planted, CONFIGURATION_READS)
 
 
 class PackageSurfaceTest(unittest.TestCase):

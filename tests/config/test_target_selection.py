@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from orchestrator.config import environment
 from tests.config import config_test_support as _support, config_test_values as _config_cases
+from tests.support.checkouts import make_checkout
 from tests.support.git import _claim_work_tree
 
 _TARGET_ROOT_ENV = "TARGET_REPO_ROOT"
@@ -59,10 +60,10 @@ class InstalledTargetSelectionTest(unittest.TestCase):
 
     def setUp(self) -> None:
         scratch = Path(self.enterContext(tempfile.TemporaryDirectory()))
-        self._source = _support.make_checkout(scratch / "enclosing")
+        self._source = make_checkout(scratch / "enclosing")
         self._site_packages = self._source / ".venv" / "lib" / "site-packages"
         self._site_packages.mkdir(parents=True)
-        self._developer_root = _support.make_checkout(scratch / "developer")
+        self._developer_root = make_checkout(scratch / "developer")
         self._developer = {
             "REPO": _config_cases._LEGACY_REPO,
             _TARGET_ROOT_ENV: str(self._developer_root),
@@ -129,7 +130,7 @@ class InstalledTargetSelectionTest(unittest.TestCase):
         # git names, so it keeps its developer fallback to itself.
         for name in _config_cases._LINE_BREAKING_NAMES:
             with self.subTest(name=name):
-                source = _support.make_checkout(self._source.parent / name)
+                source = make_checkout(self._source.parent / name)
                 resolved = _resolve(source, {})
 
                 self.assertEqual(

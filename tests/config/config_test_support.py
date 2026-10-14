@@ -15,20 +15,12 @@ from unittest.mock import patch
 
 from orchestrator.config import _dotenv
 from tests.config import config_reload_helpers as _reload, config_test_values as _config_cases
-from tests.support.git import _run_git
+from tests.support.checkouts import make_checkout
 
 _AGENT_DEFAULTS = (
     (_config_cases._DEV_AGENT_ENV, _config_cases._CLAUDE),
     (_config_cases._REVIEW_AGENT_ENV, _config_cases._CODEX),
 )
-
-
-def make_checkout(root: Path, project_name: str = "chipping-orchestrator") -> Path:
-    """Make ``root`` a git checkout whose ``pyproject.toml`` names a project."""
-    root.mkdir(parents=True, exist_ok=True)
-    (root / "pyproject.toml").write_text(f'[project]\nname = "{project_name}"\n')
-    _run_git("init", "-q", "-b", "main", cwd=root)
-    return root
 
 
 @contextmanager

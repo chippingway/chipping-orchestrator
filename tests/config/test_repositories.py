@@ -12,6 +12,7 @@ from tests.config import (
     config_test_support as _support,
     config_test_values as _config_cases,
 )
+from tests.support.checkouts import make_checkout
 
 _WORKTREES_DIR_ENV = "WORKTREES_DIR"
 _TARGET_ROOT_ENV = "TARGET_REPO_ROOT"
@@ -31,7 +32,7 @@ def _worktree_root_cases(scratch: Path) -> tuple[_RootCase, ...]:
     one.
     """
     for parent in _TARGET_PARENTS:
-        _support.make_checkout(scratch / "real" / parent / "checkout")
+        make_checkout(scratch / "real" / parent / "checkout")
     (scratch / "links").symlink_to(scratch / "real", target_is_directory=True)
     first, second, developer = (
         scratch / "links" / name / "checkout" for name in _TARGET_PARENTS
@@ -112,7 +113,7 @@ class RepositoryConfigParsingTest(unittest.TestCase):
         # Mix newlines, ';', blank lines, and a comment to verify the parser
         # accepts both separators and ignores noise.
         with _support.target_checkout() as td:
-            other = _support.make_checkout(Path(td) / "other")
+            other = make_checkout(Path(td) / "other")
             config = _reload.load_config(
                 {
                     _config_cases._REPOS_ENV: (

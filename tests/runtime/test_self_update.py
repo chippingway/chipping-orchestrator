@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.runtime import self_update
-from tests.config import config_test_support as _config_support
+from tests.support.checkouts import make_checkout
 from tests.support.git import _run_git
 
 _GIT_ATTR = "git"
@@ -91,7 +91,7 @@ class GitProbeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td, patch.object(
             config,
             _REPO_ROOT_ATTR,
-            _config_support.make_checkout(Path(td)),
+            make_checkout(Path(td)),
         ):
             for answer, expected in (
                 (_completed(f"{_START_SHA}\n"), _START_SHA),

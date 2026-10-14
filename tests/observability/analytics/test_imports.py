@@ -13,6 +13,7 @@ from tests.observability.observability_test_support import (
     _imported_orchestrator_modules,
     _under,
 )
+from tests.support.import_probes import CONFIGURATION_READS
 
 _PACKAGE = "orchestrator.observability.analytics"
 
@@ -143,6 +144,17 @@ _ENVIRONMENT_ADAPTERS = ("orchestrator.observability.analytics.settings",)
 _OUTSIDE_REACH = MappingProxyType({_SETTINGS_OWNER: ("orchestrator.config",)})
 
 
+def _reachable(imported: str, allowed: tuple[str, ...]) -> bool:
+    """Whether an owner allowed `allowed` outside the tree may plant `imported`.
+
+    The settings come with what they read: the service's install facts,
+    named exactly.
+    """
+    if _under(imported, allowed):
+        return True
+    return "orchestrator.config" in allowed and imported in CONFIGURATION_READS
+
+
 def _qualified(owner: str) -> str:
     return f"{_PACKAGE}.{owner}"
 
@@ -213,7 +225,7 @@ class LayeringTest(unittest.TestCase):
                     self.assertTrue(
                         imported.startswith(("orchestrator.observability", "orchestrator._package"))
                         or imported == "orchestrator"
-                        or _under(imported, allowed),
+                        or _reachable(imported, allowed),
                         f"{owner} reaches {imported}",
                     )
 
