@@ -26,8 +26,8 @@ the policy every road selects has it, reading nothing more.
   announcement or the route that stopped, or raised, with settled evidence
   proved ready once more, invalidated over a binding record a refusal read
   moved, and a captured transaction proved again whole -- behind a
-  retirement nobody confirmed, over the attempt that retirement may have
-  left (`_takes_in_the_retirement`).
+  retirement nobody confirmed, the attempt put back where that retirement
+  took it and the movement read recorded against it (`_stands_back`).
 - `out_of_step` says why the records beside settled evidence hold the route.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
@@ -42,11 +42,11 @@ import logging
 
 from orchestrator.git.base_sync import attempt_records as _attempt_records, attempts as _attempts
 from orchestrator.workflow.engine import (
-    pinned_commit as _commit,
     pinned_commit_models as _commit_models,
     rewrite_finish_captured as _captured,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_writes as _writes,
+    verification_durable as _durable,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
@@ -54,7 +54,6 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_proof import standing_refusal
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
-from orchestrator.workflow.engine.verification_durable import durable_comment, moves_only_the_evidence
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -180,15 +179,22 @@ def behind_the_write(
     with nothing read.
 
     A retirement nobody confirmed may have landed all the same, taking the
-    attempt the invalidation is decided on with it. Settled evidence for the
-    head is proved over the attempt as this finish read it, its base tip
-    among it, so a retirement that landed reads no movement of its own; where
-    the proof reads movement -- the requirements edited, say, while the
-    retirement was sent -- the attempt that retirement left is taken in first
-    where the comment carries it (`_takes_in_the_retirement`), and the same
-    receipt is invalidated whole over it, however soon what moved is put back
-    and whatever a later finish then finds no attempt to read. A successor
-    settled under another receipt is kept as its road wrote it.
+    attempt every write recording movement is decided on -- and the base tip
+    the movement is recorded by where history has no room -- with it.
+    Settled evidence for the head is proved over the attempt as this finish
+    read it, its base tip among it, so a retirement that landed reads no
+    movement of its own. Where the proof reads movement -- the requirements
+    edited, say, while the retirement was sent -- the evidence is invalidated
+    over the attempt as read, which a retirement that did not land leaves in
+    place; where that retirement landed instead, the attempt is put back
+    first, exactly as this finish read it (`_stands_back`), and the same
+    receipt invalidated over it -- or, with no room for its history entry,
+    the movement recorded against it by blanking the base tip. The attempt
+    standing again brings every later finish of this landing back to retire
+    the evidence whole once room is made, however soon what moved is put
+    back, and to retire the attempt behind it with nothing said or relabelled
+    twice. A successor settled under another receipt, or another attempt in
+    this one's place, is kept as its road wrote it.
     """
     if not finish.proves_settled:
         return stopped
@@ -197,14 +203,16 @@ def behind_the_write(
     if not unconfirmed or current.binding.target.target_head != finish.head:
         return _readiness.invalidates_behind(finish, stopped, observed)
     moved = _readiness.settled_word(finish, current)[0]
-    if moved is not None:
-        _takes_in_the_retirement(finish)
+    if moved is None:
+        return stopped
+    invalidated = _readiness.invalidates(finish, current)
+    if not invalidated and _stands_back(finish, current):
         invalidated = _readiness.invalidates(finish, current)
-        log.warning(
-            "issue=#%d verification evidence revision %d settled for %.8s moved behind a retirement nobody "
-            "confirmed (%s); invalidated: %s",
-            finish.issue.number, current.revision, finish.head, moved.refusal, invalidated,
-        )
+    log.warning(
+        "issue=#%d verification evidence revision %d settled for %.8s moved behind a retirement nobody confirmed "
+        "(%s); invalidated: %s",
+        finish.issue.number, current.revision, finish.head, moved.refusal, invalidated,
+    )
     return stopped
 
 
@@ -245,7 +253,8 @@ def retires_the_adopted(
     """
     current = _settlement.read_current_evidence(finish.state)
     stays = not finish.proves_settled or current is None or current.receipt != pending.receipt
-    if stays or all(map(moves_only_the_evidence, movements)) or _readiness.invalidates(finish, current):
+    stays = stays or all(map(_durable.moves_only_the_evidence, movements))
+    if stays or _readiness.invalidates(finish, current):
         return True
     log.warning(
         "issue=#%d holding the route of %.8s: verification evidence revision %d was read moving while it "
@@ -255,22 +264,30 @@ def retires_the_adopted(
     return False
 
 
-def _takes_in_the_retirement(finish: LandedFinish) -> None:
-    """Lay the attempt `finish`'s own retirement left over the tick's state, where the comment carries it so.
 
-    The comment read afresh carrying every member of the attempt exactly as
-    the retirement staged it (`rewrite_finish_writes.retirement`) -- blanked
-    -- says that retirement landed, or that the attempt was ended just as it
-    would have ended it; either way no other attempt stands in its place.
-    Those members are taken in as read, so a write decided on the attempt
-    behind it is decided on the attempt as the comment carries it. A comment
-    that will not read, or that carries any other attempt, leaves the tick's
-    state as it was.
+def _stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
+    """Put the attempt `finish` read back where its own retirement took it off the comment; whether that landed.
+
+    Only over a comment that carries every member of the attempt exactly as
+    that retirement staged it (`rewrite_finish_writes.retirement`) -- blanked,
+    so no other attempt stands in its place -- and still carries `current` as
+    its current evidence, so no successor settled under another receipt is
+    ever marked moved. Staged on that comment read afresh and committed
+    guarded by it, the attempt's members alone written, every other field
+    kept as the comment carries it; the tick's state then reads as the
+    comment does. A comment that would not read is asked once more rather
+    than taken as the answer, since the movement already read has no other
+    attempt to be recorded against.
     """
-    durable = durable_comment(finish.gh, finish.issue, finish.state)[0]
+    durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
+    if durable is None:
+        durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
     left = _commit_models.PinnedCommit.capture(_writes.retirement(finish), prerequisites=_attempts._ATTEMPT_KEYS)
     if durable is None or left.moved(durable.data):
-        return
+        return False
+    if _settlement.read_current_evidence(durable) != current:
+        return False
+    guard = _durable.guarded(durable, _attempts._ATTEMPT_KEYS, _attempts._ATTEMPT_KEYS)
     for key in _attempts._ATTEMPT_KEYS:
-        finish.state.set(key, durable.get(key))
-    _commit.takes_in(finish.state, durable.data, _attempts._ATTEMPT_KEYS)
+        durable.set(key, finish.state.get(key))
+    return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
