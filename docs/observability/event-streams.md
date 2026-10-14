@@ -863,7 +863,7 @@ time any of this runs, so nothing about workflow disposition depends on delivery
 ## Late-split records (both sinks)
 
 The late size gate writes to **both** streams, deliberately: the audit copy has to answer offline what the database
-answers, so an operator with only the JSONL file can tell whether depth 3 is being approached, which repositories keep
+answers, so an operator with only the JSONL file can tell whether depth 5 is being approached, which repositories keep
 producing artifact-dominated `single` verdicts, whether the ceiling is being crossed before anything is published or
 by the fix commits a review asks for afterwards, and whether the configured threshold creates more adjudication than
 it prevents. One call on `workflow/late_split/telemetry.py` emits both — `GitHubClient.emit_event` for the audit record

@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.late_split.events import LateVerdictCategory
-from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH, LateVerdict
+from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import FakeLabel
 from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
@@ -189,10 +189,7 @@ class DecidedOutcomeTest(LateCase, unittest.TestCase):
         # The bound is a safety invariant, so the outcome is the question the
         # workflow now owes a human -- and the next tick asks the human rather
         # than paying for the same forbidden split again.
-        self.github.seed_state(
-            self.issue.number,
-            **_bounded_state(),
-        )
+        self.github.seed_state(self.issue.number, **_depth_state(5))
 
         outcome, _ = self._adjudicate(agent_reply(_support.SPLIT_REPLY))
 
@@ -202,6 +199,16 @@ class DecidedOutcomeTest(LateCase, unittest.TestCase):
             LateVerdictCategory.LINEAGE_BOUND,
         )
         self.assertEqual(self._pinned().get(_support.KEYS.verdict), LateVerdict.QUESTION)
+
+    def test_a_split_one_short_of_the_bound_stands(self) -> None:
+        # Depth 4 is the deepest generation that may still split, so its
+        # split is recorded as the verdict it is rather than as a question.
+        self.github.seed_state(self.issue.number, **_depth_state(4))
+
+        self._adjudicate(agent_reply(_support.SPLIT_REPLY))
+
+        self.assertEqual(self._pinned().get(_support.KEYS.verdict), LateVerdict.SPLIT)
+        self.assertIsNone(self._pinned().get(_support.KEYS.category))
 
     def test_the_verdict_carries_its_measurement(self) -> None:
         self._adjudicate(agent_reply(_support.SINGLE_REPLY))
@@ -239,9 +246,9 @@ class DecidedOutcomeTest(LateCase, unittest.TestCase):
         )
 
 
-def _bounded_state() -> dict:
-    """The seeded pinned state of a generation at the lineage bound."""
-    return _support.generation_state(_support.late_generation(lineage_depth=MAX_LINEAGE_DEPTH))
+def _depth_state(depth: int) -> dict:
+    """The seeded pinned state of a generation at this lineage depth."""
+    return _support.generation_state(_support.late_generation(lineage_depth=depth))
 
 
 def _nextgeneration_state(recorded: dict) -> dict:

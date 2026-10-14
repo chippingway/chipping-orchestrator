@@ -96,7 +96,7 @@ _NOT_LIVE_STATE = (
     # notice.
     ("late_plan_pr_head", _ABBREVIATION),
     ("late_plan_pr_head", "the tip the pull request was standing on"),
-    (_DEPTH_KEY, 9),
+    (_DEPTH_KEY, 6),
     (_SOURCE_STAGE_KEY, "workflow:sharpening"),
     (_PUBLISHED_PR_KEY, 0),
     (_PUBLISHED_SHA_KEY, _ABBREVIATION),
@@ -135,6 +135,14 @@ class RoundTripTest(unittest.TestCase):
         state = _written(rooted)
         self.assertIn(_DEPTH_KEY, state.data)
         self.assertEqual(_late_state.read_late_generation(state), rooted)
+
+    def test_the_deepest_generations_keep_their_depth(self) -> None:
+        # Depth 4 is the deepest generation that may still split and 5 the
+        # deepest a split creates; the 6 past them is in `_NOT_LIVE_STATE`.
+        for depth in (4, 5):
+            with self.subTest(depth=depth):
+                deep = LateGeneration(cycle_id=1, current_issue=9, lineage_depth=depth)
+                self.assertEqual(_late_state.read_late_generation(_written(deep)), deep)
 
     def test_the_written_state_is_json_safe(self) -> None:
         # The pinned comment is written with `json.dumps`, so a typed member

@@ -27,7 +27,7 @@ from orchestrator.workflow.late_split.publication import PublicationContext
 # the deepest child a split can create sits exactly at the bound and must
 # resolve as one change or ask a human. It is a safety invariant, not a knob,
 # which is why no configuration reads it.
-MAX_LINEAGE_DEPTH = 3
+MAX_LINEAGE_DEPTH = 5
 
 
 class LateVerdict(StrEnum):

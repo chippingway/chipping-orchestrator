@@ -46,7 +46,7 @@ DAMAGED_FIELDS = (
     ("late_ancestry_parent", -1),
     ("late_ancestry_cycle_id", True),
     ("late_ancestry_generation", -1),
-    ("late_ancestry_depth", 4),
+    ("late_ancestry_depth", 6),
     ("late_ancestry_snapshot_sha", "HEAD~1"),
     ("late_ancestry_snapshot_ref", "refs/heads/main"),
     ("late_ancestry_snapshot_ref", "refs/orchestrator/other/x"),
@@ -93,6 +93,16 @@ class AncestryRoundTripTest(unittest.TestCase):
         self.assertIsNone(
             round_trip(ancestry(lineage_depth=None)).lineage_depth,
         )
+
+    def test_the_bound_is_the_deepest_depth_read_back(self) -> None:
+        # Depth 4 is the deepest lineage that may still split and 5 the
+        # deepest child a split creates, so both are depths a child is seeded
+        # with; no split writes a 6, which reads back unknown.
+        for depth in (4, 5):
+            with self.subTest(depth=depth):
+                seeded = ancestry(lineage_depth=depth)
+                self.assertEqual(round_trip(seeded), seeded)
+        self.assertIsNone(round_trip(ancestry(lineage_depth=6)).lineage_depth)
 
     def test_a_write_drops_an_earlier_record(self) -> None:
         # A child re-seeded against a snapshot that no longer exists must not

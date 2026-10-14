@@ -3852,7 +3852,7 @@ rather than preserving.
   applies at the depth the issue was really born at.
   `late_cycle_id` and `late_generation` are monotonic and never reused, so a record naming cycle 2
   always names the same attempt; `late_root_issue` and `late_current_issue` place the issue in its lineage; and
-  `late_lineage_depth` is 0 at the root and bounded by `MAX_LINEAGE_DEPTH` (3, a safety invariant no configuration
+  `late_lineage_depth` is 0 at the root and bounded by `MAX_LINEAGE_DEPTH` (5, a safety invariant no configuration
   reads). A depth at or past the bound — including one an edit put there — reads as "may not split", so the deepest
   child a split can create must resolve as one change or ask a human. A depth that cannot be read *at all* is the
   same answer rather than the root's 0: it reads back as unknown, an unknown depth may not split, and the write
@@ -4214,7 +4214,7 @@ rather than preserving.
   question and outlive it: a generation is minted, adjudicated, and retired inside one issue, while an ancestry is
   written once when the child is created and is still true after that child has been implemented, split again, and
   closed. The depth and the root are what the child's own size gate mints its generation from, so automatic
-  splitting stops at the same bound three generations down as it does at the root — a child that could not say how
+  splitting stops at the same bound five generations down as it does at the root — a child that could not say how
   deep it is would read as a root and buy the lineage another generation, which is why an unreadable depth reads
   back unknown rather than 0. This group is also the WHOLE of what descends. A child is created with a pinned comment
   of its own and seeded with exactly these keys, the parent link and the creation stamp — never with the parent's
