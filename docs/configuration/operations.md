@@ -152,6 +152,7 @@ Each run proves the token with one read-only GitHub call for that repository and
 `~/.config/<owner>/<name>/token`, mode 0600 in a 0700 directory, replacing any token there; a token GitHub refuses
 leaves the old one in place. It reads no configuration, so it works before `.env` is written, and it never edits
 `.env`. Running it again is how a token is rotated ([set-token](../configuration.md#storing-a-token-with-set-token)).
+With the settings and tokens in place, [check the setup](#check-compatibility-and-start) before the first start.
 
 ### Select an existing environment
 
@@ -162,28 +163,40 @@ inspection and dependency checks; it selects the package's isolated environment 
 ### Check compatibility and start
 
 Review the installed release's [notes][package-releases] for Python and agent CLI requirements, settings changes,
-and workflow-state compatibility. Check the package version, dependency consistency, CLI, and local configuration
-before starting a poller:
+and workflow-state compatibility. Check the package version, dependency consistency, CLI, and setup before starting a
+poller:
 
 ```sh
 (
   set -eu
-  cd "$HOME"
   pipx runpip chipping-orchestrator show chipping-orchestrator
   pipx runpip chipping-orchestrator check
   chipping-orchestrator --help
-  "$(pipx environment --value PIPX_HOME)/venvs/chipping-orchestrator/bin/python" -c \
-    'from orchestrator.runtime.startup import require_issue_authors; require_issue_authors(); print("Configuration OK")'
+  chipping-orchestrator check
 )
 ```
 
-Changing to `$HOME` keeps the configuration check outside an orchestrator source checkout so it imports the installed
-package. The check reads `~/.config/chipping-orchestrator/.env`, validates local settings and target checkouts,
-and checks the required author allowlist without connecting to GitHub or polling. Run it as the service user with
-the same pipx location and process/service overrides as the real launch. It does not prove token permissions,
-agent authentication, or compatibility with live issue state. `--help` checks the CLI only; `run --once` performs a
-real polling tick and can start agents. Stop on a failed check and repair the settings before starting or resuming
-polling.
+`pipx runpip chipping-orchestrator check` is pip's dependency check. `chipping-orchestrator check` checks the setup
+in the environment the systemd user service runs with ([checking a setup](../configuration.md#checking-a-setup)):
+`HOME`, `USER`, and the absolute entries of `PATH`, taken from the shell it runs in, and nothing else from it. Its
+settings come from `~/.config/chipping-orchestrator/.env` and its tokens from the token files, as the service's do, so
+an exported `GITHUB_TOKEN`, `REPOS`, `ALLOWED_ISSUE_AUTHORS`, agent binary override, or `ORCHESTRATOR_SKIP_DOTENV`
+cannot make it pass where the service would fail. Run it as the service user, from a shell whose `PATH` holds the
+directories the service is given.
+
+It resolves the settings and target checkouts as a start does, refuses an empty author allowlist, finds a token for
+every `REPOS` entry, and finds every agent binary the three roles run on that `PATH`, honoring `CLAUDE_BIN`,
+`CODEX_BIN`, and `AGY_BIN` from `.env` and refusing a relative path among them, all in a fresh interpreter started as
+the service's process starts. Then it
+proves each token reads its repository with one read-only GitHub call per entry; `chipping-orchestrator check --local`
+leaves those calls out. It exits 0 with one line on stdout, or 1 with one line on stderr per problem, and never polls
+an issue, writes a label or workflow state, or starts an agent. It does not prove the token's write permissions, agent
+authentication, or compatibility with live issue state. `--help` checks the CLI only; `run --once` performs a real
+polling tick and can start agents. Stop on a failed check and repair the settings before starting or resuming polling.
+
+Releases up to v0.13.0 have no `check` command. On one of them, as after [migrating](#moving-from-a-dedicated-venv)
+with that version or [returning](#return-to-the-previous-package-version) to it, leave that line out and check the
+settings as that release's own guide describes.
 
 Start in the foreground:
 

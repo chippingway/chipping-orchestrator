@@ -40,6 +40,10 @@ _TOKEN_PROMPT = "token_prompt"
 
 _TOKENS = "tokens"
 
+_ENVIRONMENT = "environment"
+
+_SETTINGS_REPORT = "settings_report"
+
 # What `configure` composes: every setup leaf it writes the `.env` through.
 _CONFIGURE_CHAIN = (
     _CHECKOUTS,
@@ -63,12 +67,24 @@ _TOKENS_CHAIN = (
     _VALIDATION,
 )
 
+# What `check` composes in the process that asks: the package's own root, the
+# service's environment, and the report it has a fresh interpreter make, whose
+# GitHub calls go through the probe. The configuration that report reads is
+# imported inside the call, in that interpreter alone.
+_CHECKS_CHAIN = (
+    _CHECKOUTS,
+    _ENVIRONMENT,
+    _PATHS,
+    _SETTINGS_REPORT,
+    _TOKEN_PROBE,
+)
+
 # Each owner, and the owners beside it that importing it loads too. Only the
 # setup's own leaves read each other: the checkout check under the layout and
 # the clone validator, the validator's refusal under the entry it writes and
 # the `.env` lines, all of them under the clone's derived entry, every leaf
-# under `configure` or `tokens`, and both of those under the command line
-# above them.
+# under `configure`, `tokens`, or `checks`, and those three under the command
+# line above them.
 _OWNERS = MappingProxyType({
     _TEMPLATES: (),
     _CHECKOUTS: (),
@@ -83,7 +99,10 @@ _OWNERS = MappingProxyType({
     _TOKEN_PROBE: (),
     _TOKEN_PROMPT: (),
     _TOKENS: _TOKENS_CHAIN,
-    "commands": (*_CONFIGURE_CHAIN, _CONFIGURE, *_TOKENS_CHAIN, _TOKENS),
+    _ENVIRONMENT: (),
+    _SETTINGS_REPORT: (_CHECKOUTS, _PATHS, _TOKEN_PROBE),
+    "checks": _CHECKS_CHAIN,
+    "commands": (*_CONFIGURE_CHAIN, _CONFIGURE, *_TOKENS_CHAIN, _TOKENS, *_CHECKS_CHAIN, "checks"),
 })
 
 # The declared inventory: the owners above, and the two templates `templates`

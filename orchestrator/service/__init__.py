@@ -29,13 +29,25 @@ with all of the above, its core called in process with the answers as typed.
 ``tokens`` is the one that keeps a repository's token: read from standard
 input -- at a terminal through ``token_prompt``, which refuses one that would
 show it -- proved by ``token_probe``, read-only GitHub calls made with the
-standard library, and written through ``private_files``. ``commands`` puts
-both on the command line ``orchestrator/cli.py`` parses.
+standard library, and written through ``private_files``.
 
-Nothing here imports ``orchestrator.config``, or the GitHub client that reads
-its token through it. That package resolves and validates the settings as it
-is imported, and an installed package with no ``REPOS`` exits there -- which
-is exactly the state a first setup starts from.
+Then the check. ``environment`` decides what the systemd user service runs
+with, from the shell that sets it up: its ``HOME`` and ``USER``, and its
+``PATH`` with only the absolute entries kept. ``checks`` is ``check``, which
+refuses a source checkout as the setup commands do and judges an installed
+setup in exactly that environment: a fresh interpreter of this package,
+started with it, runs ``settings_report``, which resolves the
+settings there and reports what keeps them from running the service -- with
+the GitHub call ``token_probe`` makes per repository, unless the check is
+local. ``commands`` puts all three commands on the command line
+``orchestrator/cli.py`` parses.
+
+Nothing here imports ``orchestrator.config`` as it is imported, or the GitHub
+client that reads its token through it; ``settings_report`` imports the
+configuration inside its call, which runs only in the interpreter ``checks``
+starts. ``orchestrator.config`` resolves and validates the settings as it is
+imported, and an installed package with no ``REPOS`` exits there -- which is
+exactly the state a first setup starts from.
 The configuration reads ``checkouts`` and ``paths`` back instead, to hold its
 targets to the same check and to choose the ``.env`` it loads, which those two
 can serve from below it because they import nothing beyond each other. This

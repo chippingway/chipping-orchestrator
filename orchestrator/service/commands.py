@@ -12,7 +12,9 @@ printed alone on stderr, the way every command and prompt words it.
 ``configure`` checks its agents against the ``PATH`` the command runs with.
 ``set-token`` takes the repository alone and hands it, with standard input,
 to ``tokens.set_token``, which reads, proves, and keeps the token and answers
-with the status itself.
+with the status itself. ``check`` hands this process's environment to
+``checks.check``, which keeps only what the service would be given from it,
+and ``--local`` leaves out the GitHub call it makes per repository.
 
 A ``set-token`` command line may carry the token anywhere -- as a further
 argument, an option's value, a value handed to a flag that takes none, or in
@@ -24,7 +26,8 @@ each built beneath it, gives the usage and the form the command takes and
 prints back none of what it was given.
 
 Nothing here imports ``orchestrator.config``, and neither does any core it
-calls, so a setup command answers on a host with no configuration at all.
+calls in this process -- ``check`` reads the settings in an interpreter of its
+own -- so a setup command answers on a host with no configuration at all.
 """
 from __future__ import annotations
 
@@ -35,6 +38,7 @@ import sys
 from collections.abc import Sequence
 from typing import NamedTuple, NoReturn
 
+from orchestrator.service.checks import check
 from orchestrator.service.configure import (
     COMMAND as CONFIGURE,
     DEFAULT_DECOMPOSE_AGENT,
@@ -44,6 +48,7 @@ from orchestrator.service.configure import (
     ConfigureRefusal,
     configure,
 )
+from orchestrator.service.settings_report import COMMAND as CHECK
 from orchestrator.service.tokens import set_token
 from orchestrator.service.validation import FieldError
 
@@ -150,6 +155,23 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
         "repository", metavar="OWNER/NAME", help="the GitHub repository the token is for",
     )
     token_parser.set_defaults(dispatch=_set_token)
+    check_parser = commands.add_parser(
+        CHECK,
+        help="Check the setup in the environment the systemd service runs with.",
+        description=(
+            "Check that the service would run, in the environment it runs "
+            "with: HOME, USER, and the absolute entries of PATH, and nothing "
+            "else from this shell. The settings, the target checkouts, the "
+            "author allowlist, a token for each repository, and every agent "
+            "binary the roles run are checked, then one read-only GitHub call "
+            "per repository proves its token reads it. Exits 1 with one line "
+            "per problem."
+        ),
+    )
+    check_parser.add_argument(
+        "--local", action="store_true", help="make no GitHub call; check only what this host holds",
+    )
+    check_parser.set_defaults(dispatch=_check)
 
 
 def _configure(arguments: argparse.Namespace) -> int:
@@ -170,3 +192,8 @@ def _configure(arguments: argparse.Namespace) -> int:
 def _set_token(arguments: argparse.Namespace) -> int:
     """Run ``set-token`` for the repository given, and answer with its status."""
     return set_token(arguments.repository, sys.stdin)
+
+
+def _check(arguments: argparse.Namespace) -> int:
+    """Run ``check`` for the service set up from this environment, and answer with its status."""
+    return check(os.environ, reach_github=not arguments.local)

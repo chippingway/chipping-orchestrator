@@ -19,7 +19,8 @@ setup points its ``LOG_DIR`` at ``~/.local/state/chipping-orchestrator/logs``.
 Both are read off the home directory at call time, so a caller that runs with
 another ``HOME`` gets that home's paths. A source checkout reads its own
 ``.env`` instead, so a command that writes the installed one would set up a
-file the package running it never reads: ``source_checkout_refusal`` is the
+file the package running it never reads, and one that checks what an installed
+service reads would check another file: ``source_checkout_refusal`` is the
 message every such command refuses with.
 
 Nothing here imports from the package but ``checkouts``. A setup reads these
@@ -86,7 +87,8 @@ def source_checkout_refusal(command: str, package_root: Path = PACKAGE_ROOT) -> 
 
     Only a source checkout is refused. It reads the ``.env`` at its own root,
     so the message sends the developer to the checkout's own setup guide and
-    restart wrapper rather than to the installed file the command writes.
+    restart wrapper rather than to the installed file the command writes or
+    checks.
     """
     if not is_source_checkout(package_root):
         return None
@@ -95,7 +97,7 @@ def source_checkout_refusal(command: str, package_root: Path = PACKAGE_ROOT) -> 
     guide = package_root / "docs" / "development.md"
     wrapper = package_root / "run.sh"
     return (
-        f"chipping-orchestrator {command} sets up an installed package, but this "
+        f"chipping-orchestrator {command} is for an installed package, but this "
         f"one runs from the source checkout at {package_root}, which reads {own} "
         f"rather than {installed}; set the checkout up as {guide} describes and "
         f"launch it with {wrapper}"
