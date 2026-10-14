@@ -19,7 +19,8 @@ case's own recorders for the whole test (`_counts_side_effects`), so a push or
 a launch a direct finish made is counted as one a refresh made would be.
 Beside them, a case racing a finish's settlement records a newer run beside
 the one settled (`records_a_newer_run`) or settles a captured run as another
-finish would (`settles_elsewhere`).
+finish would, dying before its announcement or at its relabel
+(`settles_elsewhere`).
 """
 from __future__ import annotations
 
@@ -92,20 +93,21 @@ def records_a_newer_run(case, *, settles: bool = False):
     return newer
 
 
-def settles_elsewhere(case, head: str, written: str, raced: list, then=None) -> None:
+def settles_elsewhere(
+    case, head: str, written: str, raced: list, died: _handoff.Boundary = _handoff.BEFORE_THE_ANNOUNCEMENT,
+) -> None:
     """Put the issue back as `written` and settle `head`'s captured run as another finish would, once; into `raced`.
 
-    That finish dies before its announcement, so the attempt still stands;
-    `then`, where given, is made behind it.
+    That finish dies at `died`: before its announcement, so the attempt
+    stands as it was read, or announced, before its relabel, its mark and the
+    record of its event put down on the attempt for `head`.
     """
     if raced:
         return
     raced.append(head)
     case.issue.body = written
     finishing = partial(case.finishes, head, FinishRoad.RECOVERY)
-    _handoff.dies_at(case.gh, _handoff.BEFORE_THE_ANNOUNCEMENT, finishing)
-    if then is not None:
-        then(case)
+    _handoff.dies_at(case.gh, died, finishing)
 
 
 class SettledRunCase(_support.CapturedRunCase):
@@ -133,3 +135,19 @@ class SettledGuardedCase(_guarded.GuardedRecoveryCase):
         self.assertEqual(_readings.attempt(_readings.pinned(self)), _readings.RETIRED)
         self.assertEqual(_readings.pinned_records(self)[:2], (None, current))
         self.assert_made_once()
+
+    def assert_invalidated_then_routed(self, head: str, settled) -> None:
+        """`settled` invalidated whole, its revision and binding kept, and `head` routed once, nothing parked.
+
+        Another poll leaves the comment exactly as it is, with nothing said,
+        relabelled, run, pushed, or launched again.
+        """
+        entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
+        whole = (entry.receipt, entry.retired.value, entry.revision, entry.binding)
+        self.assertEqual(whole, (settled.receipt, _readings.INVALIDATED, settled.revision, settled.binding))
+        self.assertFalse(_readings.pinned(self).get(_guarded.AWAITING))
+        self.assert_routed(head)
+        routed = _readings.pinned(self)
+        self.recovers()
+        self.assertEqual(_readings.pinned(self), routed)
+        self.assert_routed(head)

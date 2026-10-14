@@ -21,7 +21,13 @@ while the abandonment's own write is asked: the settlement is invalidated over
 the edit already read and the debt parked -- or, the comment full, the movement
 is recorded by the base tip blanked and the settlement invalidated once room
 is made -- and a newer run another road settled over it under its own receipt
-is left as it stands. The run is made once, and nothing is pushed or launched.
+is left as it stands. So is a settlement whose finish also recorded the debt
+and announced the landing before dying at its relabel, its mark and the record
+of its event taken in as this attempt advanced: with room, the head is routed
+in the same tick with the announcement said once; with the comment full, the
+base tip is blanked and the next finish, once room is made, invalidates the
+run whole and routes the head. The run is made once, and nothing is pushed or
+launched.
 
 The policy every road selects proves no captured run whole ahead of the park:
 with the report edited before the tick and put back while the notice is
@@ -35,10 +41,12 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import report_settlement_state as _report_settlement, verification_records as _records
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
+    rewrite_handoff_test_support as handoff,
     settled_finish_support as settled,
 )
 from tests.workflow.interleaving import _RacesPastTheCall
@@ -189,27 +197,56 @@ class SettledUnderTheAbandonmentTest(settled.SettledGuardedCase, unittest.TestCa
         self.assertEqual(retired[-1], (captured.receipt, "superseded"))
         self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
 
-    def _abandons_under_a_settlement(self, then) -> tuple:
+    def test_an_announced_settlement_is_invalidated(self) -> None:
+        # The finish that settles the run also records the debt, announces
+        # the landing, and dies at its relabel: its mark and the record of its
+        # event are this attempt advanced, so the settlement is invalidated
+        # over the edit all the same. With room for that, nothing is parked
+        # and the head is routed in the same tick, the announcement said once;
+        # with the comment full, the base tip is blanked with the run current
+        # and nothing relabelled, and once room is made the next direct finish
+        # invalidates the run whole and routes the head.
+        for full in (False, True):
+            with self.subTest(full=full):
+                self.setUp()
+                fills = partial(finish_moves.fills_the_comment, left=0 if full else _SHORT_OF_THE_DEBT)
+                head, captured = self._abandons_under_a_settlement(fills, handoff.BEFORE_THE_RELABEL)
+                if full:
+                    self.assertEqual(self.pinned_fields(guarded.AWAITING, readings.KEY_REWRITE_BASE), (None, None))
+                    self.assertEqual(readings.pinned_records(self)[1].receipt, captured.receipt)
+                    self.assertEqual(readings.relabels(self), ())
+                    finish_moves.makes_room(self)
+                    self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.ROUTED)
+                self.assert_invalidated_then_routed(head, captured)
+
+    def _abandons_under_a_settlement(self, then, died: handoff.Boundary = handoff.BEFORE_THE_ANNOUNCEMENT) -> tuple:
         """Capture a run, edit the issue, and recover the debt's park as another finish settles the run; head and run.
 
-        That finish is given room for its own debt, and `then` is made behind it.
+        That finish is given room for its own debt and dies at `died`, and
+        `then` is made behind it.
         """
         head, captured = self.captures()
         finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
         raced: list = []
-        settles = partial(self._settles_elsewhere, head, self.issue.body, raced, then)
+        settles = partial(settled.settles_elsewhere, self, head, self.issue.body, raced, died)
         self.issue.body = _EDITED_BODY
-        edits = partial(self._ahead, settles, self.gh.edit_pinned_state)
+        edits = partial(
+            self._ahead,
+            partial(self._settles_elsewhere, settles, raced, then),
+            self.gh.edit_pinned_state,
+        )
         with patch.object(self.gh, "edit_pinned_state", edits):
             self.recovers()
         self.assertEqual(raced, [head])
         return head, captured
 
-    def _settles_elsewhere(self, head: str, written: str, raced: list, then) -> None:
-        """Make room and settle `head`'s run as another finish would, once, with `then` behind it."""
-        if not raced:
-            finish_moves.makes_room(self)
-        settled.settles_elsewhere(self, head, written, raced, then)
+    def _settles_elsewhere(self, settles, raced: list, then) -> None:
+        """Make room and have `settles` settle the run as another finish would, once, with `then` behind it."""
+        if raced:
+            return
+        finish_moves.makes_room(self)
+        settles()
+        then(self)
 
     def _ahead(self, settles, live, issue, state, *, over: dict):
         """`live`, the client's pinned edit, with `settles` made ahead of an edit abandoning the pending run."""

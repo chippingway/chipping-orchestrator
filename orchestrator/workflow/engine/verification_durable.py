@@ -50,8 +50,9 @@ was for still owed.
 Two readings serve only a landed rewrite's dormant settled-evidence finish
 (`rewrite_finish`, a finish selecting `proves_settled`). One tells a refusal
 of moved records naming none but this domain's own -- another road recording,
-settling, or retiring a transaction -- from one naming a record a binding
-rests on (`moves_only_the_evidence`). The other adopts the evidence records of
+settling, or retiring a transaction -- and any the caller knows its own road
+moved, from one naming a record a binding rests on
+(`moves_only_the_evidence`). The other adopts the evidence records of
 a settlement another road made of a transaction while the finish was
 abandoning it (`takes_in_a_settlement`), so the finish retires that
 settlement over the movement it already read, decided on the records the
@@ -246,18 +247,21 @@ def takes_in_a_settlement(
     return current
 
 
-def moves_only_the_evidence(refused: ReportEvidence) -> bool:
-    """Whether `refused` is a refusal of moved bound records (`_moved`) naming none but this domain's own.
+def moves_only_the_evidence(refused: ReportEvidence, besides: Iterable[str] = ()) -> bool:
+    """Whether `refused` is a refusal of moved records (`_moved`) naming none but this domain's own and `besides`.
 
     Such a refusal reads another road recording, settling, or retiring a
-    transaction, and nothing a binding rests on moving.
+    transaction, and nothing a binding rests on moving. `besides` names the
+    records a caller's own decision rests on beyond the bound ones that it
+    already knows moved as its own road wrote them, which are no movement
+    under the evidence either.
     """
     prefix, suffix = _MOVED_SPELLING
     spelled = refused.refusal
     if not (spelled.startswith(prefix) and spelled.endswith(suffix)):
         return False
     named = spelled.removeprefix(prefix).removesuffix(suffix)
-    return set(named.split(", ")) <= _EVIDENCE_RECORDS
+    return set(named.split(", ")) <= _EVIDENCE_RECORDS.union(besides)
 
 
 def _moved(fields: tuple[str, ...]) -> ReportEvidence:

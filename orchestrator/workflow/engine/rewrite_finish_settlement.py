@@ -69,7 +69,9 @@ What the answer comes to decides the route:
   transaction while the answer ran, which the answer adopts: movement the
   answer read under its binding invalidates it whole before anything is
   resolved afresh, the evidence records' own moves -- which that settlement
-  makes -- aside (`verification_durable.moves_only_the_evidence`). One nothing moved under is HELD
+  makes -- aside (`verification_durable.moves_only_the_evidence`), and so is
+  the mark and the record of the event another finish of this landing put
+  down announcing it. One nothing moved under is HELD
   with nothing announced and the attempt standing, and the recovery of the
   push already landed answers it again on a later tick: an artifact an earlier
   post landed, its response lost included, is found under its receipt rather
@@ -265,11 +267,14 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
             finish.issue.number, finish.head, pending.revision,
         )
         return FinishOutcome.HELD
-    return _behind_the_answer(finish, pending, observed)
+    return _behind_the_answer(finish, pending, observed, attempt)
 
 
 def _behind_the_answer(
-    finish: LandedFinish, pending: _records.PendingEvidence, observed: list[ReportEvidence],
+    finish: LandedFinish,
+    pending: _records.PendingEvidence,
+    observed: list[ReportEvidence],
+    attempt: _commit_models.PinnedCommit,
 ) -> FinishOutcome | None:
     """Where the route goes once `pending` was answered, over the movement the answer read; None to route.
 
@@ -279,11 +284,13 @@ def _behind_the_answer(
     settled is resolved afresh; a finish held to the settled-evidence policy
     first invalidates it whole over movement read under its binding -- settled
     by this answer, or by another road whose settlement it adopted -- however
-    soon it was put back (`rewrite_finish_settled.retires_the_adopted`).
+    soon it was put back (`rewrite_finish_settled.retires_the_adopted`), the
+    announcement another finish of this landing made of it over `attempt`, the
+    attempt captured before the answer, no such movement.
     """
     movements = [refused for refused in observed if not refused.holds or refused in MOVEMENT]
     if _captured.recorded(finish, logged=False) is None:
-        return resolves(finish) if retires_the_adopted(finish, pending, movements) else FinishOutcome.HELD
+        return resolves(finish) if retires_the_adopted(finish, pending, movements, attempt) else FinishOutcome.HELD
     proof = movements[0] if movements else _captured.proved_again(finish, pending)
     stopped = _captured.stands_before_the_route(finish, proof=proof)
     if stopped is not None or _captured.recorded(finish, logged=False) is None:

@@ -1235,8 +1235,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction and blanks the attempt's recorded base tip. Under the dormant settled-evidence
                             policy a settlement another finish made of the transaction while its abandonment was asked
                             is taken in (`verification_durable.takes_in_a_settlement`) and invalidated over the same
-                            movement instead, a successor settled under another receipt kept, and a caller that has not
-                            proved the transaction since its own requests has it proved again whole first (`whole`)
+                            movement instead -- the mark and event record that finish's announcement left taken in
+                            first as this attempt advanced (`rewrite_finish_unconfirmed.takes_in_the_announcement`) --
+                            a successor settled under another receipt kept, and a caller that has not proved the
+                            transaction since its own requests has it proved again whole first (`whole`)
     rewrite_finish_settlement.py
                             the landed head's evidence resolved before the finish announces it (`resolves`), and the
                             publication and settlement of the transaction the evidence step recorded, before the
@@ -1291,13 +1293,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             movement recorded by the blanked base tip, over it (`behind_the_write`); why records
                             beside settled evidence hold the route (`out_of_step`); a settlement the settlement step's
                             answer left current invalidated over movement that answer read, the evidence records' own
-                            moves aside (`retires_the_adopted`); and whether the attempt that answer left is the one
+                            moves and the mark and event record a finish of this landing announcing it left aside
+                            (`retires_the_adopted`); and whether the attempt that answer left is the one
                             captured -- unmoved, or advanced by its own announcement (`stands_as_read`)
     rewrite_finish_unconfirmed.py
                             what the finish's own write nobody confirmed left of its attempt, reconciled for the
                             dormant settled-evidence policy before movement read behind that write is invalidated or
                             recorded: the announcement's bookkeeping -- the record of the event and the mark, naming
-                            the landed head -- that the record or the checkpoint landed, taken in where the comment
+                            the landed head -- that the record or the checkpoint landed, or that another finish of the
+                            landing left announcing a settlement an abandonment adopts, taken in where the comment
                             carries the attempt otherwise as read (`takes_in_the_announcement`); and the attempt put
                             back exactly as read where the comment carries it blanked as the finish's retirement
                             leaves it and the same evidence current (`stands_back`), so every later finish comes back
@@ -1753,9 +1757,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             refuses in this domain's words (`refusal_of`): an unread or replaced comment and an
                             unconfirmed write HOLD, and every other refusal -- a moved record, a comment moved under the
                             edit, no room -- DEFERS. Two readings only the dormant settled-evidence finish policy asks:
-                            whether a refusal of moved records names none but this domain's own
-                            (`moves_only_the_evidence`), and a settlement another road made under a receipt, its
-                            evidence records laid over the state in hand (`takes_in_a_settlement`)
+                            whether a refusal of moved records names none but this domain's own and those the caller
+                            knows its own road moved (`moves_only_the_evidence`), and a settlement another road made
+                            under a receipt, its evidence records laid over the state in hand (`takes_in_a_settlement`)
     verification_transaction.py
                             the evidence reconciliation the dispatcher runs directly behind the report
                             transaction: holds behind a standing auto-rebase anchor, whoever calls it, leaving a

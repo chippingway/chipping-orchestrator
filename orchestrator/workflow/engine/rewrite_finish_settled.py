@@ -31,7 +31,8 @@ the policy every road selects has it, reading nothing more.
 - `out_of_step` says why the records beside settled evidence hold the route.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
-  answer read under its binding, before anything is resolved afresh, and
+  answer read under its binding, the announcement a finish of this landing
+  made of it aside, before anything is resolved afresh, and
   `stands_as_read` says whether the attempt that answer left is the one the
   finish captured: unmoved, or advanced by its own announcement.
 
@@ -247,7 +248,10 @@ def out_of_step(finish: LandedFinish, current: _records.CurrentEvidence | None) 
 
 
 def retires_the_adopted(
-    finish: LandedFinish, pending: _records.PendingEvidence, movements: list[ReportEvidence],
+    finish: LandedFinish,
+    pending: _records.PendingEvidence,
+    movements: list[ReportEvidence],
+    attempt: _commit_models.PinnedCommit,
 ) -> bool:
     """Whether the records the answer to `pending` left, nothing recorded for the head any more, resolve afresh.
 
@@ -258,14 +262,19 @@ def retires_the_adopted(
     (`rewrite_finish_readiness.invalidates`) over the movement the answer read
     under its binding (`movements`), however soon it was put back: the
     evidence records' own moves, which that settlement makes, are no such
-    movement (`verification_durable.moves_only_the_evidence`). False, logged,
-    where that invalidation did not land, the movement recorded against the
-    evidence instead where the attempt still records a base tip.
+    movement (`verification_durable.moves_only_the_evidence`), and neither are
+    the mark and the record of the event a finish of this landing put down on
+    `attempt`, the one this finish captured before the answer, in announcing
+    that settlement (`stands_as_read`). False, logged, where that invalidation
+    did not land, the movement recorded against the evidence instead where the
+    attempt still records a base tip.
     """
     current = _settlement.read_current_evidence(finish.state)
-    stays = not finish.proves_settled or current is None or current.receipt != pending.receipt
-    stays = stays or all(map(_durable.moves_only_the_evidence, movements))
-    if stays or _readiness.invalidates(finish, current):
+    if not finish.proves_settled or current is None or current.receipt != pending.receipt:
+        return True
+    announced = _unconfirmed.advanced_by_the_announcement(finish, attempt, finish.state.data) or ()
+    unmoved = all(_durable.moves_only_the_evidence(moved, announced) for moved in movements)
+    if unmoved or _readiness.invalidates(finish, current):
         return True
     log.warning(
         "issue=#%d holding the route of %.8s: verification evidence revision %d was read moving while it "

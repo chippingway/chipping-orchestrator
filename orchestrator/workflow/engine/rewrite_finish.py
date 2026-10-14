@@ -176,7 +176,9 @@ at every step that keeps, routes, or parks the attempt:
   handoff -- so the next finish of the landing retires the evidence whole.
   A settlement another finish of the landing made and announced while this
   one's answer was published leaves the attempt advanced, not replaced, so
-  the movement that answer read still invalidates it.
+  the movement that answer read still invalidates it -- while the mark and
+  the event's record that announcement left are no movement of their own,
+  and a settlement nothing else was read moving under stays current.
 - Settled evidence is proved ready once more ahead of the relabel and again
   behind it, the retirement landing behind both; a relabel that raised has it
   proved before the error goes on. Behind the relabel a head with no evidence
@@ -188,7 +190,8 @@ at every step that keeps, routes, or parks the attempt:
   adopted with the answer, is invalidated whole over movement the answer read
   under its binding before anything is resolved afresh; and a settlement
   another finish made of a transaction while this one was abandoning it is
-  taken in and invalidated over what the abandonment was asked on
+  taken in, with the mark and the event's record that finish's announcement
+  left, and invalidated over what the abandonment was asked on
   (`rewrite_finish_captured`), a successor settled under another receipt kept
   as its road wrote it. Where the comment has no room for an invalidation,
   the movement is recorded by blanking the base tip, so the evidence retires

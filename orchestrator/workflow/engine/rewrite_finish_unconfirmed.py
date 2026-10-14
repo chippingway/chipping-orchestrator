@@ -22,6 +22,10 @@ Only the dormant settled-evidence policy asks these
   the comment read afresh carries this attempt otherwise exactly as the
   finish read it, those members naming the landed head, so the invalidation
   behind the record or the checkpoint is decided on the attempt as it stands.
+  The same bookkeeping another finish of the landing put down announcing a
+  settlement it made while this finish's abandonment was asked is taken in
+  before that settlement is invalidated
+  (`rewrite_finish_captured._abandoned`), for the same reason.
 - `stands_back` puts the attempt back exactly as the finish read it where the
   comment carries it blanked as the finish's own retirement leaves it, and the
   same evidence still current, so the movement is invalidated or recorded
@@ -38,7 +42,8 @@ Only the dormant settled-evidence policy asks these
 advanced -- its mark and the record of its event put down for the landed head
 -- from one another road put in its place, for the announcement's
 bookkeeping above and for a settlement adopted behind a finish's own answer
-(`rewrite_finish_settled.stands_as_read`).
+(`rewrite_finish_settled.stands_as_read`), whose movement that bookkeeping is
+no part of (`rewrite_finish_settled.retires_the_adopted`).
 
 A comment that would not read is asked once more, since the movement already
 read has no other way to be recorded. Another attempt, other members moved,
@@ -76,9 +81,10 @@ def takes_in_the_announcement(finish: LandedFinish) -> None:
     Only where every member of the attempt the comment read afresh carries
     otherwise than the tick read it is one the announcement writes, and names
     the landed head: what the record of the event or the checkpoint left,
-    landed with its answer lost. Taken in as read, so a write decided on the
-    attempt behind it counts none of it as the tick's own move. Anything else
-    leaves the tick's state as it was.
+    landed with its answer lost, or what another finish of the landing left
+    announcing a settlement it made meanwhile. Taken in as read, so a write
+    decided on the attempt behind it counts none of it as the tick's own move.
+    Anything else leaves the tick's state as it was.
     """
     durable = _read_afresh(finish)
     if durable is None:

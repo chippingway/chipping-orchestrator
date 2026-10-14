@@ -1585,18 +1585,21 @@ because there it is the claim that this stage has already rerouted rather than a
     handoff, which no reader hands evidence on without, and a later finish of the landing that finds no attempt
     retires that evidence whole once room is made (`workflow/engine/rewrite_finish_unconfirmed.py`);
   - a settlement another finish of the landing made and announced while this finish's answer published the run is
-    this attempt advanced, not replaced: the mark and the event's record it left are no reason to hold, so the
-    movement the answer read invalidates that settlement whole;
+    this attempt advanced, not replaced: the mark and the event's record it left are no reason to hold and no
+    movement of their own, so other movement the answer read invalidates that settlement whole;
   - the checkpoint, the event's record, the park, and the retirement are decided on the records the evidence's binding
     rests on (`rewrite_finish_writes.BINDING_RECORDS`), and a refusal over one of them is movement read under the
     evidence (`BINDING_MOVED`), invalidated before the finish stops however soon the record is put back;
   - a readable revision spent past the evidence outranks it for good and invalidates it rather than holding every
     later poll, while a handoff not naming it or a floor nobody can read still holds, behind the proof;
   - a settlement another road made of the run while the finish's answer published it, adopted with that answer, is
-    invalidated over movement the answer read under its binding, the evidence records' own moves aside
-    (`verification_durable.moves_only_the_evidence`); a settlement another finish made of a captured run while this
-    one abandoned it is taken in (`verification_durable.takes_in_a_settlement`) and invalidated over what the
-    abandonment was asked on; a successor settled under another receipt is kept as its road wrote it;
+    invalidated over movement the answer read under its binding, the evidence records' own moves and the mark and
+    event record a finish of the landing left announcing it aside (`verification_durable.moves_only_the_evidence`),
+    so a run settled and announced with nothing else moving stays current and is routed; a settlement another finish
+    made of a captured run while this one abandoned it is taken in (`verification_durable.takes_in_a_settlement`),
+    with the mark and event record that finish's announcement left, and invalidated over what the abandonment was
+    asked on -- or, the comment full, its movement recorded by blanking the base tip; a successor settled under
+    another receipt is kept as its road wrote it;
   - behind the relabel a routed head with no evidence current for it is held to the base tip its replay was made
     onto, or -- where the attempt records none, blanked or legacy -- to the base the tick counted it against, so a
     base advanced while the announcement or the relabel was answered holds the route with the attempt standing;

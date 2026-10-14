@@ -16,7 +16,11 @@ exactly as that road left them -- poll after poll.
 
 A finish held to the dormant settled-evidence policy (`settled_finish_support`)
 holds over the dropped handoff the same way, since nobody can say which
-evidence is the latest. A revision spent past the run outranks it for good
+evidence is the latest. A run another finish of the landing settles and
+announces before dying at its relabel, with nothing else moving, stays
+current: the evidence records its settlement moves and the mark and event's
+record its announcement leaves are no movement under it, and the head is
+routed with it. A revision spent past the run outranks it for good
 instead: the run is invalidated whole, its revision and binding kept, and the
 head routed to the fresh reviewer rather than held over evidence no reader
 will be handed. So is a run that road settled and then moved report 3 under:
@@ -112,13 +116,11 @@ class _MovesTheReport:
         case.state = _settles_the_run(case, captured)
         self._moves(case, captured.binding.target.target_head)
 
-    def finishes_then_settles(self, case: support.CapturedRunCase, captured) -> None:
+    def finishes_then_settles(self, case: _AdoptionCase, captured) -> None:
         """Have another finish of the landing settle `captured` and announce it, dying at its relabel; then report 3."""
-        head = captured.binding.target.target_head
-        finishing = partial(case.finishes, head, FinishRoad.RECOVERY)
-        handoff.dies_at(case.gh, handoff.BEFORE_THE_RELABEL, finishing)
+        case.announces_elsewhere(captured)
         case.state = case.gh.read_pinned_state(case.issue)
-        self._moves(case, head)
+        self._moves(case, captured.binding.target.target_head)
 
     def _moves(self, case: support.CapturedRunCase, head: str) -> None:
         """Settle and review report 3 of `head` over `case.state`, keeping the records it replaces."""
@@ -144,6 +146,11 @@ class _AdoptionCase(support.CapturedRunCase):
         self.recovers()
         self.recovers()
         return head, captured
+
+    def announces_elsewhere(self, captured) -> None:
+        """Have another finish of the landing settle `captured` and announce it, dying at its relabel."""
+        finishing = partial(self.finishes, captured.binding.target.target_head, FinishRoad.RECOVERY)
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_RELABEL, finishing)
 
     def assert_held_as_settled(self, captured, past: int = 0) -> None:
         """`captured` current as the other road settled it, the floor `past` it, the attempt standing, nothing made."""
@@ -217,6 +224,21 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
             head, captured = self.polls_beside(moves.finishes_then_settles)
 
         self._assert_invalidated(captured)
+        self.assert_recovered(head)
+
+    def test_an_announced_settlement_stays_current(self) -> None:
+        # Another finish of the landing settles the run just as the recovery
+        # posts it, announces it, and dies at its relabel, and nothing else
+        # moves. The evidence records that settlement moved, and the mark and
+        # the event's record its announcement put down on this attempt, are no
+        # movement under the run: it stays current under its receipt, and the
+        # head is routed once with it, with nothing run, said, or pushed again.
+        head, captured = self.polls_beside(_AdoptionCase.announces_elsewhere)
+
+        pending, current, retired = readings.pinned_records(self)
+        self.assertEqual((pending, current.receipt), (None, captured.receipt))
+        self.assertNotIn((captured.receipt, readings.INVALIDATED), retired)
+        self.assertEqual(self.runs(), 1)
         self.assert_recovered(head)
 
     def _assert_invalidated(self, captured) -> None:
