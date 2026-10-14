@@ -618,8 +618,12 @@ because there it is the claim that this stage has already rerouted rather than a
        snapshot ref its child would not be kept (any but the one it is pointed at or this repository's mirror of it,
        read as [the split's contract](../workflow/roles.md#what-an-ordinary-re-decomposition-holds-its-children-to)
        reads every mention) parks `replacement_lineage_unproved` before `expected_children_count` is written, creating
-       nothing. Then persist `expected_children_count`, `umbrella`, a freshly minted `split_attempt`, and
-       the whole `dep_graph` in one parent write, and for each child call `gh.create_child_issue(...)` with label
+       nothing. Then persist `expected_children_count`, `umbrella`, a freshly minted `split_attempt`,
+       `split_rationale`, and the whole `dep_graph` in one parent write. `split_rationale` is the manifest's optional
+       `rationale`, stripped and cut to the bound and marker a late record keeps a rationale at, and `null` where the
+       field is missing, `null`, blank, or not a string — none of which refuses the split — so each split writes its
+       own over whatever an earlier one recorded, and one stopped short by a failed create or a crash keeps it for its
+       recovery with no decomposer run. Then for each child call `gh.create_child_issue(...)` with label
        `workflow:blocked` (the child's only birth label) and a body carrying the hidden receipt
        `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>:lineage=<owed>-->` —
        `<owed>` the late lineage it is seeded with, or `none` — after its declared slice, record it in `children` —

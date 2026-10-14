@@ -1009,7 +1009,15 @@ The keys that matter for the state machine fall into a few groups:
   takes.
 - **Decomposition.** `children`, `dep_graph` (`{child_idx_str: [child_idx, ...]}` — GitHub has no first-class blocks
   relation), `decomposed_at`, `pickup_comment_id`. An ordinary split writes `expected_children_count`, `umbrella`, the
-  whole declared `dep_graph`, and `split_attempt` in one write before its first child exists. `split_attempt` is sixteen
+  whole declared `dep_graph`, `split_attempt`, and `split_rationale` in one write before its first child exists.
+  `split_rationale` is the decomposer's account of the split — on a parent that is no umbrella, the work it kept for the
+  parent's own pass — as the manifest's optional `rationale` gave it, stripped and cut to `MAX_RATIONALE` with
+  `RATIONALE_TRUNCATION_MARKER` as a late record is; a manifest whose `rationale` is missing, `null`, blank, or not a
+  string still splits and records `null`. Every ordinary split writes the key, so none is read back with an earlier
+  split's account, and neither the split's later writes nor its recovery drop it, so a split a failed create parks or a
+  crash interrupts keeps it. It decides nothing: `_recorded_split_rationale` reads a record without the key, as an
+  older binary left it, or one holding `null`, a blank, or a non-string as no rationale, and reads text back by the
+  rule a manifest's is written by. `split_attempt` is sixteen
   lowercase hex digits minted for that split alone, and every child it creates carries it in a hidden body receipt
   stamped after its slice,
   `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>:lineage=<owed>-->`, so a recovery

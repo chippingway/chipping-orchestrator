@@ -3033,12 +3033,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading
       late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
       models.py             the run plan and its worktree policy, the locked session, the split plan -- with the
-                            lineage it seeds, the attempt its receipts name, the whole declared dependency graph, and
-                            the recorded children a seed under the child's claim left unseeded for the recovery to
-                            seed and finalize -- and the child scan, with the readings a release walk and a merge
-                            finalize ask of it and the later reading it adopts
-      state.py              the pinned-state field names the owners share, `split_attempt` among them, the
-                            held-child alias, the strict parent-link check, and the issue-reference renderer
+                            lineage it seeds, the attempt its receipts name, the rationale the parent records, the
+                            whole declared dependency graph, and the recorded children a seed under the child's claim
+                            left unseeded for the recovery to seed and finalize -- and the child scan, with the
+                            readings a release walk and a merge finalize ask of it and the later reading it adopts
+      state.py              the pinned-state field names the owners share, `split_attempt` and `split_rationale`
+                            among them, the held-child alias, the strict parent-link check, the one rule a split's
+                            rationale is read by off its manifest and back off the record, and the issue-reference
+                            renderer
     discussion/             `discussion`
       handler.py            the order one round asks its questions in: whether the conversation is over, whose turn it
                             is, what the checkout holds, and what the round left behind
