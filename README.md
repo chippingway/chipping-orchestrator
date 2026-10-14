@@ -101,9 +101,16 @@ orchestrator's own repository does not need to be cloned.
 Nothing from `.env.example.advanced` is needed: it holds optional operational settings and, in a section of their own,
 the developer settings for working on the orchestrator itself.
 
-Store each repository's GitHub token at `~/.config/<owner>/<name>/token`, or export one
-`GITHUB_TOKEN` covering every repository in the launch environment. Tokens in `.env` are deliberately ignored. Ensure
-each configured agent is logged in, then run:
+Store each repository's GitHub token with `set-token`, which reads it at a hidden prompt (or from standard input in a
+script), checks it reaches the repository, and writes `~/.config/<owner>/<name>/token` owner-only:
+
+```sh
+chipping-orchestrator set-token acme/api
+```
+
+One `GITHUB_TOKEN` exported in the launch environment covers every repository instead. Tokens in `.env` are
+deliberately ignored, and the token is never a command-line argument. Ensure each configured agent is logged in, then
+run:
 
 ```sh
 chipping-orchestrator run
@@ -178,11 +185,11 @@ since `.env` holds each value on a single line:
 REPOS=acme/api|/home/alice/src/acme-api|main;acme/web|/home/alice/src/acme-web|master|upstream|2
 ```
 
-Every entry names its own local clone and reads its own token file, `~/.config/<owner>/<name>/token`, unless one
-`GITHUB_TOKEN` covers them all. The optional fourth and fifth fields set the git remote that points at the repository
-(`origin` by default) and how many of its issues run at once; they are positional, so setting the limit means writing
-the remote too. Worktrees and branches are namespaced by repository, and per-repository plus global concurrency limits
-keep issues from colliding or overwhelming the host.
+Every entry names its own local clone and reads its own token file, `~/.config/<owner>/<name>/token`, which
+`chipping-orchestrator set-token <owner>/<name>` writes, unless one `GITHUB_TOKEN` covers them all. The optional fourth
+and fifth fields set the git remote that points at the repository (`origin` by default) and how many of its issues run
+at once; they are positional, so setting the limit means writing the remote too. Worktrees and branches are namespaced
+by repository, and per-repository plus global concurrency limits keep issues from colliding or overwhelming the host.
 
 See the [`REPOS` syntax][repos] and
 [parallel-processing settings][parallel].

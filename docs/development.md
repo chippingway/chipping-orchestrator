@@ -28,7 +28,9 @@ checkout's `.env` following [basic setup](configuration.md#basic-setup): set `RE
 `HITL_HANDLE`, and any agent overrides.
 Live runs act on real GitHub issues and can start agents, so use a dedicated test repository. Tokens belong in
 `~/.config/<owner>/<repo>/token` or the launch environment, as described in the
-[credential reference](configuration.md#github-personal-access-token).
+[credential reference](configuration.md#github-personal-access-token). A source checkout reads the same token file as
+an installed package, so [`set-token`](configuration.md#storing-a-token-with-set-token) runs from one too:
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator set-token <owner>/<repo>`.
 
 A verified source checkout reads only its own root `.env`; the installed command reads
 `~/.config/chipping-orchestrator/.env`. Process environment overrides win in both cases. With `REPOS` unset or blank,
