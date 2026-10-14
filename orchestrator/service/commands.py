@@ -10,6 +10,18 @@ status: 0 once the core has done its work, or 1 with the core's refusal
 printed alone on stderr, the way every command and prompt words it.
 
 ``configure`` checks its agents against the ``PATH`` the command runs with.
+``set-token`` takes the repository alone and hands it, with standard input,
+to ``tokens.set_token``, which reads, proves, and keeps the token and answers
+with the status itself.
+
+A ``set-token`` command line may carry the token anywhere -- as a further
+argument, an option's value, a value handed to a flag that takes none, or in
+front of the command -- and every refusal argparse writes quotes what it
+refused, into whatever log the command line ran under. ``parser_class`` is
+how ``orchestrator/cli.py`` builds its parser for a command line, and for one
+naming ``set-token`` it is a class whose every refusal, in that parser and
+each built beneath it, gives the usage and the form the command takes and
+prints back none of what it was given.
 
 Nothing here imports ``orchestrator.config``, and neither does any core it
 calls, so a setup command answers on a host with no configuration at all.
@@ -20,7 +32,8 @@ import argparse
 import dataclasses
 import os
 import sys
-from typing import NamedTuple
+from collections.abc import Sequence
+from typing import NamedTuple, NoReturn
 
 from orchestrator.service.configure import (
     COMMAND as CONFIGURE,
@@ -31,7 +44,16 @@ from orchestrator.service.configure import (
     ConfigureRefusal,
     configure,
 )
+from orchestrator.service.tokens import set_token
 from orchestrator.service.validation import FieldError
+
+_SET_TOKEN = "set-token"
+_UNQUOTED_REFUSAL = (
+    f"error: this {_SET_TOKEN} command line is not printed back, in case it holds "
+    f"the token: {_SET_TOKEN} takes OWNER/NAME alone, and reads the token from "
+    "standard input, piped in, redirected from a file, or typed at the prompt\n"
+)
+_USAGE_ERROR = 2
 
 _LOGINS = "LOGINS"
 _AGENT = "AGENT"
@@ -75,6 +97,24 @@ _CONFIGURE_OPTIONS = (
 )
 
 
+class _UnquotingParser(argparse.ArgumentParser):
+    """A parser whose every refusal leaves out what the command line said.
+
+    Each parser beneath it is built from the same class, so a refusal raised
+    while a command reads its own arguments is held to it as well. Help and
+    the version still print: neither quotes the command line.
+    """
+
+    def error(self, message: str) -> NoReturn:
+        self.print_usage(sys.stderr)
+        self.exit(_USAGE_ERROR, f"{self.prog}: {_UNQUOTED_REFUSAL}")
+
+
+def parser_class(command_line: Sequence[str]) -> type[argparse.ArgumentParser]:
+    """The class ``command_line`` is parsed with: one quoting none of it for ``set-token``."""
+    return _UnquotingParser if _SET_TOKEN in command_line else argparse.ArgumentParser
+
+
 def add_commands(commands: argparse._SubParsersAction) -> None:
     """Put each setup command, with its options, beneath ``commands``."""
     parser = commands.add_parser(
@@ -95,6 +135,21 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
             required=option.required,
         )
     parser.set_defaults(dispatch=_configure)
+    token_parser = commands.add_parser(
+        _SET_TOKEN,
+        help="Verify a repository's GitHub token from standard input and save it.",
+        description=(
+            "Read the GitHub token for OWNER/NAME from standard input, at a "
+            "hidden prompt on a terminal, prove it reads the repository with "
+            "one read-only GitHub call, and write it to "
+            "~/.config/OWNER/NAME/token, replacing any token there. The file "
+            "is owner-only in an owner-only directory, and .env is not touched."
+        ),
+    )
+    token_parser.add_argument(
+        "repository", metavar="OWNER/NAME", help="the GitHub repository the token is for",
+    )
+    token_parser.set_defaults(dispatch=_set_token)
 
 
 def _configure(arguments: argparse.Namespace) -> int:
@@ -110,3 +165,8 @@ def _configure(arguments: argparse.Namespace) -> int:
         return 1
     sys.stdout.write(f"Wrote {written}\n")
     return 0
+
+
+def _set_token(arguments: argparse.Namespace) -> int:
+    """Run ``set-token`` for the repository given, and answer with its status."""
+    return set_token(arguments.repository, sys.stdin)

@@ -116,8 +116,10 @@ orchestrator/
                         setup field, and the repository, remote, and branch
                         a clone implies, written as a `REPOS` entry; the
                         `.env` lines a setup sets and the private files it
-                        writes, and the `configure` command that writes an
-                        installed package's `.env` from them -- all of it
+                        writes, the `configure` command that writes an
+                        installed package's `.env` from them, and the
+                        `set-token` command that keeps a repository's token,
+                        proved by a read-only GitHub call -- all of it
                         loading no configuration
   config/               the bottom layer: the non-secret `.env` loader, the
                         env parsers and resolver behind the settings surface,

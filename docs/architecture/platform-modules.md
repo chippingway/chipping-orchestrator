@@ -135,7 +135,8 @@ orchestrator/
   __init__.py           the distribution version, published as `__version__`, without loading runtime owners
   cli.py                the `chipping-orchestrator` console script: the command line, `--version`, the `run`
                         command that is the polling process's composition point, and the setup commands
-                        `service/commands.py` puts on it, imported with it since they load no configuration
+                        `service/commands.py` puts on it, imported with it since they load no configuration. The
+                        same owner chooses the class a command line is parsed with
   __main__.py           the `python -m orchestrator` launch form over `cli.main`, whose `run` is what `run.sh` starts
   runtime/              the polling process's own owners
     state.py            the mutable state one run carries -- the stop flag, the signal, the scheduler a handler may
@@ -240,8 +241,27 @@ orchestrator/
                         `REPOS`, `HITL_HANDLE`, `ALLOWED_ISSUE_AUTHORS`, and the three agent roles set in place
                         and `LOG_DIR` appended, written to the installed `.env` after the source-checkout and
                         existing-file refusals, never over a file
-    commands.py         the setup commands' options and the function each runs, reading the options into its core's
-                        answers and printing a refusal alone on stderr with exit status 1
+    token_probe.py      the read-only GitHub calls a setup proves a token with, one standard-library `GET` each:
+                        whether it reads a repository, the one call a check spends per repository, and whose
+                        account it is. A redirect is answered rather than followed, so the token reaches no other
+                        host, and every diagnostic masks the token and chains no error that could carry it;
+                        `http_get` is the seam a test fakes GitHub at
+    token_prompt.py     the hidden prompt a token is typed at: `getpass` with its echo fallback refused as
+                        `EchoError` before that fallback reads anything, so a terminal that cannot hide the token
+                        never shows it
+    tokens.py           `set-token`: a repository's token read from standard input -- at the hidden prompt on a
+                        terminal, whole from a pipe -- and refused without being quoted unless it is one run of
+                        visible ASCII, as is a repository that is not `owner/name`, which may be the token; proved
+                        through `token_probe`, then written through `private_files` to
+                        `~/.config/<owner>/<name>/token`, replacing any token there, in a directory made 0700 even
+                        where a looser one stood, so a refusal or a failed write leaves the token already there.
+                        Validation, proof, and the write are each callable alone
+    commands.py         the setup commands' options and the function each runs: `configure` reads its options into
+                        its core's answers and prints a refusal alone on stderr with exit status 1, and `set-token`
+                        hands its repository and standard input to `tokens.py`. It also chooses the class
+                        `cli.py` parses a command line with: one naming `set-token` gets a parser whose every
+                        refusal, in that parser and each beneath it, prints back none of what it was given, since
+                        the token may stand anywhere on it
     .env.example        the basic template a setup starts from: `REPOS` and the few settings a first run needs
     .env.example.advanced
                         optional operational overrides and examples, then the orchestrator-developer settings

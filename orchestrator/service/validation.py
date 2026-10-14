@@ -13,7 +13,8 @@ them.
   check the configuration holds every target to, so a clone that passes here
   passes there too.
 - The repository is written ``owner/name``, in the characters GitHub allows in
-  each, which also keeps it whole inside a ``REPOS`` entry.
+  each, which also keeps it whole inside a ``REPOS`` entry and keeps the
+  ``~/.config/<owner>/<name>`` its token is kept under inside ``~/.config``.
 - The base branch is a name git allows for a branch, as
   ``git check-ref-format --branch`` reads one; whether a ``REPOS`` entry can
   carry it is the entry's own check, made as ``repos_entry`` writes it.
@@ -41,9 +42,11 @@ AGENTS = ("claude", "codex", "agy")
 _AGENT_CHOICES = ", ".join(AGENTS)
 
 # GitHub's alphabets: an account is letters, digits, and hyphens, an app's bot
-# account carries a `[bot]` suffix, and a repository adds `.` and `_`.
+# account carries a `[bot]` suffix, and a repository adds `.` and `_` -- but
+# is never `.` or `..`, which would make the name a step out of the directory
+# a path built from the repository names.
 _LOGIN = re.compile(r"[A-Za-z0-9-]+(?:\[bot\])?")
-_REPOSITORY = re.compile(r"[A-Za-z0-9-]+/[A-Za-z0-9._-]+")
+_REPOSITORY = re.compile(r"[A-Za-z0-9-]+/(?!\.\.?\Z)[A-Za-z0-9._-]+")
 
 # What git refuses in a branch name, rule by rule from git-check-ref-format(1)
 # for the name under `refs/heads/`, and the leading `-` `--branch` adds.
