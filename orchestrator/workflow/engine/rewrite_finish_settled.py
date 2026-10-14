@@ -31,7 +31,9 @@ the policy every road selects has it, reading nothing more.
 - `out_of_step` says why the records beside settled evidence hold the route.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
-  answer read under its binding, before anything is resolved afresh.
+  answer read under its binding, before anything is resolved afresh, and
+  `stands_as_read` says whether the attempt that answer left is the one the
+  finish captured: unmoved, or advanced by its own announcement.
 
 Nothing here runs the configured commands, posts an artifact, launches a
 developer, or announces anything.
@@ -41,7 +43,9 @@ from __future__ import annotations
 import logging
 
 from orchestrator.git.base_sync import attempt_records as _attempt_records
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    pinned_commit_models as _commit_models,
     rewrite_finish_captured as _captured,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_unconfirmed as _unconfirmed,
@@ -269,3 +273,18 @@ def retires_the_adopted(
         finish.issue.number, finish.head, pending.revision,
     )
     return False
+
+
+def stands_as_read(finish: LandedFinish, attempt: _commit_models.PinnedCommit, state: PinnedState) -> bool:
+    """Whether `state` carries the attempt `attempt` captured, so movement read under it is this finish's to retire.
+
+    Unmoved; or -- for a finish held to the settled-evidence policy -- advanced
+    by its own announcement alone, the mark and the record of its event put
+    down for the landed head by a finish of this very landing
+    (`rewrite_finish_unconfirmed.advanced_by_the_announcement`), which leaves
+    the settlement that finish made this finish's to invalidate over what its
+    answer read rather than an attempt another road put in its place.
+    """
+    if not attempt.moved(state.data):
+        return True
+    return finish.proves_settled and _unconfirmed.advanced_by_the_announcement(finish, attempt, state.data) is not None

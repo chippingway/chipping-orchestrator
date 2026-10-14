@@ -120,6 +120,7 @@ from orchestrator.workflow.engine.rewrite_finish_readiness import invalidates, s
 from orchestrator.workflow.engine.rewrite_finish_settled import (
     out_of_step,
     retires_the_adopted,
+    stands_as_read,
     stands_ready_if_settled,
 )
 from orchestrator.workflow.engine.rewrite_landing_records import capture_answered, resolved
@@ -317,10 +318,12 @@ def _answered_alone(
     its settlement or retirement is another road's, which this finish may
     neither prove `pending`'s refusals over nor route past; and so is an
     attempt other than `attempt`, the one the finish captured before the
-    answer.
+    answer -- save, under the settled-evidence policy, that attempt advanced
+    by its own announcement (`rewrite_finish_settled.stands_as_read`), behind
+    which the movement the answer read is still this finish's to retire.
     """
     state = finish.state
-    if attempt.moved(state.data):
+    if not stands_as_read(finish, attempt, state):
         return False
     if _record_state.carries_pending_evidence(state):
         return _record_state.read_pending_evidence(state) == pending

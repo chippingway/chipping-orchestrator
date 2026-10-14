@@ -1580,8 +1580,13 @@ because there it is the claim that this stage has already rerouted rather than a
     reads the attempt as the finish read it, and where the evidence reads moving the attempt is put back where that
     retirement took it -- guarded so another attempt or a successor under another receipt is kept -- and the evidence
     invalidated over it, or, with no room, its movement recorded by blanking that attempt's base tip, so the next
-    finish retires it whole and the attempt behind it, however soon what moved was put back
-    (`workflow/engine/rewrite_finish_unconfirmed.py`);
+    finish retires it whole and the attempt behind it, however soon what moved was put back; where the comment, filled
+    behind the retirement, has no room for the attempt either, the movement is recorded by dropping the evidence's
+    handoff, which no reader hands evidence on without, and a later finish of the landing that finds no attempt
+    retires that evidence whole once room is made (`workflow/engine/rewrite_finish_unconfirmed.py`);
+  - a settlement another finish of the landing made and announced while this finish's answer published the run is
+    this attempt advanced, not replaced: the mark and the event's record it left are no reason to hold, so the
+    movement the answer read invalidates that settlement whole;
   - the checkpoint, the event's record, the park, and the retirement are decided on the records the evidence's binding
     rests on (`rewrite_finish_writes.BINDING_RECORDS`), and a refusal over one of them is movement read under the
     evidence (`BINDING_MOVED`), invalidated before the finish stops however soon the record is put back;

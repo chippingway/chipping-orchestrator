@@ -17,14 +17,16 @@ bookkeeping on it -- the record of the event, the mark -- which is taken in as
 this finish's own before the run is invalidated over it. The retirement takes
 the attempt with it, so the attempt is put back where the retirement took it
 and the run invalidated over it -- or, the comment filled to its limit as the
-relabel was made, the movement recorded by blanking that attempt's base tip --
-and a pinned-comment read lost once behind the proof, at the invalidation or
-at the putting back, loses nothing. The attempt standing brings the next
+relabel was made, the movement recorded by blanking that attempt's base tip;
+or, the comment filled right behind the retirement so the attempt no longer
+fits, by dropping the run's handoff -- and a pinned-comment read lost once
+behind the proof, at the invalidation or at the putting back, loses nothing. The attempt standing brings the next
 finish back: with room made it retires the run whole, its revision and binding
 kept, and routes the head with nothing current and every notice, `base_rebased`
 event, and relabel said once. With nothing edited the run stays current: the
 next finish routes it behind an unconfirmed announcement, and finds no attempt
-and makes nothing behind an unconfirmed retirement. A successor another road
+and makes nothing behind an unconfirmed retirement -- save a run its handoff
+was dropped from, which it retires whole once room is made. A successor another road
 settled behind the retirement or the checkpoint is kept as that road wrote it,
 with nothing put back or invalidated under it. The run is made once, nothing is
 pushed, and no developer is launched.
@@ -53,6 +55,8 @@ from tests.workflow.interleaving import _RacesPastTheCall
 
 _EDITED_BODY = "Also cover a base that moved twice."
 
+_HANDOFF = "verification_evidence_handoff"
+
 # The readiness proof, read before any case stands in for it.
 _SETTLED_WORD = _readiness.settled_word
 
@@ -61,21 +65,23 @@ class _Loss(NamedTuple):
     """Which final write lands with its answer lost, and how.
 
     `window` picks the write, `edited` has the issue edited while it is sent,
-    `fills` the comment filled to its limit as the relabel is made, and
-    `lost_read` the pinned-comment read behind the proof that fails once -- the
-    invalidation's (1) or the putting back's (2) -- where any does.
+    `fills` the comment filled to its limit as the relabel is made, `crowds`
+    it filled right behind the write instead, and `lost_read` the
+    pinned-comment read behind the proof that fails once -- the invalidation's
+    (1) or the putting back's (2) -- where any does.
     """
 
     name: str
     window: handoff.Boundary = handoff.BEFORE_THE_RETIREMENT
     edited: bool = True
     fills: bool = False
+    crowds: bool = False
     lost_read: int = 0
 
     @property
     def stands(self) -> bool:
-        """Whether the attempt stands behind the unconfirmed finish: always, save a retirement nothing moved under."""
-        return self.edited or self.window is not handoff.BEFORE_THE_RETIREMENT
+        """Whether the attempt stands behind the unconfirmed finish: put back behind a retirement only where it fits."""
+        return (self.edited and not self.crowds) or self.window is not handoff.BEFORE_THE_RETIREMENT
 
     @property
     def blanked(self) -> bool:
@@ -87,6 +93,7 @@ _LOSSES = (
     _Loss("nothing moved behind the retirement", edited=False),
     _Loss("the issue edited behind the retirement"),
     _Loss("the issue edited behind the retirement, the comment full", fills=True),
+    _Loss("the issue edited behind the retirement, the comment filled behind it", crowds=True),
     _Loss("the issue edited behind the retirement, the invalidation's read lost", lost_read=1),
     _Loss("the issue edited behind the retirement, the putting back's read lost", lost_read=2),
     _Loss("nothing moved behind the checkpoint", handoff.BEFORE_THE_CHECKPOINT, edited=False),
@@ -154,7 +161,7 @@ class LostAnswerTest(settled.SettledRunCase, unittest.TestCase):
                 head = self.lands_a_reviewed_rebase()
                 lost = self._finishes_losing(head, loss)
                 self._assert_left(loss, lost.settled)
-                if loss.fills:
+                if loss.fills or loss.crowds:
                     finish_moves.makes_room(self)
 
                 again = self.finishes(head, FinishRoad.RECOVERY)
@@ -197,6 +204,8 @@ class LostAnswerTest(settled.SettledRunCase, unittest.TestCase):
     def _finishes_losing(self, head: str, loss: _Loss, then=None) -> _LostAnswer:
         """Publish `head`'s finish with the write `loss` picks lost as it has it, then put the issue back; the loss."""
         written = self.issue.body
+        if loss.crowds:
+            then = partial(finish_moves.fills_the_comment, self)
         lost = _LostAnswer(self, loss, then)
         relabel = self.gh.set_workflow_label
         if loss.fills:
@@ -216,9 +225,10 @@ class LostAnswerTest(settled.SettledRunCase, unittest.TestCase):
         pinned = readings.pinned(self)
         current = readings.pinned_records(self)[1]
         self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor if loss.stands else None)
-        kept = loss.fills or not loss.edited
+        kept = loss.fills or loss.crowds or not loss.edited
         self.assertEqual(getattr(current, "receipt", None), run.receipt if kept else None)
         self.assertEqual(pinned[readings.KEY_REWRITE_BASE] is None, loss.blanked)
+        self.assertEqual(pinned.get(_HANDOFF) is None, loss.crowds)
 
     def _assert_superseded(self, run) -> None:
         """A successor another road settled current, and `run` superseded into history under it as that road left it."""

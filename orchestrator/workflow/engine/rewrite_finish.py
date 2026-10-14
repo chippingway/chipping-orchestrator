@@ -172,8 +172,11 @@ at every step that keeps, routes, or parks the attempt:
   proof reads the attempt as this finish read it, and evidence it reads moving
   is invalidated with the attempt put back first where that retirement took it
   -- or, with no room, the movement recorded by blanking that attempt's base
-  tip -- so the next finish of the landing retires the evidence whole and the
-  attempt behind it.
+  tip, or, with no room for the attempt either, by dropping the evidence's
+  handoff -- so the next finish of the landing retires the evidence whole.
+  A settlement another finish of the landing made and announced while this
+  one's answer was published leaves the attempt advanced, not replaced, so
+  the movement that answer read still invalidates it.
 - Settled evidence is proved ready once more ahead of the relabel and again
   behind it, the retirement landing behind both; a relabel that raised has it
   proved before the error goes on. Behind the relabel a head with no evidence
@@ -222,6 +225,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.rewrite_finish_events import method, prepares_the_record
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_unconfirmed import retires_the_marked
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -243,13 +247,18 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     (`rewrite_finish_settled.stands_ready_if_settled`), retired where
     anything it rests on moved -- but only while the attempt anchored to the
     head the landing replaced still stands. One finding that attempt retired
-    by an earlier route, or replaced by another, reads and writes nothing at
-    all: the evidence that route handed on, and any transaction another road
-    has recorded for the head since, are no longer this landing's to prove.
+    by an earlier route, or replaced by another, reads nothing more: the
+    evidence that route handed on, and any transaction another road has
+    recorded for the head since, are no longer this landing's to prove --
+    save evidence for the head carrying the movement mark an earlier finish
+    left behind a retirement nobody confirmed, its handoff dropped, which is
+    invalidated whole once room allows
+    (`rewrite_finish_unconfirmed.retires_the_marked`).
     """
     if not _finishable(finish):
         standing = finish.anchor and finish.state.get(_base_sync_state._PENDING_PUSH_SHA) == finish.anchor
         if finish.proves_settled and not standing:
+            retires_the_marked(finish)
             return FinishOutcome.UNFINISHABLE
         _settled.stands_ready_if_settled(finish)
         return _captured.stands_before_the_route(finish, behind=FinishOutcome.UNFINISHABLE, whole=True)

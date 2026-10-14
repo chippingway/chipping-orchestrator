@@ -1289,9 +1289,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             nobody confirmed proved over the attempt as read, and where the evidence reads moving the
                             attempt put back where that retirement took it and the evidence invalidated, or its
                             movement recorded by the blanked base tip, over it (`behind_the_write`); why records
-                            beside settled evidence hold the route (`out_of_step`); and a settlement the settlement
-                            step's answer left current invalidated over movement that answer read, the evidence
-                            records' own moves aside (`retires_the_adopted`)
+                            beside settled evidence hold the route (`out_of_step`); a settlement the settlement step's
+                            answer left current invalidated over movement that answer read, the evidence records' own
+                            moves aside (`retires_the_adopted`); and whether the attempt that answer left is the one
+                            captured -- unmoved, or advanced by its own announcement (`stands_as_read`)
     rewrite_finish_unconfirmed.py
                             what the finish's own write nobody confirmed left of its attempt, reconciled for the
                             dormant settled-evidence policy before movement read behind that write is invalidated or
@@ -1300,8 +1301,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             carries the attempt otherwise as read (`takes_in_the_announcement`); and the attempt put
                             back exactly as read where the comment carries it blanked as the finish's retirement
                             leaves it and the same evidence current (`stands_back`), so every later finish comes back
-                            to retire that evidence whole; another attempt or a successor under another receipt is
-                            left as its road wrote it, and a comment that would not read is asked once more
+                            to retire that evidence whole -- or, where the attempt no longer fits, the evidence's
+                            handoff dropped as the movement mark, which a later finish finding no attempt retires
+                            whole once room allows (`retires_the_marked`); whether an attempt was only advanced by its
+                            own announcement rather than replaced (`advanced_by_the_announcement`); another attempt or
+                            a successor under another receipt is left as its road wrote it, and a comment that would
+                            not read is asked once more
     rewrite_finish_readiness.py
                             dormant -- asked only by the dormant settled-evidence finish policy
                             (`rewrite_finish_settled.py`) and the recovery's dormant guarded operations, so by no

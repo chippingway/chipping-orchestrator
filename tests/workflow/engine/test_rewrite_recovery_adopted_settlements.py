@@ -22,7 +22,9 @@ head routed to the fresh reviewer rather than held over evidence no reader
 will be handed. So is a run that road settled and then moved report 3 under:
 the recovery's proof reads the report moving, and putting report 2 back right
 behind that reading, before the settlement is adopted, revives nothing -- the
-run is invalidated whole over the movement the proof read. Nothing runs again,
+run is invalidated whole over the movement the proof read -- even where the
+road is another finish of the landing that announced the run before dying at
+its relabel, its mark and event's record this attempt advanced, not replaced. Nothing runs again,
 nothing is pushed, and no developer is launched.
 """
 from __future__ import annotations
@@ -37,10 +39,12 @@ from orchestrator.workflow.engine import (
     verification_record_state as _record_state,
     verification_records as _records,
 )
+from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad
 from orchestrator.workflow.engine.verification_settlement_state import settled_state
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
+    rewrite_handoff_test_support as handoff,
     rewrite_verification_recovery_support as support,
     settled_finish_support as settled,
     verification_report_fixture as _report,
@@ -105,10 +109,21 @@ class _MovesTheReport:
 
     def settles(self, case: support.CapturedRunCase, captured) -> None:
         """Settle `captured` over the artifact just posted, then report 3 of its head, as another road would."""
-        self._case = case
         case.state = _settles_the_run(case, captured)
-        self._replaced = {key: case.state.get(key) for key in _MOVED_RECORDS}
+        self._moves(case, captured.binding.target.target_head)
+
+    def finishes_then_settles(self, case: support.CapturedRunCase, captured) -> None:
+        """Have another finish of the landing settle `captured` and announce it, dying at its relabel; then report 3."""
         head = captured.binding.target.target_head
+        finishing = partial(case.finishes, head, FinishRoad.RECOVERY)
+        handoff.dies_at(case.gh, handoff.BEFORE_THE_RELABEL, finishing)
+        case.state = case.gh.read_pinned_state(case.issue)
+        self._moves(case, head)
+
+    def _moves(self, case: support.CapturedRunCase, head: str) -> None:
+        """Settle and review report 3 of `head` over `case.state`, keeping the records it replaces."""
+        self._case = case
+        self._replaced = {key: case.state.get(key) for key in _MOVED_RECORDS}
         _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=head)
         case.gh.write_pinned_state(case.issue, case.state)
 
@@ -187,6 +202,19 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
         moves = _MovesTheReport()
         with patch.object(_proof.ProofReading, "observes", side_effect=moves, autospec=True):
             head, captured = self.polls_beside(moves.settles)
+
+        self._assert_invalidated(captured)
+        self.assert_recovered(head)
+
+    def test_an_announced_settlement_is_invalidated(self) -> None:
+        # Another finish of the landing settles the run, announces it, and
+        # dies at its relabel; report 3 then moves, report 2 put back right
+        # behind the proof that read it. The mark and the event's record that
+        # finish left are this attempt advanced, not replaced, so the run is
+        # invalidated whole over the movement read, and the head routed once.
+        moves = _MovesTheReport()
+        with patch.object(_proof.ProofReading, "observes", side_effect=moves, autospec=True):
+            head, captured = self.polls_beside(moves.finishes_then_settles)
 
         self._assert_invalidated(captured)
         self.assert_recovered(head)
