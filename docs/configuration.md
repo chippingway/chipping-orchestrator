@@ -1124,8 +1124,17 @@ optional groups, and environment isolation requirements are in the
 
 ## Running under systemd (user service)
 
-For persistent operation, use a systemd **user** service supervising the command installed by pipx. The unit file,
-the `loginctl enable-linger` that boot-time start requires, and the day-to-day `systemctl --user` commands are in
+For persistent operation, run the installed package as a systemd **user** service. Once `.env` and the token files are
+written, `chipping-orchestrator init` runs the full [`check`](#checking-a-setup), writes
+`~/.config/systemd/user/chipping-orchestrator.service` for the interpreter it runs under and the absolute entries of
+its shell's `PATH`, and runs `systemctl --user daemon-reload` and `enable` without starting the service. It enables
+linger where `loginctl` does not report it, which boot-time start requires, and where logind refuses names the
+`sudo loginctl enable-linger <user>` that does it. Running `init` again rewrites only the unit, leaving `.env` and the
+tokens as they are, and says to restart a running service. It refuses a source checkout, a host whose user manager
+cannot be reached, a missing `.env`, naming `set-token` and `configure`, and the hand-written
+`~/.config/systemd/user/orchestrator.service` that releases up to v0.13.0 documented, which has to be stopped,
+disabled, and deleted first. The unit, each refusal, linger, the migration from the hand-written unit, and the
+day-to-day `systemctl --user` commands are in
 [`configuration/operations.md#running-under-systemd-user-service`](configuration/operations.md#running-under-systemd-user-service).
 
 ## Applying `.env` changes

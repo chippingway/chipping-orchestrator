@@ -44,6 +44,14 @@ _ENVIRONMENT = "environment"
 
 _SETTINGS_REPORT = "settings_report"
 
+_CHECKS = "checks"
+
+_UNIT_FILE = "unit_file"
+
+_SYSTEMD = "systemd"
+
+_INSTALLATION = "installation"
+
 # What `configure` composes: every setup leaf it writes the `.env` through.
 _CONFIGURE_CHAIN = (
     _CHECKOUTS,
@@ -79,12 +87,22 @@ _CHECKS_CHAIN = (
     _TOKEN_PROBE,
 )
 
+# What `init` composes: the check it runs first, the unit it renders, the
+# private file writer it writes the unit through, and the systemd adapters.
+_INSTALLATION_CHAIN = (
+    *_CHECKS_CHAIN,
+    _CHECKS,
+    _PRIVATE_FILES,
+    _SYSTEMD,
+    _UNIT_FILE,
+)
+
 # Each owner, and the owners beside it that importing it loads too. Only the
 # setup's own leaves read each other: the checkout check under the layout and
 # the clone validator, the validator's refusal under the entry it writes and
 # the `.env` lines, all of them under the clone's derived entry, every leaf
-# under `configure`, `tokens`, or `checks`, and those three under the command
-# line above them.
+# under `configure`, `tokens`, `checks`, or `installation`, and those under
+# the command lines above them.
 _OWNERS = MappingProxyType({
     _TEMPLATES: (),
     _CHECKOUTS: (),
@@ -101,8 +119,12 @@ _OWNERS = MappingProxyType({
     _TOKENS: _TOKENS_CHAIN,
     _ENVIRONMENT: (),
     _SETTINGS_REPORT: (_CHECKOUTS, _PATHS, _TOKEN_PROBE),
-    "checks": _CHECKS_CHAIN,
-    "commands": (*_CONFIGURE_CHAIN, _CONFIGURE, *_TOKENS_CHAIN, _TOKENS, *_CHECKS_CHAIN, "checks"),
+    _CHECKS: _CHECKS_CHAIN,
+    "commands": (*_CONFIGURE_CHAIN, _CONFIGURE, *_TOKENS_CHAIN, _TOKENS, *_CHECKS_CHAIN, _CHECKS),
+    _UNIT_FILE: (),
+    _SYSTEMD: (),
+    _INSTALLATION: _INSTALLATION_CHAIN,
+    "service_commands": (*_INSTALLATION_CHAIN, _INSTALLATION),
 })
 
 # The declared inventory: the owners above, and the two templates `templates`

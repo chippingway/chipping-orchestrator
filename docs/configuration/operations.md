@@ -152,7 +152,8 @@ Each run proves the token with one read-only GitHub call for that repository and
 `~/.config/<owner>/<name>/token`, mode 0600 in a 0700 directory, replacing any token there; a token GitHub refuses
 leaves the old one in place. It reads no configuration, so it works before `.env` is written, and it never edits
 `.env`. Running it again is how a token is rotated ([set-token](../configuration.md#storing-a-token-with-set-token)).
-With the settings and tokens in place, [check the setup](#check-compatibility-and-start) before the first start.
+With the settings and tokens in place, [check the setup](#check-compatibility-and-start) before the first start, and
+[install the user service](#installing-with-init) with `init` to keep the poller running.
 
 ### Select an existing environment
 
@@ -232,10 +233,11 @@ Keep `~/.config/chipping-orchestrator/.env` and its absolute `LOG_DIR`, along wi
 paths outside the environment. Skip the first-setup `configure`. Compare the saved templates with the existing
 settings and run the [compatibility checks](#check-compatibility-and-start). Confirm the installed version matches
 the recorded version before restarting.
-Replace the service's `ExecStart` with the absolute pipx launcher path shown by
-`command -v chipping-orchestrator`. v0.13.0 polls from that bare command; add `run` only when an upgrade moves past
-it, as the [upgrade warning](#upgrade-a-package) describes. Run `systemctl --user daemon-reload` and
-`systemctl --user start orchestrator.service`, then check startup output and polling logs.
+v0.13.0 has no `init`, so this migration keeps the hand-written `orchestrator.service` it runs under: replace that
+unit's `ExecStart` with the absolute pipx launcher path shown by `command -v chipping-orchestrator`. v0.13.0 polls from
+that bare command; add `run` only when an upgrade moves past it, as the [upgrade warning](#upgrade-a-package)
+describes. Run `systemctl --user daemon-reload` and `systemctl --user start orchestrator.service`, then check startup
+output and polling logs.
 
 Keep the dedicated venv until the new installation passes these checks. If migration fails, stop the new poller,
 restore the saved unit and compatible configuration, reload systemd, and restart the dedicated-venv service, honoring
@@ -251,11 +253,11 @@ Before starting the upgraded package, append `run` to every launch line, script,
 and move any polling flag after it.
 
 A hand-written unit whose `ExecStart` is the bare command would exit 0 on every start, and `Restart=always` would
-relaunch it every `RestartSec` without it ever polling. Append `run` to its `ExecStart`, as the
-[unit file](#unit-file) below shows, and run `systemctl --user daemon-reload` before starting it. Alternatively, on a
-release that provides `chipping-orchestrator init`, migrate the host to the user service `init` installs in place of
-the hand-written unit. A [rollback](#return-to-the-previous-package-version) to v0.13.0 or earlier needs the bare form
-back, since those releases refuse `run`.
+relaunch it every `RestartSec` without it ever polling. Append `run` to its `ExecStart` and run
+`systemctl --user daemon-reload` before starting it, or
+[replace it with the unit `init` installs](#moving-from-the-hand-written-unit). A
+[rollback](#return-to-the-previous-package-version) to v0.13.0 or earlier needs the bare form back, since those
+releases refuse `run`, and has no `init`.
 
 Package changes are operator-initiated. Use `pipx upgrade-all --skip chipping-orchestrator` for routine updates of
 other apps so they do not change the package under a running poller. Before upgrading:
@@ -265,8 +267,9 @@ other apps so they do not change the package under a running poller. Before upgr
    `pipx runpip chipping-orchestrator show chipping-orchestrator` and retain its templates; if they are missing,
    [save them](#save-the-installed-versions-templates) now, while that version is still the one installed.
 2. Choose a [safe stopping point](#safe-restart-guidance), preferably with no live agent child. Stop the supervisor
-   with `systemctl --user stop orchestrator.service`, or Ctrl+C the foreground command, and wait for shutdown.
-   Stop every poller using this pipx environment before changing it.
+   with `systemctl --user stop chipping-orchestrator.service` (`systemctl --user stop orchestrator.service` on a
+   host still running the hand-written unit of v0.13.0 or earlier), or Ctrl+C the foreground command, and wait for
+   shutdown. Stop every poller using this pipx environment before changing it.
 3. Back up settings and retain the previous release selection:
 
    ```sh
@@ -318,8 +321,10 @@ other apps so they do not change the package under a running poller. Before upgr
 5. On every upgrade, [save the templates](#save-the-installed-versions-templates) the intended version installed and
    [compare configuration](#compare-configuration-across-versions) before resuming.
 6. Repeat [compatibility checks](#check-compatibility-and-start), then start `chipping-orchestrator run` again or run
-   `systemctl --user start orchestrator.service`. Check startup output and logs for connections and polling.
-   A changed unit needs `systemctl --user daemon-reload`; editing `.env` alone does not.
+   `systemctl --user start chipping-orchestrator.service`. A host still on the hand-written unit
+   [replaces it](#moving-from-the-hand-written-unit) before that start. Check startup output and logs for connections
+   and polling. Run `chipping-orchestrator init` again when the interpreter path or the agents' directories changed,
+   which rewrites and reloads the unit; editing `.env` alone needs no reload.
 
 If a release requires a different Python interpreter, follow
 [Change the Python interpreter](#change-the-python-interpreter) before installing it.
@@ -421,8 +426,12 @@ diff -u "$HOME/.config/chipping-orchestrator/.env" "$HOME/.config/chipping-orche
 keeping compatible target paths, author lists, log paths, and other deliberate overrides. Review process/service
 overrides too.
 
-Returning to v0.13.0 or earlier also returns the poller to the bare command: remove `run` from launch lines and from
-the unit's `ExecStart`, or restore the unit retained before the upgrade, and run `systemctl --user daemon-reload`.
+Returning to v0.13.0 or earlier also returns the poller to the bare command, since those releases refuse `run`, and
+to a hand-written unit, since they have no `init`. On a host whose service `init` installed, run
+`systemctl --user disable --now chipping-orchestrator.service` and delete
+`~/.config/systemd/user/chipping-orchestrator.service`, whose `ExecStart` runs `run`. Then remove `run` from launch
+lines and from the hand-written unit's `ExecStart`, or restore the unit retained before the upgrade (on a host that
+never had one, write it as that release's guide describes), and run `systemctl --user daemon-reload`.
 
 Repeat [compatibility checks](#check-compatibility-and-start), confirm the restored version, then restart and inspect
 startup output and logs. Keep external logs and credentials at their existing paths throughout.
@@ -1106,67 +1115,148 @@ need the isolation described under
 
 ## Running under systemd (user service)
 
-For persistent operation, use a systemd **user** service supervising the command installed by pipx. A foreground
-process does not survive a reboot, a `tty` logout, or the user manager being torn down. Source-checkout service
-configuration belongs to the [developer guide](../development.md#development-restart-wrapper).
+For persistent operation, run the installed package as a systemd **user** service, which `chipping-orchestrator init`
+installs and enables. A foreground process does not survive a reboot, a `tty` logout, or the user manager being torn
+down. `init` refuses to run from a source checkout; source-checkout service configuration belongs to the
+[developer guide](../development.md#development-restart-wrapper).
 
 A detached `screen` / `tmux` session wrapped in a `Type=forking` unit looks similar but is the wrong shape: systemd ends
 up supervising `screen`, not the orchestrator; `ExecStop` races the screen session's own lifecycle; logs split; and the
 unit silently does nothing at boot unless linger is enabled. Keep `screen` / `tmux` for interactive debugging.
 
+### Installing with `init`
+
+With `.env` and each repository's token written as [package setup](#install-and-configure) describes, install the
+service as the user it runs as, from a shell whose `PATH` finds the agents:
+
+```sh
+chipping-orchestrator init
+```
+
+Set up by script, a fresh host takes three commands, none of which prompts:
+
+```sh
+chipping-orchestrator set-token acme/api < "$HOME/acme-api-token.txt"
+chipping-orchestrator configure --clone "$HOME/src/acme-api" --authors alice
+chipping-orchestrator init
+```
+
+`init` loads no configuration itself. It exits 1, having written nothing, with its reason on stderr when:
+
+- it runs from a source checkout of the orchestrator, with the refusal `configure` gives one;
+- `~/.config/systemd/user/orchestrator.service` exists, the hand-written unit releases up to v0.13.0 documented: a
+  second service would poll beside it, so [move from it](#moving-from-the-hand-written-unit) first;
+- the interpreter running `init`, or an entry of its `PATH`, holds a value the [unit](#unit-file) cannot carry;
+- `systemctl --user` reaches no user manager, as under `su` or `sudo`: run `init` in an ssh or desktop login of the
+  service user;
+- `~/.config/chipping-orchestrator/.env` does not exist: the message names `set-token` and `configure`, which write
+  the tokens and the file;
+- [`check`](#check-compatibility-and-start), GitHub calls included, finds a problem, printed as `check` prints it.
+
+Otherwise it writes the unit, runs `systemctl --user daemon-reload` and
+`systemctl --user enable chipping-orchestrator.service`, ensures [linger](#enabling), and prints the command that
+starts the service. It never starts or restarts the service. A manager that refuses the reload or the enable exits 1
+with the unit left written; run `init` again once that is repaired. Each `systemctl` and `loginctl` call is given 30
+seconds and counts as failed past them.
+
+Run `init` again whenever what the unit records changes: the interpreter's path, as when the package moves to another
+environment, or the directories the agents are found in. It leaves `.env` and the token files exactly as they are and
+rewrites only the unit, from the interpreter and `PATH` it runs with now. When the service is running, it says to
+restart it, which `systemctl --user restart chipping-orchestrator.service` does; choose a
+[safe stopping point](#safe-restart-guidance).
+
 ### Unit file
 
-Drop this at `~/.config/systemd/user/orchestrator.service`. Replace `<user>` with the account that installed the
-package, and adjust `ExecStart` to the path shown by `command -v chipping-orchestrator`, keeping the `run` after it:
+`init` writes `~/.config/systemd/user/chipping-orchestrator.service` whole, replacing any unit at that path. For alice,
+with pipx's default home, it reads:
 
 ```ini
+# Written by chipping-orchestrator init, which rewrites this file each time it
+# runs; keep a local change in a drop-in: systemctl --user edit chipping-orchestrator.service
 [Unit]
 Description=chipping-orchestrator
-After=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-WorkingDirectory=/home/<user>
-ExecStart=/home/<user>/.local/bin/chipping-orchestrator run
-Restart=always
-RestartSec=5
-Environment=PATH=/home/<user>/.local/bin:/usr/local/bin:/usr/bin:/bin
+WorkingDirectory=%h
+ExecStart="/home/alice/.local/share/pipx/venvs/chipping-orchestrator/bin/python" -m orchestrator run
+Environment="PATH=/home/alice/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Restart=on-failure
+RestartSec=30
+SuccessExitStatus=130 143
 
 [Install]
 WantedBy=default.target
 ```
 
-`WorkingDirectory` must exist. It selects neither the installed configuration file,
-`~/.config/chipping-orchestrator/.env`, nor the log directory. Set an absolute `LOG_DIR` outside the pipx environment
-as described in [package setup](#install-and-configure).
+- `ExecStart` runs the interpreter of the package that ran `init`, so the service cannot pick up another installation
+  through `PATH`.
+- `Environment=PATH` is the `PATH` `init` ran with, absolute entries only, which is also the `PATH` `check` judges. A
+  user service does not inherit the login shell's `PATH`, so this is what finds `claude`, `codex`, `agy`, and `node`;
+  absolute `CLAUDE_BIN`, `CODEX_BIN`, and `AGY_BIN` paths in `.env` work too.
+- `WorkingDirectory=%h` is the home directory. It selects neither the configuration file,
+  `~/.config/chipping-orchestrator/.env`, nor the log directory: set an absolute `LOG_DIR` as
+  [package setup](#install-and-configure) does.
+- `Type=simple` tracks the foreground process. `SIGTERM` from `systemctl stop` triggers its graceful shutdown, which
+  exits with `128 + signum`, and `SuccessExitStatus=130 143` records that exit as a success rather than a failure.
+- `Restart=on-failure` relaunches a failed process every 30 seconds (`RestartSec=30`) with no limit
+  (`StartLimitIntervalSec=0`), so a GitHub outage at boot cannot leave the unit failed for good. A refused start, from
+  invalid settings or targets or an empty `ALLOWED_ISSUE_AUTHORS`, repeats on that cadence too: read the diagnostic
+  with `journalctl --user-unit chipping-orchestrator.service -f`, stop the service, and repair the configuration.
+- Both quoted values have each backslash and double quote escaped and every `%` written `%%`, because systemd unquotes
+  both and then expands its `%` specifiers. `init` refuses a value holding a control character, and an interpreter
+  path holding a quote, a backslash, or a `$`, which systemd rejects or rewrites in a command.
 
-- `Type=simple` tracks the foreground orchestrator process. `SIGTERM` from `systemctl stop` triggers its shutdown.
-- `Restart=always` restarts an exited process; `systemctl stop` suppresses that restart. Package version changes
-  require an explicit pipx upgrade while the service is stopped.
-  A refused start (empty `ALLOWED_ISSUE_AUTHORS` or invalid settings or targets) repeats every five seconds
-  (`RestartSec=5`); check `journalctl --user-unit orchestrator.service -f` for the diagnostic, then stop the service
-  and repair its configuration.
-- A non-interactive service does not inherit your shell's `PATH`. Include directories containing `codex`, `claude`,
-  or `agy` in `Environment=PATH=…`, or configure absolute `CODEX_BIN`, `CLAUDE_BIN`, and `AGY_BIN` paths.
+Keep a local change in a drop-in made with `systemctl --user edit chipping-orchestrator.service`, since `init` rewrites
+the unit file whole each time. Package version changes require an explicit pipx upgrade while the service is stopped.
 
 ### Enabling
 
+`init` runs `systemctl --user daemon-reload` and `systemctl --user enable chipping-orchestrator.service`, so the
+service starts whenever the user manager does, and leaves the first start to you:
+
 ```sh
-systemctl --user daemon-reload
-systemctl --user enable --now orchestrator.service
-loginctl enable-linger <user>
+systemctl --user start chipping-orchestrator.service
 ```
 
-`enable-linger` is **required for boot-time start**: without it the per-user systemd manager only runs while the user
-has an active login session.
+Linger is **required for boot-time start**: without it the per-user systemd manager only runs while the user has an
+active login session. `init` reads `loginctl show-user <user> --property=Linger` for the `USER` it runs with and, unless
+that reports `Linger=yes`, runs `loginctl enable-linger <user>`. Where logind refuses, as under a policy leaving linger
+to administrators, `init` still installs the service and warns on stderr that it runs only while the user is logged
+in, until an administrator runs:
+
+```sh
+sudo loginctl enable-linger <user>
+```
+
+### Moving from the hand-written unit
+
+Releases up to v0.13.0 documented a hand-written `~/.config/systemd/user/orchestrator.service`, and `init` refuses to
+install beside it so two pollers never run at once. At a [safe stopping point](#safe-restart-guidance), stop, disable,
+and delete it, then install its replacement and start that:
+
+```sh
+systemctl --user stop orchestrator.service
+systemctl --user disable orchestrator.service
+rm ~/.config/systemd/user/orchestrator.service
+systemctl --user daemon-reload
+chipping-orchestrator init
+systemctl --user start chipping-orchestrator.service
+```
+
+Carry any `Environment=` or `EnvironmentFile=` setting the old unit held over to a drop-in made with
+`systemctl --user edit chipping-orchestrator.service`. A token it supplied as `GITHUB_TOKEN` belongs in a token file
+instead: `check`, and so `init`, reads tokens only from those, so store it with
+[`set-token`](#install-and-configure) before running `init`. Linger the old unit relied on stays enabled.
 
 ### Operating
 
 ```sh
-systemctl --user status orchestrator.service        # current state and last log lines
-systemctl --user restart orchestrator.service       # bounce the orchestrator
-systemctl --user stop orchestrator.service          # SIGTERM the supervised command; suppress restarts
-journalctl --user-unit orchestrator.service -f      # tail the supervised command's stdout/stderr
+systemctl --user status chipping-orchestrator.service        # current state and last log lines
+systemctl --user restart chipping-orchestrator.service       # bounce the orchestrator
+systemctl --user stop chipping-orchestrator.service          # SIGTERM the supervised command; suppress restarts
+journalctl --user-unit chipping-orchestrator.service -f      # tail the supervised command's stdout/stderr
 ```
 
 systemd's journal captures the supervised command's stdout/stderr (process lifecycle, exit codes, restart messages).
@@ -1737,7 +1827,7 @@ settings in `.env` are not automatically shell variables. Then inspect processes
 ```sh
 pgrep -af 'chipping-orchestrator|codex|claude|agy'
 tail -f "${LOG_DIR:?}/orchestrator.log"
-journalctl --user -u orchestrator.service -f   # systemd users
+journalctl --user -u chipping-orchestrator.service -f   # systemd users
 ```
 
 ### Per launch style
@@ -1754,13 +1844,16 @@ journalctl --user -u orchestrator.service -f   # systemd users
 1. Edit `~/.config/chipping-orchestrator/.env`.
 2. Run `chipping-orchestrator check` as the service user and repair what it reports
    ([compatibility check](#check-compatibility-and-start)).
-3. Run `systemctl --user daemon-reload` only if the `.service` unit changed; it reloads unit definitions, not `.env`.
-4. When safe, run `systemctl --user restart orchestrator.service`.
-5. Tail logs with `journalctl --user -u orchestrator.service -f`.
+3. Run [`chipping-orchestrator init`](#installing-with-init) again only if the interpreter path or the directories the
+   agents are found in changed; it rewrites and reloads the unit. A reload reads unit definitions, not `.env`.
+4. When safe, run `systemctl --user restart chipping-orchestrator.service`.
+5. Tail logs with `journalctl --user -u chipping-orchestrator.service -f`.
 
-When `GITHUB_TOKEN` is supplied via the unit's `EnvironmentFile=`, edit that file and restart. Changing an inline
-`Environment=` value requires editing the unit and running `daemon-reload` before restarting. `check` reads tokens
-from the token files alone, so it reports a repository whose token comes from `EnvironmentFile=` as having none.
+When `GITHUB_TOKEN` is supplied through an `EnvironmentFile=` in a drop-in, edit that file and restart. Change an
+`Environment=` value with `systemctl --user edit chipping-orchestrator.service`, which reloads the unit once the editor
+exits, before restarting; `init` rewrites the unit file itself, so a value edited there is lost on its next run.
+`check` reads tokens from the token files alone, so it reports a repository whose token comes from `EnvironmentFile=`
+as having none.
 
 Each `chipping-orchestrator run --once` invocation starts a new process and reads current settings. Restarts keep the
 installed package version; [package upgrades](#upgrade-a-package) are explicit operator actions. Development

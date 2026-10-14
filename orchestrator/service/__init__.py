@@ -42,6 +42,15 @@ the GitHub call ``token_probe`` makes per repository, unless the check is
 local. ``commands`` puts all three commands on the command line
 ``orchestrator/cli.py`` parses.
 
+Then the service. ``unit_file`` is the systemd user unit an installed package
+runs as, quoted the way systemd reads it back, and the hand-written unit it
+refuses to stand beside; ``systemd`` asks the user manager and logind, each
+call bounded. ``installation`` is ``init``, which refuses what it cannot
+install for, runs the full ``check``, writes the unit, and enables it -- and
+linger -- without starting it, leaving the ``.env`` and the tokens as it
+found them; ``service_commands`` puts it on the command line beside the setup
+commands.
+
 Nothing here imports ``orchestrator.config`` as it is imported, or the GitHub
 client that reads its token through it; ``settings_report`` imports the
 configuration inside its call, which runs only in the interpreter ``checks``

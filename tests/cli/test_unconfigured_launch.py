@@ -24,6 +24,7 @@ _RUN = "run"
 _CONFIGURE = "configure"
 _SET_TOKEN = "set-token"
 _CHECK = "check"
+_INIT = "init"
 _HELP = "--help"
 _LAUNCH_TIMEOUT_SECONDS = 60
 _MISSING_SCRIPT_REASON = f"{_CONSOLE_SCRIPT} is not installed; run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync`"
@@ -35,6 +36,7 @@ _COMMAND_LISTING = (
     rf".*^ +{_CONFIGURE} +Write the installed package's \.env"
     rf".*^ +{_SET_TOKEN} +Verify a repository's GitHub token"
     rf".*^ +{_CHECK} +Check the setup in the environment"
+    rf".*^ +{_INIT} +Install or refresh the systemd user service"
 )
 _VERSION_LINE = f"{_CONSOLE_SCRIPT} {__version__}"
 _USAGE_ERROR = 2
@@ -87,6 +89,14 @@ _ANSWERS = (
         (_CHECK, _HELP),
         0,
         rf"(?s)\Ausage: {_CONSOLE_SCRIPT} {_CHECK} \[-h\] \[--local\]\n.*absolute\s+entries\s+of\s+PATH",
+    ),
+    _Answer(
+        (_INIT, _HELP),
+        0,
+        (
+            rf"(?s)\Ausage: {_CONSOLE_SCRIPT} {_INIT} \[-h\]\n"
+            r".*never\s+started\s+or\s+restarted.*set-token\s+and\s+configure"
+        ),
     ),
     _refused("--once"),
     _refused("--cleanup-terminal-artifacts"),
@@ -142,9 +152,10 @@ class UnconfiguredLaunchTest(unittest.TestCase):
     command; `--version` prints the distribution's; `run --help` lists the
     polling flags, `configure --help` the setup options, `set-token --help`
     the repository it takes and standard input as where the token comes from,
-    and `check --help` the environment it checks in and its `--local` form;
-    and a polling flag given before any command is a usage error naming the
-    `run` form that means it.
+    `check --help` the environment it checks in and its `--local` form, and
+    `init --help` that it never starts the service and needs the `.env` the
+    setup commands write; and a polling flag given before any command is a
+    usage error naming the `run` form that means it.
 
     Only those are spared that validation: a launch that goes on to run is
     stopped by the same `REPOS`, as `test_entrypoints` shows.
