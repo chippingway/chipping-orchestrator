@@ -159,7 +159,8 @@ With the settings and tokens in place, [check the setup](#check-compatibility-an
 
 `pipx list` shows the installed package and its exposed command. Use `pipx runpip chipping-orchestrator` for package
 inspection and dependency checks; it selects the package's isolated environment without activating it.
-`command -v chipping-orchestrator` shows the absolute launcher path to use, followed by `run`, in a service unit.
+`command -v chipping-orchestrator` shows the absolute launcher path to use, followed by `run`, in a hand-written
+service unit; the unit [`init` installs](#installing-with-init) runs the environment's own interpreter instead.
 
 ### Check compatibility and start
 
