@@ -15,14 +15,18 @@ handoff place, a later finish finding no attempt retires the marked evidence
 whole once room is made, and where even the mark has no room the evidence is
 retired whole at once. A routed head with nothing current is held to a base
 its attempt can prove, the base the tick counted where its tip is blank or
-missing. A finish the policy does not hold refuses every one of these moves
-and reads nothing. Nothing runs, posts, launches, relabels, or charges.
+missing. A readable revision spent past the run outranks it beside a pending
+record too, which still holds. A finish the policy does not hold refuses every
+one of these moves, reading the comment no more often than it always has.
+Nothing runs, posts, launches, relabels, or charges.
 """
 from __future__ import annotations
 
 import contextlib
 import unittest
+from functools import partial
 from itertools import product
+from unittest.mock import patch
 
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.workflow.engine import (
@@ -32,6 +36,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish_settled as _settled,
     rewrite_finish_unconfirmed as _unconfirmed,
     verification_records as _records,
+    verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
@@ -48,6 +53,29 @@ _HELD = FinishOutcome.HELD
 
 # A record another road writes beside the evidence, which nothing here owns.
 _UNKNOWN = "another_roads_record"
+
+# What took the attempt off the comment: another finish's route, or another
+# road's attempt, its anchor a head or a JSON object or list no head is.
+_TAKEN = (
+    ("routed", retirement.routes),
+    ("replaced", retirement.replaces),
+    ("replaced by an object", partial(retirement.replaces, written={"sha": settled_support.REBASED})),
+    ("replaced by a list", partial(retirement.replaces, written=[settled_support.REBASED])),
+)
+
+# What refuses the first write of an invalidation for a finish the policy does
+# not hold, how many times it reads the comment -- once afresh, never again,
+# then whatever the tick's own copy's write reads -- and whether it landed: the
+# comment full, its movement recorded on the tick's copy instead, or the
+# comment unread once, the tick's copy taking the invalidation.
+_UNSELECTED = (
+    ("the comment full", lambda case: contextlib.nullcontext(moves.fills_the_comment(case)), (4, False)),
+    (
+        "the comment unread once",
+        lambda case: patch.object(case.gh, "read_pinned_state", settled_support.FailsOnce(case.gh.read_pinned_state)),
+        (2, True),
+    ),
+)
 
 # How the attempt records the base tip its replay was made onto, how the base
 # the tick counted the head against reads now, and what the policy answers.
@@ -87,10 +115,10 @@ class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
 
     def test_it_is_retired_as_the_comment_stands(self) -> None:
         # Another finish's route retired the attempt, or another road pinned
-        # its own, before the invalidation: the route is held, but the run
-        # read moving is retired over the comment as it stands, whatever
-        # attempt it carries kept as written.
-        for name, takes in (("routed", retirement.routes), ("replaced", retirement.replaces)):
+        # its own -- however its anchor is spelled -- before the invalidation:
+        # the route is held, but the run read moving is retired over the
+        # comment as it stands, whatever attempt it carries kept as written.
+        for name, takes in _TAKEN:
             with self.subTest(name):
                 self.setUp()
                 finish = self.dormant()
@@ -126,6 +154,22 @@ class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
         superseded = self.records()[2][-1]
         self.assertEqual(superseded, (self.settled.receipt, "superseded"))
         self.assert_untouched()
+
+    def test_an_unselected_one_reads_as_before(self) -> None:
+        # A finish the policy does not hold reads the comment once afresh and,
+        # where that write does not land, falls back to the tick's own copy
+        # with nothing read again: no announcement taken in, no retry.
+        for name, refuses, answers in _UNSELECTED:
+            with self.subTest(name):
+                self.setUp()
+                finish = self.landed()
+                settled_moves.reviews_again(self)
+
+                with refuses(self):
+                    counted = self.calls_to("read_pinned_state", _readiness.invalidates, finish, self.settled)
+
+                self.assertEqual((counted, self.records()[1] is None), answers)
+                self.assert_untouched()
 
     def _announcing(self, behind_the_read: bool):
         """Another finish's announcement, made now or just behind the next reading of the comment; its context."""
@@ -206,6 +250,39 @@ class RecordedMovementTest(retirement.RetirementCase, unittest.TestCase):
         moves.fills_the_comment(self)
         self.assertFalse(self.asks(_readiness.invalidates, finish, self.settled))
         self.assert_marked()
+
+
+class OutrankingTest(retirement.RetirementCase, unittest.TestCase):
+    """A readable revision spent past the run outranks it beside a pending record, which still holds the route."""
+
+    def test_a_pending_record_hides_no_outranking(self) -> None:
+        # Another road recorded a newer transaction and dropped it with no
+        # history entry, then recorded another, now pending: the revision the
+        # dropped one spent outranks the run, which is invalidated whole while
+        # the pending record holds the route, kept as that road wrote it. A
+        # newer transaction recorded right past the run outranks nothing.
+        for dropped in (True, False):
+            with self.subTest(dropped=dropped):
+                self.setUp()
+                if dropped:
+                    settled_moves.records_a_newer_one(self)
+                    settled_moves.writes_over(self, _records.PENDING_EVIDENCE, None)
+                pending = settled_moves.records_a_newer_one(self)
+
+                held = self.asks(_readiness.stands_ready, self.dormant(), self.settled)
+
+                kept = None if dropped else self.settled
+                left = self.records()[:2]
+                self.assertEqual((held, left), (_HELD, (pending, kept)))
+                self.assert_untouched()
+                if dropped:
+                    self._assert_retired_whole()
+
+    def _assert_retired_whole(self) -> None:
+        """The run invalidated into history whole, its revision, transcript, and provenance kept."""
+        history = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))
+        invalidated = _records.HistoricalEvidence.of(self.settled, _records.Retirement.INVALIDATED)
+        self.assertEqual(history[-1], invalidated)
 
 
 class BaseProofTest(retirement.RetirementCase, unittest.TestCase):

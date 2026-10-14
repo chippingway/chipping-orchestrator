@@ -66,9 +66,10 @@ def stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
     so no other attempt stands in its place -- and still carries `current` as
     its current evidence, so no successor settled under another receipt is
     ever marked moved. Staged on that comment read afresh and committed
-    guarded by it, the attempt's members alone written, every other field
-    kept as the comment carries it; the tick's state then reads as the
-    comment does.
+    guarded by it, the attempt's members alone written -- each spelled as the
+    finish read it, a member it read missing, as a legacy attempt leaves one,
+    removed rather than written `null` -- and every other field kept as the
+    comment carries it; the tick's state then reads as the comment does.
     """
     durable = read_afresh(finish)
     left = _commit_models.PinnedCommit.capture(_writes.retirement(finish), prerequisites=_attempts._ATTEMPT_KEYS)
@@ -78,7 +79,9 @@ def stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
         return False
     guard = _durable.guarded(durable, _attempts._ATTEMPT_KEYS, _attempts._ATTEMPT_KEYS)
     for member in _attempts._ATTEMPT_KEYS:
-        durable.set(member, finish.state.get(member))
+        durable.data.pop(member, None)
+        if finish.state.carries(member):
+            durable.set(member, finish.state.get(member))
     if _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None:
         return True
     marks(finish, current, "the attempt its retirement took could not be put back")

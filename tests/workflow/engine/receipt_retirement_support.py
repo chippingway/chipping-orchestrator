@@ -10,7 +10,7 @@ directly over a finish held to the dormant settled-evidence policy and built
 over the comment as it read (`RetirementCase.dormant`), while another finish
 of the landing announces the head on the attempt (`announces`) or routes it,
 retiring the attempt (`routes`), or another road pins an attempt of its own
-(`replaces`), settles a newer run under its own receipt (`supersedes`), or
+(`replaces`) -- its anchor any JSON value at all -- settles a newer run under its own receipt (`supersedes`), or
 leaves the handoff null (`drops_the_handoff`). It reads back that nothing was
 posted, run, launched, relabelled, or charged (`assert_untouched`), and the
 run marked (`assert_marked`) or invalidated whole (`assert_whole`).
@@ -47,9 +47,9 @@ def routes(case) -> None:
     case.gh.write_pinned_state(case.issue, state)
 
 
-def replaces(case) -> None:
-    """Another road's attempt pinned in place of the landing's."""
-    settled_moves.writes_over(case, readings.KEY_PENDING_PUSH, support.SQUASHED_SHA)
+def replaces(case, written: object = support.SQUASHED_SHA) -> None:
+    """Another road's attempt pinned in place of the landing's, its anchor spelled `written`."""
+    settled_moves.writes_over(case, readings.KEY_PENDING_PUSH, written)
 
 
 def supersedes(case) -> None:

@@ -1284,8 +1284,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             advanced by it rather than replaced (`advanced_by_the_announcement`), and its mark and
                             event record taken in ahead of every invalidation (`takes_in_the_announcement`)
     rewrite_finish_marks.py
-                            settled evidence invalidated over the attempt as reconciled, read afresh and retried once
-                            where a write was refused (`retires_over_the_attempt`), or, where another finish's route or
+                            settled evidence invalidated over the attempt as reconciled -- for a dormant finish alone,
+                            read afresh and retried once where a write was refused, every other finish reading and
+                            writing once as before (`retires_over_the_attempt`) -- or, where another finish's route or
                             another road took the attempt, over the comment as it stands (`retires_as_it_stands`),
                             every attempt and successor kept, and with no room the mark `{"moved": <receipt>}` in
                             the evidence's handoff place (`marks`), which no reader takes for a handoff and only that
@@ -1295,7 +1296,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     rewrite_finish_unconfirmed.py
                             what the finish's own write nobody confirmed left of its attempt, for the dormant policy:
                             the announcement's bookkeeping taken in (`takes_in_the_announcement`), the attempt put back
-                            exactly as read where its own retirement took it, or the movement marked (`stands_back`),
+                            exactly as read where its own retirement took it -- a member read missing left missing --
+                            or the movement marked (`stands_back`),
                             marked evidence retired whole by a later finish finding no attempt
                             (`retires_the_marked`), and a settlement made while this finish's abandonment was asked
                             invalidated (`retires_the_settled`, the one the evidence phase asks; no coordinator asks
@@ -1315,8 +1317,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded and abandoned there moves under it; what the first reading heard stands whatever
                             that last reading of the comment comes to. Movement -- an issue edited, a report or review
                             record replaced, the artifact edited or deleted, a command configured otherwise, the landing
-                            or the base moved, a revision spent past it with nothing pending beside it, read off the
-                            floor, the handoff, or any history entry that reads on its own, or a handoff naming it that
+                            or the base moved, a revision spent past it -- read off the handoff or any history entry
+                            that reads on its own, or off the floor past what a pending record beside it spent itself,
+                            so a pending record holds without hiding it -- or a handoff naming it that
                             describes another pull request or head, whatever the pull request reads -- invalidates it
                             into history whole, its revision, transcript digest, and tested and source provenance kept,
                             in a write staged on the comment read afresh and guarded by that reading and the attempt,

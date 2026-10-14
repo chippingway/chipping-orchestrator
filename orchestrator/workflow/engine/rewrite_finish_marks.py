@@ -3,10 +3,11 @@
 """Movement a dormant finish read under settled evidence, recorded however the attempt has moved since.
 
 The invalidation is decided on the attempt as reconciled -- an announcement
-of this landing taken in, a refused write read and retried once
-(`retires_over_the_attempt`) -- or, where another finish's route or another
-road took the attempt, on the comment as it stands (`retires_as_it_stands`),
-every attempt and successor kept. Where history has no room, or the attempt
+of this landing taken in, a refused write read and retried once, for a
+finish held to the dormant policy alone (`retires_over_the_attempt`) -- or,
+where another finish's route or another road took the attempt, on the
+comment as it stands (`retires_as_it_stands`), every attempt and successor
+kept. Where history has no room, or the attempt
 cannot be put back, the mark (`marks`) replaces the evidence's handoff with
 one naming only the receipt that moved: no reader takes it for a handoff
 (`verification_settled_fields.handoff_from`), and only a later finish finding
@@ -76,17 +77,21 @@ def retires_over_the_attempt(
 ) -> bool | None:
     """Whether `current`'s invalidation landed over the attempt `finish` read, on the comment read afresh; or None.
 
-    An announcement another finish of the landing put down on that attempt is
-    taken in first (`rewrite_finish_announced.takes_in_the_announcement`), and
-    a write refused -- an announcement landing under it among the reasons --
-    is read, reconciled, and made once more. False where the comment carries
+    For a finish held to the settled-evidence policy, an announcement another
+    finish of the landing put down on that attempt is taken in first
+    (`rewrite_finish_announced.takes_in_the_announcement`), and a write
+    refused -- an announcement landing under it among the reasons -- is read,
+    reconciled, and made once more; any other finish reads and writes once,
+    as the invalidation always has. False where the comment carries
     another evidence or another attempt, over which a finish held to the
     settled-evidence policy retires or marks the same receipt as the comment
     stands (`retires_as_it_stands`) unless `as_it_stands` is False. None where
     neither reading took the invalidation, for the tick's own copy to try.
     """
     first = _over_the_attempt(finish, current, as_it_stands)
-    return _over_the_attempt(finish, current, as_it_stands) if first is None else first
+    if first is None and finish.proves_settled:
+        return _over_the_attempt(finish, current, as_it_stands)
+    return first
 
 
 def retires_as_it_stands(finish: LandedFinish, receipt: str, attempt: _commit_models.PinnedCommit) -> bool:

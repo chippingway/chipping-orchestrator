@@ -75,12 +75,13 @@ decided again: the evidence goes on as it settled, or into history as it was.
   the route with the attempt standing, nothing announced, relabelled, or
   retired -- behind the invalidation, where that reading or another
   establishes movement too -- and the next tick classifies the branch and
-  counts the head again. A readable revision spent past the evidence with
-  nothing pending beside it -- on the floor, or on the handoff or any history
-  entry that reads on its own beside a floor or entries that do not -- is no
-  such record: it outranks the evidence for good, so the proof reads it as
-  movement -- whatever the pull request reads, and whatever else holds --
-  rather than every poll holding. Nor is a handoff that names the evidence but
+  counts the head again. A readable revision spent past the evidence -- on
+  the handoff or any history entry that reads on its own beside a floor or
+  entries that do not, or on the floor past what a pending record beside it
+  spent itself -- is no such record: it outranks the evidence for good, so
+  the proof reads it as movement -- whatever the pull request reads, and
+  whatever else holds, a pending record nobody can read among it -- rather
+  than every poll holding. Nor is a handoff that names the evidence but
   describes another pull request or head, which the proof refuses the evidence
   over as movement too.
 
@@ -264,8 +265,9 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence, *, as_i
     """Whether `current`'s invalidation into history landed, in a write of its own; the caller logs it.
 
     Staged on the comment read afresh, guarded by that reading and the attempt
-    as `finish` read it -- an announcement another finish of the landing put on
-    it taken in first, and a refused write read, reconciled, and retried once
+    as `finish` read it -- for a finish held to the dormant policy, an
+    announcement another finish of the landing put on it taken in first, and a
+    refused write read, reconciled, and retried once
     (`rewrite_finish_marks.retires_over_the_attempt`). Where neither reading
     took it, it is made over the tick's own copy (`_invalidates_on_the_tick`),
     so movement already read is never left for a later poll to find put back.
@@ -330,10 +332,14 @@ def _records_heard(
     (`verification_subject.requirements_verdict`), the review and report
     records (`verification_proof.recorded_verdict`), a handoff naming
     `current` that describes another pull request or head (`_UNDESCRIBED`),
-    and a revision spent past it with nothing pending beside it (`_OUTRANKED`)
-    -- read off the floor, the handoff, or any history entry that reads on its
-    own, so neither a floor nobody can read nor another entry that will not
-    read hides a newer one the history still shows. The last two the proof
+    and a revision spent past it (`_OUTRANKED`) -- read off the handoff or any
+    history entry that reads on its own, so neither a floor nobody can read
+    nor another entry that will not read hides a newer one the history still
+    shows, and off the floor: whole with nothing pending, below a readable
+    pending record's own revision -- the one minted under it was spent by
+    another transaction -- and not at all beside a pending record nobody can
+    read, whose own revision the floor may be. So a pending record holds
+    beside evidence a readable revision outranks, and hides none of it. The last two the proof
     would hear only behind the pull request, which a reading nobody could take
     hides them behind. Hold: a comment no longer carrying `current` as its
     current evidence, or carrying a record beside it that says it is not the
@@ -352,11 +358,14 @@ def _records_heard(
     history = state.get(_records.EVIDENCE_HISTORY)
     if not isinstance(history, list):
         history = []
+    pending = _record_state.read_pending_evidence(state)
     spent = max((
-        _record_state._latest_revision(state) or 0,
         0 if handoff is None else handoff.revision,
         *(entry.revision for entry in map(historical_from, history) if entry),
+        0 if pending is None else pending.revision - 1,
     ))
+    if not _record_state.carries_pending_evidence(state):
+        spent = max(spent, _record_state._latest_revision(state) or 0)
     return (
         None if issue is None else requirements_verdict(
             issue, state, current.binding.target.publication.requirements_revision,
@@ -365,7 +374,7 @@ def _records_heard(
         _UNDESCRIBED if (
             handoff is not None and handoff.receipt == current.receipt and not _handoff_describes(state, current)
         ) else None,
-        None if _record_state.carries_pending_evidence(state) or spent <= current.revision else _OUTRANKED,
+        None if spent <= current.revision else _OUTRANKED,
         _evidence_models.ReportEvidence(_evidence_models.ReportEvidenceVerdict.HOLD, beside) if beside else None,
     )
 

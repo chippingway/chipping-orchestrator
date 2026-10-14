@@ -9,9 +9,10 @@ revision past it, and the settled report both are bound to moves, so the
 phase abandons the newer one. The run it outranked is invalidated whole and
 the route goes on to the fresh reviewer, rather than routing the run as
 current or holding over the spent revision -- also beside a floor nobody can
-read, which holds that phase once behind the invalidation, and where the
-newer transaction was dropped with only the floor left raised behind an
-announcement already made. A phase asked again changes nothing.
+read, which holds that phase once behind the invalidation, beside a pending
+record nobody can read, which holds every phase and is kept as written, and
+where the newer transaction was dropped with only the floor left raised
+behind an announcement already made. A phase asked again changes nothing.
 """
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from unittest.mock import patch
 from orchestrator.workflow.engine import (
     verification_carries as _carries,
     verification_record_state as _record_state,
+    verification_records as _records,
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
@@ -79,7 +81,23 @@ class OutrankedRunTest(settled.SettledRunCase, unittest.TestCase):
         state.set(readings.KEY_REVISION_FLOOR, "unreadable")
         self.gh.write_pinned_state(self.issue, state)
 
-        self._assert_goes_on_over(head, run, newer, FinishOutcome.HELD)
+        self._assert_goes_on_over(head, run, newer, (FinishOutcome.HELD, None))
+        self.assertEqual(self.posted(newer), [])
+
+    def test_outranked_beside_an_unreadable_pending(self) -> None:
+        # The newer transaction is abandoned into history and a pending
+        # record nobody can read takes its place: that record holds every
+        # phase, but the readable entry still outranks the run, which the
+        # first phase invalidates whole, the unreadable record kept exactly
+        # as written for whoever can answer it.
+        head, run, newer = self._outranks()
+        state = self.gh.read_pinned_state(self.issue)
+        self.assertTrue(_carries.abandons(state, newer))
+        state.set(_records.PENDING_EVIDENCE, "unreadable")
+        self.gh.write_pinned_state(self.issue, state)
+
+        self._assert_goes_on_over(head, run, newer, (FinishOutcome.HELD, FinishOutcome.HELD))
+        self.assertEqual(readings.pinned(self)[_records.PENDING_EVIDENCE], "unreadable")
         self.assertEqual(self.posted(newer), [])
 
     def test_a_floor_past_the_run_outranks_it(self) -> None:
@@ -120,15 +138,14 @@ class OutrankedRunTest(settled.SettledRunCase, unittest.TestCase):
         self.gh.write_pinned_state(self.issue, state)
         return head, run, newer
 
-    def _assert_goes_on_over(self, head: str, run, newer, first: FinishOutcome | None = None) -> None:
-        """The phase answering `first` and then None, `run` invalidated whole and `newer` abandoned; nothing made.
+    def _assert_goes_on_over(self, head: str, run, newer, answers: tuple = (None, None)) -> None:
+        """Two phases answering `answers`, `run` invalidated whole and `newer` abandoned; nothing made.
 
         The invalidated entry keeps the run's revision and whole binding, so
         the history names the one execution the run was, and nothing is
         current for the fresh reviewer, who owes the evidence.
         """
-        answers = (self.resolves(head), self.resolves(head))
-        self.assertEqual(answers, (first, None))
+        self.assertEqual((self.resolves(head), self.resolves(head)), answers)
         retired = (
             *git_support.invalidated(self),
             (run.receipt, readings.INVALIDATED),

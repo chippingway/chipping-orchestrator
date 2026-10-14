@@ -33,11 +33,13 @@ def advanced_by_the_announcement(
     Every one has to be a member the announcement writes -- the mark, or the
     record of its event -- naming `finish`'s landed head: that is this very
     attempt advanced by a finish of its landing. None where any other member
-    moved, or one names another head: another attempt, or another road's.
+    moved, or one names another head or holds anything but a head -- an
+    object or a list among them: another attempt, or another road's.
     """
     moved = read.moved(carried)
-    named = {carried.get(member) for member in moved}
-    if not _ANNOUNCING.issuperset(moved) or not named <= {finish.head}:
+    if not _ANNOUNCING.issuperset(moved):
+        return None
+    if any(carried.get(member) != finish.head for member in moved):
         return None
     return moved
 

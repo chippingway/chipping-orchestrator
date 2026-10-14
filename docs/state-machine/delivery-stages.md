@@ -1578,9 +1578,10 @@ because there it is the claim that this stage has already rerouted rather than a
   the review and report records, the landing, the base, and the configuration -- and invalidate it into history
   whole, its revision and binding kept, wherever any of them moved since it settled, so the head goes on to the fresh
   reviewer, who owes the evidence, and putting what moved back revives nothing:
-  - a readable revision spent past the evidence outranks it for good, even beside a floor nobody can read, while a
-    handoff not naming it or a floor nobody can read still holds; a configuration moved since it settled invalidates
-    it before the head is decided afresh, and the route holds where that invalidation does not land;
+  - a readable revision spent past the evidence outranks it for good, even beside a floor or a pending record
+    nobody can read, while a pending record, a handoff not naming it, or a floor nobody can read still holds; a
+    configuration moved since it settled invalidates it before the head is decided afresh, and the route holds where
+    that invalidation does not land;
   - a settlement another road made of the run while the phase answered or abandoned it is adopted -- its evidence
     records taken in (`verification_durable.takes_in_a_settlement`) -- and invalidated over movement read under it,
     the evidence records' own moves and this landing's announcement aside
@@ -1596,14 +1597,17 @@ because there it is the claim that this stage has already rerouted rather than a
 
   Beside the phase stand primitives a caller holding such a finish asks directly, which no coordinator asks yet.
   Behind a write of the finish's own whose answer was lost, the announcement's bookkeeping is taken in, and the
-  attempt a lost retirement took is put back exactly as read, every other field kept, so the movement read under the
-  evidence is still invalidated over it (`workflow/engine/rewrite_finish_unconfirmed.py`); a finish of the landing
+  attempt a lost retirement took is put back exactly as read -- a member read missing left missing -- every other
+  field kept, so the movement read under the evidence is still invalidated over it
+  (`workflow/engine/rewrite_finish_unconfirmed.py`); a finish of the landing
   that finds no attempt and that very receipt marked current retires the evidence whole once room is made
   (`retires_the_marked`) -- a handoff that names it, is missing, or is left null is no mark; and a head with no
   evidence current, asked for its base (`rewrite_finish_settled.stands_ready_if_settled`), is held to its replay's
   base tip, or -- that tip blank, or missing from a legacy attempt -- to the base the tick counted it against.
 
-  The phase runs no command again, posts no artifact and settles no run twice, launches no developer, and spends,
+  The phase publishes and settles only a captured transaction still owed its artifact, as the policy every road
+  selects does: its first post goes out once, and a retry finds that artifact under the transaction's receipt rather
+  than posting it again, and settles it at most once. It runs no command again, launches no developer, and spends,
   reserves, or releases no agent run; a retired run stays one historical execution, never a new one.
 
 ## The rewritten-head report debt (every dispatch)

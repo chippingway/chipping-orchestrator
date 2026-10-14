@@ -21,6 +21,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.engine import (
+    pinned_commit_models as _commit_models,
     rewrite_finish_evidence as _evidence,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_unconfirmed as _unconfirmed,
@@ -42,6 +43,19 @@ from tests.workflow.engine import (
 # A record another road writes beside the evidence, which nothing here owns.
 _UNKNOWN = "another_roads_record"
 
+# The attempt members a legacy attempt carries none of, beside the mark and
+# the record of the event no finish of this landing has put down yet.
+_LEGACY = (readings.KEY_EVIDENCE_RECEIPT, readings.KEY_REWRITE_BASE)
+
+# What the announcement's members may hold: the landed head, another head, or
+# a JSON object or list no head is -- and whether it is this landing's own.
+_ANNOUNCED = (
+    (settled_support.REBASED, True),
+    (support.SQUASHED_SHA, False),
+    ({"sha": settled_support.REBASED}, False),
+    ([settled_support.REBASED], False),
+)
+
 
 class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
     """A write of the finish's own whose answer was lost is reconciled before the movement under it is recorded."""
@@ -49,18 +63,25 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
     def test_the_retired_attempt_is_put_back(self) -> None:
         # The finish's retirement landed with its answer lost, another road
         # wrote a record of its own behind it, and the review moved: the
-        # attempt is put back exactly as the finish read it, that record and
-        # the reset round kept, and the run is invalidated over it.
-        finish = self._loses_the_retirement()
-        read = readings.attempt(finish.state.data)
+        # attempt is put back spelled exactly as the finish read it -- every
+        # member it read missing, a legacy attempt's among them, missing
+        # again rather than null -- that record and the reset round kept, and
+        # the run is invalidated over it.
+        for missing in ((), _LEGACY):
+            with self.subTest(missing=missing):
+                self.setUp()
+                self._forgets(missing)
+                finish = self._loses_the_retirement()
+                read = _commit_models.PinnedCommit.capture(finish.state, prerequisites=readings.ATTEMPT_KEYS)
 
-        self.assertTrue(self.asks(_unconfirmed.stands_back, finish, self.settled))
-        self.assertEqual(readings.attempt(self.pinned()), read)
-        self.assertTrue(self.asks(_readiness.invalidates, finish, self.settled, as_it_stands=False))
+                self.assertTrue(self.asks(_unconfirmed.stands_back, finish, self.settled))
+                self.assertEqual(read.moved(self.pinned()), ())
+                self.assertTrue(self.asks(_readiness.invalidates, finish, self.settled, as_it_stands=False))
 
-        self._assert_kept_beside()
-        self.assert_whole()
-        self.assert_untouched(read)
+                self.assertEqual(read.moved(self.pinned()), ())
+                self._assert_kept_beside()
+                self.assert_whole()
+                self.assert_untouched()
 
     def test_no_room_marks_the_movement(self) -> None:
         # The comment was filled behind that retirement, so the attempt does
@@ -93,9 +114,9 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
         # The record of the event and the checkpoint landed with their
         # answers lost: the mark and the record naming the landed head are
         # laid over the finish's state as read, and nothing else -- the
-        # round the checkpoint reset among it; a mark naming another head is
-        # no announcement of this landing's.
-        for head, taken in ((settled_support.REBASED, True), (support.SQUASHED_SHA, False)):
+        # round the checkpoint reset among it; a mark naming another head, or
+        # holding an object or a list, is no announcement of this landing's.
+        for head, taken in _ANNOUNCED:
             with self.subTest(head=head):
                 self.setUp()
                 finish = self.dormant()
@@ -116,6 +137,13 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
         settled_moves.writes_over(self, _UNKNOWN, _UNKNOWN)
         settled_moves.reviews_again(self)
         return finish
+
+    def _forgets(self, missing: tuple) -> None:
+        """Take the attempt members `missing` off the comment, as an attempt pinned before they existed carries none."""
+        pinned = self.pinned()
+        for member in missing:
+            pinned.pop(member)
+        self.puts_back(pinned)
 
     def _assert_kept_beside(self) -> None:
         """Another road's record and the round the retirement reset, as the comment carried them."""
