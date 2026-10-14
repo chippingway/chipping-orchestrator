@@ -17,6 +17,15 @@ PUBLICATION road; the recovery hands over on the RECOVERY road both its retry
 of a replay an interrupted tick never published (`rewrite_retry`) and a push
 it found already landed (`rewrite_landed`), through
 `rewrite_finish.finishes_the_recovery`.
+
+A finish also says which of the finish's two policies it is held to
+(`LandedFinish.proves_settled`). Every road above hands over the one that
+proves again only a transaction an earlier finish captured for the head. The
+other -- settled evidence proved ready again before and behind every step
+that keeps, routes, or parks the attempt, each write behind the evidence
+decided on the records its binding rests on, and the movement any proof or
+refusal reads retiring the decision it was read under -- is dormant: only a
+caller that builds a finish selecting it explicitly reaches it.
 """
 from __future__ import annotations
 
@@ -91,7 +100,10 @@ class LandedFinish:
     and the audit event are attributed to. `lag` is how many commits the head
     the publication replaced was behind its base, which only the publication's
     notice reports. `retry` is the human reply a recovery re-entered on, which
-    the finish spends; None where there is none.
+    the finish spends; None where there is none. `proves_settled` selects the
+    dormant settled-evidence policy (`rewrite_finish.finalizes`), which no
+    production road hands over: every shared helper the finish calls reads it
+    before taking any of that policy's proofs, write profiles, or abandonment.
     """
 
     gh: GitHubClient
@@ -103,6 +115,7 @@ class LandedFinish:
     road: FinishRoad = FinishRoad.PUBLICATION
     lag: int = 0
     retry: int | None = None
+    proves_settled: bool = False
 
     @property
     def head(self) -> str:

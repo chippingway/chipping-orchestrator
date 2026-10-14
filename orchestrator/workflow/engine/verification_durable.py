@@ -46,6 +46,16 @@ read either way and a later tick settles it from what the record then carries
 every other refusal -- a record that moved, a comment that moved under the
 edit, a write the comment has no room for -- defers, with whatever the write
 was for still owed.
+
+Two readings serve only a landed rewrite's dormant settled-evidence finish
+(`rewrite_finish`, a finish selecting `proves_settled`). One tells a refusal
+of moved records naming none but this domain's own -- another road recording,
+settling, or retiring a transaction -- from one naming a record a binding
+rests on (`moves_only_the_evidence`). The other adopts the evidence records of
+a settlement another road made of a transaction while the finish was
+abandoning it (`takes_in_a_settlement`), so the finish retires that
+settlement over the movement it already read, decided on the records the
+settlement left rather than on its own stale reading of them.
 """
 from __future__ import annotations
 
@@ -63,6 +73,7 @@ from orchestrator.workflow.engine import (
     report_records as _report_records,
     review_subjects as _review_subjects,
     verification_records as _records,
+    verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 
@@ -123,6 +134,20 @@ _UNCONFIRMED = ReportEvidence(
     ReportEvidenceVerdict.HOLD,
     "the pinned comment was written and the write was never confirmed",
 )
+
+# How a refusal of moved bound records reads, around the records it names (`_moved`).
+_MOVED_SPELLING = ("the pinned comment's ", " moved since this tick read it")
+
+# This domain's own records among the bound ones, which another road moves by
+# recording, settling, or retiring a transaction rather than by moving
+# anything a binding rests on.
+_EVIDENCE_RECORDS = frozenset((
+    _records.PENDING_EVIDENCE,
+    _records.CURRENT_EVIDENCE,
+    _records.EVIDENCE_HISTORY,
+    _records.EVIDENCE_HANDOFF,
+    _records.REVISION_FLOOR,
+))
 
 
 def guarded(
@@ -194,9 +219,49 @@ def refusal_of(outcome: _commit_models.CommitOutcome) -> ReportEvidence | None:
     return _REFUSALS[outcome.refusal]
 
 
+def takes_in_a_settlement(
+    gh: GitHubClient, issue: Issue, state: PinnedState, receipt: str,
+) -> _records.CurrentEvidence | None:
+    """Evidence another road settled current under `receipt` since `state` was read, laid over `state`; or None.
+
+    For a caller about to retire that settlement over movement it already read
+    under the transaction `receipt` names: where the comment read afresh
+    carries evidence current under `receipt`, every evidence record it carries
+    is laid over `state` and remembered as read, so the retirement is staged
+    and decided on the records that settlement left -- and a comment with no
+    room for the retirement has the movement recorded against them instead.
+    None, with `state` as it was, where the comment would not read or carries
+    nothing current under `receipt`.
+    """
+    durable = durable_comment(gh, issue, state)[0]
+    current = None if durable is None else _settlement.read_current_evidence(durable)
+    if current is None or current.receipt != receipt:
+        return None
+    for field in _EVIDENCE_RECORDS:
+        spelled = durable.data.get(field, _commit_models.ABSENT)
+        state.data.pop(field, None)
+        if spelled is not _commit_models.ABSENT:
+            state.data[field] = spelled
+    _commit.takes_in(state, durable.data, _EVIDENCE_RECORDS)
+    return current
+
+
+def moves_only_the_evidence(refused: ReportEvidence) -> bool:
+    """Whether `refused` is a refusal of moved bound records (`_moved`) naming none but this domain's own.
+
+    Such a refusal reads another road recording, settling, or retiring a
+    transaction, and nothing a binding rests on moving.
+    """
+    prefix, suffix = _MOVED_SPELLING
+    spelled = refused.refusal
+    if not (spelled.startswith(prefix) and spelled.endswith(suffix)):
+        return False
+    named = spelled.removeprefix(prefix).removesuffix(suffix)
+    return set(named.split(", ")) <= _EVIDENCE_RECORDS
+
+
 def _moved(fields: tuple[str, ...]) -> ReportEvidence:
     """The refusal the bound records `fields` earn by moving."""
+    prefix, suffix = _MOVED_SPELLING
     named = ", ".join(fields)
-    return ReportEvidence(
-        ReportEvidenceVerdict.DEFER, f"the pinned comment's {named} moved since this tick read it",
-    )
+    return ReportEvidence(ReportEvidenceVerdict.DEFER, f"{prefix}{named}{suffix}")

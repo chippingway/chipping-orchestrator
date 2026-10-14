@@ -585,7 +585,13 @@ stops the finish before it announces anything: no notice, no `base_rebased`, no 
 stage handler back; the park asks for room to be made on the pinned comment and a reply, and the reply brings the
 recovery back to finish the landed head -- recording the debt first, or parking again if there is still no room. A
 standing claim the rewrite cannot be carried onto is no such debt, and `workflow/engine/report_rewrite_room.py` is what
-tells the two refusals apart, for the conflict stage as well.
+tells the two refusals apart, for the conflict stage as well. A finish held to the dormant settled-evidence policy,
+which a caller selects explicitly and no production road hands over (`workflow/engine/rewrite_finish_settled.py`),
+proves verification evidence an earlier finish already settled for the landed head ready first all the same -- and a
+transaction it captured proved again whole -- retiring either into history where anything it rests on moved, so the
+park keeps no decision for the reply that brings the route back; it decides the park on the report and review records
+the evidence's binding rests on as well, so a report another road moves while the park's notice is posted refuses it,
+and that refusal, or a notice whose answer was lost, has the evidence proved and retired before the finish stops.
 
 A clean rebase whose candidate the size gate hands to an adjudication instead of pushing leaves two owners over one
 unpublished replay: the attempt's anchor, and the live late generation whose candidate that replay is. Left that way
@@ -716,7 +722,12 @@ earlier finish already settled is routed with nothing posted or settled again wh
 otherwise -- a newer transaction for the head is settled over it, and a handoff or revision floor out of step holds
 the route -- with the invalidation a moved context now owes landed before the route, that settled evidence's own
 included: a configuration moved since it settled invalidates it with nothing run again, rather than leaving it to
-hold the route behind a revision spent past it.
+hold the route behind a revision spent past it. A finish held to the dormant settled-evidence policy proves settled
+evidence ready again before any route takes it and before and behind every hold, continuation, park, announcement,
+and relabel (`workflow/engine/rewrite_finish_readiness.py`), invalidating it whole where anything it is bound to moved
+since it settled -- the requirements, a report or review record, its artifact, the landing, the base, or a revision a
+newer transaction abandoned beside it spent, which outranks it for good rather than holding the route; a handoff out
+of step or a revision floor nobody can read still holds, behind that proof. No production road selects that policy.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
@@ -3190,7 +3201,13 @@ The keys that matter for the state machine fall into a few groups:
   request its route makes (`workflow/engine/rewrite_evidence_proof.py`): moved or unread holds the route, dropped or
   unproven refuses the decision for good. A captured transaction whose abandonment the comment has no room for is
   dropped with this member blanked, in a write that only shrinks the comment, so no later reading proves a base for it
-  and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`).
+  and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`). Under the dormant
+  settled-evidence finish policy settled evidence is held to it the same way -- an invalidation that does not land
+  blanks this member in a write of its own (`workflow/engine/rewrite_finish_readiness.py`), so every later proof reads
+  the evidence moved and retires it once room is made -- and the route behind the relabel still reads the base over a
+  blanked member, or a legacy attempt's missing one, held to the base the tick counted the head against
+  (`workflow/engine/rewrite_finish_settled.stands_ready_if_settled`), any base that no longer reads as that count
+  holding the route.
   `pending_auto_base_rebase_announced_sha` is the member written last and covers the last window a finish has:
   everything a finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out
   before the relabel, and the write that clears this record goes out after it, so the head it has already said it
@@ -3237,7 +3254,9 @@ The keys that matter for the state machine fall into a few groups:
   -- so a comment another road filled meanwhile, or one whose wide round leaves no room for the record, posts and
   files nothing.
   The event goes out only behind it, so it is filed only for an attempt still standing as the finish read it, and the
-  member says the event may be out. Its absence proves nothing: a finish from before this member
+  member says the event may be out. A finish held to the dormant settled-evidence policy decides the record's write on
+  the pull request, report, and review records too, so one another road moves while the notice is posted refuses it
+  rather than riding in unread. Its absence proves nothing: a finish from before this member
   existed filed the event and could die behind it with none written. So until the mark is down, every finish asks
   the event stream first, member or no member (`github/events.filed`: the client's in-memory tail, then the whole
   audit log, however much it grew since, and every rotated copy of it beside it), and files the event only where

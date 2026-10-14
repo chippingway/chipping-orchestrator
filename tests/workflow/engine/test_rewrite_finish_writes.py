@@ -7,20 +7,25 @@ move of a record it was decided on refuses it with nothing behind it made --
 no notice, no event, no relabel, no retirement -- and leaves that road's write
 exactly as it stands, while a field nobody decided on is kept as the fresh
 comment carries it. An edit nobody confirmed stops the finish too, and the next
-one picks up from what it left.
+one picks up from what it left. Every check holds as well for a finish held to
+the dormant settled-evidence policy (`settled_finish_support`), whose event
+record alone is decided on the report records besides: a report another road
+moved while the notice was posted refuses that record before the event is
+filed, where every other finish files it and is refused at its checkpoint.
 """
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from functools import partial
 from types import MappingProxyType
 
-from orchestrator.workflow.engine import rewrite_finish as _finish
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
     rewrite_finish_effects_support as effects,
     rewrite_finish_readings as readings,
     rewrite_finish_test_support as support,
+    settled_finish_support as settled,
 )
 from tests.workflow.interleaving import _RacesPastTheCall, _RacesPastTheStep
 
@@ -68,7 +73,7 @@ class GuardedWriteTest(unittest.TestCase):
                 world.another_road(**moved)
                 written = world.pinned()
 
-                outcome = _finish.finalizes(finish)
+                outcome = world.finalizes(finish=finish)
 
                 # Nothing said, routed, or written over that road's record, and
                 # no whole-state write puts the tick's reading back over it.
@@ -82,7 +87,7 @@ class GuardedWriteTest(unittest.TestCase):
         finish = world.finish()
         world.another_road(**{_UNKNOWN: "kept", support.KEY_LEDGER: [5, 6]})
 
-        self.assertEqual(_finish.finalizes(finish), FinishOutcome.ROUTED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.ROUTED)
 
         # The notice's entry joins the ledger beside the one another road added.
         durable = world.pinned()
@@ -221,6 +226,52 @@ class UnconfirmedAnnouncementTest(unittest.TestCase):
         durable = world.pinned()
         recorded = (durable.get(support.KEY_ANNOUNCED), durable[readings.KEY_ANNOUNCED_EVENT])
         self.assertEqual(recorded, (None, support.LANDED))
+
+
+class SettledGuardedWriteTest(GuardedWriteTest):
+    """The guarded writes of a finish held to the dormant settled-evidence policy."""
+
+    def setUp(self) -> None:
+        self.enterContext(settled.selected())
+
+
+class SettledUnconfirmedAnnouncementTest(UnconfirmedAnnouncementTest):
+    """The announcement said once by whichever finish held to the settled-evidence policy gets there."""
+
+    def setUp(self) -> None:
+        self.enterContext(settled.selected())
+
+
+class EventRecordProfileTest(unittest.TestCase):
+    """Only a finish held to the settled-evidence policy decides its event's record on the report records."""
+
+    def test_a_report_moved_under_the_notice(self) -> None:
+        # Another road settles a later report while the notice is posted. The
+        # checkpoint behind the event is refused over it either way; the
+        # event's own record is refused over it, before anything is filed,
+        # only where the finish is held to the settled-evidence policy.
+        for proves_settled, filed in ((False, 1), (True, 0)):
+            with self.subTest(proves_settled=proves_settled):
+                world = self._moved_under_the_notice()
+                finish = replace(world.finish(), proves_settled=proves_settled)
+
+                self.assertEqual(world.finalizes(finish=finish), FinishOutcome.REFUSED)
+
+                self.assertEqual(self._said(world), (1, filed))
+                self.assertEqual(world.relabels(), ())
+                self.assertIsNone(world.pinned().get(support.KEY_ANNOUNCED))
+
+    def _said(self, world: support.FinishWorld) -> tuple[int, int]:
+        """How many notices PR #42 was given and how many `base_rebased` events were filed."""
+        notices, events = world.said()
+        return len(notices), len(events)
+
+    def _moved_under_the_notice(self) -> support.FinishWorld:
+        """Issue #7's world, another road settling a later report right behind the first notice posted."""
+        world = support.FinishWorld.seeded()
+        moves = partial(world.another_road, developer_report_current={"revision": 9})
+        world.github.pr_comment = _RacesPastTheCall(world.github.pr_comment, 1, moves)
+        return world
 
 
 if __name__ == "__main__":

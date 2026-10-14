@@ -28,8 +28,11 @@ requirements -- and hands its verdict on rather than acting on it alone.
 (`rewrite_evidence_proof.last_word`), over the transaction the route would
 carry, beside a verdict the caller already read it with and behind wherever
 the route already stopped: the finish asks it at the end of its evidence step
-and behind a park or a checkpoint the comment refuses (`rewrite_finish`), and
-once more behind the publication and settlement of the transaction it
+and behind a park or a checkpoint the comment refuses (`rewrite_finish`) --
+a finish held to the dormant settled-evidence policy ahead of the park a debt
+with no room takes as well, and with the transaction proved again whole
+first each time (`whole`), since nothing proved it since the requests the
+finish made before -- and once more behind the publication and settlement of the transaction it
 recorded where that left it owed or retired it (`rewrite_finish_settlement`),
 so a record moved while the artifact was posted abandons the transaction
 before anything announces or routes the head or the anchor goes. A transaction under which any reading establishes
@@ -54,7 +57,14 @@ tip its replay was recorded as made onto blanked with it, in a write that only
 shrinks the comment: every later reading of the base proves nothing
 (`rewrite_evidence_proof.standing_refusal`), so nothing could run or carry
 the landing's evidence again or route over it. Every other record on the
-comment stays as it reads.
+comment stays as it reads. Under the dormant settled-evidence policy
+(`rewrite_finish_models.LandedFinish.proves_settled`), an abandonment another
+finish refused by settling that very transaction meanwhile retires the
+settlement instead, taken in off the comment read afresh
+(`verification_durable.takes_in_a_settlement`) and invalidated over what the
+abandonment was asked on, so putting what moved back revives neither; a
+successor settled under another receipt is kept as its road wrote it. Every
+other finish holds the route there, the settlement left standing.
 
 Only a record about the landed head is read here: while the attempt stands the
 anchor holds every other road, so nothing but a finish of this landing records
@@ -82,6 +92,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_proof import last_word, proves_again
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_readiness import invalidates
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -168,6 +179,7 @@ def stands_before_the_route(
     landing: bool = True,
     proof: ReportEvidence | None = None,
     behind: FinishOutcome | None = None,
+    whole: bool = False,
 ) -> FinishOutcome | None:
     """The last word on `finish`'s route, behind every request its evidence step made; None to route.
 
@@ -178,9 +190,14 @@ def stands_before_the_route(
     carry, where one is still recorded for the head
     (`rewrite_evidence_proof.last_word`), beside `proof`, the verdict a
     captured transaction was just proved again with, or the movement a
-    recovery already read leaving the landing. The landing itself is read
-    again whenever a transaction is recorded, `landing` False sparing only a
-    fresh decision that ran nothing and recorded nothing.
+    recovery already read leaving the landing. `whole` has a transaction
+    recorded for the head proved again whole first (`proved_again`) where no
+    `proof` was handed in, for a caller that has not proved it since its own
+    requests were made -- the last word alone never reads the settled report
+    again at its location, so an edit to it shows only to that proof. The
+    landing itself is read again whenever a transaction is recorded,
+    `landing` False sparing only a fresh decision that ran nothing and
+    recorded nothing.
     `behind` is where the route already stopped -- a write that did not land,
     the checkpoint's among them, a hold for want of room, a failure notice
     nobody could confirm -- and is the answer whatever this reads: the last
@@ -194,7 +211,10 @@ def stands_before_the_route(
     binding, a landing off its head, a base read elsewhere -- abandons the
     transaction the route would carry, in its own write (`_abandoned`): a
     decision something moved under is no decision any later route may take,
-    even one finding everything back where it was. Any reading nobody could
+    even one finding everything back where it was -- nor, under the
+    settled-evidence policy, is a settlement another finish made of it while
+    that abandonment was asked, which is invalidated over the same movement
+    instead. Any reading nobody could
     take, a landing that moved, or a base gone elsewhere holds the route with
     the attempt standing, so the next tick classifies the branch and counts
     the head again; a transaction nothing established movement under is kept
@@ -203,6 +223,8 @@ def stands_before_the_route(
     pending = recorded(finish, logged=False)
     if pending is None and behind is not None:
         return behind
+    if whole and pending is not None and proof is None:
+        proof = proved_again(finish, pending)
     moved, held = last_word(
         finish,
         None if pending is None else pending.binding,
@@ -228,7 +250,11 @@ def sets_aside(finish: LandedFinish) -> FinishOutcome | None:
     (`_abandoned`), staged on the comment read afresh, so an approval or a
     review another road wrote meanwhile neither refuses it nor is written
     over; one that does not land, or that has no room and only refuses the
-    record for good, holds the continuation with the attempt standing.
+    record for good, holds the continuation with the attempt standing. Under
+    the settled-evidence policy, a settlement another finish made of the
+    record while that was asked is invalidated in its place, so the
+    continuation carries none of the run, as it would carry none of a record
+    abandoned.
     """
     pending = recorded(finish)
     return None if pending is None else _abandoned(finish, pending, _ADVANCED)
@@ -253,10 +279,20 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     `rewrite_finish_writes.ABANDONMENT`, decided only on the records it
     retires and the attempt, so one failed reading or one move does not leave
     the transaction standing for a later route to take once the landing is
-    put back. Only where neither lands -- the comment taking no write at all,
-    no longer recording `pending`, or carrying another attempt, which that
-    write is decided on too -- is the route held with the transaction kept,
-    logged.
+    put back. Another finish that settled `pending` while this was asked
+    refuses both, yet what this abandons it over was read under it all the
+    same: a finish held to the settled-evidence policy takes in the evidence
+    the comment read afresh carries current under `pending`'s receipt
+    (`verification_durable.takes_in_a_settlement`) and invalidates it whole
+    over that reading (`rewrite_finish_readiness.invalidates`), which lets the
+    route go on as a landed abandonment does; where the comment has no room
+    for that, the movement is recorded against it by blanking the base tip,
+    and the route is held. Only where nothing lands is the route held with
+    the transaction kept, logged: the comment taking no write at all,
+    carrying another attempt -- which every write here is decided on -- or
+    no longer recording `pending` with no settlement of it current that the
+    policy takes in, a successor settled under another receipt kept as its
+    road wrote it.
 
     A comment with no room for the abandonment's history entry still takes a
     write that only shrinks it, and that write refuses the transaction for
@@ -272,10 +308,11 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     route is held behind that write.
     """
     fits = None
-    attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     # The bound records another road moved are no refusal here; only the attempt is.
     durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
-    replaced = durable is None or attempt.moved(durable.data)
+    replaced = durable is None or _commit_models.PinnedCommit.capture(
+        finish.state, prerequisites=_attempts._ATTEMPT_KEYS,
+    ).moved(durable.data)
     if not replaced and _record_state.read_pending_evidence(durable) == pending:
         guard = _durable.guarded(durable, _ABANDONED, _attempts._ATTEMPT_KEYS)
         fits = _abandons(finish, durable, pending, why)
@@ -283,6 +320,16 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
             fits = None
     if fits is None and recorded(finish, logged=False) == pending:
         fits = _writes.abandons(finish, partial(_abandons, finish, pending=pending, why=why))
+    settled = None
+    if fits is None and finish.proves_settled:
+        settled = _durable.takes_in_a_settlement(finish.gh, finish.issue, finish.state, pending.receipt)
+    if settled is not None:
+        log.info(
+            "issue=#%d invalidating verification evidence revision %d another finish settled for %.8s while its "
+            "abandonment was asked: %s",
+            finish.issue.number, settled.revision, finish.head, why,
+        )
+        fits = invalidates(finish, settled)
     if fits is None:
         log.warning(
             "issue=#%d holding the route of %.8s: verification evidence revision %d could not be abandoned over "

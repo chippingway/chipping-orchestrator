@@ -12,6 +12,8 @@ the comment as another road has since left it -- the announcement whole, the
 record of its event included, with its notice's ledger entry reserved over the
 ledger that comment carries, and the park over the round its room depended on
 -- so neither posts or files anything for a record that could not follow it.
+Every check holds as well for a finish held to the dormant settled-evidence
+policy (`settled_finish_support`).
 """
 from __future__ import annotations
 
@@ -20,12 +22,13 @@ from dataclasses import replace
 from types import MappingProxyType
 
 from orchestrator import config
-from orchestrator.workflow.engine import report_record_values as _record_values, rewrite_finish as _finish
+from orchestrator.workflow.engine import report_record_values as _record_values
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
     rewrite_finish_effects_support as effects,
     rewrite_finish_readings as readings,
     rewrite_finish_test_support as support,
+    settled_finish_support as settled,
 )
 
 _FOUND = (
@@ -164,7 +167,7 @@ class DebtRoomTest(unittest.TestCase):
         full = world.pinned()
         finish = world.finish()
 
-        self.assertEqual(_finish.finalizes(finish), FinishOutcome.REFUSED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.REFUSED)
 
         github = world.github
         self.assertEqual((github.posted_comments, github.recorded_events), ([], []))
@@ -196,7 +199,7 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         announcing = effects.room_for(world, **_ANNOUNCED)
         effects.leaves(world, announcing + _SHORT_OF_AN_ENTRY)
 
-        self.assertEqual(_finish.finalizes(finish), FinishOutcome.REFUSED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.REFUSED)
 
         self.assertEqual(world.said(), ([], []))
         self.assertEqual(world.relabels(), ())
@@ -214,7 +217,7 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         finish = world.finish()
         effects.leaves(world, effects.room_for(world, **_CHECKPOINTED))
 
-        self.assertEqual(_finish.finalizes(finish), FinishOutcome.REFUSED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.REFUSED)
 
         durable = world.pinned()
         self.assertEqual(self._said(world), (0, 0, ()))
@@ -255,7 +258,7 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         finish = world.finish()
         world.another_road(**{support.KEY_REVIEW_ROUND: 0})
 
-        self.assertEqual(_finish.finalizes(finish), FinishOutcome.REFUSED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.REFUSED)
 
         github = world.github
         self.assertEqual(github.posted_comments, [])
@@ -270,6 +273,20 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         """How many notices PR #42 was given and `base_rebased` events filed, and every label written."""
         notices, events = world.said()
         return len(notices), len(events), world.relabels()
+
+
+class SettledDebtRoomTest(DebtRoomTest):
+    """The debt's room and park for a finish held to the dormant settled-evidence policy."""
+
+    def setUp(self) -> None:
+        self.enterContext(settled.selected())
+
+
+class SettledRoomMovedMeanwhileTest(RoomMovedMeanwhileTest):
+    """Room measured afresh for a finish held to the dormant settled-evidence policy."""
+
+    def setUp(self) -> None:
+        self.enterContext(settled.selected())
 
 
 if __name__ == "__main__":
