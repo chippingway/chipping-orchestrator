@@ -1574,11 +1574,14 @@ because there it is the claim that this stage has already rerouted rather than a
     transaction is proved again whole too;
   - behind every stop of the announcement or the park -- a write refused or unconfirmed, a conversation or event
     stream that would not read behind a posted notice, a park notice whose answer was lost -- and ahead of the relabel
-    and again behind it, a relabel that raised included; behind a retirement whose answer was lost the proof reads the
-    attempt as the finish read it, and where the evidence reads moving the attempt is put back where that retirement
-    took it -- guarded so another attempt or a successor under another receipt is kept -- and the evidence
+    and again behind it, a relabel that raised included; behind the event's record or the checkpoint whose answer was
+    lost, the mark and the record of the event either may have landed for the head are taken in first, so the evidence
+    read moving is invalidated over the attempt as it stands; behind a retirement whose answer was lost the proof
+    reads the attempt as the finish read it, and where the evidence reads moving the attempt is put back where that
+    retirement took it -- guarded so another attempt or a successor under another receipt is kept -- and the evidence
     invalidated over it, or, with no room, its movement recorded by blanking that attempt's base tip, so the next
-    finish retires it whole and the attempt behind it, however soon what moved was put back;
+    finish retires it whole and the attempt behind it, however soon what moved was put back
+    (`workflow/engine/rewrite_finish_unconfirmed.py`);
   - the checkpoint, the event's record, the park, and the retirement are decided on the records the evidence's binding
     rests on (`rewrite_finish_writes.BINDING_RECORDS`), and a refusal over one of them is movement read under the
     evidence (`BINDING_MOVED`), invalidated before the finish stops however soon the record is put back;

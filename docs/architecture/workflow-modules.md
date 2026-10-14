@@ -1283,15 +1283,25 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             onto -- or, with no tip recorded, to the base the tick counted it against
                             (`stands_ready_if_settled`); settled and captured evidence proved ahead of the debt's park
                             (`ahead_of_the_park`); the last word behind a stopped or raised announcement or park, the
-                            evidence proved once more and invalidated over a binding record a refusal read moved
+                            evidence proved once more and invalidated over a binding record a refusal read moved, over
+                            the attempt as an unconfirmed record or checkpoint may have left it
                             (`behind_the_announcement`), and the same behind a retirement that did not land -- one
                             nobody confirmed proved over the attempt as read, and where the evidence reads moving the
-                            attempt put back where that retirement took it (`_stands_back`) and the evidence
-                            invalidated, or its movement recorded by the blanked base tip, over it
-                            (`behind_the_write`); why records beside settled evidence hold the route (`out_of_step`);
-                            and a settlement the settlement step's answer left current
-                            invalidated over movement that answer read, the evidence records' own moves aside
-                            (`retires_the_adopted`)
+                            attempt put back where that retirement took it and the evidence invalidated, or its
+                            movement recorded by the blanked base tip, over it (`behind_the_write`); why records
+                            beside settled evidence hold the route (`out_of_step`); and a settlement the settlement
+                            step's answer left current invalidated over movement that answer read, the evidence
+                            records' own moves aside (`retires_the_adopted`)
+    rewrite_finish_unconfirmed.py
+                            what the finish's own write nobody confirmed left of its attempt, reconciled for the
+                            dormant settled-evidence policy before movement read behind that write is invalidated or
+                            recorded: the announcement's bookkeeping -- the record of the event and the mark, naming
+                            the landed head -- that the record or the checkpoint landed, taken in where the comment
+                            carries the attempt otherwise as read (`takes_in_the_announcement`); and the attempt put
+                            back exactly as read where the comment carries it blanked as the finish's retirement
+                            leaves it and the same evidence current (`stands_back`), so every later finish comes back
+                            to retire that evidence whole; another attempt or a successor under another receipt is
+                            left as its road wrote it, and a comment that would not read is asked once more
     rewrite_finish_readiness.py
                             dormant -- asked only by the dormant settled-evidence finish policy
                             (`rewrite_finish_settled.py`) and the recovery's dormant guarded operations, so by no

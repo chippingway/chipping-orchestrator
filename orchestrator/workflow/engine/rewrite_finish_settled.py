@@ -25,9 +25,9 @@ the policy every road selects has it, reading nothing more.
 - `behind_the_announcement` and `behind_the_write` answer a step of the
   announcement or the route that stopped, or raised, with settled evidence
   proved ready once more, invalidated over a binding record a refusal read
-  moved, and a captured transaction proved again whole -- behind a
-  retirement nobody confirmed, the attempt put back where that retirement
-  took it and the movement read recorded against it (`_stands_back`).
+  moved, and a captured transaction proved again whole -- behind a write
+  nobody confirmed, over the attempt as that write may have left it
+  (`rewrite_finish_unconfirmed`).
 - `out_of_step` says why the records beside settled evidence hold the route.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
@@ -40,12 +40,11 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.git.base_sync import attempt_records as _attempt_records, attempts as _attempts
+from orchestrator.git.base_sync import attempt_records as _attempt_records
 from orchestrator.workflow.engine import (
-    pinned_commit_models as _commit_models,
     rewrite_finish_captured as _captured,
     rewrite_finish_readiness as _readiness,
-    rewrite_finish_writes as _writes,
+    rewrite_finish_unconfirmed as _unconfirmed,
     verification_durable as _durable,
     verification_record_state as _record_state,
     verification_records as _records,
@@ -157,11 +156,18 @@ def behind_the_announcement(
     to the word as its proof in place of the proof taken again, so a record
     put back before that word revives nothing, and a report edited while the
     notice was posted is read by the proof however soon it is put back after.
+    Behind the record of the event or the checkpoint nobody confirmed, the
+    bookkeeping either may have landed on the attempt is taken in first
+    (`rewrite_finish_unconfirmed.takes_in_the_announcement`), so movement the
+    proof reads is invalidated over the attempt as it stands rather than
+    refused as though another attempt stood in its place.
     """
     if stopped is None:
         return None
     if not finish.proves_settled:
         return _captured.stands_before_the_route(finish, behind=stopped)
+    if stopped is FinishOutcome.UNCONFIRMED:
+        _unconfirmed.takes_in_the_announcement(finish)
     _readiness.invalidates_behind(finish, stopped, observed)
     moved = observed[0] if observed else None
     return _captured.stands_before_the_route(finish, proof=moved, behind=stopped, whole=True)
@@ -187,7 +193,8 @@ def behind_the_write(
     edited, say, while the retirement was sent -- the evidence is invalidated
     over the attempt as read, which a retirement that did not land leaves in
     place; where that retirement landed instead, the attempt is put back
-    first, exactly as this finish read it (`_stands_back`), and the same
+    first, exactly as this finish read it
+    (`rewrite_finish_unconfirmed.stands_back`), and the same
     receipt invalidated over it -- or, with no room for its history entry,
     the movement recorded against it by blanking the base tip. The attempt
     standing again brings every later finish of this landing back to retire
@@ -206,7 +213,7 @@ def behind_the_write(
     if moved is None:
         return stopped
     invalidated = _readiness.invalidates(finish, current)
-    if not invalidated and _stands_back(finish, current):
+    if not invalidated and _unconfirmed.stands_back(finish, current):
         invalidated = _readiness.invalidates(finish, current)
     log.warning(
         "issue=#%d verification evidence revision %d settled for %.8s moved behind a retirement nobody confirmed "
@@ -262,32 +269,3 @@ def retires_the_adopted(
         finish.issue.number, finish.head, pending.revision,
     )
     return False
-
-
-
-def _stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
-    """Put the attempt `finish` read back where its own retirement took it off the comment; whether that landed.
-
-    Only over a comment that carries every member of the attempt exactly as
-    that retirement staged it (`rewrite_finish_writes.retirement`) -- blanked,
-    so no other attempt stands in its place -- and still carries `current` as
-    its current evidence, so no successor settled under another receipt is
-    ever marked moved. Staged on that comment read afresh and committed
-    guarded by it, the attempt's members alone written, every other field
-    kept as the comment carries it; the tick's state then reads as the
-    comment does. A comment that would not read is asked once more rather
-    than taken as the answer, since the movement already read has no other
-    attempt to be recorded against.
-    """
-    durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
-    if durable is None:
-        durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
-    left = _commit_models.PinnedCommit.capture(_writes.retirement(finish), prerequisites=_attempts._ATTEMPT_KEYS)
-    if durable is None or left.moved(durable.data):
-        return False
-    if _settlement.read_current_evidence(durable) != current:
-        return False
-    guard = _durable.guarded(durable, _attempts._ATTEMPT_KEYS, _attempts._ATTEMPT_KEYS)
-    for key in _attempts._ATTEMPT_KEYS:
-        durable.set(key, finish.state.get(key))
-    return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None

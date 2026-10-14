@@ -164,13 +164,16 @@ at every step that keeps, routes, or parks the attempt:
   the evidence -- a write refused or unconfirmed, a conversation or event
   stream that would not read behind a posted notice, a park or its notice
   that raised -- has the evidence proved ready once more before the finish
-  leaves, and a captured transaction proved again whole. Behind a retirement
-  nobody confirmed, which may have landed and taken the attempt with it, the
-  proof reads the attempt as this finish read it; evidence it reads moving is
-  invalidated with the attempt put back first where that retirement took it
-  (`rewrite_finish_settled.behind_the_write`) -- or, with no room, the
-  movement recorded by blanking that attempt's base tip -- so the next finish
-  of the landing retires the evidence whole and the attempt behind it.
+  leaves, and a captured transaction proved again whole. A write nobody
+  confirmed may have landed and changed the attempt the invalidation is
+  decided on (`rewrite_finish_unconfirmed`): behind the event's record or the
+  checkpoint, the mark and the event's record it may have left are taken in
+  first; behind a retirement, which may have taken the attempt with it, the
+  proof reads the attempt as this finish read it, and evidence it reads moving
+  is invalidated with the attempt put back first where that retirement took it
+  -- or, with no room, the movement recorded by blanking that attempt's base
+  tip -- so the next finish of the landing retires the evidence whole and the
+  attempt behind it.
 - Settled evidence is proved ready once more ahead of the relabel and again
   behind it, the retirement landing behind both; a relabel that raised has it
   proved before the error goes on. Behind the relabel a head with no evidence
