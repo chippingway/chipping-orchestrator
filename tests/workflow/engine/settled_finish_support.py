@@ -14,9 +14,12 @@ about those roads changes, so a case reads back exactly what the policy made
 of each finish; outside the scope every finish keeps the policy its road hands
 over. A real-git case selecting it for every test is a `SettledRunCase`, and
 one whose every refresh takes the git owner's guarded abort as well is a
-`SettledGuardedCase`. Beside them, a case racing a finish's settlement records
-a newer run beside the one settled (`records_a_newer_run`) or settles a
-captured run as another finish would (`settles_elsewhere`).
+`SettledGuardedCase`; both hold the push transport and the agent runner to the
+case's own recorders for the whole test (`_counts_side_effects`), so a push or
+a launch a direct finish made is counted as one a refresh made would be.
+Beside them, a case racing a finish's settlement records a newer run beside
+the one settled (`records_a_newer_run`) or settles a captured run as another
+finish would (`settles_elsewhere`).
 """
 from __future__ import annotations
 
@@ -25,6 +28,8 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.agents import runner as _agent_runner
+from orchestrator.git import branch_transport
 from orchestrator.github.verification_evidence import VerifiedCommand
 from orchestrator.workflow.engine import (
     rewrite_finish as _finish,
@@ -52,6 +57,17 @@ def _holds_to_the_policy(finish: LandedFinish) -> FinishOutcome:
 def selected():
     """Hold every finish the coordinator is handed in scope to the settled-evidence policy."""
     return patch.object(_finish, "finalizes", _holds_to_the_policy)
+
+
+def _counts_side_effects(case) -> None:
+    """Hold `case`'s push transport and agent runner to its own recorders until the test ends.
+
+    A whole refresh installs them around itself (`CapturedRunCase.recovers`);
+    a finish a case hands over directly reaches neither patch, so a push or a
+    launch it made would go out for real and never be counted.
+    """
+    case.enterContext(patch.object(branch_transport, "_push_branch", case.pushes))
+    case.enterContext(patch.object(_agent_runner, "run_agent", case.developer))
 
 
 def records_a_newer_run(case, *, settles: bool = False):
@@ -98,6 +114,7 @@ class SettledRunCase(_support.CapturedRunCase):
     def setUp(self) -> None:
         _support.CapturedRunCase.setUp(self)
         self.enterContext(selected())
+        _counts_side_effects(self)
 
 
 class SettledGuardedCase(_guarded.GuardedRecoveryCase):
@@ -106,6 +123,7 @@ class SettledGuardedCase(_guarded.GuardedRecoveryCase):
     def setUp(self) -> None:
         _guarded.GuardedRecoveryCase.setUp(self)
         self.enterContext(selected())
+        _counts_side_effects(self)
 
     def assert_routed(self, head: str, current=None) -> None:
         """`head` announced once and routed, its attempt retired, `current` current with nothing pending; run once."""

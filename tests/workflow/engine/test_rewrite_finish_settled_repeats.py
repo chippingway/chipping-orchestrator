@@ -4,7 +4,9 @@
 
 The real-git finish case (`rewrite_verification_recovery_support`), every
 finish held to the dormant settled-evidence policy (`settled_finish_support`)
-and handed over directly: issue #7's rebased head reviewed, its finish running
+and handed over directly: issue #7's rebased head reviewed beside the run ledger
+another road's launch charged -- runs spent on both meters, and a launch
+reserved and started under its fingerprint -- its finish running
 and settling the configured command under the anchor and killed at one of the
 final handoff boundaries (`rewrite_handoff_test_support`). Nothing the run
 rests on moves. The direct finish behind it proves the settled run ready and
@@ -16,14 +18,17 @@ comment stays exactly as it was, the later transaction pending as its road
 wrote it. Whichever boundary the first died at, the issue ends with one notice
 and one `base_rebased` event, one artifact and one settlement of the run, its
 whole binding current, the round reset and one relabel to
-`workflow:validating`, the attempt retired, the command run once, and nothing
-pushed or launched.
+`workflow:validating`, the attempt retired, the command run once, nothing
+pushed or launched, and the run ledger exactly as charged: no finish spends,
+reserves, or releases an agent run.
 """
 from __future__ import annotations
 
 import unittest
 from functools import partial
+from types import MappingProxyType
 
+from orchestrator.workflow.engine import run_ledger_values as _run_ledger
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
@@ -32,6 +37,17 @@ from tests.workflow.engine import (
     rewrite_verification_recovery_support as support,
     settled_finish_support as settled,
 )
+
+# The run ledger another road's launch left on the comment: the runs spent on
+# it and on the legacy usage meter beside it, and a launch reserved and
+# started under its fingerprint, at the count it was owed at.
+_CHARGED = MappingProxyType({
+    _run_ledger.AGENT_RUNS_USED: 5,
+    "issue_agent_runs": 4,
+    _run_ledger.AGENT_RUN_RESERVATION: "started",
+    _run_ledger.AGENT_RUN_FINGERPRINT: "developer:issue-7:round-3",
+    _run_ledger.AGENT_RUN_OWED_STARTED: 4,
+})
 
 
 class RepeatedFinishTest(settled.SettledRunCase, unittest.TestCase):
@@ -42,6 +58,7 @@ class RepeatedFinishTest(settled.SettledRunCase, unittest.TestCase):
             with self.subTest(boundary=boundary.name):
                 self.setUp()
                 head = self.lands_a_reviewed_rebase()
+                self._charges()
                 handoff.dies_at(self.gh, boundary, partial(self.finishes, head))
                 run = readings.pinned_records(self)[1]
                 self.assertEqual(self.finishes(head, FinishRoad.RECOVERY), FinishOutcome.ROUTED)
@@ -60,6 +77,7 @@ class RepeatedFinishTest(settled.SettledRunCase, unittest.TestCase):
         # records for that head: the earlier landing handed over again finds
         # another attempt anchored and touches neither.
         head = self.lands_a_reviewed_rebase()
+        self._charges()
         self.assertEqual(self.finishes(head), FinishOutcome.ROUTED)
         state = self.gh.read_pinned_state(self.issue)
         state.set(readings.KEY_PENDING_PUSH, head)
@@ -71,6 +89,22 @@ class RepeatedFinishTest(settled.SettledRunCase, unittest.TestCase):
 
         self.assertEqual(readings.pinned(self), pinned)
         self.assertEqual(readings.pinned_records(self)[0], later)
+        self._assert_charged_as_left()
+
+    def _charges(self) -> None:
+        """Leave the run ledger another road's launch charged (`_CHARGED`) on the comment as it stands."""
+        state = self.gh.read_pinned_state(self.issue)
+        for key, charged in _CHARGED.items():
+            state.set(key, charged)
+        self.gh.write_pinned_state(self.issue, state)
+
+    def _assert_charged_as_left(self) -> None:
+        """The run ledger exactly as `_charges` left it, and no push or agent launch made."""
+        pinned = readings.pinned(self)
+        charged = {key: pinned.get(key) for key in _CHARGED}
+        self.assertEqual(charged, dict(_CHARGED))
+        self.assertEqual(self.pushes.call_count, 0)
+        self.assertEqual(self.developer.call_count, 0)
 
     def _assert_said_once(self, head: str) -> None:
         """`head` announced, filed, and relabelled once, its attempt retired and its round reset; nothing made."""
@@ -80,8 +114,8 @@ class RepeatedFinishTest(settled.SettledRunCase, unittest.TestCase):
         pinned = readings.pinned(self)
         self.assertEqual(readings.attempt(pinned), readings.RETIRED)
         self.assertEqual(pinned[readings.KEY_REVIEW_ROUND], 0)
-        made = (self.runs(), self.pushes.call_count, self.developer.call_count)
-        self.assertEqual(made, (1, 0, 0))
+        self.assertEqual(self.runs(), 1)
+        self._assert_charged_as_left()
 
     def _assert_settled_once(self, run, later) -> None:
         """`run` current whole beside the evidence the rewrite moved past, posted once, and `later` pending unposted."""
