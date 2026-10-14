@@ -25,22 +25,29 @@ _SECRET_KEY_NAMES = frozenset((
 _REDACT_MIN_VALUE_LEN = 8
 
 
+def token_file(repo_slug: str) -> Path:
+    """The file a repository's token is read from when no process token is set.
+
+    `ORCHESTRATOR_TOKEN_FILE` when set, for every repository alike, otherwise
+    `~/.config/<owner>/<repo>/token`, derived from the repository's own slug.
+    """
+    default_path = Path.home() / ".config" / repo_slug / "token"
+    return Path(os.environ.get("ORCHESTRATOR_TOKEN_FILE", str(default_path)))
+
+
 def resolve_github_token(repo_slug: str) -> str:
     """Resolve a token from process env or the per-repository token file."""
     environment_token = os.environ.get("GITHUB_TOKEN", "").strip()
     if environment_token:
         return environment_token
-    default_path = Path.home() / ".config" / repo_slug / "token"
-    token_file = Path(
-        os.environ.get("ORCHESTRATOR_TOKEN_FILE", str(default_path)),
-    )
+    path = token_file(repo_slug)
     try:
-        return token_file.read_text().strip()
+        return path.read_text().strip()
     except FileNotFoundError:
         return ""
     except OSError as error:
         sys.stderr.write(
-            f"orchestrator: could not read token file {token_file}: {error}\n",
+            f"orchestrator: could not read token file {path}: {error}\n",
         )
         return ""
 

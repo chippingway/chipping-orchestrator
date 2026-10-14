@@ -119,8 +119,11 @@ orchestrator/
                         writes, the `configure` command that writes an
                         installed package's `.env` from them, and the
                         `set-token` command that keeps a repository's token,
-                        proved by a read-only GitHub call -- all of it
-                        loading no configuration
+                        proved by a read-only GitHub call; and the `check`
+                        command that judges a setup in the environment the
+                        systemd user service runs with, reading the settings
+                        in an interpreter of its own -- all of it loading no
+                        configuration in the process that runs it
   config/               the bottom layer: the non-secret `.env` loader, the
                         env parsers and resolver behind the settings surface,
                         target selection holding every target to the

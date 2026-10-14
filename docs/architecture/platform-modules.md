@@ -118,6 +118,8 @@ last is held by the loader itself rather than by a check.
   `tests/support/import_probes.py` declares, which every lower guard that admits the settings admits with them. The
   two `.env` templates are package data named under `[tool.poetry].include`, and
   `tests/repository/test_distribution_contents.py` builds the wheel and the sdist to read both back out of each.
+  `settings_report.py` imports the configuration inside its call, which runs only in the interpreter `checks.py`
+  starts with the service's environment, so `check` answers on a host whose settings would stop an import.
 - **Direction inside `skills/`.** Neither owner may reach the workflow engine, a stage, or an application entry
   point: a catalog is observation the tick drives, not state a handler consults — `tests/skills/test_imports.py`.
 - **Secrets.** `GITHUB_TOKEN` is read from the process environment or a token file outside `REPO_ROOT` — one per
@@ -135,7 +137,8 @@ orchestrator/
   __init__.py           the distribution version, published as `__version__`, without loading runtime owners
   cli.py                the `chipping-orchestrator` console script: the command line, `--version`, the `run`
                         command that is the polling process's composition point, and the setup commands
-                        `service/commands.py` puts on it, imported with it since they load no configuration. The
+                        `service/commands.py` puts on it, imported with it since they load no configuration in its
+                        process. The
                         same owner chooses the class a command line is parsed with
   __main__.py           the `python -m orchestrator` launch form over `cli.main`, whose `run` is what `run.sh` starts
   runtime/              the polling process's own owners
@@ -215,8 +218,8 @@ orchestrator/
                         -- an ordinary clone, a linked worktree, or an editable install -- or an installed
                         distribution, proved at that root alone, so an installed package launched inside a checkout
                         stays installed; where an installed package keeps its `.env` and logs under the home; and
-                        the refusal a setup command gives a source checkout, naming its own `.env`, guide, and
-                        `run.sh`. `config/` reads the layout and the `.env` location here
+                        the refusal a setup command or `check` gives a source checkout, naming its own `.env`,
+                        guide, and `run.sh`. `config/` reads the layout and the `.env` location here
     validation.py       one validator per setup field -- the clone, the `owner/name` repository, a base branch git
                         allows by the `check-ref-format --branch` rules, a login list, an agent on a supplied `PATH`
                         -- each returning the value a setup writes or raising `FieldError` with the whole
@@ -256,10 +259,31 @@ orchestrator/
                         `~/.config/<owner>/<name>/token`, replacing any token there, in a directory made 0700 even
                         where a looser one stood, so a refusal or a failed write leaves the token already there.
                         Validation, proof, and the write are each callable alone
+    environment.py      the environment the systemd user service runs with, built from a shell's: its `HOME` and
+                        `USER`, and its `PATH` with only the absolute entries kept, which `captured_path` answers
+                        alone -- nothing else crosses, so an exported token, setting, agent override, or `.env`
+                        opt-out cannot stand in for what the service reads; it imports nothing from the package
+    settings_report.py  what keeps the settings the running process resolves from running the service, a line per
+                        problem: the refusal `paths.py` gives a source checkout, told apart by the same call the
+                        configuration chooses its `.env` with, the configuration's own diagnostic, the
+                        empty-allowlist refusal, a `REPOS` entry whose token file is missing, empty, or unreadable,
+                        a refused token through `token_probe` when asked, and an agent binary the roles run that
+                        cannot be launched -- not on `PATH`, or a relative path an agent would read from its
+                        worktree -- honoring `CLAUDE_BIN`, `CODEX_BIN`, and `AGY_BIN`. It imports
+                        `orchestrator.config` and `runtime/startup.py` inside the call, which only ever runs in the
+                        interpreter `checks.py` starts, and writes its report as JSON on standard output
+    checks.py           `check`: a fresh interpreter of the running package, started without the current directory
+                        on its path, with `environment.py`'s environment, in its home, running `settings_report`
+                        there, so no token, setting, or git setting the shell exports reaches it -- the
+                        source-checkout refusal included -- and no token leaves it. Its standard error is
+                        captured, so a configuration warning is not repeated and an interpreter that stops before
+                        it reports is one problem; the full check adds one read-only GitHub call per repository,
+                        the local one none, and the command answers 0, or 1 with a line on stderr per problem
     commands.py         the setup commands' options and the function each runs: `configure` reads its options into
-                        its core's answers and prints a refusal alone on stderr with exit status 1, and `set-token`
-                        hands its repository and standard input to `tokens.py`. It also chooses the class
-                        `cli.py` parses a command line with: one naming `set-token` gets a parser whose every
+                        its core's answers and prints a refusal alone on stderr with exit status 1, `set-token`
+                        hands its repository and standard input to `tokens.py`, and `check` hands this process's
+                        environment to `checks.py`, its `--local` leaving out the GitHub calls. It also chooses the
+                        class `cli.py` parses a command line with: one naming `set-token` gets a parser whose every
                         refusal, in that parser and each beneath it, prints back none of what it was given, since
                         the token may stand anywhere on it
     .env.example        the basic template a setup starts from: `REPOS` and the few settings a first run needs

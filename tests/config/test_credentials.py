@@ -92,6 +92,19 @@ class ResolveGithubTokenTest(unittest.TestCase):
         self.assertEqual(resolved, "")
         self.assertEqual(errors.getvalue(), "")
 
+    def test_token_file_is_the_one_resolution_reads(self) -> None:
+        home_path = Path("/home/alice")
+        for environment, expected in (
+            ({}, home_path / _CONFIG_DIR / _REPO_SLUG / _TOKEN_FILE),
+            ({_TOKEN_FILE_ENV: "/srv/token"}, Path("/srv/token")),
+        ):
+            with (
+                self.subTest(environment=environment),
+                patch.dict(os.environ, environment, clear=True),
+                patch.object(Path, "home", return_value=home_path),
+            ):
+                self.assertEqual(credentials.token_file(_REPO_SLUG), expected)
+
     def test_unreadable_token_file_warns(self) -> None:
         errors = io.StringIO()
         with tempfile.TemporaryDirectory() as token_dir:

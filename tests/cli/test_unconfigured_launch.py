@@ -23,6 +23,7 @@ _CONSOLE_SCRIPT = "chipping-orchestrator"
 _RUN = "run"
 _CONFIGURE = "configure"
 _SET_TOKEN = "set-token"
+_CHECK = "check"
 _HELP = "--help"
 _LAUNCH_TIMEOUT_SECONDS = 60
 _MISSING_SCRIPT_REASON = f"{_CONSOLE_SCRIPT} is not installed; run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync`"
@@ -33,6 +34,7 @@ _COMMAND_LISTING = (
     rf"(?ms)\Ausage: {_CONSOLE_SCRIPT} .*^commands:$.*^ +{_RUN} +Run the polling process"
     rf".*^ +{_CONFIGURE} +Write the installed package's \.env"
     rf".*^ +{_SET_TOKEN} +Verify a repository's GitHub token"
+    rf".*^ +{_CHECK} +Check the setup in the environment"
 )
 _VERSION_LINE = f"{_CONSOLE_SCRIPT} {__version__}"
 _USAGE_ERROR = 2
@@ -80,6 +82,11 @@ _ANSWERS = (
         (_SET_TOKEN, _HELP),
         0,
         rf"(?s)\Ausage: {_CONSOLE_SCRIPT} {_SET_TOKEN} \[-h\] OWNER/NAME\n.*standard input",
+    ),
+    _Answer(
+        (_CHECK, _HELP),
+        0,
+        rf"(?s)\Ausage: {_CONSOLE_SCRIPT} {_CHECK} \[-h\] \[--local\]\n.*absolute\s+entries\s+of\s+PATH",
     ),
     _refused("--once"),
     _refused("--cleanup-terminal-artifacts"),
@@ -133,8 +140,9 @@ class UnconfiguredLaunchTest(unittest.TestCase):
     read: on a host that configures no repository, and on one whose `REPOS` a
     run aborts on. A bare launch, like `--help`, prints the help listing every
     command; `--version` prints the distribution's; `run --help` lists the
-    polling flags, `configure --help` the setup options, and `set-token --help`
-    the repository it takes and standard input as where the token comes from;
+    polling flags, `configure --help` the setup options, `set-token --help`
+    the repository it takes and standard input as where the token comes from,
+    and `check --help` the environment it checks in and its `--local` form;
     and a polling flag given before any command is a usage error naming the
     `run` form that means it.
 

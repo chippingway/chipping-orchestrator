@@ -93,7 +93,8 @@ The second entry also sets both optional fields: `upstream` is the git remote in
 and `2` lets two `acme/web` issues run at once. `ALLOWED_ISSUE_AUTHORS` ([required](#required)) and `HITL_HANDLE`
 sit beside it, and every entry needs a token — a file at `~/.config/<owner>/<name>/token` each, which
 `chipping-orchestrator set-token <owner>/<name>` proves and writes ([storing a token](#storing-a-token-with-set-token)),
-or one `GITHUB_TOKEN` for all of them ([resolution order](#github-personal-access-token)). Worktrees go under
+or one `GITHUB_TOKEN` exported for all of them in a foreground run, which [`check`](#checking-a-setup) does not read
+([resolution order](#github-personal-access-token)). Worktrees go under
 `wt-orchestrator` beside the first entry's clone unless `WORKTREES_DIR` says otherwise
 ([workspace](#workspace-and-agent-identity)).
 
@@ -102,6 +103,52 @@ operational settings, each documented below, and closes with the orchestrator-de
 `TARGET_REPO_ROOT`, `BASE_BRANCH`, and `REMOTE_NAME`. Those are for working on the orchestrator itself from its source
 checkout, against its own repository by default ([developer fallback](#developer-fallback-and-target-checks)), and are
 ignored whenever `REPOS` is set.
+
+### Checking a setup
+
+`check` answers whether the systemd user service could run on a setup, judged in the environment the service runs
+with. It exits 0 with one line on stdout when it could, and otherwise 1 with one line on stderr per problem:
+
+```sh
+chipping-orchestrator check          # the settings, tokens, and agents, then one GitHub call per repository
+chipping-orchestrator check --local  # the same without any GitHub call
+```
+
+A user service does not inherit the login shell's environment, so `check` takes only `HOME`, `USER`, and `PATH` from
+the shell it runs in, and of `PATH` only the absolute entries: an empty or relative entry names a directory relative to
+wherever a command runs, and the service runs in its home. Everything else comes from where the service reads it,
+settings from the [`.env` it loads](#where-env-is-read) and tokens from the
+[token files](#github-personal-access-token), so an exported `GITHUB_TOKEN`, `REPOS`, `ALLOWED_ISSUE_AUTHORS`,
+`CLAUDE_BIN`, `CODEX_BIN`, `AGY_BIN`, `ORCHESTRATOR_SKIP_DOTENV`, or any other setting cannot make it pass where the
+service would fail. The settings are resolved in a fresh interpreter started with that environment and in that home,
+as the service's own process starts. A package running from its own source checkout reads that checkout's `.env`
+instead, so `check` refuses to run from one, with the refusal [setup](#setup-checks-and-clone-defaults) gives it; the
+checkout is told apart in that same interpreter, by the call the settings choose their `.env` with, so no git setting
+the shell exports can hide it. Otherwise `check` reports:
+
+- settings that do not resolve, as a start reports them, every [target](#developer-fallback-and-target-checks) that
+  is not a checkout named at once; nothing else is checked then;
+- an `ALLOWED_ISSUE_AUTHORS` that names nobody, with the refusal every launch makes ([required](#required));
+- each `REPOS` entry without a token, naming the file it would be read from: `~/.config/<owner>/<name>/token`, or the
+  one an `ORCHESTRATOR_TOKEN_FILE` in `.env` names; a file that exists but cannot be read is named with the error
+  reading it raised;
+- each agent binary a role runs that cannot be launched: the backend `DEV_AGENT`, `REVIEW_AGENT`, or `DECOMPOSE_AGENT`
+  starts with, as the `CLAUDE_BIN`, `CODEX_BIN`, or `AGY_BIN` in `.env` names it, once per binary with every role that
+  runs it. A bare name has to be an executable on that `PATH` and an absolute path an executable, while a relative
+  path holding a directory, such as `./tools/claude`, is refused outright: each agent starts in its issue's worktree,
+  which is where such a path would be read from.
+
+Without `--local`, `check` then proves each token reads its repository with one read-only call per `REPOS` entry, the
+call [`set-token`](#storing-a-token-with-set-token) makes. It is sent from that same interpreter, through the network
+settings the service has, and the token never leaves it; a refusal names the repository and GitHub's answer. Neither
+form polls an issue, writes a label, pinned state, or comment, or starts an agent, and a pass does not prove the
+token's write permissions or an agent's login. The
+[compatibility check](configuration/operations.md#check-compatibility-and-start) runs it beside the package version
+and dependency checks before a start.
+
+A warning the settings print as they load, such as for a token key found in `.env`, stops nothing and is not repeated,
+and a check whose interpreter stops before it reports is one problem naming its exit status and the last line of its
+error.
 
 ## Package installation, upgrades, and rollback
 
@@ -314,8 +361,9 @@ for a branch whether given or read off the clone, since another one given there 
 Setup uses the installed package's own locations under the home it runs with: settings in
 `~/.config/chipping-orchestrator/.env`, the file an installed package reads
 ([where `.env` is read](#where-env-is-read)), and logs in `~/.local/state/chipping-orchestrator/logs`. A package
-running from a source checkout reads its own `.env` instead, so setup that writes the installed file refuses to run
-from one and points at the checkout's [developer guide](development.md#source-checkout-setup) and `run.sh`.
+running from a source checkout reads its own `.env` instead, so setup that writes the installed file, and the
+[check](#checking-a-setup) of what an installed service reads, refuse to run from one and point at the checkout's
+[developer guide](development.md#source-checkout-setup) and `run.sh`.
 
 ### Developer fallback and target checks
 
@@ -396,7 +444,10 @@ examples.
   not on `$PATH`
 - `CLAUDE_BIN` — default `claude`. executable launched when a role's first token is `claude`; override only if
   `claude` is not on `$PATH`
-- `AGY_BIN` — default `agy`. executable launched for the Antigravity backend; override if it is not on `$PATH`
+- `AGY_BIN` — default `agy`. executable launched for the Antigravity backend; override if it is not on `$PATH`.
+  Give each of `CODEX_BIN`, `CLAUDE_BIN`, and `AGY_BIN` as a bare name found on `$PATH` or as an absolute path: an
+  agent is started in its issue's worktree, so a relative path holding a directory is read from there, and
+  [`check`](#checking-a-setup) refuses one
 - `ALLOWED_ISSUE_AUTHORS` — default _(required; see [above](#required))_. comma-separated GitHub logins; only
   auto-pick-up unlabeled issues from those authors — the one path that runs an outsider's issue anyway is the restart
   of a cancelled late split, authorized by an operator removing `rejected`, a write only a repository's own people may

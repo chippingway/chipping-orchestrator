@@ -108,13 +108,18 @@ script), checks it reaches the repository, and writes `~/.config/<owner>/<name>/
 chipping-orchestrator set-token acme/api
 ```
 
-One `GITHUB_TOKEN` exported in the launch environment covers every repository instead. Tokens in `.env` are
-deliberately ignored, and the token is never a command-line argument. Ensure each configured agent is logged in, then
-run:
+Tokens in `.env` are deliberately ignored, and the token is never a command-line argument. Ensure each configured
+agent is logged in, then [check the setup][checking] the way a systemd user service would read it, from `.env`, the
+token files, and the shell's `PATH` alone, and run:
 
 ```sh
+chipping-orchestrator check
 chipping-orchestrator run
 ```
+
+A foreground `run` also accepts one `GITHUB_TOKEN` exported in its launch environment in place of the token files, for
+every repository. `check` ignores that export, since a service is not started from that shell, and reports each
+repository without a token file as a problem, so store the tokens with `set-token` for any setup a service will run.
 
 On first start, the orchestrator creates its labels and begins polling open issues. Each issue gets its own worktree
 under `wt-orchestrator`, beside the first repository's clone. File a small issue to exercise the workflow; a completed
@@ -186,10 +191,11 @@ REPOS=acme/api|/home/alice/src/acme-api|main;acme/web|/home/alice/src/acme-web|m
 ```
 
 Every entry names its own local clone and reads its own token file, `~/.config/<owner>/<name>/token`, which
-`chipping-orchestrator set-token <owner>/<name>` writes, unless one `GITHUB_TOKEN` covers them all. The optional fourth
-and fifth fields set the git remote that points at the repository (`origin` by default) and how many of its issues run
-at once; they are positional, so setting the limit means writing the remote too. Worktrees and branches are namespaced
-by repository, and per-repository plus global concurrency limits keep issues from colliding or overwhelming the host.
+`chipping-orchestrator set-token <owner>/<name>` writes, unless one exported `GITHUB_TOKEN` covers them all for a
+foreground run. The optional fourth and fifth fields set the git remote that points at the repository (`origin` by
+default) and how many of its issues run at once; they are positional, so setting the limit means writing the remote too.
+Worktrees and branches are namespaced by repository, and per-repository plus global concurrency limits keep issues from
+colliding or overwhelming the host.
 
 See the [`REPOS` syntax][repos] and
 [parallel-processing settings][parallel].
@@ -260,6 +266,7 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [observability]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/observability.md
 [development]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/development.md
 [repos]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#repos-syntax
+[checking]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#checking-a-setup
 [multiple-repos]:
   https://github.com/chippingway/chipping-orchestrator/blob/main/README.md#managing-multiple-repositories
 [parallel]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#parallel-processing
