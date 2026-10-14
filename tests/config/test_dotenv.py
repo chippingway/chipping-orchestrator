@@ -10,6 +10,7 @@ from pathlib import Path
 from orchestrator.config import environment
 from orchestrator.config._dotenv import load_dotenv, strip_dotenv_quotes
 from tests.config import config_test_support as _support, config_test_values as _config_cases
+from tests.support.checkouts import make_checkout
 from tests.support.repos_host import repos_only_host
 
 _POLL_INTERVAL_ENV = "POLL_INTERVAL"
@@ -94,7 +95,7 @@ class DotenvLocationTest(unittest.TestCase):
                 repos_only_host({}) as host,
                 tempfile.TemporaryDirectory() as checkout,
             ):
-                _support.make_checkout(Path(checkout))
+                make_checkout(Path(checkout))
                 if expected:
                     Path(checkout, ".env").write_text(f"{_POLL_INTERVAL_ENV}=11\n")
                 _user_dotenv(host.home).write_text(

@@ -7,10 +7,18 @@ configuration every domain reads sits at the bottom, the domains that do the
 work sit above it, the workflow decides with them, and the launch forms compose
 the lot. The service package -- what an installed orchestrator carries for
 setting itself up -- sits with the launch forms, since what it holds serves an
-operator setting up an install and no domain has a reason to read it back. An
-import that points the other way is what turns a package into a cycle, and
-what puts a decision the workflow owns behind an import of the infrastructure
-under it.
+operator setting up an install. An import that points the other way is what
+turns a package into a cycle, and what puts a decision the workflow owns
+behind an import of the infrastructure under it.
+
+The service's install facts are the one part of it a lower layer reads back,
+and only the configuration does: whether a directory is the top of a git
+checkout, and where the running package sits and an installed one keeps its
+`.env`. The configuration holds its targets to the check a setup holds a clone
+to and loads the file a setup writes, so both are answered on one owner each.
+Those two owners are named exactly and import nothing beyond each other, which
+the service package's own import checks hold them to, so reading them costs
+the bottom layer nothing above itself.
 
 The workflow vocabulary is the one domain a lower layer may read, and only
 GitHub and git may do so. Its label, reading, graph, and guard owners are
@@ -69,6 +77,15 @@ _VOCABULARY = tuple(
 _VOCABULARY_READERS = (f"{PACKAGE}.git", f"{PACKAGE}.github")
 
 _ENTRYPOINTS = tuple(f"{PACKAGE}.{domain}" for domain in _LAYERS[_TOP])
+
+# Whether a directory is a git checkout, and where the running package sits and
+# an installed one keeps its settings: the service owners the configuration
+# reads back, at any scope, and nobody else below the service.
+_INSTALL_FACTS = tuple(
+    f"{PACKAGE}.service.{owner}" for owner in ("checkouts", "paths")
+)
+
+_INSTALL_FACT_READER = f"{PACKAGE}.config"
 
 _BASE_SYNC = f"{PACKAGE}.git.base_sync"
 
@@ -200,6 +217,24 @@ def _reads_the_vocabulary(module: str, target: str) -> bool:
     return named and module.startswith(_VOCABULARY_READERS)
 
 
+def _names_a_fact(target: str) -> bool:
+    """Whether an import target is one of the install facts or a name in one.
+
+    Matched on the module boundary like the vocabulary: a service owner named
+    for one of the two -- `service.paths_writer` -- is a different module.
+    """
+    return any(
+        target == fact or target.startswith(f"{fact}.")
+        for fact in _INSTALL_FACTS
+    )
+
+
+def _reads_the_install_facts(module: str, target: str) -> bool:
+    """Whether one import is the configuration reading the install facts."""
+    reader = module == _INSTALL_FACT_READER or module.startswith(f"{_INSTALL_FACT_READER}.")
+    return reader and _names_a_fact(target)
+
+
 def _layer_of(module: str) -> int:
     """Which layer a dotted module name belongs to.
 
@@ -223,7 +258,7 @@ def _in_package(targets: frozenset[str]) -> tuple[str, ...]:
 
 def _points_up(module: str, target: str) -> bool:
     """Whether one import reaches a layer the module may not name."""
-    if _reads_the_vocabulary(module, target):
+    if _reads_the_vocabulary(module, target) or _reads_the_install_facts(module, target):
         return False
     return _layer_of(target) > _layer_of(module)
 
@@ -291,14 +326,34 @@ class DependencyDirectionTest(unittest.TestCase):
         # The launch forms are what compose the domains, never what a domain
         # reads back -- at any scope, because a call-time hop into one would
         # drag the polling runtime, or Streamlit and Plotly behind a page, into
-        # whatever reached for it.
+        # whatever reached for it. The install facts are the one exception,
+        # and only for the configuration: they drag nothing behind them.
         for module in python_files(PACKAGE_ROOT):
             name = dotted_name(module, PACKAGE_ROOT)
             if _layer_of(name) == _TOP:
                 continue
             for target in _in_package(every_import(module)):
                 with self.subTest(module=name, imported=target):
-                    self.assertFalse(target.startswith(_ENTRYPOINTS))
+                    self.assertFalse(
+                        target.startswith(_ENTRYPOINTS)
+                        and not _reads_the_install_facts(name, target),
+                    )
+
+    def test_config_reads_every_install_fact(self) -> None:
+        # The other direction of the exception: every fact on the list is
+        # read where it is declared, so an owner that stopped being read does
+        # not leave an exemption the next upward reach would inherit.
+        reached = [
+            target
+            for module in python_files(PACKAGE_ROOT / "config")
+            for target in module_scope_imports(module)
+        ]
+        for fact in _INSTALL_FACTS:
+            with self.subTest(fact=fact):
+                self.assertTrue(any(
+                    target == fact or target.startswith(f"{fact}.")
+                    for target in reached
+                ))
 
 
 if __name__ == "__main__":

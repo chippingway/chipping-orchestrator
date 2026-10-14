@@ -10,8 +10,9 @@ parsing) into the ``RepoSpec`` list threaded through the workflow. When
 only where the caller offers one -- a package running from this project's own
 source checkout. An installed package offers none, so it has no target but
 the ones ``REPOS`` names. Every selected target is then held to a git
-checkout, as ``checkouts`` reads one, so a missing or unusable clone stops the
-process at import, before anything connects to GitHub.
+checkout, as ``orchestrator.service.checkouts`` reads one -- the same check a
+setup holds its clone to -- so a missing or unusable clone stops the process
+at import, before anything connects to GitHub.
 
 The abort-on-invalid diagnostic lives in ``orchestrator.config`` (its single
 configuration-failure funnel) and is injected here as a callable, so this
@@ -24,8 +25,8 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import NoReturn
 
-from orchestrator.config.checkouts import checkout_problem
 from orchestrator.config.models import RepoEnvEntry, RepoSpec
+from orchestrator.service.checkouts import checkout_problem
 
 # The diagnostic injected from ``orchestrator.config`` keeps configuration
 # failure policy out of the parsing leaf: ``config_error`` aborts import.

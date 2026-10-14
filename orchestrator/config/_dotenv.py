@@ -7,21 +7,22 @@ Split from the resolver in ``environment`` so the loader stays a small leaf:
 here, never the reverse. Secret keys are refused because the implementer agent
 can read this file.
 
-Which one file is read follows the layout ``layout.is_source_checkout``
-proves. A source checkout reads the ``.env`` at its own root, the file
-``run.sh`` reads too, and nothing else: one without that file loads none. Any
-other layout is an installed package, which reads the user location
-``~/.config/chipping-orchestrator/.env`` and never a ``.env`` beside the
-package, since that root is an environment's ``site-packages``. The file's
-directory is only where settings come from: no target repository or worktree
-root is ever derived from it.
+Which one file is read follows the layout
+``orchestrator.service.paths.is_source_checkout`` proves. A source checkout
+reads the ``.env`` at its own root, the file ``run.sh`` reads too, and nothing
+else: one without that file loads none. Any other layout is an installed
+package, which reads the user location ``~/.config/chipping-orchestrator/.env``
+-- ``paths.settings_file``, the same file a setup writes -- and never a
+``.env`` beside the package, since that root is an environment's
+``site-packages``. The file's directory is only where settings come from: no
+target repository or worktree root is ever derived from it.
 """
 from __future__ import annotations
 
 from collections.abc import Callable, MutableMapping
 from pathlib import Path
 
-from orchestrator.config.layout import is_source_checkout
+from orchestrator.service import paths as _service_paths
 
 _SECRET_KEYS = frozenset((
     "GITHUB_TOKEN",
@@ -32,10 +33,6 @@ _SECRET_KEYS = frozenset((
     "GIT_TOKEN",
 ))
 _TRUE_VALUES = frozenset(("1", "true", "on", "yes"))
-
-# Relative to the home directory, beside the `~/.config/<owner>/<repo>/token`
-# files rather than inside any checkout or environment the package runs from.
-_USER_DOTENV = Path(".config", "chipping-orchestrator", ".env")
 
 
 def strip_dotenv_quotes(dotenv_value: str) -> str:
@@ -74,9 +71,9 @@ def _load_entry(
 
 def dotenv_path(repo_root: Path) -> Path:
     """The one ``.env`` to read: a source checkout's own, else the user's."""
-    if is_source_checkout(repo_root):
+    if _service_paths.is_source_checkout(repo_root):
         return repo_root / ".env"
-    return Path.home() / _USER_DOTENV
+    return _service_paths.settings_file()
 
 
 def load_dotenv(

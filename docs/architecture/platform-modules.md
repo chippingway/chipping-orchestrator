@@ -15,11 +15,17 @@ with these owners is in [`../state-machine.md`](../state-machine.md).
 Each rule below names what holds it, so a module that breaks one fails the suite rather than the next reader. The
 last is held by the loader itself rather than by a check.
 
-- **Layer position.** `config/` is the bottom layer and names nothing above itself; `github/`, `git/`, `agents/`,
-  `scheduler/`, and `skills/` sit above it and below `workflow/`; `runtime/` and the two launch forms compose the
-  lot, and `service/` sits beside them at the top, where no domain can reach it.
+- **Layer position.** `config/` is the bottom layer and names nothing above itself but the service's two install
+  facts; `github/`, `git/`, `agents/`, `scheduler/`, and `skills/` sit above it and below `workflow/`; `runtime/` and
+  the two launch forms compose the lot, and `service/` sits beside them at the top, where no domain reaches it but
+  for those two facts.
   `tests/repository/test_layering.py` reads that direction twice, because deferring an import weakens where it
   lands but not whether it belongs.
+- **The install facts.** Only `config/` may bind the exact service owners `checkouts.py` and `paths.py`, at any
+  scope: it holds every target to the git-checkout check a setup holds its clone to, and loads the `.env` the
+  source-checkout versus installed layout picks, the file a setup writes. `tests/repository/test_layering.py` also
+  fails once `config/` stops reading either, so the exemption cannot outlive its reader, and matches module
+  boundaries, so a sibling named for one of them inherits nothing.
 - **At module scope, the workflow vocabulary.** Only `github/` and `git/` may bind the exact workflow owners
   `state.py`, `label_reading.py`, `transitions.py`, and `transition_guard.py`. They read and write the label vocabulary
   through those owners, which load no engine or stages. The check matches module boundaries, so a sibling cannot
@@ -103,10 +109,14 @@ last is held by the loader itself rather than by a check.
   `tests/git/publication/test_imports.py`.
 - **Import cost.** `import orchestrator` costs the root module and no owner behind it, and importing a `runtime/`
   owner plants neither the CLI nor an app — `tests/runtime/test_imports.py` and `tests/apps/test_imports.py`.
-- **Templates without configuration.** Importing `service/` or its `templates.py` plants nothing beyond its own
+- **Setup without configuration.** Importing `service/` or any owner in it plants nothing beyond that owner's own
   chain, `orchestrator.config` above all: that package resolves the settings as it is imported, and an installed
-  package with no `REPOS` exits there, which is the state a first setup reads the templates in —
-  `tests/service/test_imports.py`. The two `.env` templates are package data named under `[tool.poetry].include`, and
+  package with no `REPOS` exits there, which is the state a first setup starts in —
+  `tests/service/test_imports.py`, which also declares which service owners each one loads. That exact chain is what
+  lets `config/` read the two install facts from below, and the same module holds an import of `orchestrator.config`
+  to planting those two and their marker package and nothing else under `service/`: the set
+  `tests/support/import_probes.py` declares, which every lower guard that admits the settings admits with them. The
+  two `.env` templates are package data named under `[tool.poetry].include`, and
   `tests/repository/test_distribution_contents.py` builds the wheel and the sdist to read both back out of each.
 - **Direction inside `skills/`.** Neither owner may reach the workflow engine, a stage, or an application entry
   point: a catalog is observation the tick drives, not state a handler consults — `tests/skills/test_imports.py`.
@@ -189,28 +199,47 @@ orchestrator/
                         no claim
     self_update.py      the git probes behind the self-restart guard
     shutdown.py         the signal handler, the bounded-drain watchdog, and the forced exit it ends at
-  service/              what an installed orchestrator carries for setting itself up; a marker initializer
+  service/              what an installed orchestrator carries for setting itself up, every owner answering on a host
+                        with no configuration; a marker initializer
     templates.py        the reader of the two `.env` templates beside it, through `importlib.resources`, so an
                         editable checkout and an installed wheel alike hand back the copy matching the running
-                        version; it imports nothing from the package, so it answers on a host with no configuration
+                        version; it imports nothing from the package
+    checkouts.py        whether a directory is the top of a git checkout, answered by git itself: a read-only
+                        `git rev-parse` about its own `.git`, never a discovered one, then one discovering it from
+                        inside for git's ownership check, and the git runner pointed at that directory alone; it
+                        starts git as a program and imports nothing from the package, which is what lets `config/`
+                        hold every target to it
+    paths.py            the root the running package sits in and whether that is this project's own source checkout
+                        -- an ordinary clone, a linked worktree, or an editable install -- or an installed
+                        distribution, proved at that root alone, so an installed package launched inside a checkout
+                        stays installed; where an installed package keeps its `.env` and logs under the home; and
+                        the refusal a setup command gives a source checkout, naming its own `.env`, guide, and
+                        `run.sh`. `config/` reads the layout and the `.env` location here
+    validation.py       one validator per setup field -- the clone, the `owner/name` repository, a login list, an
+                        agent on a supplied `PATH` -- each returning the value a setup writes or raising
+                        `FieldError` with the whole diagnostic, so every command and prompt prints the same words
+    remote_urls.py      the `owner/name` a git remote's URL points at on GitHub, in each form git accepts for one,
+                        the SSH forms on GitHub's port-443 endpoint `ssh.github.com` included
+    clone_defaults.py   the `REPOS` entry a clone implies: the repository, remote, and base branch read off its
+                        remotes and its recorded and checked-out branches, keeping any field the caller chose and
+                        recording a remote other than `origin` under its own name; nothing is fetched
+    repos_entry.py      the `RepositoryEntry` record and the `REPOS` entry it renders, in the fewest positional
+                        fields that carry it, refusing a field the configuration would read back changed
     .env.example        the basic template a setup starts from: `REPOS` and the few settings a first run needs
     .env.example.advanced
                         optional operational overrides and examples, then the orchestrator-developer settings
   config/               publishes resolved settings and `RepoSpec`, with parsing owned by its leaves
     __init__.py         reloadable settings bindings, their diagnostic funnel, and the default repo-spec accessor
     environment.py      the env-value parsers and the `_SettingsResolver` that reads and validates every knob
-    _dotenv.py          the non-secret `.env` loader, reading a source checkout's own file or else the user location
-    checkouts.py        whether a directory is the top of a git checkout, answered by git itself: a read-only
-                        `git rev-parse` about its own `.git`, never a discovered one, then one discovering it from
-                        inside for git's ownership check; it starts git as a program and imports nothing from `git/`
-    layout.py           whether the package runs from this project's own source checkout or an installed
-                        distribution, and the worktree root's default beside the first configured target
+    _dotenv.py          the non-secret `.env` loader, reading a source checkout's own file or else the user location,
+                        as `service/paths.py` tells the two layouts apart and places that location
+    layout.py           the worktree root's default beside the first configured target
     credentials.py      process / token-file credential resolution per repository and the secret redactor the verify
                         output, the agent stderr diagnostics, and the trajectory writer mask with
     models.py           the `RepoSpec` / `RepoEnvEntry` repository-config types
     repositories.py     `REPOS` entry parsing and validation, the choice between `REPOS` and the developer fallback
                         only a source checkout is offered, and the refusal of every selected target that is not a
-                        checkout
+                        checkout, as `service/checkouts.py` reads one
   github/               publishes `GitHubClient` and `PinnedState` from their defining owners
     client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records, and canonical
                         repository identity; a clone reuses the parent's token and bot login on a requester of its

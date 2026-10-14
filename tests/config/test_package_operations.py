@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.config import config_test_support as _support
+from tests.support.checkouts import make_checkout
 from tests.support.installed_package import installed_copy
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -47,7 +47,7 @@ class InstalledConfigurationCheckTest(unittest.TestCase):
         self._launch.mkdir()
         self._dotenv = self._root / "home" / ".config" / "chipping-orchestrator" / ".env"
         self._dotenv.parent.mkdir(parents=True)
-        target = _support.make_checkout(self._root / "target")
+        target = make_checkout(self._root / "target")
         self._settings = {
             _REPOS_ENV: f"owner/project|{target}|main",
             "ALLOWED_ISSUE_AUTHORS": "alice",

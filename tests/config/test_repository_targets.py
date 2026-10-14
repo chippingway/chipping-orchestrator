@@ -14,6 +14,7 @@ from tests.config import (
     config_test_support as _support,
     config_test_values as _config_cases,
 )
+from tests.support.checkouts import make_checkout
 from tests.support.git import (
     _append_git_config,
     _claim_work_tree,
@@ -67,7 +68,7 @@ class _Unusable(NamedTuple):
 
 def _committed_checkout(root: Path) -> Path:
     """A clone at `root` with one commit, so worktrees can be added to it."""
-    _support.make_checkout(root)
+    make_checkout(root)
     _run_git("add", "pyproject.toml", cwd=root)
     _run_git("commit", "-m", "init", cwd=root)
     return root
@@ -88,7 +89,7 @@ def _usable_targets(scratch: Path) -> list[Path]:
     _run_git(*_ADD_WORKTREE, "--detach", str(scratch / "detached"), cwd=clone)
     _run_git("clone", "--bare", str(clone), str(bare_clone), cwd=scratch)
     _run_git(*_ADD_WORKTREE, str(scratch / "bare-linked"), cwd=bare_clone)
-    continued = _append_git_config(_support.make_checkout(scratch / "continued"), _CONTINUED_FALSE)
+    continued = _append_git_config(make_checkout(scratch / "continued"), _CONTINUED_FALSE)
     return [clone, scratch / _LINKED, scratch / "detached", scratch / "bare-linked", continued]
 
 
@@ -100,10 +101,10 @@ def _lay_out_broken_metadata(scratch: Path) -> None:
     (scratch / "tight-pointer").mkdir()
     linked_git_dir = scratch / _CLONE / _DOT_GIT / "worktrees" / _LINKED
     (scratch / "tight-pointer" / _DOT_GIT).write_text(f"gitdir:{linked_git_dir}\n")
-    corrupt = _support.make_checkout(scratch / "corrupt-head")
+    corrupt = make_checkout(scratch / "corrupt-head")
     (corrupt / _DOT_GIT / "HEAD").write_text("not a ref\n")
     for name, config_text in _UNOPENABLE_CONFIGS.items():
-        _append_git_config(_support.make_checkout(scratch / name), config_text)
+        _append_git_config(make_checkout(scratch / name), config_text)
 
 
 def _unusable_targets(scratch: Path) -> list[_Unusable]:
@@ -148,7 +149,7 @@ def _claimed_targets(scratch: Path) -> list[_Unusable]:
     """
     plain = _claim_work_tree(scratch / "claims:plain", "target")
     plain.mkdir()
-    corrupt = _support.make_checkout(_claim_work_tree(scratch / "claims:corrupt", "target"))
+    corrupt = make_checkout(_claim_work_tree(scratch / "claims:corrupt", "target"))
     (corrupt / _DOT_GIT / "HEAD").write_text("not a ref\n")
     return [
         _Unusable("claimed plain directory", plain, _NO_METADATA),
@@ -212,8 +213,8 @@ class TargetCheckoutTest(unittest.TestCase):
         foreign = _foreign_owner_settings(self._scratch)
         if foreign is None:
             self.skipTest("this git cannot be made to read a checkout as another user's")
-        trusted = _support.make_checkout(self._scratch / "trusted")
-        untrusted = _support.make_checkout(self._scratch / "untrusted")
+        trusted = make_checkout(self._scratch / "trusted")
+        untrusted = make_checkout(self._scratch / "untrusted")
         message = _reload.config_error_message({
             **foreign,
             "GIT_CONFIG_COUNT": "1",
@@ -235,7 +236,7 @@ class TargetCheckoutTest(unittest.TestCase):
         # answer.
         for name in _config_cases._LINE_BREAKING_NAMES:
             with self.subTest(name=name):
-                target = _support.make_checkout(self._scratch / name)
+                target = make_checkout(self._scratch / name)
                 config = _reload.load_config({
                     "REPO": _config_cases._LEGACY_REPO,
                     _TARGET_ROOT_ENV: str(target),

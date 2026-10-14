@@ -8,7 +8,7 @@ import unittest
 from importlib.util import find_spec
 
 from orchestrator.git import verification
-from tests.support.import_probes import probe_import
+from tests.support.import_probes import CONFIGURATION_READS, probe_import
 
 _MODULES = (
     "orchestrator.git.verification",
@@ -35,7 +35,9 @@ _FLAT_MODULES = (
 # its import graph.
 _ALLOWED_ROOTS = ("orchestrator.config", "orchestrator.git")
 
-_ALLOWED_MODULES = ("orchestrator",)
+# The root package, and what the settings read with them: the service's
+# install facts, named exactly.
+_ALLOWED_MODULES = ("orchestrator", *sorted(CONFIGURATION_READS))
 
 _RESULT_OWNERS = (
     "orchestrator.git.verification.models",

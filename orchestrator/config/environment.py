@@ -23,10 +23,10 @@ from pathlib import Path
 from typing import Any, NoReturn
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from orchestrator.config import credentials, layout
+from orchestrator.config import credentials, layout, repositories
 from orchestrator.config._dotenv import _TRUE_VALUES, load_dotenv
 from orchestrator.config.models import RepoSpec
-from orchestrator.config.repositories import build_repo_specs
+from orchestrator.service import paths as _service_paths
 
 ConfigError = Callable[[str], NoReturn]
 ConfigWarning = Callable[[str], None]
@@ -432,10 +432,10 @@ class _SettingsResolver:
         # The developer fallback is offered only to a package running from a
         # verified source checkout of this project; an installed one has no
         # target but the ones `REPOS` names.
-        specs = build_repo_specs(
+        specs = repositories.build_repo_specs(
             repos_raw,
             default_spec=(
-                default_spec if layout.is_source_checkout(self._repo_root) else None
+                default_spec if _service_paths.is_source_checkout(self._repo_root) else None
             ),
             default_parallel_limit=default_spec.parallel_limit,
             config_error=self._config_error,

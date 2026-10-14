@@ -8,7 +8,7 @@ import unittest
 from importlib.util import find_spec
 
 from orchestrator.git import base_sync
-from tests.support.import_probes import probe_import
+from tests.support.import_probes import CONFIGURATION_READS, probe_import
 
 _MODELS_OWNER = "orchestrator.git.base_sync.models"
 
@@ -113,11 +113,13 @@ _ALLOWED_MODULES = (
     "orchestrator.workflow.transition_guard",
 )
 
+_CONFIG = "orchestrator.config"
+
 _ALLOWED_ROOTS = (
     (_STATE_OWNER, ("orchestrator.git",)),
-    (_PRE_PR_OWNER, ("orchestrator.config", "orchestrator.git")),
+    (_PRE_PR_OWNER, (_CONFIG, "orchestrator.git")),
     *(
-        (owner, ("orchestrator.config", "orchestrator.git"))
+        (owner, (_CONFIG, "orchestrator.git"))
         for owner in _REWRITE_OWNERS
     ),
 )
@@ -241,6 +243,9 @@ class LayeringTest(unittest.TestCase):
 
     def _within_layers(self, imported: str, allowed_roots: tuple) -> bool:
         if imported in _ALLOWED_MODULES:
+            return True
+        # An owner allowed the settings pays for what they read with them.
+        if _CONFIG in allowed_roots and imported in CONFIGURATION_READS:
             return True
         return any(
             imported == root or imported.startswith(f"{root}.")
