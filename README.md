@@ -121,6 +121,20 @@ A foreground `run` also accepts one `GITHUB_TOKEN` exported in its launch enviro
 every repository. `check` ignores that export, since a service is not started from that shell, and reports each
 repository without a token file as a problem, so store the tokens with `set-token` for any setup a service will run.
 
+To keep the poller running across logouts and reboots, install it as a systemd user service instead of a foreground
+`run`. `init` runs the same check, GitHub calls included, then writes and enables
+`~/.config/systemd/user/chipping-orchestrator.service` for this installation's interpreter and the shell's `PATH`, and
+enables linger where logind allows it, without starting the service:
+
+```sh
+chipping-orchestrator init
+systemctl --user start chipping-orchestrator.service
+```
+
+Run `init` again when the agents move to other directories: it rewrites only the unit, leaving `.env` and the tokens
+alone. The [user service guide][user-service] covers the unit, linger, and replacing a hand-written
+`orchestrator.service`.
+
 On first start, the orchestrator creates its labels and begins polling open issues. Each issue gets its own worktree
 under `wt-orchestrator`, beside the first repository's clone. File a small issue to exercise the workflow; a completed
 change stops at `in_review` for a human to merge.
@@ -267,6 +281,8 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [development]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/development.md
 [repos]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#repos-syntax
 [checking]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#checking-a-setup
+[user-service]:
+ https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#running-under-systemd-user-service
 [multiple-repos]:
   https://github.com/chippingway/chipping-orchestrator/blob/main/README.md#managing-multiple-repositories
 [parallel]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#parallel-processing

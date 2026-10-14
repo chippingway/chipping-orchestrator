@@ -252,12 +252,14 @@ label wherever that rename could not run, are in
 ## Process model
 
 There is **only one long-lived process**: `chipping-orchestrator run`, the polling command of the package installed
-by pipx. A systemd user service can supervise it. Developer source checkouts also offer a module launcher and `run.sh`
+by pipx. The systemd user service `init` installs supervises it, launched as `-m orchestrator run` under that
+installation's own interpreter. Developer source checkouts also offer a module launcher and `run.sh`
 so the loop can self-exit and be restarted with new source code; those launch commands are in the
 [developer guide](development.md). The bare command, `--help`, and `--version` poll nothing: they print and exit 0
 before any configuration is read, and a polling flag given before any command is refused with the `run` form that
 means it. `configure` polls nothing either: it writes an installed package's `.env` and exits, reading no
-configuration ([basic setup](configuration.md#basic-setup)).
+configuration ([basic setup](configuration.md#basic-setup)). Nor does `init`, which writes and enables the service's
+unit and exits without starting it ([user service](configuration.md#running-under-systemd-user-service)).
 
 - **Trigger**: started manually (or by a wrapper) as `run`. Optional `run --once` for a single tick, or
   `run --cleanup-terminal-artifacts` for a maintenance-only run: it connects read-only clients (no label bootstrap)
