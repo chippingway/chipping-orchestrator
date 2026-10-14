@@ -230,8 +230,9 @@ Slugs whose repo name contains `.lock`, `..`, or a trailing `.` (all rejected by
 The setup code an installed package carries, under [`orchestrator/service/`](architecture/platform-modules.md#the-map),
 checks every answer before it writes anything and reads the rest of a `REPOS` entry off the clone. Each check refuses
 with one message, the same whether the answer came from an option or a prompt, and none of it loads this
-configuration, so it answers on a host with no `.env` at all. These rules are stricter than what the settings accept
-from a hand-edited `.env`, which is read as described above.
+configuration, so it answers on a host with no `.env` at all. `configure` ([basic setup](#basic-setup)) applies them,
+naming the option each refused answer was given as. These rules are stricter than what the settings accept from a
+hand-edited `.env`, which is read as described above.
 
 - **Clone** — the top of a local clone or linked worktree, by the same check every
   [target](#developer-fallback-and-target-checks) passes. `~` is expanded, a `~user` naming no account is refused,
