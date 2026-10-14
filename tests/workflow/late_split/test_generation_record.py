@@ -20,6 +20,12 @@ _IN_FLIGHT = (
     LatePhase.SNAPSHOTTING, LatePhase.SPLITTING, LatePhase.SUPERSEDING,
 )
 
+# The deepest generation that may still split and the depth its children are
+# born at, spelled out for the same reason: how deep automatic splitting goes
+# is the contract, so a bound moved either way has to fail here.
+_DEEPEST_SPLITTING = 4
+_DEEPEST_CHILD = 5
+
 
 def _generation(**fields) -> LateGeneration:
     return LateGeneration(
@@ -127,13 +133,18 @@ class LineageBoundTest(unittest.TestCase):
     def test_the_bound_and_beyond_may_not_split(self) -> None:
         # A hand-edited pinned comment is the reason the high case exists:
         # refusing is what the cap is for, and an absurd depth is not proof
-        # that a fourth generation is safe. Neither is an unknown one -- a
+        # that a generation past it is safe. Neither is an unknown one -- a
         # lineage that cannot say how deep it is cannot show it has room, and
         # reading that as the root's 0 is exactly how a damaged field would
         # buy a generation past the bound.
         for depth in (MAX_LINEAGE_DEPTH, MAX_LINEAGE_DEPTH + 6, -1, None, 2.5):
             with self.subTest(depth=depth):
                 self.assertFalse(_generation(lineage_depth=depth).may_split)
+
+    def test_the_bound_is_five_below_the_root(self) -> None:
+        self.assertEqual(MAX_LINEAGE_DEPTH, _DEEPEST_CHILD)
+        self.assertTrue(_generation(lineage_depth=_DEEPEST_SPLITTING).may_split)
+        self.assertFalse(_generation(lineage_depth=_DEEPEST_CHILD).may_split)
 
 
 class BoundaryTest(unittest.TestCase):

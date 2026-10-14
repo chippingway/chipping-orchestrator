@@ -843,7 +843,7 @@ field-by-field contract is in
 
 Unlike the initial mode, prose alone is not an outcome: a reply with no block, or with more than one, parks for a
 human rather than being read as the agent asking a question, because a late question has its own structured decision
-to travel in. Automatic splitting stops at `MAX_LINEAGE_DEPTH` (3), and a split proposed at the bound is recorded as
+to travel in. Automatic splitting stops at `MAX_LINEAGE_DEPTH` (5), and a split proposed at the bound is recorded as
 the categorized question the workflow actually owes a human (`lineage_bound`) rather than acted on — so the next tick
 asks the human instead of paying for the same forbidden split again.
 

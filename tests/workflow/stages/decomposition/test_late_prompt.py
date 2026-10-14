@@ -190,8 +190,8 @@ class LatePromptContractTest(unittest.TestCase):
 
     def test_the_split_rule_follows_the_lineage_depth(self) -> None:
         cases = (
-            (0, True), (MAX_LINEAGE_DEPTH - 1, True),
-            (MAX_LINEAGE_DEPTH, False), (None, False),
+            (0, True), (4, True),
+            (5, False), (None, False),
         )
         for depth, offered in cases:
             with self.subTest(depth=depth):

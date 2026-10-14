@@ -24,7 +24,7 @@ The lineage bound is enforced here at the one place a child's depth is
 computed. `MAX_LINEAGE_DEPTH` is the record's invariant, so a caller asking
 for a depth past it -- or for one off a generation whose own depth could not
 be read -- gets `LineageDepthExceeded` rather than a number that would
-silently create a fourth generation.
+silently create a generation past the bound.
 
 `resource_fingerprint` is the third identity here, and the only one written
 into telemetry: an external resource's own name (a ref, a branch, an issue) is
@@ -72,12 +72,12 @@ def next_identity(current: int | None) -> int:
 def child_lineage_depth(depth: int | None) -> int:
     """Return the depth a child of a generation at `depth` is born at.
 
-    Raises `LineageDepthExceeded` at the bound rather than returning a fourth
-    generation's depth: an indivisible oversized child at the cap has to
-    resolve as one change or ask a human, and that is the only outcome this
-    refusal leaves. A depth that is unknown, or not a whole number at all,
-    raises for the same reason -- a lineage that cannot say how deep it is
-    cannot show it has room, and 2.5 is not a depth that may become 3.5.
+    Raises `LineageDepthExceeded` at the bound rather than returning a depth
+    past it: an indivisible oversized child at the cap has to resolve as one
+    change or ask a human, and that is the only outcome this refusal leaves.
+    A depth that is unknown, or not a whole number at all, raises for the
+    same reason -- a lineage that cannot say how deep it is cannot show it
+    has room, and 2.5 is not a depth that may become 3.5.
     """
     if not _formats.whole_number(depth) or not 0 <= depth < MAX_LINEAGE_DEPTH:
         raise LineageDepthExceeded(

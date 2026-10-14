@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A lineage split three deep, each generation minted from the last one's seed.
+"""A lineage split five deep, each generation minted from the last one's seed.
 
 The depths are walked for real rather than declared: every generation past the
 root is built from the ancestry the previous transaction actually wrote onto
@@ -43,7 +43,7 @@ _ROOT_SCOPE = "the whole of the root issue"
 
 
 class NestedLineageTest(LateSplitCase, unittest.TestCase):
-    """Root, depth 1, depth 2, and the refusal at the bound."""
+    """Every depth from the root down to 4, and the refusal at the bound."""
 
     def setUp(self) -> None:
         super().setUp()
@@ -68,12 +68,11 @@ class NestedLineageTest(LateSplitCase, unittest.TestCase):
     def test_the_bound_refuses_what_it_seeded(self) -> None:
         # The deepest child a split may create sits exactly at the bound, and
         # the generation minted from its own ancestry may not split again.
-        for generation in range(MAX_LINEAGE_DEPTH):
-            self.assertLess(generation, MAX_LINEAGE_DEPTH)
-            self._split_once()
+        seeded = [self._split_once().lineage_depth for _ in range(MAX_LINEAGE_DEPTH)]
 
         outcome = self._transact(children=_ONE_SLICE)
 
+        self.assertEqual(seeded, [1, 2, 3, 4, 5])
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(self.github.created_child_issues, [])
 

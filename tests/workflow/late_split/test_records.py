@@ -265,8 +265,11 @@ class RefusedRecordTest(unittest.TestCase):
                 _payload(_MEASUREMENT, threshold=counted)
 
     def test_a_depth_past_the_bound_is_refused(self) -> None:
+        # 5 is the deepest child a split creates, so a record carries it; 6 is
+        # the first depth no split could have written.
+        self.assertEqual(_payload(_MEASUREMENT, lineage_depth=5)["lineage_depth"], 5)
         with self.assertRaises(_REFUSED):
-            _payload(_MEASUREMENT, lineage_depth=9)
+            _payload(_MEASUREMENT, lineage_depth=6)
 
     def test_the_refusal_never_quotes_the_value(self) -> None:
         # A field refused for carrying prose must not put that prose in the

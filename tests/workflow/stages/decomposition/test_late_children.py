@@ -64,9 +64,12 @@ _PRIOR_MANIFEST = MappingProxyType({
 })
 
 # Every depth automatic splitting is allowed from, paired with the depth the
-# children it creates are born at. Depth 3 is absent because it may not split
+# children it creates are born at. Depth 5 is absent because it may not split
 # at all, which is the bound's own test below.
-DEPTHS = ((0, 1), (1, 2), (2, 3))
+DEPTHS = (
+    (0, 1), (1, 2), (2, 3),
+    (3, 4), (4, 5),
+)
 
 
 class SplitChildrenCase(_support.LateSplitCase):
