@@ -227,8 +227,8 @@ from a hand-edited `.env`, which is read as described above.
   depend on it, while a relative one under a directory since removed is refused. A `..` steps to the parent of
   wherever the path so far leads, as the filesystem does, so `link/../api` beside a symlink into another directory is
   the clone beside the link's target, and it steps out only of a directory that is there: `api/missing/..` and
-  `api/README.md/..` are refused, naming the component the lookup failed on. Every other symlink stays as typed, and
-  the path written holds no `..`.
+  `api/README.md/..` are refused with the error the lookup itself raises. Every other symlink stays as typed, and the
+  path written holds no `..`.
 - **Repository** — `owner/name` in the characters GitHub allows: letters, digits, and `-` in the owner, and `.` and
   `_` besides in the name.
 - **Logins** (`ALLOWED_ISSUE_AUTHORS`, `HITL_HANDLE`) — at least one GitHub login, separated by commas, with a leading
