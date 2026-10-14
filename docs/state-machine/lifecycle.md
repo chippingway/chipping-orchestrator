@@ -23,10 +23,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
      decision='split'  ─► a late lineage the record cannot prove (or
                           the bound, an unsettled snapshot, a stray ref in
                           a slice) parks with NOTHING created or marked;
-                          else write count, umbrella, split_attempt, and
-                          dep_graph, then per child: create (receipt, and
-                          reuse instructions only where protected), record
-                          it with its consumer slot, seed it one level down;
+                          else write count, umbrella, split_attempt,
+                          split_rationale (null where the manifest gave
+                          none usable), and dep_graph, then per child:
+                          create (receipt, and reuse instructions only
+                          where protected), record it with its consumer
+                          slot, seed it one level down;
                           parent=workflow:blocked
                           (or workflow:umbrella when manifest umbrella=true);
                           child[i] = workflow:ready if no deps (through the
