@@ -10,12 +10,18 @@ held-dependency log line, the rejected- and closed-child parks, and the drift
 notice all quote children the same way. `_links_to` sits with them because a
 recorded `parent_number` is proof of parentage only as an exact issue number,
 and every reader that takes it as proof has to refuse the same values.
+`_split_rationale_text` sits with them because a split's rationale is read by
+one rule twice -- off the manifest it arrives in and off the record it is kept
+in -- so what a split writes is what `_recorded_split_rationale` hands back to
+every later reader.
 """
 from __future__ import annotations
 
 from typing import Any
 
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import formats as _formats
+from orchestrator.workflow.stages.decomposition import late_result_payloads as _late_result_payloads
 
 _AWAITING_HUMAN = "awaiting_human"
 
@@ -55,6 +61,15 @@ _PARENT_NUMBER = "parent_number"
 # it names has resolved, in a write ahead of its flip back to its own work.
 _SPLIT_ATTEMPT = "split_attempt"
 
+# The decomposer's own account of an ordinary split: why it split, and on a
+# parent that is no umbrella, the work it kept for the parent's own pass.
+# Written in the same write as the expected count, ahead of the first child,
+# so a split a crash or a failed create stops short of still holds it through
+# its recovery, with no decomposer run to recover it from. Every split writes
+# it over -- `None` where its manifest gave no usable text -- so no split is
+# read back with an earlier one's account.
+_SPLIT_RATIONALE = "split_rationale"
+
 _CREATED_AT = "created_at"
 
 _DONE = "done"
@@ -92,6 +107,27 @@ def _names_an_issue(linked: Any) -> bool:
 def _links_to(linked: Any, parent: int) -> bool:
     """Whether a recorded `parent_number` is exactly `parent`'s issue number."""
     return _names_an_issue(linked) and linked == parent
+
+
+def _split_rationale_text(raw: Any) -> str | None:
+    """The text a split's rationale field carries, or None where it carries none a reader can use.
+
+    Read as absent rather than refused, because a rationale decides nothing: a
+    missing, null, blank, or non-string value leaves an otherwise valid split
+    valid, and a record an older binary or a hand edit left that way reads back
+    as no rationale. Kept stripped, and cut to the bound and marker a late
+    record keeps a decomposer's rationale at, since it sits in the pinned
+    comment every stage shares and a write past that comment's size would
+    refuse the split it explains.
+    """
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    return _late_result_payloads._bounded_rationale(raw.strip())
+
+
+def _recorded_split_rationale(state: PinnedState) -> str | None:
+    """The rationale this parent's latest split recorded, or None where it recorded none a reader can use."""
+    return _split_rationale_text(state.get(_SPLIT_RATIONALE))
 
 
 def _issue_ref_list(numbers: list) -> str:

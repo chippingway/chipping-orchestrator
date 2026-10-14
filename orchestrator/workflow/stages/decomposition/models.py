@@ -6,11 +6,11 @@ Each of these exists because the value it carries has to survive a boundary
 the call stack alone would lose it across: the worktree policy a run decides
 before it can raise, the agent identity a resume is locked to, the children a
 split has already created when the next one fails -- with the lineage it
-seeds each of them with, the attempt their receipts name, and the ones a seed
-under the child's claim had to leave for the split's recovery to seed and
-finalize -- and the child labels a parent scan read once, and takes again for
-a child a write reads anew under that child's claim, that several branches
-then ask about.
+seeds each of them with, the attempt their receipts name, the rationale the
+parent records beside them, and the ones a seed under the child's claim had
+to leave for the split's recovery to seed and finalize -- and the child
+labels a parent scan read once, and takes again for a child a write reads
+anew under that child's claim, that several branches then ask about.
 """
 from __future__ import annotations
 
@@ -64,6 +64,11 @@ class _SplitPlan:
     dep_graph: dict[str, list[int]]
     lineage: ReplacementLineage = field(default_factory=ReplacementLineage)
     attempt: str = ""
+    # The manifest's rationale as `state._split_rationale_text` reads it, None
+    # where it gave none: the plan writes it over whatever an earlier split
+    # recorded, so a plan built without one clears that account rather than
+    # inheriting it.
+    rationale: str | None = None
     # Created and recorded, but held by another poller on this host when the
     # split went to seed them: the split stops short of its finalize, and its
     # recovery seeds them and finalizes it.

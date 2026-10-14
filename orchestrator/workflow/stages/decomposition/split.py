@@ -4,7 +4,9 @@
 
 The lineage the children inherit is decided before anything is written, and
 one that cannot be proved -- or a slice naming a snapshot ref its child would
-not be kept -- parks the split with no child created. Each child carries a
+not be kept -- parks the split with no child created. The manifest's optional
+rationale is recorded on the parent with the split's other markers, ahead of
+the first child, or cleared there where it gave none. Each child carries a
 receipt (`split_receipts`), and reuse instructions where it is owed the
 parent's snapshot. Children without dependencies are released after the
 summary (`split_summary`) and parent label land, through the walk a later poll
@@ -53,6 +55,7 @@ def _prepare_split_plan(
     state.set("expected_children_count", len(plan.children_manifest))
     state.set(_state._UMBRELLA, plan.is_umbrella)
     state.set(_state._SPLIT_ATTEMPT, plan.attempt)
+    state.set(_state._SPLIT_RATIONALE, plan.rationale)
     dependencies = plan.declared_dependencies()
     if dependencies:
         state.set("dep_graph", dependencies)
@@ -68,12 +71,14 @@ def _planned(
     attempt and the lineage each child is seeded with; the instructions go
     only to a child owed the snapshot, since its implementer reads the body
     and its guard reads the pinned pointer -- one without the other is a
-    snapshot nobody uses, or instructions nothing protects.
+    snapshot nobody uses, or instructions nothing protects. The manifest's
+    rationale rides along as the record will keep it, or as None where the
+    manifest gave none a reader can use, which never refuses the split.
     """
     attempt = _split_receipts.mint_attempt()
     children = _split_receipts.stamped(parsed[_state._CHILDREN], issue_number, attempt, lineage)
     plan = _SplitPlan.start(children, bool(parsed.get(_state._UMBRELLA)), lineage)
-    return replace(plan, attempt=attempt)
+    return replace(plan, attempt=attempt, rationale=_state._split_rationale_text(parsed.get("rationale")))
 
 
 def _unsupported_reuse(lineage: _replacement_lineage.ReplacementLineage, parsed: dict) -> str | None:
@@ -110,11 +115,14 @@ def _create_child_issues(
          split that never started. A slice naming a snapshot its child
          would not be kept parks the same way.
       1. Persist `expected_children_count` (with the umbrella flag, the
-         split attempt, and the whole dependency graph) BEFORE creating any
-         child. The half-finished recovery uses these to tell a partial loop
-         apart from a completed one, to find a child created and never
-         recorded by the receipt that names this attempt and its slice, and
-         to finalize to the right label after a mid-loop SIGKILL.
+         split attempt, the rationale, and the whole dependency graph)
+         BEFORE creating any child. The half-finished recovery uses these to
+         tell a partial loop apart from a completed one, to find a child
+         created and never recorded by the receipt that names this attempt
+         and its slice, and to finalize to the right label after a mid-loop
+         SIGKILL; the rationale is written over any earlier split's, None
+         where this manifest gave none, so a split stopped short still holds
+         its own account and never an earlier one's.
       2. For each child: create the GitHub issue, then IMMEDIATELY record
          its number in parent state -- on the snapshot's consumer ledger
          too, where the child is owed a pointer -- before any further
