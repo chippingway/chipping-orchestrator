@@ -895,7 +895,8 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   cycle are retired in its own write
                                   first, so implementation starts a cycle
                                   of its own -- split_rationale stays, the
-                                  scope the split left the parent; a close
+                                  scope the split left the parent, which
+                                  its developer prompts quote; a close
                                   latched before or seen during that write
                                   ends the cycle and keeps workflow:blocked
      any child = rejected      ─► park HITL on parent

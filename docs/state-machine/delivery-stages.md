@@ -2421,9 +2421,14 @@ because there it is the claim that this stage has already rerouted rather than a
      [the retry budget](labels-and-state.md#the-retry-budget).
   5. Else build the implementer prompt (issue body + recent comments + "commit, do not push"), persist `dev_agent`
      BEFORE invoking `run_agent`, then spawn through the bounded developer run coordinator
-     (`_coordinate_developer_run`). An initial AGY run that leaves an active command and no edits or commits is
-     resumed in the same worktree with a command recovery prompt without a human reply. Only a recovery that completes
-     its command may proceed to ordinary commit or publication disposition; repeated premature exits park retryably as
+     (`_coordinate_developer_run`). A parent an ordinary split left no umbrella is handed that split's
+     `split_rationale` too, read off its own pinned record and quoted in an attributed section between the body and
+     the bounded thread excerpt, so the residual scope reaches the developer however far back the split summary sits
+     — as it reaches any fresh session that later replaces this one (see
+     [a split parent's own pass](../workflow/roles.md#session-lifecycles)). An initial AGY run that leaves an active
+     command and no edits or commits is resumed in the same worktree with a command recovery prompt without a human
+     reply. Only a recovery that completes its command may proceed to ordinary commit or publication disposition;
+     repeated premature exits park retryably as
      `agent_execution_failed` rather than `agent_question`. The daily fresh-spawn gate is charged only once for the
      original fresh spawn, while every process consumes the lifetime agent-run ledger. Non-AGY backends (Codex,
      Claude) and completed runs are untouched. Pause, timeout, shutdown sweep kill, and run-limit refusals stop
