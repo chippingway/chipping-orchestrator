@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.service.clone_defaults import clone_entry
+from orchestrator.service.clone_defaults import clone_entry, default_branch, github_remote
 from orchestrator.service.repos_entry import RepositoryEntry
 from orchestrator.service.validation import validate_clone
 from tests.service.service_test_support import add_remote, refusal
@@ -56,7 +56,8 @@ class DerivedEntryTest(_CloneCase):
     The repository comes from its GitHub remote, the base branch from that
     remote's recorded default branch, else the branch checked out, and a
     remote other than `origin` is recorded under its own name, which the
-    rendered entry then carries.
+    rendered entry then carries. The remote and its repository are read
+    whether or not a base branch can be.
     """
 
     def test_origin_with_its_default_branch(self) -> None:
@@ -122,13 +123,16 @@ class DerivedEntryTest(_CloneCase):
         # With no default branch recorded either, nothing names one.
         self._add_remote(_ORIGIN, _ACME_URL)
         _run_git(_CHECKOUT, _QUIET, "--detach", cwd=self._clone)
-
-        self.assertEqual(
-            refusal(clone_entry, self._clone),
+        no_branch = (
             f"{self._clone} records no default branch for origin and has no branch "
-            "checked out; give the branch pull requests target",
+            "checked out; give the branch pull requests target"
         )
-        # A base branch the caller chose is not derived at all.
+
+        self.assertEqual(refusal(clone_entry, self._clone), no_branch)
+        self.assertEqual(refusal(default_branch, self._clone, _ORIGIN), no_branch)
+        # The remote and its repository are read all the same, and a base
+        # branch the caller chose is not derived at all.
+        self.assertEqual(github_remote(self._clone), (_ORIGIN, _ACME))
         self.assertEqual(clone_entry(self._clone, base_branch="main").base_branch, "main")
 
 

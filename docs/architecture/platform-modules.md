@@ -230,7 +230,9 @@ orchestrator/
                         the SSH forms on GitHub's port-443 endpoint `ssh.github.com` included
     clone_defaults.py   the `REPOS` entry a clone implies: the repository, remote, and base branch read off its
                         remotes and its recorded and checked-out branches, keeping any field the caller chose and
-                        recording a remote other than `origin` under its own name; nothing is fetched
+                        recording a remote other than `origin` under its own name; nothing is fetched. The remote
+                        with its repository, `github_remote`, and that remote's branch, `default_branch`, are each
+                        callable alone, for a setup that offers them as the defaults of separate questions
     repos_entry.py      the `RepositoryEntry` record and the `REPOS` entry it renders, in the fewest positional
                         fields that carry it, refusing a field the configuration would read back changed through
                         `writable_field`, which a caller also asks of one field to name the answer it came from; and
@@ -369,8 +371,9 @@ orchestrator/
                         `linger_enabled` whether logind lingers a user. It imports nothing from the package
     installation.py     `init`: the source-checkout, hand-written-unit, uncarried-value, and unreachable-manager
                         refusals, then the installed `.env` -- kept where it exists, handed to an onboarding at a
-                        terminal where one is given, refused naming `set-token` and `configure` otherwise -- and the
-                        full check through `checks.py`, all before anything is written; then the unit written
+                        terminal where one is given, with the shell and the package root checked, refused naming
+                        `set-token` and `configure` otherwise -- and the full check through `checks.py`, all before
+                        the unit is written; then the unit written
                         through `private_files.py`, `daemon-reload`, and `enable` without a start, linger enabled
                         where logind does not report it, or the `sudo loginctl enable-linger` advice where it
                         refuses, and the start or restart the service needs named last
@@ -396,9 +399,37 @@ orchestrator/
                         the service failed -- a query that prints no state being a failed step, not a no -- the
                         unit kept until the stop and the disable succeed, and the `.env`, tokens, logs,
                         worktrees, and linger kept and named as kept
+    questions.py        the questions an onboarding asks at a terminal: one line read per answer after the question
+                        and its bracketed default, which an empty answer takes, each refusal a validator raises as
+                        `FieldError` printed beneath the question before it is asked again -- `retried` that loop
+                        for an answer read some other way -- and a yes-or-no question; Ctrl+C and the end of input
+                        raised to the caller
+    token_questions.py  a repository's token in an onboarding: the token file kept where it exists, read only to
+                        ask GitHub whose it is, and otherwise the token typed at `token_prompt.py`'s hidden prompt,
+                        an exported `GITHUB_TOKEN` offered by name as its default, held to `tokens.py`'s shape
+                        and proved with `token_probe.py`'s read-only call in memory; the owner's login asked too
+    repository_questions.py
+                        one repository's questions -- its clone, repository, branch, and token -- each defaulting to
+                        what `clone_defaults.py` reads off the clone, the first repository's clone to the current
+                        directory where that is a checkout top, and each held to the validator `configure` and
+                        `add-repo` hold it to, a repository already given and one the clone has no remote for
+                        refused at its own question; it writes nothing
+    agent_questions.py  the agent each role runs, asked in an onboarding: `configure`'s defaults shown with whether
+                        each is on the service's `PATH`, kept with one answer -- refused with
+                        `validate_agent`'s message where one kept is missing -- or asked role by role
+    setup_questions.py  every question an onboarding asks, in order: the first repository's, the authors offered
+                        the token owner and the people to mention the authors, the agents on the captured `PATH`,
+                        each further repository, and last whether to write the files the answers make, each named;
+                        `SetupAnswers` is what they make, and a no answers nothing at all
+    onboarding.py       the onboarding `init` hands a terminal where no `.env` exists: `setup_questions.py`'s answers,
+                        then each token saved as `set-token` saves it, `configure` for the first repository, and
+                        `add_repo` for each further one, in process, so the files are the scripted setup's; Ctrl+C,
+                        the end of input, an unreadable terminal, or a declined last question refuse `init` with
+                        nothing written, and a failed write refuses it naming what was written above it
     service_commands.py the service commands on the command line: `init`, which hands this process's environment
-                        and standard input to `installation.py`, `start` and `restart`, which hand its environment to
-                        `starting.py`, and `stop`, `status`, and `remove`, which read none of it
+                        and standard input to `installation.py` with `onboarding.py` to ask for a missing setup,
+                        `start` and `restart`, which hand its environment to `starting.py`, and `stop`, `status`,
+                        and `remove`, which read none of it
     .env.example        the basic template a setup starts from: `REPOS` and the few settings a first run needs
     .env.example.advanced
                         optional operational overrides and examples, then the orchestrator-developer settings

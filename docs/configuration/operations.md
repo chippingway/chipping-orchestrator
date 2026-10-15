@@ -97,14 +97,18 @@ release tag into the same directory instead:
 
 #### Configure live settings
 
-For **first setup only**, write `~/.config/chipping-orchestrator/.env` with `configure`, naming the top of a local
-clone of the repository to manage and the GitHub logins whose issues and comments the orchestrator may act on:
+For **first setup only**, `~/.config/chipping-orchestrator/.env` and the token files are written one of two ways.
+At a terminal, `chipping-orchestrator init` [onboards](#onboarding-with-init): it asks for each setting, writes them
+once the last answer confirms them, and goes on to install the service. Without prompts, write `.env` with
+`configure`, naming the top of a local clone of the repository to manage and the GitHub logins whose issues and
+comments the orchestrator may act on:
 
 ```sh
 chipping-orchestrator configure --clone "$HOME/src/acme-api" --authors alice
 ```
 
-`configure` asks nothing, so a script can run it as well as an operator. It writes the basic template the installed
+`configure` asks nothing, so a script can run it as well as an operator; onboarding writes `.env` through the same
+code, so the same answers write the same file. It writes the basic template the installed
 version carries, with `REPOS`, `ALLOWED_ISSUE_AUTHORS`, `HITL_HANDLE`, `DEV_AGENT`, `REVIEW_AGENT`, and
 `DECOMPOSE_AGENT` set on the template's own lines and every comment kept, and appends `LOG_DIR` naming the absolute
 path of `~/.local/state/chipping-orchestrator/logs`. It creates the configuration directory with mode 0700, as it does
@@ -1142,15 +1146,16 @@ unit silently does nothing at boot unless linger is enabled. Keep `screen` / `tm
 
 ### Installing with `init`
 
-With `.env` and each repository's token written as [package setup](#install-and-configure) describes, install the
-service as the user it runs as, from a shell whose `PATH` finds the agents:
+Install the service as the user it runs as, from a shell whose `PATH` finds the agents:
 
 ```sh
 chipping-orchestrator init
 ```
 
-Set up by script, a fresh host takes a `set-token` per repository, `configure` for the first repository, `add-repo`
-for each further one, and `init`, none of which prompts:
+On a fresh host at a terminal, `init` first asks for the setup, as [onboarding](#onboarding-with-init) describes. Set
+up by script instead, a fresh host takes a `set-token` per repository, `configure` for the first repository,
+`add-repo` for each further one, and `init`, none of which prompts, and the files they write are the ones onboarding
+writes for the same answers:
 
 ```sh
 chipping-orchestrator set-token acme/api < "$HOME/acme-api-token.txt"
@@ -1168,8 +1173,9 @@ chipping-orchestrator init
 - the interpreter running `init`, or an entry of its `PATH`, holds a value the [unit](#unit-file) cannot carry;
 - `systemctl --user` reaches no user manager, as under `su` or `sudo`: run `init` in an ssh or desktop login of the
   service user;
-- `~/.config/chipping-orchestrator/.env` does not exist: the message names `set-token` and `configure`, which write
-  the tokens and the file;
+- `~/.config/chipping-orchestrator/.env` does not exist and standard input is not a terminal: the message names
+  `set-token` and `configure`, which write the tokens and the file;
+- onboarding is stopped or declined before its last answer, having written nothing, or a write after it fails;
 - [`check`](#check-compatibility-and-start), GitHub calls included, finds a problem, printed as `check` prints it.
 
 Otherwise it writes the unit, runs `systemctl --user daemon-reload` and
@@ -1182,6 +1188,65 @@ Run `init` again whenever what the unit records changes: the interpreter's path,
 environment, or the directories the agents are found in. It leaves `.env` and the token files exactly as they are and
 rewrites only the unit, from the interpreter and `PATH` it runs with now. When the service is running, it says to
 restart it, which `chipping-orchestrator restart` does; choose a [safe stopping point](#safe-restart-guidance).
+
+### Onboarding with `init`
+
+Where `~/.config/chipping-orchestrator/.env` does not exist and standard input is a terminal, `init` asks for the
+setup before it checks or installs anything. Onboarding is the scripted setup asked for: one question per setting,
+each answer held to the check `set-token`, `configure`, or `add-repo` holds it to, and the answers handed to the code
+those commands run, in the same process. Run it as the service user from the top of the first clone; each default is
+in brackets, and Enter takes it:
+
+```text
+$ cd ~/src/acme-api && chipping-orchestrator init
+No configuration at /home/alice/.config/chipping-orchestrator/.env. Let's create it.
+Nothing is written until the last question; Ctrl+C leaves everything as it is.
+
+[1/6] Local clone of the repository to manage [/home/alice/src/acme-api]:
+[2/6] GitHub repository (owner/name) [acme/api]:
+[3/6] Branch pull requests target [main]:
+[4/6] GitHub token for acme/api (input hidden):
+      the token reaches acme/api (owner: alice)
+[5/6] GitHub logins whose issues the orchestrator may act on [alice]:
+[6/6] GitHub logins to mention when a human is needed [alice]:
+
+Agents: implement=claude (found)  review=codex (found)  decompose=claude (found)
+Keep these agents? [Y/n]:
+Add another repository? [y/N]:
+
+Write /home/alice/.config/acme/api/token and /home/alice/.config/chipping-orchestrator/.env? [Y/n]:
+```
+
+- **Clone** — the current directory where it is the top of a git checkout, and otherwise no default. The answer has to
+  be the top of a clone or linked worktree, as for `configure --clone`.
+- **Repository and branch** — read off the clone as `configure` reads them: the repository its GitHub remote names,
+  and that remote's default branch, else the branch checked out. A repository the clone has no remote for is refused
+  at this question, with the message `configure` would give after the last one.
+- **Token** — not asked for where `~/.config/<owner>/<name>/token` exists: that file is kept as it is. Otherwise it is
+  typed at a hidden prompt, which offers an exported `GITHUB_TOKEN` as its default, named but never shown, and proved
+  with the read-only call `set-token` makes. It stays in memory until the last question. GitHub is asked whose token
+  it is, too, which is the next question's default.
+- **Authors and people to mention** — the token owner's login, then the authors answer. Where GitHub names no owner,
+  the authors have no default, since they decide whose issues and comments the orchestrator trusts.
+- **Agents** — the roles' defaults, `claude`, `codex`, and `claude`, each shown with whether it is on the `PATH` the
+  service will run with: the absolute entries of the shell's, which [the unit](#unit-file) records. Keeping one that
+  is not found is refused with the message `configure` gives it; answering `n` asks each role in turn, from
+  `claude`, `codex`, and `agy`.
+- **Another repository** — each `y` asks the clone, repository, branch, and token questions again, numbered `[1/4]` to
+  `[4/4]`. The clone has no default, and a repository already given is refused, compared without regard to case.
+
+A refused answer is printed beneath its question in the words the setup commands print for it, without an option name
+in front, and the question is asked again. Nothing is written until the last question, which names every file the
+answers write, is answered yes: Ctrl+C or the end of input at any question, a terminal that cannot hide the token, and
+`n` to the last question each exit 1 with no `.env`, token, unit, or directory written. After it, onboarding saves
+each token it was given as `set-token` does, writes `.env` as `configure` does for the first repository, and adds
+each further one as `add-repo` does, then `init` carries on with the full check and the unit. A write that fails there
+exits 1, keeping what the lines above it report written; since `.env` is what `init` looks for, a run that stopped
+before writing it onboards again, keeping each token already stored.
+
+Without a terminal -- a pipe, a redirect, an `ssh` command without `-t` -- `init` never prompts. Once `.env` exists it
+never onboards either: run again, it rewrites only the unit, and [`add-repo`](#install-and-configure) adds a
+repository after that.
 
 ### Unit file
 

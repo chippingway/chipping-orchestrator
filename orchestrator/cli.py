@@ -17,8 +17,9 @@ turn; the order below is the startup contract and lives nowhere else.
 The setup commands are put on the parser by
 `orchestrator/service/commands.py`, `add-repo`, which adds a repository to the
 `.env` they write, by `orchestrator/service/add_repo_command.py`, and the
-service commands -- `init`, which installs the systemd user service, and
-`start`, `stop`, `restart`, `status`, and `remove`, which manage it -- by
+service commands -- `init`, which installs the systemd user service after
+asking for a missing setup at a terminal, and `start`, `stop`, `restart`,
+`status`, and `remove`, which manage it -- by
 `orchestrator/service/service_commands.py`; each runs its command through a
 core under `orchestrator/service/`. Those owners load no configuration in this
 process, since a setup is what writes one and `check` reads it in an

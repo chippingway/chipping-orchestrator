@@ -80,6 +80,18 @@ _STARTING = "starting"
 
 _REMOVAL = "removal"
 
+_QUESTIONS = "questions"
+
+_TOKEN_QUESTIONS = "token_questions"
+
+_REPOSITORY_QUESTIONS = "repository_questions"
+
+_AGENT_QUESTIONS = "agent_questions"
+
+_SETUP_QUESTIONS = "setup_questions"
+
+_ONBOARDING = "onboarding"
+
 # What making an entry from a command's answers composes: the field
 # validators, the entry they make, and the clone it is read off.
 _ENTRY_ANSWERS_CHAIN = (
@@ -164,13 +176,49 @@ _STARTING_CHAIN = (
     _MANAGER_ENVIRONMENT,
 )
 
+# What asking for a token composes: the questions it is asked through and
+# what `set-token` reads, proves, and keeps one with.
+_TOKEN_QUESTIONS_CHAIN = (*_TOKENS_CHAIN, _TOKENS, _QUESTIONS)
+
+# What asking for a repository composes: the entry a setup command's answers
+# make, read off the clone, and the token asked for beside it.
+_REPOSITORY_QUESTIONS_CHAIN = (*_ENTRY_ANSWERS_CHAIN, *_TOKEN_QUESTIONS_CHAIN, _TOKEN_QUESTIONS)
+
+# What asking for the agents composes: `configure`, whose defaults they are,
+# and the questions.
+_AGENT_QUESTIONS_CHAIN = (*_CONFIGURE_CHAIN, _CONFIGURE, _QUESTIONS)
+
+# What an onboarding's questions compose: each repository's, the agents',
+# the service's environment their `PATH` comes from, and the installed paths
+# the last question names.
+_SETUP_QUESTIONS_CHAIN = (
+    *_REPOSITORY_QUESTIONS_CHAIN,
+    _REPOSITORY_QUESTIONS,
+    *_AGENT_QUESTIONS_CHAIN,
+    _AGENT_QUESTIONS,
+    _ENVIRONMENT,
+    _PATHS,
+)
+
+# What onboarding composes: its questions, the cores it writes the answers
+# through, and `init`, whose refusal it raises.
+_ONBOARDING_CHAIN = (
+    *_SETUP_QUESTIONS_CHAIN,
+    _SETUP_QUESTIONS,
+    *_ADD_REPO_CHAIN,
+    _ADD_REPO,
+    *_INSTALLATION_CHAIN,
+    _INSTALLATION,
+)
+
 # Each owner, and the owners beside it that importing it loads too. Only the
 # setup's own leaves read each other: the checkout check under the layout and
 # the clone validator, the validator's refusal under the entry it writes and
 # the `.env` lines, all of them under the clone's derived entry and the entry
 # a command's answers make, every leaf under `configure`, `add_repo`,
-# `tokens`, `checks`, `installation`, or the lifecycle commands, and those
-# under the command lines above them.
+# `tokens`, `checks`, `installation`, or the lifecycle commands, those cores
+# under the onboarding questions and the onboarding that writes through them,
+# and all of it under the command lines above them.
 _OWNERS = MappingProxyType({
     _TEMPLATES: (),
     _CHECKOUTS: (),
@@ -205,9 +253,15 @@ _OWNERS = MappingProxyType({
     # `add-repo` on the command line asks the systemd adapter whether the
     # unit it names is running.
     "add_repo_command": (*_ADD_REPO_CHAIN, _ADD_REPO, _SYSTEMD, _UNIT_FILE),
+    _QUESTIONS: (_CHECKOUTS, _VALIDATION),
+    _TOKEN_QUESTIONS: _TOKEN_QUESTIONS_CHAIN,
+    _REPOSITORY_QUESTIONS: _REPOSITORY_QUESTIONS_CHAIN,
+    _AGENT_QUESTIONS: _AGENT_QUESTIONS_CHAIN,
+    _SETUP_QUESTIONS: _SETUP_QUESTIONS_CHAIN,
+    _ONBOARDING: _ONBOARDING_CHAIN,
     "service_commands": (
-        *_INSTALLATION_CHAIN,
-        _INSTALLATION,
+        *_ONBOARDING_CHAIN,
+        _ONBOARDING,
         *_STARTING_CHAIN,
         _STARTING,
         _REMOVAL,

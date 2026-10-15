@@ -104,9 +104,19 @@ class FakeGitHub:
         self.answer({})
         self._requests.unlink(missing_ok=True)
 
-    def answer(self, answers: dict[str, tuple[int, object]]) -> None:
-        """Answer each repository named with its status and document, and no other."""
+    def answer(
+        self,
+        answers: dict[str, tuple[int, object]],
+        *,
+        owner: str | None = None,
+    ) -> None:
+        """Answer each repository named with its status and document, and no other.
+
+        With an ``owner``, whose token it is is answered too: that login.
+        """
         table = {f"/repos/{repository}": answer for repository, answer in answers.items()}
+        if owner is not None:
+            table["/user"] = (OK, {"login": owner})
         self._answers.write_text(json.dumps(table), encoding=ENCODING)
 
     def answer_reachable(self) -> None:

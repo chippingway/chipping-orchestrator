@@ -127,7 +127,11 @@ orchestrator/
                         reading the settings in an interpreter of its own; the
                         `init` command that installs that service's unit and
                         enables it without starting it, through bounded
-                        `systemctl` and `loginctl` calls; and the `start`,
+                        `systemctl` and `loginctl` calls, after asking for a
+                        missing setup at a terminal -- the onboarding that
+                        holds each answer to its field's validator and writes
+                        nothing until the last one confirms it, then writes
+                        through the setup commands' own code; and the `start`,
                         `stop`, `restart`, `status`, and `remove` commands
                         that manage it, the launches checking the setup
                         locally first in the environment and directory the

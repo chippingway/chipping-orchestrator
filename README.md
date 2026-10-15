@@ -71,17 +71,56 @@ use `pipx install --python python3.12 chipping-orchestrator` with an installed s
 The quick start resolves runtime dependencies from PyPI without `poetry.lock`, tested constraints, or a 14-day hold;
 use the [pinned installation procedure][pinned-installation] for the release's tested dependency versions.
 
-Then write `~/.config/chipping-orchestrator/.env` for the repository a local clone names, trusting the GitHub logins
-given as authors; the [package setup instructions][installation] cover the other options:
+Log in each agent CLI the roles use, then, from the top of a local clone of the repository to manage and in a shell
+whose `PATH` finds those CLIs, set the orchestrator up as a systemd user service, start it, and look at it:
 
 ```sh
-chipping-orchestrator configure --clone /home/alice/src/acme-api --authors alice
+chipping-orchestrator init
+chipping-orchestrator start
+chipping-orchestrator status
 ```
 
-That setup also sets an absolute `LOG_DIR` outside the pipx environment so logs survive package upgrades. The
+With no configuration yet, `init` first asks for it at the terminal, one question per setting, each default in
+brackets for Enter to take:
+
+- the local clone, the current directory by default, and the repository and branch pull requests target, read off the
+  clone's GitHub remote;
+- the repository's GitHub token, typed at a hidden prompt that offers an exported `GITHUB_TOKEN`, and checked with one
+  read-only GitHub call; a token already stored for the repository is kept without asking;
+- the GitHub logins whose issues and comments the orchestrator acts on, the token owner's by default, and those to
+  mention when a human is needed, the same by default;
+- the agent each role runs, shown with whether it is on `PATH`, and any further repository.
+
+A refused answer is asked again with the reason. Nothing is written until the last question confirms the files it
+names, so Ctrl+C leaves the host as it was. Then `init` saves each token to `~/.config/<owner>/<name>/token`, writes
+`~/.config/chipping-orchestrator/.env`, [checks the setup][checking] the way the service will read it, GitHub calls
+included, and installs and enables `~/.config/systemd/user/chipping-orchestrator.service` for this installation's
+interpreter and the shell's `PATH`, with linger where logind allows it, without starting the service. The
 orchestrator's own repository does not need to be cloned.
 
-`configure` sets these in that file; edit it to change any of them:
+`start` checks the settings locally once more, without asking GitHub, then starts the service and confirms it stays
+active, printing its last journal lines if it does not. `status` prints the installed version, the `.env` and the
+unit, then `systemctl --user status`: run it after a start, a reboot, or an edit to see whether the poller is running,
+and follow its output with `journalctl --user-unit chipping-orchestrator.service -f`. `stop`, `restart`, and `remove`
+manage it from there, `remove` deleting the unit and keeping the setup. Run `init` again when the agents move to other
+directories: with `.env` in place it asks nothing and rewrites only the unit. The [user service guide][user-service]
+covers the unit, linger, each command, and replacing a hand-written `orchestrator.service`.
+
+The same setup runs without prompts, as a script or a host without a terminal needs: there, `init` refuses a missing
+`.env` and names these commands.
+
+```sh
+chipping-orchestrator set-token acme/api < "$HOME/acme-api-token.txt"
+chipping-orchestrator configure --clone /home/alice/src/acme-api --authors alice
+chipping-orchestrator init
+```
+
+`set-token` reads the token from standard input, at a hidden prompt on a terminal, checks it reaches the repository,
+and writes its token file owner-only; `configure` writes `.env` for the repository a local clone names, trusting the
+GitHub logins given as authors, and the [package setup instructions][installation] cover its other options. Tokens in
+`.env` are deliberately ignored, and the token is never a command-line argument.
+
+Either way, `.env` sets these; edit it to change any of them, then `chipping-orchestrator restart`:
 
 - `REPOS` — the repository to manage, written `owner/name|target_root|base_branch`: its GitHub `owner/name`, the
   absolute path to an existing local clone of it, and the branch its pull requests target. For example:
@@ -91,26 +130,18 @@ orchestrator's own repository does not need to be cloned.
   ```
 
   The template explains the two optional trailing fields; [several repositories][multiple-repos] are
-  more entries in the same setting, which `add-repo` adds.
-- `HITL_HANDLE` — GitHub users to notify when human input is needed: `--notify`, else the authors.
-- `ALLOWED_ISSUE_AUTHORS` — required: the GitHub logins whose issues and comments the orchestrator acts on, given as
-  `--authors`; it refuses to start while this names nobody.
+  more entries in the same setting, which onboarding's further repositories and `add-repo` add.
+- `HITL_HANDLE` — GitHub users to notify when human input is needed: the people to mention, else the authors.
+- `ALLOWED_ISSUE_AUTHORS` — required: the GitHub logins whose issues and comments the orchestrator acts on; it refuses
+  to start while this names nobody.
 - `DEV_AGENT`, `REVIEW_AGENT`, and `DECOMPOSE_AGENT` — the agent each role runs: `claude`, `codex`, and `claude`
-  unless `--dev-agent`, `--review-agent`, or `--decompose-agent` says otherwise.
+  unless onboarding or `--dev-agent`, `--review-agent`, or `--decompose-agent` says otherwise.
+- `LOG_DIR` — an absolute directory outside the pipx environment, so logs survive package upgrades.
 
 Nothing from `.env.example.advanced` is needed: it holds optional operational settings and, in a section of their own,
 the developer settings for working on the orchestrator itself.
 
-Store each repository's GitHub token with `set-token`, which reads it at a hidden prompt (or from standard input in a
-script), checks it reaches the repository, and writes `~/.config/<owner>/<name>/token` owner-only:
-
-```sh
-chipping-orchestrator set-token acme/api
-```
-
-Tokens in `.env` are deliberately ignored, and the token is never a command-line argument. Ensure each configured
-agent is logged in, then [check the setup][checking] the way a systemd user service would read it, from `.env`, the
-token files, and the shell's `PATH` alone, and run:
+To run the poller in the foreground instead of as a service, check the setup and run it:
 
 ```sh
 chipping-orchestrator check
@@ -120,22 +151,6 @@ chipping-orchestrator run
 A foreground `run` also accepts one `GITHUB_TOKEN` exported in its launch environment in place of the token files, for
 every repository. `check` ignores that export, since a service is not started from that shell, and reports each
 repository without a token file as a problem, so store the tokens with `set-token` for any setup a service will run.
-
-To keep the poller running across logouts and reboots, install it as a systemd user service instead of a foreground
-`run`. `init` runs the same check, GitHub calls included, then writes and enables
-`~/.config/systemd/user/chipping-orchestrator.service` for this installation's interpreter and the shell's `PATH`, and
-enables linger where logind allows it, without starting the service:
-
-```sh
-chipping-orchestrator init
-chipping-orchestrator start
-```
-
-`start` checks the settings locally once more, without asking GitHub, then starts the service and confirms it stays
-active, printing its last journal lines if it does not. `stop`, `restart`, and `status` manage it from there, and
-`remove` deletes the unit while keeping the setup. Run `init` again when the agents move to other directories: it
-rewrites only the unit, leaving `.env` and the tokens alone. The [user service guide][user-service] covers the unit,
-linger, each command, and replacing a hand-written `orchestrator.service`.
 
 On first start, the orchestrator creates its labels and begins polling open issues. Each issue gets its own worktree
 under `wt-orchestrator`, beside the first repository's clone. File a small issue to exercise the workflow; a completed

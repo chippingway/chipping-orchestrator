@@ -7,9 +7,10 @@ chooses commands from, beside the setup commands ``commands`` puts there, with
 the function that runs it, in the order a service is managed: ``init``,
 ``start``, ``stop``, ``restart``, ``status``, and ``remove``. None takes an
 option. ``init`` hands this process's environment and standard input to
-``installation.init``, ``start`` and ``restart`` hand its environment to
-``starting.launch``, and ``stop``, ``status``, and ``remove`` read nothing of
-it; each core answers with the exit status itself.
+``installation.init``, with ``onboarding.onboard`` to ask for the setup at a
+terminal where no ``.env`` exists; ``start`` and ``restart`` hand its
+environment to ``starting.launch``, and ``stop``, ``status``, and ``remove``
+read nothing of it; each core answers with the exit status itself.
 
 Nothing here imports ``orchestrator.config``, and neither does any core it
 calls, so every service command answers on a host with no configuration at
@@ -24,6 +25,7 @@ from functools import partial
 
 from orchestrator.service import lifecycle, removal, starting
 from orchestrator.service.installation import COMMAND as INIT, init
+from orchestrator.service.onboarding import onboard
 from orchestrator.service.unit_file import UNIT_NAME
 
 
@@ -31,7 +33,10 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
     """Put each service command beneath ``commands``."""
     parser = commands.add_parser(
         INIT,
-        help="Install or refresh the systemd user service, and enable it without starting it.",
+        help=(
+            "Install or refresh the systemd user service without starting it, asking "
+            "for a missing setup at a terminal."
+        ),
         description=(
             "Check the setup as check does, GitHub included, then write "
             f"~/.config/systemd/user/{UNIT_NAME} for this "
@@ -39,8 +44,10 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
             "the user manager reload its units and enable it, and enable linger "
             "so it runs with nobody logged in. The service is never started or "
             "restarted; run init again to refresh the unit, which leaves .env "
-            "and the token files as they are. It needs an existing .env: write "
-            "one first with set-token and configure."
+            "and the token files as they are. Without a .env, at a terminal it "
+            "first asks for the setup one question at a time and writes the "
+            "tokens and .env only once the last answer confirms them; elsewhere "
+            "it needs one written first with set-token and configure."
         ),
     )
     parser.set_defaults(dispatch=_init)
@@ -50,7 +57,7 @@ def add_commands(commands: argparse._SubParsersAction) -> None:
 
 def _init(arguments: argparse.Namespace) -> int:
     """Run ``init`` for the service set up from this environment, and answer with its status."""
-    return init(os.environ, sys.stdin)
+    return init(os.environ, sys.stdin, onboard=onboard)
 
 
 def _launch(command: str, arguments: argparse.Namespace) -> int:

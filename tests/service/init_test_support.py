@@ -173,9 +173,10 @@ class InitCase(unittest.TestCase):
         self.assertEqual(self._settings_file.read_text(encoding=ENCODING), _SETTINGS)
         self.assertEqual(self._token_file.read_text(encoding=ENCODING), _TOKEN)
 
-    def onboard(self, shell: Mapping[str, str], stdin: TextIO) -> None:
+    def onboard(self, shell: Mapping[str, str], stdin: TextIO, package_root: Path) -> None:
         """Stand in for an onboarding at ``stdin``: record it, and write the case's `.env`."""
-        self.assertEqual((shell, stdin.isatty()), (self.shell, True))
+        handed = (shell, stdin.isatty(), package_root)
+        self.assertEqual(handed, (self.shell, True, self._package_root))
         self.timeline.append(ONBOARDED)
         self._settings_file.write_text(_SETTINGS, encoding=ENCODING)
 
