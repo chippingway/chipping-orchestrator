@@ -1738,11 +1738,12 @@ settlement, and stays `blocked` while anything it names is still held — and, u
 ledger cannot be read at all, ref or no ref, since what is retired below is kept as history. Once it is settled, the
 split's cycle is retired in a write of its own ahead of the flip, inside the window the umbrella's terminal retires in:
 its candidate, register, and identity go, its `split_attempt` with them, while both ledgers and `late_retired_cycle_id`
-stay; a parent with no cycle to retire drops its `split_attempt` in a write of its own, still under `blocked`. The
-implementation the parent goes back to then measures a candidate of its own, under the next cycle, rather than trying to
-recover the superseded one from a worktree long gone, and a later split of it cuts every slice afresh instead of reading
-the old register as slices already made. A close latched before that write, or observed during it, ends the cycle
-instead, and the parent stays `blocked` for the ending to run from.
+stay; a parent with no cycle to retire drops its `split_attempt` in a write of its own, still under `blocked`. Neither
+drops the ordinary split's `split_rationale`, since the scope it kept for the parent is the work the parent goes back
+to. That implementation then measures a candidate of its own, under the next cycle, rather than trying to recover the
+superseded one from a worktree long gone, and a later split of it cuts every slice afresh instead of reading the old
+register as slices already made. A close latched before that write, or observed during it, ends the cycle instead,
+and the parent stays `blocked` for the ending to run from.
 
 That boundary is also the first at which the **snapshot** can go, and under the rule that owns it: a ref may be
 deleted only once every recorded direct consumer has **ended**, and all-children-resolved is exactly when that
