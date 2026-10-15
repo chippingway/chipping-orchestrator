@@ -4,10 +4,12 @@
 
 The retired cycle keeps thread attribution, lifetime spending, and the
 developer conversations retired as failed while dropping its sessions,
-publications, candidates, and children. A split's receipted child keeps the
-seed its receipt holds it to as well -- see `split_seeds.carried_seed` --
-since that is a fact about where the issue sits in its tree rather than about
-the cycle that ended.
+publications, candidates, and children -- and the rationale a split recorded
+beside them, whether the restart puts the issue back in `decomposing` or
+straight into implementation, since the scope it kept belongs to the attempt
+that ended. A split's receipted child keeps the seed its receipt holds it to
+as well -- see `split_seeds.carried_seed` -- since that is a fact about where
+the issue sits in its tree rather than about the cycle that ended.
 """
 from __future__ import annotations
 

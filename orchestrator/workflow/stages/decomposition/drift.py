@@ -8,9 +8,10 @@ invalidates: a body rewritten during a crash window would otherwise be
 finalized to `blocked` or `umbrella` against a split the human has already
 moved on from. Everything the fresh spawn would read back is wiped in one
 step -- the children, the dep graph, the expected count, the seal that says
-that count is final, the umbrella flag, and the park flags -- so the tick
-falls through and re-derives a manifest against the updated body rather than
-returning the way the pre-implementation drift routes do.
+that count is final, the umbrella flag, the split's recorded rationale, and
+the park flags -- so the tick falls through and re-derives a manifest against
+the updated body rather than returning the way the pre-implementation drift
+routes do.
 
 Three things survive it. The locked agent spec stays, since a mid-flight
 `DECOMPOSE_AGENT` flip must not retarget an issue whose pinned session id was
@@ -53,6 +54,20 @@ from orchestrator.workflow.stages.decomposition import (
     state as _state,
 )
 
+# What the discarded split wrote beside its register. The seal is a fact
+# about that count, the attempt about the receipts its children carry, and
+# the rationale about the scope it kept for the parent against the body this
+# edit replaced, so all of them go with it: a register called final, a child
+# a recovery would adopt, or residual scope a later implementation would
+# read belongs to the manifest this reset is throwing away.
+_SPLIT_MARKERS = (
+    "expected_children_count",
+    _state._SPLIT_LEDGER_SEALED,
+    _state._SPLIT_ATTEMPT,
+    _state._SPLIT_RATIONALE,
+    _state._UMBRELLA,
+)
+
 
 def _decomposition_drift_notice(orphans: list) -> str:
     notice = (
@@ -73,14 +88,8 @@ def _clear_decomposition_manifest(state: PinnedState) -> None:
     _session._retire_decomposer_session(state)
     state.set(_state._CHILDREN, [])
     state.set("dep_graph", {})
-    state.set("expected_children_count", None)
-    # The seal is a fact about that count, and the attempt about the receipts
-    # its children carry, so both go with it: a register called final, or a
-    # child a recovery would adopt, belongs to the manifest this reset is
-    # throwing away.
-    state.set(_state._SPLIT_LEDGER_SEALED, None)
-    state.set(_state._SPLIT_ATTEMPT, None)
-    state.set(_state._UMBRELLA, None)
+    for marker in _SPLIT_MARKERS:
+        state.set(marker, None)
     state.set(_state._AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)
 

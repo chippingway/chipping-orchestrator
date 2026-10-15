@@ -4,7 +4,8 @@
 
 The content_hash owner defines which text is human guidance. This owner persists
 the first or normalized baseline, resumes implementation with the changed text,
-and clears split claims before routing pre-implementation drift to decomposition.
+and clears split claims and the split's recorded rationale before routing
+pre-implementation drift to decomposition.
 
 What a resume consumes is decided by one frozen read, which `drift_delivery.py`
 beside this owner freezes with the prompt built from it -- on an open pull
@@ -35,6 +36,16 @@ _USER_CONTENT_HASH = "user_content_hash"
 # over. Compared against in that hash's place until one is recorded, so what
 # was written after that reading is drift rather than the first baseline.
 _OBSERVED_USER_CONTENT_HASH = "observed_user_content_hash"
+
+# What a split writes beside its register, every one of them a claim about the
+# manifest a reroute throws away -- see `_clear_drift_manifest`.
+_SPLIT_MARKERS = (
+    "expected_children_count",
+    "split_attempt",
+    "split_rationale",
+    "split_ledger_sealed",
+    "umbrella",
+)
 
 
 def _detect_user_content_change(
@@ -190,14 +201,15 @@ def _clear_drift_manifest(state: PinnedState) -> None:
     fact about, and the split attempt with the receipts it names: a manifest
     being thrown away takes every claim about what it made with it, and one
     left behind would let a later split short of its own count read as
-    complete, or adopt a child the discarded one cut.
+    complete, or adopt a child the discarded one cut. The split's rationale
+    goes for the same reason: a parent whose children all finished keeps it
+    on `ready` as the work left for its own pass, and that work was scoped
+    against the body this edit replaced.
     """
     state.set("children", [])
     state.set("dep_graph", {})
-    state.set("expected_children_count", None)
-    state.set("split_attempt", None)
-    state.set("split_ledger_sealed", None)
-    state.set("umbrella", None)
+    for marker in _SPLIT_MARKERS:
+        state.set(marker, None)
     state.set("awaiting_human", False)
     state.set("park_reason", None)
 

@@ -1015,10 +1015,14 @@ The keys that matter for the state machine fall into a few groups:
   `RATIONALE_TRUNCATION_MARKER` as a late record is; a manifest whose `rationale` is missing, `null`, blank, or not a
   string still splits and records `null`. Every ordinary split writes the key, so none is read back with an earlier
   split's account, and neither the split's later writes nor its recovery drop it, so a split a failed create parks or a
-  crash interrupts keeps it. It decides nothing: `_recorded_split_rationale` reads a record without the key, as an
-  older binary left it, or one holding `null`, a blank, or a non-string as no rationale, and reads text back by the
-  rule a manifest's is written by, which is what the split's summary quotes, whether the split or its recovery posts
-  it. `split_attempt` is sixteen
+  crash interrupts keeps it. Whatever supersedes the split clears it to `null` — a `single` decision, in a write of its
+  own ahead of its flip to `workflow:ready`, and either drift reset with the rest of the manifest — and a restart's
+  projection drops it, whether it starts the issue over on `workflow:decomposing` or `workflow:implementing`, so no
+  later implementation reads residual scope nothing owes it. The `blocked` parent whose children all resolved keeps it
+  while it drops `split_attempt`, since that scope is the work it goes back to. It decides nothing:
+  `_recorded_split_rationale` reads a record without the key, as an older binary left it, or one holding `null`, a
+  blank, or a non-string as no rationale, and reads text back by the rule a manifest's is written by, which is what the
+  split's summary quotes, whether the split or its recovery posts it. `split_attempt` is sixteen
   lowercase hex digits minted for that split alone, and every child it creates carries it in a hidden body receipt
   stamped after its slice,
   `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>:lineage=<owed>-->`, so a recovery
@@ -5179,8 +5183,9 @@ rather than preserving.
   whatever of the `late_ancestry_*` group it carries, pointer included, kept exactly as carried
   (`split_seeds.carried_seed`), since the dispatcher holds that child to its seed on every later dispatch. Everything
   else goes — every session id, `pr_number` and `branch`,
-  `children` / `dep_graph` / `expected_children_count` / `split_ledger_sealed`, the whole `late_ancestry_*` group on
-  any other issue and the exemption beside it with the identity it carries, `awaiting_human` / `park_reason`,
+  `children` / `dep_graph` / `expected_children_count` / `split_ledger_sealed` / `split_rationale`, the whole
+  `late_ancestry_*` group on any other issue and the exemption beside it with the identity it carries,
+  `awaiting_human` / `park_reason`,
   `user_content_hash`, the retry, review-round and park counters, `agent_run_reservation` (a launch, not a fact about
   the issue — the fresh cycle has none), `agent_run_limit_notice` beside the park it explains (an obligation is a claim
   about one park, and the sentence it carries quotes a spend the fresh cycle will re-read for itself),

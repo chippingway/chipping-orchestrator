@@ -12,7 +12,9 @@ that split are dispositions the issue leaves this tick on. `single` posts the
 sizing rationale and the context the decomposer already gathered, then hands
 the issue to `ready` -- the comment rather than a body edit, because rewriting
 the body would move the user-content hash and re-decompose the issue on the
-next tick. `split` creates the children and leaves the parent waiting on them.
+next tick -- clearing any rationale an earlier split recorded, since the
+decision supersedes that split. `split` creates the children and leaves the
+parent waiting on them.
 
 A `split` is usable only once every child states its `depends_on` list, since
 a child read as having no prerequisites is released at once. One that leaves
@@ -50,6 +52,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.decomposition import (
     manifest as _manifest,
     split as _split,
+    state as _state,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -126,12 +129,23 @@ def _finalize_single_decision(
     re-deriving it. The builder tolerates missing / malformed optional
     fields -- the single decision is already valid, so no cosmetic field
     should park it.
+
+    The decision supersedes any split this issue recorded before it, so the
+    rationale that split kept is cleared: the implementation `ready` leads
+    to would otherwise read back residual scope no split owes it. Cleared in
+    a write of its own while the issue still wears `decomposing`, because
+    the flip sets the label before it writes and a pass that died between
+    the two would leave that account standing on a `ready` issue. An issue
+    recording none costs no write here.
     """
     _comments._post_issue_comment(
         gh, issue, state,
         _decomposition_prompts._build_single_decision_comment(parsed),
     )
     state.set("decomposed_at", _usage._now_iso())
+    if state.get(_state._SPLIT_RATIONALE) is not None:
+        state.set(_state._SPLIT_RATIONALE, None)
+        gh.write_pinned_state(issue, state)
     gh.set_workflow_label(issue, WorkflowLabel.READY)
     gh.write_pinned_state(issue, state)
 

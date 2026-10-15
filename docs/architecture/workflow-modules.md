@@ -2430,9 +2430,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       drift.py              what a body edit resets on an issue already wearing this label: the orphan notice said
                             before the new baseline is recorded, the manifest markers wiped in one step -- children,
                             dep graph, expected count, the seal that calls that count final, the split attempt its
-                            children's receipts name, the umbrella flag, and the park flags -- and the session
-                            retired through the owner above, so the tick falls through and re-derives a manifest
-                            against the updated body instead of relabelling and returning the way the
+                            children's receipts name, the split's rationale, the umbrella flag, and the park flags --
+                            and the session retired through the owner above, so the tick falls through and re-derives
+                            a manifest against the updated body instead of relabelling and returning the way the
                             pre-implementation routes do; a late split's generation is not manifest tracking and
                             survives it whole, so its orphaned children stay the snapshot's recorded consumers, and
                             the children a discarded replacement split may have pointed at that ref -- an unrecorded
@@ -2448,7 +2448,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reply, the initial decomposer's or the late adjudicator's, and the shared
                             `_split_manifest_error` a stored record is read with
       outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
-                            dispositions after it: the unparsed park, the `single` finalize, and the `split` hand-off
+                            dispositions after it: the unparsed park, the `single` finalize, which clears an earlier
+                            split's rationale in a write ahead of its flip, and the `split` hand-off
       replacement_lineage.py
                             the late lineage an ordinary split seeds its children with, off the `late_split/` provenance
                             decision: one level below the parent under the same root and never past `MAX_LINEAGE_DEPTH`,
@@ -2553,7 +2554,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             drops the split attempt and retires the split's late cycle -- candidate, register, and
                             identity, both ledgers kept -- in a write of its own inside the umbrella terminal's
                             retirement window before the flip, so its implementation starts a cycle of its own; with
-                            no cycle to retire, the attempt is dropped in a write of its own ahead of the flip
+                            no cycle to retire, the attempt is dropped in a write of its own ahead of the flip; either
+                            way the split's rationale stays as the scope that implementation was left
       umbrella_terminal.py  resolution text, usage totals, and cycle/generation receipts for published late splits;
                             retire the live cycle while retaining its obligations, then label done and close; the
                             same retirement is the one a `blocked` parent's hand-back to its own work writes

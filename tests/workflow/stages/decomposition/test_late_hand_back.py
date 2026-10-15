@@ -33,12 +33,18 @@ from tests.workflow.stages.decomposition import (
 from tests.workflow.stages.decomposition.late_seam_support import WorktreeSeed
 
 # The parent's record of a live cycle, the one it retired, its ordinary
-# split's attempt, its children, and the mark a cancellation leaves.
+# split's attempt and rationale, its children, and the mark a cancellation
+# leaves.
 KEY_CYCLE = "late_cycle_id"
 
 KEY_RETIRED_CYCLE = "late_retired_cycle_id"
 
 KEY_SPLIT_ATTEMPT = "split_attempt"
+
+KEY_SPLIT_RATIONALE = "split_rationale"
+
+# The rationale the re-decomposition's manifest gives for the parent's own pass.
+_REPLANNED = "re-planned"
 
 KEY_CHILDREN = "children"
 
@@ -109,9 +115,10 @@ class HandedBackParentTest(ObservedCloseCase, _PatchedWorkflowMixin, unittest.Te
 
     def test_the_handed_back_parent_implements(self) -> None:
         # The cycle and the split's attempt go in a write the parent makes
-        # while still `blocked`, keeping both ledgers and the cycle it retired;
-        # the next tick is the implementation's own, so the developer runs and
-        # nothing goes looking for the superseded candidate.
+        # while still `blocked`, keeping both ledgers, the cycle it retired,
+        # and the rationale the split left the parent's own pass; the next tick
+        # is the implementation's own, so the developer runs and nothing goes
+        # looking for the superseded candidate.
         seeded = _redecomposition.all_ended(self)
         writes = _LabelledWrites(seeded.github)
         with patch.object(seeded.github, "write_pinned_state", side_effect=writes):
@@ -127,6 +134,7 @@ class HandedBackParentTest(ObservedCloseCase, _PatchedWorkflowMixin, unittest.Te
         self.assertEqual(retired_under, _support.LABEL_BLOCKED)
         self.assertEqual(retired.get(KEY_RETIRED_CYCLE), _support.CYCLE_ID)
         self.assertIsNone(retired.get(KEY_SPLIT_ATTEMPT))
+        self.assertEqual(retired.get(KEY_SPLIT_RATIONALE), _REPLANNED)
         self.assertEqual(
             retired.get("late_consumers"),
             sorted((_support.CHILD_NUMBER, *(child.number for child in seeded.github.created_child_issues))),
