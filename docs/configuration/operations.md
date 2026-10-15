@@ -1280,14 +1280,14 @@ under `su` or `sudo`.
 
 `start` and `restart` first run the local [check](#check-compatibility-and-start) -- what
 `chipping-orchestrator check --local` checks -- in the environment the service would run with: the shell's `HOME` and
-`USER`, then every variable the [unit](#unit-file) and its drop-ins set, read off the files as systemd assembles them
-rather than taken from the shell. So the agents are looked for on the `PATH` the service gets -- the one `init`
-recorded, or the one a drop-in replaced it with -- and a setting a drop-in's `Environment=` overrides is checked as
-overridden. The check also runs in the directory the service starts in: the home, unless a drop-in's
-`WorkingDirectory=` names another, so a `REPOS` target given relative to it is looked for where the service will look.
-The check makes no GitHub call, so a GitHub outage never keeps the service from starting; the service rides one out by
-restarting. While it finds a problem, each is printed, systemd is asked nothing, and the command exits 1, leaving a
-running service running.
+`USER`, then what the user manager's configuration hands every service, then every variable the [unit](#unit-file) and
+its drop-ins set, each read off the files as systemd assembles them rather than taken from the shell. So the agents are
+looked for on the `PATH` the service gets -- the one `init` recorded, or the one a drop-in replaced it with -- and a
+setting a drop-in's `Environment=` overrides is checked as overridden. The check also runs in the directory the service
+starts in: the home, unless a drop-in's `WorkingDirectory=` names another, so a `REPOS` target given relative to it is
+looked for where the service will look. The check makes no GitHub call, so a GitHub outage never keeps the service from
+starting; the service rides one out by restarting. While it finds a problem, each is printed, systemd is asked nothing,
+and the command exits 1, leaving a running service running.
 
 Tokens are judged as the service will find them too: a token file, or a `GITHUB_TOKEN` an `Environment=` line in the
 unit or a drop-in sets, which the service takes before any token file. This is where `start` and `restart` differ from
@@ -1381,9 +1381,9 @@ service. Where the manager still remembers the service as failed, it then runs
 `systemctl --user reset-failed chipping-orchestrator.service`; a service stopped cleanly is gone with the reload, and
 `reset-failed` refuses a unit the manager no longer has loaded.
 
-It keeps `.env`, the token files, the logs, the worktrees, linger, and any drop-in directory beside the unit, and says
-so; delete them, or run `loginctl disable-linger`, only once nothing else needs them. `init` installs the service over
-the same setup again. With no unit installed, `remove` does nothing and exits 0.
+It keeps `.env`, the token files, the logs, the worktrees, and linger, and says so, and leaves any drop-in directory
+beside the unit as well; delete them, or run `loginctl disable-linger`, only once nothing else needs them. `init`
+installs the service over the same setup again. With no unit installed, `remove` does nothing and exits 0.
 
 A step that fails exits 1 with the manager's reason and takes no step after it. A stop or disable that fails keeps the
 unit, so `remove` run again takes it up from the start; a reload or reset that fails once the unit is deleted names the
