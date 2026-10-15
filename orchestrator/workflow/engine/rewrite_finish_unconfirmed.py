@@ -13,7 +13,8 @@ rest are primitives a caller holding such a finish asks directly, and the
 coordinator (`rewrite_finish`) asks none of them yet:
 
 - `takes_in_the_announcement` takes in that bookkeeping, naming the landed
-  head (`rewrite_finish_announced.takes_in_the_announcement`).
+  head (`rewrite_finish_announced.takes_in_the_announcement`), and hands back
+  the comment it read.
 - `stands_back` puts the attempt back exactly as read where the comment
   carries it blanked as this finish's retirement leaves it and the same
   evidence current, or -- where it no longer fits -- marks the movement
@@ -28,6 +29,7 @@ from __future__ import annotations
 import logging
 
 from orchestrator.git.base_sync import attempts as _attempts
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     rewrite_finish_announced as _announced,
@@ -43,7 +45,7 @@ from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
 log = logging.getLogger("orchestrator.workflow")
 
 
-def takes_in_the_announcement(finish: LandedFinish) -> None:
+def takes_in_the_announcement(finish: LandedFinish) -> PinnedState | None:
     """Lay the announcement's bookkeeping the comment carries for `finish`'s attempt over the tick's state.
 
     Only where every member of the attempt the comment read afresh carries
@@ -52,11 +54,14 @@ def takes_in_the_announcement(finish: LandedFinish) -> None:
     landed with its answer lost, or what another finish of the landing left
     announcing a settlement it made meanwhile. Taken in as read, so a write
     decided on the attempt behind it counts none of it as the tick's own move.
-    Anything else leaves the tick's state as it was.
+    Anything else leaves the tick's state as it was. The comment that reading
+    took comes back, for the caller to say what it read there; None where it
+    would not read.
     """
     durable = read_afresh(finish)
     if durable is not None:
         _announced.takes_in_the_announcement(finish, durable)
+    return durable
 
 
 def stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
@@ -130,9 +135,9 @@ def retires_the_settled(finish: LandedFinish, pending: _records.PendingEvidence,
     the next finish to answer, never one a route or continuation may leave
     owed behind a cleared attempt.
     """
-    settled = _durable.takes_in_a_settlement(finish.gh, finish.issue, finish.state, pending.receipt)
-    if settled is None:
+    if _durable.takes_in_a_settlement(finish.gh, finish.issue, finish.state, pending.receipt) is None:
         return None
+    settled = _settlement.read_current_evidence(finish.state)
     log.info(
         "issue=#%d invalidating verification evidence revision %d another finish settled for %.8s while its "
         "abandonment was asked: %s",

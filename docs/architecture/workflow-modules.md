@@ -1274,7 +1274,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             settled evidence is proved ready before every route and hold here, a readable revision
                             spent past it outranks it, and a settlement the answer adopted is invalidated over
                             movement it read, the evidence records' own moves and the attempt's members aside -- save
-                            the base tip of an attempt that still stands, whose blank records movement
+                            what any comment it read was read recording, a blank of the captured attempt's base tip
+                            among it, however soon that is put back.
     rewrite_finish_settled.py
                             the steps that evidence phase takes where its two policies differ, reading nothing more
                             for a finish not built with `proves_settled`: settled evidence proved ready, and -- asked
@@ -1282,12 +1283,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded, blank or legacy, the base the tick counted (`stands_ready_if_settled`); why
                             records beside it hold the route (`out_of_step`); which refusals an answer read moved a
                             binding's records rather than the evidence records or the attempt's members alone, told by
-                            the fields each names, the base tip of an attempt that still stands excepted
-                            (`moves_the_binding`) -- the movement the evidence records a refusal was read over establish
-                            under the transaction answered, a mark or an outranking revision among it, kept beside it as
-                            movement however soon those records are put back (`reads_moving`) -- a settlement and
-                            announcement another finish made meanwhile taken
-                            in first (`adopts_the_answer`) and the route held where a newer transaction came in beside
+                            the fields each names (`moves_the_binding`) -- the movement every comment the answer read
+                            records, asked of it the moment it is read (`reads_moving`), kept beside it however soon
+                            that comment is put back and whatever the tick's state took in since: a blank of the
+                            captured attempt's base tip, or under the transaction answered a mark or an outranking
+                            revision -- a settlement and announcement another finish made meanwhile taken in first,
+                            the comments that adoption read asked the same (`adopts_the_answer`), and the route held
+                            where a newer transaction came in beside
                             that settlement, the successor left owed; a settlement the answer left current invalidated
                             over that
                             movement (`retires_the_adopted`); and whether the attempt that answer left is the one
@@ -1788,7 +1790,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             edit, no room -- DEFERS. Two readings only the dormant settled-evidence finish policy asks:
                             whether a refusal of moved records names none but this domain's own and those the caller
                             knows its own road moved (`moves_only_the_evidence`), and a settlement another road made
-                            under a receipt, its evidence records laid over the state in hand (`takes_in_a_settlement`)
+                            under a receipt, its evidence records laid over the state in hand and the comment they
+                            were read on handed back (`takes_in_a_settlement`)
     verification_transaction.py
                             the evidence reconciliation the dispatcher runs directly behind the report
                             transaction: holds behind a standing auto-rebase anchor, whoever calls it, leaving a

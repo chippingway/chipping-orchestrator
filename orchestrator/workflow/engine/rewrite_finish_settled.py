@@ -24,14 +24,15 @@ announcement, park, relabel, or retirement yet.
 - `out_of_step` says why the records beside settled evidence hold the route,
   and `moves_the_binding` which of the refusals an answer read moved what a
   binding rests on rather than the evidence records or the attempt's own
-  members alone, whatever the comment carries by the time it is asked -- a
-  blank of the base tip of an attempt that still stands, which records
-  movement, aside; a settlement and announcement another finish made while
-  the answer was asked `adopts_the_answer` takes in first. What the evidence
-  records a refusal was read over moved to is asked as well (`reads_moving`):
-  a mark of movement, a revision outranking the evidence, or any other
-  movement the readiness proof reads in those records under the transaction
-  answered is kept beside the refusal as the movement it is.
+  members alone, whatever the comment carries by the time it is asked; a
+  settlement and announcement another finish made while the answer was asked
+  `adopts_the_answer` takes in first. What every comment the answer read
+  carries is asked the moment it is read (`reads_moving`) -- one a refusal of
+  moved records was read over, and those the adoption took: a blank of the
+  base tip of the attempt captured, a mark of movement, a revision outranking
+  the evidence, or any other movement the readiness proof reads in the
+  records under the transaction answered is kept as the movement it is,
+  however the comment or the tick's state reads by the time it is classified.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
   answer read under its binding, the announcement a finish of this landing
@@ -47,6 +48,7 @@ developer, or announces anything.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
@@ -64,7 +66,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.rewrite_evidence_proof import standing_refusal
 from orchestrator.workflow.engine.rewrite_finish_announced import advanced_by_the_announcement
 from orchestrator.workflow.engine.rewrite_finish_marks import retires_as_it_stands
@@ -72,11 +74,22 @@ from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, La
 
 log = logging.getLogger("orchestrator.workflow")
 
-# The attempt's members a refusal naming moves no binding where the attempt
-# captured still stands: every one but its replay's base tip, which a proof
+# The base tip the attempt recorded its replay as made onto, which a proof
 # blanks to record movement read under the evidence where nothing else has
 # room (`rewrite_finish_readiness._invalidates_on_the_tick`).
-_UNMARKED = tuple(member for member in _attempts._ATTEMPT_KEYS if member != _base_sync_state._PENDING_REWRITE_BASE)
+_TIP = _base_sync_state._PENDING_REWRITE_BASE
+
+# Every other member of the attempt: a comment carrying these as the attempt
+# captured them -- or advanced by its own announcement -- with its tip blank
+# read that blank (`reads_moving`).
+_UNMARKED = frozenset(member for member in _attempts._ATTEMPT_KEYS if member != _TIP)
+
+# That blank read by an answer (`reads_moving`): the movement it records,
+# however soon the tip is put back.
+_BLANKED = ReportEvidence(
+    ReportEvidenceVerdict.DEFER,
+    "the attempt's base tip was read blanked, recording movement read under the evidence",
+)
 
 
 def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) -> FinishOutcome | None:
@@ -150,10 +163,11 @@ def retires_the_adopted(
     evidence -- settled by this answer, or adopted from another road -- is
     invalidated whole over movement the answer read under its binding
     (`movements`), however soon it was put back. The evidence records' own
-    moves are no such movement, nor the attempt's members, save the base tip
-    of an attempt that still stands (`moves_the_binding`), however soon either
-    was put back -- but movement those records were read recording under
-    `pending`'s receipt is (`reads_moving`). Where another
+    moves are no such movement, nor the attempt's members
+    (`moves_the_binding`), however soon either was put back -- but movement
+    the comment was read recording there is, a blank of the captured
+    attempt's base tip or a mark under `pending`'s receipt among it
+    (`reads_moving`). Where another
     finish's route or another road took `attempt`, the one captured before
     the answer, off the comment (`stands_as_read`) -- holding the route
     whatever this says -- the evidence is invalidated as the comment stands
@@ -163,7 +177,7 @@ def retires_the_adopted(
     current = _settlement.read_current_evidence(finish.state)
     if not finish.proves_settled or current is None or current.receipt != pending.receipt:
         return True
-    if not moves_the_binding(finish, movements, attempt):
+    if not moves_the_binding(finish, movements):
         return True
     if stands_as_read(finish, attempt, finish.state):
         invalidated = _readiness.invalidates(finish, current)
@@ -179,71 +193,92 @@ def retires_the_adopted(
     return False
 
 
-def adopts_the_answer(finish: LandedFinish, pending: _records.PendingEvidence) -> None:
-    """Take in what another finish of the landing made of `pending` while this one answered it; for the policy alone.
+def adopts_the_answer(
+    finish: LandedFinish, pending: _records.PendingEvidence, attempt: _commit_models.PinnedCommit,
+) -> list[ReportEvidence]:
+    """Take in what another finish of the landing made of `pending` while this one answered it; the movement read.
 
-    The announcement that finish put on the attempt
+    For the policy alone. The announcement that finish put on the attempt
     (`rewrite_finish_unconfirmed.takes_in_the_announcement`), and its
     settlement of `pending`, every evidence record laid over the tick's state
     (`verification_durable.takes_in_a_settlement`) -- both read afresh ahead
     of classifying what the answer read (`moves_the_binding`), so neither is
     taken for movement under the evidence, and the settlement is resolved as
-    this finish's own.
+    this finish's own. Each comment those readings took is asked what it
+    records moving behind `attempt`, the one captured before the answer
+    (`reads_moving`), and that movement comes back, to be classified beside
+    what the answer read: a mark the settlement taken in carries, put back
+    before anything reads the comment again, is the movement it is.
     """
     if not finish.proves_settled:
-        return
-    _unconfirmed.takes_in_the_announcement(finish)
+        return []
+    readings = [_unconfirmed.takes_in_the_announcement(finish)]
     if _captured.recorded(finish, logged=False) == pending:
-        _durable.takes_in_a_settlement(finish.gh, finish.issue, finish.state, pending.receipt)
+        settled = _durable.takes_in_a_settlement(finish.gh, finish.issue, finish.state, pending.receipt)
+        readings.append(settled)
+    moved = (reads_moving(finish, pending, attempt, read) for read in readings if read is not None)
+    return [refused for refused in moved if refused is not None]
 
 
-def moves_the_binding(
-    finish: LandedFinish, movements: list[ReportEvidence], attempt: _commit_models.PinnedCommit,
-) -> list[ReportEvidence]:
-    """Those of `movements`, read by the answer behind `attempt`, that moved what a binding rests on.
+def moves_the_binding(finish: LandedFinish, movements: list[ReportEvidence]) -> list[ReportEvidence]:
+    """Those of `movements`, read by the answer, that moved what a binding rests on.
 
     Every one, for a finish not held to the settled-evidence policy. Under it,
     a refusal of moved records naming none but the evidence records and the
     attempt's own members is none (`verification_durable.moves_only_the_evidence`):
     another road recording, settling, or retiring a transaction, a finish of
     this landing announcing it, or another road's attempt in its place moves
-    no record a binding rests on. Told by the fields the refusal names, as the
-    reading it was taken over spelled them, never by what the comment carries
-    by the time it is asked, so an announcement put back since is none either;
-    an attempt another road put in place of the one captured holds the route
-    over the comment as it stands instead (`stands_as_read`). Where `attempt`
-    still stands, though, a refusal naming its replay's base tip read the
-    blank a proof records movement under the evidence with (`_UNMARKED`), and
-    is that movement however soon the tip was put back. So is movement the
-    evidence records such a refusal was read over establish under the
-    transaction answered, which the answer keeps beside the refusal
-    (`reads_moving`) and no refusal's names excuse.
+    no record a binding rests on -- an attempt another road put in place of
+    the one captured holds the route over the comment as it stands instead
+    (`stands_as_read`). Told by the fields the refusal names, as the reading
+    it was taken over spelled them, never by what the comment carries by the
+    time it is asked, so an announcement put back since is none either. What
+    those records moved to was asked of that very reading and kept beside the
+    refusal (`reads_moving`) -- a blank of the captured attempt's base tip, a
+    mark of movement, a revision outranking the evidence -- and is movement
+    no refusal's names excuse, however the comment or the tick's state reads
+    since.
     """
     if not finish.proves_settled:
         return movements
-    excused = _UNMARKED if stands_as_read(finish, attempt, finish.state) else _attempts._ATTEMPT_KEYS
-    return [moved for moved in movements if not _durable.moves_only_the_evidence(moved, excused)]
+    return [moved for moved in movements if not _durable.moves_only_the_evidence(moved, _attempts._ATTEMPT_KEYS)]
 
 
-def reads_moving(finish: LandedFinish, pending: _records.PendingEvidence, state: PinnedState) -> ReportEvidence | None:
-    """The movement the records `state` carries establish under evidence current there under `pending`'s receipt.
+def reads_moving(
+    finish: LandedFinish,
+    pending: _records.PendingEvidence,
+    attempt: _commit_models.PinnedCommit,
+    state: PinnedState,
+) -> ReportEvidence | None:
+    """The movement `state`, a comment the answer to `pending` read behind `attempt`, records; or None.
 
-    `state` is a comment a refusal of moved bound records was read over while
-    `pending` was answered (`verification_proof.ProofReading.classifies_a_move`),
-    which another road may have settled `pending` on and then recorded
-    movement under: the readiness proof's reading of the records alone under
-    the settled-evidence policy (`rewrite_finish_readiness.settled_word`) --
-    the mark of movement in the handoff's place, a handoff naming the evidence
-    that describes another head, a readable revision spent past it, or a
-    review or report record moved. Kept beside that refusal, it is the
-    movement it is however soon the records are put back, where a refusal
-    naming the evidence records alone is none (`moves_the_binding`). None for
-    a finish not held to that policy, and where `state` carries nothing
-    current under that receipt -- `pending` still owed there, or retired or
-    superseded -- or nothing moving under it: a plain settlement.
+    `state` is one a refusal of moved bound records was read over
+    (`verification_proof.ProofReading.classifies_a_move`), or one the
+    adoption of a settlement took (`adopts_the_answer`), and another road may
+    have recorded movement on it before putting it back. The blank a proof
+    records movement under the evidence with (`_BLANKED`): the base tip
+    `attempt`, the one captured before the answer, recorded read blank beside
+    every other member as `attempt` captured it -- or advanced by its own
+    announcement (`stands_as_read`). And, where `state` carries evidence
+    current under `pending`'s receipt, the readiness proof's reading of the
+    records alone under the settled-evidence policy
+    (`rewrite_finish_readiness.settled_word`): the mark of movement in the
+    handoff's place, a handoff naming the evidence that describes another
+    head, a readable revision spent past it, or a review or report record
+    moved. Asked of that very reading, it is the movement it is however soon
+    the records are put back, where a refusal naming the evidence records or
+    the attempt's members alone is none (`moves_the_binding`). None for a
+    finish not held to that policy, and where nothing moved under it: a plain
+    settlement, `pending` still owed there, or retired or superseded.
     """
+    if not finish.proves_settled:
+        return None
+    unrecorded = not _attempt_records._recorded_onto(state)
+    blanked = unrecorded and _TIP in attempt.moved(state.data)
+    if blanked and stands_as_read(finish, replace(attempt, prerequisites=_UNMARKED), state):
+        return _BLANKED
     current = _settlement.read_current_evidence(state)
-    if not finish.proves_settled or current is None or current.receipt != pending.receipt:
+    if current is None or current.receipt != pending.receipt:
         return None
     heard = _readiness._records_heard(current, state, settled=True)
     return next((refused for refused in heard if refused and not refused.holds), None)

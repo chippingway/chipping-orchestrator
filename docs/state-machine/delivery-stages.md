@@ -1585,13 +1585,14 @@ because there it is the claim that this stage has already rerouted rather than a
   - a settlement another road made of the run while the phase answered or abandoned it is adopted -- its evidence
     records taken in (`verification_durable.takes_in_a_settlement`), and another finish's announcement of the
     landing with it -- before what the answer read is classified, and invalidated over movement read under it,
-    the evidence records' own moves and the attempt's members aside, however soon either was put back -- save the
-    base tip of an attempt that still stands, whose blank records movement read under the evidence
+    the evidence records' own moves and the attempt's members aside, however soon either was put back
     (`verification_durable.moves_only_the_evidence`), so one beside nothing else moved stays current -- as does one
     another finish made under the phase's own write, whose refusal over the evidence records alone is no movement --
     while a bound record the settlement edit found moved, named off the comment that edit read, is movement however
-    soon it is put back, and so is movement the evidence records any refusal of moved records was read over establish
-    under the run -- a mark of movement in its handoff's place, or a revision spent past it; a newer
+    soon it is put back, and so is movement any comment the answer or that adoption read records, asked the moment
+    it is read: a blank of the captured attempt's base tip, which a proof writes to record movement read under the
+    evidence, or under the run a mark of movement in its handoff's place or a revision spent past it -- however the
+    comment or the phase's state reads by the time the answer is classified; a newer
     transaction another road recorded beside it, readable or not -- ahead of its invalidation or under it -- comes
     in with it and holds the route or the continuation, owed as recorded, neither published nor settled, the adopted
     settlement alone invalidated over that movement; a continuation

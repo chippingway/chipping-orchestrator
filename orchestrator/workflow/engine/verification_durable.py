@@ -55,9 +55,10 @@ settling, or retiring a transaction -- and any the caller knows its own road
 moved, from one naming a record a binding rests on
 (`moves_only_the_evidence`). The other adopts the evidence records of a
 settlement another road made of a transaction while the finish was
-abandoning it (`takes_in_a_settlement`), so the finish retires that
-settlement over the movement it already read, decided on the records the
-settlement left rather than on its own stale reading of them.
+answering or abandoning it (`takes_in_a_settlement`), so the finish retires
+that settlement over the movement it already read, decided on the records
+the settlement left rather than on its own stale reading of them, and hands
+back the comment it read for the finish to say what that comment records.
 """
 from __future__ import annotations
 
@@ -223,14 +224,15 @@ def refusal_of(outcome: _commit_models.CommitOutcome) -> ReportEvidence | None:
 
 def takes_in_a_settlement(
     gh: GitHubClient, issue: Issue, state: PinnedState, receipt: str,
-) -> _records.CurrentEvidence | None:
-    """Evidence another road settled current under `receipt` since `state` was read, laid over `state`; or None.
+) -> PinnedState | None:
+    """The comment read afresh carrying evidence another road settled current under `receipt`, laid over `state`.
 
     For a caller about to retire that settlement over movement it already read:
-    every evidence record the comment read afresh carries is laid over `state`
-    and remembered as read, so the retirement is decided on the records that
-    settlement left. None, with `state` as it was, where the comment would not
-    read or carries nothing current under `receipt`.
+    every evidence record that comment carries is laid over `state` and
+    remembered as read, so the retirement is decided on the records that
+    settlement left, and the comment comes back for the caller to say what it
+    read there. None, with `state` as it was, where the comment would not read
+    or carries nothing current under `receipt`.
     """
     durable = durable_comment(gh, issue, state)[0]
     current = None if durable is None else _settlement.read_current_evidence(durable)
@@ -242,7 +244,7 @@ def takes_in_a_settlement(
         if spelled is not _commit_models.ABSENT:
             state.data[field] = spelled
     _commit.takes_in(state, durable.data, _EVIDENCE_RECORDS)
-    return current
+    return durable
 
 
 def moves_only_the_evidence(refused: ReportEvidence, besides: Iterable[str] = ()) -> bool:

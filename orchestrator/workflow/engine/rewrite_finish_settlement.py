@@ -228,8 +228,9 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     settled-evidence policy a settlement the answer adopted is invalidated
     first over movement the answer read (`_behind_the_answer`) -- a bound
     record the settlement's own edit found moved among it, named off the
-    comment that edit read, and movement the evidence records any refusal of
-    moved records was read over establish under `pending`'s receipt
+    comment that edit read, and movement any comment a refusal of moved
+    records was read over records -- under `pending`'s receipt, or as a blank
+    of the captured attempt's base tip
     (`verification_proof.ProofReading.classifies_a_move`) -- and current
     evidence is proved ready again before the route takes it. A
     transaction still owed goes to the last word over the first movement the
@@ -248,7 +249,7 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
         _transaction.answers(_proof.ProofReading(
             finish.gh, finish.spec, read[0], finish.state, anchored=partial(_anchored, finish),
             rests_on=tuple(_attempts._ATTEMPT_KEYS), observed=observed,
-            classifies_a_move=partial(reads_moving, finish, pending) if finish.proves_settled else None,
+            classifies_a_move=partial(reads_moving, finish, pending, attempt) if finish.proves_settled else None,
         ), pending)
     movements = [refused for refused in observed if not refused.holds or refused in MOVEMENT]
     if read is None or not _answered_alone(finish, pending, attempt):
@@ -277,7 +278,10 @@ def _behind_the_answer(
     retiring the very transaction meanwhile, a finish of this landing
     announcing it, or an attempt moved and put back is no movement under it,
     a settlement and announcement another finish of the landing made being
-    taken in first (`rewrite_finish_settled.adopts_the_answer`). A
+    taken in first (`rewrite_finish_settled.adopts_the_answer`) -- and
+    movement the comments that adoption read record, a mark under `pending`'s
+    receipt or a blank of the captured attempt's base tip among it, classified
+    beside what the answer read, however soon it is put back. A
     transaction still owed goes to the
     last word over the first such movement, or over its proof taken again. One
     settled is resolved afresh; a finish held to the settled-evidence policy
@@ -293,8 +297,7 @@ def _behind_the_answer(
     read under `pending` is never proved over the successor, nor the
     successor published and settled behind it.
     """
-    adopts_the_answer(finish, pending)
-    movements = moves_the_binding(finish, movements, attempt)
+    movements = moves_the_binding(finish, [*movements, *adopts_the_answer(finish, pending, attempt)])
     resolved = _captured.recorded(finish, logged=False) is None
     if resolved and _answered_alone(finish, pending, attempt):
         if not retires_the_adopted(finish, pending, movements, attempt):
