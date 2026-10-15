@@ -32,19 +32,33 @@ _MISSING_SCRIPT_REASON = f"{_CONSOLE_SCRIPT} is not installed; run `env -u VIRTU
 # A host that configures nothing, and one whose `REPOS` a run aborts on.
 _UNCONFIGURED_HOSTS = ({}, {"REPOS": "not-a-repository-entry"})
 _NOTHING = r"\A\Z"
-_COMMAND_LISTING = (
-    rf"(?ms)\Ausage: {_CONSOLE_SCRIPT} .*^commands:$.*^ +{_RUN} +Run the polling process"
-    rf".*^ +{_CONFIGURE} +Write the installed package's \.env"
-    rf".*^ +{_SET_TOKEN} +Verify a repository's GitHub token"
-    rf".*^ +{_CHECK} +Check the setup in the environment"
-    rf".*^ +{_ADD_REPO} +Add a repository to the installed package's \.env"
-    rf".*^ +{_INIT} +Install or refresh the systemd user service"
-    r".*^ +start +Check the setup locally, then start the service"
-    r".*^ +stop +Stop the service"
-    r".*^ +restart +Check the setup locally, then restart the service"
-    r".*^ +status +Show the installed version"
-    r".*^ +remove +Stop, disable, and delete the service's unit"
+_LIFECYCLE = ("start", "stop", "restart", "status", "remove")
+# Every command the entry point has, in the order the help lists them, with
+# the start of its line there.
+_COMMANDS = (
+    (_RUN, "Run the polling process"),
+    (_CONFIGURE, "Write the installed package's .env"),
+    (_SET_TOKEN, "Verify a repository's GitHub token"),
+    (_CHECK, "Check the setup in the environment"),
+    (_ADD_REPO, "Add a repository to the installed package's .env"),
+    (_INIT, "Install or refresh the systemd user service"),
+    ("start", "Check the setup locally, then start the service"),
+    ("stop", "Stop the service"),
+    ("restart", "Check the setup locally, then restart the service"),
+    ("status", "Show the installed version"),
+    ("remove", "Stop, disable, and delete the service's unit"),
 )
+# The listing ends the help, and names those commands and no other: each
+# command's line is indented under `<command>`, and a line its help wraps
+# onto is indented further.
+_COMMAND_LISTING = "".join((
+    rf"(?m)\Ausage: {_CONSOLE_SCRIPT} (?s:.*)^commands:\n  <command>\n",
+    *(
+        rf"    {re.escape(command)} +{re.escape(summary)}.*\n(?: {{5,}}\S.*\n)*"
+        for command, summary in _COMMANDS
+    ),
+    r"\Z",
+))
 _VERSION_LINE = f"{_CONSOLE_SCRIPT} {__version__}"
 _USAGE_ERROR = 2
 
@@ -110,8 +124,13 @@ _ANSWERS = (
         0,
         (
             rf"(?s)\Ausage: {_CONSOLE_SCRIPT} {_INIT} \[-h\]\n"
-            r".*never\s+started\s+or\s+restarted.*set-token\s+and\s+configure"
+            r".*never\s+started\s+or\s+restarted.*at\s+a\s+terminal\s+it\s+first\s+asks\s+for\s+the\s+setup"
+            r".*set-token\s+and\s+configure"
         ),
+    ),
+    *(
+        _Answer((command, _HELP), 0, rf"\Ausage: {_CONSOLE_SCRIPT} {command} \[-h\]\n")
+        for command in _LIFECYCLE
     ),
     _refused("--once"),
     _refused("--cleanup-terminal-artifacts"),
@@ -164,15 +183,17 @@ class UnconfiguredLaunchTest(unittest.TestCase):
     answers each command line that runs nothing before any configuration is
     read: on a host that configures no repository, and on one whose `REPOS` a
     run aborts on. A bare launch, like `--help`, prints the help listing every
-    command, the service's lifecycle commands after `init`; `--version` prints
-    the distribution's; `run --help` lists the
+    command and no other, the service's lifecycle commands after `init`;
+    `--version` prints the distribution's; `run --help` lists the
     polling flags, `configure --help` the setup options, `set-token --help`
     the repository it takes and standard input as where the token comes from,
     `check --help` the environment it checks in and its `--local` form,
     `add-repo --help` its entry options and that a running service needs a
-    restart, and `init --help` that it never starts the service and needs the
-    `.env` the setup commands write; and a polling flag given before any
-    command is a usage error naming the `run` form that means it.
+    restart, `init --help` that it never starts the service and, without a
+    `.env`, asks for the setup at a terminal and otherwise needs the one the
+    setup commands write, and each lifecycle command's `--help` that it takes
+    no option; and a polling flag given before any command is a usage error
+    naming the `run` form that means it.
 
     Only those are spared that validation: a launch that goes on to run is
     stopped by the same `REPOS`, as `test_entrypoints` shows.

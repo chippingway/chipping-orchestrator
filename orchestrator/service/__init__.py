@@ -63,8 +63,18 @@ installed service share, with ``stop`` and ``status``; ``starting`` is
 ``start`` and ``restart``, which run the local ``check`` in that environment
 and directory before asking systemd anything and watch the service stay
 active; and ``removal`` is ``remove``, which deletes the unit alone.
-``service_commands`` puts them all on the command line beside the setup
-commands.
+
+Then the onboarding ``init`` runs at a terminal where no ``.env`` exists.
+``questions`` asks one question per setting, offering a default and asking
+again under a validator's refusal; ``repository_questions`` asks for a
+repository, offering what ``clone_defaults`` reads off its clone, with its
+token through ``token_questions``, ``agent_questions`` for the agent each role
+runs, and ``setup_questions`` for all of it, in order, down to whether to write
+it. ``onboarding`` writes what is confirmed through the cores above -- each
+token as ``set-token`` keeps it, ``configure`` for the first repository, and
+``add_repo`` for each further one -- and nothing before the last answer.
+``service_commands`` puts the service commands on the command line beside the
+setup commands, ``init`` with that onboarding.
 
 Nothing here imports ``orchestrator.config`` as it is imported, or the GitHub
 client that reads its token through it; ``settings_report`` imports the

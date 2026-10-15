@@ -18,6 +18,11 @@ another repository is not. A remote the caller named is used as named, its
 URL supplying the repository unless the caller gave that too, in which case
 the two have to agree wherever the URL says anything.
 
+``clone_entry`` is the whole entry. Its two derivations are callable alone,
+for a setup that asks for each field in turn and offers what the clone implies
+as the default: ``github_remote`` chooses the remote and the repository it
+stands for, and ``default_branch`` reads that remote's branch.
+
 The URLs are read through ``git remote get-url``, so an ``insteadOf`` rewrite
 applies before ``remote_urls`` reads them. Git runs through
 ``checkouts.ask_git``, pointed at the clone alone, so nothing here imports the
@@ -47,14 +52,6 @@ def _ask(clone: Path, *arguments: str) -> str:
     except (OSError, subprocess.SubprocessError) as error:
         raise FieldError(f"{clone} cannot be inspected ({error})") from error
     return os.fsdecode(answer.stdout).strip() if answer.returncode == 0 else ""
-
-
-def _remotes(clone: Path) -> _Remotes:
-    """Each remote of ``clone``, with the GitHub repository its URL names."""
-    return {
-        name: repository_from_url(_ask(clone, "remote", "get-url", name))
-        for name in _ask(clone, "remote").split()
-    }
 
 
 def _candidates(remotes: _Remotes, repository: str | None) -> list[str]:
@@ -114,8 +111,27 @@ def _remote_repository(
     return repository or found
 
 
-def _base_branch(clone: Path, remote: str) -> str:
-    """The remote's recorded default branch, else the one checked out."""
+def github_remote(
+    clone: Path,
+    *,
+    repository: str | None = None,
+    remote: str | None = None,
+) -> tuple[str, str]:
+    """The remote an entry for ``clone`` records, and the repository it stands for.
+
+    ``clone`` has passed ``validation.validate_clone``, and a ``repository``
+    given here its own validator.
+    """
+    remotes: _Remotes = {
+        name: repository_from_url(_ask(clone, "remote", "get-url", name))
+        for name in _ask(clone, "remote").split()
+    }
+    chosen = remote or _chosen_remote(clone, remotes, repository)
+    return chosen, _remote_repository(clone, remotes, chosen, repository)
+
+
+def default_branch(clone: Path, remote: str) -> str:
+    """``remote``'s recorded default branch, else the one checked out."""
     remote_branches = f"refs/remotes/{remote}/"
     recorded = _ask(clone, "symbolic-ref", "--quiet", f"{remote_branches}HEAD")
     if recorded.startswith(remote_branches):
@@ -143,11 +159,10 @@ def clone_entry(
     all, so a clone with a detached ``HEAD`` still answers for a caller that
     names the base branch.
     """
-    remotes = _remotes(clone)
-    chosen = remote or _chosen_remote(clone, remotes, repository)
+    chosen, found = github_remote(clone, repository=repository, remote=remote)
     return RepositoryEntry(
-        repository=_remote_repository(clone, remotes, chosen, repository),
+        repository=found,
         clone=clone,
-        base_branch=base_branch or _base_branch(clone, chosen),
+        base_branch=base_branch or default_branch(clone, chosen),
         remote=chosen,
     )

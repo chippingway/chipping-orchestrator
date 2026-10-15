@@ -4,7 +4,7 @@
 
 ``init`` installs ``unit_file``'s unit for the setup an installed package
 reads, asking ``systemd`` for everything it needs from the user manager and
-logind. Every refusal comes before anything is written, in this order, each
+logind. Every refusal comes before the unit is written, in this order, each
 one exiting 1 with its message on stderr:
 
 - the package runs from its own source checkout, which reads a ``.env`` no
@@ -15,9 +15,11 @@ one exiting 1 with its message on stderr:
   is a value the unit cannot carry;
 - ``systemctl --user`` reaches no user manager to install the service into;
 - no installed ``.env`` exists. With a terminal, ``onboard`` is where one is
-  written instead -- the one place an onboarding meets this command -- and
-  otherwise the refusal names ``set-token`` and ``configure``, which write the
-  tokens and the file without prompts;
+  written instead -- the one place an onboarding meets this command, handed
+  the shell, the terminal, and the package root checked above, and raising
+  this command's refusal where it stops -- and otherwise the refusal names
+  ``set-token`` and ``configure``, which write the tokens and the file without
+  prompts;
 - the full ``check``, GitHub calls included, finds a problem, each printed as
   ``check`` prints it.
 
@@ -61,8 +63,8 @@ from orchestrator.service.unit_file import (
 COMMAND = "init"
 
 # What writes the installed `.env` where none exists, given the shell `init`
-# runs from and the terminal it was started at.
-Onboarding = Callable[[Mapping[str, str], TextIO], None]
+# runs from, the terminal it was started at, and the package root it checked.
+Onboarding = Callable[[Mapping[str, str], TextIO, Path], None]
 
 _UNCONFIGURED = (
     "no configuration exists at {0}, and init installs the service only for "
@@ -130,9 +132,9 @@ def _install(
     onboard: Onboarding | None,
     package_root: Path,
 ) -> None:
-    """Install the unit for ``shell``'s service, every refusal coming before any write."""
+    """Install the unit for ``shell``'s service, every refusal coming before the unit is written."""
     unit_text = _unit_text(shell, package_root)
-    _require_settings(shell, stdin, onboard)
+    _require_settings(shell, stdin, onboard, package_root)
     if checks.check(shell, reach_github=True) != 0:
         raise InitRefusal(_UNCHECKED)
     _write_and_enable(unit_text)
@@ -160,6 +162,7 @@ def _require_settings(
     shell: Mapping[str, str],
     stdin: TextIO,
     onboard: Onboarding | None,
+    package_root: Path,
 ) -> None:
     """Make sure the installed ``.env`` exists, handing a terminal to ``onboard`` where it does not."""
     settings_file = paths.settings_file()
@@ -167,7 +170,7 @@ def _require_settings(
         return
     if onboard is None or not stdin.isatty():
         raise InitRefusal(_UNCONFIGURED.format(settings_file))
-    onboard(shell, stdin)
+    onboard(shell, stdin, package_root)
 
 
 def _write_and_enable(unit_text: str) -> None:

@@ -56,7 +56,15 @@ derived from the targets rather than from it. Both locations refuse the token ke
 
 ## Basic setup
 
-Install with `pipx install chipping-orchestrator`, then write the first setup without any prompt, naming a local
+Install with `pipx install chipping-orchestrator`, then run `chipping-orchestrator init` at a terminal, from the top of
+a local clone of the repository to manage. With no `.env` yet, `init` asks for the first setup one setting at a time
+-- the clone, the repository and the branch pull requests target, its token, the GitHub logins the orchestrator takes
+work from and those it mentions, the agents, and any further repository -- each offering a default where one can be
+read, and each held to the check the setup commands below apply. Nothing is written until the last answer confirms
+it; then the answers go to those commands' own code, in process, and `init` goes on to install the
+[user service](#running-under-systemd-user-service) ([onboarding](configuration/operations.md#onboarding-with-init)).
+
+The same first setup is written without any prompt, as a script or a host without a terminal needs, by naming a local
 clone of the repository to manage and the GitHub logins the orchestrator takes work from:
 
 ```sh
@@ -1165,14 +1173,16 @@ optional groups, and environment isolation requirements are in the
 
 ## Running under systemd (user service)
 
-For persistent operation, run the installed package as a systemd **user** service. Once `.env` and the token files are
+For persistent operation, run the installed package as a systemd **user** service. With `.env` and the token files
 written, `chipping-orchestrator init` runs the full [`check`](#checking-a-setup), writes
 `~/.config/systemd/user/chipping-orchestrator.service` for the interpreter it runs under and the absolute entries of
 its shell's `PATH`, and runs `systemctl --user daemon-reload` and `enable` without starting the service. It enables
 linger where `loginctl` does not report it, which boot-time start requires, and where logind refuses names the
 `sudo loginctl enable-linger <user>` that does it. Running `init` again rewrites only the unit, leaving `.env` and the
-tokens as they are, and says to restart a running service. It refuses a source checkout, a host whose user manager
-cannot be reached, a missing `.env`, naming `set-token` and `configure`, and the hand-written
+tokens as they are, and says to restart a running service. Where no `.env` exists, at a terminal it first asks for the
+setup and writes it once the last answer confirms it
+([onboarding](configuration/operations.md#onboarding-with-init)); without a terminal it refuses, naming `set-token`
+and `configure`. It also refuses a source checkout, a host whose user manager cannot be reached, and the hand-written
 `~/.config/systemd/user/orchestrator.service` that releases up to v0.13.0 documented, which has to be stopped,
 disabled, and deleted first.
 
