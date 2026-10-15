@@ -16,7 +16,9 @@ reports what keeps them from running. A token, a setting, an agent override,
 a git setting, or a ``.env`` opt-out exported only in the shell therefore
 cannot make a check pass where the service would fail, and the process that
 asked never imports ``orchestrator.config``, so the check answers on a host
-whose settings would stop it at import.
+whose settings would stop it at import. ``service_problems`` runs the same
+interpreter with an environment and a working directory its caller assembled
+instead -- the ones ``start`` reads off the installed unit and its drop-ins.
 
 The interpreter is the one running this package, with this package's root
 first on its path, so it reads the installation that asked rather than
@@ -72,21 +74,34 @@ def problems(shell: Mapping[str, str], *, reach_github: bool) -> list[str]:
     Only the service's environment is taken from ``shell``. With
     ``reach_github``, each repository's token is also proved to read it.
     """
-    service = service_environment(shell)
-    home = service.get("HOME")
+    return service_problems(service_environment(shell), reach_github=reach_github)
+
+
+def service_problems(
+    service: Mapping[str, str],
+    *,
+    reach_github: bool,
+    working_directory: str | None = None,
+) -> list[str]:
+    """What keeps a service running with exactly the environment ``service`` from running, a line each.
+
+    The interpreter runs in ``working_directory``, the service's home where
+    none is given, as the service's own process does.
+    """
+    directory = working_directory or service.get("HOME")
     try:
         reported = subprocess.run(
             (
                 sys.executable, "-P", "-c", _REPORT, str(paths.PACKAGE_ROOT),
                 *((REACH_GITHUB,) if reach_github else ()),
             ),
-            cwd=home,
-            env=service,
+            cwd=directory,
+            env=dict(service),
             capture_output=True,
             check=False,
         )
     except OSError as error:
-        return [f"the settings cannot be checked from the service's home {home}: {error}"]
+        return [f"the settings cannot be checked from the service's working directory {directory}: {error}"]
     return _read(reported)
 
 

@@ -152,8 +152,9 @@ Each run proves the token with one read-only GitHub call for that repository and
 `~/.config/<owner>/<name>/token`, mode 0600 in a 0700 directory, replacing any token there; a token GitHub refuses
 leaves the old one in place. It reads no configuration, so it works before `.env` is written, and it never edits
 `.env`. Running it again is how a token is rotated ([set-token](../configuration.md#storing-a-token-with-set-token)).
-With the settings and tokens in place, [check the setup](#check-compatibility-and-start) before the first start, and
-[install the user service](#installing-with-init) with `init` to keep the poller running.
+With the settings and tokens in place, [check the setup](#check-compatibility-and-start) before the first start, then
+[install the user service](#installing-with-init) with `init` and [start it](#operating) with `start` to keep the
+poller running.
 
 ### Select an existing environment
 
@@ -267,10 +268,10 @@ other apps so they do not change the package under a running poller. Before upgr
    compatibility with the current Python, agents, targets, and live workflow state. Record the current `Version` from
    `pipx runpip chipping-orchestrator show chipping-orchestrator` and retain its templates; if they are missing,
    [save them](#save-the-installed-versions-templates) now, while that version is still the one installed.
-2. Choose a [safe stopping point](#safe-restart-guidance), preferably with no live agent child. Stop the supervisor
-   with `systemctl --user stop chipping-orchestrator.service` (`systemctl --user stop orchestrator.service` on a
-   host still running the hand-written unit of v0.13.0 or earlier), or Ctrl+C the foreground command, and wait for
-   shutdown. Stop every poller using this pipx environment before changing it.
+2. Choose a [safe stopping point](#safe-restart-guidance), preferably with no live agent child. Stop the service
+   with `chipping-orchestrator stop` (`systemctl --user stop orchestrator.service` on a host still running the
+   hand-written unit of v0.13.0 or earlier), or Ctrl+C the foreground command, and wait for shutdown. Stop every
+   poller using this pipx environment before changing it.
 3. Back up settings and retain the previous release selection:
 
    ```sh
@@ -322,10 +323,11 @@ other apps so they do not change the package under a running poller. Before upgr
 5. On every upgrade, [save the templates](#save-the-installed-versions-templates) the intended version installed and
    [compare configuration](#compare-configuration-across-versions) before resuming.
 6. Repeat [compatibility checks](#check-compatibility-and-start), then start `chipping-orchestrator run` again or run
-   `systemctl --user start chipping-orchestrator.service`. A host still on the hand-written unit
-   [replaces it](#moving-from-the-hand-written-unit) before that start. Check startup output and logs for connections
-   and polling. Run `chipping-orchestrator init` again when the interpreter path or the agents' directories changed,
-   which rewrites and reloads the unit; editing `.env` alone needs no reload.
+   `chipping-orchestrator start`, which [checks the settings locally](#operating) once more, starts the service, and
+   reports it active or prints the last lines of its journal. A host still on the hand-written unit
+   [replaces it](#moving-from-the-hand-written-unit) before that start. Run `chipping-orchestrator init` before it
+   when the interpreter path or the agents' directories changed, which rewrites and reloads the unit; editing `.env`
+   alone needs no reload. Check startup output and logs for connections and polling.
 
 If a release requires a different Python interpreter, follow
 [Change the Python interpreter](#change-the-python-interpreter) before installing it.
@@ -383,6 +385,9 @@ Read both releases' rollback notes: restoring `.env` does not undo workflow stat
 to a version that cannot handle late split state, complete the
 [workflow drain](#rolling-back-to-an-older-orchestrator) with the newer package running and `DECOMPOSE=off`.
 Honor other release-specific restrictions, then stop the process and supervisor and wait for shutdown.
+Returning to v0.13.0 or earlier also takes away the service `init` installed, since those releases have no `init`
+and refuse the `run` its unit launches: while the newer package is still installed, run
+`chipping-orchestrator remove`, which [stops, disables, and deletes](#removing) that unit and keeps everything else.
 
 Select the retained backup explicitly, replacing `YYYYMMDDTHHMMSSZ` with its timestamp:
 
@@ -428,7 +433,8 @@ keeping compatible target paths, author lists, log paths, and other deliberate o
 overrides too.
 
 Returning to v0.13.0 or earlier also returns the poller to the bare command, since those releases refuse `run`, and
-to a hand-written unit, since they have no `init`. On a host whose service `init` installed, run
+to a hand-written unit, since they have no `init`. Where the service `init` installed is still there because the
+older package was installed before `remove` ran, run
 `systemctl --user disable --now chipping-orchestrator.service` and delete
 `~/.config/systemd/user/chipping-orchestrator.service`, whose `ExecStart` runs `run`. Then remove `run` from launch
 lines and from the hand-written unit's `ExecStart`, or restore the unit retained before the upgrade (on a host that
@@ -1117,8 +1123,9 @@ need the isolation described under
 ## Running under systemd (user service)
 
 For persistent operation, run the installed package as a systemd **user** service, which `chipping-orchestrator init`
-installs and enables. A foreground process does not survive a reboot, a `tty` logout, or the user manager being torn
-down. `init` refuses to run from a source checkout; source-checkout service configuration belongs to the
+installs and enables, and `start`, `stop`, `restart`, `status`, and `remove` [manage](#operating) from then on. A
+foreground process does not survive a reboot, a `tty` logout, or the user manager being torn down. `init` refuses to
+run from a source checkout; source-checkout service configuration belongs to the
 [developer guide](../development.md#development-restart-wrapper).
 
 A detached `screen` / `tmux` session wrapped in a `Type=forking` unit looks similar but is the wrong shape: systemd ends
@@ -1163,8 +1170,7 @@ seconds and counts as failed past them.
 Run `init` again whenever what the unit records changes: the interpreter's path, as when the package moves to another
 environment, or the directories the agents are found in. It leaves `.env` and the token files exactly as they are and
 rewrites only the unit, from the interpreter and `PATH` it runs with now. When the service is running, it says to
-restart it, which `systemctl --user restart chipping-orchestrator.service` does; choose a
-[safe stopping point](#safe-restart-guidance).
+restart it, which `chipping-orchestrator restart` does; choose a [safe stopping point](#safe-restart-guidance).
 
 ### Unit file
 
@@ -1203,8 +1209,11 @@ WantedBy=default.target
   exits with `128 + signum`, and `SuccessExitStatus=130 143` records that exit as a success rather than a failure.
 - `Restart=on-failure` relaunches a failed process every 30 seconds (`RestartSec=30`) with no limit
   (`StartLimitIntervalSec=0`), so a GitHub outage at boot cannot leave the unit failed for good. A refused start, from
-  invalid settings or targets or an empty `ALLOWED_ISSUE_AUTHORS`, repeats on that cadence too: read the diagnostic
-  with `journalctl --user-unit chipping-orchestrator.service -f`, stop the service, and repair the configuration.
+  invalid settings or targets or an empty `ALLOWED_ISSUE_AUTHORS`, repeats on that cadence too. `start` and `restart`
+  [check for those](#operating) before asking systemd anything, so the loop arises where the settings changed with no
+  such check after, as when the user manager starts the service at boot: read the diagnostic with
+  `journalctl --user-unit chipping-orchestrator.service -f`, run `chipping-orchestrator stop`, and repair the
+  configuration.
 - Both quoted values have each backslash and double quote escaped and every `%` written `%%`, because systemd unquotes
   both and then expands its `%` specifiers. `init` refuses a value holding a control character, and an interpreter
   path holding a quote, a backslash, or a `$`, which systemd rejects or rewrites in a command.
@@ -1218,7 +1227,7 @@ the unit file whole each time. Package version changes require an explicit pipx 
 service starts whenever the user manager does, and leaves the first start to you:
 
 ```sh
-systemctl --user start chipping-orchestrator.service
+chipping-orchestrator start
 ```
 
 Linger is **required for boot-time start**: without it the per-user systemd manager only runs while the user has an
@@ -1243,22 +1252,119 @@ systemctl --user disable orchestrator.service
 rm ~/.config/systemd/user/orchestrator.service
 systemctl --user daemon-reload
 chipping-orchestrator init
-systemctl --user start chipping-orchestrator.service
+chipping-orchestrator start
 ```
 
-Carry any `Environment=` or `EnvironmentFile=` setting the old unit held over to a drop-in made with
-`systemctl --user edit chipping-orchestrator.service`. A token it supplied as `GITHUB_TOKEN` belongs in a token file
-instead: `check`, and so `init`, reads tokens only from those, so store it with
-[`set-token`](#install-and-configure) before running `init`. Linger the old unit relied on stays enabled.
+Carry any `Environment=` setting the old unit held over to a drop-in made with
+`systemctl --user edit chipping-orchestrator.service`. Variables it read from an `EnvironmentFile=` go there as
+`Environment=` lines instead, since `start` and `restart` [refuse](#operating) a drop-in that reads one. A token it
+supplied as `GITHUB_TOKEN` belongs in a token file: `check`, and so `init`, read tokens only from those, so store it
+with [`set-token`](#install-and-configure) before running `init`. `start` and `restart` would accept a `GITHUB_TOKEN`
+a drop-in's `Environment=` sets, as the service does, but the token file is owner-only and is what `check` and `init`
+judge. Linger the old unit relied on stays enabled.
 
 ### Operating
 
 ```sh
-systemctl --user status chipping-orchestrator.service        # current state and last log lines
-systemctl --user restart chipping-orchestrator.service       # bounce the orchestrator
-systemctl --user stop chipping-orchestrator.service          # SIGTERM the supervised command; suppress restarts
-journalctl --user-unit chipping-orchestrator.service -f      # tail the supervised command's stdout/stderr
+chipping-orchestrator start      # check the settings locally, start the service, and confirm it stays active
+chipping-orchestrator restart    # the same check, then restart it, as after editing .env
+chipping-orchestrator stop       # SIGTERM the poller; the service stays enabled
+chipping-orchestrator status     # the version, .env, and unit, then systemctl --user status
+chipping-orchestrator remove     # stop, disable, and delete the unit, keeping everything else
+journalctl --user-unit chipping-orchestrator.service -f     # tail the supervised command's stdout/stderr
 ```
+
+None of these loads the configuration in its own process, so each answers on a host whose settings would stop a start.
+Run them as the service user; each refuses, naming itself, where `systemctl --user` reaches no user manager, as
+under `su` or `sudo`.
+
+`start` and `restart` first run the local [check](#check-compatibility-and-start) -- what
+`chipping-orchestrator check --local` checks -- in the environment the service would run with: the shell's `HOME` and
+`USER`, then every variable the [unit](#unit-file) and its drop-ins set, read off the files as systemd assembles them
+rather than taken from the shell. So the agents are looked for on the `PATH` the service gets -- the one `init`
+recorded, or the one a drop-in replaced it with -- and a setting a drop-in's `Environment=` overrides is checked as
+overridden. The check also runs in the directory the service starts in: the home, unless a drop-in's
+`WorkingDirectory=` names another, so a `REPOS` target given relative to it is looked for where the service will look.
+The check makes no GitHub call, so a GitHub outage never keeps the service from starting; the service rides one out by
+restarting. While it finds a problem, each is printed, systemd is asked nothing, and the command exits 1, leaving a
+running service running.
+
+Tokens are judged as the service will find them too: a token file, or a `GITHUB_TOKEN` an `Environment=` line in the
+unit or a drop-in sets, which the service takes before any token file. This is where `start` and `restart` differ from
+`check` and `init`, which take nothing from the shell but `HOME`, `USER`, and `PATH` and read no unit, and so read the
+token files alone. Keep tokens in the token files [`set-token`](#install-and-configure) writes owner-only, which all
+four judge alike.
+
+The drop-ins read are the `*.conf` files in a `chipping-orchestrator.service.d`, `chipping-.service.d`, or
+`service.d` directory under each directory systemd reads user units from by default -- `~/.config/systemd/user`,
+`~/.config/systemd/user.control`, and `~/.local/share/systemd/user`, and `systemd/user` under `/etc`, `/etc/xdg`,
+`/run`, the user's runtime directory, `/usr/local/lib`, `/usr/lib`, `/usr/local/share`, and `/usr/share`. Of two with
+the same name the one systemd ranks first wins, and they apply in name order; a hidden file, whose name starts with a
+dot, is not read, as systemd reads none. An empty `Environment=` drops every assignment before it.
+
+A user service sets no `HOME` or `USER` of its own: it inherits the user manager's environment as it stands, and the
+check holds it too. The manager's own `HOME` and `USER` -- the shell's -- lie at the bottom, then what its
+configuration hands every service: `ManagerEnvironment=` and, over it, `DefaultEnvironment=` in the `[Manager]`
+section of `~/.config/systemd/user.conf` (or `/etc/systemd/user.conf` where the home has none) and of each
+`user.conf.d` drop-in in `~/.config/systemd` and under `/etc`, `/run`, `/usr/local/lib`, and `/usr/lib`, the home's
+ranking first, with the specifiers the manager expands there -- `%h`, `%u`, `%U`, `%G`, and `%%` -- read as the home,
+the user's name and ID, the group ID, and a `%`; and over those each assignment of the `*.conf` files in
+`~/.config/environment.d` and in `environment.d` under `/etc`, `/run`, `/usr/local/lib`, and `/usr/lib`, each value
+expanded as the manager's generator expands it against the variables set before it. The unit's own variables lie over
+all of it. So an author allowlist or a `REPOS` an `environment.d` file sets is checked as the service will read it,
+and so is a `HOME` it sets, under which the service, and the check, read `.env`. What the manager is told at run time
+-- by `systemctl --user set-environment` or `import-environment`, as a desktop session may do -- and its own process
+environment past the home and the user are known only to the manager, which a launch does not ask before its check
+passes, so a setting kept there is not checked; keep settings in `.env`.
+
+Before anything else, and asking systemd nothing, a launch refuses:
+
+- a missing unit, naming `init`;
+- `EnvironmentFile=`, `PassEnvironment=`, or `UnsetEnvironment=` in the unit or a drop-in, which take the service's
+  environment from a file or from the user manager's own, and `ExecStart=` in a drop-in, after which the service no
+  longer runs the package that installed it;
+- an `Environment=` value using an escape other than a backslash before a backslash or a quote, or a specifier other
+  than `%%`, `%h`, and `%u`, and a `WorkingDirectory=` that is relative, uses such a specifier, or is marked `-`, which
+  lets systemd skip a missing directory and leave the service wherever the user manager runs;
+- a unit and drop-ins that leave the service no `PATH` of their own, since it would then run with the user manager's, or
+  that give it one holding an empty or relative entry: the service starts each agent in an issue's worktree, so a lookup
+  through such an entry finds nothing there, or whatever that checkout holds, wherever the check found it;
+- an `environment.d` file or `user.conf` it cannot read as systemd does: a quote left open -- even after a name systemd
+  ignores, since it reads the value first and the quote runs on over the lines below -- or a line continued past
+  its end, a `${` expansion other than `${NAME}`, `${NAME:-TEXT}`, and `${NAME:+TEXT}`, or a `ManagerEnvironment=` or
+  `DefaultEnvironment=` value read as an `Environment=` one could not be or using a specifier other than those above,
+  such as the host name's `%H`;
+- a `ManagerEnvironment=` setting `HOME` or an `XDG_` directory variable, or a `DefaultEnvironment=` setting `HOME` or
+  `XDG_CONFIG_HOME`, since either moves where systemd reads its own configuration -- the units and `user.conf`, or
+  the `environment.d` files.
+
+Each refusal names the file and the setting or variable in it, and never quotes a value, which may be a token; take that
+out, or start the service with `systemctl --user start`, which checks nothing. The unit files are read as systemd's
+parser reads them: a byte-order mark opening the first line that has one is dropped only after comments are told, so a
+`#` or `;` right after it opens no comment, a line ends at a newline, a carriage return, or the two together in either
+order, and only a space, a tab, a newline, or a carriage return counts as a blank; a file holding a NUL character is
+refused, and so is one holding a malformed section header -- one never closed, or whose name holds a control
+character, a backslash, or a quote -- at which systemd stops reading the file, ignoring every setting after it.
+
+Then the user manager reloads its units, so that what it launches is the definition just checked rather than one it
+loaded before the files changed, and starts or restarts the service. A `Type=simple` service counts as started as soon
+as its process does, so the command asks at each of the 5 seconds after the job whether it is still active. The whole
+watch ends within 7 seconds of the job: each question waits for its second unless a slow answer has already passed it,
+and is bounded by the time left, so a manager slow to answer cannot stretch it. The command exits 0 with the service
+active throughout, or 1 with what the service is now -- `activating` while systemd waits out `RestartSec` to start it
+again, or that a question got no state in the time left -- and the last 20 lines of its journal, as it does when the
+manager refuses the job itself.
+
+`stop` has the manager stop the service: the poller receives `SIGTERM` and
+[shuts down gracefully](#what-survives-a-restart). The service stays enabled, so the user manager starts it again
+the next time it starts, as at boot. `status` prints the package version, `~/.config/chipping-orchestrator/.env`, and
+the unit, each followed by `(missing)` where there is no such file, then
+`systemctl --user status --no-pager chipping-orchestrator.service`, and exits with that command's status: 3 for a
+service that is not running, 4 for no unit at all.
+
+Each job these commands hand the manager -- a start, stop, restart, disable, reload, or reset -- is given 120 seconds,
+past the 90 seconds systemd gives a unit to stop, and each question about the service 30; a job still running at its
+bound is reported as failed while the manager carries on with it.
 
 systemd's journal captures the supervised command's stdout/stderr (process lifecycle, exit codes, restart messages).
 The orchestrator's own structured log lives at `LOG_DIR/orchestrator.log` (rotated, ~10 MiB × 5).
@@ -1266,6 +1372,24 @@ The `configure` step of package setup above records an absolute `LOG_DIR` pointi
 `~/.local/state/chipping-orchestrator/logs`.
 `WorkingDirectory` does not select the default log location.
 Check the journal first for "did it start / did it die", then `LOG_DIR/orchestrator.log` for per-issue handler detail.
+
+### Removing
+
+`chipping-orchestrator remove` takes the service away and keeps the setup. It stops the service, disables it, deletes
+`~/.config/systemd/user/chipping-orchestrator.service`, and runs `systemctl --user daemon-reload`, which unloads the
+service. Where the manager still remembers the service as failed, it then runs
+`systemctl --user reset-failed chipping-orchestrator.service`; a service stopped cleanly is gone with the reload, and
+`reset-failed` refuses a unit the manager no longer has loaded.
+
+It keeps `.env`, the token files, the logs, the worktrees, linger, and any drop-in directory beside the unit, and says
+so; delete them, or run `loginctl disable-linger`, only once nothing else needs them. `init` installs the service over
+the same setup again. With no unit installed, `remove` does nothing and exits 0.
+
+A step that fails exits 1 with the manager's reason and takes no step after it. A stop or disable that fails keeps the
+unit, so `remove` run again takes it up from the start; a reload or reset that fails once the unit is deleted names the
+`systemctl --user` command that finishes the removal. Only a state `systemctl --user is-failed` prints answers whether
+the service is still remembered as failed -- `inactive` for one the reload unloaded -- so a query the manager refuses,
+or one that does not finish, is a failed step too, naming the `is-failed` and `reset-failed` commands that finish.
 
 ## Reclaiming what a split leaves on the remote
 
@@ -1828,7 +1952,7 @@ settings in `.env` are not automatically shell variables. Then inspect processes
 ```sh
 pgrep -af 'chipping-orchestrator|codex|claude|agy'
 tail -f "${LOG_DIR:?}/orchestrator.log"
-journalctl --user -u chipping-orchestrator.service -f   # systemd users
+journalctl --user-unit chipping-orchestrator.service -f   # systemd users
 ```
 
 ### Per launch style
@@ -1847,14 +1971,15 @@ journalctl --user -u chipping-orchestrator.service -f   # systemd users
    ([compatibility check](#check-compatibility-and-start)).
 3. Run [`chipping-orchestrator init`](#installing-with-init) again only if the interpreter path or the directories the
    agents are found in changed; it rewrites and reloads the unit. A reload reads unit definitions, not `.env`.
-4. When safe, run `systemctl --user restart chipping-orchestrator.service`.
-5. Tail logs with `journalctl --user -u chipping-orchestrator.service -f`.
+4. When safe, run `chipping-orchestrator restart`. It repeats the local check and leaves the running service as it is
+   if that finds a problem, then [reports the service active](#operating) or prints its last journal lines.
+5. Tail logs with `journalctl --user-unit chipping-orchestrator.service -f`.
 
-When `GITHUB_TOKEN` is supplied through an `EnvironmentFile=` in a drop-in, edit that file and restart. Change an
-`Environment=` value with `systemctl --user edit chipping-orchestrator.service`, which reloads the unit once the editor
-exits, before restarting; `init` rewrites the unit file itself, so a value edited there is lost on its next run.
-`check` reads tokens from the token files alone, so it reports a repository whose token comes from `EnvironmentFile=`
-as having none.
+Change an `Environment=` value with `systemctl --user edit chipping-orchestrator.service`, which reloads the unit once
+the editor exits, before restarting; `init` rewrites the unit file itself, so a value edited there is lost on its next
+run. `start` and `restart` check the service with the values a drop-in's `Environment=` sets, a `GITHUB_TOKEN` among
+them, and refuse one that reads an `EnvironmentFile=` ([operating](#operating)). `check` and `init` read tokens from the
+token files alone, so store each with `set-token`, which all four judge alike.
 
 Each `chipping-orchestrator run --once` invocation starts a new process and reads current settings. Restarts keep the
 installed package version; [package upgrades](#upgrade-a-package) are explicit operator actions. Development

@@ -48,9 +48,33 @@ _CHECKS = "checks"
 
 _UNIT_FILE = "unit_file"
 
+_UNIT_SYNTAX = "unit_syntax"
+
+_UNIT_ENVIRONMENT = "unit_environment"
+
+_UNIT_DROP_INS = "unit_drop_ins"
+
+_ENVIRONMENT_SYNTAX = "environment_syntax"
+
+_MANAGER_ENVIRONMENT = "manager_environment"
+
+# What reading the unit's environment composes: the drop-ins it finds and the
+# unit-file syntax it reads them through.
+_UNIT_ENVIRONMENT_CHAIN = (_UNIT_DROP_INS, _UNIT_FILE, _UNIT_SYNTAX)
+
+# What reading the user manager's environment composes besides: the
+# environment-file syntax `environment.d` is read through.
+_MANAGER_ENVIRONMENT_CHAIN = (*_UNIT_ENVIRONMENT_CHAIN, _UNIT_ENVIRONMENT, _ENVIRONMENT_SYNTAX)
+
 _SYSTEMD = "systemd"
 
 _INSTALLATION = "installation"
+
+_LIFECYCLE = "lifecycle"
+
+_STARTING = "starting"
+
+_REMOVAL = "removal"
 
 # What `configure` composes: every setup leaf it writes the `.env` through.
 _CONFIGURE_CHAIN = (
@@ -97,12 +121,34 @@ _INSTALLATION_CHAIN = (
     _UNIT_FILE,
 )
 
+# What `stop` and `status` compose, and every lifecycle command beside them:
+# the installed paths they show, the unit they act on, and the systemd
+# adapters.
+_LIFECYCLE_CHAIN = (
+    _CHECKOUTS,
+    _PATHS,
+    _SYSTEMD,
+    _UNIT_FILE,
+)
+
+# What `start` and `restart` compose: the environment the unit and its
+# drop-ins give the service, the local check they run on it first, and what
+# every lifecycle command shares.
+_STARTING_CHAIN = (
+    *_CHECKS_CHAIN,
+    _CHECKS,
+    *_LIFECYCLE_CHAIN,
+    _LIFECYCLE,
+    *_MANAGER_ENVIRONMENT_CHAIN,
+    _MANAGER_ENVIRONMENT,
+)
+
 # Each owner, and the owners beside it that importing it loads too. Only the
 # setup's own leaves read each other: the checkout check under the layout and
 # the clone validator, the validator's refusal under the entry it writes and
 # the `.env` lines, all of them under the clone's derived entry, every leaf
-# under `configure`, `tokens`, `checks`, or `installation`, and those under
-# the command lines above them.
+# under `configure`, `tokens`, `checks`, `installation`, or the lifecycle
+# commands, and those under the command lines above them.
 _OWNERS = MappingProxyType({
     _TEMPLATES: (),
     _CHECKOUTS: (),
@@ -122,9 +168,23 @@ _OWNERS = MappingProxyType({
     _CHECKS: _CHECKS_CHAIN,
     "commands": (*_CONFIGURE_CHAIN, _CONFIGURE, *_TOKENS_CHAIN, _TOKENS, *_CHECKS_CHAIN, _CHECKS),
     _UNIT_FILE: (),
+    _UNIT_SYNTAX: (),
+    _UNIT_DROP_INS: (_UNIT_FILE,),
+    _UNIT_ENVIRONMENT: _UNIT_ENVIRONMENT_CHAIN,
+    _ENVIRONMENT_SYNTAX: (_UNIT_SYNTAX,),
+    _MANAGER_ENVIRONMENT: _MANAGER_ENVIRONMENT_CHAIN,
     _SYSTEMD: (),
     _INSTALLATION: _INSTALLATION_CHAIN,
-    "service_commands": (*_INSTALLATION_CHAIN, _INSTALLATION),
+    _LIFECYCLE: _LIFECYCLE_CHAIN,
+    _STARTING: _STARTING_CHAIN,
+    _REMOVAL: (*_LIFECYCLE_CHAIN, _LIFECYCLE),
+    "service_commands": (
+        *_INSTALLATION_CHAIN,
+        _INSTALLATION,
+        *_STARTING_CHAIN,
+        _STARTING,
+        _REMOVAL,
+    ),
 })
 
 # The declared inventory: the owners above, and the two templates `templates`

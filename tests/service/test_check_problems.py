@@ -277,7 +277,7 @@ class UnreportedCheckTest(_support.CheckCase):
 
         self.assert_refused(
             checked,
-            f"the settings cannot be checked from the service's home {gone}: {missing}",
+            f"the settings cannot be checked from the service's working directory {gone}: {missing}",
         )
 
     def test_stopped_interpreter_reported(self) -> None:

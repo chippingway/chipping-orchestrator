@@ -37,6 +37,11 @@ _COMMAND_LISTING = (
     rf".*^ +{_SET_TOKEN} +Verify a repository's GitHub token"
     rf".*^ +{_CHECK} +Check the setup in the environment"
     rf".*^ +{_INIT} +Install or refresh the systemd user service"
+    r".*^ +start +Check the setup locally, then start the service"
+    r".*^ +stop +Stop the service"
+    r".*^ +restart +Check the setup locally, then restart the service"
+    r".*^ +status +Show the installed version"
+    r".*^ +remove +Stop, disable, and delete the service's unit"
 )
 _VERSION_LINE = f"{_CONSOLE_SCRIPT} {__version__}"
 _USAGE_ERROR = 2
@@ -149,7 +154,8 @@ class UnconfiguredLaunchTest(unittest.TestCase):
     answers each command line that runs nothing before any configuration is
     read: on a host that configures no repository, and on one whose `REPOS` a
     run aborts on. A bare launch, like `--help`, prints the help listing every
-    command; `--version` prints the distribution's; `run --help` lists the
+    command, the service's lifecycle commands after `init`; `--version` prints
+    the distribution's; `run --help` lists the
     polling flags, `configure --help` the setup options, `set-token --help`
     the repository it takes and standard input as where the token comes from,
     `check --help` the environment it checks in and its `--local` form, and

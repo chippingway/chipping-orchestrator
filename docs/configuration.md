@@ -144,7 +144,8 @@ settings the service has, and the token never leaves it; a refusal names the rep
 form polls an issue, writes a label, pinned state, or comment, or starts an agent, and a pass does not prove the
 token's write permissions or an agent's login. The
 [compatibility check](configuration/operations.md#check-compatibility-and-start) runs it beside the package version
-and dependency checks before a start.
+and dependency checks before a start, and the [service's](#running-under-systemd-user-service) `start` and `restart`
+run the local form themselves, in the environment and directory the service would get.
 
 A warning the settings print as they load, such as for a token key found in `.env`, stops nothing and is not repeated,
 and a check whose interpreter stops before it reports is one problem naming its exit status and the last line of its
@@ -512,7 +513,7 @@ examples.
 - `REVIEW_TIMEOUT` — default (= `AGENT_TIMEOUT`). wall-clock cap per reviewer invocation, seconds
 - `SHUTDOWN_GRACE_SECONDS` — default `30`. seconds after SIGTERM/SIGINT before the loop force-terminates in-flight
   agent subprocesses and hard-exits (`128 + signum`). Keep below the systemd unit's `TimeoutStopSec` (90s) so
-  `systemctl restart` sees a clean stop instead of escalating to SIGKILL — without it the drain waits on in-flight
+  a `stop` or `restart` sees a clean stop instead of escalating to SIGKILL — without it the drain waits on in-flight
   workers bounded only by `AGENT_TIMEOUT` (1800s) or a blocking GitHub retry/backoff, which overruns the stop deadline.
 - `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` — default `86400` (a day). how long apart the terminal-artifact
   maintenance passes run: the bounded reclamation of the worktrees and branches of issues this orchestrator has
@@ -1133,8 +1134,29 @@ linger where `loginctl` does not report it, which boot-time start requires, and 
 tokens as they are, and says to restart a running service. It refuses a source checkout, a host whose user manager
 cannot be reached, a missing `.env`, naming `set-token` and `configure`, and the hand-written
 `~/.config/systemd/user/orchestrator.service` that releases up to v0.13.0 documented, which has to be stopped,
-disabled, and deleted first. The unit, each refusal, linger, the migration from the hand-written unit, and the
-day-to-day `systemctl --user` commands are in
+disabled, and deleted first.
+
+From then on the service is managed by command, none of which loads the configuration in its own process:
+
+- `chipping-orchestrator start` and `restart` run the local [`check`](#checking-a-setup) in the environment and the
+  working directory the service would get -- what the unit and its drop-ins set over what the user manager's
+  `ManagerEnvironment=`, `DefaultEnvironment=`, and `environment.d` hand every service, a `HOME` among them -- read
+  off the files as systemd assembles them, and
+  while it finds a problem print it and ask systemd nothing, so a running service keeps running and no GitHub outage
+  can block them. A drop-in whose environment only systemd could resolve, such as an `EnvironmentFile=`, is refused
+  the same way. Unlike `check` and `init`, they accept a `GITHUB_TOKEN` an `Environment=` line sets, since the
+  service takes it. Then they have the user manager reload its units, so it launches the definition just checked, and
+  start or restart the service, watch it for 5 seconds, ending within 7 whatever the manager's answers take, and
+  report it active, or print what it is now with the last lines of its journal and exit 1.
+- `chipping-orchestrator stop` stops it, leaving it enabled for the next time the user manager starts.
+- `chipping-orchestrator status` prints the package version, the `.env`, and the unit before
+  `systemctl --user status --no-pager`, and exits with that command's status.
+- `chipping-orchestrator remove` stops and disables the service, deletes its unit, reloads the manager, and clears
+  a remembered failure. It keeps `.env`, the token files, the logs, the worktrees, and linger, and with no unit
+  installed does nothing.
+
+The unit, each refusal, linger, the migration from the hand-written unit, what each command prints and refuses, and the
+journal are in
 [`configuration/operations.md#running-under-systemd-user-service`](configuration/operations.md#running-under-systemd-user-service).
 
 ## Applying `.env` changes

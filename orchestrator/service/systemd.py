@@ -1,21 +1,24 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The systemd user manager and logind, asked through ``systemctl`` and ``loginctl``.
+"""The user manager, logind, and the journal, asked through ``systemctl``, ``loginctl``, and ``journalctl``.
 
 Every call is one command run to completion with its output captured and
 standard input closed, so nothing waits on the operator, and bounded: one
-that has not finished in 30 seconds is killed and answered as a failure, the
-same as one whose binary cannot be run at all. ``run_command`` is where a call
-leaves the process, and the seam a test stands a fake systemd in for; it never
-raises, so every caller reads one ``Completed`` whatever happened.
+that has not finished in 30 seconds, or in the longer bound a ``systemctl``
+caller gives a call that waits for a stop, is killed and answered as a
+failure, the same as one whose binary cannot be run at all. ``run_command`` is
+where a call leaves the process, and the seam a test stands a fake systemd in
+for; it never raises, so every caller reads one ``Completed`` whatever
+happened.
 
-``systemctl`` asks the calling user's own manager, through ``--user``, and
-``loginctl`` asks logind. Two answers are read here rather than by each
-caller: ``manager_problem``, why the user manager cannot be reached, if it
-cannot -- no systemd, no manager for this login, or no bus to reach it
-through -- and ``linger_enabled``, whether logind starts the user's manager
-at boot and keeps it after the last login ends, which is what lets a user
-service run unattended.
+``systemctl`` asks the calling user's own manager, through ``--user``,
+``loginctl`` asks logind, and ``journalctl`` reads the journal the manager's
+services write to. Two answers are read here rather than by each caller:
+``manager_problem``, why the user manager cannot be reached, if it cannot --
+no systemd, no manager for this login, or no bus to reach it through -- and
+``linger_enabled``, whether logind starts the user's manager at boot and
+keeps it after the last login ends, which is what lets a user service run
+unattended.
 
 Nothing here imports from the package.
 """
@@ -30,6 +33,8 @@ _TIMEOUT_SECONDS = 30
 _SYSTEMCTL = ("systemctl", "--user")
 
 _LINGERING = "Linger=yes"
+
+_UNFINISHED = "{0} did not finish within {1:g} seconds"
 
 
 class Completed(NamedTuple):
@@ -65,20 +70,25 @@ def run_command(argv: Sequence[str], timeout: float = _TIMEOUT_SECONDS) -> Compl
             check=False,
         )
     except subprocess.TimeoutExpired:
-        return Completed(None, "", f"{argv[0]} did not finish within {timeout} seconds")
+        return Completed(None, "", _UNFINISHED.format(argv[0], timeout))
     except OSError as error:
         return Completed(None, "", f"{argv[0]} cannot be run ({error})")
     return Completed(completed.returncode, completed.stdout, completed.stderr)
 
 
-def systemctl(*arguments: str) -> Completed:
-    """Run ``systemctl --user`` with ``arguments``."""
-    return run_command((*_SYSTEMCTL, *arguments))
+def systemctl(*arguments: str, timeout: float = _TIMEOUT_SECONDS) -> Completed:
+    """Run ``systemctl --user`` with ``arguments`` within ``timeout`` seconds."""
+    return run_command((*_SYSTEMCTL, *arguments), timeout)
 
 
 def loginctl(*arguments: str) -> Completed:
     """Run ``loginctl`` with ``arguments``."""
     return run_command(("loginctl", *arguments))
+
+
+def journalctl(*arguments: str) -> Completed:
+    """Run ``journalctl`` with ``arguments``."""
+    return run_command(("journalctl", *arguments))
 
 
 def manager_problem() -> str | None:
