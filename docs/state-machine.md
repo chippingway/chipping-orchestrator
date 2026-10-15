@@ -384,7 +384,9 @@ whole tick belongs to the late coordinator and nothing below runs for it. Everyt
 decomposition: the decomposer runs read-only in a scratch worktree and its fenced `orchestrator-manifest` block is
 parsed, where `single` posts the collected-context comment and flips to `workflow:ready`, and `split` creates children
 labeled `workflow:blocked`, posts a summary listing them beside the decomposer's rationale as the parent recorded it,
-and leaves the parent on `workflow:blocked` or `workflow:umbrella`. Every child of a fresh
+and leaves the parent on `workflow:blocked` or `workflow:umbrella`. Whatever supersedes that split — a later `single`,
+an edit's reset or reroute, a restart — clears the recorded rationale, while a parent handed back to its own work once
+every child is done keeps it as the scope that work was left. Every child of a fresh
 `split` states its `depends_on` list, `[]` for none; one missing or `null` parks the reply as an invalid manifest
 naming the child and the field, before any child or split marker is written. A split of an issue
 inside a late lineage seeds each child one level below it under the same root, pointed only at a snapshot the
