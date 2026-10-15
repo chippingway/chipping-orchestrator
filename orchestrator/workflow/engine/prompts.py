@@ -7,13 +7,17 @@ placeholders and execution notes come from prompt_notes; every response marker
 matches the parser that decides the corresponding workflow outcome. Conversation
 and decomposition builders live beside these delivery-stage builders, and the
 reviewer's in `review_prompts`, since it is the one that quotes a pull request's
-own content."""
+own content. The two builders that brief a developer from scratch -- the first
+implementation spawn and the fresh-session preamble -- quote a split parent's
+recorded rationale in a section of their own, which `decomposition_prompts`
+renders; a caller handing none leaves both prompts as they read without it."""
 from __future__ import annotations
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.workflow.engine import (
+    decomposition_prompts as _decomposition_prompts,
     messages as _messages,
     prompt_context as _prompt_context,
     prompt_notes as _prompt_notes,
@@ -28,7 +32,15 @@ def _build_implement_prompt(
     issue: Issue,
     comments_text: str,
     specs: list[_config_models.RepoSpec],
+    split_rationale: str | None = None,
 ) -> str:
+    """The first implementation spawn's prompt.
+
+    `split_rationale` is the issue's own recorded split rationale
+    (`decomposition_prompts._handed_split_rationale`), quoted between the
+    issue body and the conversation rather than left to the bounded thread
+    excerpt; None quotes no such section.
+    """
     body = issue.body or _prompt_notes._NO_BODY
     convo = comments_text or _prompt_notes._NO_PRIOR_COMMENTS
     tracked = _prompt_context._build_tracked_repos_context(spec, specs)
@@ -36,6 +48,7 @@ def _build_implement_prompt(
     return (
         f"You are the implementer for GitHub issue #{issue.number}: {issue.title!r}.\n\n"
         f"Issue body:\n{body}\n\n"
+        f"{_decomposition_prompts._split_rationale_block(split_rationale)}"
         f"Conversation so far:\n{convo}\n\n"
         f"{tracked_block}"
         "Implement the change in the current working directory (a fresh git worktree on a "
@@ -54,6 +67,7 @@ def _build_fresh_respawn_preamble(
     issue: Issue,
     comments_text: str,
     specs: list[_config_models.RepoSpec],
+    split_rationale: str | None = None,
 ) -> str:
     """Re-grounding header prepended to a FRESH dev spawn that REPLACES a
     retired or poisoned session mid-issue (proactive rotation, silent-park
@@ -66,6 +80,11 @@ def _build_fresh_respawn_preamble(
     spawn that could re-implement from scratch or ignore the original spec.
     The caller appends the stage-specific instruction (fix feedback, drift,
     conflict, ...) after this block.
+
+    `split_rationale` re-grounds the replacement in the residual scope a split
+    left this issue, exactly as the first spawn quoted it: the session that
+    was handed it is gone, and the thread excerpt is no more likely to hold
+    the split summary now than it was then.
     """
     body = issue.body or _prompt_notes._NO_BODY
     convo = comments_text or _prompt_notes._NO_PRIOR_COMMENTS
@@ -80,6 +99,7 @@ def _build_fresh_respawn_preamble(
         "and `git diff` against the base branch, and continue from there -- do "
         "NOT restart the implementation from scratch.\n\n"
         f"Issue body:\n{body}\n\n"
+        f"{_decomposition_prompts._split_rationale_block(split_rationale)}"
         f"Conversation so far:\n{convo}\n\n"
         f"{tracked_block}"
         f"{_prompt_notes._RESPAWN_REPORT_NOTE}\n\n"

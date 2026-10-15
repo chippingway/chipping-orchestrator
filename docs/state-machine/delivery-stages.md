@@ -700,7 +700,9 @@ because there it is the claim that this stage has already rerouted rather than a
      gate owes nothing and flips at once, and so does a record a retirement left once both its ledgers are readable
      and nothing on them is still owed; either drops any `split_attempt` it records in a write of its own while still
      `blocked`, since the flip sets the label before it writes. Neither drops `split_rationale`: every child is done,
-     and the scope the split kept for the parent's own pass is the work the flip hands the parent back to.
+     and the scope the split kept for the parent's own pass is the work the flip hands the parent back to — which its
+     first developer spawn, and any fresh session replacing that one, quote off the record (see
+     [a split parent's own pass](../workflow/roles.md#session-lifecycles)).
   7. Walk children: any `workflow:blocked` child whose recorded dependencies are all `done` gets relabeled
      `workflow:ready`. A child with no recorded deps is also flipped (vacuous all-done over an empty list). Children
      an ordinary split created — anything but a late split's own register — are released only while the lineage and

@@ -38,7 +38,11 @@ thread and travel together on the prepared run, for the road that has an edit
 to settle against them: a requirements edit that fell through to a fresh spawn
 is answered by this prompt and by nothing earlier, so a watermark taken before
 it -- or re-read after the agent is back -- would mark answered words no
-developer was handed.
+developer was handed. The rationale a split recorded on the issue is quoted
+beside that thread rather than out of it, read off the issue's own pinned
+state: it is no comment, so it neither joins that record nor moves a
+watermark, and it reaches a split parent's first spawn however far back the
+split summary sits.
 """
 from __future__ import annotations
 
@@ -57,6 +61,7 @@ from orchestrator.git.worktrees import (
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    decomposition_prompts as _decomposition_prompts,
     prompt_context as _prompt_context,
     prompts as _prompts,
     retry_budget as _retry_budget,
@@ -115,6 +120,7 @@ def _spawn_implementer(
             issue,
             delivered.rendered_text,
             config.default_repo_specs(),
+            split_rationale=_decomposition_prompts._handed_split_rationale(state),
         ),
         agent_spec=session.spec,
         extra_args=session.extra_args,

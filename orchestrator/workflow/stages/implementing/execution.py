@@ -104,7 +104,7 @@ class _DevResumeContext:
         if len(request.resume_args) != 2:
             raise TypeError("expected state and followup_text")
         state, followup_text = request.resume_args
-        options = _resume_request._DevResumeOptions.from_fields(request.option_fields)
+        options = _resume_request._DevResumeOptions.from_fields(request.option_fields, state)
         worktree = _worktree._ensure_resume_worktree(request.spec, request.issue, state)
         # A quota retirement an earlier tick could not land is landed ahead of
         # the plan, so the plan reads it. One that still will not land, or will

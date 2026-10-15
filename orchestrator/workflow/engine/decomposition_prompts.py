@@ -1,22 +1,48 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Decomposition prompts and the human-facing explanation of an unsplit decision.
+"""Decomposition prompts, and what a decision hands the implementation after it.
 
 The child limit comes from the manifest validator. Prompt markers and manifest
 fields agree with their readers -- the `depends_on` list every child is told to
 state is the one a fresh split reply is refused without -- and file lists
-remain bounded in the notice."""
+remain bounded in the notice.
+
+An unsplit decision hands its groundwork on through a comment the implementer
+reads in the thread. A split hands its rationale on through the parent's own
+record instead: on a parent that is no umbrella it names the residual scope
+the split kept for the parent's own pass, which the developer prompts quote
+in a section of their own. That section is read off the record rather than
+left to the thread, because the thread excerpt a prompt carries is bounded and
+the split summary quoting the rationale is long past by the time every child
+is done; and it is read off the record of the issue being implemented, so a
+child, which records no split of its own, is handed none of its parent's.
+"""
 from __future__ import annotations
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     prompt_context as _prompt_context,
     prompt_notes as _prompt_notes,
 )
 from orchestrator.workflow.engine.prompt_context import _SECTION_SEP
+from orchestrator.workflow.stages.decomposition import state as _decomposition_state
 from orchestrator.workflow.stages.decomposition.validation import _MAX_CHILDREN
+
+# The section a parent's developer prompt quotes its split's rationale under.
+# Attributed to the decomposer and to the record it was read from, so the
+# agent can tell the residual scope from the issue body and the thread around
+# it, and quoted line by line, so none of the decomposer's words reads as this
+# prompt's own instructions.
+_SPLIT_RATIONALE_SECTION = (
+    "Decomposer split rationale (the decomposer's own account, recorded on "
+    "this issue when it split the issue into child issues, and quoted "
+    "verbatim from that record rather than from the conversation; it explains "
+    "the split and names the residual scope kept for this issue's own "
+    "implementation, while the child issues carry the rest):\n\n{quoted}\n\n"
+)
 
 
 def _build_decompose_prompt(
@@ -144,3 +170,31 @@ def _build_single_decision_comment(manifest: dict) -> str:
         lines.append(f"**Implementation notes:**\n{notes}")
 
     return _SECTION_SEP.join(lines)
+
+
+def _handed_split_rationale(state: PinnedState) -> str | None:
+    """The rationale this issue's own developer prompts are handed, or None where they are handed none.
+
+    The issue's latest split's, as `_recorded_split_rationale` reads it back,
+    so a record an older binary or a hand edit left without usable text hands
+    nothing, and whatever superseded the split has already cleared it. It does
+    not ask whether the split still holds `split_attempt`: the parent's
+    hand-back drops that once every child is done, which is exactly when the
+    implementation this is for begins. An umbrella's rationale is withheld,
+    since an umbrella keeps no work of its own for the account to scope.
+    """
+    if state.get(_decomposition_state._UMBRELLA):
+        return None
+    return _decomposition_state._recorded_split_rationale(state)
+
+
+def _split_rationale_block(rationale: str | None) -> str:
+    """The attributed section quoting `rationale` whole, or nothing where there is none.
+
+    Every line is quoted whatever ends it -- a bare carriage return included,
+    after which the words would otherwise start a line of the prompt's own.
+    """
+    if rationale is None:
+        return ""
+    quoted = "".join(f"> {line}" for line in rationale.splitlines(keepends=True))
+    return _SPLIT_RATIONALE_SECTION.format(quoted=quoted)

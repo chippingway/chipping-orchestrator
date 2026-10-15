@@ -13,7 +13,8 @@ and every reader that takes it as proof has to refuse the same values.
 `_split_rationale_text` sits with them because a split's rationale is read by
 one rule twice -- off the manifest it arrives in and off the record it is kept
 in -- so what a split writes is what `_recorded_split_rationale` hands back to
-every later reader.
+every later reader: the summary a split or its recovery posts, and the
+developer prompts of a parent's own pass.
 """
 from __future__ import annotations
 
@@ -71,7 +72,9 @@ _SPLIT_ATTEMPT = "split_attempt"
 # clears it the same way -- a `single` decision, an edit's reset of the
 # manifest, a pre-implementation reroute -- and a restart's projection drops
 # it, while the handoff back to the parent's own work once every child is
-# done keeps it as the scope that work was left.
+# done keeps it as the scope that work was left -- the scope that work's
+# developer prompts quote off this record
+# (`engine/decomposition_prompts._handed_split_rationale`).
 _SPLIT_RATIONALE = "split_rationale"
 
 _CREATED_AT = "created_at"
