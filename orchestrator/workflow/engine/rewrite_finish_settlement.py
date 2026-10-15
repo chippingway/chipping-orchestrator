@@ -111,6 +111,7 @@ from orchestrator.workflow.engine.rewrite_evidence_proof import MOVEMENT, _reads
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.rewrite_finish_readiness import invalidates, stands_ready
 from orchestrator.workflow.engine.rewrite_finish_settled import (
+    adopts_the_answer,
     moves_the_binding,
     out_of_step,
     retires_the_adopted,
@@ -266,7 +267,9 @@ def _behind_the_answer(
     own readings (`rewrite_evidence_proof.MOVEMENT`) -- under the
     settled-evidence policy, only what moved a binding's records
     (`rewrite_finish_settled.moves_the_binding`), so another road settling or
-    retiring the very transaction meanwhile is no movement under it. A
+    retiring the very transaction meanwhile is no movement under it, a
+    settlement and announcement another finish of the landing made being
+    taken in first (`rewrite_finish_settled.adopts_the_answer`). A
     transaction still owed goes to the
     last word over the first such movement, or over its proof taken again. One
     settled is resolved afresh; a finish held to the settled-evidence policy
@@ -276,6 +279,7 @@ def _behind_the_answer(
     announcement another finish of this landing made of it over `attempt`, the
     attempt captured before the answer, no such movement.
     """
+    adopts_the_answer(finish, pending)
     movements = moves_the_binding(finish, movements, attempt)
     if _captured.recorded(finish, logged=False) is None:
         return resolves(finish) if retires_the_adopted(finish, pending, movements, attempt) else FinishOutcome.HELD

@@ -17,7 +17,9 @@ it is
 evidence whole once room is made, and a later finish finding no attempt does
 the same (`rewrite_finish_unconfirmed.retires_the_marked`). Where even the
 mark has no room, the evidence is retired whole at once, its current record
-and the evidence records left null or unreadable removed.
+and the evidence records left null or unreadable removed -- or, where not
+even that fits, its current record dropped with no history entry, its
+artifact staying on the pull request and its revision spent.
 """
 from __future__ import annotations
 
@@ -46,6 +48,19 @@ _INVALIDATES = (_records.CURRENT_EVIDENCE, _records.EVIDENCE_HISTORY)
 # handoff nobody can read (`verification_settlement_state.retire_current_evidence`).
 _COMPACTS = (*_INVALIDATES, _records.PENDING_EVIDENCE, _records.EVIDENCE_HANDOFF)
 
+# How `_lands` records the movement: by retiring the evidence into history, by
+# the mark in its handoff's place, or by retiring it whole -- compactly, or,
+# where not even that fits, by dropping its current record with no entry.
+_RETIRES = "retires"
+
+_MARKS = "marks"
+
+_RETIRES_WHOLE = "retires whole"
+
+# What `marks` tries, each over the comment read afresh and once more where
+# the comment moved under its edit: the mark, then the whole retirement.
+_RECORDINGS = (_MARKS, _MARKS, _RETIRES_WHOLE, _RETIRES_WHOLE)
+
 
 def carries_the_mark(state: PinnedState | None, current: _records.CurrentEvidence) -> bool:
     """Whether `state` carries the mark of movement read under `current` in place of its handoff; False for no state."""
@@ -65,12 +80,21 @@ def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> 
     removing the records left null or unreadable (`_lands`), save beside a
     pending transaction, whose revision already outranks it; that retirement
     too is read and made once more where the comment moved under its edit,
-    keeping whatever another road wrote there.
+    keeping whatever another road wrote there. Where not even that fits --
+    the comment full and no evidence record left to remove -- the current
+    record is dropped with no history entry, a write that only shrinks the
+    comment: the artifact stays on the pull request under its receipt, with
+    the tested commit and tree, the head, the review subject's head, the
+    requirements and context it was bound to, and its transcript, and the
+    revision floor keeps its revision spent, so nothing put back meanwhile
+    makes it current again -- as a captured transaction with no room for its
+    abandonment is dropped (`rewrite_finish_captured`).
     """
-    landed = _lands(finish, read_afresh(finish), current, marked=True)
-    landed = landed or _lands(finish, read_afresh(finish), current, marked=True)
-    landed = landed or _lands(finish, read_afresh(finish), current, compact=True)
-    landed = landed or _lands(finish, read_afresh(finish), current, compact=True)
+    landed = False
+    for how in _RECORDINGS:
+        landed = _lands(finish, read_afresh(finish), current, how)
+        if landed:
+            break
     log.warning(
         "issue=#%d recording movement read under verification evidence revision %d by marking its handoff, "
         "since %s: %s",
@@ -133,30 +157,31 @@ def read_afresh(finish: LandedFinish) -> PinnedState | None:
 
 
 def _lands(
-    finish: LandedFinish,
-    durable: PinnedState | None,
-    current: _records.CurrentEvidence,
-    *,
-    marked: bool = False,
-    compact: bool = False,
+    finish: LandedFinish, durable: PinnedState | None, current: _records.CurrentEvidence, how: str = _RETIRES,
 ) -> bool:
-    """Whether `current`'s retirement into history -- or, `marked`, the mark of its movement -- landed over `durable`.
+    """Whether the movement read under `current` was recorded over `durable` as `how` records it.
 
     `durable` is a reading of the comment that still has to carry `current`,
     and the write is guarded by it -- every bound record and the attempt.
-    `compact` retires `current` whole even where the comment has no room for
-    that as it stands, removing its current record and the evidence records
-    left null or unreadable rather than leaving them null.
+    `_RETIRES` retires `current` into history and `_MARKS` writes the mark of
+    its movement in its handoff's place. `_RETIRES_WHOLE` retires it even
+    where the comment has no room for that as it stands, removing its current
+    record and the evidence records left null or unreadable rather than
+    leaving them null -- or, where not even that fits, dropping its current
+    record with no history entry.
     """
     if durable is None or _settlement.read_current_evidence(durable) != current:
         return False
-    if marked:
+    if how == _MARKS:
         guard = _durable.guarded(durable, (_records.EVIDENCE_HANDOFF,), _attempts._ATTEMPT_KEYS)
         durable.set(_records.EVIDENCE_HANDOFF, {_MOVED: current.receipt})
         return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
-    guard = _durable.guarded(durable, _COMPACTS if compact else _INVALIDATES, _attempts._ATTEMPT_KEYS)
-    if not _settlement.retire_current_evidence(durable, compact=compact):
-        return False
+    whole = how == _RETIRES_WHOLE
+    guard = _durable.guarded(durable, _COMPACTS if whole else _INVALIDATES, _attempts._ATTEMPT_KEYS)
+    if not _settlement.retire_current_evidence(durable, compact=whole):
+        if not whole:
+            return False
+        durable.data.pop(_records.CURRENT_EVIDENCE)
     return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
 
 

@@ -1583,7 +1583,8 @@ because there it is the claim that this stage has already rerouted rather than a
     configuration moved since it settled invalidates it before the head is decided afresh, and the route holds where
     that invalidation does not land;
   - a settlement another road made of the run while the phase answered or abandoned it is adopted -- its evidence
-    records taken in (`verification_durable.takes_in_a_settlement`) -- and invalidated over movement read under it,
+    records taken in (`verification_durable.takes_in_a_settlement`), and another finish's announcement of the
+    landing with it -- before what the answer read is classified, and invalidated over movement read under it,
     the evidence records' own moves and this landing's announcement aside
     (`verification_durable.moves_only_the_evidence`), so one beside nothing else moved stays current; a continuation
     abandons a transaction recorded beside settled evidence before it proves that evidence, so neither holds it
@@ -1597,7 +1598,9 @@ because there it is the claim that this stage has already rerouted rather than a
     over the comment read afresh, which no reader takes for a handoff and every later proof of that very receipt
     reads as the movement it is, retiring the evidence whole once room is made; where the mark has no room either,
     the evidence is retired whole at once, its current record, a pending record left null, and an unreadable
-    handoff removed rather than left null.
+    handoff removed rather than left null -- and where not even that fits, its current record is dropped with no
+    history entry, its artifact staying on the pull request and its revision spent, so nothing put back makes it
+    current again.
 
   Beside the phase stand primitives a caller holding such a finish asks directly, which no coordinator asks yet.
   Behind a write of the finish's own whose answer was lost, the announcement's bookkeeping is taken in, and the

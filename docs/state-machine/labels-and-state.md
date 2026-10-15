@@ -2854,7 +2854,8 @@ The keys that matter for the state machine fall into a few groups:
   carries: the same binding without the commands, plus the artifact's evidence digest (`content`), the comment it landed
   as (`comment`), and whether at least one command ran and every one exited 0 (`passed`); `null` once invalidated --
   or, retired by the dormant settled-evidence policy where not even its movement mark had room, removed, with a
-  pending record left null and an unreadable handoff beside it.
+  pending record left null and an unreadable handoff beside it, and with no history entry where not even that
+  fits: its artifact stays on the pull request and the floor keeps its revision spent.
   `verification_evidence_history` is the five highest-revision retired records, in revision order rather than the order
   they retired -- each with its receipt, revision, whole binding (the report revision and digest and the complete review
   subject included, since the artifact names only the subject's head), digest, `passed`, `comment` (`null` exactly for

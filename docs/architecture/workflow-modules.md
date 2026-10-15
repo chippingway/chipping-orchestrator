@@ -1276,9 +1276,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded, blank or legacy, the base the tick counted (`stands_ready_if_settled`); why
                             records beside it hold the route (`out_of_step`); which refusals an answer read moved a
                             binding's records rather than the evidence records or this landing's announcement alone
-                            (`moves_the_binding`); a settlement the answer left current invalidated over that movement
-                            (`retires_the_adopted`); and whether the attempt that
-                            answer left is the one captured (`stands_as_read`). The coordinator (`rewrite_finish.py`)
+                            (`moves_the_binding`), a settlement and announcement another finish made meanwhile taken
+                            in first (`adopts_the_answer`); a settlement the answer left current invalidated over that
+                            movement (`retires_the_adopted`); and whether the attempt that answer left is the one
+                            captured (`stands_as_read`). The coordinator (`rewrite_finish.py`)
                             takes none of the policy's proofs around its announcement, park, relabel, or retirement
                             yet
     rewrite_finish_announced.py
@@ -1296,8 +1297,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it as movement -- also where no write over the tick's own copy lands, over the comment read
                             afresh -- or, where even the mark has no room, the
                             evidence retired whole, its current record and the evidence records left null or
-                            unreadable removed (`verification_settlement_state.retire_current_evidence`); a mark or
-                            retirement refused by a comment moved under its edit is read and made once more
+                            unreadable removed (`verification_settlement_state.retire_current_evidence`), and where not
+                            even that fits, its current record dropped with no history entry, its artifact staying on
+                            the pull request and its revision spent; a mark or retirement refused by a comment moved
+                            under its edit is read and made once more
     rewrite_finish_unconfirmed.py
                             what the finish's own write nobody confirmed left of its attempt, for the dormant policy:
                             the announcement's bookkeeping taken in (`takes_in_the_announcement`), the attempt put back

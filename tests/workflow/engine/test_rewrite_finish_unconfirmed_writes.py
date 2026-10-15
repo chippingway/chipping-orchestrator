@@ -63,6 +63,22 @@ _ANNOUNCED = (
 )
 
 
+# Whether the finish asking is held to the policy, whether the finish settling
+# the run beside its answer announces the landing too, and what two phases
+# then answer.
+_BESIDE_THE_ANSWER = (
+    (True, False, (None, None)),
+    (True, True, (None, None)),
+    (False, False, (FinishOutcome.HELD, None)),
+)
+
+
+def _settles_and_announces(case) -> None:
+    """Settle the captured run and announce the landed head, as another finish of the landing would."""
+    case._settles_elsewhere()
+    retirement.announces(case)
+
+
 class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
     """A write of the finish's own whose answer was lost is reconciled before the movement under it is recorded."""
 
@@ -200,24 +216,32 @@ class AbandonedSettlementTest(settled_support.CapturedEvidenceCase, unittest.Tes
 
     def test_a_settlement_beside_the_answer_is_kept(self) -> None:
         # Another finish settles the run while this one's answer re-reads the
-        # settled report, so that answer is refused over the evidence records
-        # alone: nothing a binding rests on moved, so the run stays current as
-        # that finish settled it, its artifact posted once and nothing run.
-        # The phase holds once over the answer it could not make, and the
-        # next one goes on with the run current -- as for any finish.
-        for held in (True, False):
-            with self.subTest(held=held):
+        # settled report -- announcing the landing too, or not -- so that
+        # answer is refused over the evidence records and the announcement's
+        # own members alone: nothing a binding rests on moved, so the run
+        # stays current as that finish settled it, its artifact posted once
+        # and nothing run. The policy takes that settlement and announcement
+        # in and goes on at once; a finish it does not hold holds once over
+        # the answer it could not make, and the next one goes on.
+        for held, announced, answers in _BESIDE_THE_ANSWER:
+            with self.subTest(held=held, announced=announced):
                 self.setUp()
-                settles = settled_moves.raced_past(self, "reread_report_location", type(self)._settles_elsewhere)
-                with settles:
-                    first = self.asks(_settlement_step.resolves, self._finish(held))
-                again = self.asks(_settlement_step.resolves, self._finish(held))
 
-                self.assertEqual((first, again), (FinishOutcome.HELD, None))
+                self.assertEqual(self._races_the_answer(held, announced), answers)
+
                 self._assert_retired(held=False)
                 receipts = [found.receipt for found in support.posted_artifacts(self)]
                 self.assertEqual(receipts.count(self.captured.receipt), 1)
                 self.assertEqual(self.verify.call_count, 0)
+                mark = readings.pinned(self).get(readings.KEY_ANNOUNCED)
+                self.assertEqual(mark == settled_support.REBASED, announced)
+
+    def _races_the_answer(self, held: bool, announced: bool) -> tuple:
+        """Two phases, another finish settling the run -- and announcing it, where `announced` -- under the first."""
+        moves = _settles_and_announces if announced else type(self)._settles_elsewhere
+        with settled_moves.raced_past(self, "reread_report_location", moves):
+            first = self.asks(_settlement_step.resolves, self._finish(held))
+        return first, self.asks(_settlement_step.resolves, self._finish(held))
 
     def _finish(self, held: bool):
         """The finish a later recovery holds over the comment as it reads now, held to the policy where `held`."""

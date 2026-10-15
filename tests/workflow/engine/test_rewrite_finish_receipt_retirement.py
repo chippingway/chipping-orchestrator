@@ -10,13 +10,10 @@ put on the attempt is taken in and the invalidation made over it, retried once
 over the comment read afresh where it landed under the first write; a route or
 another attempt that took the attempt has the same receipt retired as the
 comment stands, that attempt kept; a successor settled under another receipt
-is never written over. With no room the movement is marked in the evidence's
-handoff place -- over the comment read afresh where no write over the tick's
-own copy lands -- and every later phase reads the mark as that movement, as a
-later finish finding no attempt does, retiring the evidence whole once room is
-made; where even the mark has no room the evidence is retired whole at once.
-A routed head with nothing current is held to a base its attempt can prove,
-the base the tick counted where its tip is blank or missing. A readable
+is never written over; where nothing has room, the movement is recorded as
+`test_rewrite_finish_recorded_movement` covers. A routed head with nothing
+current is held to a base its attempt can prove, the base the tick counted
+where its tip is blank or missing. A readable
 revision spent past the run -- the floor, or the one minted under a readable
 pending record -- outranks it beside a pending record too, which still holds;
 a continuation abandons a newer transaction before the run is proved, so it
@@ -96,9 +93,6 @@ _UNSELECTED = (
     ),
 )
 
-# The report and review records a later review moves, as the pinned comment spells them.
-_REPORT_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
-
 # How the attempt records the base tip its replay was made onto, how the base
 # the tick counted the head against reads now, and what the policy answers.
 _BASES = (
@@ -135,45 +129,6 @@ _ADVANCED = _BranchDivergence(tip=support.SQUASHED_SHA, behind=1, readable=True)
 
 # A transaction dropped before the one pending, the floor then left unreadable.
 _BESIDE_AN_UNREADABLE_FLOOR = partial(_drops_one_first, floor="unreadable")
-
-
-class _PutsBackWhileCompacting:
-    """Another road putting the report and review records back as they read now, right behind a compaction's staging.
-
-    Only where it `races`, and only once: the compact retirement is staged on
-    the comment read afresh, and that road's write lands before the edit, so
-    the edit finds the comment moved under it.
-    """
-
-    def __init__(self, case, races: bool) -> None:
-        self._case = case
-        self._races = races
-        self._owed = races
-        pinned = case.pinned()
-        self._kept = {key: pinned[key] for key in _REPORT_RECORDS}
-        self._stage = _settlement.retire_current_evidence
-
-    def racing(self):
-        """The staging racing where this does, or as it always stages."""
-        if not self._races:
-            return contextlib.nullcontext()
-        return patch.object(_settlement, "retire_current_evidence", self._stages)
-
-    def assert_kept(self) -> None:
-        """The report and review records as that road put them back, where it raced."""
-        pinned = self._case.pinned()
-        if self._races:
-            self._case.assertEqual({key: pinned[key] for key in _REPORT_RECORDS}, self._kept)
-
-    def _stages(self, state, *, compact: bool = False) -> bool:
-        staged = self._stage(state, compact=compact)
-        if compact and self._owed:
-            self._owed = False
-            restored = self._case.gh.read_pinned_state(self._case.issue)
-            for key, kept in self._kept.items():
-                restored.set(key, kept)
-            self._case.gh.write_pinned_state(self._case.issue, restored)
-        return staged
 
 
 class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
@@ -285,119 +240,6 @@ class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
         if behind_the_read:
             return settled_moves.raced_past(self, "read_pinned_state", retirement.announces)
         return contextlib.nullcontext(retirement.announces(self))
-
-
-class RecordedMovementTest(retirement.RetirementCase, unittest.TestCase):
-    """Movement with no room is marked under its receipt, retired whole later, or retired compactly at once."""
-
-    def test_the_mark_waits_for_room(self) -> None:
-        # Another finish's route took the attempt and the comment is full:
-        # the movement is marked in the handoff's place, and with the room
-        # that freed filled again, a later finish finding no attempt cannot
-        # retire the run and leaves it marked.
-        self._marks_over_a_route()
-        moves.fills_the_comment(self)
-
-        self.asks(_unconfirmed.retires_the_marked, self.dormant())
-
-        self.assert_marked()
-        self.assert_untouched(readings.RETIRED)
-
-    def test_the_mark_is_retired_whole_later(self) -> None:
-        # Once room is made, the next finish finding no attempt reads the
-        # mark under the run's very receipt and retires the run whole.
-        self._marks_over_a_route()
-        moves.fills_the_comment(self)
-        moves.makes_room(self)
-
-        self.asks(_unconfirmed.retires_the_marked, self.dormant())
-
-        self.assert_whole()
-        self.assert_untouched(readings.RETIRED)
-
-    def test_no_mark_leaves_the_run_current(self) -> None:
-        # A later finish finding no attempt beside a handoff that names the
-        # run, or one left null, reads no movement recorded and retires
-        # nothing.
-        for name, leaves in (("named", moves.unmoved), ("null", retirement.drops_the_handoff)):
-            with self.subTest(name):
-                self.setUp()
-                retirement.routes(self)
-                leaves(self)
-                written = self.pinned()
-
-                self.asks(_unconfirmed.retires_the_marked, self.dormant())
-
-                self.assertEqual(self.pinned(), written)
-
-    def test_no_room_for_the_mark_retires_it_whole(self) -> None:
-        # The handoff was left null, so the mark would grow the full
-        # comment: the run is retired whole at once, its current record, the
-        # null pending record, and the null handoff removed to make room,
-        # every other record kept -- also where another road puts the moved
-        # report and review back while that retirement is sent, refusing it:
-        # read afresh, it is made once more, the records put back kept.
-        for races in (False, True):
-            with self.subTest(races=races):
-                self.setUp()
-                restores = _PutsBackWhileCompacting(self, races)
-                finish = self.dormant()
-                settled_moves.reviews_again(self)
-                retirement.drops_the_handoff(self)
-                settled_moves.writes_over(self, _UNKNOWN, _UNKNOWN)
-                retirement.routes(self)
-                moves.fills_the_comment(self)
-
-                with restores.racing():
-                    self.assertFalse(self.asks(_readiness.invalidates, finish, self.settled))
-
-                self._assert_compacted()
-                restores.assert_kept()
-
-    def test_movement_is_marked_over_a_fresh_reading(self) -> None:
-        # Behind the finish's reading of the comment, another road leaves a
-        # pending record nobody can read and fills the comment, and the issue
-        # is edited: the phase reads the movement, but neither write over the
-        # tick's own copy lands beside that record, so the movement is marked
-        # under the run's receipt over the comment read afresh. With the issue
-        # put back and room made, the next phase reads the mark as the
-        # movement it is and retires the run whole, the pending record still
-        # holding every phase and kept as that road wrote it.
-        finish = self.dormant()
-        body = self.issue.body
-        settled_moves.writes_over(self, _records.PENDING_EVIDENCE, "unreadable")
-        moves.fills_the_comment(self)
-        settled_moves.edits_the_requirements(self)
-
-        self.assertEqual(self.asks(_settlement_step.resolves, finish), _HELD)
-        self.assert_marked()
-        self.issue.body = body
-        moves.makes_room(self)
-        retired = self.asks(_settlement_step.resolves, self.dormant())
-        again = self.asks(_settlement_step.resolves, self.dormant())
-
-        left = self.pinned()[_records.PENDING_EVIDENCE]
-        self.assertEqual((retired, again, left), (_HELD, _HELD, "unreadable"))
-        self.assert_whole()
-        self.assert_untouched()
-
-    def _assert_compacted(self) -> None:
-        """The run retired whole, the current, pending, and handoff records removed, another road's record kept."""
-        written = (_records.CURRENT_EVIDENCE, _records.PENDING_EVIDENCE, _HANDOFF, _UNKNOWN)
-        pinned = self.pinned()
-        left = [key for key in written if key in pinned]
-        self.assertEqual(left, [_UNKNOWN])
-        self.assert_whole()
-        self.assert_untouched(readings.RETIRED)
-
-    def _marks_over_a_route(self) -> None:
-        """The review moved, another finish's route, a full comment: the invalidation held, the movement marked."""
-        finish = self.dormant()
-        settled_moves.reviews_again(self)
-        retirement.routes(self)
-        moves.fills_the_comment(self)
-        self.assertFalse(self.asks(_readiness.invalidates, finish, self.settled))
-        self.assert_marked()
 
 
 class OutrankingTest(retirement.RetirementCase, unittest.TestCase):

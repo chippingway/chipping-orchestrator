@@ -24,7 +24,8 @@ announcement, park, relabel, or retirement yet.
 - `out_of_step` says why the records beside settled evidence hold the route,
   and `moves_the_binding` which of the refusals an answer read moved what a
   binding rests on rather than the evidence records or this landing's own
-  announcement alone.
+  announcement alone -- both of which `adopts_the_answer` takes in first,
+  where another finish made them while the answer was asked.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
   answer read under its binding, the announcement a finish of this landing
@@ -47,6 +48,7 @@ from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     rewrite_finish_captured as _captured,
     rewrite_finish_readiness as _readiness,
+    rewrite_finish_unconfirmed as _unconfirmed,
     verification_durable as _durable,
     verification_record_state as _record_state,
     verification_records as _records,
@@ -158,6 +160,24 @@ def retires_the_adopted(
         finish.issue.number, finish.head, pending.revision,
     )
     return False
+
+
+def adopts_the_answer(finish: LandedFinish, pending: _records.PendingEvidence) -> None:
+    """Take in what another finish of the landing made of `pending` while this one answered it; for the policy alone.
+
+    The announcement that finish put on the attempt
+    (`rewrite_finish_unconfirmed.takes_in_the_announcement`), and its
+    settlement of `pending`, every evidence record laid over the tick's state
+    (`verification_durable.takes_in_a_settlement`) -- both read afresh ahead
+    of classifying what the answer read (`moves_the_binding`), so neither is
+    taken for movement under the evidence, and the settlement is resolved as
+    this finish's own.
+    """
+    if not finish.proves_settled:
+        return
+    _unconfirmed.takes_in_the_announcement(finish)
+    if _captured.recorded(finish, logged=False) == pending:
+        _durable.takes_in_a_settlement(finish.gh, finish.issue, finish.state, pending.receipt)
 
 
 def moves_the_binding(
