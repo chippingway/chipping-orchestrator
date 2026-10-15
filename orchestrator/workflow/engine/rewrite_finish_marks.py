@@ -18,12 +18,15 @@ evidence whole once room is made, and a later finish finding no attempt does
 the same (`rewrite_finish_unconfirmed.retires_the_marked`). Where even the
 mark has no room, the evidence is retired whole at once, its current record
 and the evidence records left null or unreadable removed -- or, where not
-even that fits, its current record dropped with no history entry, its
-artifact staying on the pull request and its revision spent.
+even that fits, a revision is spent past it (`rewrite_finish_outranking.spends_past`),
+its record kept current and whole, which every reader of either policy
+reads outranked and every later proof under the dormant policy retires
+whole once room is made.
 """
 from __future__ import annotations
 
 import logging
+from types import MappingProxyType
 
 from orchestrator.git.base_sync import attempts as _attempts
 from orchestrator.github.pinned_state import PinnedState
@@ -35,6 +38,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.rewrite_finish_announced import takes_in_the_announcement
 from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_outranking import spends_past
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -48,18 +52,29 @@ _INVALIDATES = (_records.CURRENT_EVIDENCE, _records.EVIDENCE_HISTORY)
 # handoff nobody can read (`verification_settlement_state.retire_current_evidence`).
 _COMPACTS = (*_INVALIDATES, _records.PENDING_EVIDENCE, _records.EVIDENCE_HANDOFF)
 
-# How `_lands` records the movement: by retiring the evidence into history, by
-# the mark in its handoff's place, or by retiring it whole -- compactly, or,
-# where not even that fits, by dropping its current record with no entry.
+# How `_lands` records the movement, and what each writes: by retiring the
+# evidence into history, by the mark in its handoff's place, by retiring it
+# whole compactly, or, where not even that fits, by spending a revision past
+# it on the floor.
 _RETIRES = "retires"
 
 _MARKS = "marks"
 
 _RETIRES_WHOLE = "retires whole"
 
+_SPENDS = "spends"
+
+_WRITES = MappingProxyType({
+    _RETIRES: _INVALIDATES,
+    _MARKS: (_records.EVIDENCE_HANDOFF,),
+    _RETIRES_WHOLE: _COMPACTS,
+    _SPENDS: (_records.REVISION_FLOOR,),
+})
+
 # What `marks` tries, each over the comment read afresh and once more where
-# the comment moved under its edit: the mark, then the whole retirement.
-_RECORDINGS = (_MARKS, _MARKS, _RETIRES_WHOLE, _RETIRES_WHOLE)
+# the comment moved under its edit: the mark, the whole retirement, then the
+# revision spent.
+_RECORDINGS = (_MARKS, _MARKS, _RETIRES_WHOLE, _RETIRES_WHOLE, _SPENDS, _SPENDS)
 
 
 def carries_the_mark(state: PinnedState | None, current: _records.CurrentEvidence) -> bool:
@@ -81,24 +96,27 @@ def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> 
     pending transaction, whose revision already outranks it; that retirement
     too is read and made once more where the comment moved under its edit,
     keeping whatever another road wrote there. Where not even that fits --
-    the comment full and no evidence record left to remove -- the current
-    record is dropped with no history entry, a write that only shrinks the
-    comment: the artifact stays on the pull request under its receipt, with
-    the tested commit and tree, the head, the review subject's head, the
-    requirements and context it was bound to, and its transcript, and the
-    revision floor keeps its revision spent, so nothing put back meanwhile
-    makes it current again -- as a captured transaction with no room for its
-    abandonment is dropped (`rewrite_finish_captured`).
+    the comment full and no evidence record left to remove -- a revision is
+    spent past `current` on the floor instead
+    (`rewrite_finish_outranking.spends_past`), read and spent once more
+    likewise. `current` stays current with its whole binding, revision, and
+    transcript digest, so no provenance is lost, while every reader of either
+    policy reads it outranked: nothing put back meanwhile makes it evidence
+    anybody relies on again, and every later proof under the dormant policy
+    reads that as movement and retires it whole into history once room is
+    made. Where the floor would gain a digit the comment has no room for, or
+    nobody can say what was spent, `current` is left as it stands for the
+    next proof to read again.
     """
-    landed = False
+    landed = "not landed"
     for how in _RECORDINGS:
-        landed = _lands(finish, read_afresh(finish), current, how)
-        if landed:
+        if _lands(finish, read_afresh(finish), current, how):
+            landed = f"landed as it {how}"
             break
     log.warning(
-        "issue=#%d recording movement read under verification evidence revision %d by marking its handoff, "
-        "since %s: %s",
-        finish.issue.number, current.revision, why, "landed" if landed else "not landed",
+        "issue=#%d recording movement read under verification evidence revision %d by marking its handoff "
+        "or as room allows, since %s: %s",
+        finish.issue.number, current.revision, why, landed,
     )
 
 
@@ -167,21 +185,21 @@ def _lands(
     its movement in its handoff's place. `_RETIRES_WHOLE` retires it even
     where the comment has no room for that as it stands, removing its current
     record and the evidence records left null or unreadable rather than
-    leaving them null -- or, where not even that fits, dropping its current
-    record with no history entry.
+    leaving them null. `_SPENDS` spends a revision past it on the floor,
+    keeping its record whole, and lands with nothing sent where one already is.
     """
     if durable is None or _settlement.read_current_evidence(durable) != current:
         return False
+    guard = _durable.guarded(durable, _WRITES[how], _attempts._ATTEMPT_KEYS)
     if how == _MARKS:
-        guard = _durable.guarded(durable, (_records.EVIDENCE_HANDOFF,), _attempts._ATTEMPT_KEYS)
         durable.set(_records.EVIDENCE_HANDOFF, {_MOVED: current.receipt})
-        return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
-    whole = how == _RETIRES_WHOLE
-    guard = _durable.guarded(durable, _COMPACTS if whole else _INVALIDATES, _attempts._ATTEMPT_KEYS)
-    if not _settlement.retire_current_evidence(durable, compact=whole):
-        if not whole:
-            return False
-        durable.data.pop(_records.CURRENT_EVIDENCE)
+        staged = True
+    elif how == _SPENDS:
+        staged = spends_past(durable, current)
+    else:
+        staged = _settlement.retire_current_evidence(durable, compact=how == _RETIRES_WHOLE)
+    if not staged:
+        return False
     return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None
 
 

@@ -1298,9 +1298,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             afresh -- or, where even the mark has no room, the
                             evidence retired whole, its current record and the evidence records left null or
                             unreadable removed (`verification_settlement_state.retire_current_evidence`), and where not
-                            even that fits, its current record dropped with no history entry, its artifact staying on
-                            the pull request and its revision spent; a mark or retirement refused by a comment moved
-                            under its edit is read and made once more
+                            even that fits, a revision spent past it on the floor, its record kept current and whole
+                            (`rewrite_finish_outranking.spends_past`); a mark, retirement, or spent revision refused by
+                            a comment moved under its edit is read and made once more
     rewrite_finish_unconfirmed.py
                             what the finish's own write nobody confirmed left of its attempt, for the dormant policy:
                             the announcement's bookkeeping taken in (`takes_in_the_announcement`), the attempt put back
@@ -1315,7 +1315,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             off the handoff, every history entry that reads on its own, and the floor: the policy every
                             road selects reads none beside a pending record, and the dormant settled-evidence policy
                             discounts only the one revision a pending record may own and counts the one minted just
-                            under a readable pending record, so a pending record holds without hiding it
+                            under a readable pending record, so a pending record holds without hiding it; and the
+                            revision a dormant finish spends past the evidence where nothing else records movement read
+                            under it (`spends_past`), the floor raised one past it unless a revision is spent past it
+                            already, so no floor is raised past a transaction that would then settle outranked
     rewrite_finish_readiness.py
                             dormant -- asked only by the evidence phase of the dormant settled-evidence finish policy
                             (`rewrite_finish_settled.py`) and the recovery's dormant guarded operations, so by no

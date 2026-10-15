@@ -14,9 +14,11 @@ attempt does, retiring the run whole once room is made; a handoff naming the
 run, or left null, is no mark. Where even the mark has no room the run is
 retired whole at once, the records left null removed to make it fit, made
 once more where another road wrote under that edit; and where not even that
-fits, its current record is dropped with no history entry, its artifact left
-on the pull request and its revision spent, so putting everything back makes
-nothing current again. Nothing runs, posts, launches, relabels, or charges.
+fits, a revision is spent past the run on the floor, its record kept current
+and whole, so putting everything back makes nothing current again and the
+next phase with room retires it whole -- a floor never raised past a
+transaction that would settle outranked. Nothing runs, posts, launches,
+relabels, or charges.
 """
 from __future__ import annotations
 
@@ -25,6 +27,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
+    rewrite_finish_outranking as _outranking,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_settlement as _settlement_step,
     rewrite_finish_unconfirmed as _unconfirmed,
@@ -40,6 +43,8 @@ from tests.workflow.engine import (
 )
 
 _HANDOFF = _records.EVIDENCE_HANDOFF
+
+_FLOOR = readings.KEY_REVISION_FLOOR
 
 _HELD = FinishOutcome.HELD
 
@@ -173,7 +178,7 @@ class MarkedMovementTest(retirement.RetirementCase, unittest.TestCase):
 
 
 class WholeRetirementTest(retirement.RetirementCase, unittest.TestCase):
-    """Where not even the mark has room, the run is retired whole at once -- or, with no room at all, dropped."""
+    """Where not even the mark has room, the run is retired whole at once -- or, with none at all, outranked."""
 
     def test_no_room_for_the_mark_retires_it_whole(self) -> None:
         # The handoff was left null, so the mark would grow the full
@@ -199,14 +204,15 @@ class WholeRetirementTest(retirement.RetirementCase, unittest.TestCase):
                 self._assert_compacted()
                 restores.assert_kept()
 
-    def test_no_room_at_all_drops_the_record(self) -> None:
+    def test_no_room_at_all_outranks_the_run(self) -> None:
         # The comment is full and carries no history, pending record, or
         # handoff to make room with, another finish's route took the attempt,
-        # and the issue is edited: not even the whole retirement fits, so the
-        # run's current record is dropped with no history entry, its artifact
-        # left on the pull request and its revision spent. With the issue,
-        # the attempt, and the handoff put back and room made, nothing makes
-        # the run current again: the next phase goes on with nothing current.
+        # and the issue is edited: not even the whole retirement fits, so a
+        # revision is spent past the run on the floor, its record kept current
+        # and whole, which the policy every road selects and the dormant one
+        # both read outranked. With the issue, the attempt, and the handoff
+        # put back and room made, the next phase reads that as movement,
+        # retires the run whole into history, and goes on with nothing current.
         kept = self._strips_the_evidence_records()
         finish = self.dormant()
         body = self.issue.body
@@ -215,24 +221,48 @@ class WholeRetirementTest(retirement.RetirementCase, unittest.TestCase):
         moves.fills_the_comment(self)
 
         first = self.asks(_settlement_step.resolves, finish)
+        self._assert_outranked()
         self.issue.body = body
         moves.makes_room(self)
         self.puts_back({**self.pinned(), **kept})
         again = self.asks(_settlement_step.resolves, self.dormant())
 
         self.assertEqual((first, again), (_HELD, None))
-        self.assertEqual(self.records(), (None, None, ()))
-        self.assertEqual(self.pinned()[readings.KEY_REVISION_FLOOR], self.settled.revision)
+        self.assert_whole()
         self.assert_untouched()
 
+    def test_a_spent_revision_is_not_spent_again(self) -> None:
+        # Beside a newer transaction recorded past the run, whose settlement a
+        # floor raised past it would leave outranked, nothing is staged; nor
+        # where nobody can say what was spent.
+        settled_moves.records_a_newer_one(self)
+        beside = self.gh.read_pinned_state(self.issue)
+        written = dict(beside.data)
+        unreadable = self.gh.read_pinned_state(self.issue)
+        unreadable.set(_FLOOR, None)
+
+        self.assertTrue(_outranking.spends_past(beside, self.settled))
+        self.assertFalse(_outranking.spends_past(unreadable, self.settled))
+
+        self.assertEqual((beside.data, unreadable.get(_FLOOR)), (written, None))
+
     def _strips_the_evidence_records(self) -> dict:
-        """Take the history, pending record, and handoff off the comment; the attempt and handoff as they read."""
+        """Take the history, pending record, and handoff off the comment and the case; the attempt and handoff read."""
         pinned = self.pinned()
         kept = {key: pinned[key] for key in _PUT_BACK if key in pinned}
         for key in (_records.EVIDENCE_HISTORY, _records.PENDING_EVIDENCE, _HANDOFF):
             pinned.pop(key)
         self.puts_back(pinned)
+        self.history = ()
         return kept
+
+    def _assert_outranked(self) -> None:
+        """The run current and whole beside a revision spent past it, which both policies read as outranking it."""
+        spent = self.gh.read_pinned_state(self.issue)
+        self.assertEqual(_settlement.read_current_evidence(spent), self.settled)
+        self.assertEqual(spent.get(_FLOOR), self.settled.revision + 1)
+        self.assertTrue(_outranking.outranks(spent, self.settled, settled=False))
+        self.assertTrue(_outranking.outranks(spent, self.settled, settled=True))
 
     def _assert_compacted(self) -> None:
         """The run retired whole, the current, pending, and handoff records removed, another road's record kept."""

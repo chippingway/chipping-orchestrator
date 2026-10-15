@@ -2854,8 +2854,8 @@ The keys that matter for the state machine fall into a few groups:
   carries: the same binding without the commands, plus the artifact's evidence digest (`content`), the comment it landed
   as (`comment`), and whether at least one command ran and every one exited 0 (`passed`); `null` once invalidated --
   or, retired by the dormant settled-evidence policy where not even its movement mark had room, removed, with a
-  pending record left null and an unreadable handoff beside it, and with no history entry where not even that
-  fits: its artifact stays on the pull request and the floor keeps its revision spent.
+  pending record left null and an unreadable handoff beside it; where not even that fits, it stays whole and current
+  beside a revision that policy spent past it on the floor, which every reader reads as outranking it.
   `verification_evidence_history` is the five highest-revision retired records, in revision order rather than the order
   they retired -- each with its receipt, revision, whole binding (the report revision and digest and the complete review
   subject included, since the artifact names only the subject's head), digest, `passed`, `comment` (`null` exactly for
@@ -2870,7 +2870,9 @@ The keys that matter for the state machine fall into a few groups:
   (`rewrite_finish_unconfirmed.retires_the_marked`, which a caller asks directly).
   `verification_evidence_revision` is the highest revision any
   transaction on the issue was recorded under, raised in the same write as each record, so a revision whose artifact may
-  already be on the pull request stays spent after its record is damaged, dropped, or evicted from the history.
+  already be on the pull request stays spent after its record is damaged, dropped, or evicted from the history; a
+  finish held to the dormant settled-evidence policy raises it one past current evidence it read moving where nothing
+  else has room to record that movement, spending a revision no transaction carries.
   An issue without any of the keys owes, holds, and has spent nothing, and every reader is fail-closed: a record short
   of any member, or holding a value its writer never spells (a receipt naming another revision than its own included),
   reads as none, a history that is `null`, longer than five, or whose revisions do not strictly rise reads as none, and

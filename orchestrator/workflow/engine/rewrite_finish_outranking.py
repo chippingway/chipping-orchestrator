@@ -23,6 +23,11 @@ revision minted just under a readable pending record, which another
 transaction spent: of any two revisions spent past the evidence, at most one
 is the pending record's. So a pending record holds that policy's route
 without hiding a revision that independently outranks the evidence.
+
+A finish held to that policy spends such a revision itself (`spends_past`)
+where movement it read under the evidence fits nowhere else
+(`rewrite_finish_marks.marks`): every reader of either policy then reads the
+evidence outranked, its record kept whole.
 """
 from __future__ import annotations
 
@@ -53,3 +58,22 @@ def outranks(state: PinnedState, current: _records.CurrentEvidence, *, settled: 
         spent -= 1
     spent = max(spent, getattr(pending, "revision", 1) - 1)
     return max(spent, readable) > current.revision
+
+
+def spends_past(state: PinnedState, current: _records.CurrentEvidence) -> bool:
+    """Stage on `state` a revision spent past `current`, so every reader reads it outranked; whether one is.
+
+    The revision floor raised one past `current`'s revision, a revision no
+    transaction will carry: a write that keeps every record whole and grows
+    the comment only where the floor gains a digit. Where a revision is spent
+    past `current` already -- a pending record's among them, which settles
+    over it or outranks it for good -- nothing is staged, so no floor is ever
+    raised past a transaction that would then settle outranked. False, with
+    nothing staged, where nobody can say what was spent.
+    """
+    spent = _record_state._latest_revision(state)
+    if spent is None:
+        return False
+    if spent <= current.revision:
+        state.set(_records.REVISION_FLOOR, current.revision + 1)
+    return True

@@ -1598,9 +1598,9 @@ because there it is the claim that this stage has already rerouted rather than a
     over the comment read afresh, which no reader takes for a handoff and every later proof of that very receipt
     reads as the movement it is, retiring the evidence whole once room is made; where the mark has no room either,
     the evidence is retired whole at once, its current record, a pending record left null, and an unreadable
-    handoff removed rather than left null -- and where not even that fits, its current record is dropped with no
-    history entry, its artifact staying on the pull request and its revision spent, so nothing put back makes it
-    current again.
+    handoff removed rather than left null -- and where not even that fits, a revision is spent past it on the floor,
+    its record kept current and whole, which every reader reads as outranking it, so nothing put back makes it
+    evidence anybody relies on again and the next proof with room retires it whole.
 
   Beside the phase stand primitives a caller holding such a finish asks directly, which no coordinator asks yet.
   Behind a write of the finish's own whose answer was lost, the announcement's bookkeeping is taken in, and the
