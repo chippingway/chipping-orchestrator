@@ -104,6 +104,11 @@ class ProofReading:
     hands one, collects every refusal of the binding the answer reads, a bound
     record read moved among them (`observes`), so a movement read once and put
     back before anything reads the comment again is still the movement it was.
+    `classifies_the_edit`, set only by that finish held to the dormant
+    settled-evidence policy, has a settlement whose edit found the comment
+    moved under it name the bound records the comment that edit read spells
+    otherwise (`pinned_commit_models.PinnedCommit.reads_a_move`), so a record
+    moved there is observed too, however soon it is put back.
     """
 
     gh: GitHubClient
@@ -113,6 +118,7 @@ class ProofReading:
     anchored: Callable[[], _evidence_models.ReportEvidence | None] | None = None
     rests_on: tuple[str, ...] = ()
     observed: list[_evidence_models.ReportEvidence] | None = None
+    classifies_the_edit: bool = False
 
     def anchor_verdict(self) -> _evidence_models.ReportEvidence | None:
         """What the anchored proof refuses, or None -- where it proves, or where no anchor stands over this reading."""

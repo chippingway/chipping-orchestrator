@@ -345,7 +345,12 @@ def _stopped(
     A refusal that names a record the evidence is bound through read that
     record moved, and that reading is appended to `observed` as the movement
     it is (`_BOUND_MOVED`): the guard read it once, and whatever reads the
-    comment after may find it put back.
+    comment after may find it put back. For a finish held to the dormant
+    settled-evidence policy only the records a binding rests on beyond the
+    evidence records count (`BINDING_RECORDS`): another road recording,
+    settling, or retiring a transaction moves none of them, so a settlement
+    another finish made under the write is no movement under that
+    transaction (`verification_durable.moves_only_the_evidence`).
     """
     stopped = _UNLANDED.get(outcome.status)
     if stopped is not None:
@@ -355,6 +360,7 @@ def _stopped(
             "posting, relabeling, and clearing nothing behind it",
             finish.issue.number, finish.head, why.value,
         )
-        if observed is not None and _BOUND.intersection(outcome.fields):
+        bound = BINDING_RECORDS if finish.proves_settled else _BOUND
+        if observed is not None and bound.intersection(outcome.fields):
             observed.append(_BOUND_MOVED)
     return stopped

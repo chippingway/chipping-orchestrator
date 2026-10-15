@@ -225,8 +225,10 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     and current evidence the configuration moved past is invalidated, with
     nothing run again, rather than routed or held over. Under the
     settled-evidence policy a settlement the answer adopted is invalidated
-    first over movement the answer read (`_behind_the_answer`), and current
-    evidence is proved ready again before the route takes it. A
+    first over movement the answer read (`_behind_the_answer`) -- a bound
+    record the settlement's own edit found moved among it, named off the
+    comment that edit read (`verification_proof.ProofReading.classifies_the_edit`)
+    -- and current evidence is proved ready again before the route takes it. A
     transaction still owed goes to the last word over the first movement the
     answer read, where it read any -- a refusal of its binding, a bound record
     read moved, or a base read gone elsewhere, put back since or not, sorted as
@@ -242,7 +244,7 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     if read is not None:
         _transaction.answers(_proof.ProofReading(
             finish.gh, finish.spec, read[0], finish.state, anchored=partial(_anchored, finish),
-            rests_on=tuple(_attempts._ATTEMPT_KEYS), observed=observed,
+            rests_on=tuple(_attempts._ATTEMPT_KEYS), observed=observed, classifies_the_edit=finish.proves_settled,
         ), pending)
     movements = [refused for refused in observed if not refused.holds or refused in MOVEMENT]
     if read is None or not _answered_alone(finish, pending, attempt):

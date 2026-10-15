@@ -867,7 +867,8 @@ very candidate. That measurement can be taken alone (`prepare`) ahead of an exte
 The commit takes every check again over a reading taken behind whatever requests came between, sends nothing for a
 candidate the comment already reads as, and otherwise lands in place through the strict edit
 (`GitHubStateMixin.edit_pinned_state`), which walks to the comment once more and rewrites it only while it still reads
-as that fresh reading did — a comment that moved in between is refused as moved. An edit that went out and was never
+as that fresh reading did — a comment that moved in between is refused as moved, or, under a guard that reads a move,
+as the prerequisites the comment that walk read spells otherwise. An edit that went out and was never
 confirmed — a lost response, a refused request, or an answer carrying another body — is reported as unconfirmed, neither
 committed nor refused: whatever receipt the caller's domain keeps remains what settles it on a later reading. None of
 this serializes two pollers writing one issue. GitHub's comment edit takes no condition, so the guard narrows the window

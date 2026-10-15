@@ -445,10 +445,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             candidate, over the reading the edit lands on -- and `prepare` stops there, for a caller
                             with an external effect to make first, and `commit` derives everything again over a newer
                             reading and lands it through the strict edit, sending nothing for a candidate the comment
-                            already reads as. A refusal writes nothing and moves nothing the caller holds, and an edit
-                            that went out unconfirmed is reported as neither answer, for the domain's own receipts to
-                            settle. `reread` is that fresh reading alone -- the captured comment, still parsing -- for a
-                            caller with requests of its own to make over it before it stages anything. `takes_in` is for
+                            already reads as -- a comment that moved under that edit refused as MOVED, naming nothing,
+                            save for a guard that `reads_a_move`, which names the prerequisites the comment the edit
+                            read spells otherwise as PREREQUISITE_CHANGED. A refusal writes nothing and moves nothing
+                            the caller holds, and an edit that went out unconfirmed is reported as neither answer, for
+                            the domain's own receipts to settle. `reread` is that fresh reading alone -- the captured
+                            comment, still parsing -- for a caller with requests of its own to make over it before it
+                            stages anything. `takes_in` is for
                             a road that lays another road's moves over a tick's state without writing -- the validating
                             reread and the run circuit's merge -- or replaces that state with what a commit landed, as
                             the verification settlement and the evidence retirements do, so the reading that state last
@@ -1424,7 +1427,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             records settled evidence's binding rests on beyond the evidence records themselves
                             (`BINDING_RECORDS`) with the movement a refusal naming one of them reads
                             (`BINDING_MOVED`), which `rewrite_finish_readiness.invalidates_behind` invalidates over and
-                            no write of the finish collects yet
+                            no write of the finish collects yet; for a dormant finish only those records make a
+                            refusal of its own writes movement, so another road settling a transaction is none
     rewrite_evidence.py     the evidence policy for a landed rewrite's head, handed the finish's input and writing
                             nothing; the finish's evidence step (`rewrite_finish_evidence.py`) asks it for every head
                             it routes, ahead of the announcement and with the attempt standing, and asks whether

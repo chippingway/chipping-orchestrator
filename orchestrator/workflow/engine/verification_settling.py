@@ -282,7 +282,11 @@ def _commits(
     alone; a carry is never abandoned for a commit that did not land, since
     nothing refused its binding. One that went out and was never confirmed
     holds, since the comment may read either way, and so does a ledger entry
-    that meets a comment nobody can read as the one this tick read.
+    that meets a comment nobody can read as the one this tick read. A reading
+    that `classifies_the_edit` has a comment that moved under the edit named
+    by the bound records the comment that edit read spells otherwise, which
+    it observes like any other bound record read moved
+    (`verification_proof.ProofReading.observed`).
     """
     composed = settled_state(latest, pending, comment_id, label)
     if composed is None:
@@ -293,10 +297,8 @@ def _commits(
         )
         return True
     _comments._track_orchestrator_comment(composed, comment_id)
-    outcome = _commit.commit(
-        reading.gh, reading.issue, _durable.guarded(latest, SETTLES, reading.rests_on), composed.data,
-        _verification_comments.MERGED_LEDGER,
-    )
+    guard = _durable.guarded(latest, SETTLES, reading.rests_on).reading_moves(reading.classifies_the_edit)
+    outcome = _commit.commit(reading.gh, reading.issue, guard, composed.data, _verification_comments.MERGED_LEDGER)
     refused = _durable.refusal_of(outcome)
     if refused is None:
         reading.state.data = outcome.reading.data
