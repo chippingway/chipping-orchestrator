@@ -270,25 +270,25 @@ def _behind_the_answer(
     own readings (`rewrite_evidence_proof.MOVEMENT`) -- under the
     settled-evidence policy, only what moved a binding's records
     (`rewrite_finish_settled.moves_the_binding`), so another road settling or
-    retiring the very transaction meanwhile is no movement under it, a
-    settlement and announcement another finish of the landing made being
+    retiring the very transaction meanwhile, a finish of this landing
+    announcing it, or an attempt moved and put back is no movement under it,
+    a settlement and announcement another finish of the landing made being
     taken in first (`rewrite_finish_settled.adopts_the_answer`). A
     transaction still owed goes to the
     last word over the first such movement, or over its proof taken again. One
     settled is resolved afresh; a finish held to the settled-evidence policy
     first invalidates it whole over movement read under its binding -- settled
     by this answer, or by another road whose settlement it adopted -- however
-    soon it was put back (`rewrite_finish_settled.retires_the_adopted`), the
-    announcement another finish of this landing made of it over `attempt`, the
-    attempt captured before the answer, no such movement. What the adoption
-    took in is asked again whether it is `pending`'s alone (`_answered_alone`):
+    soon it was put back (`rewrite_finish_settled.retires_the_adopted`). What
+    the adoption took in is asked again whether it is `pending`'s alone
+    (`_answered_alone`):
     a newer transaction another road recorded beside the settlement adopted
     stands as that road wrote it, for the next finish to answer, the route
     held behind the adopted settlement's own invalidation, so the movement
     read under `pending` is never proved over the successor.
     """
     adopts_the_answer(finish, pending)
-    movements = moves_the_binding(finish, movements, attempt)
+    movements = moves_the_binding(finish, movements)
     if not _answered_alone(finish, pending, attempt):
         log.warning(
             "issue=#%d holding the route of %.8s: another road's evidence record stands beside verification "

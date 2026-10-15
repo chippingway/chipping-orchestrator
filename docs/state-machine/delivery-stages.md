@@ -1585,7 +1585,7 @@ because there it is the claim that this stage has already rerouted rather than a
   - a settlement another road made of the run while the phase answered or abandoned it is adopted -- its evidence
     records taken in (`verification_durable.takes_in_a_settlement`), and another finish's announcement of the
     landing with it -- before what the answer read is classified, and invalidated over movement read under it,
-    the evidence records' own moves and this landing's announcement aside
+    the evidence records' own moves and the attempt's members aside, however soon either was put back
     (`verification_durable.moves_only_the_evidence`), so one beside nothing else moved stays current -- as does one
     another finish made under the phase's own write, whose refusal over the evidence records alone is no movement --
     while a bound record the settlement edit found moved, named off the comment that edit read, is movement however

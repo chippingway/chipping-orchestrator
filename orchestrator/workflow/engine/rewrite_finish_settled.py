@@ -23,9 +23,10 @@ announcement, park, relabel, or retirement yet.
   the base its replay was made onto, or the base the tick counted it against.
 - `out_of_step` says why the records beside settled evidence hold the route,
   and `moves_the_binding` which of the refusals an answer read moved what a
-  binding rests on rather than the evidence records or this landing's own
-  announcement alone -- both of which `adopts_the_answer` takes in first,
-  where another finish made them while the answer was asked.
+  binding rests on rather than the evidence records or the attempt's own
+  members alone, whatever the comment carries by the time it is asked; a
+  settlement and announcement another finish made while the answer was asked
+  `adopts_the_answer` takes in first.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
   answer read under its binding, the announcement a finish of this landing
@@ -134,19 +135,18 @@ def retires_the_adopted(
     evidence -- settled by this answer, or adopted from another road -- is
     invalidated whole over movement the answer read under its binding
     (`movements`), however soon it was put back. The evidence records' own
-    moves are no such movement (`verification_durable.moves_only_the_evidence`),
-    nor the attempt's: the announcement a finish of this landing put on
-    `attempt`, the one captured before the answer (`stands_as_read`), or any
-    member where another finish's route or another road took `attempt` off
-    the comment -- over which, holding the route whatever this says, the
-    evidence is invalidated as the comment stands
+    moves are no such movement, nor the attempt's members
+    (`moves_the_binding`), however soon either was put back. Where another
+    finish's route or another road took `attempt`, the one captured before
+    the answer, off the comment (`stands_as_read`) -- holding the route
+    whatever this says -- the evidence is invalidated as the comment stands
     (`rewrite_finish_marks.retires_as_it_stands`). False, logged, where
     that invalidation did not land.
     """
     current = _settlement.read_current_evidence(finish.state)
     if not finish.proves_settled or current is None or current.receipt != pending.receipt:
         return True
-    if not moves_the_binding(finish, movements, attempt):
+    if not moves_the_binding(finish, movements):
         return True
     if stands_as_read(finish, attempt, finish.state):
         invalidated = _readiness.invalidates(finish, current)
@@ -180,24 +180,23 @@ def adopts_the_answer(finish: LandedFinish, pending: _records.PendingEvidence) -
         _durable.takes_in_a_settlement(finish.gh, finish.issue, finish.state, pending.receipt)
 
 
-def moves_the_binding(
-    finish: LandedFinish, movements: list[ReportEvidence], attempt: _commit_models.PinnedCommit,
-) -> list[ReportEvidence]:
-    """Those of `movements`, read by the answer behind `attempt`, that moved what a binding rests on.
+def moves_the_binding(finish: LandedFinish, movements: list[ReportEvidence]) -> list[ReportEvidence]:
+    """Those of `movements`, read by the answer, that moved what a binding rests on.
 
     Every one, for a finish not held to the settled-evidence policy. Under it,
-    a refusal of moved records naming none but the evidence records -- another
-    road recording, settling, or retiring a transaction -- is none
-    (`verification_durable.moves_only_the_evidence`), and nor are the
-    attempt's own members where this landing's announcement alone moved them
-    (`stands_as_read`) or where another finish's route or another road took
-    `attempt` off the comment.
+    a refusal of moved records naming none but the evidence records and the
+    attempt's own members is none (`verification_durable.moves_only_the_evidence`):
+    another road recording, settling, or retiring a transaction, a finish of
+    this landing announcing it, or another road's attempt in its place moves
+    no record a binding rests on. Told by the fields the refusal names, as the
+    reading it was taken over spelled them, never by what the comment carries
+    by the time it is asked, so an announcement put back since is none either;
+    an attempt another road put in place of the one captured holds the route
+    over the comment as it stands instead (`stands_as_read`).
     """
     if not finish.proves_settled:
         return movements
-    captured = stands_as_read(finish, attempt, finish.state)
-    excused = advanced_by_the_announcement(finish, attempt, finish.state.data) if captured else _attempts._ATTEMPT_KEYS
-    return [moved for moved in movements if not _durable.moves_only_the_evidence(moved, excused or ())]
+    return [moved for moved in movements if not _durable.moves_only_the_evidence(moved, _attempts._ATTEMPT_KEYS)]
 
 
 def stands_as_read(finish: LandedFinish, attempt: _commit_models.PinnedCommit, state: PinnedState) -> bool:
