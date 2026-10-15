@@ -1590,10 +1590,12 @@ because there it is the claim that this stage has already rerouted rather than a
     it taken in (`workflow/engine/rewrite_finish_announced.py`), a refused write read afresh and retried once -- or,
     where another finish's route or another road took the attempt, over the comment as it stands, the route held and
     every attempt and every successor under another receipt kept (`workflow/engine/rewrite_finish_marks.py`);
-  - with no room, the movement is recorded by blanking the attempt's base tip, or, with no attempt to carry it, by
-    the mark `{"moved": <receipt>}` in the evidence's handoff place, which no reader takes for a handoff, and where
-    the mark has no room either, the evidence is retired whole at once, its current record, a pending record left
-    null, and an unreadable handoff removed rather than left null.
+  - with no room, the movement is recorded by blanking the attempt's base tip, or, with no attempt to carry it or
+    no write over the tick's own copy landing, by the mark `{"moved": <receipt>}` in the evidence's handoff place
+    over the comment read afresh, which no reader takes for a handoff and every later proof of that very receipt
+    reads as the movement it is, retiring the evidence whole once room is made; where the mark has no room either,
+    the evidence is retired whole at once, its current record, a pending record left null, and an unreadable
+    handoff removed rather than left null.
 
   Beside the phase stand primitives a caller holding such a finish asks directly, which no coordinator asks yet.
   Behind a write of the finish's own whose answer was lost, the announcement's bookkeeping is taken in, and the

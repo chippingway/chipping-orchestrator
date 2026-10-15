@@ -70,6 +70,10 @@ def stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
     finish read it, a member it read missing, as a legacy attempt leaves one,
     removed rather than written `null` -- and every other field kept as the
     comment carries it; the tick's state then reads as the comment does.
+    Where that write is not seen to land -- no room, a refusal, or an answer
+    lost -- the movement is marked (`rewrite_finish_marks.marks`): beside an
+    attempt a lost answer did put back, every later readiness proof reads
+    that mark as movement and retires the evidence whole over it.
     """
     durable = read_afresh(finish)
     left = _commit_models.PinnedCommit.capture(_writes.retirement(finish), prerequisites=_attempts._ATTEMPT_KEYS)

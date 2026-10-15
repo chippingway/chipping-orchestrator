@@ -9,7 +9,9 @@ attempt a retirement whose answer was lost took off the comment is put back
 exactly as the finish read it, every other field kept, so the movement read
 under the run is still invalidated over it -- or, with no room for it, marked
 in the handoff's place -- and nothing is put back beside a successor another
-road settled. The bookkeeping an announcement whose answer was lost left on
+road settled. Where the putting back lands with its own answer lost, the mark
+beside the attempt it restored is read by the next phase as the movement it
+is, which retires the run whole. The bookkeeping an announcement whose answer was lost left on
 the attempt is taken in for the landed head alone. A settlement another
 finish made of a captured run this finish abandons is taken in and
 invalidated whole in its place, where a finish the policy does not hold
@@ -19,11 +21,13 @@ but by the other finish.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     rewrite_finish_evidence as _evidence,
     rewrite_finish_readiness as _readiness,
+    rewrite_finish_settlement as _settlement_step,
     rewrite_finish_unconfirmed as _unconfirmed,
     rewrite_finish_writes as _writes,
     verification_settlement_state as _settlement,
@@ -70,7 +74,7 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
         for missing in ((), _LEGACY):
             with self.subTest(missing=missing):
                 self.setUp()
-                self._forgets(missing)
+                self.forgets(missing)
                 finish = self._loses_the_retirement()
                 read = _commit_models.PinnedCommit.capture(finish.state, prerequisites=readings.ATTEMPT_KEYS)
 
@@ -130,6 +134,31 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
                 self.assertEqual(finish.state.data, {**read, **announced} if taken else read)
                 self.assert_untouched()
 
+    def test_a_lost_restoration_is_retired_later(self) -> None:
+        # The issue was edited behind the retirement whose answer was lost,
+        # and the attempt is put back -- but that write's own answer is lost
+        # too, so the movement is marked beside the attempt it restored, and
+        # the edit is then put back. Every later phase reads the mark as the
+        # movement it is: the next retires the run whole over the attempt
+        # standing as read, and the one behind it goes on with nothing current.
+        finish = self.dormant()
+        read = _commit_models.PinnedCommit.capture(finish.state, prerequisites=readings.ATTEMPT_KEYS)
+        body = self.issue.body
+        self.gh.write_pinned_state(self.issue, _writes.retirement(finish))
+        settled_moves.edits_the_requirements(self)
+
+        with patch.object(self.gh.pinned_failures, "lost", {self.issue.number}):
+            self.assertFalse(self.asks(_unconfirmed.stands_back, finish, self.settled))
+        self.issue.body = body
+        self.assert_marked()
+        retired = self.asks(_settlement_step.resolves, self.dormant())
+        again = self.asks(_settlement_step.resolves, self.dormant())
+
+        self.assertEqual((retired, again), (FinishOutcome.HELD, None))
+        self.assertEqual(read.moved(self.pinned()), ())
+        self.assert_whole()
+        self.assert_untouched()
+
     def _loses_the_retirement(self):
         """A dormant finish whose retirement landed, answer lost, with another road's record and a review behind it."""
         finish = self.dormant()
@@ -137,13 +166,6 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
         settled_moves.writes_over(self, _UNKNOWN, _UNKNOWN)
         settled_moves.reviews_again(self)
         return finish
-
-    def _forgets(self, missing: tuple) -> None:
-        """Take the attempt members `missing` off the comment, as an attempt pinned before they existed carries none."""
-        pinned = self.pinned()
-        for member in missing:
-            pinned.pop(member)
-        self.puts_back(pinned)
 
     def _assert_kept_beside(self) -> None:
         """Another road's record and the round the retirement reset, as the comment carried them."""

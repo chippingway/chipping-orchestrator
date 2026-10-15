@@ -127,7 +127,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_evidence_proof import Refusals, Word, _reads_again, last_word
-from orchestrator.workflow.engine.rewrite_finish_marks import retires_over_the_attempt
+from orchestrator.workflow.engine.rewrite_finish_marks import carries_the_mark, marks, retires_over_the_attempt
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_current import _handoff_describes
 from orchestrator.workflow.engine.verification_history_fields import historical_from
@@ -145,6 +145,14 @@ _UNREAD = _evidence_models.ReportEvidence(
 _OUTRANKED = _evidence_models.ReportEvidence(
     _evidence_models.ReportEvidenceVerdict.DEFER,
     "verification evidence newer than the settled record is recorded",
+)
+
+# The mark of movement a dormant finish read under the evidence, in its
+# handoff's place (`rewrite_finish_marks.marks`): that movement, recorded where
+# nothing else could carry it, whatever the comment reads beside it now.
+_MARKED = _evidence_models.ReportEvidence(
+    _evidence_models.ReportEvidenceVerdict.DEFER,
+    "movement read under the settled record is marked in its handoff's place",
 )
 
 # A handoff naming the evidence's receipt and revision that describes another
@@ -202,8 +210,11 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Wor
     """What `current`, settled for `finish`'s landed head, reads as now: `(moved, held)`.
 
     The evidence records over the issue and comment read afresh first, beside
-    the requirements of that issue (`_records_heard`), and, where none of
-    them refuses anything, the readiness proof over them
+    the requirements of that issue (`_records_heard`) and the mark of
+    movement a dormant finish read under `current` in its handoff's place
+    (`_MARKED`, `rewrite_finish_marks.carries_the_mark`) -- that movement,
+    recorded where nothing else could carry it, however everything else reads
+    now -- and, where none of them refuses anything, the readiness proof over them
     (`verification_proof.current_evidence_verdict`). Then the last word over
     `current`'s binding (`rewrite_evidence_proof.last_word`), handed that
     proof as the verdict read first, which asks the evidence records once
@@ -222,7 +233,10 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Wor
     `current` (`rewrite_landing_retirement.retires_unproved`).
     """
     read = _reads_again(finish) or (None, None)
-    first = _records_heard(current, read[1], read[0])
+    first = (
+        *_records_heard(current, read[1], read[0]),
+        _MARKED if carries_the_mark(read[1], current) else None,
+    )
     proved = None
     if read[1] is not None and not any(first):
         proved = _proof.current_evidence_verdict(_proof.ProofReading(finish.gh, finish.spec, *read))
@@ -335,13 +349,14 @@ def _records_heard(
     and a revision spent past it (`_OUTRANKED`) -- read off the handoff or any
     history entry that reads on its own, so neither a floor nobody can read
     nor another entry that will not read hides a newer one the history still
-    shows, and off the floor, short only of the one revision a pending record
-    beside it may own: the floor whole with nothing pending, or beside a
-    readable pending record that spent less, and one below it beside a
-    pending record that spent the floor itself or that nobody can read -- of
-    any two revisions spent past `current`, at most one is the pending
-    record's. So a pending record holds beside evidence a readable revision
-    outranks, and hides none of it. The last two the proof
+    shows, off a readable pending record, the revision minted just under
+    which another transaction spent, and off the floor, short only of the one
+    revision a pending record beside it may own: the floor whole with nothing
+    pending, or beside a readable pending record that spent less, and one
+    below it beside a pending record that spent the floor itself or that
+    nobody can read -- of any two revisions spent past `current`, at most one
+    is the pending record's. So a pending record holds beside evidence a
+    readable revision outranks, and hides none of it. The last two the proof
     would hear only behind the pull request, which a reading nobody could take
     hides them behind. Hold: a comment no longer carrying `current` as its
     current evidence, or carrying a record beside it that says it is not the
@@ -367,7 +382,9 @@ def _records_heard(
         spent -= 1
     spent = max((
         spent,
-        0 if handoff is None else handoff.revision,
+        # The revision minted just under a readable pending record, which another transaction spent.
+        getattr(pending, "revision", 1) - 1,
+        getattr(handoff, "revision", 0),
         *(entry.revision for entry in map(historical_from, history) if entry),
     ))
     return (
@@ -402,7 +419,12 @@ def _invalidates_on_the_tick(finish: LandedFinish, current: _records.CurrentEvid
     another road settled in `current`'s place refuses it, even where the
     bounded history dropped `current`'s entry and reads as it did, so no tip
     is blanked under evidence that never moved. A tip already blank is left
-    as it is.
+    as it is. Neither write is decided on the comment as it reads now, so a
+    record another road wrote since the tick read it -- a pending record
+    among them -- refuses both; a finish held to the dormant policy then
+    records the movement under `current`'s own receipt over the comment read
+    afresh (`rewrite_finish_marks.marks`), which every later proof reads as
+    the movement it is.
     """
     staged = _writes.staging(finish)
     if _settlement.read_current_evidence(staged) != current:
@@ -410,6 +432,7 @@ def _invalidates_on_the_tick(finish: LandedFinish, current: _records.CurrentEvid
     retired = _settlement.retire_current_evidence(staged)
     if retired and _writes.lands(finish, staged, _writes.INVALIDATION, publication=False) is None:
         return True
+    stopped = None
     if _attempt_records._recorded_onto(finish.state):
         marked = _writes.staging(finish)
         marked.set(_base_sync_state._PENDING_REWRITE_BASE, None)
@@ -419,4 +442,6 @@ def _invalidates_on_the_tick(finish: LandedFinish, current: _records.CurrentEvid
             "current, the movement read under it recorded by blanking its base tip (%s)",
             finish.issue.number, current.revision, finish.head, "landed" if stopped is None else stopped.value,
         )
+    if stopped is not None and finish.proves_settled:
+        marks(finish, current, "neither its invalidation nor its base tip's blank landed over the tick's own copy")
     return False

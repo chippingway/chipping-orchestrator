@@ -11,14 +11,17 @@ over the comment read afresh where it landed under the first write; a route or
 another attempt that took the attempt has the same receipt retired as the
 comment stands, that attempt kept; a successor settled under another receipt
 is never written over. With no room the movement is marked in the evidence's
-handoff place, a later finish finding no attempt retires the marked evidence
-whole once room is made, and where even the mark has no room the evidence is
-retired whole at once. A routed head with nothing current is held to a base
-its attempt can prove, the base the tick counted where its tip is blank or
-missing. A readable revision spent past the run outranks it beside a pending
-record too, which still holds. A finish the policy does not hold refuses every
-one of these moves, reading the comment no more often than it always has.
-Nothing runs, posts, launches, relabels, or charges.
+handoff place -- over the comment read afresh where no write over the tick's
+own copy lands -- and every later phase reads the mark as that movement, as a
+later finish finding no attempt does, retiring the evidence whole once room is
+made; where even the mark has no room the evidence is retired whole at once.
+A routed head with nothing current is held to a base its attempt can prove,
+the base the tick counted where its tip is blank or missing. A readable
+revision spent past the run -- the floor, or the one minted under a readable
+pending record -- outranks it beside a pending record too, which still holds.
+A finish the policy does not hold refuses every one of these moves, reading
+the comment no more often than it always has. Nothing runs, posts, launches,
+relabels, or charges.
 """
 from __future__ import annotations
 
@@ -34,6 +37,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish_marks as _marks,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_settled as _settled,
+    rewrite_finish_settlement as _settlement_step,
     rewrite_finish_unconfirmed as _unconfirmed,
     verification_records as _records,
     verification_settlement_state as _settlement,
@@ -90,11 +94,18 @@ _BASES = (
 )
 
 
-def _drops_one_first(case) -> object:
-    """Record a newer transaction and drop it with no history entry, then record another; the one pending."""
+def _drops_one_first(case, floor: object = None) -> object:
+    """Record a newer transaction and drop it with no history entry, then record another; the one pending.
+
+    `floor`, where given, is what the revision floor is left spelled as behind
+    them -- one nobody can read, so only the pending record says what was spent.
+    """
     settled_moves.records_a_newer_one(case)
     settled_moves.writes_over(case, _records.PENDING_EVIDENCE, None)
-    return settled_moves.records_a_newer_one(case)
+    pending = settled_moves.records_a_newer_one(case)
+    if floor is not None:
+        settled_moves.writes_over(case, readings.KEY_REVISION_FLOOR, floor)
+    return pending
 
 
 def _raises_the_floor_past(case) -> object:
@@ -102,6 +113,10 @@ def _raises_the_floor_past(case) -> object:
     pending = settled_moves.records_a_newer_one(case)
     settled_moves.writes_over(case, readings.KEY_REVISION_FLOOR, pending.revision + 1)
     return pending
+
+
+# A transaction dropped before the one pending, the floor then left unreadable.
+_BESIDE_AN_UNREADABLE_FLOOR = partial(_drops_one_first, floor="unreadable")
 
 
 class _PutsBackWhileCompacting:
@@ -301,6 +316,33 @@ class RecordedMovementTest(retirement.RetirementCase, unittest.TestCase):
                 self._assert_compacted()
                 restores.assert_kept()
 
+    def test_movement_is_marked_over_a_fresh_reading(self) -> None:
+        # Behind the finish's reading of the comment, another road leaves a
+        # pending record nobody can read and fills the comment, and the issue
+        # is edited: the phase reads the movement, but neither write over the
+        # tick's own copy lands beside that record, so the movement is marked
+        # under the run's receipt over the comment read afresh. With the issue
+        # put back and room made, the next phase reads the mark as the
+        # movement it is and retires the run whole, the pending record still
+        # holding every phase and kept as that road wrote it.
+        finish = self.dormant()
+        body = self.issue.body
+        settled_moves.writes_over(self, _records.PENDING_EVIDENCE, "unreadable")
+        moves.fills_the_comment(self)
+        settled_moves.edits_the_requirements(self)
+
+        self.assertEqual(self.asks(_settlement_step.resolves, finish), _HELD)
+        self.assert_marked()
+        self.issue.body = body
+        moves.makes_room(self)
+        retired = self.asks(_settlement_step.resolves, self.dormant())
+        again = self.asks(_settlement_step.resolves, self.dormant())
+
+        left = self.pinned()[_records.PENDING_EVIDENCE]
+        self.assertEqual((retired, again, left), (_HELD, _HELD, "unreadable"))
+        self.assert_whole()
+        self.assert_untouched()
+
     def _assert_compacted(self) -> None:
         """The run retired whole, the current, pending, and handoff records removed, another road's record kept."""
         written = (_records.CURRENT_EVIDENCE, _records.PENDING_EVIDENCE, _HANDOFF, _UNKNOWN)
@@ -326,16 +368,19 @@ class OutrankingTest(retirement.RetirementCase, unittest.TestCase):
     def test_a_pending_record_hides_no_outranking(self) -> None:
         # Beside the transaction now pending, another road spent a revision
         # past the run that no history entry keeps: one it recorded and
-        # dropped first, or the floor it raised past the pending one's own.
+        # dropped first -- which the pending record's own revision still says
+        # beside a floor nobody can read -- or the floor it raised past the
+        # pending one's own.
         # That revision outranks the run, which is invalidated whole while
         # the pending record holds the route, kept as that road wrote it. A
         # newer transaction recorded right past the run outranks nothing.
         for spends, outranked in (
             (_drops_one_first, True),
+            (_BESIDE_AN_UNREADABLE_FLOOR, True),
             (_raises_the_floor_past, True),
             (settled_moves.records_a_newer_one, False),
         ):
-            with self.subTest(spent=spends.__name__):
+            with self.subTest(spent=spends):
                 self.setUp()
                 pending = spends(self)
 

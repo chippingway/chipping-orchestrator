@@ -1290,7 +1290,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             another road took the attempt, over the comment as it stands (`retires_as_it_stands`),
                             every attempt and successor kept, and with no room the mark `{"moved": <receipt>}` in
                             the evidence's handoff place (`marks`), which no reader takes for a handoff and only that
-                            very receipt answers to (`carries_the_mark`) -- or, where even the mark has no room, the
+                            very receipt answers to (`carries_the_mark`), every later readiness proof reading it as
+                            movement -- also where no write over the tick's own copy lands, over the comment read
+                            afresh -- or, where even the mark has no room, the
                             evidence retired whole, its current record and the evidence records left null or
                             unreadable removed (`verification_settlement_state.retire_current_evidence`); a mark or
                             retirement refused by a comment moved under its edit is read and made once more
@@ -1318,9 +1320,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded and abandoned there moves under it; what the first reading heard stands whatever
                             that last reading of the comment comes to. Movement -- an issue edited, a report or review
                             record replaced, the artifact edited or deleted, a command configured otherwise, the landing
-                            or the base moved, a revision spent past it -- read off the handoff or any history entry
-                            that reads on its own, or off the floor past the one revision a pending record beside it
-                            may own, so a pending record holds without hiding it -- or a handoff naming it that
+                            or the base moved, a revision spent past it -- read off the handoff, any history entry
+                            that reads on its own, the revision minted under a readable pending record, or the floor
+                            past the one revision a pending record beside it may own, so a pending record holds
+                            without hiding it -- the mark of movement a dormant finish left in its handoff's place, or
+                            a handoff naming it that
                             describes another pull request or head, whatever the pull request reads -- invalidates it
                             into history whole, its revision, transcript digest, and tested and source provenance kept,
                             in a write staged on the comment read afresh and guarded by that reading and the attempt,

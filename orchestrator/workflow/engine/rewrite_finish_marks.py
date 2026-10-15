@@ -7,13 +7,16 @@ of this landing taken in, a refused write read and retried once, for a
 finish held to the dormant policy alone (`retires_over_the_attempt`) -- or,
 where another finish's route or another road took the attempt, on the
 comment as it stands (`retires_as_it_stands`), every attempt and successor
-kept. Where history has no room, or the attempt
-cannot be put back, the mark (`marks`) replaces the evidence's handoff with
-one naming only the receipt that moved: no reader takes it for a handoff
-(`verification_settled_fields.handoff_from`), and only a later finish finding
-that very receipt current retires the evidence whole (`carries_the_mark`).
-Where even the mark has no room, the evidence is retired whole at once, its
-current record and the evidence records left null or unreadable removed.
+kept. Where history has no room, the attempt cannot be put back, or no write
+over the tick's own copy lands, the mark (`marks`) replaces the evidence's
+handoff with one naming only the receipt that moved: no reader takes it for a
+handoff (`verification_settled_fields.handoff_from`), every later readiness
+proof of that very receipt reads it as the movement it is
+(`carries_the_mark`, `rewrite_finish_readiness.settled_word`) and retires the
+evidence whole once room is made, and a later finish finding no attempt does
+the same (`rewrite_finish_unconfirmed.retires_the_marked`). Where even the
+mark has no room, the evidence is retired whole at once, its current record
+and the evidence records left null or unreadable removed.
 """
 from __future__ import annotations
 
@@ -46,8 +49,10 @@ _INVALIDATES = (_records.CURRENT_EVIDENCE, _records.EVIDENCE_HISTORY)
 _COMPACTS = (*_INVALIDATES, _records.PENDING_EVIDENCE, _records.EVIDENCE_HANDOFF)
 
 
-def carries_the_mark(state: PinnedState, current: _records.CurrentEvidence) -> bool:
-    """Whether `state` carries the mark of movement read under `current` in place of its handoff."""
+def carries_the_mark(state: PinnedState | None, current: _records.CurrentEvidence) -> bool:
+    """Whether `state` carries the mark of movement read under `current` in place of its handoff; False for no state."""
+    if state is None:
+        return False
     return state.get(_records.EVIDENCE_HANDOFF) == {_MOVED: current.receipt}
 
 

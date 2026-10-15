@@ -83,6 +83,13 @@ class RetirementCase(settled_support.SettledEvidenceCase):
         """The record the pinned comment carries now."""
         return readings.pinned(self)
 
+    def forgets(self, missing: tuple) -> None:
+        """Take the attempt members `missing` off the comment, as an attempt pinned before they existed carries none."""
+        pinned = self.pinned()
+        for member in missing:
+            pinned.pop(member)
+        self.puts_back(pinned)
+
     def assert_untouched(self, attempt=None) -> None:
         """Nothing posted, run, launched, relabelled, or charged; the attempt as `attempt` spells it, where given.
 
