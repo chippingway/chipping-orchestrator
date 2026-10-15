@@ -104,6 +104,12 @@ CONCISE_FAILURE = (
     f"`{SUITE}` exited with status 1:\n\n```\n{FAILURE_OUTPUT}\n```"
 )
 
+# The findings a tick before each failing check was led by what failed showed
+# of that change request -- the check's sentence over its output alone --
+# spelled out as such a tick posted them, so a post it made stays found
+# whatever the formatting shows now.
+PREVIOUS_CONCISE_FAILURE = f"{REQUESTED}\n\n`{SUITE}` exited with status 1:\n\n```\n{FAILURE_OUTPUT}\n```"
+
 # A stdin command a reviewer ran two probes of its own through, each probe's
 # scenario name and the error its run printed, and the change request entering
 # each failure in the findings by that name, error, and snippet above the

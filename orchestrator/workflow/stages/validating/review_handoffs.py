@@ -38,6 +38,7 @@ no pull request to go on relabels and launches nothing, and the verdict is
 left waiting, never handed, for whatever finishes it to post again. A later
 tick's handoff, which holds no decision, first looks for the post an earlier
 one made on the pull request for this very request -- in the words it posts,
+or those an earlier formatting of its findings posted (`feedback_posts`),
 below them the receipt naming its round, subject, and evidence claim, or in
 the words a tick before receipts posted it in, only where such a post stands
 behind the report and evidence the request was reviewed over and no landed

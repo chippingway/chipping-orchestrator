@@ -202,9 +202,11 @@ _LINT = "COMMAND: make lint"
 _INVENTORY = f"{_LINT}\nCOMMAND: uv run pytest tests"
 
 # The failures pytest's short summary reports, as pytest 9 prints them: a
-# test's node ID whole, parameters with spaces and dashes included, then the
-# message after a dash, however pytest cut it short -- and a test that errored
-# in its fixture.
+# test's node ID whole, parameters with spaces, dashes, and the very dash and
+# bracket that part an ID from its message included, then the message after a
+# dash, however pytest cut it short, a dash and brackets of its own included,
+# or the bare name of an exception saying nothing more -- and a test that
+# errored in its fixture.
 _SUITE = "COMMAND: uv run pytest tests"
 _SUMMARY = (
     "FAILED tests/test_a.py::test_fail - AssertionError: values differ - badly\n"
@@ -212,8 +214,11 @@ _SUMMARY = (
     "FAILED tests/test_a.py::test_param[lost-response] - AssertionError: assert 'lost-re...\n"
     "FAILED tests/test_a.py::test_param[x - y] - AssertionError: assert 'x - y' == 'nope'\n"
     "FAILED tests/test_a.py::TestK::test_m - KeyError: 'VERIFY_COMMANDS'\n"
+    "FAILED tests/test_a.py::test_value[left] - right] - AssertionError: values differ\n"
+    "FAILED tests/test_a.py::test_list[x] - AssertionError: lists [1] - [2] differ\n"
+    "FAILED tests/test_a.py::test_raise[p] - ValueError\n"
     "ERROR tests/test_a.py::test_setup - RuntimeError: fixture exploded\n"
-    "5 failed, 1 passed, 1 error in 0.02s"
+    "8 failed, 1 passed, 1 error in 0.02s"
 )
 _SUMMARY_LEAD = (
     "Failure: `tests/test_a.py::test_fail`\n"
@@ -226,6 +231,12 @@ _SUMMARY_LEAD = (
     "Error: `AssertionError: assert 'x - y' == 'nope'`\n"
     "Failure: `tests/test_a.py::TestK::test_m`\n"
     "Error: `KeyError: 'VERIFY_COMMANDS'`\n"
+    "Failure: `tests/test_a.py::test_value[left] - right]`\n"
+    "Error: `AssertionError: values differ`\n"
+    "Failure: `tests/test_a.py::test_list[x]`\n"
+    "Error: `AssertionError: lists [1] - [2] differ`\n"
+    "Failure: `tests/test_a.py::test_raise[p]`\n"
+    "Error: `ValueError`\n"
     "Failure: `tests/test_a.py::test_setup`, which errored outside the test itself\n"
     "Error: `RuntimeError: fixture exploded`\n"
 )
@@ -280,9 +291,11 @@ _STDIN_UNREPRODUCED = (
     "Reproduce: not recorded; `.venv/bin/python -` reads its code from stdin, and no snippet was given\n"
 )
 # A probe's entry quoted in a code block, the same entry written with no
-# reproduction, and how the run printing its error is shown.
+# reproduction, then with a reproduction naming its stdin command but no
+# snippet, and how the run printing its error is shown.
 _QUOTED_ENTRY = f"```text\nFailure: A probe\nError: {_RELABEL_ERROR}\n```\n\n"
 _UNREPRODUCED_ENTRY = f"Failure: A probe\nError: {_RELABEL_ERROR}\n\n"
+_COMMAND_ONLY_ENTRY = f"Failure: A probe\nError: {_RELABEL_ERROR}\nReproduce: `.venv/bin/python -`\n\n"
 _PROBE_FAILED = f"`.venv/bin/python -` exited with status 1:\n\n```\n{_RELABEL_ERROR}\n```"
 # Entries for the module pytest could not collect, and for a test in it, which is another failure.
 _COLLECTION_ENTRY = "Failure: pytest collection of tests/test_b.py\nError: ImportError: cannot import name 'thing'\n\n"
@@ -664,12 +677,14 @@ class FailureNamesTest(unittest.TestCase):
 
     def test_missing_diagnostics_are_said(self) -> None:
         # A failure nothing names, that quoted no output, or that a stdin
-        # command ran with no snippet given stays, saying what is missing; an
-        # entry quoted in a code block, or backing another check, names nothing.
+        # command ran with no snippet given -- the command alone named as its
+        # reproduction included -- stays, saying what is missing; an entry
+        # quoted in a code block, or backing another check, names nothing.
         cases = (
             ("", _RELABEL_ERROR, f"{_UNNAMED}{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
             (_QUOTED_ENTRY, _RELABEL_ERROR, f"{_UNNAMED}{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
             (_UNREPRODUCED_ENTRY, _RELABEL_ERROR, f"Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
+            (_COMMAND_ONLY_ENTRY, _RELABEL_ERROR, f"Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
             (
                 _UNREPRODUCED_ENTRY,
                 _ANNOUNCE_ERROR,
