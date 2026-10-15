@@ -1479,7 +1479,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             between the issue and the inspection commands, named by revision and location, and a note
                             where the requirements have moved on since it was written; a subject with no report says
                             none is recorded. The verification block follows the inspection commands, and the closing
-                            instructions put the declaration it teaches above the verdict line
+                            instructions put the declaration it teaches above the verdict line and each failure a
+                            numbered finding rests on under it, in the layout that block teaches
     review_evidence_prompts.py
                             what a reviewer is told about verification, which the reviewer prompt renders: the current
                             evidence handed for its subject (`HandedEvidence`, the settled record and its artifact
@@ -1495,7 +1496,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             subject's head, and the REUSED line naming the handed revision only where evidence was
                             handed -- and the policy that a SHA, count, or command the orchestrator publishes itself is
                             no change to request while failed checks, missing verification, inaccurate claims, and
-                            evidence about another subject stay actionable
+                            evidence about another subject stay actionable; last, the entry each failure a change
+                            request rests on takes in the findings, opening on a `Failure:` line naming its exact test
+                            ID, a probe's descriptive scenario name, or the check that failed where no test ID names
+                            it, then `Error:`, `Expected:` and `Observed:` where needed, `Reproduce:` -- a
+                            self-contained snippet for a probe, since a stdin command alone reproduces nothing -- and
+                            `Unavailable:` for each diagnostic not obtained, every entry outside the declaration
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,

@@ -598,6 +598,22 @@ The reviewer prompt (`workflow/engine/review_prompts.py`, with its verification 
   not ask a developer or a human to copy a commit SHA, a test count, or a command into the description or the report.
   A failed check, verification the change still needs, a report claiming what did not happen, and evidence about
   another commit or subject remain changes to request.
+- **How it reports a failure.** Every failure a change request rests on — a test that failed, a check that failed with
+  no test to name, or a probe of the reviewer's own that showed a defect — gets an entry of its own under the numbered
+  item it supports, each label on a line of its own: `Failure:` naming it, `Error:` with the relevant error or
+  assertion, `Expected:` and `Observed:` where the error alone does not explain it, `Reproduce:`, and `Unavailable:` for
+  each diagnostic the reviewer could not obtain and why. A failing test is named by its exact test ID as the runner
+  reported it, parameters included, and reproduced by a command that runs that test alone. An ad hoc probe is named by a
+  descriptive scenario name and reproduced by a self-contained snippet in a code block with the command that runs it,
+  since a command reading unnamed code from stdin, such as `.venv/bin/python -`, reproduces nothing by itself; distinct
+  scenarios are distinct entries, each with its own name, error, and reproduction, even where one command ran them all.
+  A failure no test ID names — a collection or import error before any test ran, a linter's finding, a crashed command —
+  is named by the check that failed and reported with its actual error, never by an invented test ID, and a diagnostic
+  that could not be obtained is disclosed rather than guessed, the failure still reported. The entries are findings,
+  outside the declaration, and no line of an entry or snippet opens on `VERIFICATION:`, `COMMAND:`, or `EXIT:`, which
+  the labels never do: the declaration still lists each command exactly as it ran — a stdin probe as
+  `.venv/bin/python -`, once per run — with its own exit status and output, and the published evidence, its provenance,
+  and the approval rules read nothing from an entry.
 
 The round (`stages/validating/reviewer.py`) hands every returned verdict to the disposition service
 (`stages/validating/review_disposition.py`). What the run declared is read only out of a run that completed, and never
@@ -620,6 +636,7 @@ is one text: the reviewer's findings as `workflow/engine/review_findings.py` sho
 declaration has been read off the run's own message, which nothing rewrites. Every `VERIFICATION:` marker, `COMMAND:`
 and `EXIT:` line, and the output of each check shown to pass is set aside; a check not shown passing stays as a sentence
 naming its command and how it ended, over the output the reviewer quoted, which is the diagnostic the developer acts on.
+The failure entries the reviewer writes beside the declaration are findings, shown as written, snippets included.
 Findings that are a declaration and nothing else read as a sentence saying the reviewer stated none, never as the raw
 message they sit in. The transaction keeps every command, exit status, and output exactly, and the formatting decides
 nothing: a missing, malformed, stale, failing, or incomplete declaration is disposed of exactly as it would be

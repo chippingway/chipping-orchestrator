@@ -10,7 +10,8 @@ branch -- because the thread excerpt above it is bounded and covers the issue
 thread alone, and a reviewer left to fetch the pull request reads whichever
 report it finds. The workflow verification evidence current for that same
 subject, where there is any, arrives beside it and is quoted whole by
-`review_evidence_prompts`, with the declaration the reviewer closes on. Every
+`review_evidence_prompts`, with the declaration the reviewer closes on and the
+layout each failure its numbered findings rest on is entered in. Every
 marker it teaches is the one `completion_verdicts` or `review_verification`
 parses; it teaches none of the developer's report outcomes.
 """
@@ -92,7 +93,8 @@ def _build_review_prompt(
         "  VERDICT: APPROVED\n"
         "  VERDICT: CHANGES_REQUESTED\n\n"
         "If CHANGES_REQUESTED, list the specific items above the verdict line as a numbered "
-        "list so the implementer can address them one by one. If the change is acceptable as "
+        "list so the implementer can address them one by one, every failure an item rests on "
+        "entered under it in the layout described above. If the change is acceptable as "
         "is, write VERDICT: APPROVED with a one-line justification above it. Either way, the "
         "verification declaration described above goes above the verdict line."
     )

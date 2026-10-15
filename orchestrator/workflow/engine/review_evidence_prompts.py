@@ -1,8 +1,8 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The verification a fresh reviewer is handed, and the declaration it closes with.
+"""The verification a fresh reviewer is handed, the declaration it closes with, and how it reports a failure.
 
-A reviewer is told four things about verification beside the report it
+A reviewer is told five things about verification beside the report it
 reviews. First the workflow evidence that is CURRENT for the very subject it
 is handed, where there is any: the artifact the pull request carries, re-read
 and quoted whole -- its summary, then every command with its exit status and
@@ -25,7 +25,7 @@ it is handed, or, only where it was handed evidence, the REUSED line naming
 that evidence's exact revision -- spelled from `review_verification_models`,
 the same source the parser reads.
 
-Last, the policy that is the other half of why the evidence is handed at all.
+Then the policy that is the other half of why the evidence is handed at all.
 The orchestrator publishes what a reviewer declares, so a reviewer holding
 valid evidence for the commit it reviews has nothing left for a developer or a
 human to copy into the pull request description: a request to transcribe a
@@ -33,6 +33,19 @@ commit id, a count, or a command is a round nobody needed. What the evidence
 cannot answer -- a check that failed, verification the change still lacks, a
 report claiming what did not happen, evidence about another subject -- stays a
 change to request.
+
+Last, the layout every failure a change request rests on is reported in, so
+that the developer handed the request can tell what failed and make it fail
+again: an entry of its own per failure, opening on its name -- a test's exact
+ID, a probe's descriptive scenario name, or, where no test ID names it, the
+check that failed, never a test ID the runner did not report -- with the
+error, the expected and observed behavior where the error does not explain it,
+the reproduction, and a disclosure of any diagnostic the reviewer could not
+obtain. A probe fed to a command on stdin reproduces nothing by that command
+alone, so its reproduction is the snippet itself beside the command that runs
+it, and two scenarios one command ran are two entries. The entries are
+findings, kept outside the declaration, so each command is declared exactly as
+it ran and nothing an entry says is read as evidence or weighs on an approval.
 """
 from __future__ import annotations
 
@@ -59,6 +72,50 @@ _EVIDENCE_POLICY = (
     "verification the change still needs, a report claiming something that "
     "did not happen, and evidence about another commit or subject remain "
     "changes to request."
+)
+
+# Every label opens on a word no declaration line does, so `review_findings`
+# shows an entry rather than hiding it as protocol and `review_verification`
+# never reads one as a step of the declaration.
+_FAILURE_DIAGNOSTICS = (
+    "Report every failure your findings rest on -- a test that failed, a check "
+    "that failed with no test to name, or a probe of your own that showed a "
+    "defect -- as an entry of its own under the numbered item it supports, so "
+    "the developer can tell what failed and make it fail again without asking "
+    "you. Each entry opens on the line naming the failure, every label on a "
+    "line of its own:\n\n"
+    "  Failure: <the failure's name>\n"
+    "  Error: <the relevant error or assertion, as the output showed it>\n"
+    "  Expected: <what should have happened>\n"
+    "  Observed: <what happened instead>\n"
+    "  Reproduce: <what makes it fail again>\n"
+    "  Unavailable: <each diagnostic above you could not obtain, and why>\n\n"
+    "A failing test is named by its exact test ID as the runner reported it, "
+    "parameters included -- such as `tests/pkg/test_mod.py::TestCase::test_name[case]` "
+    "-- and reproduced by a command that runs that test alone. A probe of your "
+    "own is named by a descriptive scenario name saying what it exercises, and "
+    "reproduced by a self-contained snippet in a code block below its "
+    "Reproduce line -- every import and every step of setup it needs -- with "
+    "the command that runs it: a command reading unnamed code from stdin, such "
+    "as `.venv/bin/python -`, reproduces nothing by itself. A failure no test "
+    "ID names -- a collection or import error before any test ran, a linter's "
+    "finding, a command that crashed -- is named by the check that failed, "
+    "reported with its actual error, and reproduced by the command as you ran "
+    "it; never invent a test ID the runner did not report. Quote an error "
+    "spanning several lines as a code block below its Error line. Write the "
+    "Expected and Observed lines where the error alone does not explain the "
+    "failure. Distinct scenarios are distinct entries, each with its own name, "
+    "error, and reproduction, even where one command ran them all. Write the "
+    "Unavailable line only where a diagnostic is missing -- output cut short, "
+    "the test a crash interrupted, setup you could not capture as a snippet "
+    "-- and still report the failure, saying what is missing rather than "
+    "leaving the failure out or guessing what you could not obtain.\n\n"
+    "These entries belong to the findings and never to the declaration: the "
+    "declaration still lists each command exactly as you ran it, with its own "
+    "exit status and output, and carries no scenario name or snippet. No "
+    "line of an entry or a snippet opens on "
+    f"`{_verification_models._VERIFICATION_MARKER_PREFIX}`, "
+    f"`{_verification_models._COMMAND_PREFIX}`, or `{_verification_models._EXIT_PREFIX}`."
 )
 
 # What separates an artifact's summary from the commands quoted under it.
@@ -96,6 +153,7 @@ def _verification_block(
         _configured_block(),
         _declaration_contract(handed, "" if subject is None else subject.commit),
         _EVIDENCE_POLICY,
+        _FAILURE_DIAGNOSTICS,
     ))
 
 

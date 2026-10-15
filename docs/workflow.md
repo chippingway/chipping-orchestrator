@@ -25,7 +25,8 @@ behavior belong to [`state-machine.md`](state-machine.md).
   `question` and `discussion` prompts grant and forbid, what a round may leave behind, the plan PR a confirmed design
   earns, the tracked-repository awareness block the working-agent prompts carry, the report contract every
   developer prompt teaches with the reader of its outcomes, the verification contract every reviewer prompt teaches
-  with what its declaration earns, and the shared foreground execution guidance for asynchronous commands.
+  with what its declaration earns and the entry each failure it reports takes, and the shared foreground execution
+  guidance for asynchronous commands.
 - [`workflow/command-specs.md`](workflow/command-specs.md) — the spec grammar, backend selection and `CODEX_BIN` /
   `CLAUDE_BIN` / `AGY_BIN`, worked examples, and what pinning a spec buys.
 
@@ -168,7 +169,13 @@ reused. The orchestrator publishes that evidence itself, so a reviewer with vali
 ask for a SHA, count, or command to be copied into the pull request; failed checks, missing verification, inaccurate
 claims, and evidence about another subject stay actionable. The verdict is persisted before its evidence is published
 or the verdict acted on, so a retry reruns no reviewer, and an approval without settled, passing evidence covering
-every configured command parks under `reviewer_unverified` rather than reaching the approval arc. Full contract:
+every configured command parks under `reviewer_unverified` rather than reaching the approval arc. Every failure a
+change request rests on gets an entry of its own under the finding it supports, opening on its name — the exact test
+ID, a descriptive scenario name for a probe, or the check that failed where no test ID names it, never an invented
+one — then the error, expected and observed behavior where the error does not explain it, a reproduction that is a
+self-contained snippet for a probe, since a stdin command such as `.venv/bin/python -` reproduces nothing alone, and
+any diagnostic the reviewer could not obtain. The entries stay in the findings, outside the declaration, which still
+names each command exactly as it ran. Full contract:
 [`workflow/conversations.md#the-reviewer-verification-contract`][reviewer-verification].
 
 ## Foreground execution and asynchronous command guidance

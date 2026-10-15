@@ -58,6 +58,35 @@ you are reviewing, when there is any, and publishes the evidence you declare on 
   something that did not happen or a result it did not observe, and evidence about another commit, report, or
   requirements revision than the one under review.
 
+## Failure diagnostics
+
+Give every failure a change request rests on an entry of its own under the numbered finding it supports, in the
+layout the prompt teaches, opening on the failure's name with each label on a line of its own:
+
+```
+Failure: <the exact test ID, a descriptive scenario name, or the check that failed>
+Error: <the relevant error or assertion, as the output showed it>
+Expected: <what should have happened>
+Observed: <what happened instead>
+Reproduce: <the command, or a self-contained snippet and the command that runs it>
+Unavailable: <each diagnostic you could not obtain, and why>
+```
+
+- A failing test is named by its exact test ID as the runner reported it, parameters included
+  (`tests/pkg/test_mod.py::TestCase::test_name[case]`), and reproduced by a command that runs that test alone.
+- An ad hoc probe is named by a descriptive scenario name and reproduced by a self-contained snippet in a code block —
+  every import and setup step it needs — with the command that runs it. A command reading unnamed code from stdin,
+  such as `.venv/bin/python -`, reproduces nothing by itself. Distinct scenarios are distinct entries, each with its
+  own name, error, and reproduction, even when one command ran them all.
+- A failure no test ID names — a collection or import error before any test ran, a linter finding, a crashed
+  command — is named by the check that failed and reported with its actual error. Never invent a test ID.
+- Write `Expected` and `Observed` where the error alone does not explain the failure.
+- Write `Unavailable` only where a diagnostic is missing, saying which and why, and still report the failure rather
+  than leaving it out or guessing what you could not obtain.
+- Entries and snippets belong to the findings, never inside the verification declaration, and none of their lines
+  opens on `VERIFICATION:`, `COMMAND:`, or `EXIT:`. The declaration still lists each command exactly as you ran it,
+  with its own exit status: a stdin probe stays `.venv/bin/python -`, once per run.
+
 ## Behavior preservation
 
 For any refactor:
