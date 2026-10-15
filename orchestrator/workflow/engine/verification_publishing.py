@@ -125,19 +125,22 @@ def _settlement_room(
     since, which would reserve nothing. That invalidation is measured again
     over the prepared candidate, since the comment it is laid over may have
     grown. A comment that will not read holds; a bound record that moved, and
-    a comment with no room, stand down with nothing posted.
+    a comment with no room, stand down with nothing posted -- the moved
+    record observed over the comment it was read moving on, for a reading
+    that classifies a move (`ProofReading.classifies_a_move`).
     """
     widest = _record_state.settled_payload(reading.state, pending)
     if widest is None:
         return _NO_ROOM
+    guard = _durable.guarded(reading.state, _settling.SETTLES, reading.rests_on)
     prepared = _commit.prepare(
-        reading.gh, reading.issue, _durable.guarded(reading.state, _settling.SETTLES, reading.rests_on), widest,
+        reading.gh, reading.issue, guard.reading_moves(reading.classifies_a_move is not None), widest,
         _verification_comments.RESERVED_LEDGER,
     )
     refused = _durable.refusal_of(prepared)
     if refused is not None:
         if prepared.fields:
-            reading.observes(refused)
+            reading.observes(refused, prepared.seen)
         return refused
     invalidated = PinnedState(state_data=prepared.reading.data)
     return None if _settlement.retire_current_evidence(invalidated) else _NO_ROOM

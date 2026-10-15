@@ -117,8 +117,8 @@ class _MovesTheReport:
         self._replaced: dict = {}
         self._behind = None
 
-    def __call__(self, reading, refused) -> None:
-        _OBSERVES(reading, refused)
+    def __call__(self, reading, refused, over=None) -> None:
+        _OBSERVES(reading, refused, over)
         if self._replaced and refused is not None and _MOVED_RECORDS[0] in refused.refusal:
             state = self._case.gh.read_pinned_state(self._case.issue)
             for key, recorded in self._replaced.items():

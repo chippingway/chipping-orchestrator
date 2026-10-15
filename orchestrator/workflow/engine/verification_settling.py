@@ -192,7 +192,7 @@ def _proof_refusal(
     held to the records the reading rests on as well (`ProofReading.rests_on`).
     """
     durable, refused = _durable.durable_comment(reading.gh, fresh, reading.state, reading.rests_on)
-    reading.observes(refused)
+    reading.observes(refused, durable)
     if refused is not None:
         return durable, refused
     proved = _proof.binding_verdict(
@@ -203,7 +203,7 @@ def _proof_refusal(
     refused = None if proved.proved else proved
     reading.observes(refused)
     durable, moved = _durable.durable_comment(reading.gh, fresh, durable, reading.rests_on)
-    reading.observes(moved)
+    reading.observes(moved, durable)
     if moved is not None or refused is not None:
         return durable, moved or refused
     return _behind_the_proof(reading, durable, pending, proved.pull_request, comment_id)
@@ -283,10 +283,11 @@ def _commits(
     nothing refused its binding. One that went out and was never confirmed
     holds, since the comment may read either way, and so does a ledger entry
     that meets a comment nobody can read as the one this tick read. A reading
-    that `classifies_the_edit` has a comment that moved under the edit named
+    that `classifies_a_move` has a comment that moved under the edit named
     by the bound records the comment that edit read spells otherwise, which
     it observes like any other bound record read moved
-    (`verification_proof.ProofReading.observed`).
+    (`verification_proof.ProofReading.observes`), over the comment the
+    refusal read them on.
     """
     composed = settled_state(latest, pending, comment_id, label)
     if composed is None:
@@ -297,7 +298,8 @@ def _commits(
         )
         return True
     _comments._track_orchestrator_comment(composed, comment_id)
-    guard = _durable.guarded(latest, SETTLES, reading.rests_on).reading_moves(reading.classifies_the_edit)
+    reads = reading.classifies_a_move is not None
+    guard = _durable.guarded(latest, SETTLES, reading.rests_on).reading_moves(reads)
     outcome = _commit.commit(reading.gh, reading.issue, guard, composed.data, _verification_comments.MERGED_LEDGER)
     refused = _durable.refusal_of(outcome)
     if refused is None:
@@ -317,7 +319,7 @@ def _commits(
     if refused.holds:
         return True
     if outcome.fields:
-        reading.observes(refused)
+        reading.observes(refused, outcome.seen)
     return _verification_comments.records_the_artifact(reading.gh, reading.issue, reading.state, comment_id)
 
 

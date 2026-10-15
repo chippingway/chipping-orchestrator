@@ -27,7 +27,11 @@ announcement, park, relabel, or retirement yet.
   members alone, whatever the comment carries by the time it is asked -- a
   blank of the base tip of an attempt that still stands, which records
   movement, aside; a settlement and announcement another finish made while
-  the answer was asked `adopts_the_answer` takes in first.
+  the answer was asked `adopts_the_answer` takes in first. What the evidence
+  records a refusal was read over moved to is asked as well (`reads_moving`):
+  a mark of movement, a revision outranking the evidence, or any other
+  movement the readiness proof reads in those records under the transaction
+  answered is kept beside the refusal as the movement it is.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
   answer read under its binding, the announcement a finish of this landing
@@ -148,7 +152,8 @@ def retires_the_adopted(
     (`movements`), however soon it was put back. The evidence records' own
     moves are no such movement, nor the attempt's members, save the base tip
     of an attempt that still stands (`moves_the_binding`), however soon either
-    was put back. Where another
+    was put back -- but movement those records were read recording under
+    `pending`'s receipt is (`reads_moving`). Where another
     finish's route or another road took `attempt`, the one captured before
     the answer, off the comment (`stands_as_read`) -- holding the route
     whatever this says -- the evidence is invalidated as the comment stands
@@ -209,12 +214,39 @@ def moves_the_binding(
     over the comment as it stands instead (`stands_as_read`). Where `attempt`
     still stands, though, a refusal naming its replay's base tip read the
     blank a proof records movement under the evidence with (`_UNMARKED`), and
-    is that movement however soon the tip was put back.
+    is that movement however soon the tip was put back. So is movement the
+    evidence records such a refusal was read over establish under the
+    transaction answered, which the answer keeps beside the refusal
+    (`reads_moving`) and no refusal's names excuse.
     """
     if not finish.proves_settled:
         return movements
     excused = _UNMARKED if stands_as_read(finish, attempt, finish.state) else _attempts._ATTEMPT_KEYS
     return [moved for moved in movements if not _durable.moves_only_the_evidence(moved, excused)]
+
+
+def reads_moving(finish: LandedFinish, pending: _records.PendingEvidence, state: PinnedState) -> ReportEvidence | None:
+    """The movement the records `state` carries establish under evidence current there under `pending`'s receipt.
+
+    `state` is a comment a refusal of moved bound records was read over while
+    `pending` was answered (`verification_proof.ProofReading.classifies_a_move`),
+    which another road may have settled `pending` on and then recorded
+    movement under: the readiness proof's reading of the records alone under
+    the settled-evidence policy (`rewrite_finish_readiness.settled_word`) --
+    the mark of movement in the handoff's place, a handoff naming the evidence
+    that describes another head, a readable revision spent past it, or a
+    review or report record moved. Kept beside that refusal, it is the
+    movement it is however soon the records are put back, where a refusal
+    naming the evidence records alone is none (`moves_the_binding`). None for
+    a finish not held to that policy, and where `state` carries nothing
+    current under that receipt -- `pending` still owed there, or retired or
+    superseded -- or nothing moving under it: a plain settlement.
+    """
+    current = _settlement.read_current_evidence(state)
+    if not finish.proves_settled or current is None or current.receipt != pending.receipt:
+        return None
+    heard = _readiness._records_heard(current, state, settled=True)
+    return next((refused for refused in heard if refused and not refused.holds), None)
 
 
 def stands_as_read(finish: LandedFinish, attempt: _commit_models.PinnedCommit, state: PinnedState) -> bool:

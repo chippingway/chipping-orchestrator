@@ -14,11 +14,14 @@ handed over just as the phase's own settlement edit reads the comment and
 put back before that edit answers, moved the run's binding all the same: the
 comment the edit read names it, and the settlement adopted is invalidated
 whole despite the restoration -- as it is where another proof blanked the
-attempt's base tip there to record movement, and that tip was put back. With
-that finish's announcement of the landing in the review's place, the edit
-read only the evidence records and the attempt's members moved, neither a
-record any binding rests on, so the settlement adopted stays current.
-Nothing runs.
+attempt's base tip there to record movement, and that tip was put back, and
+where that finish marked movement in the run's handoff place or spent a
+revision past it on the floor, and the records its settlement left were put
+back: the edit read only evidence records moving, but moving to movement
+recorded under the run. With that finish's announcement of the landing in
+the review's place, the edit read only the evidence records and the attempt's
+members moved, neither a record any binding rests on, so the settlement
+adopted stays current. Nothing runs.
 """
 from __future__ import annotations
 
@@ -57,10 +60,23 @@ _REPORT_RECORDS = ("developer_report_current", "developer_report_handoff", "revi
 # The attempt members another finish's announcement of the landing moves.
 _ANNOUNCEMENT = (readings.KEY_ANNOUNCED, readings.KEY_ANNOUNCED_EVENT)
 
+# The client's strict edit of the pinned comment, which a case makes another finish's moves under.
+_EDIT = "edit_pinned_state"
+
 
 def _blanks_the_base_tip(case) -> None:
     """Another readiness proof blanking the attempt's base tip, recording movement read under the run."""
     settled_moves.writes_over(case, readings.KEY_REWRITE_BASE, None)
+
+
+def _marks_the_run(case) -> None:
+    """Another finish's mark of movement read under the settled run, written in its handoff's place."""
+    settled_moves.writes_over(case, _records.EVIDENCE_HANDOFF, {"moved": case.captured.receipt})
+
+
+def _spends_past_the_run(case) -> None:
+    """Another finish's revision spent past the settled run on the floor, recording movement read under it."""
+    settled_moves.writes_over(case, readings.KEY_REVISION_FLOOR, case.captured.revision + 1)
 
 
 def _settles(case, pending) -> None:
@@ -77,10 +93,11 @@ def _settles(case, pending) -> None:
 class _MovesUnderTheEdit:
     """The strict edit, its first call made just as another finish settles the run and makes `move` beside it.
 
-    The records `keys` names are put back exactly as they read before -- one
-    missing then removed -- right behind that edit's own reading of the
-    comment, so it answers over a comment that moved and leaves one that
-    reads as it did before `move`, the settlement aside.
+    The records `keys` names are put back exactly as the settlement left them
+    -- one missing then removed -- right behind that edit's own reading of
+    the comment, so it answers over a comment that moved and leaves one that
+    reads as the settlement left it before `move`. `settled` is the run as
+    that settlement made it current.
     """
 
     def __init__(self, case, move, keys: tuple[str, ...]) -> None:
@@ -91,14 +108,15 @@ class _MovesUnderTheEdit:
         self._walk = case.gh._pinned_comment
         self._owed = True
         self.kept: dict = {}
+        self.settled = None
 
     def __call__(self, issue, state, **options):
         if not self._owed:
             return self._edit(issue, state, **options)
         self._owed = False
-        pinned = readings.pinned(self._case)
-        self.kept = {key: pinned[key] for key in self._keys if key in pinned}
         _settles(self._case, self._case.captured)
+        self.settled = self._case.records()[1]
+        self.kept = self.left()
         self._move(self._case)
         with patch.object(self._case.gh, "_pinned_comment", self._walks):
             return self._edit(issue, state, **options)
@@ -172,7 +190,7 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
         # and review records as they were put back and nothing run.
         edits = _MovesUnderTheEdit(self, settled_moves.reviews_again, _REPORT_RECORDS)
 
-        with patch.object(self.gh, "edit_pinned_state", edits):
+        with patch.object(self.gh, _EDIT, edits):
             self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
 
         self._assert_retired(edits)
@@ -186,7 +204,34 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
         # settlement adopted is invalidated whole all the same.
         edits = _MovesUnderTheEdit(self, _blanks_the_base_tip, (readings.KEY_REWRITE_BASE,))
 
-        with patch.object(self.gh, "edit_pinned_state", edits):
+        with patch.object(self.gh, _EDIT, edits):
+            self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+
+        self._assert_retired(edits)
+
+    def test_a_restored_movement_mark_is_movement(self) -> None:
+        # Another finish settles the captured run and marks movement it read
+        # under it in its handoff's place just as the phase's settlement edit
+        # reads the comment, and the settlement's handoff is put back before
+        # that edit answers: the edit read only an evidence record move, but
+        # one recording movement under the run, so the settlement adopted is
+        # invalidated whole all the same.
+        edits = _MovesUnderTheEdit(self, _marks_the_run, (_records.EVIDENCE_HANDOFF,))
+
+        with patch.object(self.gh, _EDIT, edits):
+            self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+
+        self._assert_retired(edits)
+
+    def test_a_restored_spent_revision_is_movement(self) -> None:
+        # Another finish settles the captured run and spends a revision past
+        # it on the floor just as the phase's settlement edit reads the
+        # comment, and the floor is put back before that edit answers: the
+        # revision that edit read outranks the run, so the settlement adopted
+        # is invalidated whole all the same.
+        edits = _MovesUnderTheEdit(self, _spends_past_the_run, (readings.KEY_REVISION_FLOOR,))
+
+        with patch.object(self.gh, _EDIT, edits):
             self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
 
         self._assert_retired(edits)
@@ -201,7 +246,7 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
         # nothing run, with the announcement as it was put back.
         edits = _MovesUnderTheEdit(self, retirement.announces, _ANNOUNCEMENT)
 
-        with patch.object(self.gh, "edit_pinned_state", edits):
+        with patch.object(self.gh, _EDIT, edits):
             self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
 
         pending, current = self.records()[:2]
@@ -212,15 +257,22 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
         self.assertEqual(self.verify.call_count, 0)
 
     def _assert_retired(self, edits: _MovesUnderTheEdit) -> None:
-        """The settlement adopted invalidated whole, its revision and binding kept; what `edits` moved put back."""
+        """The settlement adopted invalidated whole, its provenance kept and its run posted once; `edits` put back.
+
+        Its history entry is the run exactly as that settlement made it
+        current -- receipt, revision, binding, transcript, verdict, and
+        artifact -- and nothing ran, launched, or relabelled.
+        """
         current, history = self.records()[1:]
         self.assertIsNone(current)
         self.assertEqual(history[-1], (self.captured.receipt, readings.INVALIDATED))
         entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
-        self.assertEqual(entry.revision, self.captured.revision)
-        self.assertEqual(entry.binding, self.captured.binding)
+        self.assertEqual(entry, _records.HistoricalEvidence.of(edits.settled, _records.Retirement.INVALIDATED))
         self.assertEqual(edits.left(), edits.kept)
-        self.assertEqual(self.verify.call_count, 0)
+        receipts = [found.receipt for found in support.posted_artifacts(self)]
+        self.assertEqual(receipts.count(self.captured.receipt), 1)
+        ran = (self.verify.call_count, self.developer.call_count, readings.relabels(self))
+        self.assertEqual(ran, (0, 0, ()))
 
 
 if __name__ == "__main__":

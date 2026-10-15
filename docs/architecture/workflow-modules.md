@@ -447,11 +447,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading and lands it through the strict edit, sending nothing for a candidate the comment
                             already reads as -- a comment that moved under that edit refused as MOVED, naming nothing,
                             save for a guard that `reads_a_move`, which names the prerequisites the comment the edit
-                            read spells otherwise as PREREQUISITE_CHANGED. A refusal writes nothing and moves nothing
-                            the caller holds, and an edit that went out unconfirmed is reported as neither answer, for
-                            the domain's own receipts to settle. `reread` is that fresh reading alone -- the captured
-                            comment, still parsing -- for a caller with requests of its own to make over it before it
-                            stages anything. `takes_in` is for
+                            read spells otherwise as PREREQUISITE_CHANGED, and has every refusal of moved prerequisites
+                            carry the comment it read them moving on (`seen`). A refusal writes nothing and moves
+                            nothing the caller holds, and an edit that went out unconfirmed is reported as neither
+                            answer, for the domain's own receipts to settle. `reread` is that fresh reading alone -- the
+                            captured comment, still parsing -- for a caller with requests of its own to make over it
+                            before it stages anything. `takes_in` is for
                             a road that lays another road's moves over a tick's state without writing -- the validating
                             reread and the run circuit's merge -- or replaces that state with what a commit landed, as
                             the verification settlement and the evidence retirements do, so the reading that state last
@@ -1282,7 +1283,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             records beside it hold the route (`out_of_step`); which refusals an answer read moved a
                             binding's records rather than the evidence records or the attempt's members alone, told by
                             the fields each names, the base tip of an attempt that still stands excepted
-                            (`moves_the_binding`), a settlement and announcement another finish made meanwhile taken
+                            (`moves_the_binding`) -- the movement the evidence records a refusal was read over establish
+                            under the transaction answered, a mark or an outranking revision among it, kept beside it as
+                            movement however soon those records are put back (`reads_moving`) -- a settlement and
+                            announcement another finish made meanwhile taken
                             in first (`adopts_the_answer`) and the route held where a newer transaction came in beside
                             that settlement, the successor left owed; a settlement the answer left current invalidated
                             over that
@@ -1644,7 +1648,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             head is held to while its finish settles under the anchor
                             (`rewrite_finish_settlement.py`), beside the records that finish's writes rest on
                             (`rests_on`, the attempt) and where the refusals its answer reads are kept
-                            (`observed`). `current_evidence_verdict`
+                            (`observed`) -- under the dormant settled-evidence policy beside the movement the comment a
+                            refusal of moved records was read over records under the transaction answered
+                            (`classifies_a_move`). `current_evidence_verdict`
                             is for a reader about to rely on the current record: the pull request, then its
                             publication (`verification_current.py` -- the latest record, its handoff, its artifact),
                             then the same proof. Its readers are the reviewer's hand-off of current evidence

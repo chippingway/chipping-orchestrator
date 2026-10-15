@@ -104,11 +104,15 @@ class ProofReading:
     hands one, collects every refusal of the binding the answer reads, a bound
     record read moved among them (`observes`), so a movement read once and put
     back before anything reads the comment again is still the movement it was.
-    `classifies_the_edit`, set only by that finish held to the dormant
-    settled-evidence policy, has a settlement whose edit found the comment
-    moved under it name the bound records the comment that edit read spells
-    otherwise (`pinned_commit_models.PinnedCommit.reads_a_move`), so a record
-    moved there is observed too, however soon it is put back.
+    `classifies_a_move`, set only by that finish held to the dormant
+    settled-evidence policy, reads the comment a refusal of moved bound
+    records was read over for the movement its evidence records establish
+    under the transaction answered (`observes`): its guarded writes keep that
+    comment (`pinned_commit_models.PinnedCommit.reads_a_move`), and a
+    settlement whose edit found the comment moved under it names the bound
+    records the comment that edit read spells otherwise, so a record moved
+    there is observed too -- and what it moved to -- however soon it is put
+    back.
     """
 
     gh: GitHubClient
@@ -118,16 +122,24 @@ class ProofReading:
     anchored: Callable[[], _evidence_models.ReportEvidence | None] | None = None
     rests_on: tuple[str, ...] = ()
     observed: list[_evidence_models.ReportEvidence] | None = None
-    classifies_the_edit: bool = False
+    classifies_a_move: Callable[[PinnedState], _evidence_models.ReportEvidence | None] | None = None
 
     def anchor_verdict(self) -> _evidence_models.ReportEvidence | None:
         """What the anchored proof refuses, or None -- where it proves, or where no anchor stands over this reading."""
         return None if self.anchored is None else self.anchored()
 
-    def observes(self, refused: _evidence_models.ReportEvidence | None) -> None:
-        """Keep `refused` -- a refusal of the binding this reading's answer read -- where the caller collects them."""
-        if self.observed is not None and refused is not None:
-            self.observed.append(refused)
+    def observes(self, refused: _evidence_models.ReportEvidence | None, over: PinnedState | None = None) -> None:
+        """Keep `refused` -- a refusal of the binding this reading's answer read -- where the caller collects them.
+
+        `over` is the comment a refusal of moved bound records was read over,
+        where the caller has it; the movement `classifies_a_move` reads there
+        is kept behind `refused`.
+        """
+        if self.observed is None or refused is None:
+            return
+        self.observed.append(refused)
+        if over is not None and self.classifies_a_move is not None:
+            self.observes(self.classifies_a_move(over))
 
 
 def rest_verdict(

@@ -2869,7 +2869,8 @@ The keys that matter for the state machine fall into a few groups:
   other way (`workflow/engine/rewrite_finish_marks.py`): no reader takes the mark for a handoff, so none hands that
   evidence on, and every later readiness proof of that very receipt under that policy reads it as movement,
   retiring the evidence whole once room is made, as a finish of the landing finding no attempt does
-  (`rewrite_finish_unconfirmed.retires_the_marked`, which a caller asks directly).
+  (`rewrite_finish_unconfirmed.retires_the_marked`, which a caller asks directly) -- and as a settlement that
+  policy's evidence phase adopted does over a mark its own answer read, however soon the handoff is put back.
   `verification_evidence_revision` is the highest revision any
   transaction on the issue was recorded under, raised in the same write as each record, so a revision whose artifact may
   already be on the pull request stays spent after its record is damaged, dropped, or evicted from the history; a

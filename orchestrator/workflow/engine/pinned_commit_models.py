@@ -101,6 +101,10 @@ class CommitOutcome:
     never touches that state itself. `fields` names what earned a refusal,
     `length` is the rendered body an OVERFLOW measured, and `inadmissible` is
     what the guard's own domain check answered where it refused the candidate.
+    `seen`, for a guard that `reads_a_move` alone, is the comment a
+    PREREQUISITE_CHANGED refusal read those fields moved on
+    (`PinnedCommit.keeps_the_move`), so the caller can say what they moved to
+    however soon they are put back.
     """
 
     status: CommitStatus
@@ -109,6 +113,7 @@ class CommitOutcome:
     fields: tuple[str, ...] = ()
     length: int | None = None
     inadmissible: Any = None
+    seen: PinnedState | None = None
 
 
 @dataclass(frozen=True)
@@ -129,7 +134,9 @@ class PinnedCommit:
     admits: Admits | None = None
     # Whether an edit that found the comment moved under it -- behind the
     # fresh reading -- is answered over the comment that edit read
-    # (`under_the_edit`); False keeps such a refusal naming no field.
+    # (`under_the_edit`), and a refusal of moved prerequisites keeps the
+    # comment it read them on (`keeps_the_move`); False keeps such an edit's
+    # refusal naming no field, and every refusal carrying no comment.
     reads_a_move: bool = False
 
     @classmethod
@@ -184,6 +191,16 @@ class PinnedCommit:
         """
         moved = self.moved(seen[0].data) if seen else ()
         return (CommitRefusal.PREREQUISITE_CHANGED if moved else refusal), moved
+
+    def keeps_the_move(self, outcome: CommitOutcome, reading: PinnedState | None) -> CommitOutcome:
+        """`outcome`, carrying `reading` as `seen` where this guard `reads_a_move` and it refuses moved prerequisites.
+
+        `reading` is the comment that refusal was read over: the fresh reading,
+        or the one the strict edit read under it (`under_the_edit`).
+        """
+        if not self.reads_a_move or outcome.refusal is not CommitRefusal.PREREQUISITE_CHANGED:
+            return outcome
+        return replace(outcome, seen=reading)
 
 
 def spelling(field_value: Any) -> str | None:

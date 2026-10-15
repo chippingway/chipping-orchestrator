@@ -122,13 +122,15 @@ def prepare(
     Asked ahead of an external effect that depends on the record being
     written -- a comment posted, a label moved -- so the effect is never made
     for a record that could not follow it. A PREPARED answer licenses nothing
-    past the requests that follow it: `commit` derives everything again.
+    past the requests that follow it: `commit` derives everything again. A
+    guard that `reads_a_move` has a refusal of moved prerequisites carry the
+    fresh reading it read them on (`pinned_commit_models.PinnedCommit.keeps_the_move`).
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)
     if isinstance(fresh, _models.CommitOutcome):
         return fresh
-    return change.over(issue, fresh)
+    return guard.keeps_the_move(change.over(issue, fresh), fresh)
 
 
 def commit(
@@ -148,13 +150,15 @@ def commit(
     over whatever it carries then -- or, for a guard that `reads_a_move`, as
     PREREQUISITE_CHANGED naming the prerequisites the comment the edit read
     spells otherwise, where any did
-    (`pinned_commit_models.PinnedCommit.under_the_edit`).
+    (`pinned_commit_models.PinnedCommit.under_the_edit`). Such a guard's
+    refusal of moved prerequisites carries the comment it read them moved on,
+    the fresh reading or the edit's (`PinnedCommit.keeps_the_move`).
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)
     if isinstance(fresh, _models.CommitOutcome):
         return fresh
-    prepared = change.over(issue, fresh)
+    prepared = guard.keeps_the_move(change.over(issue, fresh), fresh)
     if prepared.status is not _models.CommitStatus.PREPARED:
         return prepared
     if fresh.reads_as(prepared.reading.data):
@@ -164,7 +168,10 @@ def commit(
     )
     refusal = _UNSENT.get(edit)
     if refusal is not None:
-        return _refused(issue, *guard.under_the_edit(refusal, change.seen))
+        return guard.keeps_the_move(
+            _refused(issue, *guard.under_the_edit(refusal, change.seen)),
+            next(iter(change.seen), None),
+        )
     return replace(prepared, status=_LANDED[edit])
 
 
