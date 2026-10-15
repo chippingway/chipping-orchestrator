@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""An empty home set up by script -- `set-token`, `configure`, `init` -- then `init` again."""
+"""An empty home set up by script -- `set-token`, `configure`, `init` -- then `init` again, or the service managed."""
 from __future__ import annotations
 
 import json
@@ -11,10 +11,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from orchestrator.service.systemd import Completed
 from tests.service import (
     check_test_support as _github,
     configure_test_support as _configure,
     init_test_support as _support,
+    lifecycle_test_support as _lifecycle,
 )
 from tests.service.service_test_support import add_remote
 from tests.support.checkouts import committed_checkout
@@ -84,21 +86,16 @@ class _InstalledSystemd:
         return [tuple(json.loads(line)) for line in recorded.splitlines()]
 
 
-class ScriptedSetupTest(unittest.TestCase):
-    """A home with nothing in it, set up by the scripted commands, then given `init` again.
+class _ScriptedSetupCase(unittest.TestCase):
+    """A home with nothing in it, set up by the scripted commands.
 
     Each command is a fresh interpreter of a copy of the package laid out the
     way a wheel installs it, launched from an unrelated directory with a pipe
     on standard input, the home, alice, git, the default agents, and the
-    clone's remote naming acme/api. GitHub lets the token read acme/api, the
-    user manager answers, linger is off, and the service is not running.
-
-    The setup ends with the unit installed and enabled and the service not
-    started. Run again over it, with linger on and the service running, `init`
-    rewrites the unit alone: every other file in the home is byte for byte as
-    the setup wrote it, and the service is told to restart rather than
-    restarted. Each full check proves the token from the interpreter it
-    starts, so GitHub is asked once by `set-token` and once by each `init`.
+    clone's remote naming acme/api, and failing if it imported the
+    configuration. GitHub lets the token read acme/api, the user manager
+    answers, linger is off, and the service is not running. The setup ends
+    with the unit installed and enabled and the service not started.
     """
 
     @classmethod
@@ -185,6 +182,18 @@ class ScriptedSetupTest(unittest.TestCase):
             if path.is_file() and path != self.unit_file
         }
 
+
+
+class ScriptedSetupTest(_ScriptedSetupCase):
+    """The scripted setup given `init` again.
+
+    Run over it, with linger on and the service running, `init` rewrites the
+    unit alone: every other file in the home is byte for byte as the setup
+    wrote it, and the service is told to restart rather than restarted. Each
+    full check proves the token from the interpreter it starts, so GitHub is
+    asked once by `set-token` and once by each `init`.
+    """
+
     def test_init_again_refreshes_only_the_unit(self) -> None:
         self.install_by_script()
         written = self.setup_files()
@@ -204,10 +213,44 @@ class ScriptedSetupTest(unittest.TestCase):
             _support.SHOW_LINGER,
             _support.IS_ACTIVE,
         ])
-        self.assertIn("systemctl --user restart chipping-orchestrator.service", again.stdout)
+        self.assertIn("restart it to run the unit just written: chipping-orchestrator restart", again.stdout)
         self.assertEqual(again.stderr, "")
         repository = (_github.repository_url(_configure.ACME), _TOKEN)
         self.assertEqual(self.github.requests(), [repository, repository, repository])
+
+
+
+class ManagedServiceTest(_ScriptedSetupCase):
+    """The service the scripted setup installed, shown, stopped, and removed.
+
+    None of the three imports the configuration, and the removal deletes the
+    unit alone.
+    """
+
+    def test_lifecycle_reads_no_configuration(self) -> None:
+        self.install_by_script()
+        written = self.setup_files()
+        self.systemd.answer((_lifecycle.IS_FAILED, Completed(1, "inactive\n", "")))
+
+        shown = self.run_command("status")
+        self.run_command("stop")
+        removed = self.run_command("remove")
+
+        self.assertIn(f"Unit: {self.unit_file}\n", shown.stdout)
+        self.assertEqual(self.systemd.commands(), [
+            _support.PROBE,
+            _lifecycle.STATUS,
+            _support.PROBE,
+            _lifecycle.STOP,
+            _support.PROBE,
+            _lifecycle.STOP,
+            _lifecycle.DISABLE,
+            _support.RELOAD,
+            _lifecycle.IS_FAILED,
+        ])
+        self.assertIn("Kept, since remove deletes nothing else", removed.stdout)
+        self.assertFalse(self.unit_file.exists())
+        self.assertEqual(self.setup_files(), written)
 
 
 if __name__ == "__main__":

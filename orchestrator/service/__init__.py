@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What an installed orchestrator carries for setting itself up.
+"""What an installed orchestrator carries for setting itself up and managing its service.
 
 ``templates`` reads the two ``.env`` templates that ship beside it as package
 data: ``.env.example``, the basic template a setup starts from, and
@@ -44,11 +44,22 @@ local. ``commands`` puts all three commands on the command line
 
 Then the service. ``unit_file`` is the systemd user unit an installed package
 runs as, quoted the way systemd reads it back, and the hand-written unit it
-refuses to stand beside; ``systemd`` asks the user manager and logind, each
-call bounded. ``installation`` is ``init``, which refuses what it cannot
-install for, runs the full ``check``, writes the unit, and enables it -- and
-linger -- without starting it, leaving the ``.env`` and the tokens as it
-found them; ``service_commands`` puts it on the command line beside the setup
+refuses to stand beside; ``unit_environment`` reads the environment and the
+working directory that unit and the drop-ins ``unit_drop_ins`` finds for it
+give the service, as systemd assembles them, through the part of the unit-file
+syntax ``unit_syntax`` reads, and ``manager_environment`` what the user
+manager's ``ManagerEnvironment=``, ``DefaultEnvironment=``, and
+``environment.d`` hand every service beneath them, the latter through
+``environment_syntax``; ``systemd`` asks the user manager, logind, and the
+journal, each call bounded. ``installation`` is ``init``, which refuses what
+it cannot install for, runs the full ``check``, writes the unit, and enables
+it -- and linger -- without starting it, leaving the ``.env`` and the tokens
+as it found them. ``lifecycle`` holds what the commands that manage the
+installed service share, with ``stop`` and ``status``; ``starting`` is
+``start`` and ``restart``, which run the local ``check`` in that environment
+and directory before asking systemd anything and watch the service stay
+active; and ``removal`` is ``remove``, which deletes the unit alone.
+``service_commands`` puts them all on the command line beside the setup
 commands.
 
 Nothing here imports ``orchestrator.config`` as it is imported, or the GitHub

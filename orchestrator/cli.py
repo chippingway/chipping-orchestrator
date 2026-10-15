@@ -15,15 +15,17 @@ carries, and hands that state to each owner under `orchestrator/runtime/` in
 turn; the order below is the startup contract and lives nowhere else.
 
 The setup commands are put on the parser by
-`orchestrator/service/commands.py`, and `init`, which installs the systemd
-user service, by `orchestrator/service/service_commands.py`; each runs its
-command through a core under `orchestrator/service/`. Those owners load no
-configuration in this process, since a setup is what writes one and `check`
-reads it in an interpreter of its own, so they are imported with this module. The same owner chooses the class
-the command line is parsed with: one naming `set-token` may carry the token
-anywhere on it, and every refusal argparse writes quotes what it refused, so
-such a line is parsed by a class that refuses it without printing any of it
-back, in this parser and every one beneath it alike.
+`orchestrator/service/commands.py`, and the service commands -- `init`, which
+installs the systemd user service, and `start`, `stop`, `restart`, `status`,
+and `remove`, which manage it -- by
+`orchestrator/service/service_commands.py`; each runs its command through a
+core under `orchestrator/service/`. Those owners load no configuration in this
+process, since a setup is what writes one and `check` reads it in an
+interpreter of its own, so they are imported with this module. The same owner
+chooses the class the command line is parsed with: one naming `set-token` may
+carry the token anywhere on it, and every refusal argparse writes quotes what
+it refused, so such a line is parsed by a class that refuses it without
+printing any of it back, in this parser and every one beneath it alike.
 
 Of the polling process, the options owner is the only one this module imports
 with itself. Every other owner resolves and validates the configuration as it

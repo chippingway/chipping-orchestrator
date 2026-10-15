@@ -109,7 +109,8 @@ For a systemd-supervised development checkout, write a unit like the one `init` 
 [user service](configuration.md#running-under-systemd-user-service), since `init` refuses a source checkout: set
 `WorkingDirectory=/path/to/chipping-orchestrator`, `ExecStart=/path/to/chipping-orchestrator/run.sh`, and include
 the directory containing Poetry on the unit's `PATH`. `SIGTERM` from `systemctl stop` propagates through the wrapper,
-which exits without relaunching; source updates are handled by the wrapper.
+which exits without relaunching; source updates are handled by the wrapper. Manage that unit with `systemctl --user`:
+the service commands act on the unit `init` installs, and `start` and `restart` check an installed package's setup.
 
 ### Launcher dependency refresh
 

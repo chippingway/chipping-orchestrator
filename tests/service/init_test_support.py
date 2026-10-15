@@ -36,13 +36,13 @@ TOKEN_FILE = Path(".config", "acme", "api", "token")
 INTERPRETER = "/opt/python 3%/bin/python3"
 
 # Each command `init` runs, as its argv.
-_SYSTEMCTL = ("systemctl", "--user")
-PROBE = (*_SYSTEMCTL, "show", "--property=Version")
-RELOAD = (*_SYSTEMCTL, "daemon-reload")
-ENABLE = (*_SYSTEMCTL, "enable", UNIT)
+SYSTEMCTL = ("systemctl", "--user")
+PROBE = (*SYSTEMCTL, "show", "--property=Version")
+RELOAD = (*SYSTEMCTL, "daemon-reload")
+ENABLE = (*SYSTEMCTL, "enable", UNIT)
 SHOW_LINGER = ("loginctl", "show-user", USER, "--property=Linger")
 ENABLE_LINGER = ("loginctl", "--no-ask-password", "enable-linger", USER)
-IS_ACTIVE = (*_SYSTEMCTL, "is-active", UNIT)
+IS_ACTIVE = (*SYSTEMCTL, "is-active", UNIT)
 # Where the check and an onboarding ran, in the same timeline.
 CHECKED = ("check",)
 ONBOARDED = ("onboarding",)
@@ -92,20 +92,28 @@ class _Terminal(io.StringIO):
 class FakeSystemd:
     """Stands in for ``systemd.run_command``: answers each argv from a table, recording it.
 
-    A command the table does not name succeeds, saying nothing.
+    A command the table does not name succeeds, saying nothing. A list in the
+    table answers one call with each of its entries in turn, the last one
+    every call after that. ``bounds`` holds the timeout each command was last
+    run with.
     """
 
     def __init__(self, timeline: list[tuple[str, ...]]) -> None:
-        self.answers = {
+        self.answers: dict[tuple[str, ...], systemd.Completed | list[systemd.Completed]] = {
             SHOW_LINGER: NOT_LINGERING,
             IS_ACTIVE: INACTIVE,
         }
+        self.bounds: dict[tuple[str, ...], float] = {}
         self._timeline = timeline
 
     def __call__(self, argv: Sequence[str], timeout: float = 0) -> systemd.Completed:
         command = tuple(argv)
         self._timeline.append(command)
-        return self.answers.get(command, DONE)
+        self.bounds[command] = timeout
+        answer = self.answers.get(command, DONE)
+        if isinstance(answer, list):
+            return answer.pop(0) if len(answer) > 1 else answer[0]
+        return answer
 
 
 class InitCase(unittest.TestCase):

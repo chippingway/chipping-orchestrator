@@ -128,12 +128,14 @@ enables linger where logind allows it, without starting the service:
 
 ```sh
 chipping-orchestrator init
-systemctl --user start chipping-orchestrator.service
+chipping-orchestrator start
 ```
 
-Run `init` again when the agents move to other directories: it rewrites only the unit, leaving `.env` and the tokens
-alone. The [user service guide][user-service] covers the unit, linger, and replacing a hand-written
-`orchestrator.service`.
+`start` checks the settings locally once more, without asking GitHub, then starts the service and confirms it stays
+active, printing its last journal lines if it does not. `stop`, `restart`, and `status` manage it from there, and
+`remove` deletes the unit while keeping the setup. Run `init` again when the agents move to other directories: it
+rewrites only the unit, leaving `.env` and the tokens alone. The [user service guide][user-service] covers the unit,
+linger, each command, and replacing a hand-written `orchestrator.service`.
 
 On first start, the orchestrator creates its labels and begins polling open issues. Each issue gets its own worktree
 under `wt-orchestrator`, beside the first repository's clone. File a small issue to exercise the workflow; a completed

@@ -107,26 +107,33 @@ orchestrator/
                         bounded record each candidate is reported as, the
                         self-restart probes, and shutdown
   service/              what an installed orchestrator carries for setting
-                        itself up: the basic and advanced `.env` templates,
-                        shipped as package data so every install holds the
-                        pair for its own version, and their reader; the
-                        git-checkout check, the source-checkout versus
-                        installed layout with the installed paths and the
-                        refusal a source checkout gets, one validator per
-                        setup field, and the repository, remote, and branch
-                        a clone implies, written as a `REPOS` entry; the
-                        `.env` lines a setup sets and the private files it
-                        writes, the `configure` command that writes an
-                        installed package's `.env` from them, and the
-                        `set-token` command that keeps a repository's token,
-                        proved by a read-only GitHub call; the `check`
-                        command that judges a setup in the environment the
-                        systemd user service runs with, reading the settings
-                        in an interpreter of its own; and the `init` command
-                        that installs that service's unit and enables it
-                        without starting it, through bounded `systemctl` and
-                        `loginctl` calls -- all of it loading no configuration
-                        in the process that runs it
+                        itself up and managing its service: the basic and
+                        advanced `.env` templates, shipped as package data so
+                        every install holds the pair for its own version, and
+                        their reader; the git-checkout check, the
+                        source-checkout versus installed layout with the
+                        installed paths and the refusal a source checkout
+                        gets, one validator per setup field, and the
+                        repository, remote, and branch a clone implies,
+                        written as a `REPOS` entry; the `.env` lines a setup
+                        sets and the private files it writes, the `configure`
+                        command that writes an installed package's `.env` from
+                        them, and the `set-token` command that keeps a
+                        repository's token, proved by a read-only GitHub call;
+                        the `check` command that judges a setup in the
+                        environment the systemd user service runs with,
+                        reading the settings in an interpreter of its own; the
+                        `init` command that installs that service's unit and
+                        enables it without starting it, through bounded
+                        `systemctl` and `loginctl` calls; and the `start`,
+                        `stop`, `restart`, `status`, and `remove` commands
+                        that manage it, the launches checking the setup
+                        locally first in the environment and directory the
+                        service would get, read off the unit, its drop-ins,
+                        and the user manager's configuration as systemd
+                        assembles them, and showing the journal
+                        when the service does not stay up -- all of it loading
+                        no configuration in the process that runs it
   config/               the bottom layer: the non-secret `.env` loader, the
                         env parsers and resolver behind the settings surface,
                         target selection holding every target to the
@@ -259,7 +266,9 @@ so the loop can self-exit and be restarted with new source code; those launch co
 before any configuration is read, and a polling flag given before any command is refused with the `run` form that
 means it. `configure` polls nothing either: it writes an installed package's `.env` and exits, reading no
 configuration ([basic setup](configuration.md#basic-setup)). Nor does `init`, which writes and enables the service's
-unit and exits without starting it ([user service](configuration.md#running-under-systemd-user-service)).
+unit and exits without starting it ([user service](configuration.md#running-under-systemd-user-service)), or the
+commands that manage that service: they ask the user manager to start, stop, restart, show, or remove it, `start` and
+`restart` once a local check in an interpreter of its own finds nothing wrong, and exit.
 
 - **Trigger**: started manually (or by a wrapper) as `run`. Optional `run --once` for a single tick, or
   `run --cleanup-terminal-artifacts` for a maintenance-only run: it connects read-only clients (no label bootstrap)

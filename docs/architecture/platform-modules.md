@@ -1,8 +1,8 @@
 # Platform modules
 
 This page maps the packages the workflow layer runs on: the package root and its two launch forms, the polling
-`runtime/`, the `service/` package an installed orchestrator sets itself up from, and the `config/`, `github/`,
-`agents/`, `scheduler/`, `git/`, and `skills/` domains. It is split out of
+`runtime/`, the `service/` package an installed orchestrator sets itself up and manages its service from, and the
+`config/`, `github/`, `agents/`, `scheduler/`, `git/`, and `skills/` domains. It is split out of
 [`../architecture.md#top-level-layout`](../architecture.md#top-level-layout), which keeps the top-level map and the
 naming rules that hold for the tree as a whole. The `workflow/` package is in
 [`workflow-modules.md`](workflow-modules.md).
@@ -119,8 +119,8 @@ last is held by the loader itself rather than by a check.
   two `.env` templates are package data named under `[tool.poetry].include`, and
   `tests/repository/test_distribution_contents.py` builds the wheel and the sdist to read both back out of each.
   `settings_report.py` imports the configuration inside its call, which runs only in the interpreter `checks.py`
-  starts with the service's environment, so `check`, and `init` which runs it, answer on a host whose settings would
-  stop an import.
+  starts with the service's environment, so `check`, and `init`, `start`, and `restart` which run it, answer on a host
+  whose settings would stop an import.
 - **Direction inside `skills/`.** Neither owner may reach the workflow engine, a stage, or an application entry
   point: a catalog is observation the tick drives, not state a handler consults — `tests/skills/test_imports.py`.
 - **Secrets.** `GITHUB_TOKEN` is read from the process environment or a token file outside `REPO_ROOT` — one per
@@ -205,8 +205,8 @@ orchestrator/
                         no claim
     self_update.py      the git probes behind the self-restart guard
     shutdown.py         the signal handler, the bounded-drain watchdog, and the forced exit it ends at
-  service/              what an installed orchestrator carries for setting itself up, every owner answering on a host
-                        with no configuration; a marker initializer
+  service/              what an installed orchestrator carries for setting itself up and managing its service, every
+                        owner answering on a host with no configuration; a marker initializer
     templates.py        the reader of the two `.env` templates beside it, through `importlib.resources`, so an
                         editable checkout and an installed wheel alike hand back the copy matching the running
                         version; it imports nothing from the package
@@ -279,7 +279,9 @@ orchestrator/
                         source-checkout refusal included -- and no token leaves it. Its standard error is
                         captured, so a configuration warning is not repeated and an interpreter that stops before
                         it reports is one problem; the full check adds one read-only GitHub call per repository,
-                        the local one none, and the command answers 0, or 1 with a line on stderr per problem
+                        the local one none, and the command answers 0, or 1 with a line on stderr per problem.
+                        `service_problems` runs the same interpreter with an environment and in a working
+                        directory its caller assembled
     commands.py         the setup commands' options and the function each runs: `configure` reads its options into
                         its core's answers and prints a refusal alone on stderr with exit status 1, `set-token`
                         hands its repository and standard input to `tokens.py`, and `check` hands this process's
@@ -295,10 +297,55 @@ orchestrator/
                         rewrite -- a control character, or a quote, backslash, or `$` in the interpreter -- is
                         refused as `UnitValueError`. It also refuses the hand-written `orchestrator.service` beside
                         it, naming the stop, disable, and delete that clear it; it imports nothing from the package
-    systemd.py          the user manager and logind through `systemctl --user` and `loginctl`, each call run to
-                        completion with standard input closed and bounded at 30 seconds, a timeout or a binary that
-                        cannot run answered as a `Completed` with no status rather than raised. `run_command` is the
-                        seam a test fakes systemd at; `manager_problem` reads why the manager cannot be reached and
+    unit_syntax.py      the part of systemd's unit-file syntax the service's environment is read through: the
+                        `[Service]` settings of a unit file as systemd's parser reads them -- lines ended by a
+                        newline, a carriage return, or the pair of them in either order, comments skipped and then
+                        the first line's byte-order mark dropped, only systemd's four blanks stripped, continuations
+                        joined, a NUL and a malformed section header, where systemd stops reading the file, refused
+                        -- the assignments of one `Environment=` value, split, unquoted, unescaped, and its
+                        specifiers expanded, and the directory one `WorkingDirectory=` value names. Anything read
+                        differently from systemd -- an escape other than a backslash before a backslash or a quote,
+                        an unknown specifier, an unterminated quote, an invalid name, a relative or `-`-marked
+                        directory -- is raised as `UnitSyntaxError`. A caller may name another section, as
+                        `user.conf`'s `[Manager]`, and supplies the specifiers it expands, a `%` ending a word kept
+                        as it is; it imports nothing from the package
+    environment_syntax.py
+                        the part of systemd's environment-file syntax `environment.d` is read through: each
+                        assignment of a file as its parser reads one -- quoted parts joined, escapes read, empty
+                        values, comments, and invalid names dropped -- and a value expanded against the variables
+                        set so far as the generator expands it, `$$`, `$NAME`, `${NAME}`, `${NAME:-TEXT}`, and
+                        `${NAME:+TEXT}`, an empty variable counting as set; a continued line, an open quote --
+                        after an invalid name too, whose value systemd reads all the same -- or another `${` is
+                        raised as `UnitSyntaxError`
+    unit_drop_ins.py    the installed unit's drop-ins as systemd finds and orders them: every `*.conf` in the
+                        unit's, its dash prefix's, and `service.d` drop-in directories under each directory systemd
+                        reads user units from by default, given the home and the root the system-wide ones are read
+                        under; `manager_files`, the user manager's `user.conf` files and the generator's
+                        `environment.d` ones, the home's ranking first; and `conf_files`, the lister behind all of
+                        them, which skips a hidden file, lets the one found first mask its name further down, and
+                        orders the rest by name
+    unit_environment.py the environment and the working directory the installed unit and its drop-ins give the
+                        service, assembled as systemd does without asking it: the drop-ins `unit_drop_ins.py` finds
+                        applied in order after the unit, an empty `Environment=` dropping what came before, the last
+                        `WorkingDirectory=` the one kept and the home where none is, and `%h` and `%u` expanded.
+                        `EnvironmentFile=`, `PassEnvironment=`, `UnsetEnvironment=`, a drop-in's `ExecStart=`, an
+                        unread value, and an unreadable file are refused as `UnitEnvironmentError`; `SYSTEM_ROOT`
+                        is the root the system directories are read under, which a test points at a scratch
+                        directory
+    manager_environment.py
+                        the variables the user manager's configuration hands every service: `ManagerEnvironment=`
+                        and over it `DefaultEnvironment=` across the home's or the system's `user.conf` and its
+                        drop-ins, the home's `user.conf.d` ranking first and `%h`, `%u`, `%U`, `%G`, and `%%`
+                        expanded, any other specifier refused, and a variable that moves where systemd reads its
+                        own configuration refused; then each `environment.d` assignment in order, expanded against the home, the user, the
+                        runtime directory, and what came before -- read under `unit_environment.py`'s
+                        `SYSTEM_ROOT`, refusing what it cannot read as `UnitEnvironmentError`. What the manager is
+                        told at run time is not read
+    systemd.py          the user manager, logind, and the journal through `systemctl --user`, `loginctl`, and
+                        `journalctl`, each call run to completion with standard input closed and bounded at 30
+                        seconds or the longer bound a `systemctl` caller gives, a timeout or a binary that cannot
+                        run answered as a `Completed` with no status rather than raised. `run_command` is the seam a
+                        test fakes systemd at; `manager_problem` reads why the manager cannot be reached and
                         `linger_enabled` whether logind lingers a user. It imports nothing from the package
     installation.py     `init`: the source-checkout, hand-written-unit, uncarried-value, and unreachable-manager
                         refusals, then the installed `.env` -- kept where it exists, handed to an onboarding at a
@@ -307,8 +354,31 @@ orchestrator/
                         through `private_files.py`, `daemon-reload`, and `enable` without a start, linger enabled
                         where logind does not report it, or the `sudo loginctl enable-linger` advice where it
                         refuses, and the start or restart the service needs named last
+    lifecycle.py        what the lifecycle commands share -- `ServiceRefusal`, `answered`, which prints a report or
+                        a refusal and answers 0 or 1, the refusal of a user manager `systemctl --user` cannot reach,
+                        naming the command, and `act`, one `systemctl --user` job bounded at `STOP_SECONDS`, past
+                        systemd's 90-second stop deadline -- and `stop`, which leaves the service enabled, and
+                        `status`: the version, the installed `.env`, and the unit, each marked where missing, then
+                        `systemctl --user status --no-pager`, whose exit status it answers with
+    starting.py         `start` and `restart`: a missing unit refused naming `init`, then the shell's `HOME` and `USER`,
+                        beneath what `manager_environment.py` reads -- which a user service inherits as it stands --
+                        beneath what `unit_environment.py` reads off the unit and its drop-ins, refusing what either
+                        cannot resolve and an environment the unit leaves without a `PATH` or with one holding an empty
+                        or relative entry, which an agent started in an issue's worktree would resolve from there,
+                        handed to `checks.py`'s local check, run in the unit's working directory, asking systemd nothing
+                        until it passes; then the manager probe, `daemon-reload` so the manager launches the definition
+                        checked, the job, and the service asked at each of the 5 seconds after it whether it is still
+                        active, each question bounded by what is left of a 7-second watch, the pause and the clock seams
+                        a test fakes together; one that leaves active, a question with no state in time, or a refused
+                        job exits 1 with the last lines of its journal
+    removal.py          `remove`: nothing asked or touched without an installed unit; otherwise the stop, the
+                        disable, the unit deleted, `daemon-reload`, and `reset-failed` where `is-failed` reports
+                        the service failed -- a query that prints no state being a failed step, not a no -- the
+                        unit kept until the stop and the disable succeed, and the `.env`, tokens, logs,
+                        worktrees, and linger kept and named as kept
     service_commands.py the service commands on the command line: `init`, which hands this process's environment
-                        and standard input to `installation.py`
+                        and standard input to `installation.py`, `start` and `restart`, which hand its environment to
+                        `starting.py`, and `stop`, `status`, and `remove`, which read none of it
     .env.example        the basic template a setup starts from: `REPOS` and the few settings a first run needs
     .env.example.advanced
                         optional operational overrides and examples, then the orchestrator-developer settings

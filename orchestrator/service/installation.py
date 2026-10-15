@@ -28,9 +28,9 @@ unit left written for the next ``init`` to take up. A user manager runs only whi
 logind lingers it, so linger is enabled where ``loginctl show-user`` does not
 report it already; where logind refuses, ``init`` still succeeds, saying the
 service runs only while the user is logged in until ``sudo loginctl
-enable-linger`` is run. ``init`` ends by naming the command that starts the
-service, or, where it runs already, the restart that has it run the unit just
-written.
+enable-linger`` is run. ``init`` ends by naming the ``start`` command that
+starts the service, or, where it runs already, the ``restart`` that has it run
+the unit just written.
 
 Run again, ``init`` finds the ``.env`` in place and leaves it, and the token
 files, as they were: it writes the unit afresh, with the interpreter and the
@@ -83,10 +83,10 @@ _FAILED_STEP = (
     "once the user manager takes it"
 )
 _ENABLED = f"Enabled {UNIT_NAME}, which starts with the user manager from now on"
-_START = f"{_ENABLED}; init does not start it, so start it with: systemctl --user start {UNIT_NAME}\n"
+_START = f"{_ENABLED}; init does not start it, so start it with: chipping-orchestrator start\n"
 _RESTART = (
     f"{_ENABLED}; it is running as it was started, so restart it to run the "
-    f"unit just written: systemctl --user restart {UNIT_NAME}\n"
+    "unit just written: chipping-orchestrator restart\n"
 )
 _LINGERING = (
     "Enabled linger for {0}: the user manager, and the service with it, "

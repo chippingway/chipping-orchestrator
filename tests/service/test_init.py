@@ -12,7 +12,7 @@ _EXEC_START = '"/opt/python 3%%/bin/python3"'
 # escaped, and its `%` doubled.
 _FIRST_PATH = r'"PATH=/opt/agent tools/bin:/srv/a\"b\\c%%h:/usr/bin"'
 _NEW_PATH = "/opt/new agents/bin:/usr/bin"
-_UNIT_COMMAND = "systemctl --user {0} chipping-orchestrator.service"
+_UNIT_COMMAND = "chipping-orchestrator {0}"
 _READY = (
     "The service can run: its settings resolve, every repository's token "
     "reaches it, and every agent is on its PATH"
