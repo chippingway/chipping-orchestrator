@@ -175,7 +175,10 @@ ID, a descriptive scenario name for a probe, or the check that failed where no t
 one — then the error, expected and observed behavior where the error does not explain it, a reproduction that is a
 self-contained snippet for a probe, since a stdin command such as `.venv/bin/python -` reproduces nothing alone, and
 any diagnostic the reviewer could not obtain. The entries stay in the findings, outside the declaration, which still
-names each command exactly as it ran. Full contract:
+names each command exactly as it ran. The feedback a request is posted, recovered, and replayed as leads each failed
+check with what failed — the test ID pytest's summary reports, the collection that failed, or the entry whose error the
+check's output shows, never matched by command — or says nothing names it, its command and exit status following as
+supporting details. Full contract:
 [`workflow/conversations.md#the-reviewer-verification-contract`][reviewer-verification].
 
 ## Foreground execution and asynchronous command guidance

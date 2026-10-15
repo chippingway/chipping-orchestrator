@@ -164,11 +164,15 @@ _POSTED_CONCISE = ((_world.CONCISE_FAILURE,), _world.CONCISE_FAILURE)
 
 _POSTED_RAW = ((_raw.RAW_FAILURE,), _world.CONCISE_FAILURE)
 
+_PROBES_POSTED_CONCISE = ((_world.CONCISE_PROBES,), _world.CONCISE_PROBES)
+
 # Where a tick that persisted a failed run's request raw stopped: on its
 # evidence's publication, its feedback post, or its relabel behind a raw post.
 _OWES_ITS_EVIDENCE_RAW = partial(_raw.leaves_raw, leaves=_raw.owes_its_evidence)
 
 _REFUSES_THE_POST_RAW = partial(_raw.leaves_raw, leaves=_resumed.refuses_the_post)
+
+_REFUSES_THE_PROBES_POST_RAW = partial(_REFUSES_THE_POST_RAW, reply=_world.PROBED_REQUEST)
 
 _REFUSES_THE_RELABEL_RAW = partial(_raw.leaves_raw, leaves=_resumed.refuses_the_relabel)
 
@@ -242,12 +246,14 @@ class ValidatingResumeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
         # feedback only where none was anchored, concise where the record is
         # raw, and launches and charges the one developer -- never a reviewer
         # -- on the concise findings, with the reviewer's usage still folded
-        # once and a raw post already made left as it was posted.
+        # once and a raw post already made left as it was posted. Two probes
+        # one stdin command ran go out each led by its own scenario.
         for name, stops, handed in (
             ("its feedback post refused", _resumed.refuses_the_post, _AS_PERSISTED),
             ("its relabel refused", _resumed.refuses_the_relabel, _AS_PERSISTED),
             ("raw, its evidence owed", _OWES_ITS_EVIDENCE_RAW, _POSTED_CONCISE),
             ("raw, its feedback post refused", _REFUSES_THE_POST_RAW, _POSTED_CONCISE),
+            ("raw named probes, their feedback post refused", _REFUSES_THE_PROBES_POST_RAW, _PROBES_POSTED_CONCISE),
             ("raw, its relabel refused", _REFUSES_THE_RELABEL_RAW, _POSTED_RAW),
         ):
             with self.subTest(name):
