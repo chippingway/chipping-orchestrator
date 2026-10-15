@@ -1576,6 +1576,50 @@ because there it is the claim that this stage has already rerouted rather than a
   `base_rebased` event per rewrite that actually landed, no round reset, relabel, stage-entry event, or evidence
   publication repeated, and no developer launched on any recovery road -- the report refreshes a later
   `workflow:validating` tick asks for are the same ones the uninterrupted journey asks for.
+- **Base-rewrite evidence, the dormant settled-evidence policy**: beside the policy every road hands over stands a
+  dormant one, which a caller selects only by building the finish with `proves_settled`
+  (`rewrite_finish_models.LandedFinish`) and asking its primitives directly. No production road builds such a finish,
+  and neither the evidence step, the recovery, nor the coordinator asks them yet, so none of the bullets above
+  changes for a live issue; a finish not built with it reads, retries, and writes exactly as it always has. None of
+  them announces, relabels, or parks, runs a command, posts an artifact, launches a developer, or spends, reserves,
+  or releases an agent run:
+  - the policy's readiness step (`workflow/engine/rewrite_finish_settled.py`, `stands_ready_if_settled`) proves
+    evidence settled for the landed head ready again (`rewrite_finish_readiness.stands_ready`) and invalidates it
+    into history whole wherever anything it is bound to moved, so the head goes on with nothing current and the
+    fresh reviewer owes its evidence; asked for the base, a head with none current is held to its replay's base tip
+    or -- that tip blank, or missing from a legacy attempt -- to the base the tick counted it against, one moved
+    since holding the route;
+  - a readable revision spent past the evidence outranks it for good, even beside a floor or a pending record nobody
+    can read, a pending record discounting only the one revision it may own
+    (`workflow/engine/rewrite_finish_outranking.py`), while a pending record, a handoff not naming the evidence, or a
+    floor nobody can read still holds -- so a hold never hides that movement, and the pending record stays owed as
+    recorded;
+  - the invalidation is made over the attempt as reconciled -- an announcement another finish of the landing put on
+    it taken in (`workflow/engine/rewrite_finish_announced.py`), a refused write read afresh and retried once -- or,
+    where another finish's route or another road took the attempt, over the comment as it stands, the route held and
+    every attempt, every successor under another receipt, and every unrelated record kept as written
+    (`workflow/engine/rewrite_finish_marks.py`);
+  - with no room for history, the movement is recorded by blanking the attempt's base tip or, with no attempt to
+    carry it or no write over the tick's own copy landing, by the mark `{"moved": <receipt>}` in the evidence's
+    handoff place over the comment read afresh, which no reader takes for a handoff and every later proof of that
+    very receipt reads as the movement it is, retiring the evidence whole once room is made; where the mark has no
+    room either, the evidence is retired whole at once, its current record, a pending record left null, and an
+    unreadable handoff removed rather than left null -- and where not even that fits, a revision is spent past it on
+    the floor, its record kept current and whole, which every reader reads as outranking it, so nothing put back
+    makes it evidence anybody relies on again and the next proof with room retires it whole; where the floor has no
+    room to gain the digit that takes, or nobody can read it, the evidence is retired whole with the floor taken off
+    to make room -- only a floor showing no revision past it, which its entry carries -- and nothing is minted for
+    the issue until a floor is put back;
+  - behind a write of the finish's own whose answer was lost (`workflow/engine/rewrite_finish_unconfirmed.py`), the
+    announcement's bookkeeping naming the landed head is taken in, and the attempt a lost retirement took is put back
+    exactly as read -- a member read missing left missing -- every other field kept, so the movement read under the
+    evidence is still invalidated over it, or marked where it does not fit back; nothing is put back beside a
+    successor another road settled, and a finish of the landing that finds no attempt and that very receipt marked
+    retires the evidence whole once room is made (`retires_the_marked`) -- a handoff that names it, is missing, or is
+    left null is no mark.
+
+  Evidence retired by any of these stays one historical execution: its receipt, revision, whole binding, transcript
+  digest, and tested and source provenance go into history as they settled, never run, posted, or charged again.
 
 ## The rewritten-head report debt (every dispatch)
 - **Trigger**: `_record_stops_the_tick` (`workflow/engine/dispatch_guards.py`) on any issue whose pinned comment claims
