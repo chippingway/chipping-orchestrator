@@ -1022,7 +1022,16 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   base readings that made a continuation excused over a head the base advanced past again, and proved once more
   behind any stop of a write the finish makes after it -- and invalidating it into history whole where anything it
   is bound to moved -- over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the
-  invalidation cannot land, so nothing put back revives it. Dormant guarded recovery operations are built on them,
+  invalidation cannot land, so nothing put back revives it. A finish built selecting the dormant settled-evidence
+  policy (`proves_settled`), which no production road builds, has them read and retire more: an announcement of the
+  landing taken in and a refused write retried over a fresh reading, the same receipt retired over whatever attempt
+  now stands, and movement history has no room for recorded under the evidence's own receipt -- a mark in its
+  handoff's place, its whole compact retirement, or a revision spent past it -- however the attempt or the comment
+  moved since (`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_outranking.py`). Beside
+  them stand that policy's readiness step (`workflow/engine/rewrite_finish_settled.py`) and the restoration of an
+  attempt a retirement nobody confirmed took (`workflow/engine/rewrite_finish_unconfirmed.py`), primitives a caller
+  holding such a finish asks directly; no evidence phase or coordinator asks them yet. Dormant guarded recovery
+  operations are built on the readiness primitives,
   and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof
   before a park that keeps the attempt (`workflow/engine/rewrite_landing_retirement.py`), which retire settled
   evidence whole beside a captured run and refuse the attempt's release where history has no room for it; and the

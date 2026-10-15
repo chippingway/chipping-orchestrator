@@ -2853,16 +2853,30 @@ The keys that matter for the state machine fall into a few groups:
   settlement: that evidence still current, its artifact still the one that settled and carrying exactly the commands
   copied, or the carry is refused. `verification_evidence_current` is the evidence the pull request
   carries: the same binding without the commands, plus the artifact's evidence digest (`content`), the comment it landed
-  as (`comment`), and whether at least one command ran and every one exited 0 (`passed`); `null` once invalidated.
+  as (`comment`), and whether at least one command ran and every one exited 0 (`passed`); `null` once invalidated --
+  or, retired by the dormant settled-evidence policy where not even its movement mark had room, removed, with a
+  pending record left null and an unreadable handoff beside it; where not even that fits, it stays whole and current
+  beside a revision that policy spent past it on the floor, which every reader reads as outranking it -- or, where the
+  floor has no room to grow, it is retired whole with the floor removed.
   `verification_evidence_history` is the five highest-revision retired records, in revision order rather than the order
   they retired -- each with its receipt, revision, whole binding (the report revision and digest and the complete review
   subject included, since the artifact names only the subject's head), digest, `passed`, `comment` (`null` exactly for
   an abandoned transaction, which never held one), and `retired` (`superseded`, `invalidated`, or `abandoned`) -- an
   index of artifacts that all stay on the pull request. `verification_evidence_handoff` is the receipt of the last
   settled transaction with its pull request (`pr`), revision, target head (`head`), and, where it could be read, the
-  label the issue carried as it settled (`under`). `verification_evidence_revision` is the highest revision any
+  label the issue carried as it settled (`under`); a landed rewrite's finish held to the dormant settled-evidence
+  policy replaces it with the mark `{"moved": <receipt>}` where it can record movement read under that evidence no
+  other way (`workflow/engine/rewrite_finish_marks.py`): no reader takes the mark for a handoff, so none hands that
+  evidence on, and every later readiness proof of that very receipt under that policy reads it as movement, retiring
+  the evidence whole once room is made, as a finish of the landing finding no attempt does
+  (`rewrite_finish_unconfirmed.retires_the_marked`, which a caller asks directly), however soon the handoff is put
+  back. `verification_evidence_revision` is the highest revision any
   transaction on the issue was recorded under, raised in the same write as each record, so a revision whose artifact may
-  already be on the pull request stays spent after its record is damaged, dropped, or evicted from the history.
+  already be on the pull request stays spent after its record is damaged, dropped, or evicted from the history; a
+  finish held to the dormant settled-evidence policy raises it one past current evidence it read moving where nothing
+  else has room to record that movement, spending a revision no transaction carries -- and where even that has no
+  room, removes a floor showing no revision past that evidence to retire it whole, after which nobody can say what
+  was spent and nothing is minted until a floor is put back.
   An issue without any of the keys owes, holds, and has spent nothing, and every reader is fail-closed: a record short
   of any member, or holding a value its writer never spells (a receipt naming another revision than its own included),
   reads as none, a history that is `null`, longer than five, or whose revisions do not strictly rise reads as none, and
@@ -3204,7 +3218,11 @@ The keys that matter for the state machine fall into a few groups:
   request its route makes (`workflow/engine/rewrite_evidence_proof.py`): moved or unread holds the route, dropped or
   unproven refuses the decision for good. A captured transaction whose abandonment the comment has no room for is
   dropped with this member blanked, in a write that only shrinks the comment, so no later reading proves a base for it
-  and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`).
+  and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`). The dormant readiness
+  primitives blank it too where an invalidation of settled evidence cannot land
+  (`workflow/engine/rewrite_finish_readiness.py`), and the dormant settled-evidence policy's readiness step holds a
+  head with no evidence current to the base the tick counted it against where this member is blank or missing
+  (`workflow/engine/rewrite_finish_settled.py`).
   `pending_auto_base_rebase_announced_sha` is the member written last and covers the last window a finish has:
   everything a finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out
   before the relabel, and the write that clears this record goes out after it, so the head it has already said it

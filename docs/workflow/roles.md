@@ -2579,7 +2579,11 @@ request and the fresh reviewer verifies the head itself (see
 [base-rewrite evidence](../state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 A tick that dies around that run leaves its recovery to run the commands again only where no run was recorded; a
 recorded run is never run twice, but settled and routed as recorded -- its artifact found under its receipt where an
-earlier post landed -- or, where anything it was bound to moved, set aside for the fresh reviewer.
+earlier post landed -- or, where anything it was bound to moved, set aside for the fresh reviewer. Evidence a finish
+already settled for that head is taken as it stands, behind the last word over the landing and the base; a dormant
+policy that proves it ready again first, and retires it whole into history where anything it rests on moved -- one
+historical execution, never run, posted, or charged again, its evidence then the fresh reviewer's to owe -- is built,
+but no road selects it (see the same section).
 
 [workflow-labels]: ../state-machine/labels-and-state.md#workflow-labels
 [review-subject]: ../state-machine/labels-and-state.md#pinned-state

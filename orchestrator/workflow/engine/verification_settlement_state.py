@@ -171,7 +171,7 @@ def settled_state(
     return composed
 
 
-def retire_current_evidence(state: PinnedState) -> bool:
+def retire_current_evidence(state: PinnedState, *, compact: bool = False) -> bool:
     """Invalidate the current evidence into history, and say whether it moved.
 
     For a reader that has PROVED the world moved past it -- a head, a tree, a
@@ -182,6 +182,10 @@ def retire_current_evidence(state: PinnedState) -> bool:
     reported done that GitHub then refused would leave the record standing
     while its caller believed it gone. The recorder leaves room for this write
     (`verification_record_state.settled_payload`). The caller writes.
+
+    `compact` (`rewrite_finish_marks`): where that would not fit, the current
+    record, a pending record left null, and a handoff nobody can read are
+    removed instead, which no reader tells from null.
     """
     if state.get(_records.CURRENT_EVIDENCE) is None:
         return False
@@ -192,6 +196,12 @@ def retire_current_evidence(state: PinnedState) -> bool:
             current, _records.Retirement.INVALIDATED,
         ))
     composed.set(_records.CURRENT_EVIDENCE, None)
+    if compact and not _report_record_state.fits_the_comment(composed.data):
+        composed.data.pop(_records.CURRENT_EVIDENCE)
+        if composed.get(_records.PENDING_EVIDENCE) is None:
+            composed.data.pop(_records.PENDING_EVIDENCE, None)
+        if read_evidence_handoff(composed) is None:
+            composed.data.pop(_records.EVIDENCE_HANDOFF, None)
     if not _report_record_state.fits_the_comment(composed.data):
         return False
     state.data = composed.data
