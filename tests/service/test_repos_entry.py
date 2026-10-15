@@ -8,7 +8,11 @@ from pathlib import Path
 
 from orchestrator.config.models import RepoSpec
 from orchestrator.config.repositories import parse_repos_env
-from orchestrator.service.repos_entry import RepositoryEntry
+from orchestrator.service.repos_entry import (
+    RepositoryEntry,
+    validate_parallel_limit,
+    validate_remote,
+)
 from tests.service.service_test_support import refusal
 
 _ACME = "acme/api"
@@ -98,6 +102,36 @@ class UnwritableEntryTest(unittest.TestCase):
                     refusal(RepositoryEntry(_ACME, _CLONE, _MAIN, parallel_limit=limit).render),
                     f"parallel limit {limit} is below 1, which would block all work for the repository",
                 )
+
+
+class OptionalFieldValidatorTest(unittest.TestCase):
+    """A remote and a parallel limit, as typed, held to what an entry carries."""
+
+    def test_answers_are_read_as_an_entry_writes_them(self) -> None:
+        self.assertEqual(validate_remote(" upstream "), _UPSTREAM)
+        for raw, limit in (("1", 1), (" 12 ", 12)):
+            with self.subTest(raw=raw):
+                self.assertEqual(validate_parallel_limit(raw), limit)
+
+    def test_answers_it_cannot_carry_are_refused(self) -> None:
+        not_whole = (
+            "is not a whole number; give how many of the repository's issues "
+            "may run at once, such as 2"
+        )
+        for validator, raw, expected in (
+            (
+                validate_remote,
+                " ",
+                "no remote was given; name the clone's remote that points at the repository, such as origin",
+            ),
+            (validate_parallel_limit, "two", f"parallel limit 'two' {not_whole}"),
+            (validate_parallel_limit, "1.5", f"parallel limit '1.5' {not_whole}"),
+            (validate_parallel_limit, "", f"parallel limit '' {not_whole}"),
+            # The words an entry holding the limit is refused with.
+            (validate_parallel_limit, "0", refusal(RepositoryEntry(_ACME, _CLONE, _MAIN, parallel_limit=0).render)),
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(refusal(validator, raw), expected)
 
 
 if __name__ == "__main__":

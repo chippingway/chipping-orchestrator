@@ -91,7 +91,7 @@ orchestrator's own repository does not need to be cloned.
   ```
 
   The template explains the two optional trailing fields; [several repositories][multiple-repos] are
-  more entries in the same setting.
+  more entries in the same setting, which `add-repo` adds.
 - `HITL_HANDLE` — GitHub users to notify when human input is needed: `--notify`, else the authors.
 - `ALLOWED_ISSUE_AUTHORS` — required: the GitHub logins whose issues and comments the orchestrator acts on, given as
   `--authors`; it refuses to start while this names nobody.
@@ -199,8 +199,26 @@ See the [observability overview][observability] for every surface.
 
 ## Managing multiple repositories
 
-One process manages several repositories when `REPOS` carries one entry for each. Separate the entries with `;`,
-since `.env` holds each value on a single line:
+One process manages several repositories. To add one to an installed setup, store its token, add its entry, and
+restart the service so it reads the new entry:
+
+```sh
+chipping-orchestrator set-token acme/web
+chipping-orchestrator add-repo --clone /home/alice/src/acme-web
+chipping-orchestrator restart
+```
+
+`add-repo` reads the repository, the remote that points at it, and the branch pull requests target off the clone, the
+way `configure` does, and adds the entry to the end of the `REPOS` line in `~/.config/chipping-orchestrator/.env`,
+keeping every other line as it was. `--repo`, `--base-branch`, and `--remote` replace what it reads, and
+`--parallel N` lets N of the repository's issues run at once. It refuses a missing `.env` and a repository `REPOS`
+already lists, and says to `restart` when the service is running, since a service reads `REPOS` only as it starts.
+`restart` checks the setup locally first, a token for the new entry included, and leaves the service running as it
+was if that check finds a problem. [Adding a repository][adding-repo] covers every option and refusal.
+
+`REPOS` itself carries one entry per repository, separated by `;` since `.env` holds each value on a single line, and
+can still be edited by hand. Edit the first `REPOS` line rather than adding another: `.env` keeps the first value it
+reads for a setting.
 
 ```dotenv
 REPOS=acme/api|/home/alice/src/acme-api|main;acme/web|/home/alice/src/acme-web|master|upstream|2
@@ -282,6 +300,8 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [observability]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/observability.md
 [development]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/development.md
 [repos]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#repos-syntax
+[adding-repo]:
+  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#adding-a-repository-with-add-repo
 [checking]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#checking-a-setup
 [user-service]:
  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#running-under-systemd-user-service

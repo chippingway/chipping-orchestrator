@@ -224,7 +224,8 @@ orchestrator/
     validation.py       one validator per setup field -- the clone, the `owner/name` repository, a base branch git
                         allows by the `check-ref-format --branch` rules, a login list, an agent on a supplied `PATH`
                         -- each returning the value a setup writes or raising `FieldError` with the whole
-                        diagnostic, so every command and prompt prints the same words
+                        diagnostic, so every command and prompt prints the same words; the two optional fields of a
+                        `REPOS` entry are validated beside it in `repos_entry.py`
     remote_urls.py      the `owner/name` a git remote's URL points at on GitHub, in each form git accepts for one,
                         the SSH forms on GitHub's port-443 endpoint `ssh.github.com` included
     clone_defaults.py   the `REPOS` entry a clone implies: the repository, remote, and base branch read off its
@@ -232,19 +233,33 @@ orchestrator/
                         recording a remote other than `origin` under its own name; nothing is fetched
     repos_entry.py      the `RepositoryEntry` record and the `REPOS` entry it renders, in the fewest positional
                         fields that carry it, refusing a field the configuration would read back changed through
-                        `writable_field`, which a caller also asks of one field to name the answer it came from
-    dotenv_text.py      a setting set in a `.env`'s text on the line the configuration takes it from, every other
-                        line kept byte for byte, and the refusal of a value that loader would read back changed
+                        `writable_field`, which a caller also asks of one field to name the answer it came from; and
+                        the validators of its two optional fields, a remote's name and a parallel limit, a whole
+                        number of at least 1
+    dotenv_text.py      a setting read off, or set in, a `.env`'s text on the line the configuration takes it from:
+                        the first live line naming it, its value read with the blanks and one pair of matching quotes
+                        taken off as that loader takes them, every other line kept byte for byte, and the refusal of
+                        a value the loader would read back changed
     private_files.py    the 0700 directories a setup creates, each missing parent included, and the 0600 file it
                         writes whole or not at all, every mode set exactly whatever the umask: a temporary sibling
                         flushed to disk, then renamed over the name or hard-linked to it, the link being what
                         refuses a file that appeared since it was checked for
+    entry_answers.py    the `REPOS` entry a setup command's answers make: each answer given held to its field's
+                        validator under the option it was given as, all of them before the clone is read through
+                        `clone_defaults.py` for the rest, then the clone and branch fields refused under their
+                        options where the entry cannot carry them; `checked` names one answer's option the same way
     configure.py        `configure`, in process: the answers as typed, each field's validator and the option it
-                        names in a refusal, then the clone's derived entry, its clone and branch fields refused
-                        under their options where the entry cannot carry them, and the basic template with
+                        names in a refusal, then the entry `entry_answers.py` makes, and the basic template with
                         `REPOS`, `HITL_HANDLE`, `ALLOWED_ISSUE_AUTHORS`, and the three agent roles set in place
                         and `LOG_DIR` appended, written to the installed `.env` after the source-checkout and
                         existing-file refusals, never over a file
+    add_repo.py         `add-repo`, in process: the answers as typed, refused after the source-checkout refusal, a
+                        missing installed `.env`, or one setting no `REPOS`; then the entry `entry_answers.py` makes,
+                        its remote refused under `--remote` where the entry cannot carry it, and a repository `REPOS`
+                        already lists, compared without regard to case; then the entry joined with `;` to the end of
+                        the `REPOS` line in effect through `dotenv_text.py`, never a second `REPOS` line, and the
+                        file written whole, mode 0600, through `private_files.py` over the file read -- or the one a
+                        symlink there leads to
     token_probe.py      the read-only GitHub calls a setup proves a token with, one standard-library `GET` each:
                         whether it reads a repository, the one call a check spends per repository, and whose
                         account it is. A redirect is answered rather than followed, so the token reaches no other
@@ -289,6 +304,10 @@ orchestrator/
                         class `cli.py` parses a command line with: one naming `set-token` gets a parser whose every
                         refusal, in that parser and each beneath it, prints back none of what it was given, since
                         the token may stand anywhere on it
+    add_repo_command.py `add-repo` on the command line, put on the parser beside the setup commands: its options read
+                        into `add_repo.py`'s answers, a refusal printed alone on stderr with exit status 1, and, once
+                        the entry is written, the installed unit asked through `systemd.py` whether it is active, the
+                        `restart` it needs to manage the repository named where it is
     unit_file.py        the systemd user unit `init` installs, `~/.config/systemd/user/chipping-orchestrator.service`:
                         `-m orchestrator run` under the installing interpreter, in the home, with the captured
                         `PATH`, restarting on failure every 30 seconds with no start limit and taking the

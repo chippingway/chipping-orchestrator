@@ -135,11 +135,19 @@ Recreating or uninstalling that environment can delete those logs. For an existi
 stop the poller, copy its logs to the external directory, and set an absolute `LOG_DIR` before replacing the
 environment. Preserve explicit `ANALYTICS_LOG_PATH` and `TRAJECTORY_LOG_PATH` overrides outside the environment too.
 
-Edit `~/.config/chipping-orchestrator/.env` to change any of these, or to manage more repositories as further `REPOS`
-entries, following [basic setup](../configuration.md#basic-setup). Copy only wanted operational overrides from the
-saved `.env.example.advanced` into that same file. Keep GitHub tokens in per-repository token files or the launch
-environment ([credentials](../configuration.md#github-personal-access-token)); `.env` does not load them. The launch
-directory's `.env` is never read by an installed package.
+Edit `~/.config/chipping-orchestrator/.env` to change any of these, following
+[basic setup](../configuration.md#basic-setup). To manage another repository, add its entry with `add-repo`, which
+reads it off the clone the way `configure` does and edits the `REPOS` line in place, keeping every other line
+([adding a repository](../configuration.md#adding-a-repository-with-add-repo)):
+
+```sh
+chipping-orchestrator add-repo --clone "$HOME/src/acme-web"
+```
+
+Copy only wanted operational overrides from the saved `.env.example.advanced` into that same file. Keep GitHub
+tokens in per-repository token files or the launch environment
+([credentials](../configuration.md#github-personal-access-token)); `.env` does not load them. The launch directory's
+`.env` is never read by an installed package.
 
 Store each `REPOS` repository's token with `set-token`, at its hidden prompt or from a file a script redirects in:
 
@@ -1141,11 +1149,14 @@ service as the user it runs as, from a shell whose `PATH` finds the agents:
 chipping-orchestrator init
 ```
 
-Set up by script, a fresh host takes three commands, none of which prompts:
+Set up by script, a fresh host takes a `set-token` per repository, `configure` for the first repository, `add-repo`
+for each further one, and `init`, none of which prompts:
 
 ```sh
 chipping-orchestrator set-token acme/api < "$HOME/acme-api-token.txt"
+chipping-orchestrator set-token acme/web < "$HOME/acme-web-token.txt"
 chipping-orchestrator configure --clone "$HOME/src/acme-api" --authors alice
+chipping-orchestrator add-repo --clone "$HOME/src/acme-web"
 chipping-orchestrator init
 ```
 
@@ -1267,7 +1278,7 @@ judge. Linger the old unit relied on stays enabled.
 
 ```sh
 chipping-orchestrator start      # check the settings locally, start the service, and confirm it stays active
-chipping-orchestrator restart    # the same check, then restart it, as after editing .env
+chipping-orchestrator restart    # the same check, then restart it, as after editing .env or add-repo
 chipping-orchestrator stop       # SIGTERM the poller; the service stays enabled
 chipping-orchestrator status     # the version, .env, and unit, then systemctl --user status
 chipping-orchestrator remove     # stop, disable, and delete the unit, keeping everything else
@@ -1903,7 +1914,8 @@ own at a candidate boundary, and never blocks workflow progress either way.
 
 `~/.config/chipping-orchestrator/.env` is read once, when `chipping-orchestrator run` starts. Most edits take effect
 on the next process start; there is no signal to reload configuration. Restart the foreground command or systemd
-service at a safe stopping point. [Developer checkouts](../development.md) use their own root `.env`.
+service at a safe stopping point. A repository `add-repo` adds is such an edit, and `add-repo` says to restart when
+the service is running. [Developer checkouts](../development.md) use their own root `.env`.
 
 ### What survives a restart
 

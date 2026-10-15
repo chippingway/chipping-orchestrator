@@ -23,8 +23,9 @@ must not run from a source checkout, which reads a ``.env`` of its own; no
 passes its field's validator, the refusal naming the option it was given as;
 and only then is the clone read for the rest of its entry, whose clone and
 branch fields are refused under their options too where the entry cannot
-carry them. The file is then written whole with mode 0600, in a directory
-created with mode 0700 as is each parent missing above it.
+carry them -- the entry ``entry_answers`` makes, as it does for ``add-repo``.
+The file is then written whole with mode 0600, in a directory created with
+mode 0700 as is each parent missing above it.
 
 The core is ``configure``, which takes the answers as typed -- an option's
 value or an answer collected at a prompt -- so a command line and an onboarding
@@ -35,24 +36,15 @@ where importing it would exit.
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from orchestrator.service import paths
-from orchestrator.service.clone_defaults import clone_entry
 from orchestrator.service.dotenv_text import assign, assignment
+from orchestrator.service.entry_answers import answered_entry, checked
 from orchestrator.service.private_files import private_directory, write_private
-from orchestrator.service.repos_entry import writable_field
 from orchestrator.service.templates import BASIC_TEMPLATE, template_text
-from orchestrator.service.validation import (
-    FieldError,
-    validate_agent,
-    validate_branch,
-    validate_clone,
-    validate_logins,
-    validate_repository,
-)
+from orchestrator.service.validation import validate_agent, validate_logins
 
 COMMAND = "configure"
 
@@ -89,59 +81,22 @@ class ConfigureRefusal(Exception):
     """Why ``configure`` writes nothing, other than a field it refused."""
 
 
-def _checked[Valid](
-    option: str,
-    validator: Callable[..., Valid],
-    answer: str | None,
-    *context: str,
-) -> Valid | None:
-    """What ``validator`` makes of ``answer``, a refusal naming ``option``.
-
-    An answer not given stays ``None``, for the caller to default.
-    """
-    if answer is None:
-        return None
-    try:
-        return validator(answer, *context)
-    except FieldError as refused:
-        raise FieldError(f"{option}: {refused}") from refused
-
-
-def _repos_value(answers: ConfigureAnswers) -> str:
-    """The clone's ``REPOS`` entry, every field not given read off the clone.
-
-    The entry carries the clone and the base branch as they are spelled, so
-    one it cannot carry is refused under the option that answers for it -- a
-    branch read off the clone included, since another ``--base-branch``
-    replaces it.
-    """
-    clone = _checked("--clone", validate_clone, answers.clone)
-    entry = clone_entry(
-        clone,
-        repository=_checked("--repo", validate_repository, answers.repo),
-        base_branch=_checked("--base-branch", validate_branch, answers.base_branch),
-    )
-    _checked("--clone", writable_field, str(entry.clone))
-    _checked("--base-branch", writable_field, entry.base_branch)
-    return entry.render()
-
-
 def _settings_text(answers: ConfigureAnswers, search_path: str) -> str:
     """The basic template with each setting ``configure`` sets set in place.
 
     Every answer passes its validator before the clone is read for the rest
     of its entry: the entry comes last.
     """
-    authors = _checked("--authors", validate_logins, answers.authors)
-    notify = _checked("--notify", validate_logins, answers.notify) or authors
+    authors = checked("--authors", validate_logins, answers.authors)
+    notify = checked("--notify", validate_logins, answers.notify) or authors
     text = template_text(BASIC_TEMPLATE)
     for key, setting in (
         ("HITL_HANDLE", ",".join(notify)),
         ("ALLOWED_ISSUE_AUTHORS", ",".join(authors)),
-        ("DEV_AGENT", _checked("--dev-agent", validate_agent, answers.dev_agent, search_path)),
-        ("REVIEW_AGENT", _checked("--review-agent", validate_agent, answers.review_agent, search_path)),
-        ("DECOMPOSE_AGENT", _checked("--decompose-agent", validate_agent, answers.decompose_agent, search_path)),
-        ("REPOS", _repos_value(answers)),
+        ("DEV_AGENT", checked("--dev-agent", validate_agent, answers.dev_agent, search_path)),
+        ("REVIEW_AGENT", checked("--review-agent", validate_agent, answers.review_agent, search_path)),
+        ("DECOMPOSE_AGENT", checked("--decompose-agent", validate_agent, answers.decompose_agent, search_path)),
+        ("REPOS", answered_entry(answers.clone, answers.repo, answers.base_branch).render()),
     ):
         text = assign(text, key, setting)
     return text

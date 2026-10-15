@@ -116,10 +116,12 @@ orchestrator/
                         gets, one validator per setup field, and the
                         repository, remote, and branch a clone implies,
                         written as a `REPOS` entry; the `.env` lines a setup
-                        sets and the private files it writes, the `configure`
-                        command that writes an installed package's `.env` from
-                        them, and the `set-token` command that keeps a
-                        repository's token, proved by a read-only GitHub call;
+                        reads and sets and the private files it writes, the
+                        `configure` command that writes an installed package's
+                        `.env` from them, the `add-repo` command that adds a
+                        further repository to its `REPOS` line in place, and
+                        the `set-token` command that keeps a repository's
+                        token, proved by a read-only GitHub call;
                         the `check` command that judges a setup in the
                         environment the systemd user service runs with,
                         reading the settings in an interpreter of its own; the
@@ -264,11 +266,12 @@ installation's own interpreter. Developer source checkouts also offer a module l
 so the loop can self-exit and be restarted with new source code; those launch commands are in the
 [developer guide](development.md). The bare command, `--help`, and `--version` poll nothing: they print and exit 0
 before any configuration is read, and a polling flag given before any command is refused with the `run` form that
-means it. `configure` polls nothing either: it writes an installed package's `.env` and exits, reading no
-configuration ([basic setup](configuration.md#basic-setup)). Nor does `init`, which writes and enables the service's
-unit and exits without starting it ([user service](configuration.md#running-under-systemd-user-service)), or the
-commands that manage that service: they ask the user manager to start, stop, restart, show, or remove it, `start` and
-`restart` once a local check in an interpreter of its own finds nothing wrong, and exit.
+means it. `configure` and `add-repo` poll nothing either: one writes an installed package's `.env` and the other adds
+a repository to it, and each exits reading no configuration ([basic setup](configuration.md#basic-setup)). Nor does
+`init`, which writes and enables the service's unit and exits without starting it
+([user service](configuration.md#running-under-systemd-user-service)), or the commands that manage that service:
+they ask the user manager to start, stop, restart, show, or remove it, `start` and `restart` once a local check in an
+interpreter of its own finds nothing wrong, and exit.
 
 - **Trigger**: started manually (or by a wrapper) as `run`. Optional `run --once` for a single tick, or
   `run --cleanup-terminal-artifacts` for a maintenance-only run: it connects read-only clients (no label bootstrap)

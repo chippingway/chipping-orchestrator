@@ -24,6 +24,7 @@ _RUN = "run"
 _CONFIGURE = "configure"
 _SET_TOKEN = "set-token"
 _CHECK = "check"
+_ADD_REPO = "add-repo"
 _INIT = "init"
 _HELP = "--help"
 _LAUNCH_TIMEOUT_SECONDS = 60
@@ -36,6 +37,7 @@ _COMMAND_LISTING = (
     rf".*^ +{_CONFIGURE} +Write the installed package's \.env"
     rf".*^ +{_SET_TOKEN} +Verify a repository's GitHub token"
     rf".*^ +{_CHECK} +Check the setup in the environment"
+    rf".*^ +{_ADD_REPO} +Add a repository to the installed package's \.env"
     rf".*^ +{_INIT} +Install or refresh the systemd user service"
     r".*^ +start +Check the setup locally, then start the service"
     r".*^ +stop +Stop the service"
@@ -94,6 +96,14 @@ _ANSWERS = (
         (_CHECK, _HELP),
         0,
         rf"(?s)\Ausage: {_CONSOLE_SCRIPT} {_CHECK} \[-h\] \[--local\]\n.*absolute\s+entries\s+of\s+PATH",
+    ),
+    _Answer(
+        (_ADD_REPO, _HELP),
+        0,
+        (
+            rf"(?s)\Ausage: {_CONSOLE_SCRIPT} {_ADD_REPO} \[-h\] --clone PATH .*--remote NAME.*--parallel N"
+            r".*restart\s+a\s+running\s+service"
+        ),
     ),
     _Answer(
         (_INIT, _HELP),
@@ -158,10 +168,11 @@ class UnconfiguredLaunchTest(unittest.TestCase):
     the distribution's; `run --help` lists the
     polling flags, `configure --help` the setup options, `set-token --help`
     the repository it takes and standard input as where the token comes from,
-    `check --help` the environment it checks in and its `--local` form, and
-    `init --help` that it never starts the service and needs the `.env` the
-    setup commands write; and a polling flag given before any command is a
-    usage error naming the `run` form that means it.
+    `check --help` the environment it checks in and its `--local` form,
+    `add-repo --help` its entry options and that a running service needs a
+    restart, and `init --help` that it never starts the service and needs the
+    `.env` the setup commands write; and a polling flag given before any
+    command is a usage error naming the `run` form that means it.
 
     Only those are spared that validation: a launch that goes on to run is
     stopped by the same `REPOS`, as `test_entrypoints` shows.
