@@ -20,6 +20,7 @@ handler reads and writes.
 | know what a label means, or when it moves | [`state-machine.md`](state-machine.md) |
 | know which agent a stage spawns, under what prompt | [`workflow.md`](workflow.md) |
 | find a setting, or apply an edited `.env` | [`configuration.md`](configuration.md) |
+| keep the poller running as a service, then start, stop, or remove it | [the user service][user-service] |
 | run a second poller beside the first on one host | [running more than one poller][pollers] |
 | see what the orchestrator did, and what it cost | [`observability.md`](observability.md) |
 | trace release functionality and upgrade requirements | [`release-timeline.md`](release-timeline.md) |
@@ -54,4 +55,5 @@ Grouped the way the site's navigation groups them.
 - **Developers** — [source checkouts and tools](development.md)
 
 [pollers]: configuration/operations.md#running-more-than-one-poller
+[user-service]: configuration.md#running-under-systemd-user-service
 [publishing]: configuration/operations.md#publishing-the-documentation

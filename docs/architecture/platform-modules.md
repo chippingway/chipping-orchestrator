@@ -337,10 +337,10 @@ orchestrator/
                         and over it `DefaultEnvironment=` across the home's or the system's `user.conf` and its
                         drop-ins, the home's `user.conf.d` ranking first and `%h`, `%u`, `%U`, `%G`, and `%%`
                         expanded, any other specifier refused, and a variable that moves where systemd reads its
-                        own configuration refused; then each `environment.d` assignment in order, expanded against the home, the user, the
-                        runtime directory, and what came before -- read under `unit_environment.py`'s
-                        `SYSTEM_ROOT`, refusing what it cannot read as `UnitEnvironmentError`. What the manager is
-                        told at run time is not read
+                        own configuration refused; then each `environment.d` assignment in order, expanded against
+                        the home, the user, the runtime directory, and what came before -- read under
+                        `unit_environment.py`'s `SYSTEM_ROOT`, refusing what it cannot read as
+                        `UnitEnvironmentError`. What the manager is told at run time is not read
     systemd.py          the user manager, logind, and the journal through `systemctl --user`, `loginctl`, and
                         `journalctl`, each call run to completion with standard input closed and bounded at 30
                         seconds or the longer bound a `systemctl` caller gives, a timeout or a binary that cannot
