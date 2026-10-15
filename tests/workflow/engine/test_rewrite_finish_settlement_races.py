@@ -13,10 +13,12 @@ settlement another finish makes of the captured run, with a later review
 handed over just as the phase's own settlement edit reads the comment and
 put back before that edit answers, moved the run's binding all the same: the
 comment the edit read names it, and the settlement adopted is invalidated
-whole despite the restoration. With that finish's announcement of the
-landing in the review's place, the edit read only the evidence records and
-the attempt's members moved, neither a record any binding rests on, so the
-settlement adopted stays current. Nothing runs.
+whole despite the restoration -- as it is where another proof blanked the
+attempt's base tip there to record movement, and that tip was put back. With
+that finish's announcement of the landing in the review's place, the edit
+read only the evidence records and the attempt's members moved, neither a
+record any binding rests on, so the settlement adopted stays current.
+Nothing runs.
 """
 from __future__ import annotations
 
@@ -54,6 +56,11 @@ _REPORT_RECORDS = ("developer_report_current", "developer_report_handoff", "revi
 
 # The attempt members another finish's announcement of the landing moves.
 _ANNOUNCEMENT = (readings.KEY_ANNOUNCED, readings.KEY_ANNOUNCED_EVENT)
+
+
+def _blanks_the_base_tip(case) -> None:
+    """Another readiness proof blanking the attempt's base tip, recording movement read under the run."""
+    settled_moves.writes_over(case, readings.KEY_REWRITE_BASE, None)
 
 
 def _settles(case, pending) -> None:
@@ -168,14 +175,21 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
         with patch.object(self.gh, "edit_pinned_state", edits):
             self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
 
-        current, history = self.records()[1:]
-        self.assertIsNone(current)
-        self.assertEqual(history[-1], (self.captured.receipt, readings.INVALIDATED))
-        entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
-        self.assertEqual(entry.revision, self.captured.revision)
-        self.assertEqual(entry.binding, self.captured.binding)
-        self.assertEqual(edits.left(), edits.kept)
-        self.assertEqual(self.verify.call_count, 0)
+        self._assert_retired(edits)
+
+    def test_a_restored_base_tip_blank_is_movement(self) -> None:
+        # Another finish settles the captured run and another proof blanks
+        # the attempt's base tip -- the movement it read under the run,
+        # recorded where nothing else had room -- just as the phase's
+        # settlement edit reads the comment, and the tip is put back before
+        # that edit answers: the mark that edit read is movement, so the
+        # settlement adopted is invalidated whole all the same.
+        edits = _MovesUnderTheEdit(self, _blanks_the_base_tip, (readings.KEY_REWRITE_BASE,))
+
+        with patch.object(self.gh, "edit_pinned_state", edits):
+            self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+
+        self._assert_retired(edits)
 
     def test_a_restored_announcement_moves_nothing(self) -> None:
         # Another finish settles the captured run and announces the landing
@@ -195,6 +209,17 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
         self.assertEqual(edits.left(), edits.kept)
         receipts = [found.receipt for found in support.posted_artifacts(self)]
         self.assertEqual(receipts.count(self.captured.receipt), 1)
+        self.assertEqual(self.verify.call_count, 0)
+
+    def _assert_retired(self, edits: _MovesUnderTheEdit) -> None:
+        """The settlement adopted invalidated whole, its revision and binding kept; what `edits` moved put back."""
+        current, history = self.records()[1:]
+        self.assertIsNone(current)
+        self.assertEqual(history[-1], (self.captured.receipt, readings.INVALIDATED))
+        entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
+        self.assertEqual(entry.revision, self.captured.revision)
+        self.assertEqual(entry.binding, self.captured.binding)
+        self.assertEqual(edits.left(), edits.kept)
         self.assertEqual(self.verify.call_count, 0)
 
 

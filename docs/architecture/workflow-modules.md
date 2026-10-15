@@ -1272,7 +1272,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             selects only by asking `resolves` directly over a finish built with `proves_settled`,
                             settled evidence is proved ready before every route and hold here, a readable revision
                             spent past it outranks it, and a settlement the answer adopted is invalidated over
-                            movement it read, the evidence records' own moves and the attempt's members aside
+                            movement it read, the evidence records' own moves and the attempt's members aside -- save
+                            the base tip of an attempt that still stands, whose blank records movement
     rewrite_finish_settled.py
                             the steps that evidence phase takes where its two policies differ, reading nothing more
                             for a finish not built with `proves_settled`: settled evidence proved ready, and -- asked
@@ -1280,8 +1281,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded, blank or legacy, the base the tick counted (`stands_ready_if_settled`); why
                             records beside it hold the route (`out_of_step`); which refusals an answer read moved a
                             binding's records rather than the evidence records or the attempt's members alone, told by
-                            the fields each names (`moves_the_binding`), a settlement and announcement another finish
-                            made meanwhile taken
+                            the fields each names, the base tip of an attempt that still stands excepted
+                            (`moves_the_binding`), a settlement and announcement another finish made meanwhile taken
                             in first (`adopts_the_answer`) and the route held where a newer transaction came in beside
                             that settlement, the successor left owed; a settlement the answer left current invalidated
                             over that

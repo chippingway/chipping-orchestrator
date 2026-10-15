@@ -7,8 +7,9 @@ issue #7's run captured for the landed head, and the evidence phase asked
 directly over a finish held to the dormant settled-evidence policy. Another
 finish settles the run while this one's answer reads the pull request, and a
 later review is handed over under it, so the run's binding moved; as this
-finish adopts that settlement, another road records a newer transaction of
-the head bound to that review, its binding proved as it is recorded. Only
+finish adopts that settlement -- or as it invalidates the settlement it
+adopted -- another road records a newer transaction of the head bound to
+that review, its binding proved as it is recorded. Only
 the adopted settlement is invalidated over what the answer read, and the
 route is held with the successor owed as recorded, for the next finish to
 answer. So is a continuation over a head the base advanced past, whose
@@ -22,6 +23,7 @@ from dataclasses import replace
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
+    rewrite_finish_readiness as _readiness,
     rewrite_finish_settlement as _settlement_step,
     verification_durable as _durable,
     verification_proof as _proof,
@@ -44,6 +46,10 @@ from tests.workflow.interleaving import _RacesTheStep
 # A pending record nobody can read, as another road may leave one.
 _UNREADABLE = "unreadable"
 
+# Where the successor arrives behind the answer: ahead of the adoption that
+# takes the comment in, or as the settlement adopted is invalidated.
+_ARRIVALS = ((_durable, "takes_in_a_settlement"), (_readiness, "invalidates"))
+
 
 def _fallen_behind(finish):
     """`finish` over a candidate that counted the base two commits past the landed head."""
@@ -59,22 +65,27 @@ class AdoptedSuccessorTest(settled_support.CapturedEvidenceCase, unittest.TestCa
     def test_the_successor_is_kept(self) -> None:
         # The run is settled elsewhere and reviewed again under the answer's
         # second reading of the pull request, and the successor is recorded
-        # just ahead of the adoption that takes the comment in: the phase
-        # holds, the adopted run invalidated whole and the successor pending.
-        finish = settled.dormant(self.landed())
-        adopts = _RacesTheStep(_durable.takes_in_a_settlement, self._records_a_successor)
+        # just ahead of the adoption that takes the comment in -- or as the
+        # settlement adopted is invalidated, which lands over a comment
+        # carrying it: the phase holds, the adopted run invalidated whole and
+        # the successor pending, neither published nor settled.
+        for owner, step in _ARRIVALS:
+            with self.subTest(arrives=step):
+                self.setUp()
+                finish = settled.dormant(self.landed())
+                arrives = _RacesTheStep(getattr(owner, step), self._records_a_successor)
 
-        with (
-            settled_moves.raced_past(self, "get_pr", type(self)._settles_and_reviews, nth=2),
-            patch.object(_durable, "takes_in_a_settlement", adopts),
-        ):
-            self.assertEqual(self.asks(_settlement_step.resolves, finish), FinishOutcome.HELD)
+                with (
+                    settled_moves.raced_past(self, "get_pr", type(self)._settles_and_reviews, nth=2),
+                    patch.object(owner, step, arrives),
+                ):
+                    self.assertEqual(self.asks(_settlement_step.resolves, finish), FinishOutcome.HELD)
 
-        self._assert_invalidated()
-        self.assertEqual(self.records()[0], self.successor)
-        receipts = [found.receipt for found in support.posted_artifacts(self)]
-        self.assertEqual(receipts.count(self.captured.receipt), 1)
-        self.assertEqual(self.verify.call_count, 0)
+                self._assert_invalidated()
+                self.assertEqual(self.records()[0], self.successor)
+                receipts = [found.receipt for found in support.posted_artifacts(self)]
+                self.assertEqual(receipts.count(self.captured.receipt), 1)
+                self.assertEqual(self.verify.call_count, 0)
 
     def test_the_continuation_holds_over_it(self) -> None:
         # The base advanced past the head, and another finish settled the run

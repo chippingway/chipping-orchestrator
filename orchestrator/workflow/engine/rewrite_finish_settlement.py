@@ -281,24 +281,30 @@ def _behind_the_answer(
     by this answer, or by another road whose settlement it adopted -- however
     soon it was put back (`rewrite_finish_settled.retires_the_adopted`). What
     the adoption took in is asked again whether it is `pending`'s alone
-    (`_answered_alone`):
-    a newer transaction another road recorded beside the settlement adopted
+    (`_answered_alone`), and once more behind that invalidation, which lands
+    over the comment read afresh: a newer transaction another road recorded
+    beside the settlement adopted -- ahead of the invalidation or under it --
     stands as that road wrote it, for the next finish to answer, the route
     held behind the adopted settlement's own invalidation, so the movement
-    read under `pending` is never proved over the successor.
+    read under `pending` is never proved over the successor, nor the
+    successor published and settled behind it.
     """
     adopts_the_answer(finish, pending)
-    movements = moves_the_binding(finish, movements)
+    movements = moves_the_binding(finish, movements, attempt)
+    resolved = _captured.recorded(finish, logged=False) is None
+    if resolved and _answered_alone(finish, pending, attempt):
+        if not retires_the_adopted(finish, pending, movements, attempt):
+            return FinishOutcome.HELD
+        if _answered_alone(finish, pending, attempt):
+            return resolves(finish)
     if not _answered_alone(finish, pending, attempt):
         log.warning(
-            "issue=#%d holding the route of %.8s: another road's evidence record stands beside verification "
-            "evidence revision %d, adopted as settled",
+            "issue=#%d holding the route of %.8s: another road's attempt or evidence record stands beside "
+            "verification evidence revision %d, adopted as settled",
             finish.issue.number, finish.head, pending.revision,
         )
         retires_the_adopted(finish, pending, movements, attempt)
         return FinishOutcome.HELD
-    if _captured.recorded(finish, logged=False) is None:
-        return resolves(finish) if retires_the_adopted(finish, pending, movements, attempt) else FinishOutcome.HELD
     proof = movements[0] if movements else _captured.proved_again(finish, pending)
     stopped = _captured.stands_before_the_route(finish, proof=proof)
     if stopped is not None or _captured.recorded(finish, logged=False) is None:
