@@ -556,9 +556,11 @@ because there it is the claim that this stage has already rerouted rather than a
      unless a comment of ours carries that `split_attempt`'s summary receipt (a split recorded with no `split_attempt`
      gets none), and finalize to `workflow:umbrella` (when the flag is true) or `workflow:blocked`. A summary GitHub
      refused is posted by the next recovery, and one that landed ahead of a label write that failed is not posted
-     again. Each child is repaired under its own writer claim, and one another poller on the host holds stops the
-     recovery there — nothing parked, summarized, or finalized — for the next tick to resume. A parent whose record no
-     longer proves that
+     again. The recovered summary is the one step 7 would have posted, rationale included: the rationale is read back
+     off `split_rationale` with no decomposer run, and a record without the key, as an older binary left it, or one
+     holding `null`, a blank, or a non-string says it was not recorded. Each child is repaired under its own writer
+     claim, and one another poller on the host holds stops the recovery there — nothing parked, summarized, or
+     finalized — for the next tick to resume. A parent whose record no longer proves that
      lineage, or a child it cannot recognize as its own — an unparsed comment, a `parent_number` that is not exactly
      this issue's number (only a missing one is backfilled), text naming a snapshot ref the split cannot keep, any
      other group (any at all on an ordinary split's child), a register naming it twice, or a receipt other than the one
@@ -636,7 +638,10 @@ because there it is the claim that this stage has already rerouted rather than a
        under the claim, post the summary, and finalize on a later tick. A child owed that snapshot is created with the
        reuse instructions a late split's own children carry appended after its receipt — the ref, its local mirror,
        the commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer
-       reads. Otherwise post the split's summary, ending on the hidden receipt
+       reads. Otherwise post the split's summary — the children, then the decomposer's rationale read back off
+       `split_rationale` (on an umbrella and on a parent that is not one alike) in a Markdown fence no line of it can
+       close, so its own fences and HTML comment openers are shown rather than obeyed, or a sentence saying it was not
+       recorded where that holds no text — ending on the hidden receipt
        `<!--orchestrator-split-summary:issue=<parent>:attempt=<split_attempt>-->`, flip the parent to
        `workflow:umbrella` (when the flag is true) or `workflow:blocked`, and activate no-dep children through the
        dependency walk `_handle_blocked` / `_handle_umbrella` run — over

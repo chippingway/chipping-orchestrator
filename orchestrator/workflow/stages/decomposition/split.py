@@ -196,7 +196,9 @@ def _finalize_split(
     orphan child against a `decomposing`-labeled parent; and it is the
     dependency walk's own, so a child is released here only as that walk
     would release it. The summary carries this attempt's receipt, which is
-    what keeps a recovery of a crash behind it from posting it again.
+    what keeps a recovery of a crash behind it from posting it again, and
+    quotes the rationale off the record the plan wrote, as that recovery's
+    would.
     """
     created = [(number, child["title"]) for number, child in plan.created]
     final_label = _split_summary.announced(gh, issue, state, created, plan.attempt)

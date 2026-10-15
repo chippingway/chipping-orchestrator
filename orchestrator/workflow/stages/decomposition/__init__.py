@@ -20,7 +20,8 @@ tick asks the others in and `outcomes` the three dispositions its reply earns,
 `recovery` owns what a tick that died mid-split left behind -- with
 `split_repair` the seed it writes onto a recorded child -- `split` owns the
 crash-safe order children are created in, `split_summary` the summary a split
-or its recovery finalizes the parent with, once per split attempt,
+or its recovery finalizes the parent with, once per split attempt and quoting
+the rationale the split recorded,
 `split_receipts` the receipt each child carries so one created and never
 recorded can be found again, `split_seeds` the dispatch hold on a child whose
 seed is not what that receipt says it was owed, `replacement_lineage` owns

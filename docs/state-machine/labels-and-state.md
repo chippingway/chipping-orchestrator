@@ -1017,7 +1017,8 @@ The keys that matter for the state machine fall into a few groups:
   split's account, and neither the split's later writes nor its recovery drop it, so a split a failed create parks or a
   crash interrupts keeps it. It decides nothing: `_recorded_split_rationale` reads a record without the key, as an
   older binary left it, or one holding `null`, a blank, or a non-string as no rationale, and reads text back by the
-  rule a manifest's is written by. `split_attempt` is sixteen
+  rule a manifest's is written by, which is what the split's summary quotes, whether the split or its recovery posts
+  it. `split_attempt` is sixteen
   lowercase hex digits minted for that split alone, and every child it creates carries it in a hidden body receipt
   stamped after its slice,
   `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>:lineage=<owed>-->`, so a recovery
