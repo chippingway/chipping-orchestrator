@@ -2501,7 +2501,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             walk -- or, where a child was left unseeded because another poller held it, publish
                             none of them and leave the parent `decomposing` with every child recorded for
                             `recovery.py` to seed that child and finalize
-      split_summary.py      the summary an ordinary split finalizes its parent with, ending on a receipt naming the
+      split_summary.py      the summary an ordinary split finalizes its parent with, quoting the rationale read back
+                            off the parent's record in a fence no line of it can close -- or saying none was recorded --
+                            so the split and its recovery publish the same words, and ending on a receipt naming the
                             parent and `split_attempt`, which a recovery posts only where no comment of ours carries it
                             -- so a refused post is retried and a landed one is not posted again behind a failed label
                             write -- and not at all for a split recorded with no attempt; the `blocked` or `umbrella`

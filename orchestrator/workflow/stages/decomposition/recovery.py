@@ -25,10 +25,13 @@ from its own durable facts.
 
 Equal counts mean the loop finished and only its finalize was lost, so the
 parent finalizes to whatever the manifest asked for, posting first the summary
-the split owes (`split_summary`). Fewer mean the loop
-stopped short: the one child a crash can leave created and unrecorded is
-adopted by its receipt (`split_receipts`), and anything short of that parks,
-since the manifest that declared the rest is not kept to create them from.
+the split owes (`split_summary`) -- quoting the rationale the split recorded
+beside its markers, which is the only account of the split left once no
+decomposer may run, and the one the split's own summary quotes. Fewer mean
+the loop stopped short: the one child a crash can leave created and
+unrecorded is adopted by its receipt (`split_receipts`), and anything short
+of that parks, since the manifest that declared the rest is not kept to
+create them from.
 
 Finalizing repairs every recorded child first, against the lineage the
 parent's record proves (`ReplacementLineage.repair`): a missing parent link
