@@ -1292,7 +1292,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the evidence's handoff place (`marks`), which no reader takes for a handoff and only that
                             very receipt answers to (`carries_the_mark`) -- or, where even the mark has no room, the
                             evidence retired whole, its current record and the evidence records left null or
-                            unreadable removed (`verification_settlement_state.retire_current_evidence`)
+                            unreadable removed (`verification_settlement_state.retire_current_evidence`); a mark or
+                            retirement refused by a comment moved under its edit is read and made once more
     rewrite_finish_unconfirmed.py
                             what the finish's own write nobody confirmed left of its attempt, for the dormant policy:
                             the announcement's bookkeeping taken in (`takes_in_the_announcement`), the attempt put back
@@ -1318,8 +1319,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that last reading of the comment comes to. Movement -- an issue edited, a report or review
                             record replaced, the artifact edited or deleted, a command configured otherwise, the landing
                             or the base moved, a revision spent past it -- read off the handoff or any history entry
-                            that reads on its own, or off the floor past what a pending record beside it spent itself,
-                            so a pending record holds without hiding it -- or a handoff naming it that
+                            that reads on its own, or off the floor past the one revision a pending record beside it
+                            may own, so a pending record holds without hiding it -- or a handoff naming it that
                             describes another pull request or head, whatever the pull request reads -- invalidates it
                             into history whole, its revision, transcript digest, and tested and source provenance kept,
                             in a write staged on the comment read afresh and guarded by that reading and the attempt,

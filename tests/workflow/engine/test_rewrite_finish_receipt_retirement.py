@@ -77,6 +77,9 @@ _UNSELECTED = (
     ),
 )
 
+# The report and review records a later review moves, as the pinned comment spells them.
+_REPORT_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
+
 # How the attempt records the base tip its replay was made onto, how the base
 # the tick counted the head against reads now, and what the policy answers.
 _BASES = (
@@ -85,6 +88,59 @@ _BASES = (
     ("missing", _BaseStanding.MOVED, _HELD),
     ("recorded", _BaseStanding.MOVED, _HELD),
 )
+
+
+def _drops_one_first(case) -> object:
+    """Record a newer transaction and drop it with no history entry, then record another; the one pending."""
+    settled_moves.records_a_newer_one(case)
+    settled_moves.writes_over(case, _records.PENDING_EVIDENCE, None)
+    return settled_moves.records_a_newer_one(case)
+
+
+def _raises_the_floor_past(case) -> object:
+    """Record a newer transaction, then raise the revision floor past it, as another road spending one would; it."""
+    pending = settled_moves.records_a_newer_one(case)
+    settled_moves.writes_over(case, readings.KEY_REVISION_FLOOR, pending.revision + 1)
+    return pending
+
+
+class _PutsBackWhileCompacting:
+    """Another road putting the report and review records back as they read now, right behind a compaction's staging.
+
+    Only where it `races`, and only once: the compact retirement is staged on
+    the comment read afresh, and that road's write lands before the edit, so
+    the edit finds the comment moved under it.
+    """
+
+    def __init__(self, case, races: bool) -> None:
+        self._case = case
+        self._races = races
+        self._owed = races
+        pinned = case.pinned()
+        self._kept = {key: pinned[key] for key in _REPORT_RECORDS}
+        self._stage = _settlement.retire_current_evidence
+
+    def racing(self):
+        """The staging racing where this does, or as it always stages."""
+        if not self._races:
+            return contextlib.nullcontext()
+        return patch.object(_settlement, "retire_current_evidence", self._stages)
+
+    def assert_kept(self) -> None:
+        """The report and review records as that road put them back, where it raced."""
+        pinned = self._case.pinned()
+        if self._races:
+            self._case.assertEqual({key: pinned[key] for key in _REPORT_RECORDS}, self._kept)
+
+    def _stages(self, state, *, compact: bool = False) -> bool:
+        staged = self._stage(state, compact=compact)
+        if compact and self._owed:
+            self._owed = False
+            restored = self._case.gh.read_pinned_state(self._case.issue)
+            for key, kept in self._kept.items():
+                restored.set(key, kept)
+            self._case.gh.write_pinned_state(self._case.issue, restored)
+        return staged
 
 
 class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
@@ -225,16 +281,28 @@ class RecordedMovementTest(retirement.RetirementCase, unittest.TestCase):
         # The handoff was left null, so the mark would grow the full
         # comment: the run is retired whole at once, its current record, the
         # null pending record, and the null handoff removed to make room,
-        # every other record kept.
-        finish = self.dormant()
-        settled_moves.reviews_again(self)
-        retirement.drops_the_handoff(self)
-        settled_moves.writes_over(self, _UNKNOWN, _UNKNOWN)
-        retirement.routes(self)
-        moves.fills_the_comment(self)
+        # every other record kept -- also where another road puts the moved
+        # report and review back while that retirement is sent, refusing it:
+        # read afresh, it is made once more, the records put back kept.
+        for races in (False, True):
+            with self.subTest(races=races):
+                self.setUp()
+                restores = _PutsBackWhileCompacting(self, races)
+                finish = self.dormant()
+                settled_moves.reviews_again(self)
+                retirement.drops_the_handoff(self)
+                settled_moves.writes_over(self, _UNKNOWN, _UNKNOWN)
+                retirement.routes(self)
+                moves.fills_the_comment(self)
 
-        self.assertFalse(self.asks(_readiness.invalidates, finish, self.settled))
+                with restores.racing():
+                    self.assertFalse(self.asks(_readiness.invalidates, finish, self.settled))
 
+                self._assert_compacted()
+                restores.assert_kept()
+
+    def _assert_compacted(self) -> None:
+        """The run retired whole, the current, pending, and handoff records removed, another road's record kept."""
         written = (_records.CURRENT_EVIDENCE, _records.PENDING_EVIDENCE, _HANDOFF, _UNKNOWN)
         pinned = self.pinned()
         left = [key for key in written if key in pinned]
@@ -256,27 +324,33 @@ class OutrankingTest(retirement.RetirementCase, unittest.TestCase):
     """A readable revision spent past the run outranks it beside a pending record, which still holds the route."""
 
     def test_a_pending_record_hides_no_outranking(self) -> None:
-        # Another road recorded a newer transaction and dropped it with no
-        # history entry, then recorded another, now pending: the revision the
-        # dropped one spent outranks the run, which is invalidated whole while
+        # Beside the transaction now pending, another road spent a revision
+        # past the run that no history entry keeps: one it recorded and
+        # dropped first, or the floor it raised past the pending one's own.
+        # That revision outranks the run, which is invalidated whole while
         # the pending record holds the route, kept as that road wrote it. A
         # newer transaction recorded right past the run outranks nothing.
-        for dropped in (True, False):
-            with self.subTest(dropped=dropped):
+        for spends, outranked in (
+            (_drops_one_first, True),
+            (_raises_the_floor_past, True),
+            (settled_moves.records_a_newer_one, False),
+        ):
+            with self.subTest(spent=spends.__name__):
                 self.setUp()
-                if dropped:
-                    settled_moves.records_a_newer_one(self)
-                    settled_moves.writes_over(self, _records.PENDING_EVIDENCE, None)
-                pending = settled_moves.records_a_newer_one(self)
+                pending = spends(self)
 
-                held = self.asks(_readiness.stands_ready, self.dormant(), self.settled)
+                answered = self._proves_ready()
 
-                kept = None if dropped else self.settled
-                left = self.records()[:2]
-                self.assertEqual((held, left), (_HELD, (pending, kept)))
+                kept = None if outranked else self.settled
+                self.assertEqual(answered, (_HELD, (pending, kept)))
                 self.assert_untouched()
-                if dropped:
+                if outranked:
                     self._assert_retired_whole()
+
+    def _proves_ready(self) -> tuple:
+        """What the readiness proof over a dormant finish answers, and the pending and current records it leaves."""
+        held = self.asks(_readiness.stands_ready, self.dormant(), self.settled)
+        return held, self.records()[:2]
 
     def _assert_retired_whole(self) -> None:
         """The run invalidated into history whole, its revision, transcript, and provenance kept."""

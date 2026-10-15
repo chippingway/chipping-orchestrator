@@ -77,8 +77,8 @@ decided again: the evidence goes on as it settled, or into history as it was.
   establishes movement too -- and the next tick classifies the branch and
   counts the head again. A readable revision spent past the evidence -- on
   the handoff or any history entry that reads on its own beside a floor or
-  entries that do not, or on the floor past what a pending record beside it
-  spent itself -- is no such record: it outranks the evidence for good, so
+  entries that do not, or on the floor past the one revision a pending record
+  beside it may own -- is no such record: it outranks the evidence for good, so
   the proof reads it as movement -- whatever the pull request reads, and
   whatever else holds, a pending record nobody can read among it -- rather
   than every poll holding. Nor is a handoff that names the evidence but
@@ -335,11 +335,13 @@ def _records_heard(
     and a revision spent past it (`_OUTRANKED`) -- read off the handoff or any
     history entry that reads on its own, so neither a floor nobody can read
     nor another entry that will not read hides a newer one the history still
-    shows, and off the floor: whole with nothing pending, below a readable
-    pending record's own revision -- the one minted under it was spent by
-    another transaction -- and not at all beside a pending record nobody can
-    read, whose own revision the floor may be. So a pending record holds
-    beside evidence a readable revision outranks, and hides none of it. The last two the proof
+    shows, and off the floor, short only of the one revision a pending record
+    beside it may own: the floor whole with nothing pending, or beside a
+    readable pending record that spent less, and one below it beside a
+    pending record that spent the floor itself or that nobody can read -- of
+    any two revisions spent past `current`, at most one is the pending
+    record's. So a pending record holds beside evidence a readable revision
+    outranks, and hides none of it. The last two the proof
     would hear only behind the pull request, which a reading nobody could take
     hides them behind. Hold: a comment no longer carrying `current` as its
     current evidence, or carrying a record beside it that says it is not the
@@ -359,13 +361,15 @@ def _records_heard(
     if not isinstance(history, list):
         history = []
     pending = _record_state.read_pending_evidence(state)
+    spent = _record_state._latest_revision(state) or 0
+    # The one revision a pending record may own: the floor, unless a readable one spent less.
+    if _record_state.carries_pending_evidence(state) and getattr(pending, "revision", spent) >= spent:
+        spent -= 1
     spent = max((
+        spent,
         0 if handoff is None else handoff.revision,
         *(entry.revision for entry in map(historical_from, history) if entry),
-        0 if pending is None else pending.revision - 1,
     ))
-    if not _record_state.carries_pending_evidence(state):
-        spent = max(spent, _record_state._latest_revision(state) or 0)
     return (
         None if issue is None else requirements_verdict(
             issue, state, current.binding.target.publication.requirements_revision,

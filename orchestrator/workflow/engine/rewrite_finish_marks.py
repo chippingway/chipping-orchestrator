@@ -60,10 +60,13 @@ def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> 
     once more. Where even the mark finds no room -- a handoff missing or
     shorter than it -- `current` is retired whole at once, made to fit by
     removing the records left null or unreadable (`_lands`), save beside a
-    pending transaction, whose revision already outranks it.
+    pending transaction, whose revision already outranks it; that retirement
+    too is read and made once more where the comment moved under its edit,
+    keeping whatever another road wrote there.
     """
     landed = _lands(finish, read_afresh(finish), current, marked=True)
     landed = landed or _lands(finish, read_afresh(finish), current, marked=True)
+    landed = landed or _lands(finish, read_afresh(finish), current, compact=True)
     landed = landed or _lands(finish, read_afresh(finish), current, compact=True)
     log.warning(
         "issue=#%d recording movement read under verification evidence revision %d by marking its handoff, "
