@@ -138,9 +138,9 @@ orchestrator/
   __init__.py           the distribution version, published as `__version__`, without loading runtime owners
   cli.py                the `chipping-orchestrator` console script: the command line, `--version`, the `run`
                         command that is the polling process's composition point, and the setup commands
-                        `service/commands.py` and the service commands `service/service_commands.py` put on it,
-                        imported with it since they load no configuration in its process. The setup owner chooses
-                        the class a command line is parsed with
+                        `service/commands.py`, the `add-repo` command `service/add_repo_command.py`, and the service
+                        commands `service/service_commands.py` put on it, imported with it since they load no
+                        configuration in its process. The setup owner chooses the class a command line is parsed with
   __main__.py           the `python -m orchestrator` launch form over `cli.main`, whose `run` is what `run.sh` starts
   runtime/              the polling process's own owners
     state.py            the mutable state one run carries -- the stop flag, the signal, the scheduler a handler may
@@ -257,9 +257,10 @@ orchestrator/
                         missing installed `.env`, or one setting no `REPOS`; then the entry `entry_answers.py` makes,
                         its remote refused under `--remote` where the entry cannot carry it, and a repository `REPOS`
                         already lists, compared without regard to case; then the entry joined with `;` to the end of
-                        the `REPOS` line in effect through `dotenv_text.py`, never a second `REPOS` line, and the
-                        file written whole, mode 0600, through `private_files.py` over the file read -- or the one a
-                        symlink there leads to
+                        the `REPOS` line in effect through `dotenv_text.py`, never a second `REPOS` line, the value
+                        written back unquoted without the blanks at either end that each entry is read without, and
+                        the file written whole, mode 0600, through `private_files.py` over the file read -- or the
+                        one a symlink there leads to
     token_probe.py      the read-only GitHub calls a setup proves a token with, one standard-library `GET` each:
                         whether it reads a repository, the one call a check spends per repository, and whose
                         account it is. A redirect is answered rather than followed, so the token reaches no other

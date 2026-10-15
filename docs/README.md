@@ -15,6 +15,7 @@ handler reads and writes.
 | If you want to… | Read |
 |---|---|
 | install with pipx | the [quick start](../README.md#quick-start), then [basic setup](configuration.md#basic-setup) |
+| add another repository to an installed setup | [adding a repository][add-repo] |
 | run from source or launch developer analytics tools | the [developer guide](development.md) |
 | understand the design before changing it | [`architecture.md`](architecture.md) |
 | know what a label means, or when it moves | [`state-machine.md`](state-machine.md) |
@@ -54,6 +55,7 @@ Grouped the way the site's navigation groups them.
 - **Releases** — [release timeline](release-timeline.md)
 - **Developers** — [source checkouts and tools](development.md)
 
+[add-repo]: configuration.md#adding-a-repository-with-add-repo
 [pollers]: configuration/operations.md#running-more-than-one-poller
 [user-service]: configuration.md#running-under-systemd-user-service
 [publishing]: configuration/operations.md#publishing-the-documentation
