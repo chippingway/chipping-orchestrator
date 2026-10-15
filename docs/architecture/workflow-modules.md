@@ -1420,7 +1420,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     prompts.py              implementation, documentation, fixing, conflict-resolution, fresh-session, and
                             report-refresh prompt builders; each response marker agrees with the parser that settles
                             its stage, and the report refresh asks for a `REPORT: READY` report of the rewritten head
-                            alone, refusing `REPORT: VERIFIED` by name
+                            alone, refusing `REPORT: VERIFIED` by name. The implementation and fresh-session builders
+                            take an optional split rationale and quote it between the issue body and the thread
     review_prompts.py       the fresh reviewer's prompt and the handover it is built over -- the backend that
                             implemented the work, the subject the validating stage resolved, and the verification
                             evidence it proved current for that subject -- with the developer report quoted whole
@@ -1724,8 +1725,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
                             discussion publication instructions describe the confirmed plan artifact and the commit
                             its stage verifies
-    decomposition_prompts.py the decomposition prompt with the validator-owned child limit, and the bounded
-                            single-decision comment that carries manifest notes into implementation
+    decomposition_prompts.py the decomposition prompt with the validator-owned child limit, the bounded
+                            single-decision comment that carries manifest notes into implementation, and what a split
+                            carries there instead: the issue's own recorded `split_rationale`, withheld on an umbrella
+                            and on a record holding no usable text, rendered as an attributed section quoting every
+                            line whatever ends it
     retry_values.py         daily-retry decisions, notice phases, pinned keys, and the bounded continuation and
                             rolling-window constants
     retry_ledger.py         daily slot consumption, window expiry, and the remaining granted attempt; a standing
@@ -3464,14 +3468,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             The spawn routes through `execution.py`'s bounded developer run coordinator to resume
                             premature AGY command exits before disposition. The spawn's prompt and the record of the
                             thread it quoted come off one read and travel on the prepared run, for the pre-session
-                            edit that is settled by nothing earlier
+                            edit that is settled by nothing earlier; the prompt quotes the issue's recorded split
+                            rationale beside that thread, off its pinned state
       session.py            the four session retirements -- the fourth being the continuation that buys a spent
                             budget one more attempt, which is a fresh spawn by definition -- the read-only plan of the
                             session a resume opens with (`_planned_dev_session`, which asks `session_retirement`'s
                             record before either counter), the post-run persistence that pins a fresh spawn's id --
                             the first spawn's on `spawn.py` included -- only through that owner's guarded pin, and
                             the fresh-spawn prompt, whose re-grounding conversation is the caller's frozen read
-                            wherever it holds one and its own read otherwise. The budget that retirement answers to is
+                            wherever it holds one and its own read otherwise, and whose preamble quotes the split
+                            rationale the resume options carry. The budget that retirement answers to is
                             `engine/retry_budget.py`'s entire, gate and park alike, and the spawn road calls it
                             there
       session_read.py       the locked session read, every id either pin field holds (the legacy one that read
@@ -3544,7 +3550,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its records are attributed to, the frozen conversation a fresh spawn is
                             re-grounded from where the caller holds one, the launch a resume owed once is -- the
                             run count it is charged against and the hold it is made behind -- and the unknown option
-                            a named parameter would have refused on its own
+                            a named parameter would have refused on its own; beside them, the split rationale a fresh
+                            spawn is re-grounded with, read off the resumed issue's pinned state and never a caller's
       execution.py          one resume, its poisoned-session retry -- withheld on an issue a poll observed closed,
                             since that retry is a SECOND agent -- and what each attempt is allowed to persist; the
                             bounded AGY command-recovery coordinator (`_coordinate_developer_run`) that recognizes

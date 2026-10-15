@@ -1022,7 +1022,8 @@ The keys that matter for the state machine fall into a few groups:
   while it drops `split_attempt`, since that scope is the work it goes back to. It decides nothing:
   `_recorded_split_rationale` reads a record without the key, as an older binary left it, or one holding `null`, a
   blank, or a non-string as no rationale, and reads text back by the rule a manifest's is written by, which is what the
-  split's summary quotes, whether the split or its recovery posts it. `split_attempt` is sixteen
+  split's summary quotes, whether the split or its recovery posts it, and what a parent that is no umbrella hands the
+  developer prompts of its own pass ([`roles.md`](../workflow/roles.md#session-lifecycles)). `split_attempt` is sixteen
   lowercase hex digits minted for that split alone, and every child it creates carries it in a hidden body receipt
   stamped after its slice,
   `<!--orchestrator-split-child:issue=<parent>:attempt=<split_attempt>:index=<slice>:lineage=<owed>-->`, so a recovery

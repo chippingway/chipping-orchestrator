@@ -88,6 +88,23 @@ per-stage behavior is in
   `workflow/stages/implementing/resume.py` is the one module every one of those resumes goes through; it declares the
   call signature its callers were written against, then binds those arguments into a typed request/context before
   executing the resume.
+- **A split parent's own pass.** A parent an ordinary split did not make an umbrella goes back to `workflow:ready`
+  once every child is done, and the decomposer's `rationale` is where that split named the residual scope the parent
+  kept for its own pass — the [`decompose` skill](../../.agents/skills/decompose/SKILL.md) requires it there. Every
+  developer briefed from scratch on that issue is handed it: the first implementation spawn and every fresh
+  conversation that replaces a retired or poisoned session quote it under `Decomposer split rationale (...)`, a
+  section of its own between the issue body and the conversation that names the decomposer and the record it came
+  from, every line block-quoted whatever ends it. It is read off the issue's own pinned `split_rationale`
+  (`engine/decomposition_prompts.py`'s `_handed_split_rationale`) rather than out of the thread, because the
+  conversation excerpt is the last 4000 characters and the split summary quoting it is long past by the time the
+  children finish; it is no comment, so the delivered thread and the watermarks settled from it are what they would be
+  without it. It does not wait on `split_attempt`, which the hand-back drops before the parent implements, and a
+  resume of a live session is handed nothing, since the transcript it replays already holds it. Nothing is handed
+  where the record holds no usable text — no key, as an older binary left it, `null`, a blank, a non-string — where
+  the split made the issue an umbrella, which keeps no work of its own, or once whatever supersedes the split has
+  cleared the key (a `single` decision, an edit's reset or reroute, a restart; see
+  [the pinned-state reference](../state-machine/labels-and-state.md#pinned-state)). A child is handed none of its
+  parent's: the record read is the issue's own, and no split copies its rationale into a child.
 - **Reviewer freshness.** `_handle_validating` spawns a fresh reviewer subprocess every round with no resume, so
   `REVIEW_AGENT` changes take effect on the next validating tick. The current value is recorded in `review_agent` for
   traceability only. Each reviewer is handed the developer report its pull request carries — re-read from where it
@@ -1740,7 +1757,8 @@ split's cycle is retired in a write of its own ahead of the flip, inside the win
 its candidate, register, and identity go, its `split_attempt` with them, while both ledgers and `late_retired_cycle_id`
 stay; a parent with no cycle to retire drops its `split_attempt` in a write of its own, still under `blocked`. Neither
 drops the ordinary split's `split_rationale`, since the scope it kept for the parent is the work the parent goes back
-to. That implementation then measures a candidate of its own, under the next cycle, rather than trying to recover the
+to, and the developer that work starts with quotes it (see [a split parent's own pass](#session-lifecycles)). That
+implementation then measures a candidate of its own, under the next cycle, rather than trying to recover the
 superseded one from a worktree long gone, and a later split of it cuts every slice afresh instead of reading the old
 register as slices already made. A close latched before that write, or observed during it, ends the cycle instead,
 and the parent stays `blocked` for the ending to run from.

@@ -14,7 +14,11 @@ resuming without a live-pause guard.
 
 They validate rather than carry, which is why they live apart from the frozen
 handoff records: nothing here has to survive a boundary the spawn cannot see
-across, and both are finished before the first attempt runs.
+across, and both are finished before the first attempt runs. The one option no
+call supplies is the split rationale a fresh spawn is re-grounded with: it is
+read off the pinned state the resume runs over as the options are built, so
+every caller's fresh spawn quotes the issue's own record and none can hand it
+another.
 """
 from __future__ import annotations
 
@@ -24,7 +28,9 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow import state as _workflow_state
+from orchestrator.workflow.engine import decomposition_prompts as _decomposition_prompts
 from orchestrator.workflow.engine.run_charge_state import OwedLaunch
 from orchestrator.workflow.stages.implementing import state as _state
 
@@ -77,12 +83,20 @@ class _DevResumeOptions:
     # readings it charges and starts it from (`run_charge_state.OwedLaunch`).
     # None for every other resume.
     owed: OwedLaunch | None = None
+    # The split rationale a FRESH spawn is re-grounded with: the issue's own
+    # record (`decomposition_prompts._handed_split_rationale`), read by
+    # `from_fields` off the state the resume runs over. Never a caller's
+    # keyword, so no call can hand a replacement session residual scope the
+    # record does not hold. None is a record holding none.
+    split_rationale: str | None = None
 
     @classmethod
-    def from_fields(cls, fields: dict) -> _DevResumeOptions:
+    def from_fields(cls, fields: dict, state: PinnedState | None = None) -> _DevResumeOptions:
         unknown = set(fields) - {
             "followup_has_tracked_repos", "pause_guard", "thread_text", "owed",
         }
         if unknown:
             raise TypeError(f"unexpected resume option(s): {sorted(unknown)!r}")
-        return cls(**fields)
+        if state is None:
+            return cls(**fields)
+        return cls(**fields, split_rationale=_decomposition_prompts._handed_split_rationale(state))

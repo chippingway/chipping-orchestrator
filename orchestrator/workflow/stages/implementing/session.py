@@ -34,7 +34,8 @@ conversation that ran the budget out may not still be pinned when it finishes.
 
 `_build_dev_spawn_prompt` is here for the same reason: a resume carries the
 requirements in its replayed transcript, so what a fresh spawn needs instead --
-the re-grounding preamble pointed at the committed branch -- is a property of
+the re-grounding preamble pointed at the committed branch, quoting the residual
+scope a split left the issue where its record holds one -- is a property of
 the rotation decision made above it, not of the caller that asked for a resume.
 """
 from __future__ import annotations
@@ -205,6 +206,13 @@ def _build_dev_spawn_prompt(
     frozen conversation is still the caller's answer -- a retry whose only
     fresh words were the commands it consumes freezes one -- so only a caller
     with no frozen read at all (None) gets the read taken here.
+
+    The split rationale the preamble quotes is the options' own, which the
+    resume read off the issue's record (`resume_request._DevResumeOptions`)
+    rather than off this conversation, so a replacement session is handed the
+    residual scope its predecessor's first spawn was, however far back on the
+    thread the split summary sits. A resume is handed nothing: the transcript
+    it replays already holds it.
     """
     if not fresh:
         return followup_text
@@ -215,7 +223,7 @@ def _build_dev_spawn_prompt(
     if conversation is None:
         conversation = _prompt_context._recent_comments_text(issue)
     preamble = _prompts._build_fresh_respawn_preamble(
-        spec, issue, conversation, preamble_specs,
+        spec, issue, conversation, preamble_specs, options.split_rationale,
     )
     return f"{preamble}\n\n{followup_text}"
 

@@ -141,6 +141,11 @@ text and they differ in one thing — whether anything is going to be recorded a
   the round — a park's retry or an operator's grant — since an ordinary round reads the thread like any other
   reader and answers nobody.
 
+The residual scope a split left its parent is read from neither. The first implementation spawn and the
+fresh-respawn preamble quote it off the issue's pinned `split_rationale` in a section of their own, ahead of the
+bounded text, so it reaches the developer however far back the split summary sits and records nothing about the
+thread (see [a split parent's own pass](roles.md#session-lifecycles)).
+
 One prompt reads a second surface below the first. The `in_review` drift resume quotes the pull request's unread
 conversation under its own heading beneath the bounded thread, and `drift_delivery._pr_drift_resume_prompt` freezes
 the two into ONE record through `_delivered_pr_conversation`. That half is uncapped for the same reason the reply
