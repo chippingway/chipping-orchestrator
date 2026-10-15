@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from orchestrator.config._dotenv import load_dotenv
 from orchestrator.service import paths
-from orchestrator.service.dotenv_text import assign, assignment
+from orchestrator.service.dotenv_text import assign, assignment, read_setting
 from tests.service.service_test_support import refusal
 
 _KEY = "KEY"
@@ -71,6 +71,30 @@ class LoaderRoundTripTest(unittest.TestCase):
                 load_dotenv(scratch, loaded, self.fail)
 
                 self.assertEqual(loaded, {_KEY: setting})
+
+    def test_the_setting_read_is_the_one_loaded(self) -> None:
+        """The first live line counts, its blanks and one pair of matching quotes taken off."""
+        scratch = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        self.enterContext(patch.dict(os.environ, {"HOME": str(scratch)}))
+        settings_file = paths.settings_file()
+        settings_file.parent.mkdir(parents=True)
+        for text in (
+            "# KEY=example\nKEY=first\nKEY=later\n",
+            '  KEY =  "a|b;c"  \r\n',
+            "KEY='inner \"quotes\" kept'",
+            'KEY="',
+            'KEY=""',
+            "KEY='open",
+            "KEY=",
+            "OTHER=1\n# KEY=commented\n",
+        ):
+            with self.subTest(text=text):
+                settings_file.write_text(text, newline="")
+                loaded: dict[str, str] = {}
+
+                load_dotenv(scratch, loaded, self.fail)
+
+                self.assertEqual(read_setting(text, _KEY), loaded.get(_KEY))
 
 
 if __name__ == "__main__":

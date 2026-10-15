@@ -32,7 +32,11 @@ _DOTENV_TEXT = "dotenv_text"
 
 _PRIVATE_FILES = "private_files"
 
+_ENTRY_ANSWERS = "entry_answers"
+
 _CONFIGURE = "configure"
+
+_ADD_REPO = "add_repo"
 
 _TOKEN_PROBE = "token_probe"
 
@@ -76,17 +80,34 @@ _STARTING = "starting"
 
 _REMOVAL = "removal"
 
-# What `configure` composes: every setup leaf it writes the `.env` through.
-_CONFIGURE_CHAIN = (
+# What making an entry from a command's answers composes: the field
+# validators, the entry they make, and the clone it is read off.
+_ENTRY_ANSWERS_CHAIN = (
     _CHECKOUTS,
     _CLONE_DEFAULTS,
-    _DOTENV_TEXT,
-    _PATHS,
-    _PRIVATE_FILES,
     _REMOTE_URLS,
     _REPOS_ENTRY,
-    _TEMPLATES,
     _VALIDATION,
+)
+
+# What `configure` composes: every setup leaf it writes the `.env` through.
+_CONFIGURE_CHAIN = (
+    *_ENTRY_ANSWERS_CHAIN,
+    _DOTENV_TEXT,
+    _ENTRY_ANSWERS,
+    _PATHS,
+    _PRIVATE_FILES,
+    _TEMPLATES,
+)
+
+# What `add-repo` composes: the same leaves but the template, since it edits
+# the `.env` already written rather than writing one from it.
+_ADD_REPO_CHAIN = (
+    *_ENTRY_ANSWERS_CHAIN,
+    _DOTENV_TEXT,
+    _ENTRY_ANSWERS,
+    _PATHS,
+    _PRIVATE_FILES,
 )
 
 # What `set-token` composes: the repository validator, the hidden prompt, the
@@ -146,9 +167,10 @@ _STARTING_CHAIN = (
 # Each owner, and the owners beside it that importing it loads too. Only the
 # setup's own leaves read each other: the checkout check under the layout and
 # the clone validator, the validator's refusal under the entry it writes and
-# the `.env` lines, all of them under the clone's derived entry, every leaf
-# under `configure`, `tokens`, `checks`, `installation`, or the lifecycle
-# commands, and those under the command lines above them.
+# the `.env` lines, all of them under the clone's derived entry and the entry
+# a command's answers make, every leaf under `configure`, `add_repo`,
+# `tokens`, `checks`, `installation`, or the lifecycle commands, and those
+# under the command lines above them.
 _OWNERS = MappingProxyType({
     _TEMPLATES: (),
     _CHECKOUTS: (),
@@ -159,7 +181,9 @@ _OWNERS = MappingProxyType({
     _CLONE_DEFAULTS: (_CHECKOUTS, _REMOTE_URLS, _REPOS_ENTRY, _VALIDATION),
     _DOTENV_TEXT: (_CHECKOUTS, _VALIDATION),
     _PRIVATE_FILES: (),
+    _ENTRY_ANSWERS: _ENTRY_ANSWERS_CHAIN,
     _CONFIGURE: _CONFIGURE_CHAIN,
+    _ADD_REPO: _ADD_REPO_CHAIN,
     _TOKEN_PROBE: (),
     _TOKEN_PROMPT: (),
     _TOKENS: _TOKENS_CHAIN,
@@ -178,6 +202,9 @@ _OWNERS = MappingProxyType({
     _LIFECYCLE: _LIFECYCLE_CHAIN,
     _STARTING: _STARTING_CHAIN,
     _REMOVAL: (*_LIFECYCLE_CHAIN, _LIFECYCLE),
+    # `add-repo` on the command line asks the systemd adapter whether the
+    # unit it names is running.
+    "add_repo_command": (*_ADD_REPO_CHAIN, _ADD_REPO, _SYSTEMD, _UNIT_FILE),
     "service_commands": (
         *_INSTALLATION_CHAIN,
         _INSTALLATION,

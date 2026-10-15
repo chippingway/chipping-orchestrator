@@ -83,7 +83,8 @@ is one entry:
 REPOS=acme/api|/home/alice/src/acme-api|main
 ```
 
-Several repositories are several entries, separated by `;` because the `.env` loader reads each value from one line:
+Several repositories are several entries, separated by `;` because the `.env` loader reads each value from one line.
+[`add-repo`](#adding-a-repository-with-add-repo) adds each one after the first to that line:
 
 ```dotenv
 REPOS=acme/api|/home/alice/src/acme-api|main;acme/web|/home/alice/src/acme-web|master|upstream|2
@@ -103,6 +104,41 @@ operational settings, each documented below, and closes with the orchestrator-de
 `TARGET_REPO_ROOT`, `BASE_BRANCH`, and `REMOTE_NAME`. Those are for working on the orchestrator itself from its source
 checkout, against its own repository by default ([developer fallback](#developer-fallback-and-target-checks)), and are
 ignored whenever `REPOS` is set.
+
+### Adding a repository with add-repo
+
+`add-repo` adds one more repository to the `.env` that [`configure`](#basic-setup) wrote, without any prompt; its token
+is stored the same way as the first one's:
+
+```sh
+chipping-orchestrator set-token acme/web
+chipping-orchestrator add-repo --clone /home/alice/src/acme-web
+```
+
+It reads the rest of the entry off the clone with the [defaults](#setup-checks-and-clone-defaults) `configure` uses,
+and adds it at the end of the `REPOS` line the settings are read from. That is the first `REPOS` line in the file:
+the loader keeps the first value it reads for a key, so a second `REPOS` line would be ignored, and `add-repo` never
+writes one. Only that line changes. Its value is written back unquoted, without the blanks at either end that each
+entry is read without anyway, and with the new entry joined by `;`; every other line, comment, and line end stays as
+it was, a commented-out `REPOS` example and any later `REPOS` line included. The first entry stays first, so the
+default [`WORKTREES_DIR`](#workspace-and-agent-identity) beside its clone does not move. The file is written whole with
+mode 0600, replacing the one read, or the file a symlink there leads to, which keeps the link.
+
+Only `--clone` is required; each other option replaces a default:
+
+- `--repo OWNER/NAME` and `--base-branch BRANCH` — as for `configure`.
+- `--remote NAME` — the clone's remote that points at the repository, in place of the one found; the base branch then
+  defaults to that remote's default branch, and the entry records the remote when it is not `origin`.
+- `--parallel N` — how many of the repository's issues run at once, a whole number of at least 1. The fields are
+  positional, so the remote is written in front of it, `origin` included.
+
+`add-repo` exits 1 with one message on stderr, having written nothing, when it runs from a source checkout; when
+`~/.config/chipping-orchestrator/.env` does not exist, naming `configure`, or sets no `REPOS`; when an answer is
+refused or the entry cannot carry it, with the message `configure` prints for the options the two share; and when
+`REPOS` already lists the repository, compared without regard to case. It writes no token and loads no configuration.
+A service reads `REPOS` only as it starts, so once the entry is written `add-repo` asks the user manager whether the
+[service](#running-under-systemd-user-service) is active, and if it is, says to run `chipping-orchestrator restart`. A
+foreground `run` reads the entry at its next start.
 
 ### Checking a setup
 
@@ -316,9 +352,10 @@ Slugs whose repo name contains `.lock`, `..`, or a trailing `.` (all rejected by
 The setup code an installed package carries, under [`orchestrator/service/`](architecture/platform-modules.md#the-map),
 checks every answer before it writes anything and reads the rest of a `REPOS` entry off the clone. Each check refuses
 with one message, the same whether the answer came from an option or a prompt, and none of it loads this
-configuration, so it answers on a host with no `.env` at all. `configure` ([basic setup](#basic-setup)) applies them,
-naming the option each refused answer was given as. These rules are stricter than what the settings accept from a
-hand-edited `.env`, which is read as described above.
+configuration, so it answers on a host with no `.env` at all. `configure` ([basic setup](#basic-setup)) and `add-repo`
+([adding a repository](#adding-a-repository-with-add-repo)) apply them, naming the option each refused answer was
+given as. These rules are stricter than what the settings accept from a hand-edited `.env`, which is read as described
+above.
 
 - **Clone** — the top of a local clone or linked worktree, by the same check every
   [target](#developer-fallback-and-target-checks) passes. `~` is expanded, a `~user` naming no account is refused,
@@ -340,6 +377,8 @@ hand-edited `.env`, which is read as described above.
   `@` dropped and repeats kept once, as the settings read them. A login is letters, digits, and `-`, with an optional
   `[bot]` suffix, so `alice bob` is refused rather than kept as one login nobody has.
 - **Agents** — `claude`, `codex`, or `agy`, with an executable of that name on the `PATH` it is checked against.
+- **Remote** — a name that is not blank, and one of the clone's own remotes.
+- **Parallel limit** — a whole number of at least 1, the limit a `REPOS` entry is held to.
 
 Unless an answer gives them, the repository, the remote, and the base branch come from the clone itself, read locally
 with nothing fetched:
@@ -358,8 +397,9 @@ with nothing fetched:
 The entry is written in the fewest fields that carry it: the remote field only when the remote is not `origin` or a
 parallel limit follows it, so a clone that reaches GitHub through `upstream` is recorded as
 `owner/name|path|branch|upstream`. A field this syntax would split or strip — one holding `|`, `;`, or a line break,
-or blanks at either end — is refused, under the option answering for it: `--clone` for the path, and `--base-branch`
-for a branch whether given or read off the clone, since another one given there replaces it.
+or blanks at either end — is refused, under the option answering for it: `--clone` for the path, `--base-branch`
+for a branch whether given or read off the clone, since another one given there replaces it, and `add-repo`'s
+`--remote` for a remote it names.
 
 Setup uses the installed package's own locations under the home it runs with: settings in
 `~/.config/chipping-orchestrator/.env`, the file an installed package reads

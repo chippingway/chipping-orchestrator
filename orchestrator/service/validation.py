@@ -25,6 +25,9 @@ them.
   executable of that name is on the ``PATH`` the caller supplies -- the
   service's own, which is not necessarily the shell's.
 
+The two optional fields of a ``REPOS`` entry, its remote and its parallel
+limit, are validated beside the entry they belong to, in ``repos_entry``.
+
 Nothing here imports ``orchestrator.config``: a first setup validates its
 answers on a host where importing it would exit.
 """

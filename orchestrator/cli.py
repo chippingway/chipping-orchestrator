@@ -15,9 +15,10 @@ carries, and hands that state to each owner under `orchestrator/runtime/` in
 turn; the order below is the startup contract and lives nowhere else.
 
 The setup commands are put on the parser by
-`orchestrator/service/commands.py`, and the service commands -- `init`, which
-installs the systemd user service, and `start`, `stop`, `restart`, `status`,
-and `remove`, which manage it -- by
+`orchestrator/service/commands.py`, `add-repo`, which adds a repository to the
+`.env` they write, by `orchestrator/service/add_repo_command.py`, and the
+service commands -- `init`, which installs the systemd user service, and
+`start`, `stop`, `restart`, `status`, and `remove`, which manage it -- by
 `orchestrator/service/service_commands.py`; each runs its command through a
 core under `orchestrator/service/`. Those owners load no configuration in this
 process, since a setup is what writes one and `check` reads it in an
@@ -66,7 +67,11 @@ from typing import TYPE_CHECKING
 
 from orchestrator import __version__
 from orchestrator.runtime import options as _options
-from orchestrator.service import commands as _setup_commands, service_commands as _service_commands
+from orchestrator.service import (
+    add_repo_command as _add_repo_command,
+    commands as _setup_commands,
+    service_commands as _service_commands,
+)
 
 if TYPE_CHECKING:
     from orchestrator.runtime.state import RuntimeState
@@ -110,6 +115,7 @@ def _command_parser(parser_class: type[argparse.ArgumentParser]) -> argparse.Arg
     _options.add_arguments(run_parser)
     run_parser.set_defaults(dispatch=_run)
     _setup_commands.add_commands(commands)
+    _add_repo_command.add_command(commands)
     _service_commands.add_commands(commands)
     return parser
 

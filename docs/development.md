@@ -41,7 +41,8 @@ own repository or a fork. The default source-checkout log directory is `<checkou
 Whether the package runs from a source checkout is read at the root of the package that is running: an ordinary
 clone, a linked worktree, or an editable install of either is one, and an installed package stays installed even when
 launched from inside a checkout. Setup that writes the installed `~/.config/chipping-orchestrator/.env`, such as
-`chipping-orchestrator configure`, therefore refuses to run from a source checkout, which would never read that file.
+`chipping-orchestrator configure` or `add-repo`, therefore refuses to run from a source checkout, which would never
+read that file.
 Its message names the checkout's own `.env`, this guide, and the checkout's `run.sh`: set the `.env` up as above and
 launch with the [restart wrapper](#development-restart-wrapper). The checks and clone defaults that setup applies are
 under [setup checks](configuration.md#setup-checks-and-clone-defaults).

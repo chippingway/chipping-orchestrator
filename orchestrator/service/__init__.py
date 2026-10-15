@@ -17,15 +17,18 @@ its ``.env`` and logs, and the refusal a setup command gives a source
 checkout. ``validation`` holds one validator per setup field and the
 ``FieldError`` each refuses with; ``remote_urls`` reads which GitHub
 repository a remote's URL names; ``clone_defaults`` derives a clone's
-repository, remote, and base branch from its remotes; and ``repos_entry``
-writes the ``REPOS`` entry those fields make.
+repository, remote, and base branch from its remotes; ``repos_entry``
+writes the ``REPOS`` entry those fields make, and validates its two optional
+fields; and ``entry_answers`` makes that entry from a command's answers, each
+refusal naming the option the answer was given as.
 
-Then the writing. ``dotenv_text`` sets a setting in a ``.env``'s text on the
-line the configuration reads it from, and ``private_files`` writes a file
-whole, mode 0600, into a directory made with mode 0700, as is each parent
-missing above it. ``configure`` is the
-command that writes an installed package's ``.env`` from the basic template
-with all of the above, its core called in process with the answers as typed.
+Then the writing. ``dotenv_text`` reads and sets a setting in a ``.env``'s
+text on the line the configuration reads it from, and ``private_files``
+writes a file whole, mode 0600, into a directory made with mode 0700, as is
+each parent missing above it. ``configure`` is the command that writes an
+installed package's ``.env`` from the basic template with all of the above,
+and ``add_repo`` the one that adds a further repository to the ``REPOS`` line
+of that file in place, each core called in process with the answers as typed.
 ``tokens`` is the one that keeps a repository's token: read from standard
 input -- at a terminal through ``token_prompt``, which refuses one that would
 show it -- proved by ``token_probe``, read-only GitHub calls made with the
@@ -40,7 +43,8 @@ started with it, runs ``settings_report``, which resolves the
 settings there and reports what keeps them from running the service -- with
 the GitHub call ``token_probe`` makes per repository, unless the check is
 local. ``commands`` puts all three commands on the command line
-``orchestrator/cli.py`` parses.
+``orchestrator/cli.py`` parses, and ``add_repo_command`` puts ``add-repo``
+beside them, telling its operator to restart a service already running.
 
 Then the service. ``unit_file`` is the systemd user unit an installed package
 runs as, quoted the way systemd reads it back, and the hand-written unit it

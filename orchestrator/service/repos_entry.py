@@ -16,6 +16,11 @@ and holds the repository to the ``owner/name`` its validator accepts, which is
 also what keeps an entry from reading as a comment. ``writable_field`` is that
 refusal for one field, so a caller can name the answer a field came from.
 
+The two optional fields have their validators here, beside the entry they
+belong to, for a setup that is told them: ``validate_remote`` takes a remote's
+name as typed, and ``validate_parallel_limit`` a parallel limit, a whole
+number no smaller than the 1 an entry is held to as it is written.
+
 Nothing here imports ``orchestrator.config``, which parses the entry back:
 the format is the contract the two sides share, and a setup writes it on a
 host where importing the configuration would exit.
@@ -29,6 +34,8 @@ from orchestrator.service.validation import FieldError, validate_repository
 
 DEFAULT_REMOTE = "origin"
 
+_BELOW_ONE = "parallel limit {0} is below 1, which would block all work for the repository"
+
 
 def writable_field(field: str) -> str:
     """``field`` as an entry writes it, refused if it would be read back changed."""
@@ -41,6 +48,31 @@ def writable_field(field: str) -> str:
             "'|', ';', and line breaks and strips the blanks around each field",
         )
     return field
+
+
+def validate_remote(raw: str) -> str:
+    """The remote ``raw`` names, without surrounding blanks."""
+    remote = raw.strip()
+    if not remote:
+        raise FieldError(
+            "no remote was given; name the clone's remote that points at the "
+            "repository, such as origin",
+        )
+    return remote
+
+
+def validate_parallel_limit(raw: str) -> int:
+    """The parallel limit ``raw`` names: how many of a repository's issues run at once."""
+    try:
+        limit = int(raw)
+    except ValueError as error:
+        raise FieldError(
+            f"parallel limit {raw!r} is not a whole number; give how many of "
+            "the repository's issues may run at once, such as 2",
+        ) from error
+    if limit < 1:
+        raise FieldError(_BELOW_ONE.format(limit))
+    return limit
 
 
 @dataclass(frozen=True)
@@ -64,10 +96,7 @@ class RepositoryEntry:
             fields.append(self.remote)
         if self.parallel_limit is not None:
             if self.parallel_limit < 1:
-                raise FieldError(
-                    f"parallel limit {self.parallel_limit} is below 1, which "
-                    "would block all work for the repository",
-                )
+                raise FieldError(_BELOW_ONE.format(self.parallel_limit))
             fields.append(str(self.parallel_limit))
         for field in fields:
             writable_field(field)

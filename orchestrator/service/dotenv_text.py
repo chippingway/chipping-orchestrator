@@ -7,12 +7,14 @@ one starting with ``#``, splits any other at its first ``=`` into a key and a
 value, strips the blanks around each, then strips one pair of matching quotes
 around the value. The first line naming a key is the one that counts.
 
-``assign`` sets a key's value on that first line, so the setting edited is the
-one in effect, and every other line -- the comments around it, a commented-out
-example of the same key -- stays as it was, byte for byte. ``assignment``
-spells a new line. Both refuse a value the configuration would not read back
-as written: one spanning lines, with blanks at either end, or wrapped in
-quotes the reader would take off.
+``read_setting`` reads a key's value off that first line as the configuration
+does, and ``assign`` sets it there, so the setting edited is the one in
+effect, and every other line -- the comments around it, a commented-out
+example of the same key, a later line setting it that nothing reads -- stays
+as it was, byte for byte. ``assignment`` spells a new line. Both writers
+refuse a value the configuration would not read back as written: one spanning
+lines, with blanks at either end, or wrapped in quotes the reader would take
+off.
 
 Nothing here imports ``orchestrator.config``, whose reader this mirrors: a
 setup writes the file on a host where importing it would exit.
@@ -30,6 +32,17 @@ def _key(line: str) -> str | None:
     if not spelled or spelled.startswith("#"):
         return None
     return spelled.partition("=")[0].strip()
+
+
+def read_setting(text: str, key: str) -> str | None:
+    """The value ``text`` sets ``key`` to, as the configuration reads it, or ``None``."""
+    for line in text.splitlines():
+        if _key(line) == key:
+            spelled = line.partition("=")[2].strip()
+            opening = spelled[:1]
+            quoted = opening in _QUOTES and spelled[1:].endswith(opening)
+            return spelled[1:-1] if quoted else spelled
+    return None
 
 
 def assignment(key: str, setting: str) -> str:
