@@ -182,7 +182,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             check that wrote neither an exit status nor output, a bare command inventory. Any other
                             check, its exit line missing, blank, repeated, or reading anything else, stays as a
                             sentence naming its command and how it ended, over the output the reviewer quoted as a
-                            code block. Read apart from the declaration reader and more loosely, since it accepts
+                            code block, below a lead naming what failed (`review_findings_failures`); the findings are
+                            read whole for the reviewer's failure entries before any check is shown, and stay as
+                            written. Read apart from the declaration reader and more loosely, since it accepts
                             nothing: a step line outside any block opens one, and a block its RUN line did not open,
                             or that no closing line ends, holds only the unbroken lines below each step line and the
                             code fences below them, so the findings written below it stay. A fence is read whole, from
@@ -211,6 +213,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that formatting, its declaration raw, goes out concise, and one already concise goes out as
                             persisted; `stages/validating/feedback_posts.py` formats here the findings an anchored
                             feedback post quotes where a `/orchestrator continue` replays it
+    review_findings_failures.py
+                            the lead above each check `review_findings` shows failing, in the labels of the
+                            reviewer's failure entries: each failure pytest's short summary reports in the check's
+                            output, a `FAILED` test by its exact node ID, parameters included, an `ERROR` one as
+                            erroring outside the test itself, and an `ERROR` path as its collection, never a test ID,
+                            each with the error its line gives, else for a collection the last exception line of the
+                            traceback pytest printed collecting it, else the error of the entry naming it, else a
+                            line saying the summary gave none; ten at most, the rest left to the output quoted below.
+                            A check pytest's summary names nothing in is led by each `Failure:` entry of the findings
+                            whose `Error:` -- or the code block's last line below an empty one -- its output shows,
+                            matched by that error and never by command, so two runs of one stdin command each lead with
+                            their own scenario; else by a line saying no test ID or scenario name was recorded. A lead
+                            says too where the check quoted no output, and where its command reads its code from stdin
+                            (`-`) and no entry it backs gives a reproduction. No lead line opens on a declaration
+                            keyword, and the names and errors it takes from output stand in code spans
     review_findings_fences.py
                             where the code of a reviewer's findings -- fences and indented code -- opens and ends as
                             Markdown renders it, for `review_findings`: a fence opens on a run at most three spaces
