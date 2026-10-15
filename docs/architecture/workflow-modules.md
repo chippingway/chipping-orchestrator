@@ -1523,7 +1523,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             abandoned -- each keeping its whole binding), HANDOFF (`verification_evidence_handoff`, the
                             receipt of the last finished transaction), and the revision FLOOR
                             (`verification_evidence_revision`, the highest revision any transaction was recorded under,
-                            which outlives a damaged, dropped, or evicted record); and the receipt spelling, which names
+                            which outlives a damaged, dropped, or evicted record -- or one the dormant settled-evidence
+                            policy spent past evidence it read moving, or took off to retire that evidence whole
+                            (`rewrite_finish_outranking.py`)); and the receipt spelling, which names
                             the revision a transaction was minted under. A binding extends the report records rather
                             than forking them: its target is a report `ReportSubject` about the head the evidence
                             answers for, beside the review subject exactly as `review_subjects.py` records it, and the
