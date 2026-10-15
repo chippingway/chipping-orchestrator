@@ -212,11 +212,10 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Wor
     """What `current`, settled for `finish`'s landed head, reads as now: `(moved, held)`.
 
     The evidence records over the issue and comment read afresh first, beside
-    the requirements of that issue (`_records_heard`) and the mark of
-    movement a dormant finish read under `current` in its handoff's place
-    (`_MARKED`, `rewrite_finish_marks.carries_the_mark`) -- that movement,
-    recorded where nothing else could carry it, however everything else reads
-    now -- and, where none of them refuses anything, the readiness proof over them
+    the requirements of that issue (`_records_heard`) -- the mark of movement
+    a dormant finish read under `current` in its handoff's place among them,
+    on every reading the last word takes as on this one -- and, where none of
+    them refuses anything, the readiness proof over them
     (`verification_proof.current_evidence_verdict`). Then the last word over
     `current`'s binding (`rewrite_evidence_proof.last_word`), handed that
     proof as the verdict read first, which asks the evidence records once
@@ -235,10 +234,7 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Wor
     `current` (`rewrite_landing_retirement.retires_unproved`).
     """
     read = _reads_again(finish) or (None, None)
-    first = (
-        *_records_heard(current, read[1], read[0], settled=finish.proves_settled),
-        _MARKED if finish.proves_settled and carries_the_mark(read[1], current) else None,
-    )
+    first = _records_heard(current, read[1], read[0], settled=finish.proves_settled)
     proved = None
     if read[1] is not None and not any(first):
         proved = _proof.current_evidence_verdict(_proof.ProofReading(finish.gh, finish.spec, *read))
@@ -356,7 +352,11 @@ def _records_heard(
     own, so a pending record holds beside evidence a readable revision
     outranks and hides none of it. The last two the proof
     would hear only behind the pull request, which a reading nobody could take
-    hides them behind. Hold: a comment no longer carrying `current` as its
+    hides them behind. Under that policy, the mark of movement a dormant finish
+    read under `current` in its handoff's place (`_MARKED`,
+    `rewrite_finish_marks.carries_the_mark`) too: that movement, recorded where
+    nothing else could carry it, whatever the comment reads beside it now and
+    however soon it is put back after this reading. Hold: a comment no longer carrying `current` as its
     current evidence, or carrying a record beside it that says it is not the
     last word on the head (`beside_current`) -- a pending transaction among
     them, whatever revision it spent, since the next finish answers it -- and
@@ -370,14 +370,18 @@ def _records_heard(
     if _settlement.read_current_evidence(state) == current:
         beside = beside_current(state, current)
     handoff = _settlement.read_evidence_handoff(state)
+    # The handoff's place: a handoff naming `current` that describes another
+    # head, or the mark in its place, which no reader takes for a handoff.
+    in_its_place = _MARKED if settled and carries_the_mark(state, current) else None
+    names = handoff is not None and handoff.receipt == current.receipt
+    if names and not _handoff_describes(state, current):
+        in_its_place = _UNDESCRIBED
     return (
         None if issue is None else requirements_verdict(
             issue, state, current.binding.target.publication.requirements_revision,
         ),
         _proof.recorded_verdict(state, current.binding),
-        _UNDESCRIBED if (
-            handoff is not None and handoff.receipt == current.receipt and not _handoff_describes(state, current)
-        ) else None,
+        in_its_place,
         _OUTRANKED if outranks(state, current, settled=settled) else None,
         _evidence_models.ReportEvidence(_evidence_models.ReportEvidenceVerdict.HOLD, beside) if beside else None,
     )

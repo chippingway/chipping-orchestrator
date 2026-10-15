@@ -26,9 +26,11 @@ from __future__ import annotations
 
 import contextlib
 import unittest
+from functools import partial
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
+    rewrite_evidence_proof as _evidence_proof,
     rewrite_finish_outranking as _outranking,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_settlement as _settlement_step,
@@ -47,6 +49,7 @@ from tests.workflow.engine import (
     verification_evidence_test_support as support,
     verification_record_test_support as record_support,
 )
+from tests.workflow.interleaving import _RacesPastTheStep
 
 _HANDOFF = _records.EVIDENCE_HANDOFF
 
@@ -185,6 +188,27 @@ class MarkedMovementTest(retirement.RetirementCase, unittest.TestCase):
 
         left = self.pinned()[_records.PENDING_EVIDENCE]
         self.assertEqual((retired, again, left), (_HELD, _HELD, "unreadable"))
+        self.assert_whole()
+        self.assert_untouched()
+
+    def test_a_mark_the_last_word_read_is_movement(self) -> None:
+        # Another finish marks the run's movement just behind the phase's
+        # first reading, and the handoff is put back just behind the last
+        # word's: the mark that reading heard is the movement it records,
+        # so the run is retired whole there and then, and the next phase,
+        # over the handoff put back, goes on with nothing current.
+        handoff = self.pinned()[_HANDOFF]
+        marked = partial(retirement.marks_the_run, self)
+        restored = partial(settled_moves.writes_over, self, _HANDOFF, handoff)
+
+        with (
+            patch.object(_readiness, "_reads_again", _RacesPastTheStep(_readiness._reads_again, marked)),
+            patch.object(_evidence_proof, "_reads_again", _RacesPastTheStep(_evidence_proof._reads_again, restored)),
+        ):
+            first = self.asks(_settlement_step.resolves, self.dormant())
+        again = self.asks(_settlement_step.resolves, self.dormant())
+
+        self.assertEqual((first, again), (_HELD, None))
         self.assert_whole()
         self.assert_untouched()
 

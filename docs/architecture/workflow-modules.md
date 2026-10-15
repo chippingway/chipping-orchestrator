@@ -1228,7 +1228,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction and blanks the attempt's recorded base tip. Under the dormant settled-evidence
                             policy a settlement another finish made of the transaction while its abandonment was asked
                             is invalidated instead (`rewrite_finish_unconfirmed.retires_the_settled`), a successor
-                            under another receipt kept; a caller that has not proved the transaction since its own
+                            under another receipt kept and, where one came in beside that settlement, the route or
+                            continuation held over it; a caller that has not proved the transaction since its own
                             requests has it proved again whole (`whole`)
     rewrite_finish_settlement.py
                             the landed head's evidence resolved before the finish announces it (`resolves`), and the
@@ -1312,8 +1313,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             or the movement marked (`stands_back`),
                             marked evidence retired whole by a later finish finding no attempt
                             (`retires_the_marked`), and a settlement made while this finish's abandonment was asked
-                            invalidated (`retires_the_settled`, the one the evidence phase asks; no coordinator asks
-                            the others yet)
+                            invalidated, held over a newer transaction that came in beside it (`retires_the_settled`,
+                            the one the evidence phase asks; no coordinator asks the others yet)
     rewrite_finish_outranking.py
                             whether a pinned comment shows a revision spent past settled evidence (`outranks`), read
                             off the handoff, every history entry that reads on its own, and the floor: the policy every

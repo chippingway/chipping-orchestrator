@@ -20,7 +20,8 @@ coordinator (`rewrite_finish`) asks none of them yet:
   (`rewrite_finish_marks.marks`); `retires_the_marked` lets a later finish
   finding no attempt retire marked evidence whole once room is made.
 - `retires_the_settled` invalidates a settlement another finish made while
-  this finish's abandonment was asked (`rewrite_finish_captured._abandoned`).
+  this finish's abandonment was asked (`rewrite_finish_captured._abandoned`),
+  and holds the route where a newer transaction came in beside it.
 """
 from __future__ import annotations
 
@@ -116,14 +117,18 @@ def retires_the_marked(finish: LandedFinish) -> None:
 
 
 def retires_the_settled(finish: LandedFinish, pending: _records.PendingEvidence, why: str) -> bool | None:
-    """Invalidate a settlement another finish made of `pending` while its abandonment was asked; whether it landed.
+    """Invalidate a settlement another finish made of `pending` while its abandonment was asked; whether to go on.
 
     None where the comment carries nothing current under `pending`'s receipt.
     Otherwise its records are taken in (`verification_durable.takes_in_a_settlement`)
     and invalidated over what the abandonment read (`why`)
     (`rewrite_finish_readiness.invalidates`): over this finish's attempt, or
     over the comment as it stands where that finish's route took it, which
-    holds the route all the same.
+    holds the route all the same. False too where the records taken in carry
+    a pending record beside that settlement -- a newer transaction another
+    road recorded, readable or not -- which stands as that road wrote it for
+    the next finish to answer, never one a route or continuation may leave
+    owed behind a cleared attempt.
     """
     settled = _durable.takes_in_a_settlement(finish.gh, finish.issue, finish.state, pending.receipt)
     if settled is None:
@@ -133,4 +138,8 @@ def retires_the_settled(finish: LandedFinish, pending: _records.PendingEvidence,
         "abandonment was asked: %s",
         finish.issue.number, settled.revision, finish.head, why,
     )
-    return _readiness.invalidates(finish, settled)
+    invalidated = _readiness.invalidates(finish, settled)
+    beside = _readiness.beside_current(finish.state, None)
+    if beside:
+        log.warning("issue=#%d holding the route of %.8s: %s", finish.issue.number, finish.head, beside)
+    return invalidated and not beside

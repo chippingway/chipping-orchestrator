@@ -284,7 +284,9 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     (`rewrite_finish_unconfirmed.retires_the_settled`), its announcement taken
     in and the route going on as a landed abandonment does -- or held, the
     movement recorded, where there is no room or that finish's route took the
-    attempt. Only where nothing lands is the route held
+    attempt, and held too where a newer transaction another road recorded
+    came in beside that settlement, which stands owed for the next finish.
+    Only where nothing lands is the route held
     with the transaction kept, logged: the comment taking no write at all,
     carrying another attempt -- which every write here is decided on -- or
     no longer recording `pending` with no settlement of it current that the
