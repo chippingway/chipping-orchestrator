@@ -35,7 +35,8 @@ retirement, an abandonment -- is decided on the attempt as the finish read it
 as well (`ProofReading.rests_on`), so an attempt another road put in its place
 refuses them, and a finish whose state took that attempt in all the same holds
 before anything abandons over it or clears it. So does one whose state took in
-a newer transaction another road recorded in the answered one's place: that
+a newer transaction another road recorded in the answered one's place -- beside
+a settlement of it the dormant policy adopted among them: that
 successor stands as its road wrote it, with the history and revision floor that
 road left, for the next finish to answer, rather than taking the refusals of
 the transaction it replaced. A revision already settled or
@@ -277,10 +278,23 @@ def _behind_the_answer(
     by this answer, or by another road whose settlement it adopted -- however
     soon it was put back (`rewrite_finish_settled.retires_the_adopted`), the
     announcement another finish of this landing made of it over `attempt`, the
-    attempt captured before the answer, no such movement.
+    attempt captured before the answer, no such movement. What the adoption
+    took in is asked again whether it is `pending`'s alone (`_answered_alone`):
+    a newer transaction another road recorded beside the settlement adopted
+    stands as that road wrote it, for the next finish to answer, the route
+    held behind the adopted settlement's own invalidation, so the movement
+    read under `pending` is never proved over the successor.
     """
     adopts_the_answer(finish, pending)
     movements = moves_the_binding(finish, movements, attempt)
+    if not _answered_alone(finish, pending, attempt):
+        log.warning(
+            "issue=#%d holding the route of %.8s: another road's evidence record stands beside verification "
+            "evidence revision %d, adopted as settled",
+            finish.issue.number, finish.head, pending.revision,
+        )
+        retires_the_adopted(finish, pending, movements, attempt)
+        return FinishOutcome.HELD
     if _captured.recorded(finish, logged=False) is None:
         return resolves(finish) if retires_the_adopted(finish, pending, movements, attempt) else FinishOutcome.HELD
     proof = movements[0] if movements else _captured.proved_again(finish, pending)

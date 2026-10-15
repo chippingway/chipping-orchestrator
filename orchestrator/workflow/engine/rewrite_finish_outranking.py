@@ -27,7 +27,10 @@ without hiding a revision that independently outranks the evidence.
 A finish held to that policy spends such a revision itself (`spends_past`)
 where movement it read under the evidence fits nowhere else
 (`rewrite_finish_marks.marks`): every reader of either policy then reads the
-evidence outranked, its record kept whole.
+evidence outranked, its record kept whole. Where not even that fits -- the
+floor gaining a digit -- or nobody can read the floor, it takes the floor off
+instead (`unfloors`), only where the floor shows no revision past the
+evidence, to make room for retiring the evidence whole.
 """
 from __future__ import annotations
 
@@ -76,4 +79,22 @@ def spends_past(state: PinnedState, current: _records.CurrentEvidence) -> bool:
         return False
     if spent <= current.revision:
         state.set(_records.REVISION_FLOOR, current.revision + 1)
+    return True
+
+
+def unfloors(state: PinnedState, current: _records.CurrentEvidence) -> bool:
+    """Take `state`'s revision floor off where it shows no revision spent past `current`; whether it is off.
+
+    For `current`'s whole retirement where nothing else makes room for it
+    (`rewrite_finish_marks.marks`): the entry it retires into carries
+    `current`'s revision, so a floor at that revision -- or one nobody can
+    read -- tells nothing the entry does not. With the floor off nobody can
+    say what was spent (`verification_record_state`), so nothing is minted
+    for the issue until the floor is put back. Where anything shows a revision
+    past `current`, the floor stays.
+    """
+    spent = _record_state._latest_revision(state)
+    if spent is not None and spent > current.revision:
+        return False
+    state.data.pop(_records.REVISION_FLOOR, None)
     return True

@@ -21,7 +21,10 @@ and the evidence records left null or unreadable removed -- or, where not
 even that fits, a revision is spent past it (`rewrite_finish_outranking.spends_past`),
 its record kept current and whole, which every reader of either policy
 reads outranked and every later proof under the dormant policy retires
-whole once room is made.
+whole once room is made. Where the floor has no room to gain the digit that
+takes, the evidence is retired whole with the floor taken off to make room
+(`rewrite_finish_outranking.unfloors`), its history entry carrying the
+revision the floor did.
 """
 from __future__ import annotations
 
@@ -38,7 +41,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.rewrite_finish_announced import takes_in_the_announcement
 from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
-from orchestrator.workflow.engine.rewrite_finish_outranking import spends_past
+from orchestrator.workflow.engine.rewrite_finish_outranking import spends_past, unfloors
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -54,8 +57,8 @@ _COMPACTS = (*_INVALIDATES, _records.PENDING_EVIDENCE, _records.EVIDENCE_HANDOFF
 
 # How `_lands` records the movement, and what each writes: by retiring the
 # evidence into history, by the mark in its handoff's place, by retiring it
-# whole compactly, or, where not even that fits, by spending a revision past
-# it on the floor.
+# whole compactly, where not even that fits by spending a revision past it on
+# the floor, and where the floor cannot grow by retiring it whole without it.
 _RETIRES = "retires"
 
 _MARKS = "marks"
@@ -64,17 +67,20 @@ _RETIRES_WHOLE = "retires whole"
 
 _SPENDS = "spends"
 
+_UNFLOORS = "retires whole without its floor"
+
 _WRITES = MappingProxyType({
     _RETIRES: _INVALIDATES,
     _MARKS: (_records.EVIDENCE_HANDOFF,),
     _RETIRES_WHOLE: _COMPACTS,
     _SPENDS: (_records.REVISION_FLOOR,),
+    _UNFLOORS: (*_COMPACTS, _records.REVISION_FLOOR),
 })
 
 # What `marks` tries, each over the comment read afresh and once more where
-# the comment moved under its edit: the mark, the whole retirement, then the
-# revision spent.
-_RECORDINGS = (_MARKS, _MARKS, _RETIRES_WHOLE, _RETIRES_WHOLE, _SPENDS, _SPENDS)
+# the comment moved under its edit: the mark, the whole retirement, the
+# revision spent, then the whole retirement without the floor.
+_RECORDINGS = (_MARKS, _MARKS, _RETIRES_WHOLE, _RETIRES_WHOLE, _SPENDS, _SPENDS, _UNFLOORS, _UNFLOORS)
 
 
 def carries_the_mark(state: PinnedState | None, current: _records.CurrentEvidence) -> bool:
@@ -105,8 +111,13 @@ def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> 
     anybody relies on again, and every later proof under the dormant policy
     reads that as movement and retires it whole into history once room is
     made. Where the floor would gain a digit the comment has no room for, or
-    nobody can say what was spent, `current` is left as it stands for the
-    next proof to read again.
+    nobody can say what was spent, `current` is retired whole into history
+    after all, read and made once more likewise, with the floor taken off to
+    make room (`rewrite_finish_outranking.unfloors`) -- only where it shows no
+    revision past `current`, whose entry carries the revision it did -- so
+    the run's provenance and its movement both stand; nobody can then say
+    what was spent, and nothing is minted for the issue until the floor is
+    put back.
     """
     landed = "not landed"
     for how in _RECORDINGS:
@@ -187,6 +198,8 @@ def _lands(
     record and the evidence records left null or unreadable rather than
     leaving them null. `_SPENDS` spends a revision past it on the floor,
     keeping its record whole, and lands with nothing sent where one already is.
+    `_UNFLOORS` retires it whole as `_RETIRES_WHOLE` does, and where that
+    does not fit takes a floor showing nothing past it off first.
     """
     if durable is None or _settlement.read_current_evidence(durable) != current:
         return False
@@ -197,7 +210,9 @@ def _lands(
     elif how == _SPENDS:
         staged = spends_past(durable, current)
     else:
-        staged = _settlement.retire_current_evidence(durable, compact=how == _RETIRES_WHOLE)
+        staged = _settlement.retire_current_evidence(durable, compact=how != _RETIRES)
+    if not staged and how == _UNFLOORS and unfloors(durable, current):
+        staged = _settlement.retire_current_evidence(durable, compact=True)
     if not staged:
         return False
     return _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is None

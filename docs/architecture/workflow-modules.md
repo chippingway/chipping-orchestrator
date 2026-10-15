@@ -1277,7 +1277,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             records beside it hold the route (`out_of_step`); which refusals an answer read moved a
                             binding's records rather than the evidence records or this landing's announcement alone
                             (`moves_the_binding`), a settlement and announcement another finish made meanwhile taken
-                            in first (`adopts_the_answer`); a settlement the answer left current invalidated over that
+                            in first (`adopts_the_answer`) and the route held where a newer transaction came in beside
+                            that settlement, the successor left owed; a settlement the answer left current invalidated
+                            over that
                             movement (`retires_the_adopted`); and whether the attempt that answer left is the one
                             captured (`stands_as_read`). The coordinator (`rewrite_finish.py`)
                             takes none of the policy's proofs around its announcement, park, relabel, or retirement
@@ -1299,8 +1301,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             evidence retired whole, its current record and the evidence records left null or
                             unreadable removed (`verification_settlement_state.retire_current_evidence`), and where not
                             even that fits, a revision spent past it on the floor, its record kept current and whole
-                            (`rewrite_finish_outranking.spends_past`); a mark, retirement, or spent revision refused by
-                            a comment moved under its edit is read and made once more
+                            (`rewrite_finish_outranking.spends_past`), and where the floor cannot grow, the evidence
+                            retired whole with a floor showing nothing past it taken off (`unfloors`), so nothing is
+                            minted until a floor is put back; a mark, retirement, or spent revision refused by a
+                            comment moved under its edit is read and made once more
     rewrite_finish_unconfirmed.py
                             what the finish's own write nobody confirmed left of its attempt, for the dormant policy:
                             the announcement's bookkeeping taken in (`takes_in_the_announcement`), the attempt put back
@@ -1318,7 +1322,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             under a readable pending record, so a pending record holds without hiding it; and the
                             revision a dormant finish spends past the evidence where nothing else records movement read
                             under it (`spends_past`), the floor raised one past it unless a revision is spent past it
-                            already, so no floor is raised past a transaction that would then settle outranked
+                            already, so no floor is raised past a transaction that would then settle outranked; and
+                            the floor taken off for a whole retirement nothing else makes room for (`unfloors`), only
+                            where it shows no revision past the evidence
     rewrite_finish_readiness.py
                             dormant -- asked only by the evidence phase of the dormant settled-evidence finish policy
                             (`rewrite_finish_settled.py`) and the recovery's dormant guarded operations, so by no

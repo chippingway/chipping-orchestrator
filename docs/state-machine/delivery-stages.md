@@ -1586,7 +1586,9 @@ because there it is the claim that this stage has already rerouted rather than a
     records taken in (`verification_durable.takes_in_a_settlement`), and another finish's announcement of the
     landing with it -- before what the answer read is classified, and invalidated over movement read under it,
     the evidence records' own moves and this landing's announcement aside
-    (`verification_durable.moves_only_the_evidence`), so one beside nothing else moved stays current; a continuation
+    (`verification_durable.moves_only_the_evidence`), so one beside nothing else moved stays current, and a newer
+    transaction another road recorded beside it comes in with it and holds the route, owed as recorded, the adopted
+    settlement alone invalidated over that movement; a continuation
     abandons a transaction recorded beside settled evidence before it proves that evidence, so neither holds it
     for good;
   - the invalidation is made over the attempt as reconciled -- an announcement another finish of the landing put on
@@ -1600,7 +1602,10 @@ because there it is the claim that this stage has already rerouted rather than a
     the evidence is retired whole at once, its current record, a pending record left null, and an unreadable
     handoff removed rather than left null -- and where not even that fits, a revision is spent past it on the floor,
     its record kept current and whole, which every reader reads as outranking it, so nothing put back makes it
-    evidence anybody relies on again and the next proof with room retires it whole.
+    evidence anybody relies on again and the next proof with room retires it whole; where the floor has no room to
+    gain the digit that takes, or nobody can read it, the evidence is retired whole with the floor taken off to make
+    room -- only a floor showing no revision past it, which its entry carries -- and nothing is minted for the issue
+    until a floor is put back.
 
   Beside the phase stand primitives a caller holding such a finish asks directly, which no coordinator asks yet.
   Behind a write of the finish's own whose answer was lost, the announcement's bookkeeping is taken in, and the
