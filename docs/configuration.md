@@ -301,6 +301,11 @@ over it. Empty input, a terminal that cannot hide the token, a refused token, an
 each exit 1 and leave an existing token as it was; Ctrl+C at the prompt exits 130 and writes nothing. `.env` is never
 touched, and an exported `GITHUB_TOKEN` or `ORCHESTRATOR_TOKEN_FILE` still answers in front of the file it writes.
 
+At first setup, `init`'s [onboarding](configuration/operations.md#onboarding-with-init) asks for each repository's
+token the same way: at a hidden prompt, offering an exported `GITHUB_TOKEN` by name as its default, held to the same
+shape and proved with the same call. It keeps the token in memory until its last question is answered yes, then
+writes it with `set-token`'s own code; a token file already in place is kept without asking.
+
 ## Target repository
 
 `REPOS` names the repositories to manage, one entry each, for a single repository as for several, and an installed
@@ -362,8 +367,9 @@ checks every answer before it writes anything and reads the rest of a `REPOS` en
 with one message, the same whether the answer came from an option or a prompt, and none of it loads this
 configuration, so it answers on a host with no `.env` at all. `configure` ([basic setup](#basic-setup)) and `add-repo`
 ([adding a repository](#adding-a-repository-with-add-repo)) apply them, naming the option each refused answer was
-given as. These rules are stricter than what the settings accept from a hand-edited `.env`, which is read as described
-above.
+given as, and `init`'s [onboarding](configuration/operations.md#onboarding-with-init) applies them at its prompts,
+printing each refusal beneath the question and asking it again. These rules are stricter than what the settings
+accept from a hand-edited `.env`, which is read as described above.
 
 - **Clone** — the top of a local clone or linked worktree, by the same check every
   [target](#developer-fallback-and-target-checks) passes. `~` is expanded, a `~user` naming no account is refused,
@@ -380,7 +386,7 @@ above.
   `.lock`, no leading `-` or `/`, and no trailing `.` or `/`. `HEAD` and `@`, which git reads as `HEAD`, are refused
   too, so `feature branch` never reaches an entry.
 - **Token** — one run of visible ASCII once the blanks around it are dropped, refused without being quoted;
-  [`set-token`](#storing-a-token-with-set-token) also proves it reads the repository before writing it.
+  [`set-token`](#storing-a-token-with-set-token) and onboarding also prove it reads the repository before writing it.
 - **Logins** (`ALLOWED_ISSUE_AUTHORS`, `HITL_HANDLE`) — at least one GitHub login, separated by commas, with a leading
   `@` dropped and repeats kept once, as the settings read them. A login is letters, digits, and `-`, with an optional
   `[bot]` suffix, so `alice bob` is refused rather than kept as one login nobody has.
