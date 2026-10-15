@@ -18,7 +18,9 @@ made; where even the mark has no room the evidence is retired whole at once.
 A routed head with nothing current is held to a base its attempt can prove,
 the base the tick counted where its tip is blank or missing. A readable
 revision spent past the run -- the floor, or the one minted under a readable
-pending record -- outranks it beside a pending record too, which still holds.
+pending record -- outranks it beside a pending record too, which still holds;
+a continuation abandons a newer transaction before the run is proved, so it
+never holds over it.
 A finish the policy does not hold refuses every one of these moves, reading
 the comment no more often than it always has. Nothing runs, posts, launches,
 relabels, or charges.
@@ -27,11 +29,13 @@ from __future__ import annotations
 
 import contextlib
 import unittest
+from dataclasses import replace
 from functools import partial
 from itertools import product
 from unittest.mock import patch
 
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
+from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     rewrite_finish_marks as _marks,
@@ -49,6 +53,7 @@ from tests.workflow.engine import (
     rewrite_finish_moves as moves,
     rewrite_finish_readings as readings,
     rewrite_settled_moves as settled_moves,
+    verification_evidence_test_support as support,
 )
 
 _HANDOFF = _records.EVIDENCE_HANDOFF
@@ -114,6 +119,9 @@ def _raises_the_floor_past(case) -> object:
     settled_moves.writes_over(case, readings.KEY_REVISION_FLOOR, pending.revision + 1)
     return pending
 
+
+# A base advanced past the landed head again, as the tick counted it.
+_ADVANCED = _BranchDivergence(tip=support.SQUASHED_SHA, behind=1, readable=True)
 
 # A transaction dropped before the one pending, the floor then left unreadable.
 _BESIDE_AN_UNREADABLE_FLOOR = partial(_drops_one_first, floor="unreadable")
@@ -391,6 +399,30 @@ class OutrankingTest(retirement.RetirementCase, unittest.TestCase):
                 self.assert_untouched()
                 if outranked:
                     self._assert_retired_whole()
+
+    def test_a_continuation_abandons_it_first(self) -> None:
+        # The base advanced past the landed head again, and another road
+        # recorded a newer transaction beside the run: the continuation
+        # abandons it before the run is proved, so no phase holds over it,
+        # and the revision it spent then outranks the run, invalidated whole;
+        # every phase behind goes on with nothing current.
+        newer = settled_moves.records_a_newer_one(self)
+        self.world.base = _BaseStanding.DROPPED
+        self.world.base_ref = _ADVANCED
+
+        first = self.asks(_settlement_step.resolves, self._continued())
+        again = self.asks(_settlement_step.resolves, self._continued())
+
+        self.assertEqual((first, again), (None, None))
+        self.assert_invalidated((newer.receipt, readings.ABANDONED))
+        self.assert_untouched()
+
+    def _continued(self):
+        """The dormant finish of a landing the base advanced past again, as the tick counted it."""
+        finish = self.dormant()
+        candidate = finish.landed.candidate
+        candidate = replace(candidate, checkout=replace(candidate.checkout, base=_ADVANCED))
+        return replace(finish, landed=replace(finish.landed, candidate=candidate))
 
     def _proves_ready(self) -> tuple:
         """What the readiness proof over a dormant finish answers, and the pending and current records it leaves."""

@@ -1585,7 +1585,9 @@ because there it is the claim that this stage has already rerouted rather than a
   - a settlement another road made of the run while the phase answered or abandoned it is adopted -- its evidence
     records taken in (`verification_durable.takes_in_a_settlement`) -- and invalidated over movement read under it,
     the evidence records' own moves and this landing's announcement aside
-    (`verification_durable.moves_only_the_evidence`);
+    (`verification_durable.moves_only_the_evidence`), so one beside nothing else moved stays current; a continuation
+    abandons a transaction recorded beside settled evidence before it proves that evidence, so neither holds it
+    for good;
   - the invalidation is made over the attempt as reconciled -- an announcement another finish of the landing put on
     it taken in (`workflow/engine/rewrite_finish_announced.py`), a refused write read afresh and retried once -- or,
     where another finish's route or another road took the attempt, over the comment as it stands, the route held and

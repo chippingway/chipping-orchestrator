@@ -111,6 +111,7 @@ from orchestrator.workflow.engine.rewrite_evidence_proof import MOVEMENT, _reads
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.rewrite_finish_readiness import invalidates, stands_ready
 from orchestrator.workflow.engine.rewrite_finish_settled import (
+    moves_the_binding,
     out_of_step,
     retires_the_adopted,
     stands_as_read,
@@ -128,8 +129,9 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     earlier finish recorded for it is abandoned before its continuation is
     announced (`rewrite_finish_evidence.continues`), and nothing is decided or
     settled for it -- evidence an earlier finish settled for it is kept for
-    the rebase behind it, proved ready first under the settled-evidence
-    policy (`rewrite_finish_settled.stands_ready_if_settled`). For any other
+    the rebase behind it, proved ready under the settled-evidence policy
+    behind that abandonment (`rewrite_finish_settled.stands_ready_if_settled`),
+    so a transaction beside it never holds the continuation for good. For any other
     head the evidence step decides and records it
     (`rewrite_finish_evidence.settles`) and a transaction it recorded is
     published and settled here (`settles`) -- and so is a newer transaction
@@ -166,7 +168,8 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     if held is not None:
         return held
     if finish.behind:
-        return stands_ready_if_settled(finish) or _evidence.continues(finish)
+        stopped = _evidence.continues(finish)
+        return stands_ready_if_settled(finish) or stopped
     current = _settlement.read_current_evidence(finish.state)
     standing = current is not None and current.binding.target.target_head == finish.head and (
         _captured.recorded(finish, logged=False) is None
@@ -260,7 +263,11 @@ def _behind_the_answer(
     """Where the route goes once `pending` was answered, over the movement the answer read; None to route.
 
     `movements` is what the answer read, sorted as the last word sorts its
-    own readings (`rewrite_evidence_proof.MOVEMENT`). A transaction still owed goes to the
+    own readings (`rewrite_evidence_proof.MOVEMENT`) -- under the
+    settled-evidence policy, only what moved a binding's records
+    (`rewrite_finish_settled.moves_the_binding`), so another road settling or
+    retiring the very transaction meanwhile is no movement under it. A
+    transaction still owed goes to the
     last word over the first such movement, or over its proof taken again. One
     settled is resolved afresh; a finish held to the settled-evidence policy
     first invalidates it whole over movement read under its binding -- settled
@@ -269,6 +276,7 @@ def _behind_the_answer(
     announcement another finish of this landing made of it over `attempt`, the
     attempt captured before the answer, no such movement.
     """
+    movements = moves_the_binding(finish, movements, attempt)
     if _captured.recorded(finish, logged=False) is None:
         return resolves(finish) if retires_the_adopted(finish, pending, movements, attempt) else FinishOutcome.HELD
     proof = movements[0] if movements else _captured.proved_again(finish, pending)

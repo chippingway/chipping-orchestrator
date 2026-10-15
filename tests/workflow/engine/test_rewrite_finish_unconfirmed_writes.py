@@ -15,8 +15,10 @@ is, which retires the run whole. The bookkeeping an announcement whose answer wa
 the attempt is taken in for the landed head alone. A settlement another
 finish made of a captured run this finish abandons is taken in and
 invalidated whole in its place, where a finish the policy does not hold
-holds over it. Nothing runs, launches, or relabels, and nothing is posted
-but by the other finish.
+holds over it -- and a settlement another finish made while this one's answer
+was asked is kept current where nothing but the evidence records moved.
+Nothing runs, launches, or relabels, and nothing is posted but by the other
+finish.
 """
 from __future__ import annotations
 
@@ -195,6 +197,31 @@ class AbandonedSettlementTest(settled_support.CapturedEvidenceCase, unittest.Tes
                 self.assertEqual(support.posted_artifacts(self), posted)
                 self.assertEqual((self.verify.call_count, self.developer.call_count), (0, 0))
                 self._assert_retired(held)
+
+    def test_a_settlement_beside_the_answer_is_kept(self) -> None:
+        # Another finish settles the run while this one's answer re-reads the
+        # settled report, so that answer is refused over the evidence records
+        # alone: nothing a binding rests on moved, so the run stays current as
+        # that finish settled it, its artifact posted once and nothing run.
+        # The phase holds once over the answer it could not make, and the
+        # next one goes on with the run current -- as for any finish.
+        for held in (True, False):
+            with self.subTest(held=held):
+                self.setUp()
+                settles = settled_moves.raced_past(self, "reread_report_location", type(self)._settles_elsewhere)
+                with settles:
+                    first = self.asks(_settlement_step.resolves, self._finish(held))
+                again = self.asks(_settlement_step.resolves, self._finish(held))
+
+                self.assertEqual((first, again), (FinishOutcome.HELD, None))
+                self._assert_retired(held=False)
+                receipts = [found.receipt for found in support.posted_artifacts(self)]
+                self.assertEqual(receipts.count(self.captured.receipt), 1)
+                self.assertEqual(self.verify.call_count, 0)
+
+    def _finish(self, held: bool):
+        """The finish a later recovery holds over the comment as it reads now, held to the policy where `held`."""
+        return settled.dormant(self.landed()) if held else self.landed()
 
     def _settles_elsewhere(self) -> None:
         """Post the captured run's artifact and settle it, as another finish of the landing would."""

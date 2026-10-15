@@ -21,7 +21,10 @@ announcement, park, relabel, or retirement yet.
 - `stands_ready_if_settled` proves evidence settled current for the head
   ready, where any is, and -- asked for the base -- holds a head with none to
   the base its replay was made onto, or the base the tick counted it against.
-- `out_of_step` says why the records beside settled evidence hold the route.
+- `out_of_step` says why the records beside settled evidence hold the route,
+  and `moves_the_binding` which of the refusals an answer read moved what a
+  binding rests on rather than the evidence records or this landing's own
+  announcement alone.
 - `retires_the_adopted` invalidates a settlement the settlement step's answer
   left current -- its own, or another road's it adopted -- over movement the
   answer read under its binding, the announcement a finish of this landing
@@ -141,11 +144,9 @@ def retires_the_adopted(
     current = _settlement.read_current_evidence(finish.state)
     if not finish.proves_settled or current is None or current.receipt != pending.receipt:
         return True
-    captured = stands_as_read(finish, attempt, finish.state)
-    excused = advanced_by_the_announcement(finish, attempt, finish.state.data) if captured else _attempts._ATTEMPT_KEYS
-    if all(_durable.moves_only_the_evidence(moved, excused or ()) for moved in movements):
+    if not moves_the_binding(finish, movements, attempt):
         return True
-    if captured:
+    if stands_as_read(finish, attempt, finish.state):
         invalidated = _readiness.invalidates(finish, current)
     else:
         invalidated = retires_as_it_stands(finish, pending.receipt, attempt)
@@ -157,6 +158,26 @@ def retires_the_adopted(
         finish.issue.number, finish.head, pending.revision,
     )
     return False
+
+
+def moves_the_binding(
+    finish: LandedFinish, movements: list[ReportEvidence], attempt: _commit_models.PinnedCommit,
+) -> list[ReportEvidence]:
+    """Those of `movements`, read by the answer behind `attempt`, that moved what a binding rests on.
+
+    Every one, for a finish not held to the settled-evidence policy. Under it,
+    a refusal of moved records naming none but the evidence records -- another
+    road recording, settling, or retiring a transaction -- is none
+    (`verification_durable.moves_only_the_evidence`), and nor are the
+    attempt's own members where this landing's announcement alone moved them
+    (`stands_as_read`) or where another finish's route or another road took
+    `attempt` off the comment.
+    """
+    if not finish.proves_settled:
+        return movements
+    captured = stands_as_read(finish, attempt, finish.state)
+    excused = advanced_by_the_announcement(finish, attempt, finish.state.data) if captured else _attempts._ATTEMPT_KEYS
+    return [moved for moved in movements if not _durable.moves_only_the_evidence(moved, excused or ())]
 
 
 def stands_as_read(finish: LandedFinish, attempt: _commit_models.PinnedCommit, state: PinnedState) -> bool:

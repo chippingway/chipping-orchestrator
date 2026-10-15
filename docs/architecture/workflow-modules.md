@@ -1274,8 +1274,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for a finish not built with `proves_settled`: settled evidence proved ready, and -- asked
                             for the base -- a head with none current held to its replay's base tip or, with none
                             recorded, blank or legacy, the base the tick counted (`stands_ready_if_settled`); why
-                            records beside it hold the route (`out_of_step`); a settlement the answer left current
-                            invalidated over movement it read (`retires_the_adopted`); and whether the attempt that
+                            records beside it hold the route (`out_of_step`); which refusals an answer read moved a
+                            binding's records rather than the evidence records or this landing's announcement alone
+                            (`moves_the_binding`); a settlement the answer left current invalidated over that movement
+                            (`retires_the_adopted`); and whether the attempt that
                             answer left is the one captured (`stands_as_read`). The coordinator (`rewrite_finish.py`)
                             takes none of the policy's proofs around its announcement, park, relabel, or retirement
                             yet
