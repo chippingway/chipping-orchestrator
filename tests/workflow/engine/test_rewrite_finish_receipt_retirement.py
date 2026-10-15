@@ -31,18 +31,17 @@ import contextlib
 import unittest
 from dataclasses import replace
 from functools import partial
-from itertools import product
 from unittest.mock import patch
 
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.workflow.engine import (
-    pinned_commit_models as _commit_models,
     rewrite_finish_marks as _marks,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_settled as _settled,
     rewrite_finish_settlement as _settlement_step,
     rewrite_finish_unconfirmed as _unconfirmed,
+    verification_durable as _durable,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
@@ -55,6 +54,7 @@ from tests.workflow.engine import (
     rewrite_settled_moves as settled_moves,
     verification_evidence_test_support as support,
 )
+from tests.workflow.interleaving import _RacesPastTheCall
 
 _HANDOFF = _records.EVIDENCE_HANDOFF
 
@@ -62,6 +62,16 @@ _HELD = FinishOutcome.HELD
 
 # A record another road writes beside the evidence, which nothing here owns.
 _UNKNOWN = "another_roads_record"
+
+# Whether another finish's announcement lands just behind the invalidation's
+# first reading of the comment rather than ahead of it, and whether the finish
+# asking is held to the dormant policy.
+_ANNOUNCED = (
+    (False, True),
+    (False, False),
+    (True, True),
+    (True, False),
+)
 
 # What took the attempt off the comment: another finish's route, or another
 # road's attempt, its anchor a head or a JSON object or list no head is.
@@ -175,7 +185,7 @@ class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
         # its first write: the policy takes the mark and the event's record
         # in and invalidates the run over them, read afresh once more. A
         # finish the policy does not hold reads another attempt and refuses.
-        for behind_the_read, held in product((False, True), (True, False)):
+        for behind_the_read, held in _ANNOUNCED:
             with self.subTest(behind_the_read=behind_the_read, held=held):
                 self.setUp()
                 finish = self.dormant() if held else self.landed()
@@ -217,13 +227,12 @@ class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
         finish = self.dormant()
         settled_moves.reviews_again(self)
         retirement.supersedes(self)
-        attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=readings.ATTEMPT_KEYS)
         written = self.pinned()
         self.artifacts_before += 1
 
         answers = (
             self.asks(_readiness.invalidates, finish, self.settled),
-            self.asks(_marks.retires_as_it_stands, finish, self.settled.receipt, attempt),
+            self.asks(_marks.retires_as_it_stands, finish, self.settled.receipt),
             self.asks(_unconfirmed.stands_back, finish, self.settled),
         )
         self.asks(_marks.marks, finish, self.settled, "the run moved")
@@ -249,6 +258,27 @@ class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
 
                 self.assertEqual((counted, self.records()[1] is None), answers)
                 self.assert_untouched()
+
+    def test_an_attempt_put_back_keeps_the_movement(self) -> None:
+        # Another road pinned its own attempt and the review moved: the phase
+        # reads the movement and finds that other attempt, and just as it
+        # reads the comment again to retire the run as it stands, that road
+        # puts the attempt and the review back. The movement already read
+        # retires the run whole over the attempt put back: the phase holds
+        # once, and the next goes on with nothing current.
+        finish = self.dormant()
+        written = self.pinned()
+        settled_moves.reviews_again(self)
+        retirement.replaces(self)
+        restores = _RacesPastTheCall(_durable.durable_comment, 1, partial(self.puts_back, written))
+
+        with patch.object(_durable, "durable_comment", restores):
+            first = self.asks(_settlement_step.resolves, finish)
+        again = self.asks(_settlement_step.resolves, self.dormant())
+
+        self.assertEqual((first, again), (_HELD, None))
+        self.assert_whole()
+        self.assert_untouched(readings.attempt(written))
 
     def _announcing(self, behind_the_read: bool):
         """Another finish's announcement, made now or just behind the next reading of the comment; its context."""
@@ -416,6 +446,28 @@ class OutrankingTest(retirement.RetirementCase, unittest.TestCase):
         self.assertEqual((first, again), (None, None))
         self.assert_invalidated((newer.receipt, readings.ABANDONED))
         self.assert_untouched()
+
+    def test_an_unselected_proof_reads_as_before(self) -> None:
+        # Beside a pending record a finish the policy does not hold reads no
+        # revision past the run at all -- dropped before it, beside a floor
+        # nobody can read, or the floor raised past it -- and reads no mark
+        # in the run's handoff place as movement: each holds its proof with
+        # the run kept current, as the readiness proof always has.
+        for spends in (
+            _drops_one_first,
+            _BESIDE_AN_UNREADABLE_FLOOR,
+            _raises_the_floor_past,
+            retirement.marks_the_run,
+        ):
+            with self.subTest(spent=spends):
+                self.setUp()
+                spends(self)
+
+                held = self.asks(_readiness.stands_ready, self.landed(), self.settled)
+
+                kept = self.records()[1]
+                self.assertEqual((held, kept), (_HELD, self.settled))
+                self.assert_untouched()
 
     def _continued(self):
         """The dormant finish of a landing the base advanced past again, as the tick counted it."""

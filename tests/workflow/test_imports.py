@@ -120,6 +120,7 @@ _ENGINE_OWNERS = (
     "rewrite_finish_writes",
     "rewrite_finish_announced",
     "rewrite_finish_marks",
+    "rewrite_finish_outranking",
     "rewrite_finish_readiness",
     "rewrite_finish_unconfirmed",
     "rewrite_finish_settled",

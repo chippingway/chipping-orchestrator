@@ -9,9 +9,11 @@ announcing it, the run ledger charged by another road's launch
 directly over a finish held to the dormant settled-evidence policy and built
 over the comment as it read (`RetirementCase.dormant`), while another finish
 of the landing announces the head on the attempt (`announces`) or routes it,
-retiring the attempt (`routes`), or another road pins an attempt of its own
-(`replaces`) -- its anchor any JSON value at all -- settles a newer run under its own receipt (`supersedes`), or
-leaves the handoff null (`drops_the_handoff`). It reads back that nothing was
+retiring the attempt (`routes`), or marks movement under the run in its
+handoff's place (`marks_the_run`), or another road pins an attempt of its own
+(`replaces`) -- its anchor any JSON value at all -- settles a newer run under
+its own receipt (`supersedes`), or leaves the handoff null
+(`drops_the_handoff`). It reads back that nothing was
 posted, run, launched, relabelled, or charged (`assert_untouched`), and the
 run marked (`assert_marked`) or invalidated whole (`assert_whole`).
 """
@@ -60,6 +62,11 @@ def supersedes(case) -> None:
     case.gh.write_pinned_state(case.issue, _settlement.settled_state(
         state, newer, posted.landed_id, finish_support.REVIEWING,
     ))
+
+
+def marks_the_run(case) -> None:
+    """Another finish's mark of movement read under the settled run, written in its handoff's place."""
+    settled_moves.writes_over(case, _records.EVIDENCE_HANDOFF, {"moved": case.settled.receipt})
 
 
 def drops_the_handoff(case) -> None:

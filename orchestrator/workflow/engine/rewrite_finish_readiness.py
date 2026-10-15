@@ -77,11 +77,13 @@ decided again: the evidence goes on as it settled, or into history as it was.
   establishes movement too -- and the next tick classifies the branch and
   counts the head again. A readable revision spent past the evidence -- on
   the handoff or any history entry that reads on its own beside a floor or
-  entries that do not, or on the floor past the one revision a pending record
-  beside it may own -- is no such record: it outranks the evidence for good, so
-  the proof reads it as movement -- whatever the pull request reads, and
-  whatever else holds, a pending record nobody can read among it -- rather
-  than every poll holding. Nor is a handoff that names the evidence but
+  entries that do not, or on the floor -- is no such record: it outranks the
+  evidence for good, so the proof reads it as movement -- whatever the pull
+  request reads, and whatever else holds -- rather than every poll holding.
+  Beside a pending record only a finish held to the dormant policy reads one,
+  past the one revision that record may own (`rewrite_finish_outranking`),
+  and only such a finish reads the mark of movement in the evidence's handoff
+  place as movement too. Nor is a handoff that names the evidence but
   describes another pull request or head, which the proof refuses the evidence
   over as movement too.
 
@@ -129,8 +131,8 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.engine.rewrite_evidence_proof import Refusals, Word, _reads_again, last_word
 from orchestrator.workflow.engine.rewrite_finish_marks import carries_the_mark, marks, retires_over_the_attempt
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_outranking import outranks
 from orchestrator.workflow.engine.verification_current import _handoff_describes
-from orchestrator.workflow.engine.verification_history_fields import historical_from
 from orchestrator.workflow.engine.verification_subject import requirements_verdict
 
 log = logging.getLogger("orchestrator.workflow")
@@ -234,14 +236,15 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Wor
     """
     read = _reads_again(finish) or (None, None)
     first = (
-        *_records_heard(current, read[1], read[0]),
-        _MARKED if carries_the_mark(read[1], current) else None,
+        *_records_heard(current, read[1], read[0], settled=finish.proves_settled),
+        _MARKED if finish.proves_settled and carries_the_mark(read[1], current) else None,
     )
     proved = None
     if read[1] is not None and not any(first):
         proved = _proof.current_evidence_verdict(_proof.ProofReading(finish.gh, finish.spec, *read))
     moved, held = last_word(
-        finish, current.binding, earlier=proved, records=lambda state: _records_heard(current, state),
+        finish, current.binding, earlier=proved,
+        records=lambda state: _records_heard(current, state, settled=finish.proves_settled),
     )
     return (
         next((refused for refused in first if refused and not refused.holds), moved),
@@ -335,7 +338,7 @@ def invalidates_behind(
 
 
 def _records_heard(
-    current: _records.CurrentEvidence, state: PinnedState | None, issue: Issue | None = None,
+    current: _records.CurrentEvidence, state: PinnedState | None, issue: Issue | None = None, *, settled: bool,
 ) -> Refusals:
     """What the evidence records `state` carries refuse `current` over, with nothing requested.
 
@@ -346,17 +349,12 @@ def _records_heard(
     (`verification_subject.requirements_verdict`), the review and report
     records (`verification_proof.recorded_verdict`), a handoff naming
     `current` that describes another pull request or head (`_UNDESCRIBED`),
-    and a revision spent past it (`_OUTRANKED`) -- read off the handoff or any
-    history entry that reads on its own, so neither a floor nobody can read
-    nor another entry that will not read hides a newer one the history still
-    shows, off a readable pending record, the revision minted just under
-    which another transaction spent, and off the floor, short only of the one
-    revision a pending record beside it may own: the floor whole with nothing
-    pending, or beside a readable pending record that spent less, and one
-    below it beside a pending record that spent the floor itself or that
-    nobody can read -- of any two revisions spent past `current`, at most one
-    is the pending record's. So a pending record holds beside evidence a
-    readable revision outranks, and hides none of it. The last two the proof
+    and a revision spent past it (`_OUTRANKED`), as the policy `settled`
+    selects reads one (`rewrite_finish_outranking.outranks`): the one every
+    road selects reads none beside a pending record, and the dormant
+    settled-evidence policy discounts only the one revision that record may
+    own, so a pending record holds beside evidence a readable revision
+    outranks and hides none of it. The last two the proof
     would hear only behind the pull request, which a reading nobody could take
     hides them behind. Hold: a comment no longer carrying `current` as its
     current evidence, or carrying a record beside it that says it is not the
@@ -372,21 +370,6 @@ def _records_heard(
     if _settlement.read_current_evidence(state) == current:
         beside = beside_current(state, current)
     handoff = _settlement.read_evidence_handoff(state)
-    history = state.get(_records.EVIDENCE_HISTORY)
-    if not isinstance(history, list):
-        history = []
-    pending = _record_state.read_pending_evidence(state)
-    spent = _record_state._latest_revision(state) or 0
-    # The one revision a pending record may own: the floor, unless a readable one spent less.
-    if _record_state.carries_pending_evidence(state) and getattr(pending, "revision", spent) >= spent:
-        spent -= 1
-    spent = max((
-        spent,
-        # The revision minted just under a readable pending record, which another transaction spent.
-        getattr(pending, "revision", 1) - 1,
-        getattr(handoff, "revision", 0),
-        *(entry.revision for entry in map(historical_from, history) if entry),
-    ))
     return (
         None if issue is None else requirements_verdict(
             issue, state, current.binding.target.publication.requirements_revision,
@@ -395,7 +378,7 @@ def _records_heard(
         _UNDESCRIBED if (
             handoff is not None and handoff.receipt == current.receipt and not _handoff_describes(state, current)
         ) else None,
-        None if spent <= current.revision else _OUTRANKED,
+        _OUTRANKED if outranks(state, current, settled=settled) else None,
         _evidence_models.ReportEvidence(_evidence_models.ReportEvidenceVerdict.HOLD, beside) if beside else None,
     )
 
@@ -423,8 +406,8 @@ def _invalidates_on_the_tick(finish: LandedFinish, current: _records.CurrentEvid
     record another road wrote since the tick read it -- a pending record
     among them -- refuses both; a finish held to the dormant policy then
     records the movement under `current`'s own receipt over the comment read
-    afresh (`rewrite_finish_marks.marks`), which every later proof reads as
-    the movement it is.
+    afresh (`rewrite_finish_marks.marks`), which every later proof under that
+    policy reads as the movement it is.
     """
     staged = _writes.staging(finish)
     if _settlement.read_current_evidence(staged) != current:

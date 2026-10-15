@@ -149,7 +149,7 @@ def retires_the_adopted(
     if stands_as_read(finish, attempt, finish.state):
         invalidated = _readiness.invalidates(finish, current)
     else:
-        invalidated = retires_as_it_stands(finish, pending.receipt, attempt)
+        invalidated = retires_as_it_stands(finish, pending.receipt)
     if invalidated:
         return True
     log.warning(

@@ -11,7 +11,8 @@ kept. Where history has no room, the attempt cannot be put back, or no write
 over the tick's own copy lands, the mark (`marks`) replaces the evidence's
 handoff with one naming only the receipt that moved: no reader takes it for a
 handoff (`verification_settled_fields.handoff_from`), every later readiness
-proof of that very receipt reads it as the movement it is
+proof of that very receipt under the dormant policy reads it as the movement
+it is
 (`carries_the_mark`, `rewrite_finish_readiness.settled_word`) and retires the
 evidence whole once room is made, and a later finish finding no attempt does
 the same (`rewrite_finish_unconfirmed.retires_the_marked`). Where even the
@@ -30,10 +31,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.rewrite_finish_announced import (
-    advanced_by_the_announcement,
-    takes_in_the_announcement,
-)
+from orchestrator.workflow.engine.rewrite_finish_announced import takes_in_the_announcement
 from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
@@ -102,22 +100,23 @@ def retires_over_the_attempt(
     return first
 
 
-def retires_as_it_stands(finish: LandedFinish, receipt: str, attempt: _commit_models.PinnedCommit) -> bool:
-    """Invalidate the evidence the comment carries current under `receipt` over another attempt; whether it landed.
+def retires_as_it_stands(finish: LandedFinish, receipt: str) -> bool:
+    """Invalidate the evidence current under `receipt` over whatever attempt the comment carries; whether it landed.
 
-    Only where the comment no longer carries `attempt`, the one the finish
-    captured, nor that attempt advanced by its own announcement. Staged on the
-    comment read afresh and guarded by it (`_lands`), so the attempt standing
-    is kept and a successor under another receipt refuses it; a comment that
-    moved under the write -- a report put back meanwhile among it -- is read
-    and retired once more. Where neither lands, for want of room among the
-    reasons, the movement is marked instead (`marks`).
+    For a caller that found the attempt it captured gone -- another finish's
+    route or another road took it -- and holds the route whatever this
+    answers: the comment read afresh may carry another attempt, none, or the
+    very one captured put back meanwhile, and the movement already read
+    retires the evidence over whichever it is. Staged on that reading and
+    guarded by it (`_lands`), so the attempt standing is kept and a successor
+    under another receipt refuses it; a comment that moved under the write --
+    a report put back meanwhile among it -- is read and retired once more.
+    Where neither lands, for want of room among the reasons, the movement is
+    marked instead (`marks`).
     """
     durable = read_afresh(finish)
     current = None if durable is None else _settlement.read_current_evidence(durable)
     if current is None or current.receipt != receipt:
-        return False
-    if advanced_by_the_announcement(finish, attempt, durable.data) is not None:
         return False
     if _lands(finish, durable, current) or _lands(finish, read_afresh(finish), current):
         return True
@@ -170,7 +169,7 @@ def _over_the_attempt(finish: LandedFinish, current: _records.CurrentEvidence, a
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     if attempt.moved(durable.data):
         if finish.proves_settled and as_it_stands:
-            retires_as_it_stands(finish, current.receipt, attempt)
+            retires_as_it_stands(finish, current.receipt)
         return False
     if _settlement.read_current_evidence(durable) != current:
         return False
