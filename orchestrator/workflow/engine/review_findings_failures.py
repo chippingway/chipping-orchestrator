@@ -7,25 +7,28 @@ diagnostic a developer acts on, and leads it with the lines written here
 (`lead`), so the developer reads what failed before the command that ran it
 and how it ended, which follow as supporting details over the output quoted.
 
-A check's output names its failures where pytest's short summary reports
-them: a `FAILED` line names a test by its exact node ID, parameters included,
-and an `ERROR` line either a test that errored outside its own body, or, with
-no test in its ID, the path whose collection failed before any test in it ran
--- the check that failed, not a test. Each leads with that name and the error
-the line gives; for a collection error, which pytest's summary gives none
-for, the last exception line of the traceback pytest printed collecting that
-path; or else the error of the reviewer's entry naming it. Where none is
-found the lead says so. No name is ever made up: a check pytest's summary
-names nothing in is led by the failure entries (`FailureEntry`) the reviewer
-wrote for it in the findings, each named as the reviewer named it, or by a
-line saying nothing names it. An entry is a check's where the check's output
-shows the entry's error -- never because the two name one command, since one
-stdin command, such as `.venv/bin/python -`, may run several scenarios, each
-a check of its own. A lead says too where the check quoted no output to show
-an error by, and where its command reads its code from stdin and no entry it
-backs says how to reproduce it, since such a command reproduces nothing
-alone. A check naming more failures than a lead lists leaves the rest to its
-output, which is quoted whole below it.
+A check's output names its failures where pytest's short summary reports them:
+a `FAILED` line names a test by its exact node ID, parameters included -- even
+a parameter holding the very dash and bracket that part an ID from its
+message, the ID ending where a message of the shape pytest gives begins
+(`_SummaryLine`) -- and an `ERROR` line either a test that errored outside its
+own body, or, with no test in its ID, the path whose collection failed before
+any test in it ran -- the check that failed, not a test. Each leads with that
+name and the error the line gives; for a collection error, which pytest's
+summary gives none for, the last exception line of the traceback pytest
+printed collecting that path; or else the error of the reviewer's entry naming
+it. Where none is found the lead says so. No name is ever made up: a check
+pytest's summary names nothing in is led by the failure entries
+(`FailureEntry`) the reviewer wrote for it in the findings, each named as the
+reviewer named it, or by a line saying nothing names it. An entry is a check's
+where the check's output shows the entry's error -- never because the two name
+one command, since one stdin command, such as `.venv/bin/python -`, may run
+several scenarios, each a check of its own. A lead says too where the check
+quoted no output to show an error by, and where its command reads its code
+from stdin and no entry it backs gives the snippet it read, as a code block
+below its `Reproduce:` line: such a command reproduces nothing alone, however
+an entry names it. A check naming more failures than a lead lists leaves the
+rest to its output, which is quoted whole below it.
 
 Every line of a lead opens on a label of the reviewer's entry layout --
 `Failure:`, `Error:`, `Reproduce:` -- and never on a declaration keyword, so
@@ -64,13 +67,19 @@ _REPRODUCTION = "Reproduce"
 _LABEL_RE = re.compile(rf"[ \t]*(?:[-+*][ \t]+)?(?P<label>{_NAME}|{_ERROR}|{_REPRODUCTION}):(?P<given>.*)")
 _Labeled = tuple[int, re.Match[str]]
 
-# A failure pytest's short summary reports: the outcome, the node ID or the
-# path whose collection failed, then the message after a dash where pytest
-# gives one. A node ID's parameters may hold spaces and dashes, so the ID
-# runs to the first closing bracket that a dash or the line's end follows.
-_SUMMARY_RE = re.compile(
-    r"[ \t]*(?P<outcome>FAILED|ERROR) (?P<node>[^\s\[]+(?:\[.*?\])?)(?: - (?P<error>.*?))?[ \t\r]*",
-)
+# A failure pytest's short summary reports: the outcome, then the node ID or
+# the path whose collection failed, and the message after a dash where pytest
+# gives one. A node ID's path runs to its first blank or bracket; parameters,
+# which may hold blanks, dashes, and brackets, end on a closing bracket that
+# the dash or the line's end follows. A message pytest gives opens on the name
+# of the exception it reports, a colon after it unless it says nothing more.
+_SUMMARY_RE = re.compile(r"[ \t]*(?P<outcome>FAILED|ERROR) (?P<reported>\S.*?)[ \t\r]*")
+_NODE_PATH_RE = re.compile(r"[^\s\[]+")
+_NODE_END_RE = re.compile(r"(?= - |\Z)")
+_PARAMETERS_END_RE = re.compile(r"\](?= - |\Z)")
+_OPENING_BRACKET = "["
+_DELIMITER = " - "
+_MESSAGE_RE = re.compile(r"[A-Za-z_][\w.]*(?::|\Z)")
 
 _FAILED = "FAILED"
 
@@ -118,13 +127,14 @@ class FailureEntry:
 
     `name` is what that line names it; `error` what its `Error:` line gives,
     code-span backticks aside, or, where that line gives nothing, the last
-    line of the code block below it; `reproduced` whether a `Reproduce:` line
-    gives anything, on the line or as a code block below it.
+    line of the code block below it; `snippet` whether a code block stands
+    below its `Reproduce:` line -- the code a stdin command would read, which
+    the command alone, however it is written there, does not give.
     """
 
     name: str
     error: str = ""
-    reproduced: bool = False
+    snippet: bool = False
 
     @classmethod
     def read(cls, findings: str) -> tuple[FailureEntry, ...]:
@@ -153,8 +163,8 @@ def lead(command: str, output: str, entries: Sequence[FailureEntry]) -> tuple[st
     said = [f"{_NAME}: {name}" for name in names] or [_UNNAMED]
     if not output:
         said.append(_NO_OUTPUT)
-    reproduced = any(entry.reproduced for entry in backed)
-    if not reproduced and _STDIN in command.split():
+    snippet = any(entry.snippet for entry in backed)
+    if not snippet and _STDIN in command.split():
         said.append(_UNREPRODUCED.format(command=span(command)))
     return tuple(said)
 
@@ -184,7 +194,7 @@ class _Reported:
     def of(cls, output: str, entries: Sequence[FailureEntry]) -> Iterator[_Reported]:
         """Each failure a summary line of `output` reports, the findings' `entries` giving an error it lacks."""
         lines = output.split("\n")
-        for summary in filter(None, map(_SUMMARY_RE.fullmatch, lines)):
+        for summary in filter(None, map(_SummaryLine.read, lines)):
             reported = cls._summarised(summary, lines, entries)
             if reported is not None:
                 yield reported
@@ -205,7 +215,7 @@ class _Reported:
 
     @classmethod
     def _summarised(
-        cls, summary: re.Match[str], lines: Sequence[str], entries: Sequence[FailureEntry],
+        cls, summary: _SummaryLine, lines: Sequence[str], entries: Sequence[FailureEntry],
     ) -> _Reported | None:
         """The failure the `summary` line of the output `lines` reports, if it is pytest's; None where not.
 
@@ -213,15 +223,15 @@ class _Reported:
         summary line gives no error, a collection's traceback gives it, or
         else the entry naming the failure.
         """
-        node = summary.group("node")
+        node = summary.node
         named = FailureEntry.error_naming(entries, node)
         if _NODE_SEPARATOR in node:
-            erred = summary.group("outcome") != _FAILED
+            erred = summary.outcome != _FAILED
             name = _ERRED.format(node=span(node)) if erred else span(node)
-            return cls(name, summary.group("error") or named)
-        if summary.group("outcome") == _FAILED or not _PATH_RE.fullmatch(node):
+            return cls(name, summary.error or named)
+        if summary.outcome == _FAILED or not _PATH_RE.fullmatch(node):
             return None
-        error = summary.group("error") or cls._collecting(lines, node) or named
+        error = summary.error or cls._collecting(lines, node) or named
         return cls(_UNCOLLECTED.format(path=span(node)), error)
 
     @classmethod
@@ -234,6 +244,57 @@ class _Reported:
         section = takewhile(lambda line: _SECTION_RE.match(line) is None, opened)
         errors = [found.group("error") for found in map(_EXCEPTION_RE.fullmatch, section) if found]
         return errors[-1] if errors else ""
+
+
+@dataclass(frozen=True)
+class _SummaryLine:
+    """A line of pytest's short summary: its outcome, the node ID or path it reports, and the message after it or ""."""
+
+    outcome: str
+    node: str
+    error: str
+
+    @classmethod
+    def read(cls, line: str) -> _SummaryLine | None:
+        """`line` read as a summary line; None where it reads as none."""
+        summary = _SUMMARY_RE.fullmatch(line)
+        if summary is None:
+            return None
+        reported = summary.group("reported")
+        end = cls._end(reported)
+        if end is None:
+            return None
+        message = reported[end:].removeprefix(_DELIMITER)
+        return cls(summary.group("outcome"), reported[:end], message)
+
+    @classmethod
+    def _end(cls, reported: str) -> int | None:
+        """Where in `reported` its node ID ends; None where it holds none.
+
+        A parameter may hold the very dash that parts a node ID from its
+        message, so of the closing brackets that dash or the line's end
+        follows, the ID ends on the first that leaves a message pytest would
+        give, or none -- and only where none does, on the first.
+        """
+        ends = cls._ends(reported)
+        given = [end for end in ends if cls._gives(reported[end:])]
+        return next(iter(given or ends), None)
+
+    @classmethod
+    def _ends(cls, reported: str) -> list[int]:
+        """Where in `reported` a node ID may end: its path's end, or each closing bracket of its parameters."""
+        path = _NODE_PATH_RE.match(reported)
+        if path is None:
+            return []
+        if reported.startswith(_OPENING_BRACKET, path.end()):
+            return [found.end() for found in _PARAMETERS_END_RE.finditer(reported, path.end())]
+        return [path.end()] if _NODE_END_RE.match(reported, path.end()) else []
+
+    @classmethod
+    def _gives(cls, rest: str) -> bool:
+        """Whether `rest`, what follows a node ID, is no message or one pytest would give."""
+        message = rest.removeprefix(_DELIMITER)
+        return not message or _MESSAGE_RE.match(message) is not None
 
 
 class _EntryReading:
@@ -270,7 +331,7 @@ class _EntryReading:
         """`entry` once the line `number`, giving `given` under `label`, is read into it."""
         below = self._block_below(number)
         if label == _REPRODUCTION:
-            return replace(entry, reproduced=bool(given) or below is not None)
+            return replace(entry, snippet=below is not None)
         error = given.strip(_BACKTICK).strip(_BLANKS)
         if not error and below is not None:
             quoted = self._lines[below.held_start:below.held_end]

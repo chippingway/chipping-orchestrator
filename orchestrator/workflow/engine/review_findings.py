@@ -35,7 +35,11 @@ record's feedback here again where it posts it and resumes the developer on
 it: a record persisted before that formatting still carries its declaration
 raw, and one persisted concise goes out as it was. The post a
 `/orchestrator continue` replays has its findings formatted here too, as the
-replay quotes it (`stages/validating/feedback_posts.py`).
+replay quotes it (`stages/validating/feedback_posts.py`). A tick before checks
+were led by what failed may have posted a record persisted raw in that tick's
+own concise layout, which `_unled_findings` keeps showing -- each check its
+sentence over its output, nothing leading it -- so a later tick still finds
+that post by its words.
 
 Display is read apart from validation, and more loosely, since nothing here is
 accepted -- there is only text to show. A line opening on a marker or step
@@ -249,6 +253,22 @@ def _concise_findings(findings: str) -> str:
     return concise or _NO_FINDINGS
 
 
+def _unled_findings(findings: str) -> str:
+    """`findings` as formatting showed them before each check was led by what failed.
+
+    Each check not shown passing is its sentence over its output alone. A tick
+    of that layout posted a request persisted raw in these words, so a later
+    tick finding that post reads them (`feedback_posts`), and they stay as
+    that tick wrote them.
+    """
+    shown = (
+        chunk if isinstance(chunk, str) else chunk.shown(None)
+        for chunk in _chunks(findings)
+    )
+    unled = "\n\n".join(chunk for chunk in shown if chunk)
+    return unled or _NO_FINDINGS
+
+
 def _chunks(findings: str) -> Iterator[str | _Check]:
     """The text around each declaration in `findings`, and the checks failing inside it.
 
@@ -449,13 +469,16 @@ class _Check:
             return
         yield self
 
-    def shown(self, entries: Sequence[_failures.FailureEntry]) -> str:
+    def shown(self, entries: Sequence[_failures.FailureEntry] | None) -> str:
         """The check as a developer needs it: the failures it records by name,
         then its command and how it ended, over the output it quoted. The
         findings' failure `entries` name those its output does not
-        (`review_findings_failures`)."""
+        (`review_findings_failures`); with None for them, nothing leads, as
+        the layout before leads showed it (`_unled_findings`)."""
         sentence = f"{self._subject()} {self._ending()}"
-        lead = _failures.lead(self.command, self.output, entries)
+        lead: tuple[str, ...] = ()
+        if entries is not None:
+            lead = _failures.lead(self.command, self.output, entries)
         said = "\n".join((*lead, sentence))
         if not self.output:
             return f"{said}."

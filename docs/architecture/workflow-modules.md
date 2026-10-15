@@ -212,11 +212,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             where a later tick posts it and resumes its developer on it, so a record persisted before
                             that formatting, its declaration raw, goes out concise, and one already concise goes out as
                             persisted; `stages/validating/feedback_posts.py` formats here the findings an anchored
-                            feedback post quotes where a `/orchestrator continue` replays it
+                            feedback post quotes where a `/orchestrator continue` replays it, and reads here
+                            (`_unled_findings`) the concise layout a tick before checks were led by what failed posted
+                            a raw record in -- each check its sentence over its output, nothing leading it -- to find
+                            that post by its words
     review_findings_failures.py
                             the lead above each check `review_findings` shows failing, in the labels of the
                             reviewer's failure entries: each failure pytest's short summary reports in the check's
-                            output, a `FAILED` test by its exact node ID, parameters included, an `ERROR` one as
+                            output, a `FAILED` test by its exact node ID, parameters included -- even ones holding
+                            the dash and bracket that part an ID from its message, the ID ending where a message of the
+                            shape pytest gives, an exception's name first, begins -- an `ERROR` one as
                             erroring outside the test itself, and an `ERROR` path as its collection, never a test ID,
                             each with the error its line gives, else for a collection the last exception line of the
                             traceback pytest printed collecting it, else the error of the entry naming it, else a
@@ -226,7 +231,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             matched by that error and never by command, so two runs of one stdin command each lead with
                             their own scenario; else by a line saying no test ID or scenario name was recorded. A lead
                             says too where the check quoted no output, and where its command reads its code from stdin
-                            (`-`) and no entry it backs gives a reproduction. No lead line opens on a declaration
+                            (`-`) and no entry it backs gives the snippet as a code block below its `Reproduce:` line,
+                            however the line names the command. No lead line opens on a declaration
                             keyword, and the names and errors it takes from output stand in code spans
     review_findings_fences.py
                             where the code of a reviewer's findings -- fences and indented code -- opens and ends as
@@ -4859,10 +4865,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             author copied, since the anchor is replayed as this orchestrator's own words, and never
                             another request's receipted post in the same findings; a request is found too in the words
                             a tick before receipts, or before formatting, posted it in -- concise or raw with no
-                            receipt, raw with one -- but a post with no receipt only where it stands behind the
-                            developer report and the evidence artifact the request was reviewed over and is no comment
-                            the ledger of the orchestrator's own accounts for, so another request's post, above a later
-                            report or fresh evidence or anchored by its own landed handoff, is never taken.
+                            receipt, raw with one -- and a request persisted raw in the concise layout of a tick before
+                            each failing check was led by what failed (`engine/review_findings.py`'s
+                            `_unled_findings`), receipted or not, but a post with no receipt only where it stands
+                            behind the developer report and the evidence artifact the request was reviewed over and is
+                            no comment the ledger of the orchestrator's own accounts for, so another request's post,
+                            above a later report or fresh evidence or anchored by its own landed handoff, is never
+                            taken.
                             The thread is read whole (`pr_conversation_thread`) so findings quoting the pinned state's
                             marker are found too. And the post as a `/orchestrator continue` replay quotes it
                             (`ShownPost`, asked by `fixing/continue_command.py`): the same comment, its id, author, and

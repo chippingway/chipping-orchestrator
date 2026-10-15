@@ -30,7 +30,11 @@ taken.
 
 A tick before receipts posted a verdict with none: its findings concise, or,
 for a verdict persisted before findings were formatted, raw. Such a post is
-found in those words too -- and a raw post receipted -- but a post with no
+found in those words too -- and a raw post receipted. So is the post a tick
+before each failing check was led by what failed made of a verdict persisted
+raw, receipted or not, in the concise layout of its own
+(`review_findings._unled_findings`), which the formatting no longer shows
+and the record never held. But a post with no
 receipt names no verdict, so only its place in the thread ties it to the one
 handed over: it has to be newer than the developer report that verdict's
 subject records and the evidence artifact its claim names, and none of the
@@ -169,11 +173,14 @@ def _recognised(words: str, held: _verdicts.ReturnedVerdict, state: PinnedState)
     accounted)`: the id the post has to be newer than, and the ids it may not
     be. A receipted body names `held` itself, in the findings `words` post or
     -- a verdict persisted before findings were formatted -- in its raw
-    findings, and stands anywhere. A body with no receipt is how a tick
-    before receipts posted it, in either, and names no request: it stands
-    only where a post for `held` does (`_unreceipted`).
+    findings, or in those raw findings as a tick before each failing check
+    was led by what failed formatted them (`review_findings._unled_findings`),
+    and stands anywhere. A body with no receipt is how a tick before receipts
+    posted it, in any of these, and names no request: it stands only where a
+    post for `held` does (`_unreceipted`).
     """
     shown = {_HEAD_RE.sub("", words, count=1), held.feedback}
+    shown.add(_findings._unled_findings(held.feedback))
     accepted = dict.fromkeys((receipted(said, held) for said in shown), _ANYWHERE)
     unreceipted = _unreceipted(state, held)
     if unreceipted is not None:

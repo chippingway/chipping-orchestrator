@@ -11,7 +11,9 @@ findings concise, or, one persisted before findings were formatted, raw: such
 a post, whose response was lost, is found in those words all the same and
 anchored rather than posted twice, but only where it stands in the thread
 behind everything the request was reviewed over, and is no post another
-request's landed handoff already accounts for.
+request's landed handoff already accounts for. A request persisted raw is
+found too, receipted or not, in the concise layout a tick before each failing
+check was led by what failed posted it in, spelled out as that tick wrote it.
 
 Of the line a post opens on, only the round is held to the request's: the
 reviewer it names and the round cap it counts to are configuration, so a post
@@ -32,7 +34,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.workflow.engine import comments as _comments, verification_settlement_state as _settlement_state
-from orchestrator.workflow.stages.validating import feedback_posts as _feedback_posts
+from orchestrator.workflow.stages.validating import feedback_posts as _feedback_posts, review_verdicts as _verdicts
 from tests.workflow.fixtures import LABEL_FIXING
 from tests.workflow.stages.validating import (
     disposed_verdict_test_support as _disposed,
@@ -57,9 +59,16 @@ def _loses_the_post(case, reply: str) -> None:
         case.returns(reply, **_disposed.fixing())
 
 
-def _posts_unreceipted(case, findings: str) -> None:
-    """A feedback post of `findings` in the review's first round, as a tick before posts carried a receipt made it."""
+def _posts_findings(case, findings: str, *, receipted: bool = False) -> None:
+    """A feedback post of `findings` in the review's first round, as a tick before posts carried a receipt made it.
+
+    Where `receipted`, it carries the receipt naming the request waiting, as a
+    tick since receipts made it before its response was lost.
+    """
     words = _feedback_posts.posted(0, findings)
+    if receipted:
+        held = _verdicts.read_returned_verdict(case.github.read_pinned_state(case.issue))
+        words = _feedback_posts.receipted(words, held)
     case.github.pr_comment(_world.PR, _comments._with_orch_marker(words))
 
 
@@ -106,7 +115,12 @@ _REMEMBERS_BEHIND_THE_RELABEL = partial(
 # tick before this one left its feedback post: taken, its response lost, and
 # receipted -- raw, or concise; or posted before posts carried a receipt --
 # raw, or concise as a recovery or the live round formatted it -- and left
-# unanchored, its own tick's post refused. Then the findings that post quotes.
+# unanchored, its own tick's post refused. A request persisted raw may have
+# been posted too, receipted or not, in the concise layout of a tick before
+# each failing check was led by what failed. Then how the post is left, beside
+# the tick's own, and the findings that post quotes.
+_RAW_POST_REFUSED = partial(_raw.leaves_raw, leaves=_resumed.refuses_the_post)
+
 _UNANCHORED = (
     (
         "persisted raw, posted raw and receipted, its response lost",
@@ -121,21 +135,33 @@ _UNANCHORED = (
         _world.CONCISE_FAILURE,
     ),
     (
+        "persisted raw, posted in the previous concise layout and receipted, its response lost",
+        _RAW_POST_REFUSED,
+        partial(_posts_findings, findings=_world.PREVIOUS_CONCISE_FAILURE, receipted=True),
+        _world.PREVIOUS_CONCISE_FAILURE,
+    ),
+    (
         "persisted raw, posted raw with no receipt",
-        partial(_raw.leaves_raw, leaves=_resumed.refuses_the_post),
-        _raw.RAW_FAILURE,
+        _RAW_POST_REFUSED,
+        partial(_posts_findings, findings=_raw.RAW_FAILURE),
         _raw.RAW_FAILURE,
     ),
     (
         "persisted raw, posted concise with no receipt",
-        partial(_raw.leaves_raw, leaves=_resumed.refuses_the_post),
+        _RAW_POST_REFUSED,
+        partial(_posts_findings, findings=_world.CONCISE_FAILURE),
         _world.CONCISE_FAILURE,
-        _world.CONCISE_FAILURE,
+    ),
+    (
+        "persisted raw, posted in the previous concise layout with no receipt",
+        _RAW_POST_REFUSED,
+        partial(_posts_findings, findings=_world.PREVIOUS_CONCISE_FAILURE),
+        _world.PREVIOUS_CONCISE_FAILURE,
     ),
     (
         "persisted concise, posted with no receipt",
         partial(_resumed.refuses_the_post, message=_world.FAILED_REQUEST),
-        _world.CONCISE_FAILURE,
+        partial(_posts_findings, findings=_world.CONCISE_FAILURE),
         _world.CONCISE_FAILURE,
     ),
 )
@@ -197,7 +223,7 @@ class AnotherRequestTest(_support.HandoffWorld, unittest.TestCase):
             with self.subTest(name):
                 self.setUp()
                 self.seeds()
-                _posts_unreceipted(self, findings)
+                _posts_findings(self, findings)
                 meanwhile(self)
 
                 with _REMEMBERS_BEHIND_THE_RELABEL(self).patched():
@@ -217,7 +243,9 @@ class LegacyPostTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
         # The request was persisted with its findings raw or concise, and its
         # feedback post is on the pull request with no id anchored: receipted,
         # its response lost, or raw or concise with no receipt at all, behind
-        # the report and the evidence it was reviewed over -- and a restart
+        # the report and the evidence it was reviewed over -- a raw request's
+        # post in the concise layout of a tick before failures were led by
+        # name either way -- and a restart
         # may since have configured another reviewer or round cap than the
         # line the post opens on names. The tick finishing it posts nothing
         # again: it hands the request over beside that post, and resumes the
@@ -229,10 +257,10 @@ class LegacyPostTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
 
     def _finds_it(self, reconfigures, left) -> None:
         """Leave the post `left` describes, and finish its request under what `reconfigures` sets; it is found."""
-        leaves, unreceipted, quoted = left
+        leaves, posts, quoted = left
         leaves(self)
-        if unreceipted is not None:
-            _posts_unreceipted(self, unreceipted)
+        if posts is not None:
+            posts(self)
 
         with reconfigures():
             ran = self.finishes(**_disposed.fixing())[_world.RUN_AGENT]
