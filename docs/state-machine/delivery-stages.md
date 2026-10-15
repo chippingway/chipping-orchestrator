@@ -203,9 +203,9 @@ drift — a bare continue outstanding at deploy time cannot fire one false "issu
 the action depends on lifecycle position:
 
 - **`workflow:decomposing`** — handled inline at the top of `_handle_decomposing`: drop `decomposer_session_id`, wipe
-  `children` / `dep_graph` / `expected_children_count` / `split_attempt` / `umbrella`, clear park flags, post a
-  `:pencil2: issue content changed` notice, then fall through in the same tick so the decomposer re-spawns against
-  the updated body. An issue
+  `children` / `dep_graph` / `expected_children_count` / `split_attempt` / `split_rationale` / `umbrella`, clear park
+  flags, post a `:pencil2: issue content changed` notice, then fall through in the same tick so the decomposer
+  re-spawns against the updated body. An issue
   standing on a `retry_cap` park is held one step ahead of this (see that handler's step 1): the re-spawn it falls
   through to is exactly the spawn that park refused, so the edit waits with everything else the issue carries until
   a human continues it.
@@ -234,7 +234,10 @@ the action depends on lifecycle position:
   one held with no recorded base parks `replacement_lineage_unproved` with no child created (see
   [its contracts](../workflow/roles.md#what-an-ordinary-re-decomposition-holds-its-children-to)).
   The reset drops the discarded manifest's `split_attempt`, so no child it left behind is adopted into the next split,
-  after writing those children — any unrecorded one found by its receipt — onto `late_consumers` as orphans.
+  after writing those children — any unrecorded one found by its receipt — onto `late_consumers` as orphans. Both
+  resets drop its `split_rationale` too, so the residual scope that split kept for the parent — which a parent on
+  `workflow:ready` still records once its children are done — never reaches an implementation the re-derived
+  manifest leads to.
 - **`workflow:implementing` / `workflow:validating` / `in_review` / `workflow:resolving_conflict`** (a dev session
   exists and possibly a PR) — post a `:pencil2: issue body changed; resuming dev session` notice (on the issue for
   implementing/validating, on the PR for in_review/resolving_conflict), resume the locked dev session with
@@ -427,7 +430,7 @@ because there it is the claim that this stage has already rerouted rather than a
 ## `_handle_decomposing` (label `workflow:decomposing`)
 - **Trigger**: each tick while the label is `workflow:decomposing`.
 - **Input**: issue + comments + pinned state (`decomposer_agent` / `decomposer_session_id`, retry-budget keys,
-  `children`, `dep_graph`, `expected_children_count`, `split_attempt`, `umbrella`).
+  `children`, `dep_graph`, `expected_children_count`, `split_attempt`, `split_rationale`, `umbrella`).
 - **Internal flow**: a `retry_cap` park whose sentence was never said is replayed at entry, ahead of every step
   below and of the late route among them (`_replay_owed_notice` — see
   [the retry budget](labels-and-state.md#the-retry-budget)); it says what the park is for and writes, and the tick
@@ -611,7 +614,10 @@ because there it is the claim that this stage has already rerouted rather than a
      - no fenced block → treat as a question; park.
      - `decision == "single"` → post the collected-context comment (rationale plus the manifest's optional
        `affected_files` / `notes`, built by `_build_single_decision_comment`) so the implementer inherits the
-       decomposer's groundwork via `_recent_comments_text`; label `workflow:ready`, stamp `decomposed_at`.
+       decomposer's groundwork via `_recent_comments_text`; label `workflow:ready`, stamp `decomposed_at`. The
+       decision supersedes any split the issue recorded, so a `split_rationale` still standing is cleared to `null`
+       in a write of its own ahead of the flip — the flip sets the label before it writes — and an issue recording
+       none costs no extra write.
      - `decision == "split"` → first decide the late lineage the children inherit
        (`stages/decomposition/replacement_lineage.py` over `late_split/provenance.py`): an issue no late split
        charged inherits none, and an unprovable record, a parent already at `MAX_LINEAGE_DEPTH`, a split of the
@@ -693,7 +699,8 @@ because there it is the claim that this stage has already rerouted rather than a
      recovering the superseded one, and a later split cuts a register of its own. An issue that never entered the late
      gate owes nothing and flips at once, and so does a record a retirement left once both its ledgers are readable
      and nothing on them is still owed; either drops any `split_attempt` it records in a write of its own while still
-     `blocked`, since the flip sets the label before it writes.
+     `blocked`, since the flip sets the label before it writes. Neither drops `split_rationale`: every child is done,
+     and the scope the split kept for the parent's own pass is the work the flip hands the parent back to.
   7. Walk children: any `workflow:blocked` child whose recorded dependencies are all `done` gets relabeled
      `workflow:ready`. A child with no recorded deps is also flipped (vacuous all-done over an empty list). Children
      an ordinary split created — anything but a late split's own register — are released only while the lineage and

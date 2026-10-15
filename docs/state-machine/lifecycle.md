@@ -19,7 +19,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
             ──► in_review ──► done | rejected
 
    Decompose:
-     decision='single' ─► label=workflow:ready  (parent itself implements)
+     decision='single' ─► label=workflow:ready  (parent itself implements;
+                          a split_rationale an earlier split left is
+                          cleared in a write ahead of the flip)
      decision='split'  ─► a late lineage the record cannot prove (or
                           the bound, an unsettled snapshot, a stray ref in
                           a slice) parks with NOTHING created or marked;
@@ -892,9 +894,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   settled, split_attempt and the split's
                                   cycle are retired in its own write
                                   first, so implementation starts a cycle
-                                  of its own; a close latched before or
-                                  seen during that write ends the cycle
-                                  and keeps workflow:blocked
+                                  of its own -- split_rationale stays, the
+                                  scope the split left the parent; a close
+                                  latched before or seen during that write
+                                  ends the cycle and keeps workflow:blocked
      any child = rejected      ─► park HITL on parent
      dep_graph walk: any workflow:blocked child with all deps=done
                                ─► child=workflow:ready, once the parent's

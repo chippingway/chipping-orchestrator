@@ -13,7 +13,8 @@ own settles what that split still owes the remote before the flip, and stays
 comes back to that ledger once it has left. Settled, the split's cycle is
 retired in a write of its own ahead of the flip, so the implementation it goes
 back to starts a cycle of its own rather than resuming the one it was split
-in.
+in. The split's attempt goes with it, but not its rationale: what the split
+kept for the parent's own pass is what the parent goes back to.
 
 `ready` is the other end, and it is the entry point for both an auto-created
 child and a parent whose decomposer voted `single`. It seeds the same pickup
@@ -69,7 +70,9 @@ def _handle_ready(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue)
     # (via `_route_drift_to_decomposing`) wipes that tracking alongside the
     # locked decomposer session, so the next `_handle_decomposing` tick's
     # half-finished recovery branch does not fire and just flip the issue
-    # back to `blocked` without re-running the decomposer.
+    # back to `blocked` without re-running the decomposer. It wipes the
+    # split's rationale too, which a parent otherwise keeps here as the work
+    # left for its own pass.
     if _parents._route_parent_drift(gh, issue, state):
         return
     if state.get("pickup_comment_id") is None:
@@ -156,7 +159,9 @@ def _retired_for_implementation(
     own where there is none -- either way while the label is still `blocked`,
     because the flip sets the label before it writes, and a pass that died
     between the two would leave the attempt standing on a `ready` parent. A
-    parent recording no attempt costs no write here.
+    parent recording no attempt costs no write here. The split's rationale
+    stays: its children are done, and what it kept for the parent's own pass
+    is the work this hands the parent back to.
 
     A retirement is taken inside the window the umbrella's terminal takes it
     in, for the same reason: a close latched in front of it ends the cycle

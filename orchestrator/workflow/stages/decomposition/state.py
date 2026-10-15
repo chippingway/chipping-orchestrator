@@ -67,7 +67,11 @@ _SPLIT_ATTEMPT = "split_attempt"
 # so a split a crash or a failed create stops short of still holds it through
 # its recovery, with no decomposer run to recover it from. Every split writes
 # it over -- `None` where its manifest gave no usable text -- so no split is
-# read back with an earlier one's account.
+# read back with an earlier one's account. Whatever supersedes the split
+# clears it the same way -- a `single` decision, an edit's reset of the
+# manifest, a pre-implementation reroute -- and a restart's projection drops
+# it, while the handoff back to the parent's own work once every child is
+# done keeps it as the scope that work was left.
 _SPLIT_RATIONALE = "split_rationale"
 
 _CREATED_AT = "created_at"
