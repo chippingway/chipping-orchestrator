@@ -127,16 +127,13 @@ process that died behind the push, before its commands ran or before their
 result was recorded -- is completed by the recovery of a push already landed,
 from what the pinned record says it made.
 
-That is the policy every one of those roads hands over. Beside it stands a
-dormant one over the same order, which a caller selects only by building the
-finish with `rewrite_finish_models.LandedFinish.proves_settled` and handing it
-to `finalizes` directly; no production road does. Its evidence phase is
-`rewrite_finish_settlement.resolves` held to that policy, and each step of the
-coordinator the two differ in is taken where both are answered
-(`rewrite_finish_settled`, `rewrite_finish_stops`, `rewrite_finish_announced`,
-`rewrite_finish_writes`). It proves settled evidence ready again, and
-invalidates it into history whole wherever anything it is bound to moved
-since it settled (`rewrite_finish_readiness`):
+Every one of those roads holds the finish to the settled-evidence policy,
+whose evidence phase is `rewrite_finish_settlement.resolves` and whose steps
+around the coordinator's writes are taken beside it (`rewrite_finish_settled`,
+`rewrite_finish_stops`, `rewrite_finish_announced`, `rewrite_finish_writes`).
+It proves settled evidence ready again, and invalidates it into history whole
+wherever anything it is bound to moved since it settled
+(`rewrite_finish_readiness`):
 
 - before every route, out-of-step hold, unfinishable landing beside a
   standing attempt, continuation, and debt park, and again behind every stop
@@ -154,8 +151,8 @@ since it settled (`rewrite_finish_readiness`):
   another finish's route or another road took the attempt, over the comment
   as it stands (`rewrite_finish_marks`), the route held.
 
-A finish under that policy announces nothing for a head another finish of
-the landing marked meanwhile, relabels nothing another one relabelled under
+A finish announces nothing for a head another finish of the landing marked
+meanwhile, relabels nothing another one relabelled under
 that mark, holds where the label would not read again or another attempt
 stands behind the proof ahead of its relabel, reuses a debt park standing
 that no reply handed in answers, parks over a notice said behind a reply it
@@ -163,7 +160,8 @@ is handed again, leaves a transaction another road recorded behind its
 unfinishable proof or its stopped announcement owed as written, and --
 finding the attempt retired or replaced -- reads nothing more than evidence
 an earlier finish marked moving, which it retires whole once room is made.
-So repeated direct finishes say and make everything once: one notice,
+So repeated finishes say and make everything once, whichever road reaches
+them and wherever a tick between them died: one notice,
 `base_rebased` event, park notice and `park_awaiting_human` event, round
 reset, relabel, stage-entry event, artifact, and settlement, nothing pushed,
 run again, or launched, and the run ledger as another road charged it.
@@ -208,11 +206,10 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     beside a transaction an earlier finish captured for its head, so that
     transaction is proved again first and abandoned where anything it rests
     on moved (`rewrite_finish_stops.unfinishable`): putting what moved back
-    before a later finish revives nothing. A finish held to the dormant
-    settled-evidence policy (`LandedFinish.proves_settled`) proves settled
-    evidence ready there first while its attempt stands, and reads nothing
-    more where that attempt is retired or replaced, save evidence carrying
-    the mark of movement an earlier finish recorded under its receipt.
+    before a later finish revives nothing. Settled evidence is proved ready
+    there first while the attempt stands, and nothing more is read where that
+    attempt is retired or replaced, save evidence carrying the mark of
+    movement an earlier finish recorded under its receipt.
     """
     if not _finishable(finish):
         return _stops.unfinishable(finish)
@@ -376,12 +373,11 @@ def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     A checkpoint that did not land, or the park, stops the route behind the
     last word over a transaction still recorded for the head.
 
-    A finish held to the dormant settled-evidence policy proves evidence an
-    earlier finish settled, or a transaction it captured, ready ahead of that
-    park too (`rewrite_finish_stops.ahead_of_the_park`), announces nothing for
-    a head another finish of the landing marked meanwhile
-    (`rewrite_finish_announced.marked`), and behind a checkpoint, an event
-    record, or a park that did not land or raised proves it once more,
+    Evidence an earlier finish settled, or a transaction it captured, is
+    proved ready ahead of that park too (`rewrite_finish_stops.ahead_of_the_park`),
+    nothing is announced for a head another finish of the landing marked
+    meanwhile (`rewrite_finish_announced.marked`), and behind a checkpoint, an
+    event record, or a park that did not land or raised it is proved once more,
     invalidated over a binding record a refusal read moved, that refusal
     handed to the last word as its proof
     (`rewrite_finish_stops.behind_the_announcement`), so a record put back
@@ -399,8 +395,7 @@ def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     try:
         stopped = _checkpoints(finish, observed, announced=marked(finish, already=announced))
     except Exception:
-        if finish.proves_settled:
-            _stops.behind_the_announcement(finish, FinishOutcome.UNCONFIRMED, observed)
+        _stops.behind_the_announcement(finish, FinishOutcome.UNCONFIRMED, observed)
         raise
     return _stops.behind_the_announcement(finish, stopped, observed)
 
@@ -419,8 +414,8 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     the attempt standing, for the recovery of the push already landed to
     route the head on a later tick over evidence it settles nothing for again.
 
-    A finish held to the dormant settled-evidence policy proves the evidence
-    ready again on the way (`rewrite_finish_settled.stands_ready_if_settled`):
+    The evidence is proved ready again on the way
+    (`rewrite_finish_settled.stands_ready_if_settled`):
     ahead of the relabel and behind it, where a routed head with none current
     is held to its replay's base tip -- or, with none recorded, to the base
     the tick counted it against -- and a continuation's base advance excused;

@@ -19,9 +19,8 @@ narrower of the two, and a debt the comment cannot take now is one the route
 would otherwise go on without. A finish whose announcement is already out
 measures on the comment as it stands alone. A proved debt short of either
 room stops the finish before it says anything: the caller parks for a human
-to make room (`unrecorded`), with the push kept and the attempt standing. A
-finish held to the dormant settled-evidence policy asks first whether that
-park already stands -- unless a reply it was handed answers it -- or its
+to make room (`unrecorded`), with the push kept and the attempt standing. The
+finish asks first whether that park already stands -- unless a reply it was handed answers it -- or its
 notice was said, past the watermark or that reply, ahead of a park write that
 did not land (`noticed`) -- holding where the conversation would not read --
 and files the event of a park said that way, naming the landed head and the
@@ -145,8 +144,7 @@ def unrecorded(finish: LandedFinish) -> str:
 def noticed(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | int | None:
     """Where the park a debt with no room takes stands for `finish` already: what to stop at, a notice said, or None.
 
-    For a finish held to the dormant settled-evidence policy, so a park is
-    neither said nor filed twice. A reply the finish was handed that the
+    So a park is neither said nor filed twice. A reply the finish was handed that the
     watermark has not passed answers the park standing, so only a notice said
     behind that reply counts: a park made over it before that never landed
     is found there, and a reply newer than every notice parks anew. With no

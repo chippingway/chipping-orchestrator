@@ -36,7 +36,7 @@ as well (`ProofReading.rests_on`), so an attempt another road put in its place
 refuses them, and a finish whose state took that attempt in all the same holds
 before anything abandons over it or clears it. So does one whose state took in
 a newer transaction another road recorded in the answered one's place -- beside
-a settlement of it the dormant policy adopted among them: that
+a settlement of it the finish adopted among them: that
 successor stands as its road wrote it, with the history and revision floor that
 road left, for the next finish to answer, rather than taking the refusals of
 the transaction it replaced. A revision already settled or
@@ -51,9 +51,7 @@ What the answer comes to decides the route:
   transcript and revision as recorded and its artifact posted once, or the
   fresh reviewer's to answer -- and the route goes on behind the last word
   over the landing and the base (`rewrite_finish_captured.stands_before_the_route`)
-  -- settled evidence proved ready again first (`rewrite_finish_readiness`)
-  where the finish is held to the dormant settled-evidence policy
-  (`rewrite_finish_models.LandedFinish.proves_settled`).
+  -- settled evidence proved ready again first (`rewrite_finish_readiness`).
 - Still owed -- a post or a settlement nobody confirmed, a reading nobody
   could take, a settlement the comment had no room for or whose commit a
   moved record or comment refused, an issue that stopped being live work
@@ -65,9 +63,8 @@ What the answer comes to decides the route:
   (`verification_proof.ProofReading.observed`), kept as it was read, a bound
   record read moved under the settlement and a base read gone elsewhere among
   them, is that movement however the world reads by then, so one put back
-  before the last word reads it is abandoned over all the same -- under the
-  settled-evidence policy, so is a settlement the answer adopted
-  (`rewrite_finish_settled.retires_the_adopted`). One nothing moved under is HELD
+  before the last word reads it is abandoned over all the same -- and so is a
+  settlement the answer adopted (`rewrite_finish_settled.retires_the_adopted`). One nothing moved under is HELD
   with nothing announced and the attempt standing, and the recovery of the
   push already landed answers it again on a later tick: an artifact an earlier
   post landed, its response lost included, is found under its receipt rather
@@ -79,19 +76,16 @@ and the process died, or the commit's answer was lost -- finds the current
 evidence answering for the landed head and routes it as it stands, with
 nothing decided, run, invalidated, posted, or settled again, but only while the
 records agree it is the last word on the head: no pending record beside it,
-the handoff naming it, and no revision spent past it. A newer transaction
-recorded for the head beside it is answered as any captured one is, and
-supersedes it once it settles; any other disagreement holds the route.
-
-A finish held to the dormant settled-evidence policy asks a revision floor
-somebody can read rather than none spent past it, and proves the evidence
-ready again before every route takes it (`rewrite_finish_readiness.stands_ready`)
--- and beside a stop of the evidence step, or of a settlement that leaves its
-transaction recorded (`_decided_and_settled`) --
-invalidating it whole where anything moved or a revision outranks it. No
-production road builds such a finish: a caller holding one asks `resolves`
-directly, which announces, relabels, parks, and retires nothing itself, or
-hands it to the coordinator (`rewrite_finish.finalizes`), which asks it.
+the handoff naming it, and a revision floor somebody can read. A newer
+transaction recorded for the head beside it is answered as any captured one
+is, and supersedes it once it settles; any other disagreement holds the route.
+The evidence is proved ready again before every route takes it
+(`rewrite_finish_readiness.stands_ready`) -- and beside a stop of the evidence
+step, or of a settlement that leaves its transaction recorded
+(`_decided_and_settled`) -- and invalidated whole where anything moved or a
+readable revision spent past it outranks it. `resolves` announces, relabels,
+parks, and retires nothing itself: the coordinator (`rewrite_finish.finalizes`)
+asks it ahead of all of that.
 """
 from __future__ import annotations
 
@@ -134,8 +128,8 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     earlier finish recorded for it is abandoned before its continuation is
     announced (`rewrite_finish_evidence.continues`), and nothing is decided or
     settled for it -- evidence an earlier finish settled for it is kept for
-    the rebase behind it, proved ready under the settled-evidence policy
-    behind that abandonment (`rewrite_finish_settled.stands_ready_if_settled`),
+    the rebase behind it, proved ready behind that abandonment
+    (`rewrite_finish_settled.stands_ready_if_settled`),
     so a transaction beside it never holds the continuation for good. For any other
     head the evidence step decides and records it
     (`rewrite_finish_evidence.settles`) and a transaction it recorded is
@@ -145,24 +139,19 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
     current. Settled evidence with nothing beside it is taken with nothing
     decided, run, posted, or settled again, but only while the records agree
     it is the last word on the head -- no pending record at all, the handoff
-    naming it, and no revision spent past it -- behind the last word over the
-    landing and the base. Evidence taken under a configuration no longer in
-    place is the evidence step's to invalidate as it decides the head afresh.
-
-    The settled-evidence policy asks a revision floor somebody can read rather
-    than none spent past it, and takes the evidence only once it proves ready
-    again (`rewrite_finish_settled.stands_ready_if_settled`), invalidated
-    where anything moved or a revision outranks it; evidence taken under a
-    moved configuration is invalidated before the head is decided afresh, the
-    route held where that does not land. Behind every such invalidation the
+    naming it, and a revision floor somebody can read -- and only once it
+    proves ready again (`rewrite_finish_settled.stands_ready_if_settled`),
+    invalidated where anything moved or a revision outranks it. Evidence
+    taken under a configuration no longer in place is invalidated before the
+    head is decided afresh, the route held where that does not land. Behind every such invalidation the
     comment is read afresh (`rewrite_finish_rechecks.rechecks_behind`): a
     newer transaction recorded, or another attempt put in place, right behind
     its write holds the route, laid over the tick's state, rather than being
     routed past or decided over.
 
     Any of those out of step holds the route, since nobody can say what was
-    owed -- behind the readiness proof all the same under that policy, so
-    movement it reads is invalidated before the hold -- and so does any
+    owed -- behind the readiness proof all the same, so movement it reads is
+    invalidated before the hold -- and so does any
     pending record about another head beside evidence an earlier finish of
     this landing already retired for it, current evidence or none
     (`_holds_out_of_step`) -- by the records, or by the receipt the finish
@@ -184,7 +173,7 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
         _captured.recorded(finish, logged=False) is None
     )
     if standing and invalidates_current(finish):
-        if finish.proves_settled and not invalidates_rechecked(finish, current):
+        if not invalidates_rechecked(finish, current):
             log.warning(
                 "issue=#%d holding the route of %.8s: verification evidence revision %d settled for it was taken "
                 "under a configuration no longer in place, and could not be invalidated, or another road's record "
@@ -199,10 +188,9 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
         "issue=#%d already settled verification evidence revision %d for %.8s; settling and running nothing again",
         finish.issue.number, current.revision, finish.head,
     )
-    # The policy every road selects routes it behind the last word over the
-    # landing and the base; the settled-evidence policy's readiness proof
-    # reads them behind its own readings, and invalidates it where it moved.
-    return stands_ready_if_settled(finish) if finish.proves_settled else _captured.stands_before_the_route(finish)
+    # The readiness proof reads the landing and the base behind its own
+    # readings, and invalidates the evidence where it moved.
+    return stands_ready_if_settled(finish)
 
 
 def settles(finish: LandedFinish) -> FinishOutcome | None:
@@ -210,9 +198,8 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
 
     None too where nothing is recorded for the head -- the decision ran or
     recorded nothing, or the last word behind it abandoned what it recorded --
-    since the evidence is then the fresh reviewer's -- save, under the
-    settled-evidence policy, evidence still current beside a transaction the
-    decision abandoned, which is proved ready again
+    since the evidence is then the fresh reviewer's -- save evidence still
+    current beside a transaction the decision abandoned, which is proved ready again
     (`rewrite_finish_settled.stands_ready_if_settled`). Anything else is where
     the finish stops, with nothing announced, relabelled, or retired. Every
     write the answer makes is decided on the attempt as this finish read it
@@ -222,8 +209,8 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     transaction recorded in place of `pending` (`_answered_alone`) -- holds
     before anything proves, abandons, announces, or clears over it, so that
     record stands as its road wrote it, for the next finish to answer --
-    save, under the settled-evidence policy, evidence another finish settled
-    under `pending`'s receipt -- before its route took the attempt, or beside
+    save evidence another finish settled under `pending`'s receipt -- before
+    its route took the attempt, or beside
     another road's attempt -- which is adopted right behind the answer, ahead
     of that hold, and which the movement this answer read invalidates all the
     same (`rewrite_finish_settled.retires_the_adopted`). Once nothing is
@@ -235,9 +222,9 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     handoff does not name, or a revision spent past it -- comes in with the
     comment the answer adopted and holds the route with the attempt standing,
     and current evidence the configuration moved past is invalidated, with
-    nothing run again, rather than routed or held over. Under the
-    settled-evidence policy a settlement the answer adopted is invalidated
-    first over movement the answer read (`_behind_the_answer`) -- a bound
+    nothing run again, rather than routed or held over. A settlement the
+    answer adopted is invalidated first over movement the answer read
+    (`_behind_the_answer`) -- a bound
     record the settlement's own edit found moved among it, named off the
     comment that edit read, and movement any comment the answer read records
     -- under `pending`'s receipt, or as a blank of the captured attempt's base
@@ -264,7 +251,7 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
         finish.issue if read is None else read[0],
         finish.state,
         anchored=partial(_anchored, finish), rests_on=tuple(_attempts._ATTEMPT_KEYS), observed=[],
-        classifies_a_move=partial(reads_moving, finish, pending, attempt) if finish.proves_settled else None,
+        classifies_a_move=partial(reads_moving, finish, pending, attempt),
     )
     if read is not None:
         proof.reads(read[1])
@@ -293,9 +280,8 @@ def _behind_the_answer(
     """Where the route goes once `pending` was answered, over the movement the answer read; None to route.
 
     `movements` is what the answer read, sorted as the last word sorts its
-    own readings (`rewrite_evidence_proof.MOVEMENT`) -- under the
-    settled-evidence policy, only what moved a binding's records
-    (`rewrite_finish_settled.moves_the_binding`), so another road settling or
+    own readings (`rewrite_evidence_proof.MOVEMENT`) -- only what moved a
+    binding's records (`rewrite_finish_settled.moves_the_binding`), so another road settling or
     retiring the very transaction meanwhile, a finish of this landing
     announcing it, or an attempt moved and put back is no movement under it,
     a settlement and announcement another finish of the landing made being
@@ -306,8 +292,8 @@ def _behind_the_answer(
     beside what the answer read, however soon it is put back. A
     transaction still owed goes to the
     last word over the first such movement, or over its proof taken again. One
-    settled is resolved afresh; a finish held to the settled-evidence policy
-    first invalidates it whole over movement read under its binding -- settled
+    settled is resolved afresh, invalidated whole first over movement read
+    under its binding -- settled
     by this answer, or by another road whose settlement it adopted -- however
     soon it was put back (`rewrite_finish_settled.retires_the_adopted`). What
     the adoption took in is asked again whether it is `pending`'s alone
@@ -369,8 +355,8 @@ def _answered_alone(
     its settlement or retirement is another road's, which this finish may
     neither prove `pending`'s refusals over nor route past; and so is an
     attempt other than `attempt`, the one the finish captured before the
-    answer -- save, under the settled-evidence policy, that attempt advanced
-    by its own announcement (`rewrite_finish_rechecks.stands_as_read`), behind
+    answer -- save that attempt advanced by its own announcement
+    (`rewrite_finish_rechecks.stands_as_read`), behind
     which the movement the answer read is still this finish's to retire.
     """
     state = finish.state
@@ -406,12 +392,11 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
     pending record -- about another head, or one nobody can read -- is out of
     step, and so, beside that current evidence, are a handoff that does not
     name it and a revision floor nobody can read
-    (`rewrite_finish_readiness.beside_current`), and a revision spent past it
     (`rewrite_finish_settled.out_of_step`).
 
-    Under the settled-evidence policy a readable revision spent past it is no
-    hold but outranks it, and the evidence is proved ready before any of
-    those holds (`rewrite_finish_settled.stands_ready_if_settled`), so
+    A readable revision spent past it is no hold but outranks it, and the
+    evidence is proved ready before any of those holds
+    (`rewrite_finish_settled.stands_ready_if_settled`), so
     movement read under it is invalidated whole before the route is held, and
     what another road wrote right behind that invalidation is taken in.
     """
@@ -439,9 +424,8 @@ def _decided_and_settled(finish: LandedFinish) -> FinishOutcome | None:
 
     The evidence step (`rewrite_finish_evidence.settles`) and then, where it
     lets the head go on, the publication and settlement of the transaction
-    recorded for it (`settles`). Under the settled-evidence policy the
-    evidence step's own write asks the comment its strict edit read what it
-    records moving under the transaction captured
+    recorded for it (`settles`). The evidence step's own write asks the
+    comment its strict edit read what it records moving under the transaction captured
     (`rewrite_finish_settled.reads_moving`), behind the attempt as the finish
     read it before that write. Where the
     evidence step stops -- or the settlement stops with a transaction still
@@ -458,8 +442,7 @@ def _decided_and_settled(finish: LandedFinish) -> FinishOutcome | None:
     """
     pending = _captured.recorded(finish, logged=False)
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
-    classified = finish.proves_settled and pending is not None
-    classifies = partial(reads_moving, finish, pending, attempt) if classified else None
+    classifies = None if pending is None else partial(reads_moving, finish, pending, attempt)
     stopped = _evidence.settles(finish, classifies)
     if stopped is None:
         stopped = settles(finish)

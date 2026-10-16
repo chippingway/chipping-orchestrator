@@ -124,12 +124,8 @@ _HOLDS = (
 )
 
 # What another road put in place of what the invalidation was decided on.
-_REPLACEMENTS = (
-    _Move("the attempt replaced", lambda case: settled_moves.writes_over(
-        case, readings.KEY_PENDING_PUSH, support.SQUASHED_SHA,
-    )),
-    _Move("the evidence retired", settled_moves.retires_it),
-)
+# An invalidation's history entry.
+_INVALIDATED = _records.Retirement.INVALIDATED
 
 # The comment filled to its limit ahead of the proof, or just behind its
 # reading of the comment; each answers the context the proof is asked inside.
@@ -498,19 +494,37 @@ class InvalidationTest(settled_support.SettledEvidenceCase, unittest.TestCase):
                 kept = (pinned[_UNKNOWN], pinned["review_subject"]["report_revision"])
                 self.assertEqual(kept, ("kept", road.reviewed))
 
-    def test_what_another_road_replaced_stays(self) -> None:
+    def test_what_another_road_retired_stays(self) -> None:
         # Whichever copy it would land over, nothing is written over that road.
-        for replacement, road in product(_REPLACEMENTS, _ROADS[:2]):
-            with self.subTest(replaced=replacement.name, road=road.name):
+        for road in _ROADS[:2]:
+            with self.subTest(road=road.name):
                 self.setUp()
                 finish = self.landed()
-                replacement.makes(self)
+                settled_moves.retires_it(self)
                 left = readings.pinned(self)
 
                 with road.reads(self):
                     self.assertFalse(self.asks(_readiness.invalidates, finish, self.settled))
 
                 self.assertEqual(readings.pinned(self), left)
+
+    def test_an_attempt_put_in_place_stays(self) -> None:
+        # Whichever copy it would land over, the attempt another road pinned
+        # stands as written, the run read moving retired whole beside it as
+        # the comment stands.
+        for road in _ROADS[:2]:
+            with self.subTest(road=road.name):
+                self.setUp()
+                finish = self.landed()
+                settled_moves.writes_over(self, readings.KEY_PENDING_PUSH, support.SQUASHED_SHA)
+
+                with road.reads(self):
+                    self.assertFalse(self.asks(_readiness.invalidates, finish, self.settled))
+
+                state = self.gh.read_pinned_state(self.issue)
+                retired = _settlement.read_evidence_history(state)[-1]
+                self.assertEqual((retired.receipt, retired.retired), (self.settled.receipt, _INVALIDATED))
+                self.assertEqual(state.get(readings.KEY_PENDING_PUSH), support.SQUASHED_SHA)
 
     def test_a_successor_is_never_marked_moved(self) -> None:
         # Another road settles a successor in place of the evidence over a

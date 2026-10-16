@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """A run settled for the landed head, outranked by a newer transaction its evidence phase abandons, is invalidated.
 
-The evidence phase of a finish held to the dormant settled-evidence policy,
+The evidence phase,
 asked directly (`settled_finish_support`): issue #7's run settled under the
 anchor, then another road records a newer transaction beside it, spending a
 revision past it, and the settled report both are bound to moves, so the
@@ -163,7 +163,7 @@ class OutrankedRunTest(settled.SettledRunCase, unittest.TestCase):
 
 
 class OutrankedRouteTest(route.SettledRouteCase, unittest.TestCase):
-    """The coordinator held to the policy routes the head past a run a newer, abandoned transaction outranks."""
+    """The coordinator routes the head past a run a newer, abandoned transaction outranks."""
 
     def test_routed_past_the_outranked_run(self) -> None:
         # The report moves before the finish proves the newer transaction,

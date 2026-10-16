@@ -47,9 +47,8 @@ every other refusal -- a record that moved, a comment that moved under the
 edit, a write the comment has no room for -- defers, with whatever the write
 was for still owed.
 
-Three readings serve only a landed rewrite's finish held to the dormant
-settled-evidence policy, one selecting `proves_settled`
-(`rewrite_finish_settled`, `rewrite_finish_unconfirmed`). A retirement landed
+Three readings serve only a landed rewrite's finish and the recovery's
+answers built over it (`rewrite_finish_settled`, `rewrite_finish_unconfirmed`). A retirement landed
 for a proof's reading that classifies a move keeps the refusal of moved
 records its commit earns -- over its own fresh reading or its strict edit's --
 with the comment it was read on (`lands_observing`). Another tells a refusal

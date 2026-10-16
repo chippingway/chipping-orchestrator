@@ -123,7 +123,7 @@ def settles(
     refused over a bound record it read moved hands that movement to the word
     as its proof, so a record put back meanwhile is abandoned over all the
     same. The stop is the outcome all the same. `classifies_a_move`, handed
-    only by the dormant settled-evidence policy's evidence phase, asks the
+    by the evidence phase over a captured transaction, asks the
     comment that write's strict edit read what it records moving under the
     transaction (`verification_proof.ProofReading.classifies_a_move`), so a
     mark, a revision spent past it, or a blank of the attempt's base tip
@@ -155,10 +155,9 @@ def continues(finish: LandedFinish) -> FinishOutcome | None:
     abandoned in a write of its own over the comment read afresh before the
     continuation is announced or the attempt retires; one that does not land
     holds the continuation with nothing announced. Nothing is decided, run, or
-    invalidated for the head itself, save -- for a finish held to the dormant
-    settled-evidence policy -- a settlement another finish made of that very
-    transaction while its abandonment was asked, which is invalidated in its
-    place.
+    invalidated for the head itself, save a settlement another finish made of
+    that very transaction while its abandonment was asked, which is
+    invalidated in its place.
     """
     return _captured.sets_aside(finish)
 

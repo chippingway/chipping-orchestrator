@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Another finish of the landing announcing while a direct finish proves its settled run, the proof's movement kept.
 
-Direct finishes held to the dormant settled-evidence policy
+Direct finishes through the coordinator every road hands its landing to
 (`settled_route_support`), the other finish of the landing among them:
 issue #7's run settled, the issue edited, and right behind the next finish's
 proof the edit is put back while another finish announces the landing -- the

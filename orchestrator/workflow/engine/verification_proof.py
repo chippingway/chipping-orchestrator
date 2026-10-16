@@ -46,9 +46,8 @@ a caller whose whole proof stopped at a reading nobody could take and that
 still has to hear what those records say moved. Its readers are the evidence
 proof of a landed base rewrite (`rewrite_evidence_proof`) and the readiness
 proof of the evidence such a rewrite's finish settled
-(`rewrite_finish_readiness`), which is dormant: only the dormant
-settled-evidence finish policy and the recovery's dormant guarded operations
-ask it, and no production road selects either.
+(`rewrite_finish_readiness`), which every finish and recovery route over that
+evidence asks.
 
 `configured_context_revision` is the context both witnesses are held to: the
 configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, minted by the verify
@@ -104,8 +103,7 @@ class ProofReading:
     hands one, collects every refusal of the binding the answer reads, a bound
     record read moved among them (`observes`), so a movement read once and put
     back before anything reads the comment again is still the movement it was.
-    `classifies_a_move`, set only by that finish held to the dormant
-    settled-evidence policy, reads a comment the answer read or took in for
+    `classifies_a_move`, set only by that finish, reads a comment the answer read or took in for
     the movement it records under the transaction answered (`reads`) -- the
     comment a refusal of moved bound records was read over among them
     (`observes`): its guarded writes keep that comment

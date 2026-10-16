@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a landed rewrite's direct finish held to the dormant settled-evidence policy left behind its route.
+"""What a landed rewrite's direct finish left behind its route.
 
 The real-git case whose finishes a test hands the coordinator directly
 (`settled_finish_support.SettledRunCase.finalizes`), reading back what they

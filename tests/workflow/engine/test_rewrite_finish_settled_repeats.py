@@ -1,8 +1,8 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A landed rewrite finished again and again under the dormant settled-evidence policy, saying and making all once.
+"""A landed rewrite finished again and again, saying and making all once.
 
-Direct finishes held to the dormant settled-evidence policy
+Direct finishes through the coordinator every road hands its landing to
 (`settled_route_support`): issue #7's run settled beside another road's
 charged run ledger, its finish killed at each final handoff boundary, nothing
 the run rests on moving. The next finish routes the head; one after that finds

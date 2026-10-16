@@ -1,25 +1,19 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The dormant settled-evidence policy's steps in a landed rewrite's evidence phase, beside the one every road selects.
+"""The settled-evidence policy's steps in a landed rewrite's evidence phase.
 
-A finish is held to one of two policies: the one every production road hands
-over, which proves again only a transaction an earlier finish captured for the
-landed head, and a dormant one a caller selects only by building the finish
-with `rewrite_finish_models.LandedFinish.proves_settled`. The dormant policy
-proves evidence already settled for the head ready again
-(`rewrite_finish_readiness.stands_ready`), and invalidates it into history
-whole wherever anything it is bound to moved since it settled.
+Every finish proves evidence already settled for the landed head ready again
+(`rewrite_finish_readiness.stands_ready`) as well as a transaction an earlier
+finish captured for it, and invalidates that evidence into history whole
+wherever anything it is bound to moved since it settled.
 
 Each step here is one the evidence phase (`rewrite_finish_settlement.resolves`)
-takes whichever policy holds the finish, and it answers for both: a finish not
-held to the dormant policy goes on exactly as the policy every road selects
-has it, reading nothing more. That phase is callable on its own, announcing,
-relabelling, parking, and retiring nothing. The coordinator
-(`rewrite_finish.finalizes`) asks `stands_ready_if_settled` itself behind the
-relabel -- or where it continues the head instead -- for a routed head over
-the base too, and asks it beside an unfinishable landing, ahead of the park
-and of the relabel, and takes its other proofs around its writes, through
-`rewrite_finish_stops`.
+takes, a phase that announces, relabels, parks, and retires nothing. The
+coordinator (`rewrite_finish.finalizes`) asks `stands_ready_if_settled` itself
+behind the relabel -- or where it continues the head instead -- for a routed
+head over the base too, and asks it beside an unfinishable landing, ahead of
+the park and of the relabel, and takes its other proofs around its writes,
+through `rewrite_finish_stops`.
 
 - `stands_ready_if_settled` proves evidence settled current for the head
   ready, where any is -- reading the comment afresh behind an invalidation
@@ -112,10 +106,8 @@ _SPENT_PAST = ReportEvidence(
 def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) -> FinishOutcome | None:
     """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None to go on.
 
-    Asked only of a finish held to the dormant settled-evidence policy: any
-    other finish goes on from here with nothing read. Where that proof
-    invalidated the evidence, the comment is read afresh behind its write
-    (`_proves_ready`). `or_the_base` asks for
+    Where that proof invalidated the evidence, the comment is read afresh
+    behind its write (`_proves_ready`). `or_the_base` asks for
     the proof a route's last write needs, behind requests that took time: a
     base advanced meanwhile holds the route with the attempt standing, a head
     with no evidence current held to the base tip its replay was made onto
@@ -127,8 +119,6 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
     advanced, rewound or repointed under the local ref, or unreadable holds
     the route for the next tick's fetch to count the head again.
     """
-    if not finish.proves_settled:
-        return None
     current = _settlement.read_current_evidence(finish.state)
     stopped = None
     if current is not None and current.binding.target.target_head == finish.head:
@@ -155,18 +145,11 @@ def out_of_step(finish: LandedFinish, current: _records.CurrentEvidence | None) 
 
     Any pending record, and -- beside `current`, where there is one -- a
     handoff that does not name it or a revision floor nobody can read
-    (`rewrite_finish_readiness.beside_current`), and, for a finish not held to
-    the settled-evidence policy, a revision spent past it. That policy holds
-    no route over a readable revision spent past `current`: it outranks the
-    evidence for good, which its readiness proof invalidates rather than
-    holding every later poll over it.
+    (`rewrite_finish_readiness.beside_current`). A readable revision spent
+    past `current` holds no route: it outranks the evidence for good, which
+    the readiness proof invalidates rather than holding every later poll over it.
     """
-    beside = _readiness.beside_current(finish.state, current)
-    if beside or finish.proves_settled or current is None:
-        return beside
-    if _record_state._latest_revision(finish.state) == current.revision:
-        return ""
-    return "a revision past it was spent"
+    return _readiness.beside_current(finish.state, current)
 
 
 def retires_the_adopted(
@@ -177,8 +160,8 @@ def retires_the_adopted(
 ) -> bool:
     """Whether the records the answer to `pending` left resolve afresh, evidence it read moving retired first.
 
-    Always, with nothing read, for a finish not held to the settled-evidence
-    policy or with nothing current under `pending`'s receipt. Otherwise that
+    Always, with nothing read, where nothing is current under `pending`'s
+    receipt. Otherwise that
     evidence -- settled by this answer, or adopted from another road -- is
     invalidated whole over movement the answer read under its binding
     (`movements`), however soon it was put back. The evidence records' own
@@ -199,7 +182,7 @@ def retires_the_adopted(
     never answered or routed past under the movement read here.
     """
     current = _settlement.read_current_evidence(finish.state)
-    if not finish.proves_settled or current is None or current.receipt != pending.receipt:
+    if current is None or current.receipt != pending.receipt:
         return True
     if not moves_the_binding(finish, movements):
         return True
@@ -222,7 +205,7 @@ def adopts_the_answer(
 ) -> list[ReportEvidence]:
     """Take in what another finish of the landing made of `pending` while this one answered it; the movement read.
 
-    For the policy alone. The announcement that finish put on the attempt
+    The announcement that finish put on the attempt
     (`rewrite_finish_unconfirmed.takes_in_the_announcement`), and its
     settlement of `pending`, every evidence record laid over the tick's state
     (`verification_durable.takes_in_a_settlement`) wherever that state does
@@ -247,8 +230,6 @@ def adopts_the_answer(
     the settlement's adoption read where it found `pending` still owed, its
     settlement made only behind that reading.
     """
-    if not finish.proves_settled:
-        return []
     readings = [_unconfirmed.takes_in_the_announcement(finish)]
     current = _settlement.read_current_evidence(finish.state)
     if current is None or current.receipt != pending.receipt:
@@ -264,8 +245,7 @@ def adopts_the_answer(
 def moves_the_binding(finish: LandedFinish, movements: list[ReportEvidence]) -> list[ReportEvidence]:
     """Those of `movements`, read by the answer, that moved what a binding rests on.
 
-    Every one, for a finish not held to the settled-evidence policy. Under it,
-    a refusal of moved records naming none but the evidence records and the
+    A refusal of moved records naming none but the evidence records and the
     attempt's own members is none (`verification_durable.moves_only_the_evidence`):
     another road recording, settling, or retiring a transaction, a finish of
     this landing announcing it, or another road's attempt in its place moves
@@ -281,8 +261,6 @@ def moves_the_binding(finish: LandedFinish, movements: list[ReportEvidence]) -> 
     no refusal's names excuse, however the comment or the tick's state reads
     since.
     """
-    if not finish.proves_settled:
-        return movements
     return [moved for moved in movements if not _durable.moves_only_the_evidence(moved, _attempts._ATTEMPT_KEYS)]
 
 
@@ -305,8 +283,7 @@ def reads_moving(
     every other member as `attempt` captured it -- or advanced by its own
     announcement (`rewrite_finish_rechecks.stands_as_read`). And, where
     `state` carries evidence current under `pending`'s receipt, the readiness
-    proof's reading of the
-    records alone under the settled-evidence policy
+    proof's reading of the records alone
     (`rewrite_finish_readiness.settled_word`): the mark of movement in the
     handoff's place, a handoff naming the evidence that describes another
     head, a readable revision spent past it, or a review or report record
@@ -319,19 +296,17 @@ def reads_moving(
     `pending` once they are put back adopts none of it. Asked of that very
     reading, it is the movement it is however soon the records are put back,
     where a refusal naming the evidence records or the attempt's members alone
-    is none (`moves_the_binding`). None for a finish not held to that policy,
-    and where nothing moved under it: a plain settlement, `pending` still owed
-    over the records it was bound to, or retired or superseded.
+    is none (`moves_the_binding`). None where nothing moved under it: a plain
+    settlement, `pending` still owed over the records it was bound to, or
+    retired or superseded.
     """
-    if not finish.proves_settled:
-        return None
     unmoved = stands_as_read(finish, attempt, state, blank_aside=True)
     blanked = _TIP in attempt.moved(state.data)
     if unmoved and blanked and not _attempt_records._recorded_onto(state):
         return _BLANKED
     current = _settlement.read_current_evidence(state)
     if current is not None and current.receipt == pending.receipt:
-        heard = _readiness._records_heard(current, state, settled=True)
+        heard = _readiness._records_heard(current, state)
     elif _record_state.read_pending_evidence(state) == pending:
         outranked = outranks_the_owed(state, pending)
         heard = (recorded_verdict(state, pending.binding), _SPENT_PAST if outranked else None)

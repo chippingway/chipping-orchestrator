@@ -210,12 +210,13 @@ class CapturedRunCase(VerificationRecoveryCase):
         abandoned = verification_settlement_state.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
         self.assertEqual((abandoned.revision, abandoned.binding), (captured.revision, captured.binding))
 
-    def assert_unannounced(self) -> None:
-        """Nothing announced -- no notice, no `base_rebased` event -- relabelled, or reset: the round as spent."""
-        unsaid = (announced(self), readings.notices(self), readings.relabels(self))
+    def assert_unannounced(self, noticed: int = 0) -> None:
+        """No `base_rebased` event and `noticed` notices, nothing relabelled or reset: the round as spent."""
+        said = len(readings.notices(self))
+        unsaid = (announced(self), said, readings.relabels(self))
         self.assertEqual(
             (*unsaid, readings.pinned(self)[readings.KEY_REVIEW_ROUND]),
-            ([], [], (), _finish_support.SPENT_ROUND),
+            ([], noticed, (), _finish_support.SPENT_ROUND),
         )
 
 

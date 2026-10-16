@@ -165,8 +165,8 @@ def answers(reading: _proof.ProofReading, pending: _records.PendingEvidence) -> 
     refusal short of a reading nobody could take abandons the transaction
     (`verification_carries.abandons_on_refusal`). Whatever answer lands becomes
     `reading.state`. The ENDED reading is kept for a reading that classifies a
-    move (`verification_proof.ProofReading.keeps`), which the dormant
-    settled-evidence finish policy alone builds.
+    move (`verification_proof.ProofReading.keeps`), which only a landed
+    rewrite's finish builds.
     """
     gh, issue, state = reading.gh, reading.issue, reading.state
     if _already_recorded(state, pending):

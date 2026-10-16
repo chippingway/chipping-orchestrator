@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """A landed head's announcement refused over records another road moved under its notice.
 
-Direct finishes held to the dormant settled-evidence policy
+Direct finishes through the coordinator every road hands its landing to
 (`settled_route_support`): issue #7's run settled and proved ready, and while
 the notice is posted another road repoints the issue at another pull request
 and puts it back. The record of the `base_rebased` event, decided on that pull

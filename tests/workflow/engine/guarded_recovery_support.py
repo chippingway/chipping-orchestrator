@@ -1,38 +1,29 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The workflow's dormant guarded recovery operations, handed explicitly to the git owner's recovery contexts.
+"""The workflow's guarded recovery operations, reached through the production roads that hand them to the git owner.
 
-No recovery road the workflow builds a context for carries them yet
-(`workflow/engine/rewrite_recovery_parks.py`), so a case hands them in itself
-(`guarded`): the recorder ahead of every reset, the settled-aware answer a
-landed reset is owed, the proof before a park that keeps the attempt, and the
-park every recovery park is recorded through. It hands them to the context the
-git owner's fail-closed abort is taken over (`guarded_aborts`), which every
-tick whose fetch of the branch fails (`unfetched`) reaches, to the dispatcher's
-held anchor (`answers_a_held_anchor`), or to a context read off the comment as
-it stands (`recovery_context`), for a case asking the park proof alone. A
-real-git finish case whose every tick takes the guarded abort is a
-`GuardedRecoveryCase`.
+A case reaches them as a live tick does: through the fail-closed abort a
+failed fetch takes (`unfetched`), the dispatcher's hold (`answers_a_held_anchor`),
+or a context the recovery itself hands its roads (`recovery_context`).
 """
 from __future__ import annotations
 
 import subprocess
-from dataclasses import replace
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import (
-    attempt_records as _attempt_records,
-    recovery_holds as _recovery_holds,
-    snapshot as _snapshot,
-)
+from orchestrator.git.base_sync import attempt_records as _attempt_records, snapshot as _snapshot
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
+from orchestrator.github.verification_evidence import VerifiedCommand
 from orchestrator.workflow.engine import (
-    rewrite_landing_retirement as _retirement,
-    rewrite_recovery_parks as _parks,
+    dispatch_guards as _dispatch_guards,
+    rewrite_recovery as _rewrite_recovery,
+    verification_record_state as _record_state,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
@@ -45,28 +36,8 @@ AWAITING = "awaiting_human"
 # The park's flag and the attempt's anchor and base tip, as a case reads them together.
 ATTEMPT_FIELDS = (AWAITING, readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
 
-# The git owner's abort and the branch transport's fetch, read before any case patches them.
-_ABORT = _snapshot._abort_recovery_unverified
-
+# The branch transport's fetch, read before any case patches it.
 _FETCH = branch_transport._authed_fetch
-
-
-def guarded(context: _AutoRebaseRecoveryContext) -> _AutoRebaseRecoveryContext:
-    """`context` carrying every dormant guarded operation in place of the answers the workflow hands it today."""
-    return replace(
-        context,
-        settles_over_a_reset=partial(_retirement.retires_over_the_reset, context),
-        records_before_a_reset=_parks.records_the_reset,
-        proves_before_a_park=_parks.proves_before_a_park,
-        lands_a_park=_parks.lands_a_park,
-    )
-
-
-def guarded_aborts():
-    """The git owner's fail-closed abort, taken over its recovery context `guarded`."""
-    return patch.object(
-        _snapshot, "_abort_recovery_unverified", lambda context, detail: _ABORT(guarded(context), detail),
-    )
 
 
 def unfetched(spec, ref: str, **options) -> subprocess.CompletedProcess:
@@ -85,9 +56,15 @@ BEFORE_THE_RECORD = handoff.Boundary("before the park is recorded", "edit_pinned
 
 
 def recovery_context(case) -> _AutoRebaseRecoveryContext:
-    """The recovery context of `case`'s issue as its comment now reads, `guarded`, over its checkout."""
+    """The context the workflow's recovery hands every road, over `case`'s comment and checkout as they now read.
+
+    Taken off the recovery itself (`rewrite_recovery.recovers`), its fetch of
+    the branch stopped before any road is chosen, so a case handing it to a
+    git owner's road directly takes that road with exactly what a live
+    recovery would hand it.
+    """
     state = case.gh.read_pinned_state(case.issue)
-    return guarded(_AutoRebaseRecoveryContext(
+    read = _AutoRebaseRecoveryContext(
         gh=case.gh,
         spec=case._spec,
         issue=case.issue,
@@ -97,28 +74,65 @@ def recovery_context(case) -> _AutoRebaseRecoveryContext:
         label=git_support.REVIEWING,
         pending_pre_rebase_sha=state.get(readings.KEY_PENDING_PUSH),
         pending_rewrite=_attempt_records._pending_rewrite(state),
-    ))
+    )
+    handed: list[_AutoRebaseRecoveryContext] = []
+    with patch.object(_snapshot, "_fetch_recovery_snapshot", handed.append):
+        _rewrite_recovery.recovers(read)
+    return handed[0]
+
+
+def records_a_newer_run(case, *, settles: bool = False):
+    """Record a newer transaction beside `case`'s settled run, carrying its binding, as another road would; it.
+
+    Its transcript is the configured command passing, as the settled run's own
+    reads, and it raises the revision floor past that run. `settles` posts its
+    artifact and settles it over that run in the same write, which supersedes
+    the run under a receipt of its own.
+    """
+    state = case.gh.read_pinned_state(case.issue)
+    command = config.VERIFY_COMMANDS[0]
+    passed = (VerifiedCommand(command=command, exit_status=0, output=git_support.CHECKED),)
+    newer = _record_state.mint_pending_evidence(
+        state, git_support.ISSUE, readings.pinned_records(case)[1].binding, passed,
+    )
+    case.assertTrue(_record_state.record_pending_evidence(state, newer))
+    if settles:
+        posted = case.gh.publish_verification_artifact(case.pull_request, newer.artifact)
+        state = _settlement.settled_state(state, newer, posted.landed_id, git_support.REVIEWING)
+    case.gh.write_pinned_state(case.issue, state)
+    return newer
+
+
+def settles_elsewhere(case, head: str, written: str, raced: list, then=None) -> None:
+    """Put the issue back as `written` and settle `head`'s captured run as another finish would, once; into `raced`.
+
+    That finish dies before its announcement, so the attempt still stands;
+    `then`, where given, is made behind it.
+    """
+    if raced:
+        return
+    raced.append(head)
+    case.issue.body = written
+    finishing = partial(case.finishes, head, FinishRoad.RECOVERY)
+    handoff.dies_at(case.gh, handoff.BEFORE_THE_ANNOUNCEMENT, finishing)
+    if then is not None:
+        then(case)
 
 
 def answers_a_held_anchor(case) -> None:
-    """The git owner's answer to the anchor the dispatcher holds `case`'s issue for, handed the dormant park."""
+    """The dispatcher's hold of the anchor `case`'s issue carries, answered as the dispatcher answers it."""
     label = case.gh.workflow_label(case.issue)
     state = case.gh.read_pinned_state(case.issue)
-    held = _recovery_holds._held_anchor_context(case.gh, case._spec, case.issue, state, label)
-    _recovery_holds._answers_a_held_anchor(held, _parks.proves_before_a_park, _parks.lands_a_park)
+    _dispatch_guards._anchor_holds_the_tick(case.gh, case._spec, case.issue, label, state)
 
 
 class GuardedRecoveryCase(support.CapturedRunCase):
-    """The real-git finish case whose every per-tick base refresh takes the git owner's abort `guarded`."""
-
-    def recovers(self, during=None) -> None:
-        """One whole per-tick base refresh (`CapturedRunCase.recovers`), its abort handed the guarded operations."""
-        with guarded_aborts():
-            support.CapturedRunCase.recovers(self, during)
+    """The real-git finish case whose recoveries take the guarded operations the workflow hands the git owner."""
 
     def proves(self) -> bool:
-        """The dormant proof a park that keeps the attempt asks, over the comment and checkout as they now read."""
-        return _parks.proves_before_a_park(recovery_context(self))
+        """The proof a park that keeps the attempt asks, over the comment and checkout as they now read."""
+        context = recovery_context(self)
+        return context.proves_before_a_park(context)
 
     def settles_then_dies(self) -> tuple:
         """Land a reviewed rebase, settle its run, and kill its finish before its announcement; the head and the run."""
@@ -141,6 +155,15 @@ class GuardedRecoveryCase(support.CapturedRunCase):
         self.assertEqual((entry.revision, entry.binding), (settled.revision, settled.binding))
         said = (support.announced(self), readings.relabels(self))
         self.assertEqual(said, ([], ()))
+        self.assert_made_once()
+
+    def assert_routed(self, head: str, current=None) -> None:
+        """`head` announced once and routed, its attempt retired, `current` current with nothing pending; run once."""
+        announced = (support.announced(self), len(readings.notices(self)))
+        self.assertEqual(announced, ([head], 1))
+        self.assertEqual(readings.relabels(self), readings.ROUTED)
+        self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
+        self.assertEqual(readings.pinned_records(self)[:2], (None, current))
         self.assert_made_once()
 
     def assert_made_once(self) -> None:

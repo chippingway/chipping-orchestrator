@@ -1024,16 +1024,16 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   landing on another head, or its reset takes the checkout off it (`workflow/engine/rewrite_landing_moved.py`), the
   git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
   park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). Evidence a
-  finish already settled for the landed head has dormant primitives beside these, which no production finish, recovery,
-  or park road asks yet (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it
-  -- the base readings that made a continuation excused over a head the base advanced past again, and proved once more
-  behind any stop of a write the finish makes after it -- and invalidating it into history whole where anything it is
-  bound to moved -- over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the
-  invalidation cannot land, so nothing put back revives it. In a finish only the dormant settled-evidence policy
-  asks them: a caller selects it by building the finish with `proves_settled` and handing it directly to the
-  coordinator (`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which
-  announces, relabels, parks, and retires nothing), and no production road builds such a finish
-  (`workflow/engine/rewrite_finish_settled.py`). That phase proves settled evidence
+  finish already settled for the landed head is held to the same readings on every road
+  (`workflow/engine/rewrite_finish_readiness.py`): proved ready again before a route takes it -- the base readings
+  that made a continuation excused over a head the base advanced past again, and proved once more behind any stop of
+  a write the finish makes after it -- and invalidated into history whole where anything it is bound to moved -- over
+  the comment read afresh or the tick's own copy, the attempt's base tip blanked where the invalidation cannot land,
+  so nothing put back revives it. Every finish asks it, on the publication, retry, and landed roads alike
+  (`workflow/engine/rewrite_finish_settled.py`), and so do the recovery's answers to a snapshot read off the head, a
+  landed reset, and a park or hold that keeps the attempt (`workflow/engine/rewrite_landing_moved.py`,
+  `rewrite_landing_retirement.py`, `rewrite_recovery_parks.py`). The evidence phase
+  (`rewrite_finish_settlement.resolves`, which announces, relabels, parks, and retires nothing) proves settled evidence
   ready before the route goes on, abandons a continuation's captured transaction before proving the settled evidence
   beside it, takes in a settlement and announcement another finish made beside its answer and invalidates that
   settlement over movement read under it, reads the comment afresh behind every invalidation it lands so a newer

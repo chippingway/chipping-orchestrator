@@ -1,20 +1,18 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a finish of a landed rewrite announced on the attempt, as the dormant settled-evidence policy reads it.
+"""What a finish of a landed rewrite announced on the attempt, read again wherever the tick's reading may be stale.
 
 A finish's announcement puts the record of its `base_rebased` event and the
 mark on the attempt, and its relabel follows; another finish of the landing
 may put them down meanwhile, or a write of this finish's own may land them
-with its answer lost -- the attempt advanced, not replaced. Only a finish
-held to the dormant policy reads it: `advanced_by_the_announcement` tells it
-from another attempt, and `takes_in_the_announcement` lays it over the tick's
-state, so movement read under settled evidence is retired over the attempt
-as it stands rather than refused as another road's. The coordinator
-(`rewrite_finish.finalizes`) asks `marked` and `relabelled`, so a finish under
-that policy neither announces a head another finish marked meanwhile nor
-relabels -- and files the stage-entry event of -- an issue another finish
-already relabelled under that mark; every other finish answers both off the
-mark and the label the tick read.
+with its answer lost -- the attempt advanced, not replaced.
+`advanced_by_the_announcement` tells that from another attempt, and
+`takes_in_the_announcement` lays it over the tick's state, so movement read
+under settled evidence is retired over the attempt as it stands rather than
+refused as another road's. The coordinator (`rewrite_finish.finalizes`) asks
+`marked` and `relabelled`, so a finish neither announces a head another
+finish marked meanwhile nor relabels -- and files the stage-entry event of --
+an issue another finish already relabelled under that mark.
 """
 from __future__ import annotations
 
@@ -56,13 +54,10 @@ def advanced_by_the_announcement(
 def takes_in_the_announcement(finish: LandedFinish, durable: PinnedState) -> None:
     """Lay the announcement's bookkeeping `durable`, read afresh, carries for `finish`'s attempt over the tick's state.
 
-    Only for a finish held to the settled-evidence policy, and only where that
-    bookkeeping alone moved the attempt (`advanced_by_the_announcement`):
-    taken in as read, so a write decided on the attempt counts none of it as
-    the tick's own move.
+    Only where that bookkeeping alone moved the attempt
+    (`advanced_by_the_announcement`): taken in as read, so a write decided on
+    the attempt counts none of it as the tick's own move.
     """
-    if not finish.proves_settled:
-        return
     read = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     moved = advanced_by_the_announcement(finish, read, durable.data)
     if not moved:
@@ -75,27 +70,28 @@ def takes_in_the_announcement(finish: LandedFinish, durable: PinnedState) -> Non
 def marked(finish: LandedFinish, *, already: bool) -> bool:
     """Whether the mark is down for `finish`'s landed head: `already`, as the tick read it, or put down since.
 
-    Only a finish held to the settled-evidence policy reads it again, off the
-    tick's state as its evidence phase left it -- which takes in an
-    announcement another finish of the landing made meanwhile -- so that
-    announcement is not made twice.
+    Read again off the tick's state as the evidence phase left it -- which
+    takes in an announcement another finish of the landing made meanwhile --
+    so that announcement is not made twice.
     """
-    return already or (finish.proves_settled and _attempts._already_announced(finish.state, finish.head))
+    return already or _attempts._already_announced(finish.state, finish.head)
 
 
 def relabelled(finish: LandedFinish, *, announced: bool) -> bool | None:
     """Whether the issue is already on `workflow:validating` under the mark, so the route relabels nothing.
 
-    `announced` and the tick's label answer for every finish but one held to
-    the settled-evidence policy, which reads the mark as the attempt now
-    carries it (`marked`) and, where it is down, the label off the issue
-    fetched afresh, so a relabel another finish made meanwhile -- and its
-    stage-entry event -- is not made twice. None where that label could not
-    be read: nobody can say whether the relabel is made, so the route holds
-    rather than risk it.
+    Read off the mark as the attempt now carries it (`marked`) and, where it
+    is down, the label off the issue fetched afresh rather than the one the
+    tick read, so a relabel another finish made meanwhile -- and its
+    stage-entry event -- is not made twice. That label is the relabel made
+    under the mark only where it cannot predate the mark: `announced`, the
+    mark the tick read down already, or a label the tick read as another. An
+    issue the tick read on `workflow:validating` with no mark down for the
+    head -- an earlier head's route, a head since continued to another rebase
+    -- is relabelled for this head's route all the same, as an uninterrupted
+    journey's would be. None where that label could not be read: nobody can
+    say whether the relabel is made, so the route holds rather than risk it.
     """
-    if not finish.proves_settled:
-        return announced and finish.label == WorkflowLabel.VALIDATING
     if not marked(finish, already=False):
         return False
     try:
@@ -106,4 +102,6 @@ def relabelled(finish: LandedFinish, *, announced: bool) -> bool | None:
             finish.issue.number, finish.head,
         )
         return None
-    return label == WorkflowLabel.VALIDATING
+    if label != WorkflowLabel.VALIDATING:
+        return False
+    return announced or finish.label != WorkflowLabel.VALIDATING

@@ -70,9 +70,8 @@ file is the durable record.
   `stages/validating/review_parks.py`, the park of a handed change request's developer launch that may have started
   (`stages/validating/review_launch_park.py`, `parks`) -- emitted once its guarded commit is down -- the
   question- and discussion-stage
-  `_park_question` / `_park_discussion` funnels, and the debt park of a landed rewrite finished directly under the
-  dormant settled-evidence policy whose notice was said with no event behind it
-  (`workflow/engine/rewrite_finish_debt.py`, `files_the_park`), which no production road selects;
+  `_park_question` / `_park_discussion` funnels, and the debt park of a landed rewrite whose notice was said with no
+  event behind it (`workflow/engine/rewrite_finish_debt.py`, `files_the_park`);
   fanned out to `ANALYTICS_LOG_PATH` alongside this audit log through the shared `GitHubClient.emit_event` chokepoint;
   extras: `stage` (read from the current
   workflow label, not passed in), `reason` (e.g. `agent_timeout`, `push_failed`, `failed_checks`, `agent_question`,
@@ -344,8 +343,7 @@ retired, while the log will not read, and the next tick asks again. Every other 
 `<!--orchestrator-state ...-->` JSON comment on the issue (and the issue's workflow label). If the two disagree, trust
 pinned state. Truncating, rotating, or deleting the log never moves a decision the pinned state records; a rotation that
 keeps its copy beside the log costs nothing, while deleting that copy or truncating the log with none kept, done while a
-lost finish is still to retry, can let that retry file its `base_rebased` a second time. No production road reads it
-anywhere else: a finish handed to the coordinator directly under the dormant settled-evidence policy also asks it
+lost finish is still to retry, can let that retry file its `base_rebased` a second time. The same finish also asks it
 whether the `park_awaiting_human` of a debt park whose notice it finds already said is filed -- matched on the issue,
 the `reason`, the landed head such a park names as `sha`, and the id of that notice it names as `notice_id`, which the
 park asks the funnel to name (`names_the_notice=True`) -- and holds while it will not read.

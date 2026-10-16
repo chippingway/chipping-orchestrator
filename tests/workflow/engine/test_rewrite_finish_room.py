@@ -12,15 +12,12 @@ the comment as another road has since left it -- the announcement whole, the
 record of its event included, with its notice's ledger entry reserved over the
 ledger that comment carries, and the park over the round its room depended on
 -- so neither posts or files anything for a record that could not follow it.
-Every check holds as well for a finish held to the dormant settled-evidence
-policy, selected explicitly for every finish the case builds.
 """
 from __future__ import annotations
 
 import unittest
 from dataclasses import replace
 from types import MappingProxyType
-from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.workflow.engine import report_record_values as _record_values
@@ -273,20 +270,6 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         """How many notices PR #42 was given and `base_rebased` events filed, and every label written."""
         notices, events = world.said()
         return len(notices), len(events), world.relabels()
-
-
-class SettledDebtRoomTest(DebtRoomTest):
-    """The debt's room and park for a finish held to the dormant settled-evidence policy."""
-
-    def setUp(self) -> None:
-        self.enterContext(patch.object(support.FinishWorld, "proves_settled", True))
-
-
-class SettledRoomMovedMeanwhileTest(RoomMovedMeanwhileTest):
-    """Room measured afresh for a finish held to the dormant settled-evidence policy."""
-
-    def setUp(self) -> None:
-        self.enterContext(patch.object(support.FinishWorld, "proves_settled", True))
 
 
 if __name__ == "__main__":

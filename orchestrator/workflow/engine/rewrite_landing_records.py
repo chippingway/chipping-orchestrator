@@ -35,12 +35,13 @@ settled or retired, whether or not the history still keeps it
 and holds over any record another road left pending beside it.
 
 `settled` is the evidence such a finish settled for the head and left
-current: the evidence the readiness primitives (`rewrite_finish_readiness`)
-prove ready again and invalidate where the landing is read moving under it,
-as a captured transaction is abandoned, so restoring the landing revives no
-decision taken over it. It is dormant: only the guarded recovery operations
-built on those primitives read it (`rewrite_landing_retirement`), and no
-recovery road is handed them yet.
+current: the evidence the readiness proof (`rewrite_finish_readiness`) proves
+ready again and invalidates where the landing is read moving under it, as a
+captured transaction is abandoned, so restoring the landing revives no
+decision taken over it. The recovery's helpers read it wherever a snapshot
+reads the landing moved (`rewrite_landing_moved`), and so do its answers to
+a landed reset and to a park that keeps the attempt
+(`rewrite_landing_retirement`).
 
 `resolved` is the narrower question of whether evidence for the head was
 already settled or retired -- current, or in the history -- which the

@@ -1291,12 +1291,10 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Relying on it later**: `current_evidence_verdict` proves the current record again for a reader -- no revision
   past it spent, its handoff, its artifact re-read at the recorded comment with the pass flag its commands earn, and
   then the whole proof above -- so newer evidence posted and never settled, a deleted or edited artifact, or a flag it
-  contradicts is not reported as current. Its live readers are three (the dormant readiness proof of a landed
-  rewrite's settled evidence, `workflow/engine/rewrite_finish_readiness.py`, asks it too, though only a finish held
-  to the dormant settled-evidence policy and handed directly to the coordinator or its evidence phase -- **Base-rewrite
-  evidence, the dormant settled-evidence policy** below -- and the recovery's dormant guarded operations ask that,
-  every production road keeping the policy every road selects): the approval's proof over the evidence
-  its verdict
+  contradicts is not reported as current. Its live readers are four: the readiness proof of a landed rewrite's
+  settled evidence (`workflow/engine/rewrite_finish_readiness.py`), which every finish and the recovery's answers
+  over that evidence ask (**Base-rewrite evidence, the settled-evidence policy** below); the approval's proof over
+  the evidence its verdict
   names (`stages/validating/approved_evidence.py`); the squash handoff, which proves a settled carry whole again before
   the label moves over it (`stages/validating/squash_evidence.py`); and `stages/validating/review_evidence.py`, which
   hands a reviewer the current evidence only where the record is bound to exactly the subject that reviewer is
@@ -1512,7 +1510,7 @@ because there it is the claim that this stage has already rerouted rather than a
   issue records or one its record does not account for -- keeps it for the reply that finishes it once the issue is
   put right, so the git
   owner has the transaction proved again before each such park (`git/base_sync/persistence._proves_before_the_park`,
-  over `rewrite_landing_moved.abandons_unproved`), on readings no failed fetch is needed for, and abandoned where
+  over `rewrite_recovery_parks.proves_before_a_park`), on readings no failed fetch is needed for, and abandoned where
   anything it rests on moved, a configuration or a pull request repointed among the reasons: putting that back before
   the reply revives nothing, while one that still proves is kept for that finish; a checkout gone from disk abandons
   it in the park's own write -- or, with no room for its history entry, drops it with the recorded base tip blanked,
@@ -1523,14 +1521,19 @@ because there it is the claim that this stage has already rerouted rather than a
   state the park writes (`git/base_sync/persistence.py`), in the one write that releases the attempt or not at all; a
   reset that failed keeps both, save a transaction the snapshot already read the landing move under. Publishing and
   settling the recorded transaction is the finish's own, under the anchor (the bullet above). Evidence a finish
-  already settled for the head is held to none of these yet: the answers that would hold it to them are dormant,
-  handed to no recovery context -- the reset recorded first by blanking the attempt's base tip in a write decided
-  on the evidence records as the tick read them (`rewrite_recovery_parks.records_the_reset`), settled evidence
-  invalidated whole in the write that releases the attempt, or kept whole beside it with nothing released where
-  history has no room (`rewrite_landing_retirement.retires_over_the_reset`), the proof before a park that keeps the
-  attempt (`rewrite_recovery_parks.proves_before_a_park`), and the park landed through the guarded commit over the
-  comment read afresh and proving what it keeps once more behind its notice
-  (`rewrite_recovery_parks.lands_a_park`).
+  already settled for the head is held to the same readings on every recovery context the workflow builds -- each
+  recovery road's, the abort over an unreadable checkout's, the eligibility gate's park of a label the refresh does
+  not drive, and the dispatcher's held anchor: invalidated whole wherever a snapshot reads the landing off its head
+  (`rewrite_landing_moved`), the reset recorded first by blanking the attempt's base tip in a write decided on the
+  evidence records as the tick read them (`rewrite_recovery_parks.records_the_reset`), so no reset or clean moves the
+  checkout before that movement is confirmed recorded, settled evidence invalidated whole in the write that releases
+  the attempt, or kept whole beside it with nothing released where history has no room
+  (`rewrite_landing_retirement.retires_over_the_reset`), proved before a park or hold that keeps the attempt
+  (`rewrite_recovery_parks.proves_before_a_park`) -- the dispatcher's quiet holds and an already-standing stranded
+  park included, on every poll -- and each park landed through the guarded commit over the comment read afresh,
+  proving what it keeps once more behind its notice, raised or not, and behind its record, a movement that record
+  carried kept as read (`rewrite_recovery_parks.lands_a_park`). A publication gate's hold of the landed road's
+  leased no-op is recorded the same way, as `HOLD`, its proof taken first (`rewrite_recovery_parks.lands_a_hold`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
@@ -1579,14 +1582,12 @@ because there it is the claim that this stage has already rerouted rather than a
   `base_rebased` event per rewrite that actually landed, no round reset, relabel, stage-entry event, or evidence
   publication repeated, and no developer launched on any recovery road -- the report refreshes a later
   `workflow:validating` tick asks for are the same ones the uninterrupted journey asks for.
-- **Base-rewrite evidence, the dormant settled-evidence policy**: beside the policy every road hands over stands a
-  dormant one, which a caller selects only by building the finish with `proves_settled`
-  (`rewrite_finish_models.LandedFinish`) and handing it directly to the coordinator (`rewrite_finish.finalizes`), to
-  its evidence phase (`rewrite_finish_settlement.resolves`), or to its primitives. No production road builds such a
-  finish -- the publication, the recovery, and every announcement and park caller keep the policy every road selects
-  -- so none of the bullets above changes for a live issue; a finish not built with it reads, retries, and writes
-  exactly as it always has. The phase and the primitives announce, relabel, park, or retire nothing, and none of
-  them launches a developer or spends, reserves, or releases an agent run:
+- **Base-rewrite evidence, the settled-evidence policy**: every finish is held to it -- the publication's
+  (`rewrite_publication`), the retry's (`rewrite_retry`), and the landed road's (`rewrite_landed`), through the
+  coordinator (`rewrite_finish.finalizes`) and its evidence phase (`rewrite_finish_settlement.resolves`) -- and so is
+  the finish the recovery builds wherever it reads a landing moving or keeps the attempt for a reply. The phase and
+  the primitives announce, relabel, park, or retire nothing, and none of them launches a developer or spends,
+  reserves, or releases an agent run:
   - the phase's steps (`workflow/engine/rewrite_finish_settled.py`) prove evidence settled for the landed head ready
     again (`rewrite_finish_readiness.stands_ready`) before every route, before a hold over records out of step, and
     beside a stop of the evidence step or of a settlement that leaves its transaction recorded -- the evidence records,
@@ -1688,7 +1689,7 @@ because there it is the claim that this stage has already rerouted rather than a
     -- a first one, or one made again over a reply handed in once more -- lands over the notice the conversation
     carries past the watermark or that reply, its event filed only where the event stream lacks the one naming that
     notice, the finish held where that conversation will not read; and a relabel is held where the comment read again
-    behind its proof carries another attempt, so repeated direct finishes make one notice, `base_rebased` event, park
+    behind its proof carries another attempt, so repeated finishes make one notice, `base_rebased` event, park
     notice and `park_awaiting_human` event, round reset, relabel, stage-entry event, artifact, and settlement, and
     run, push, or launch nothing again. A newer transaction the proof beside an unfinishable landing finds recorded
     right behind its invalidation is left owed as written, with no last word taken over it, and so is one another
@@ -1696,10 +1697,10 @@ because there it is the claim that this stage has already rerouted rather than a
     they found -- however that evidence is invalidated over it -- never abandons.
 
   The primitives run no command. The phase runs the configured commands only where its evidence step decides a head
-  afresh, exactly as the policy every road selects does: a fresh landing whose head no finish of this landing has
+  afresh: a fresh landing whose head no finish of this landing has
   recorded a transaction or failure notice for, settled evidence for, or retired a transaction of. It never runs them
   again to replay a captured transaction, nor for settled evidence it proves ready, adopts, or retires. It publishes
-  and settles only a captured transaction still owed its artifact, as that policy does too: its first post goes out
+  and settles only a captured transaction still owed its artifact: its first post goes out
   once, and a retry finds that artifact under the transaction's receipt rather than posting it again, and settles it
   at most once.
   Evidence retired by any of these stays one historical execution: its receipt, revision, whole binding, transcript

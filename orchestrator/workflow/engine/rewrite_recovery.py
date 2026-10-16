@@ -24,7 +24,9 @@ found already landed -- hand it to the one finish every landing gets
   remote or the checkout reads a head off it
   (`rewrite_landing_moved`): every road but the landed one clears, resets, or
   parks the attempt without taking that transaction's route, and the landing
-  it was captured for has moved under it. The checkout the fetch read is
+  it was captured for has moved under it. Evidence a finish of the attempt
+  already settled for that head, the tail behind it cut short, is invalidated
+  into history whole there for the same reason. The checkout the fetch read is
   asked about before the remote head completes the snapshot, so a completion
   that fails into an abort cannot take that movement with it. A head nobody
   could read moved nothing, so the transaction is kept for the reset such a
@@ -37,16 +39,21 @@ found already landed -- hand it to the one finish every landing gets
   take
   ends in the git owner's abort, which resets the checkout onto the anchor and
   clears the attempt; a reset that landed is itself movement, so the
-  transaction is abandoned on the state the park writes, in the one write
-  that releases the attempt, or neither is written. The same abort over a
+  transaction is abandoned, and settled evidence invalidated, on the state
+  the park writes (`rewrite_landing_retirement`), in the one write that
+  releases the attempt, or neither is written -- settled evidence with no
+  room for its history entry keeps the attempt instead. The same abort over a
   checkout whose lag against base could not be counted is taken here too
   (`answers_an_unreadable_checkout`), carrying the same answer. A park that
   keeps the attempt instead -- that abort or any road behind a reset that did
   not land, a label the refresh does not drive, a landing its record refuses --
   is left for a human's reply, so the git owner has the transaction proved
-  again before it (`rewrite_landing_moved.abandons_unproved`), over readings
+  again before it (`rewrite_recovery_parks.proves_before_a_park`), over readings
   no failed fetch is needed for, and abandoned where anything it rests on
-  moved; one whose abandonment did not land is not parked at all.
+  moved; one whose abandonment did not land is not parked at all. Every one
+  of these parks is recorded over the comment read afresh
+  (`rewrite_recovery_parks`), so what another road wrote while its notice
+  went out -- a later report, a newer transaction -- is never put back.
 - The remote head completes the comparison, and how far the transfer beside
   the attempt got is read off the comment (`git/base_sync/transfers.py`).
 - A remote standing on the checkout is a push that already landed, and the
@@ -95,6 +102,8 @@ from orchestrator.workflow.engine import (
     rewrite_landed as _rewrite_landed,
     rewrite_landing_moved as _landing_moved,
     rewrite_landing_records as _landing_records,
+    rewrite_landing_retirement as _retirement,
+    rewrite_recovery_parks as _recovery_parks,
     rewrite_retry as _rewrite_retry,
 )
 
@@ -128,16 +137,23 @@ def answers_an_unreadable_checkout(context: _AutoRebaseContext, consumed_comment
     No road below can classify that checkout, so the refresh takes the abort
     directly (`git/base_sync/recovery_holds._answers_an_unreadable_checkout`).
     Its reset is movement like any recovery road's, so it is handed the same
-    answer to it (`rewrite_landing_moved.abandons_over_the_reset`): the
+    answers to it: recorded ahead of the reset as every recovery reset is
+    (`rewrite_recovery_parks.records_the_reset`), and once it landed, the
     verification transaction a finish of the attempt captured -- the one under
-    the receipt on the attempt, announced or not -- goes in the write that
-    releases the attempt, or neither does.
+    the receipt on the attempt, announced or not -- and evidence one settled
+    go in the write that releases the attempt, or neither does
+    (`rewrite_landing_retirement.retires_over_the_reset`). That park, and the
+    one a reset that did not land takes over the proof it asks first
+    (`rewrite_recovery_parks.proves_before_a_park`), land as every recovery
+    park does (`rewrite_recovery_parks.lands_a_park`).
     """
     return _recovery_holds._answers_an_unreadable_checkout(
         context,
         consumed_comment_id,
-        settles_over_a_reset=partial(_landing_moved.abandons_over_the_reset, context),
-        proves_before_a_park=_landing_moved.abandons_unproved,
+        settles_over_a_reset=partial(_retirement.retires_over_the_reset, context),
+        records_before_a_reset=_recovery_parks.records_the_reset,
+        proves_before_a_park=_recovery_parks.proves_before_a_park,
+        lands_a_park=_recovery_parks.lands_a_park,
     )
 
 
@@ -158,15 +174,25 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
 
     Every road that resets the checkout drops the attempt in one write, and
     the recovery's answer to that movement rides it: the context the roads
-    are handed carries `rewrite_landing_moved.abandons_over_the_reset`, which
-    the git owner asks once a reset landed and before the drop -- and the
-    proof every park that keeps the attempt asks first
-    (`rewrite_landing_moved.abandons_unproved`).
+    are handed carries `rewrite_landing_retirement.retires_over_the_reset`,
+    which the git owner asks once a reset landed and before the drop, and
+    which keeps the attempt where settled evidence has no room to retire into
+    history -- and the proof every park that keeps the attempt asks first
+    (`rewrite_recovery_parks.proves_before_a_park`). Every park, that drop's
+    included, lands over the comment read afresh
+    (`rewrite_recovery_parks.lands_a_park`), keeping what another road wrote
+    while its notice went out and proving what it keeps once more behind it,
+    and every reset is recorded against evidence a finish captured or settled
+    for the landed head before it moves the checkout
+    (`rewrite_recovery_parks.records_the_reset`), in a write decided on the
+    evidence records as the tick read them, so evidence settled since holds it.
     """
     owing = replace(
         context,
-        settles_over_a_reset=partial(_landing_moved.abandons_over_the_reset, context),
-        proves_before_a_park=_landing_moved.abandons_unproved,
+        settles_over_a_reset=partial(_retirement.retires_over_the_reset, context),
+        records_before_a_reset=_recovery_parks.records_the_reset,
+        proves_before_a_park=_recovery_parks.proves_before_a_park,
+        lands_a_park=_recovery_parks.lands_a_park,
     )
     if owing.label not in _PR_REFRESH_DETOUR_LABELS:
         return _replay_cleanup._answers_an_ineligible_label(owing)
@@ -182,13 +208,13 @@ def _routes_an_unmoved_head(
     context: _AutoRebaseRecoveryContext,
     observed: _AutoRebaseRecoverySnapshot,
 ) -> bool:
-    """Route a checkout standing on the anchor, once nothing a finish of the attempt captured stands.
+    """Route a checkout standing on the anchor, once nothing a finish of the attempt captured or settled stands.
 
     Every road from here clears or resets the attempt, so the transaction an
     earlier finish captured -- the one under the receipt on the attempt,
-    announced or not -- is abandoned first, and
-    one the abandonment could not retire holds the tick with the attempt
-    standing (`rewrite_landing_moved.abandons_off_the_landing`).
+    announced or not -- is abandoned first, and evidence one settled
+    invalidated, and either the retirement could not land holds the tick with
+    the attempt standing (`rewrite_landing_moved.abandons_off_the_landing`).
     """
     if not _landing_moved.abandons_off_the_landing(context, observed):
         return True
@@ -223,13 +249,13 @@ def _routes_the_comparison(
     standing on, and the replay the checkout must still be.
 
     The transaction a finish of the attempt captured -- the one under the
-    receipt on the attempt, whether or not any mark is down -- is abandoned
-    off each snapshot before anything is taken on it
-    (`rewrite_landing_moved.abandons_off_the_landing`): the checkout the fetch
-    read, ahead of the remote head that completes it -- whose reading may
-    fail into an abort whose reset fails too, which would park the attempt
-    with the transaction kept over a checkout already read moving -- and then
-    the remote head the completion read.
+    receipt on the attempt, whether or not any mark is down -- is abandoned,
+    and evidence one settled invalidated, off each snapshot before anything is
+    taken on it (`rewrite_landing_moved.abandons_off_the_landing`): the
+    checkout the fetch read, ahead of the remote head that completes it --
+    whose reading may fail into an abort whose reset fails too, which would
+    park the attempt with that evidence kept over a checkout already read
+    moving -- and then the remote head the completion read.
     """
     if not _landing_moved.abandons_off_the_landing(context, observed):
         return True

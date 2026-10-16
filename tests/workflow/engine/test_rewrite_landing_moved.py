@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A recovery reading a landed rewrite's landing moved, and the run a finish captured for it abandoned.
+"""A recovery reading a landed rewrite's landing moved, and the run a finish captured or settled for it retired.
 
 The captured case (`rewrite_captured_test_support`), with its attempt read back
 the way the recovery reads it. A snapshot with both heads on the announced head
@@ -9,20 +9,27 @@ off it -- a checkout or remote nobody read moves nothing; any snapshot reading
 a head elsewhere abandons it before its road is taken, or answers that the road
 must hold where no write could. A reset the git owner landed releases the
 attempt and abandons the run in the park's one write, dropping it where the
-comment has no room for its history; a reset that failed keeps both. Nothing is
-run, launched, or routed.
+comment has no room for its history; a reset that failed keeps both. Evidence a
+finish settled for the announced head (`SettledEvidenceCase`) is invalidated
+whole into history by any snapshot reading a head off it, kept by one that read
+none, and holds the road where no write lands. Nothing is run, launched, or
+routed.
 """
 from __future__ import annotations
 
 import subprocess
 import unittest
 from dataclasses import replace
+from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git import commands
 from orchestrator.git.base_sync import attempt_records as _attempt_records, persistence
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext, _AutoRebaseRecoverySnapshot
-from orchestrator.workflow.engine import rewrite_landing_moved as _landing_moved
+from orchestrator.workflow.engine import (
+    rewrite_landing_moved as _landing_moved,
+    rewrite_landing_retirement as _retirement,
+)
 from tests.workflow.engine import (
     rewrite_captured_test_support as captured_support,
     rewrite_finish_evidence_test_support as finish_support,
@@ -54,6 +61,12 @@ _NO_HEAD_OFF_IT = (
     ("neither head read", "", ""),
 )
 
+# Every snapshot a settled run is asked about, and whether it reads a head off the landing.
+_SETTLED_SNAPSHOTS = (
+    *((*read, True) for read in _OFF_THE_LANDING),
+    *((*read, False) for read in _NO_HEAD_OFF_IT),
+)
+
 # A checkout whose head would not prove beside the landed remote, which the
 # recovery answers by resetting it onto the anchor.
 _UNREAD_CHECKOUT = _AutoRebaseRecoverySnapshot(branch=support.BRANCH, local_head="", remote_head=REBASED)
@@ -69,6 +82,22 @@ _RESETS = (
 
 def _snapshot(local: str, remote: str) -> _AutoRebaseRecoverySnapshot:
     return _AutoRebaseRecoverySnapshot(branch=support.BRANCH, local_head=local, remote_head=remote)
+
+
+def _recovery(case) -> _AutoRebaseRecoveryContext:
+    """The recovery context a later tick reads `case`'s standing attempt into."""
+    state = case.gh.read_pinned_state(case.issue)
+    return _AutoRebaseRecoveryContext(
+        gh=case.gh,
+        spec=_TEST_SPEC,
+        issue=case.issue,
+        state=state,
+        worktree=case.world.path,
+        pr_number=support.PR_NUMBER,
+        label=str(finish_support.REVIEWING),
+        pending_pre_rebase_sha=ANCHOR,
+        pending_rewrite=_attempt_records._pending_rewrite(state),
+    )
 
 
 class LandingMovedTest(unittest.TestCase, captured_support.CapturedEvidenceCase):
@@ -121,18 +150,7 @@ class LandingMovedTest(unittest.TestCase, captured_support.CapturedEvidenceCase)
 
     def recovery(self) -> _AutoRebaseRecoveryContext:
         """The recovery context a later tick reads the standing attempt into."""
-        state = self.gh.read_pinned_state(self.issue)
-        return _AutoRebaseRecoveryContext(
-            gh=self.gh,
-            spec=_TEST_SPEC,
-            issue=self.issue,
-            state=state,
-            worktree=self.world.path,
-            pr_number=support.PR_NUMBER,
-            label=str(finish_support.REVIEWING),
-            pending_pre_rebase_sha=ANCHOR,
-            pending_rewrite=_attempt_records._pending_rewrite(state),
-        )
+        return _recovery(self)
 
     def _resets(self, exit_code: int) -> None:
         """The git owner's reset-and-park tail, its reset answered with `exit_code`, handed the recovery's answer.
@@ -141,10 +159,43 @@ class LandingMovedTest(unittest.TestCase, captured_support.CapturedEvidenceCase)
         run again over before its park keeps it.
         """
         recovery = self.recovery()
-        answered = replace(recovery, settles_over_a_reset=lambda: _landing_moved.abandons_over_the_reset(recovery))
+        answered = replace(recovery, settles_over_a_reset=partial(_retirement.retires_over_the_reset, recovery))
         reset = subprocess.CompletedProcess([], exit_code, "", "")
         with patch.object(commands, "_git_hardened", return_value=reset):
             self.asks(persistence._reset_clear_and_park, answered, ANCHOR, message="parked", reason=_PARK_REASON)
+
+
+class SettledLandingMovedTest(unittest.TestCase, captured_support.SettledEvidenceCase):
+    """Evidence a finish settled for the announced head is invalidated whole before any road off the landing."""
+
+    def setUp(self) -> None:
+        captured_support.SettledEvidenceCase.setUp(self)
+
+    def test_a_snapshot_off_the_landing_invalidates(self) -> None:
+        # Its revision, binding, and provenance kept in history, so putting
+        # the landing back revives nothing; a snapshot that read no head off
+        # it keeps it current.
+        for read, local, remote, retires in _SETTLED_SNAPSHOTS:
+            with self.subTest(read=read):
+                self.setUp()
+                snapshot = _snapshot(local, remote)
+
+                self.assertTrue(self.asks(_landing_moved.abandons_off_the_landing, _recovery(self), snapshot))
+
+                if retires:
+                    self.assert_invalidated()
+                else:
+                    self.assert_dormant()
+
+    def test_no_write_holds_the_road(self) -> None:
+        # Neither the write over the comment read afresh nor the one over the
+        # tick's own reading lands: the road holds with the evidence current.
+        self.gh.pinned_failures.refused.add(self.issue.number)
+        unmoved = _snapshot(ANCHOR, ANCHOR)
+
+        self.assertFalse(self.asks(_landing_moved.abandons_off_the_landing, _recovery(self), unmoved))
+
+        self.assert_dormant()
 
 
 if __name__ == "__main__":

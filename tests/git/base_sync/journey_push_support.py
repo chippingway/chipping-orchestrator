@@ -119,11 +119,11 @@ class LosesTheMark:
     def __init__(self, edit) -> None:
         self._edit = edit
 
-    def __call__(self, issue, state, *, over):
+    def __call__(self, issue, state, *, over, **options):
         """Stop the tick at the edit that writes the mark, and send every other."""
         if state.get(_ANNOUNCED) is not None:
             raise RuntimeError(DIED)
-        return self._edit(issue, state, over=over)
+        return self._edit(issue, state, over=over, **options)
 
 
 def crash_at(github, window: str = ""):

@@ -1,15 +1,15 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Evidence a dormant guarded reset moves under, recorded before the reset and kept whole where history has no room.
+"""Evidence a guarded reset moves under, recorded before the reset and kept whole where history has no room.
 
 The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 reviewed rebase, its run settled under the anchor, and the finish killed
 before its announcement. The next tick's recovery cannot fetch the branch, so
-it takes the git owner's fail-closed abort, handed the workflow's dormant
-guarded operations (`guarded_recovery_support`): the reset is recorded first,
-by blanking the base tip the attempt recorded its replay as made onto, so every
-later proof of the run reads movement, and only then does the checkout go back
-onto the anchor. A process killed behind the reset leaves the reset recorded,
+it takes the git owner's fail-closed abort, handed the workflow's guarded
+operations as every recovery is (`guarded_recovery_support`): the reset is
+recorded first, by blanking the base tip the attempt recorded its replay as
+made onto, so every later proof of the run reads movement, and only then does
+the checkout go back onto the anchor. A process killed behind the reset leaves the reset recorded,
 so the checkout put back on the landed head revives nothing: the proof a park
 that keeps the attempt asks reads the run moved and invalidates it whole, and
 abandons a run the finish captured and never settled rather than keep it for a

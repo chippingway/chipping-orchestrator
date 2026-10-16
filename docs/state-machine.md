@@ -195,14 +195,13 @@ the landing read moving by the recovery's first snapshot -- or reset off by its 
 finish put on the attempt in the write that recorded it (`pending_auto_base_rebase_evidence_receipt`); any other is
 another road's, and kept as it wrote it. Every recovery park or hold that keeps the attempt for a later tick or a
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
-anything moved, so putting that input back before the attempt is taken up again revives nothing. Proving settled
-evidence ready again before its route, and invalidating it whole wherever anything it rests on moved, are dormant
-primitives (`workflow/engine/rewrite_finish_readiness.py`) that in a finish only the dormant settled-evidence policy
-asks -- one a caller selects by building a finish with `proves_settled` and handing it directly to the coordinator
-(`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which announces,
-relabels, parks, and retires nothing), as no production road does (`workflow/engine/rewrite_finish_settled.py`). The
-coordinator under it proves the evidence again before every hold, unfinishable landing, continuation, and debt park,
-around the relabel, and behind every stop of the announcement, the park, or the retirement
+anything moved, so putting that input back before the attempt is taken up again revives nothing -- and proves
+settled evidence the finish left current the same way, invalidating it whole where anything it rests on moved. Every
+finish, on whichever road reached the landing, proves settled evidence ready again before its route
+(`workflow/engine/rewrite_finish_readiness.py`, `workflow/engine/rewrite_finish_settled.py`), its evidence phase
+(`rewrite_finish_settlement.resolves`) announcing, relabelling, parking, and retiring nothing. The coordinator
+(`rewrite_finish.finalizes`) proves the evidence again before every hold, unfinishable landing, continuation, and
+debt park, around the relabel, and behind every stop of the announcement, the park, or the retirement
 (`workflow/engine/rewrite_finish_stops.py`), and announces, relabels, or parks nothing another finish already did; the
 phase adopts a settlement another road made and invalidates
 it over movement read under it, reads the comment afresh behind every invalidation it lands, holding over a newer
