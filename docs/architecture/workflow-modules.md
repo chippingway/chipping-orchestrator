@@ -222,10 +222,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the lead above each check `review_findings` shows failing, in the labels of the
                             reviewer's failure entries: each failure pytest's short summary reports in the check's
                             output, a `FAILED` test by its exact node ID, parameters included -- even ones holding
-                            the dash and bracket that part an ID from its message, the ID ending where a message of the
-                            shape pytest gives begins, a rewritten assertion's `assert` or an exception's name, and
-                            where none does, at the first split -- an `ERROR` one as
-                            erroring outside the test itself, and an `ERROR` path as its collection, never a test ID,
+                            the dash that parts an ID from its message, and text of a message's shape after it: the ID
+                            is the longest an entry names whole or pytest titled a section by, else it ends on the last
+                            split leaving a message of pytest's shape, a rewritten assertion's `assert` or an
+                            exception's name, else on the first -- an `ERROR` node ID as the setup or teardown its
+                            section says failed, as a collection where a section says pytest failed collecting it or
+                            its path or collection was interrupted, and otherwise as an error in any of the three, and
+                            an `ERROR` path as its collection, never a test ID,
                             each with the error its line gives, else for a collection the last exception line of the
                             traceback pytest printed collecting it, else the error of the entry naming it, else a
                             line saying the summary gave none; ten at most, the rest left to the output quoted below.
@@ -246,8 +249,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the failure entries a reviewer writes in its findings, for `review_findings_failures` and
                             `review_findings`: an entry runs from one `Failure:` line to the next, each of the taught
                             labels on a line of its own outside any code block, a blank label giving the code block
-                            below it; a run of label lines right above a check's sentence (`CHECK_SENTENCE_RE`) is the
-                            lead the formatting wrote, never an entry. Each entry is read for its name, its error, and
+                            below it; a paragraph of label lines opening on `Failure:` right above a check's sentence
+                            (`CHECK_SENTENCE_RE`) is the lead the formatting wrote, never an entry, while a label said
+                            of an entry right above a sentence of the reviewer's stays the entry's. Each entry is read
+                            for its name, its error, and
                             whether a code block stands below its `Reproduce:` line (`FailureEntry`), and shown with
                             what it leaves out said: a `Failure:` line naming nothing, an error or a reproduction no
                             label of the entry gives -- said in place on a blank label, else added in the entry's own

@@ -7,7 +7,9 @@ findings rest on under the numbered item it supports, opening on a line
 naming it -- `Failure:` -- with its own labels below, each on a line of its
 own: `Error:`, `Expected:`, `Observed:`, `Reproduce:`, `Unavailable:`. An
 entry runs from one `Failure:` line to the next, and a line a code block holds
-is the block's, never a label, so a snippet quoting the layout enters nothing.
+is the block's, never a label, so a snippet quoting the layout enters nothing;
+and a paragraph of label lines opening on `Failure:` right above a check's
+sentence is the lead the formatting wrote for that check, never an entry.
 A label gives what follows it on its line, or, where that is blank, the code
 block below it, only blank lines between: a multi-line error, or a snippet.
 
@@ -51,8 +53,9 @@ _LABEL_RE = re.compile(
 # The sentence `review_findings` shows a check not shown passing as -- closing
 # on a period where it quoted no output, otherwise on a colon over the output
 # fenced below -- spelled as the layout before leads spelled it too. A run of
-# label lines right above one is the lead the formatting wrote for that check,
-# never an entry of the reviewer's.
+# label lines right above one, opening its paragraph on a `Failure:` line, is
+# the lead the formatting wrote for that check, never an entry of the
+# reviewer's.
 CHECK_SENTENCE_RE = re.compile(
     r"(?:(?P<run>`+)(?P<command>.+?)(?P=run)(?!`)|A check naming no command)"
     r" (?:exited with status .*|reported (?:no exit status|a blank exit status|the exit statuses .*))(?P<close>[.:])",
@@ -79,6 +82,9 @@ _REPRODUCTION_ADDED = 1
 _WRITTEN = 2
 _Place = tuple[int, int]
 _Said = tuple[_Place, str]
+
+# How each line of the findings reads as a label line, None where it opens on no label.
+_Labels = Sequence[re.Match[str] | None]
 
 
 @dataclass(frozen=True)
@@ -107,10 +113,15 @@ class FailureEntry:
         return _Lines(findings.split("\n")).annotated()
 
     @classmethod
-    def error_naming(cls, entries: Sequence[FailureEntry], node: str) -> str:
-        """The error of the first of `entries` whose name holds `node`, an ID pytest reported, whole; "" for none."""
+    def naming(cls, entries: Sequence[FailureEntry], node: str) -> tuple[FailureEntry, ...]:
+        """Each of `entries` whose name holds `node`, an ID pytest reported, whole."""
         whole = re.compile(_WHOLE_NODE.format(node=re.escape(node)))
-        errors = (entry.error for entry in entries if whole.search(entry.name))
+        return tuple(entry for entry in entries if whole.search(entry.name))
+
+    @classmethod
+    def error_naming(cls, entries: Sequence[FailureEntry], node: str) -> str:
+        """The error of the first of `entries` naming `node` that gives one; "" for none."""
+        errors = (entry.error for entry in cls.naming(entries, node))
         return next(filter(None, errors), "")
 
     def backs(self, output: str) -> bool:
@@ -202,15 +213,12 @@ class _Lines:
         return tuple(map(tuple, entries))
 
     def _led(self) -> frozenset[int]:
-        """The number of each line of a lead: the run of label lines right above a check's sentence."""
-        labeled = [_LABEL_RE.fullmatch(line) is not None for line in self._lines]
+        """The number of each line of a lead the formatting wrote above a check's sentence (`_lead_above`)."""
+        labels = [_LABEL_RE.fullmatch(line) for line in self._lines]
         led: set[int] = set()
         for number, line in enumerate(self._lines):
             if CHECK_SENTENCE_RE.fullmatch(line):
-                above = number
-                while above and labeled[above - 1]:
-                    above -= 1
-                led.update(range(above, number))
+                led.update(_lead_above(self._lines, labels, number))
         return frozenset(led)
 
     def _label(self, number: int, labeled: re.Match[str]) -> _Label:
@@ -240,6 +248,24 @@ class _Lines:
                 break
             end += 1
         return end
+
+
+def _lead_above(lines: Sequence[str], labels: _Labels, number: int) -> range:
+    """The numbers of the lines of the lead right above the sentence on line `number`; none where no lead stands there.
+
+    A lead is a paragraph of its own up to the sentence: label lines, `labels`
+    reading each of `lines`, opening on a `Failure:` line. A run of label
+    lines that opens no paragraph, or opens on another label -- an entry's
+    reproduction said right above a sentence the reviewer wrote, say -- is the
+    reviewer's.
+    """
+    top = number
+    while top and labels[top - 1] is not None:
+        top -= 1
+    above = lines[top - 1] if top else ""
+    opens = not above.strip(_BLANKS)
+    named = top < number and labels[top].group("label") == _NAME
+    return range(top, number) if opens and named else range(0)
 
 
 def _left_out(labels: Sequence[_Label]) -> Iterator[_Said]:
