@@ -15,7 +15,9 @@ transaction's behind whatever stopped it -- and only a fresh decision held
 before its write, whose write did not land, or whose failure notice nobody
 could confirm ends without it, leaving no transaction behind it to abandon.
 The dormant readiness primitives (`rewrite_finish_readiness`) ask the last
-word over evidence already settled for the head as well.
+word over evidence already settled for the head as well, and only the dormant
+settled-evidence finish policy asks them
+(`rewrite_finish_models.LandedFinish.proves_settled`).
 
 `proves_again` reads the world afresh rather than off the tick's own reading:
 the issue is fetched again, since the one a finish holds carries the title and
@@ -249,7 +251,9 @@ def last_word(
     behind it -- does not count the base readings that made the continuation
     (`ADVANCED`): they are dropped before the first movement and the first
     hold are taken, so none of them hides a reading behind it. Only the
-    dormant readiness proof asks `records`, so no route asks that yet.
+    dormant readiness proof asks `records`, so only a finish held to the
+    dormant settled-evidence policy and the recovery's dormant answers ask
+    that.
 
     Every reading is taken, and none nobody could take hides one that read
     movement. `moved` is the first that establishes that something the route

@@ -3,24 +3,24 @@
 """Movement read under settled evidence where the comment has no room, recorded so nothing put back revives it.
 
 The retirement case (`receipt_retirement_support`): issue #7's run settled
-under the anchor, each primitive -- the policy's readiness step
-(`rewrite_finish_settled.stands_ready_if_settled`) among them -- asked directly
-over a finish held to the dormant settled-evidence policy while another road
-or another finish of the landing fills the comment and moves the attempt or
-the evidence's records. With no room for the run's history entry the movement
-is marked in its handoff's place -- over the comment read afresh where no
-write over the tick's own copy lands -- and every later proof reads the mark
-as that movement, as a later finish finding no attempt does, retiring the run
-whole once room is made; a handoff naming the run, or left null, is no mark.
-Where even the mark has no room the run is retired whole at once, the records
-left null removed to make it fit, made once more where another road wrote
-under that edit; and where not even that fits, a revision is spent past the
-run on the floor, its record kept current and whole, so putting everything
-back makes nothing current again and the next proof with room retires it
-whole -- a floor never raised past a transaction that would settle outranked.
-Where the floor has no room to gain the digit that spend takes, the run is
-retired whole with the floor taken off to make room, its entry carrying the
-floor's revision. Nothing runs, posts, launches, relabels, or charges.
+under the anchor, each primitive asked directly over a finish held to the
+dormant settled-evidence policy -- or the evidence phase over such a finish
+-- while another road or another finish of the landing fills the comment and
+moves the attempt or the evidence's records. With no room for the run's
+history entry the movement is marked in its handoff's place -- over the
+comment read afresh where no write over the tick's own copy lands -- and every
+later phase reads the mark as that movement, as a later finish finding no
+attempt does, retiring the run whole once room is made; a handoff naming the
+run, or left null, is no mark. Where even the mark has no room the run is
+retired whole at once, the records left null removed to make it fit, made
+once more where another road wrote under that edit; and where not even that
+fits, a revision is spent past the run on the floor, its record kept current
+and whole, so putting everything back makes nothing current again and the
+next phase with room retires it whole -- a floor never raised past a
+transaction that would settle outranked. Where the floor has no room to gain
+the digit that spend takes, the run is retired whole with the floor taken off
+to make room, its entry carrying the floor's revision. Nothing runs, posts,
+launches, relabels, or charges.
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from orchestrator.workflow.engine import (
     rewrite_evidence_proof as _evidence_proof,
     rewrite_finish_outranking as _outranking,
     rewrite_finish_readiness as _readiness,
-    rewrite_finish_settled as _settled,
+    rewrite_finish_settlement as _settlement_step,
     rewrite_finish_unconfirmed as _unconfirmed,
     verification_record_state as _record_state,
     verification_records as _records,
@@ -175,36 +175,36 @@ class MarkedMovementTest(retirement.RetirementCase, unittest.TestCase):
     def test_movement_is_marked_over_a_fresh_reading(self) -> None:
         # Behind the finish's reading of the comment, another road leaves a
         # pending record nobody can read and fills the comment, and the issue
-        # is edited: the proof reads the movement, but neither write over the
+        # is edited: the phase reads the movement, but neither write over the
         # tick's own copy lands beside that record, so the movement is marked
         # under the run's receipt over the comment read afresh. With the issue
-        # put back and room made, the next proof reads the mark as the
+        # put back and room made, the next phase reads the mark as the
         # movement it is and retires the run whole, the pending record still
-        # holding the route and kept as that road wrote it.
+        # holding every phase and kept as that road wrote it.
         finish = self.dormant()
         body = self.issue.body
         settled_moves.writes_over(self, _records.PENDING_EVIDENCE, "unreadable")
         moves.fills_the_comment(self)
         settled_moves.edits_the_requirements(self)
 
-        self.assertEqual(self.asks(_settled.stands_ready_if_settled, finish), _HELD)
+        self.assertEqual(self.asks(_settlement_step.resolves, finish), _HELD)
         self.assert_marked()
         self.issue.body = body
         moves.makes_room(self)
-        retired = self.asks(_settled.stands_ready_if_settled, self.dormant())
+        retired = self.asks(_settlement_step.resolves, self.dormant())
+        again = self.asks(_settlement_step.resolves, self.dormant())
 
         left = self.pinned()[_records.PENDING_EVIDENCE]
-        self.assertEqual((retired, left), (_HELD, "unreadable"))
+        self.assertEqual((retired, again, left), (_HELD, _HELD, "unreadable"))
         self.assert_whole()
         self.assert_untouched()
 
     def test_a_mark_the_last_word_read_is_movement(self) -> None:
-        # Another finish marks the run's movement just behind the proof's
+        # Another finish marks the run's movement just behind the phase's
         # first reading, and the handoff is put back just behind the last
         # word's: the mark that reading heard is the movement it records,
-        # so the run is retired whole there and then, over the handoff put
-        # back, and the proof holds over that reading, which found no handoff
-        # naming the run.
+        # so the run is retired whole there and then, and the next phase,
+        # over the handoff put back, goes on with nothing current.
         handoff = self.pinned()[_HANDOFF]
         marked = partial(retirement.marks_the_run, self)
         restored = partial(settled_moves.writes_over, self, _HANDOFF, handoff)
@@ -213,10 +213,10 @@ class MarkedMovementTest(retirement.RetirementCase, unittest.TestCase):
             patch.object(_readiness, "_reads_again", _RacesPastTheStep(_readiness._reads_again, marked)),
             patch.object(_evidence_proof, "_reads_again", _RacesPastTheStep(_evidence_proof._reads_again, restored)),
         ):
-            held = self.asks(_settled.stands_ready_if_settled, self.dormant())
+            first = self.asks(_settlement_step.resolves, self.dormant())
+        again = self.asks(_settlement_step.resolves, self.dormant())
 
-        self.assertEqual(held, _HELD)
-        self.assertEqual(self.pinned()[_HANDOFF], handoff)
+        self.assertEqual((first, again), (_HELD, None))
         self.assert_whole()
         self.assert_untouched()
 
@@ -277,7 +277,7 @@ class WholeRetirementTest(retirement.RetirementCase, unittest.TestCase):
         # revision is spent past the run on the floor, its record kept current
         # and whole, which the policy every road selects and the dormant one
         # both read outranked. With the issue, the attempt, and the handoff
-        # put back and room made, the next proof reads that as movement,
+        # put back and room made, the next phase reads that as movement,
         # retires the run whole into history, and goes on with nothing current.
         first, kept = self._moves_with_no_room()
         self._assert_outranked()
@@ -294,7 +294,7 @@ class WholeRetirementTest(retirement.RetirementCase, unittest.TestCase):
         # entry carrying revision 9 -- so nobody can say what was spent and
         # nothing is minted until a floor is put back. With the issue, the
         # attempt, and the handoff put back and room made, nothing makes the
-        # run current again: the next proof goes on with nothing current.
+        # run current again: the next phase goes on with nothing current.
         _settles_at(self, 9)
         first, kept = self._moves_with_no_room()
         left = (self.records(), readings.pinned(self).get(_FLOOR, "taken off"))
@@ -324,7 +324,7 @@ class WholeRetirementTest(retirement.RetirementCase, unittest.TestCase):
         self.assertEqual((beside.data, unreadable.get(_FLOOR)), (written, None))
 
     def _moves_with_no_room(self) -> tuple:
-        """The first proof over a full comment with no evidence record to remove, the issue edited and the attempt
+        """The first phase over a full comment with no evidence record to remove, the issue edited and the attempt
         routed; what it answers, and the attempt and handoff it stripped.
         """
         kept = self._strips_the_evidence_records()
@@ -333,14 +333,14 @@ class WholeRetirementTest(retirement.RetirementCase, unittest.TestCase):
         settled_moves.edits_the_requirements(self)
         retirement.routes(self)
         moves.fills_the_comment(self)
-        return self.asks(_settled.stands_ready_if_settled, finish), kept
+        return self.asks(_settlement_step.resolves, finish), kept
 
     def _puts_back_with_room(self, kept: dict):
-        """The next proof once the issue, the attempt, and the handoff are put back and room made; what it answers."""
+        """The next phase once the issue, the attempt, and the handoff are put back and room made; what it answers."""
         self.issue.body = self.body
         moves.makes_room(self)
         self.puts_back({**self.pinned(), **kept})
-        return self.asks(_settled.stands_ready_if_settled, self.dormant())
+        return self.asks(_settlement_step.resolves, self.dormant())
 
     def _strips_the_evidence_records(self) -> dict:
         """Take the history, pending record, and handoff off the comment and the case; the attempt and handoff read."""

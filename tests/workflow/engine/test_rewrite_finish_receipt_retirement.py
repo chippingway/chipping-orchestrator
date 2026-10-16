@@ -10,12 +10,20 @@ put on the attempt is taken in and the invalidation made over it, retried once
 over the comment read afresh where it landed under the first write; a route or
 another attempt that took the attempt has the same receipt retired as the
 comment stands, that attempt kept; a successor settled under another receipt
-is never written over; where nothing has room, the movement is recorded as
+is never written over. Behind the phase's own invalidation the comment is read
+afresh, so a newer transaction or another attempt another road wrote right
+behind that write holds the route, laid over the finish's state, and the run
+put back current there is retired again, where a blank of the base tip or this
+landing's own announcement does not hold it; where nothing has room, the
+movement is recorded as
 `test_rewrite_finish_recorded_movement` covers. A routed head with nothing
 current is held to a base its attempt can prove, the base the tick counted
 where its tip is blank or missing. A readable
 revision spent past the run -- the floor, or the one minted under a readable
-pending record -- outranks it beside a pending record too, which still holds.
+pending record -- outranks it beside a pending record too, which still holds,
+also where the phase holds over that pending record's proof itself; a
+continuation abandons a newer transaction before the run is proved, so it
+never holds over it.
 A finish the policy does not hold refuses every one of these moves, reading
 the comment no more often than it always has. Nothing runs, posts, launches,
 relabels, or charges.
@@ -24,14 +32,17 @@ from __future__ import annotations
 
 import contextlib
 import unittest
+from dataclasses import replace
 from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
+from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.workflow.engine import (
     rewrite_finish_marks as _marks,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_settled as _settled,
+    rewrite_finish_settlement as _settlement_step,
     rewrite_finish_unconfirmed as _unconfirmed,
     verification_durable as _durable,
     verification_records as _records,
@@ -44,8 +55,9 @@ from tests.workflow.engine import (
     rewrite_finish_moves as moves,
     rewrite_finish_readings as readings,
     rewrite_settled_moves as settled_moves,
+    verification_evidence_test_support as support,
 )
-from tests.workflow.interleaving import _RacesPastTheCall
+from tests.workflow.interleaving import _RacesPastTheCall, _RacesPastTheStep
 
 _HANDOFF = _records.EVIDENCE_HANDOFF
 
@@ -87,6 +99,32 @@ _UNSELECTED = (
     ),
 )
 
+# The pending record, which the phase lays over its state as the comment carries it.
+_PENDING = _records.PENDING_EVIDENCE
+
+# What another road writes right behind the phase's invalidation of the run,
+# before that invalidation returns -- handed the case and the comment as it
+# read before the run moved -- what the phase answers once it reads the
+# comment afresh, and whether the finish's state then carries the attempt as
+# the comment does: a newer transaction of the head, or another attempt in
+# place of the one the finish read, holds the route, laid over that state, and
+# so does the run put back current with the records it was bound to, which is
+# retired again; a blank of the base tip records movement rather than another
+# attempt, and this landing's own announcement is taken in, so the route goes
+# on beside either.
+_BEHIND_THE_INVALIDATION = (
+    ("a newer transaction", lambda case, kept: settled_moves.records_a_newer_one(case), _HELD, True),
+    ("another attempt", lambda case, kept: retirement.replaces(case), _HELD, True),
+    ("the run put back", lambda case, kept: case.puts_back(kept), _HELD, True),
+    (
+        "a blank base tip",
+        lambda case, kept: settled_moves.writes_over(case, readings.KEY_REWRITE_BASE, None),
+        None,
+        False,
+    ),
+    ("its own announcement", lambda case, kept: retirement.announces(case), None, True),
+)
+
 # How the attempt records the base tip its replay was made onto, how the base
 # the tick counted the head against reads now, and what the policy answers.
 _BASES = (
@@ -118,8 +156,42 @@ def _raises_the_floor_past(case) -> object:
     return pending
 
 
+# A base advanced past the landed head again, as the tick counted it.
+_ADVANCED = _BranchDivergence(tip=support.SQUASHED_SHA, behind=1, readable=True)
+
 # A transaction dropped before the one pending, the floor then left unreadable.
 _BESIDE_AN_UNREADABLE_FLOOR = partial(_drops_one_first, floor="unreadable")
+
+
+def _resolves_behind(case, writes, answer):
+    """The phase over a dormant finish answering `answer`, `writes` made right behind its invalidation; the finish.
+
+    The review moved first, so the phase's readiness proof invalidates the run;
+    `writes` is handed the comment as it read before that.
+    """
+    finish = case.dormant()
+    kept = case.pinned()
+    settled_moves.reviews_again(case)
+    racing = _RacesPastTheStep(_readiness.invalidates, partial(writes, case, kept))
+    with patch.object(_readiness, "invalidates", racing):
+        case.assertEqual(case.asks(_settlement_step.resolves, finish), answer)
+    return finish
+
+
+def _assert_read_behind(case, finish, takes_the_attempt: bool) -> None:
+    """The run invalidated whole and nothing run; `finish`'s state carrying the pending record the comment does.
+
+    And the attempt as the comment carries it, where `takes_the_attempt`.
+    """
+    history = _settlement.read_evidence_history(case.gh.read_pinned_state(case.issue))
+    invalidated = _records.HistoricalEvidence.of(case.settled, _records.Retirement.INVALIDATED)
+    case.assertEqual(history[-1], invalidated)
+    case.assertIsNone(case.records()[1])
+    case.assert_untouched()
+    pinned = case.pinned()
+    case.assertEqual(finish.state.get(_PENDING), pinned.get(_PENDING))
+    attempts = (readings.attempt(finish.state.data), readings.attempt(pinned))
+    case.assertEqual(attempts[0] == attempts[1], takes_the_attempt)
 
 
 class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
@@ -206,12 +278,12 @@ class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
                 self.assert_untouched()
 
     def test_an_attempt_put_back_keeps_the_movement(self) -> None:
-        # Another road pinned its own attempt and the review moved: the proof
+        # Another road pinned its own attempt and the review moved: the phase
         # reads the movement and finds that other attempt, and just as it
         # reads the comment again to retire the run as it stands, that road
         # puts the attempt and the review back. The movement already read
-        # retires the run whole over the attempt put back, and the proof
-        # holds the route over the attempt it found replaced.
+        # retires the run whole over the attempt put back: the phase holds
+        # once, and the next goes on with nothing current.
         finish = self.dormant()
         written = self.pinned()
         settled_moves.reviews_again(self)
@@ -219,11 +291,28 @@ class ReconciledRetirementTest(retirement.RetirementCase, unittest.TestCase):
         restores = _RacesPastTheCall(_durable.durable_comment, 1, partial(self.puts_back, written))
 
         with patch.object(_durable, "durable_comment", restores):
-            held = self.asks(_readiness.stands_ready, finish, self.settled)
+            first = self.asks(_settlement_step.resolves, finish)
+        again = self.asks(_settlement_step.resolves, self.dormant())
 
-        self.assertEqual(held, _HELD)
+        self.assertEqual((first, again), (_HELD, None))
         self.assert_whole()
         self.assert_untouched(readings.attempt(written))
+
+    def test_what_lands_behind_it_is_read(self) -> None:
+        # The review moved, so the phase's readiness proof invalidates the run,
+        # and right behind that write, before it returns, another road writes
+        # the comment: the phase reads it afresh and lays what it carries over
+        # the finish's state -- holding over a newer transaction or another
+        # attempt, and over the run put back current with its review, which it
+        # retires again, going on beside a blank base tip or this landing's
+        # own announcement -- the run invalidated whole either way.
+        for name, writes, answer, takes_the_attempt in _BEHIND_THE_INVALIDATION:
+            with self.subTest(name):
+                self.setUp()
+
+                finish = _resolves_behind(self, writes, answer)
+
+                _assert_read_behind(self, finish, takes_the_attempt)
 
     def _announcing(self, behind_the_read: bool):
         """Another finish's announcement, made now or just behind the next reading of the comment; its context."""
@@ -262,6 +351,41 @@ class OutrankingTest(retirement.RetirementCase, unittest.TestCase):
                 if outranked:
                     self._assert_retired_whole()
 
+    def test_a_continuation_abandons_it_first(self) -> None:
+        # The base advanced past the landed head again, and another road
+        # recorded a newer transaction beside the run: the continuation
+        # abandons it before the run is proved, so no phase holds over it,
+        # and the revision it spent then outranks the run, invalidated whole;
+        # every phase behind goes on with nothing current.
+        newer = settled_moves.records_a_newer_one(self)
+        self.world.base = _BaseStanding.DROPPED
+        self.world.base_ref = _ADVANCED
+
+        first = self.asks(_settlement_step.resolves, self._continued())
+        again = self.asks(_settlement_step.resolves, self._continued())
+
+        self.assertEqual((first, again), (None, None))
+        self.assert_invalidated((newer.receipt, readings.ABANDONED))
+        self.assert_untouched()
+
+    def test_a_held_proof_hides_no_outranking(self) -> None:
+        # Another road recorded a newer transaction beside the run and raised
+        # the floor past both, and the branch will not fetch: every phase
+        # holds over the transaction it cannot prove again, but the revision
+        # spent past the run outranks it all the same, so the first phase
+        # invalidates the run whole and the pending record stays as that
+        # road wrote it.
+        pending = _raises_the_floor_past(self)
+        self.world.fetched = 1
+
+        first = self.asks(_settlement_step.resolves, self.dormant())
+        again = self.asks(_settlement_step.resolves, self.dormant())
+
+        self.assertEqual((first, again), (_HELD, _HELD))
+        self.assertEqual(self.records()[:2], (pending, None))
+        self._assert_retired_whole()
+        self.assert_untouched()
+
     def test_an_unselected_proof_reads_as_before(self) -> None:
         # Beside a pending record a finish the policy does not hold reads no
         # revision past the run at all -- dropped before it, beside a floor
@@ -283,6 +407,13 @@ class OutrankingTest(retirement.RetirementCase, unittest.TestCase):
                 kept = self.records()[1]
                 self.assertEqual((held, kept), (_HELD, self.settled))
                 self.assert_untouched()
+
+    def _continued(self):
+        """The dormant finish of a landing the base advanced past again, as the tick counted it."""
+        finish = self.dormant()
+        candidate = finish.landed.candidate
+        candidate = replace(candidate, checkout=replace(candidate.checkout, base=_ADVANCED))
+        return replace(finish, landed=replace(finish.landed, candidate=candidate))
 
     def _proves_ready(self) -> tuple:
         """What the readiness proof over a dormant finish answers, and the pending and current records it leaves."""

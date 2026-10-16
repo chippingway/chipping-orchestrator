@@ -13,6 +13,14 @@ the abandoned transaction and under the revision floor that transaction
 raised, and the head is routed once to the fresh reviewer, who owes the
 evidence. Nothing is announced again, nothing runs again, nothing is pushed,
 and no developer is launched, however often the recovery polls.
+
+The evidence phase of a finish held to the dormant settled-evidence policy,
+asked directly (`settled_finish_support`), invalidates the run the same way
+before the head is decided afresh; where that invalidation cannot land -- the
+comment full -- it holds instead, the movement recorded by blanking the
+attempt's base tip, rather than taking the run as current; and where another
+road records a newer transaction right behind that invalidation, the phase
+reads it afresh and holds over it rather than deciding the head again.
 """
 from __future__ import annotations
 
@@ -20,13 +28,20 @@ import unittest
 from functools import partial
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import verification_record_state as _record_state
+from orchestrator.workflow.engine import (
+    rewrite_finish_readiness as _readiness,
+    rewrite_finish_settlement as _settlement_step,
+    verification_record_state as _record_state,
+)
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
+    rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
+    settled_finish_support as settled,
 )
-from tests.workflow.interleaving import _RacesPastTheCall
+from tests.workflow.interleaving import _RacesPastTheCall, _RacesPastTheStep
 
 _MOVED_COMMAND = "echo changed"
 
@@ -50,6 +65,11 @@ def _forgets_the_receipt(case: support.CapturedRunCase) -> None:
     state = case.gh.read_pinned_state(case.issue)
     state.set(readings.KEY_EVIDENCE_RECEIPT, None)
     case.gh.write_pinned_state(case.issue, state)
+
+
+def _with_its_answer(finish):
+    """`finish`, beside what its evidence phase answers (`rewrite_finish_settlement.resolves`)."""
+    return finish, _settlement_step.resolves(finish)
 
 
 # Whether the attempt carries the receipt its finish put on it, or none at all.
@@ -118,6 +138,73 @@ class StaleSettlementRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         self.assertEqual(readings.pinned(self)[readings.KEY_REVISION_FLOOR], floor)
         self.assert_recovered(head)
         self.assertEqual(self.runs(), 1)
+
+
+class SettledStaleSettlementTest(settled.SettledRunCase, unittest.TestCase):
+    """The dormant evidence phase invalidates a run the configuration moved past, or holds where that cannot land."""
+
+    def test_a_reconfigured_run_is_invalidated(self) -> None:
+        # A recovery settled and announced the run and died at its relabel,
+        # and the configuration then moves: the phase invalidates the run
+        # whole with nothing run again, and lets the route go on -- or, the
+        # comment full, holds with the run current and its base tip blanked.
+        for full, answer in ((False, None), (True, FinishOutcome.HELD)):
+            with self.subTest(full=full):
+                self.setUp()
+                head, captured = self.captures()
+                self.dies_at(support.RELABEL, self.recovers)
+                settled.charges(self)
+                _reconfigures(self)
+                if full:
+                    finish_moves.fills_the_comment(self)
+
+                self.assertEqual(self.resolves(head), answer)
+
+                self.assert_phase_left(head)
+                self._assert_retired(captured, full)
+
+    def test_a_successor_behind_it_holds(self) -> None:
+        # As above, but right behind the write invalidating the run, before
+        # it returns, another road records a newer transaction of the head:
+        # the phase reads the comment afresh behind that write and holds, the
+        # run invalidated whole and the successor owed as recorded -- in the
+        # finish's state too -- rather than deciding the head afresh over it.
+        head, captured = self.captures()
+        self.dies_at(support.RELABEL, self.recovers)
+        settled.charges(self)
+        _reconfigures(self)
+
+        finish = self._holds_over_a_successor(head, captured)
+
+        self.assert_phase_left(head)
+        self._assert_owed_beside(captured, finish)
+
+    def _holds_over_a_successor(self, head: str, captured):
+        """The phase over `head`'s finish, HELD over a successor recorded right behind its invalidation; the finish."""
+        arrives = _RacesPastTheStep(_readiness.invalidates, partial(_records_newer, self, captured))
+        with patch.object(_readiness, "invalidates", arrives):
+            finish, answer = self.asks_dormant(_with_its_answer, head)
+        self.assertEqual(answer, FinishOutcome.HELD)
+        return finish
+
+    def _assert_owed_beside(self, captured, finish) -> None:
+        """`captured` invalidated whole, nothing current, and the successor pending -- in `finish`'s state too."""
+        pending, current, history = readings.pinned_records(self)
+        self.assertIsNone(current)
+        self.assertEqual(history[-1], (captured.receipt, readings.INVALIDATED))
+        self.assertIsNotNone(pending)
+        self.assertEqual(_record_state.read_pending_evidence(finish.state), pending)
+
+    def _assert_retired(self, captured, full: bool) -> None:
+        """`captured` current beside a blanked base tip where `full`, invalidated whole otherwise."""
+        pending, current, history = readings.pinned_records(self)
+        self.assertIsNone(pending)
+        if full:
+            self.assertEqual(current.receipt, captured.receipt)
+            self.assertIsNone(readings.pinned(self)[readings.KEY_REWRITE_BASE])
+            return
+        self.assertIsNone(current)
+        self.assertEqual(history[-1], (captured.receipt, readings.INVALIDATED))
 
 
 if __name__ == "__main__":

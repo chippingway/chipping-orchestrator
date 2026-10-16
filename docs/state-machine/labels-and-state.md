@@ -716,7 +716,11 @@ earlier finish already settled is routed with nothing posted or settled again wh
 otherwise -- a newer transaction for the head is settled over it, and a handoff or revision floor out of step holds
 the route -- with the invalidation a moved context now owes landed before the route, that settled evidence's own
 included: a configuration moved since it settled invalidates it with nothing run again, rather than leaving it to
-hold the route behind a revision spent past it.
+hold the route behind a revision spent past it. The evidence phase of a finish held to the dormant settled-evidence
+policy, which a caller asks directly and no production road selects, proves settled evidence ready again before it
+lets the route go on (`workflow/engine/rewrite_finish_readiness.py`), invalidating it whole where anything it is bound
+to moved, a readable revision spent past it outranking it for good, and a settlement another road made while it
+answered or abandoned the run adopted and invalidated over movement read under it.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
@@ -863,7 +867,8 @@ very candidate. That measurement can be taken alone (`prepare`) ahead of an exte
 The commit takes every check again over a reading taken behind whatever requests came between, sends nothing for a
 candidate the comment already reads as, and otherwise lands in place through the strict edit
 (`GitHubStateMixin.edit_pinned_state`), which walks to the comment once more and rewrites it only while it still reads
-as that fresh reading did — a comment that moved in between is refused as moved. An edit that went out and was never
+as that fresh reading did — a comment that moved in between is refused as moved, or, under a guard that reads a move,
+as the prerequisites the comment that walk read spells otherwise. An edit that went out and was never
 confirmed — a lost response, a refused request, or an answer carrying another body — is reported as unconfirmed, neither
 committed nor refused: whatever receipt the caller's domain keeps remains what settles it on a later reading. None of
 this serializes two pollers writing one issue. GitHub's comment edit takes no condition, so the guard narrows the window
@@ -2867,10 +2872,11 @@ The keys that matter for the state machine fall into a few groups:
   label the issue carried as it settled (`under`); a landed rewrite's finish held to the dormant settled-evidence
   policy replaces it with the mark `{"moved": <receipt>}` where it can record movement read under that evidence no
   other way (`workflow/engine/rewrite_finish_marks.py`): no reader takes the mark for a handoff, so none hands that
-  evidence on, and every later readiness proof of that very receipt under that policy reads it as movement, retiring
-  the evidence whole once room is made, as a finish of the landing finding no attempt does
-  (`rewrite_finish_unconfirmed.retires_the_marked`, which a caller asks directly), however soon the handoff is put
-  back. `verification_evidence_revision` is the highest revision any
+  evidence on, and every later readiness proof of that very receipt under that policy reads it as movement,
+  retiring the evidence whole once room is made, as a finish of the landing finding no attempt does
+  (`rewrite_finish_unconfirmed.retires_the_marked`, which a caller asks directly) -- and as a settlement that
+  policy's evidence phase adopted does over a mark its own answer read, however soon the handoff is put back.
+  `verification_evidence_revision` is the highest revision any
   transaction on the issue was recorded under, raised in the same write as each record, so a revision whose artifact may
   already be on the pull request stays spent after its record is damaged, dropped, or evicted from the history; a
   finish held to the dormant settled-evidence policy raises it one past current evidence it read moving where nothing

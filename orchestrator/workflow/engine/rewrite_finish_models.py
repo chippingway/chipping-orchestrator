@@ -21,12 +21,14 @@ it found already landed (`rewrite_landed`), through
 A finish also says which of two evidence policies it is held to
 (`LandedFinish.proves_settled`). Every road above hands over the one that
 proves again only a transaction an earlier finish captured for the head. The
-other -- settled evidence proved ready again before a route takes it
-(`rewrite_finish_settled`), and movement read under it retired under its own
-receipt or recorded however the attempt or the comment moved since
-(`rewrite_finish_marks`, `rewrite_finish_unconfirmed`) -- is dormant: only a
-caller that builds a finish selecting it explicitly and asks those
-primitives directly reaches it.
+other -- settled evidence proved ready again before the evidence phase lets
+the route go on, a settlement adopted from another road invalidated over
+movement read under it (`rewrite_finish_settled`), and that movement retired
+under its own receipt or recorded however the attempt or the comment moved
+since (`rewrite_finish_marks`, `rewrite_finish_unconfirmed`) -- is dormant:
+only a caller that builds a finish selecting it explicitly and asks that
+phase (`rewrite_finish_settlement.resolves`) or those primitives directly
+reaches it.
 """
 from __future__ import annotations
 
@@ -102,10 +104,12 @@ class LandedFinish:
     the publication replaced was behind its base, which only the publication's
     notice reports. `retry` is the human reply a recovery re-entered on, which
     the finish spends; None where there is none. `proves_settled` selects the
-    dormant settled-evidence policy, which no production road hands over:
-    every shared readiness and retirement helper reads it before taking any
-    of that policy's proofs, retries, marks, or retirements, and answers as
-    it always has where it is False.
+    dormant settled-evidence policy for the evidence phase
+    (`rewrite_finish_settlement.resolves`), which no production road hands
+    over: every shared helper that phase calls -- readiness, adoption, and
+    retirement among them -- reads it before taking any of that policy's
+    proofs, adoptions, retries, marks, or retirements, and answers as it
+    always has where it is False.
     """
 
     gh: GitHubClient

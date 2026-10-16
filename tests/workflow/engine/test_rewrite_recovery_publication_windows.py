@@ -21,7 +21,9 @@ the one answer that never settles: the run is abandoned, and the head goes to
 the fresh reviewer. Settled evidence an interrupted recovery left is routed as
 it stands only while nothing beside it says otherwise: a newer transaction
 recorded for the head is settled over it, and a revision spent past it holds
-the route.
+the route; the evidence phase of the dormant settled-evidence policy reads
+that revision as outranking the run for good instead
+(`test_rewrite_recovery_outranked_evidence`).
 """
 from __future__ import annotations
 

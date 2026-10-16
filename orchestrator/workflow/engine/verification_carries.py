@@ -58,11 +58,7 @@ a carry (`abandons_on_refusal`), since no route behind the anchor answers it.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
 
-from github.Issue import Issue
-
-from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
@@ -72,6 +68,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.verification_proof import ProofReading
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -163,18 +160,12 @@ def _is_its_approval(state: PinnedState, binding: _records.EvidenceBinding) -> b
     return recorded == _commit_models.spelling(binding.target.subject)
 
 
-def abandons_afresh(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    pending: _records.PendingEvidence | None,
-    rests_on: Iterable[str] = (),
-) -> bool:
-    """Abandon `pending` over the comment read afresh, in one guarded commit; True where the tick holds.
+def abandons_afresh(reading: ProofReading, pending: _records.PendingEvidence | None) -> bool:
+    """Abandon `pending` over the comment `reading` reads afresh, in one guarded commit; True where the tick holds.
 
-    `pending` is the transaction `state` records, or None for a record nobody
-    can read, which is dropped with no entry. Staged on the comment read
-    afresh and held to every record the evidence is bound through
+    `pending` is the transaction `reading.state` records, or None for a record
+    nobody can read, which is dropped with no entry. Staged on the comment
+    read afresh and held to every record the evidence is bound through
     (`verification_durable`), and committed guarded by that reading, so a
     transaction another road recorded meanwhile is never written away: a
     comment that will not read holds the tick, and one whose records moved --
@@ -183,19 +174,23 @@ def abandons_afresh(
     with no room for the entry keeps it owed too, but takes a carry's
     approval (`abandons`), which is committed all the same. A commit nobody
     confirmed holds, and the next tick finds the record gone or abandons it
-    again, with no second entry. `rests_on` names any record beyond the bound
-    ones the caller's decision rests on -- a standing auto-rebase attempt --
-    held the same way.
+    again, with no second entry. Every record the reading rests on beyond the
+    bound ones (`ProofReading.rests_on`) -- a standing auto-rebase attempt --
+    is held the same way, and what that reading, or the commit's own, refused
+    and records is kept for a reading that classifies a move
+    (`ProofReading.reads_afresh`, `verification_durable.lands_observing`).
     """
-    durable, refused = _durable.durable_comment(gh, issue, state, rests_on)
+    issue = reading.issue
+    durable, refused = _durable.durable_comment(reading.gh, issue, reading.state, reading.rests_on)
+    reading.reads_afresh(durable, refused)
     if refused is None:
-        guard = _durable.guarded(durable, ABANDONS, rests_on)
+        guard = _durable.guarded(durable, ABANDONS, reading.rests_on)
         if not abandons(durable, pending):
             log.error(
                 "issue=#%d has no room on its pinned comment to abandon the "
                 "verification evidence it owes; leaving it owed", issue.number,
             )
-        refused = _durable.lands(gh, issue, state, guard, durable)
+        refused = _durable.lands_observing(reading, guard, durable)
     if refused is None:
         return False
     log.info(

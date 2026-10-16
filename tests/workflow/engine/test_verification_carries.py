@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import itertools
 import unittest
+from dataclasses import replace
 from unittest.mock import patch
 
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
@@ -155,7 +156,8 @@ class CarryAbandonmentTest(unittest.TestCase, support.VerificationEvidenceCase):
         pending = self.record(carry, onto=tick)
         self.record(onto=self.gh.read_pinned_state(self.issue))
 
-        self.assertFalse(_carries.abandons_afresh(self.gh, self.issue, tick, pending))
+        over_the_tick = replace(support.reading(self), state=tick)
+        self.assertFalse(_carries.abandons_afresh(over_the_tick, pending))
         self.assertEqual(
             self.gh.read_pinned_state(self.issue).get(_review_subjects.APPROVED_SUBJECT),
             self.subject.recorded(),
@@ -183,7 +185,7 @@ class CarryAbandonmentTest(unittest.TestCase, support.VerificationEvidenceCase):
         self.state.set(FILLER, "y" * room)
         self.gh.write_pinned_state(self.issue, self.state)
 
-        self.assertFalse(_carries.abandons_afresh(self.gh, self.issue, self.state, pending))
+        self.assertFalse(_carries.abandons_afresh(support.reading(self), pending))
 
         written = self.gh.read_pinned_state(self.issue)
         self.assertEqual(
@@ -264,7 +266,7 @@ class GuardedAbandonmentTest(unittest.TestCase, support.VerificationEvidenceCase
                 failures.add(support.ISSUE_NUMBER)
                 with self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
                     self.assertTrue(_carries.abandons_afresh(
-                        self.gh, self.issue, _persisted(self), self.carry,
+                        replace(support.reading(self), state=_persisted(self)), self.carry,
                     ))
                     self.assertIn("never confirmed", support.logged_refusal(logged))
                 failures.clear()
@@ -285,7 +287,7 @@ class GuardedAbandonmentTest(unittest.TestCase, support.VerificationEvidenceCase
         """Abandon the carry over this tick's reading, `moves` landing behind the `number`-th reading it takes."""
         tick = self.gh.read_pinned_state(self.issue)
         return road.Behind(self, number, moves).runs(
-            _carries.abandons_afresh, self.gh, self.issue, tick, self.carry,
+            _carries.abandons_afresh, replace(support.reading(self), state=tick), self.carry,
         )
 
 

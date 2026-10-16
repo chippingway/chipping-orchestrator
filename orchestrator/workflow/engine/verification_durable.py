@@ -46,6 +46,23 @@ read either way and a later tick settles it from what the record then carries
 every other refusal -- a record that moved, a comment that moved under the
 edit, a write the comment has no room for -- defers, with whatever the write
 was for still owed.
+
+Three readings serve only a landed rewrite's finish held to the dormant
+settled-evidence policy, one selecting `proves_settled`
+(`rewrite_finish_settled`, `rewrite_finish_unconfirmed`). A retirement landed
+for a proof's reading that classifies a move keeps the refusal of moved
+records its commit earns -- over its own fresh reading or its strict edit's --
+with the comment it was read on (`lands_observing`). Another tells a refusal
+of moved records naming none but this domain's own -- another road recording,
+settling, or retiring a transaction -- and any the caller knows its own road
+moved, from one naming a record a binding rests on
+(`moves_only_the_evidence`). The last adopts the evidence records of a
+settlement another road made of a transaction while the finish was answering
+or abandoning it (`takes_in_a_settlement`), so the finish retires that
+settlement over the movement it already read, decided on the records the
+settlement left rather than on its own stale reading of them, and hands back
+the comment it read for the finish to say what that comment records -- also,
+for a caller that keeps it, one carrying no such settlement yet.
 """
 from __future__ import annotations
 
@@ -63,8 +80,10 @@ from orchestrator.workflow.engine import (
     report_records as _report_records,
     review_subjects as _review_subjects,
     verification_records as _records,
+    verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
+from orchestrator.workflow.engine.verification_proof import ProofReading
 
 # Every record the evidence is bound through: the pull request, every record
 # a report debt is read from -- the developer report's delivery and
@@ -124,6 +143,21 @@ _UNCONFIRMED = ReportEvidence(
     "the pinned comment was written and the write was never confirmed",
 )
 
+# How a refusal of moved bound records reads, around the records it names --
+# their names joined, then set between the two halves.
+_MOVED_SPELLING = ("the pinned comment's ", " moved since this tick read it")
+
+# This domain's own records among the bound ones, which another road moves by
+# recording, settling, or retiring a transaction rather than by moving
+# anything a binding rests on.
+_EVIDENCE_RECORDS = frozenset((
+    _records.PENDING_EVIDENCE,
+    _records.CURRENT_EVIDENCE,
+    _records.EVIDENCE_HISTORY,
+    _records.EVIDENCE_HANDOFF,
+    _records.REVISION_FLOOR,
+))
+
 
 def guarded(
     state: PinnedState, owned: Iterable[str], rests_on: Iterable[str] = (),
@@ -154,7 +188,10 @@ def durable_comment(
     if not isinstance(durable, PinnedState):
         return None, _UNREAD
     moved = guard.moved(durable.data)
-    return durable, (_moved(moved) if moved else None)
+    if not moved:
+        return durable, None
+    named = ", ".join(moved)
+    return durable, ReportEvidence(ReportEvidenceVerdict.DEFER, named.join(_MOVED_SPELLING))
 
 
 def lands(
@@ -183,6 +220,33 @@ def lands(
     return refused
 
 
+def lands_observing(
+    reading: ProofReading, guard: _commit_models.PinnedCommit, staged: PinnedState,
+) -> ReportEvidence | None:
+    """`lands` for a retirement `reading`'s answer makes, the records its commit read moved kept where moves count.
+
+    For a reading that classifies a move alone
+    (`verification_proof.ProofReading.classifies_a_move`): the commit reads a
+    move under its strict edit too (`pinned_commit_models.PinnedCommit.reads_a_move`),
+    and a refusal of moved records it earns -- over its own fresh reading, or
+    over the one that edit took -- is kept with the comment it was read on
+    (`ProofReading.observes`), so a record moved there and put back before
+    anything reads the comment again is the movement it is. Any other reading
+    lands it exactly as `lands` does.
+    """
+    if reading.classifies_a_move is None:
+        return lands(reading.gh, reading.issue, reading.state, guard, staged)
+    moving = guard.reading_moves(True)
+    outcome = _commit.commit(reading.gh, reading.issue, moving, staged.data)
+    refused = refusal_of(outcome)
+    if refused is None:
+        reading.state.data = outcome.reading.data
+        _commit.takes_in(reading.state, outcome.reading.data)
+    elif outcome.fields:
+        reading.observes(refused, outcome.seen)
+    return refused
+
+
 def refusal_of(outcome: _commit_models.CommitOutcome) -> ReportEvidence | None:
     """What one guarded write's outcome refuses here: None where it was prepared or landed."""
     if outcome.status is _commit_models.CommitStatus.UNCONFIRMED:
@@ -190,13 +254,54 @@ def refusal_of(outcome: _commit_models.CommitOutcome) -> ReportEvidence | None:
     if outcome.refusal is None:
         return None
     if outcome.refusal is _commit_models.CommitRefusal.PREREQUISITE_CHANGED:
-        return _moved(outcome.fields)
+        named = ", ".join(outcome.fields)
+        return ReportEvidence(ReportEvidenceVerdict.DEFER, named.join(_MOVED_SPELLING))
     return _REFUSALS[outcome.refusal]
 
 
-def _moved(fields: tuple[str, ...]) -> ReportEvidence:
-    """The refusal the bound records `fields` earn by moving."""
-    named = ", ".join(fields)
-    return ReportEvidence(
-        ReportEvidenceVerdict.DEFER, f"the pinned comment's {named} moved since this tick read it",
-    )
+def takes_in_a_settlement(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    receipt: str,
+    seen: list[PinnedState] | None = None,
+) -> PinnedState | None:
+    """The comment read afresh carrying evidence another road settled current under `receipt`, laid over `state`.
+
+    For a caller about to retire that settlement over movement it already read:
+    every evidence record that comment carries is laid over `state` and
+    remembered as read, so the retirement is decided on the records that
+    settlement left, and the comment comes back for the caller to say what it
+    read there. None, with `state` as it was, where the comment would not read
+    or carries nothing current under `receipt`. `seen`, where a caller hands
+    one, keeps the comment that reading took whether it carried such a
+    settlement or not, so the caller can say what it read there either way.
+    """
+    durable = durable_comment(gh, issue, state)[0]
+    if seen is not None and durable is not None:
+        seen.append(durable)
+    current = None if durable is None else _settlement.read_current_evidence(durable)
+    if current is None or current.receipt != receipt:
+        return None
+    for field in _EVIDENCE_RECORDS:
+        spelled = durable.data.get(field, _commit_models.ABSENT)
+        state.data.pop(field, None)
+        if spelled is not _commit_models.ABSENT:
+            state.data[field] = spelled
+    _commit.takes_in(state, durable.data, _EVIDENCE_RECORDS)
+    return durable
+
+
+def moves_only_the_evidence(refused: ReportEvidence, besides: Iterable[str] = ()) -> bool:
+    """Whether `refused` is a refusal of moved records (`refusal_of`) naming none but this domain's own and `besides`.
+
+    Such a refusal reads another road recording, settling, or retiring a
+    transaction, and nothing a binding rests on moving; `besides` names other
+    records the caller knows its own road moved.
+    """
+    prefix, suffix = _MOVED_SPELLING
+    spelled = refused.refusal
+    if not (spelled.startswith(prefix) and spelled.endswith(suffix)):
+        return False
+    named = spelled.removeprefix(prefix).removesuffix(suffix)
+    return set(named.split(", ")) <= _EVIDENCE_RECORDS.union(besides)

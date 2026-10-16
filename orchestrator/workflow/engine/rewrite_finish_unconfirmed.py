@@ -8,20 +8,37 @@ bookkeeping on the attempt, or the retirement behind the relabel blanking it
 whole. These answer only a finish held to the dormant settled-evidence policy
 (`rewrite_finish_models.LandedFinish.proves_settled`), so movement a proof
 read behind that write is recorded over the attempt as it stands rather than
-refused as though another road had replaced it. They are primitives a caller
-holding such a finish asks directly; no finish, recovery, or coordinator road
-(`rewrite_finish`) asks any of them yet:
+refused as though another road had replaced it. That policy's evidence phase
+asks `takes_in_the_announcement` and `takes_in_the_attempt`
+(`rewrite_finish_settled.adopts_the_answer`), and
+`reconciles_the_abandonment` (`rewrite_finish_captured`); the rest are
+primitives a caller holding such a
+finish asks directly, and no recovery or coordinator road (`rewrite_finish`)
+asks any of them yet:
 
 - `takes_in_the_announcement` takes in that bookkeeping, naming the landed
   head (`rewrite_finish_announced.takes_in_the_announcement`), and hands back
-  the comment it read.
+  the comment it read; `takes_in_the_attempt` takes in another road's
+  attempt a settlement's adoption read in place of the one captured, so the
+  finish holds over it.
 - `stands_back` puts the attempt back exactly as read where the comment
   carries it blanked as this finish's retirement leaves it and the same
   evidence current, or -- where it no longer fits -- marks the movement
   (`rewrite_finish_marks.marks`); `retires_the_marked` lets a later finish
   finding no attempt retire marked evidence whole once room is made.
+- `retires_the_settled` invalidates a settlement another finish made while
+  this finish's abandonment was asked (`rewrite_finish_captured._abandoned`),
+  and holds the route where a newer transaction came in beside it -- or,
+  read afresh once that invalidation lands
+  (`rewrite_finish_rechecks.rechecks_behind`), where one was recorded or
+  another attempt put in place right behind its strict edit;
+  `reconciles_the_abandonment` asks it of an abandonment that landed
+  nowhere, and of one that did land -- whose strict edit another finish's
+  settlement may land right behind -- rechecking that comment otherwise.
 """
 from __future__ import annotations
+
+import logging
 
 from orchestrator.git.base_sync import attempts as _attempts
 from orchestrator.github.pinned_state import PinnedState
@@ -29,6 +46,7 @@ from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     rewrite_finish_announced as _announced,
     rewrite_finish_readiness as _readiness,
+    rewrite_finish_rechecks as _rechecks,
     rewrite_finish_writes as _writes,
     verification_durable as _durable,
     verification_records as _records,
@@ -36,6 +54,8 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.rewrite_finish_marks import carries_the_mark, marks, read_afresh
 from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
+
+log = logging.getLogger("orchestrator.workflow")
 
 
 def takes_in_the_announcement(finish: LandedFinish) -> PinnedState | None:
@@ -55,6 +75,19 @@ def takes_in_the_announcement(finish: LandedFinish) -> PinnedState | None:
     if durable is not None:
         _announced.takes_in_the_announcement(finish, durable)
     return durable
+
+
+def takes_in_the_attempt(finish: LandedFinish, durable: PinnedState) -> None:
+    """Lay the attempt `durable`, a comment read afresh, carries over the tick's state, every member as read.
+
+    For a settlement's adoption that read another road's attempt in place of
+    the one the finish captured, or the attempt another finish's route
+    cleared (`rewrite_finish_settled.adopts_the_answer`): the tick's state then
+    carries what stands, so the finish holds over it rather than routing past
+    it on its own stale reading. A member `durable` lacks is dropped, and
+    every one is taken in as read.
+    """
+    _rechecks.lays(finish.state, durable, _attempts._ATTEMPT_KEYS)
 
 
 def stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
@@ -112,3 +145,70 @@ def retires_the_marked(finish: LandedFinish) -> None:
     left = _commit_models.PinnedCommit.capture(_writes.retirement(finish), prerequisites=_attempts._ATTEMPT_KEYS)
     if carries_the_mark(finish.state, current) and not left.moved(finish.state.data):
         _readiness.invalidates(finish, current)
+
+
+def retires_the_settled(
+    finish: LandedFinish, pending: _records.PendingEvidence, why: str, seen: list[PinnedState] | None = None,
+) -> bool | None:
+    """Invalidate a settlement another finish made of `pending` while its abandonment was asked; whether to go on.
+
+    None where the comment carries nothing current under `pending`'s receipt,
+    `seen` keeping the comment that reading took where a caller hands one.
+    Otherwise its records are taken in (`verification_durable.takes_in_a_settlement`)
+    and invalidated over what the abandonment read (`why`)
+    (`rewrite_finish_readiness.invalidates`): over this finish's attempt, or
+    over the comment as it stands where that finish's route took it, which
+    holds the route all the same. False too where the records taken in carry
+    a pending record beside that settlement -- a newer transaction another
+    road recorded, readable or not -- which stands as that road wrote it for
+    the next finish to answer, never one a route or continuation may leave
+    owed behind a cleared attempt: one recorded right behind the
+    invalidation's strict edit among them, which the comment read afresh once
+    it landed finds (`rewrite_finish_rechecks.rechecks_behind`) -- as it finds
+    another attempt put in place there, and holds over that too.
+    """
+    adopted = _durable.takes_in_a_settlement(finish.gh, finish.issue, finish.state, pending.receipt, seen)
+    if adopted is None:
+        return None
+    settled = _settlement.read_current_evidence(finish.state)
+    log.info(
+        "issue=#%d invalidating verification evidence revision %d another finish settled for %.8s while its "
+        "abandonment was asked: %s",
+        finish.issue.number, settled.revision, finish.head, why,
+    )
+    invalidated = _readiness.invalidates(finish, settled)
+    beside = _readiness.beside_current(finish.state, None)
+    if beside:
+        log.warning("issue=#%d holding the route of %.8s: %s", finish.issue.number, finish.head, beside)
+    if not invalidated or beside:
+        return False
+    return _rechecks.rechecks_behind(finish, settled.receipt)
+
+
+def reconciles_the_abandonment(
+    finish: LandedFinish, pending: _records.PendingEvidence, why: str, landed: bool | None,
+) -> bool | None:
+    """Whether the route goes on behind `pending`'s abandonment, `landed` -- what that write answered -- reconciled.
+
+    `landed` is None where the abandonment landed nowhere -- another finish's
+    settlement of `pending` among the reasons -- and that settlement, where
+    the comment carries it current, is taken in and invalidated whole over
+    what the abandonment read (`retires_the_settled`); None still where it
+    carries none. Where the abandonment landed -- `landed` True, or False for
+    a drop that holds the route -- its strict edit answered over the comment
+    it read, and another finish's settlement of `pending`, made over a reading
+    taken before it, may land right behind it, or another road may record a
+    newer transaction or put another attempt in place there: that settlement
+    is invalidated the same way, held over a successor beside it, and any
+    other reading of the comment is rechecked as one behind an invalidation
+    is (`rewrite_finish_rechecks.rechecks_behind`), so what was written there
+    holds the route, laid over the tick's state, and is never left owed
+    behind a continuation or a route.
+    """
+    seen: list[PinnedState] = []
+    retired = retires_the_settled(finish, pending, why, seen)
+    if landed is None:
+        return retired
+    if retired is None:
+        retired = _rechecks.rechecks_behind(finish, pending.receipt, seen[0] if seen else None)
+    return retired and landed

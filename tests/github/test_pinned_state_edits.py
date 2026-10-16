@@ -107,16 +107,17 @@ class EditPinnedStateTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.client = state_client()
+        self.seen: list[PinnedState] = []
 
     def edit(self, issue: FakeIssue, over: dict) -> tuple[PinnedEdit, _Thread]:
         """Rewrite the record as `_WRITTEN` over `over`, and what the thread carries behind the reply afterwards.
 
         The reply is never touched and nothing lands ahead of it, whatever
-        the answer.
+        the answer. The edit is handed `seen` as a caller keeping what a moved
+        edit read hands it.
         """
-        answer = self.client.edit_pinned_state(
-            issue, PinnedState(comment_id=_RECORDED_ID, data=dict(_WRITTEN)), over=over,
-        )
+        written = PinnedState(comment_id=_RECORDED_ID, data=dict(_WRITTEN))
+        answer = self.client.edit_pinned_state(issue, written, over=over, seen=self.seen)
         reply, *behind = issue.comments
         self.assertEqual((reply.id, reply.body), (_REPLY_ID, _REPLY))
         return answer, [
@@ -126,13 +127,14 @@ class EditPinnedStateTest(unittest.TestCase):
     def test_a_record_read_as_derived_is_edited(self) -> None:
         # The one road that writes: the comment carries what the derivation
         # read, so it is edited where it stands and GitHub's answer carries
-        # the body sent. Nothing is posted and the reply is left alone.
+        # the body sent. Nothing is posted and the reply is left alone, and a
+        # caller keeping what a moved edit read is handed nothing.
         issue = _thread(bot_comment(_RECORDED_ID, _READ_BODY))
 
         answer, thread = self.edit(issue, dict(_READ))
 
         self.assertIs(answer, PinnedEdit.EDITED)
-        self.assertEqual(thread, [(_RECORDED_ID, _WRITTEN_BODY)])
+        self.assertEqual((thread, self.seen), ([(_RECORDED_ID, _WRITTEN_BODY)], []))
         self.assertEqual(self.client.read_pinned_state(issue).data, _WRITTEN)
 
     def test_a_record_gone_is_never_recreated(self) -> None:
@@ -149,13 +151,17 @@ class EditPinnedStateTest(unittest.TestCase):
 
     def test_a_record_moved_since_reading_stands(self) -> None:
         # The derivation was made over one record and the comment carries
-        # another, so a rewrite would put the older reading's values back.
+        # another, so a rewrite would put the older reading's values back;
+        # a caller keeping what the edit read is handed the comment it found.
         for case, (carried, read) in _MOVED.items():
             with self.subTest(case=case):
+                self.seen.clear()
                 answer, thread = self.edit(_thread(bot_comment(_RECORDED_ID, carried)), read)
 
                 self.assertIs(answer, PinnedEdit.MOVED)
                 self.assertEqual(thread, [(_RECORDED_ID, carried)])
+                self.assertEqual(len(self.seen), 1)
+                self.assertEqual(self.seen[0].comment_id, _RECORDED_ID)
 
     def test_a_thread_that_will_not_read(self) -> None:
         issue = _thread(bot_comment(_RECORDED_ID, _READ_BODY))

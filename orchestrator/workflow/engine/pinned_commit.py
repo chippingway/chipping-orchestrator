@@ -122,13 +122,15 @@ def prepare(
     Asked ahead of an external effect that depends on the record being
     written -- a comment posted, a label moved -- so the effect is never made
     for a record that could not follow it. A PREPARED answer licenses nothing
-    past the requests that follow it: `commit` derives everything again.
+    past the requests that follow it: `commit` derives everything again. A
+    guard that `reads_a_move` has a refusal of moved prerequisites carry the
+    fresh reading it read them on (`pinned_commit_models.PinnedCommit.keeps_the_move`).
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)
     if isinstance(fresh, _models.CommitOutcome):
         return fresh
-    return change.over(issue, fresh)
+    return guard.keeps_the_move(change.over(issue, fresh), fresh)
 
 
 def commit(
@@ -145,21 +147,31 @@ def commit(
     fresh one. A candidate the comment already reads as is COMMITTED with
     nothing sent. A comment that moved between the fresh reading and the edit
     is refused as MOVED with nothing sent, and a commit asked again derives
-    over whatever it carries then.
+    over whatever it carries then -- or, for a guard that `reads_a_move`, as
+    PREREQUISITE_CHANGED naming the prerequisites the comment the edit read
+    spells otherwise, where any did
+    (`pinned_commit_models.PinnedCommit.under_the_edit`). Such a guard's
+    refusal of moved prerequisites carries the comment it read them moved on,
+    the fresh reading or the edit's (`PinnedCommit.keeps_the_move`).
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)
     if isinstance(fresh, _models.CommitOutcome):
         return fresh
-    prepared = change.over(issue, fresh)
+    prepared = guard.keeps_the_move(change.over(issue, fresh), fresh)
     if prepared.status is not _models.CommitStatus.PREPARED:
         return prepared
     if fresh.reads_as(prepared.reading.data):
         return replace(prepared, status=_models.CommitStatus.COMMITTED)
-    edit = gh.edit_pinned_state(issue, prepared.reading, over=fresh.data)
+    edit = gh.edit_pinned_state(
+        issue, prepared.reading, **guard.edit_options(fresh.data, change.seen),
+    )
     refusal = _UNSENT.get(edit)
     if refusal is not None:
-        return _refused(issue, refusal)
+        return guard.keeps_the_move(
+            _refused(issue, *guard.under_the_edit(refusal, change.seen)),
+            next(iter(change.seen), None),
+        )
     return replace(prepared, status=_LANDED[edit])
 
 
@@ -177,7 +189,7 @@ def reread(
     moved; `commit` holds the comment to every one of them again whatever
     this answered.
     """
-    return _fresh(gh, issue, _Change(guard, guard.read, _NO_TRANSFORMS))
+    return _fresh(gh, issue, _Change(guard, guard.read, _NO_TRANSFORMS, []))
 
 
 def takes_in(
@@ -219,6 +231,9 @@ class _Change:
     # The staged state, as the comment's JSON would spell each field.
     staged: Mapping[str, str]
     derived: Mapping[str, _models.Transform]
+    # The comment the strict edit read where it found it moved, kept for a
+    # guard that reads a move (`pinned_commit_models.PinnedCommit.edit_options`).
+    seen: list[PinnedState]
 
     @classmethod
     def of(
@@ -232,6 +247,7 @@ class _Change:
             guard=guard,
             staged=MappingProxyType({field: _models.spelled(staged, field) for field in staged}),
             derived=MappingProxyType(dict(derived)),
+            seen=[],
         )
 
     def assigned(self) -> list[str]:

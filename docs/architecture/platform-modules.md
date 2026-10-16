@@ -549,8 +549,10 @@ orchestrator/
                         comment's JSON spells both (`PinnedState.reads_as`); it never recreates a comment that is
                         gone or no longer the authenticated state-only one, and answers EDITED only where GitHub's
                         response carries the body sent -- a lost response, a refused request, and an answer carrying
-                        another body are all UNCONFIRMED, since the record may read either way. Its two requests
-                        are primitives the in-memory double overrides, so the double answers through this policy.
+                        another body are all UNCONFIRMED, since the record may read either way. A caller that
+                        hands it a `seen` list is handed the comment the walk read where it answers MOVED, so it
+                        can say what moved under the edit. Its two requests are primitives the in-memory double
+                        overrides, so the double answers through this policy.
                         A state read from the comment or written over it remembers what the comment carried then
                         (`PinnedState.synced`), spelled as its JSON is and outside the record itself, so what a
                         tick staged on it since can be told from what it read; a state the guarded commits taken
