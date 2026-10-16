@@ -3277,18 +3277,19 @@ The keys that matter for the state machine fall into a few groups:
   an attempt whose finish recorded no transaction carries none, and one from before this member existed recorded its
   evidence only behind its mark, so with none on it a transaction about the head the mark names is that finish's.
   `pending_auto_base_rebase_relabelled` — the head whose relabel to `workflow:validating` a finish of the attempt
-  made, landed in a guarded write of its own (`workflow/engine/rewrite_finish_writes.RELABEL`) around that relabel:
-  ahead of it where the issue wears another label, so the label read back says whether the relabel landed, and
-  right behind it where the issue already wore `workflow:validating`, which a relabel onto it leaves as it was. A
-  finish reads the relabel made only where this member names the head and the issue wears `workflow:validating`
+  made, landed in a guarded write of its own (`workflow/engine/rewrite_finish_writes.RELABEL`) ahead of that
+  relabel, whatever label the issue wears, so no relabel is made that nothing durable records. A finish reads the
+  relabel made only where this member names the head and the issue wears `workflow:validating`
   (`workflow/engine/rewrite_finish_announced.relabelled`), so a finish lost before the retirement -- or another
   finish of the landing -- makes neither the relabel nor its stage-entry event twice, with no event log needed.
-  A finish lost between a relabel onto `workflow:validating` and the record right behind it leaves the issue on
-  that label with no record: the relabel named the head on its `stage_enter` event (`sha`), so the next finish
-  asks the event stream for it (`github/events.filed`) and relabels only where the stream does not carry it,
-  holding where the stream will not read. Behind a restart with no audit log configured that event is gone, and
-  the relabel and its stage-entry event are made once more -- the one window neither the member nor the stream
-  closes. Blanked with the rest of the attempt by every write that ends it.
+  Beside another label the member is a relabel that never landed, and the route relabels. On an issue that already
+  wore `workflow:validating` the label says nothing of whether the relabel behind the member was made: with the
+  audit log configured the next finish asks it for the relabel's `stage_enter` event, which names the head
+  (`sha`), relabels where it is missing, and holds where the log will not read; with no log the relabel is read as
+  made, so a finish lost between this member and that relabel files no stage-entry event for the head -- once at
+  most, never twice. A relabel onto that label that raises filed no stage-entry event, so it takes the member back
+  off before the error goes on, for the next finish to relabel. Blanked with the rest of the attempt by every write
+  that ends it.
   Additive: an attempt from before this member existed carries none, and is relabelled once more where a finish
   of it was lost behind its relabel.
   `pending_auto_base_rebase_announced_event` — the head whose `base_rebased` event a finish of the attempt is

@@ -54,15 +54,23 @@ the comment carries now laid over the tick's state (`reconciles`), so what
 the proof behind it proves is that, a successor another road settled
 meanwhile among it; and the movement a comment such a record read carries
 under each evidence it records for the head is read off that very comment
-(`moved_under`), however soon it is put back.
+(`moved_under`), however soon it is put back -- a report or review record
+moved off that evidence's binding, or the base tip the attempt recorded its
+replay as made onto read blank or repointed beside every other member of the
+attempt as the tick read it (`attempt_as_read`).
 
 Nothing here posts, parks, resets, or routes anything.
 """
 from __future__ import annotations
 
+import json
 import logging
 
-from orchestrator.git.base_sync import state as _base_sync_state
+from orchestrator.git.base_sync import (
+    attempt_records as _attempt_records,
+    attempts as _attempts,
+    state as _base_sync_state,
+)
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseRecoveryContext,
@@ -80,10 +88,24 @@ from orchestrator.workflow.engine import (
     verification_proof as _proof,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
+from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.rewrite_finish_rechecks import lays
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The base tip the attempt recorded its replay as made onto, the one member of
+# the attempt a comment may read moved -- blanked, as a reset is recorded, or
+# repointed -- beside every other member as the tick read it, where any other
+# member moved is another attempt (`moved_under`).
+_TIP_ALONE = (_base_sync_state._PENDING_REWRITE_BASE,)
+
+# What that move, read by a record's commit, is under the evidence the comment
+# carries for the landed head: no base the tick read proves which one its head
+# was replayed onto, however soon the tip is put back.
+_TIP_MOVED_UNDER_THE_RECORD = ReportEvidence(
+    ReportEvidenceVerdict.DEFER, "the base tip the attempt recorded its replay as made onto moved under a record",
+)
 
 
 def retires_over_the_reset(
@@ -161,21 +183,44 @@ def reconciles(context: _AutoRebaseRecoveryContext) -> None:
         lays(context.state, durable, _writes._EVIDENCE_RECORDS)
 
 
-def moved_under(comment: PinnedState | None) -> dict[str, ReportEvidence]:
+def attempt_as_read(state: PinnedState) -> PinnedCommit | None:
+    """The attempt `state` was last read carrying, for `moved_under` to read a move of its base tip against.
+
+    As the comment carried it when the tick last read it, not as the tick
+    holds it now: a tip the tick staged back over its own blank -- a reset git
+    refused, whose recorded blank landed -- is no tip another road moved.
+    None where that reading records no tip, so names no base to move.
+    """
+    read = state
+    if state.synced is not None:
+        synced = json.loads(state.synced)
+        read = PinnedState(comment_id=state.comment_id, state_data=synced, parsed=state.parsed)
+    if not _attempt_records._recorded_onto(read):
+        return None
+    return PinnedCommit.capture(read, prerequisites=_attempts._ATTEMPT_KEYS)
+
+
+def moved_under(comment: PinnedState | None, attempt: PinnedCommit | None = None) -> dict[str, ReportEvidence]:
     """The movement `comment` records under each evidence it carries for the landed head, by that evidence's receipt.
 
     `comment` is one a record's commit read -- the record it landed or sent,
     or the comment a refusal was read over -- and the movement is a review or
     report record it spells off that evidence's own binding
     (`verification_proof.recorded_verdict`), asked of that very reading, so it
-    stands however soon the record is put back. Empty where `comment` is None
-    or carries no evidence for the head that moved.
+    stands however soon the record is put back. `attempt` is the attempt the
+    tick read (`attempt_as_read`), where the caller has one: `comment` reading
+    its base tip moved, every other member as the tick read it, is movement
+    under every evidence it carries for the head (`_TIP_MOVED_UNDER_THE_RECORD`)
+    -- a blank another road recorded and put back right behind, which no
+    proof taken over the comment as it then stands would read. Empty where
+    `comment` is None or carries no evidence for the head that moved.
     """
     if comment is None:
         return {}
+    tipped = attempt is not None and attempt.moved(comment.data) == _TIP_ALONE
     moved = {}
-    for record in (_landing_records.captured(comment), _landing_records.settled(comment)):
-        refused = None if record is None else _proof.recorded_verdict(comment, record.binding)
+    for record in filter(None, (_landing_records.captured(comment), _landing_records.settled(comment))):
+        refused = _TIP_MOVED_UNDER_THE_RECORD if tipped else _proof.recorded_verdict(comment, record.binding)
         if refused is not None and not refused.holds:
             moved[record.receipt] = refused
     return moved

@@ -72,6 +72,16 @@ def build_event_record(
     return event_record
 
 
+def durable() -> bool:
+    """Whether every event filed outlives this process, in the audit log `filed` reads back.
+
+    False where no log is configured: `filed` then reads only this process's
+    in-memory tail, so an event a process lost before it was recorded
+    anywhere else is one no later process can find.
+    """
+    return config.EVENT_LOG_PATH is not None
+
+
 def filed(client: Any, event: str, *, issue_number: int, **identity: Any) -> bool | None:
     """Whether `event` for `issue_number`, carrying every member of `identity`, is already on the stream.
 

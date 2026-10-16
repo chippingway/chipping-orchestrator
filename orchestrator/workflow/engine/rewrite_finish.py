@@ -94,13 +94,14 @@ refuses stops the finish there with nothing behind it made:
   it settled. The retirement is decided on every record the evidence is
   bound through, so a report or review another road moved after the evidence
   was decided or settled refuses the route rather than riding it. The
-  relabel lands with a record of its own on the attempt
+  relabel lands behind a record of its own on the attempt
   (`pending_auto_base_rebase_relabelled`, `rewrite_finish_announced`), and an
   issue on `workflow:validating` beside that record is not relabelled again --
   one already on `workflow:validating` before its rebase, with no record, is,
-  as an uninterrupted route would relabel it, save where the event stream
-  carries the stage-entry event that relabel names the head on, a finish lost
-  between it and its record.
+  as an uninterrupted route would relabel it. Beside a record on an issue that
+  already wore that label, the audit log, where one is configured, says
+  whether the relabel behind the record was made; with none it is read as
+  made, so it is made once at most.
 
 A tick lost anywhere in that tail -- behind the evidence it settled, retired,
 or left to the fresh reviewer and before the announcement, between the

@@ -154,7 +154,7 @@ def relabels(finish: LandedFinish, observed: ProofReading) -> FinishOutcome | No
     relabelled where it no longer carries the attempt this finish holds
     (`rewrite_finish_rechecks.stands_afresh`) or would not read -- and the
     label once more, so the relabel, and its stage-entry event, is not made
-    twice. The relabel lands with its record around it
+    twice. The relabel lands behind its record
     (`rewrite_finish_announced.relabels_once`), and a record that did not land
     has the evidence invalidated over a binding record its refusal read
     moving, or proved ready once more (`rewrite_finish_readiness.invalidates_behind`).

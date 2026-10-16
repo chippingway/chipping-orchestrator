@@ -12,11 +12,17 @@ current, putting report 2 back reviving nothing. A relabel that raises, behind
 another road settling report 3 and a newer run bound to it and then putting
 report 2 back, is proved again over the comment as it then stands: that newer
 run is invalidated on its own binding before the error goes on, so putting
-report 3 back revives nothing and the next tick routes the head once. And on
-an issue already on `workflow:validating`, a finish lost right behind its
-relabel, before the relabel's own record lands, comes back behind a restart
-with its event tail gone: the audit log it configured carries the stage-entry
-event naming the head, so neither the relabel nor that event is made twice.
+report 3 back revives nothing and the next tick routes the head once.
+
+On an issue already on `workflow:validating` the relabel's own record lands
+ahead of it, and a finish lost anywhere around the two comes back behind a
+restart with its event tail gone. With no audit log, a finish lost at that
+record or behind the relabel is relabelled once in all; one lost at the
+relabel itself, behind its record, is read as relabelled -- nothing durable
+says otherwise -- so the stage-entry event is filed at most once, never twice.
+With the log configured, that last one is answered off the log, which lacks
+the stage-entry event naming the head, and relabelled once. A relabel that
+raises takes its record back, and the next tick relabels once.
 """
 from __future__ import annotations
 
@@ -34,9 +40,24 @@ from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
+    rewrite_verification_recovery_support as support,
     settled_finish_support as settled_support,
     verification_report_fixture as _report,
 )
+
+# Each finish lost around the relabel of an issue already on `workflow:validating`,
+# and how many relabels onto it the issue has taken once a restart with no audit
+# log recovered it twice: the one ahead of the rebase, and the route's own --
+# save at the relabel itself, behind its record, read as made.
+_RESTARTS = (
+    (handoff.BEFORE_THE_RELABEL_RECORD, readings.ROUTED * 2),
+    (handoff.BEFORE_THE_RELABEL, readings.ROUTED),
+    (handoff.BEFORE_THE_RETIREMENT, readings.ROUTED * 2),
+)
+
+# The stage-entry events onto `workflow:validating` an issue that wore it ahead
+# of the rebase has filed once the route relabelled it once: that one, and the route's.
+_ENTERED_TWICE = ("validating", "validating")
 
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
@@ -144,16 +165,39 @@ class RelabelReadsTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.recovers()
         self.assert_routed(head)
 
-    def test_a_restart_finds_the_relabel_on_the_log(self) -> None:
-        # The issue already wears `workflow:validating`, and the finish dies
-        # right behind its relabel, before that relabel's record lands. The
-        # process restarts with its event tail gone, and the audit log says
-        # the relabel was made: no second relabel or stage-entry event.
+    def test_a_restart_without_a_log_relabels_once(self) -> None:
+        # The issue already wears `workflow:validating`, no audit log is
+        # configured, and the finish dies at the relabel's record, at the
+        # relabel behind it, or behind both; the process restarts with its
+        # event tail gone and polls twice. Nothing is relabelled twice: the
+        # route's relabel is made once, save where the record landed and the
+        # relabel did not, which no later finish can tell from one made.
+        self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
+        for boundary, relabelled in _RESTARTS:
+            with self.subTest(boundary=boundary.name):
+                self.setUp()
+                self.gh.set_workflow_label(self.issue, WorkflowLabel.VALIDATING)
+                head = self.lands_a_reviewed_rebase()
+                handoff.dies_at(self.gh, boundary, partial(self.finishes, head))
+                self.gh.recorded_events.clear()
+
+                self.recovers()
+                self.recovers()
+
+                finished = (readings.relabels(self), readings.attempt(readings.pinned(self)))
+                self.assertEqual(finished, (relabelled, readings.RETIRED))
+                self.assert_made_once()
+
+    def test_a_restart_reads_the_log_for_the_relabel(self) -> None:
+        # The issue already wears `workflow:validating`, and the finish dies at
+        # the relabel itself, its record landed ahead of it. The process
+        # restarts with its event tail gone, and the audit log carries no
+        # stage-entry event naming the head: the relabel is made once.
         logs = Path(self.enterContext(tempfile.TemporaryDirectory()))
         self.enterContext(patch.object(config, "EVENT_LOG_PATH", logs / "events.jsonl"))
         self.gh.set_workflow_label(self.issue, WorkflowLabel.VALIDATING)
         head = self.lands_a_reviewed_rebase()
-        handoff.dies_at(self.gh, handoff.BEFORE_THE_RELABEL_RECORD, partial(self.finishes, head))
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_RELABEL, partial(self.finishes, head))
         entered = handoff.stage_entries(self.gh, self.issue.number)
         self.gh.recorded_events.clear()
 
@@ -162,8 +206,25 @@ class RelabelReadsTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
         entered += handoff.stage_entries(self.gh, self.issue.number)
         self.assertEqual(readings.relabels(self), readings.ROUTED * 2)
-        self.assertEqual(entered, ["validating", "validating"])
+        self.assertEqual(tuple(entered), _ENTERED_TWICE)
         self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
+
+    def test_a_raised_relabel_takes_its_record_back(self) -> None:
+        # The issue already wears `workflow:validating`, and the finish's
+        # relabel raises behind its record: the record is taken back off
+        # before the error goes on, so the next poll relabels once.
+        self.gh.set_workflow_label(self.issue, WorkflowLabel.VALIDATING)
+        head = self.lands_a_reviewed_rebase()
+        unanswered = RuntimeError("GitHub did not answer the relabel")
+        with patch.object(self.gh, "set_workflow_label", side_effect=unanswered):
+            self.assertRaises(RuntimeError, self.finishes, head)
+
+        self.assertIsNone(readings.pinned(self).get(readings.KEY_RELABELLED))
+        self.recovers()
+        self.assertEqual(readings.relabels(self), readings.ROUTED * 2)
+        entered = handoff.stage_entries(self.gh, self.issue.number)
+        self.assertEqual(tuple(entered), _ENTERED_TWICE)
+        self.assertEqual(support.announced(self), [head])
 
 
 if __name__ == "__main__":

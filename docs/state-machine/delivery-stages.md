@@ -1532,14 +1532,18 @@ because there it is the claim that this stage has already rerouted rather than a
   (`rewrite_recovery_parks.proves_before_a_park`) -- the dispatcher's quiet holds and an already-standing stranded
   park included, on every poll -- and each park landed through the guarded commit over the comment read afresh,
   proving what it keeps once more behind its notice, raised or not, and behind its record, a movement that record
-  carried -- or that the comment its strict edit was refused over carried -- kept as read under whichever evidence
-  it was read under (`rewrite_recovery_parks.lands_a_park`); behind a notice that raised, or a record refused or sent
-  with its answer lost, the evidence the comment carries now is laid over the tick's state first, so a successor
-  another road settled meanwhile is proved on its own binding rather than left unread
-  (`rewrite_landing_retirement.reconciles`). A publication gate's hold of the landed road's leased no-op, or of the
-  retry's reissued push, is recorded the same way, as `HOLD` over the comment read afresh, so an evidence record or a
-  revision floor another road wrote while the gate answered is kept, its proof taken first
-  (`rewrite_recovery_parks.lands_a_hold`).
+  carried -- or that the comment its strict edit was refused over carried, a report or review record moved or the
+  attempt's base tip blanked beside the rest of the attempt as read -- kept as read under whichever evidence it was
+  read under (`rewrite_recovery_parks.lands_a_park`, `rewrite_landing_retirement.moved_under`); behind a notice that
+  raised, or a record refused or sent with its answer lost, the evidence the comment carries now is laid over the
+  tick's state first, so a successor another road settled meanwhile is proved on its own binding rather than left
+  unread (`rewrite_landing_retirement.reconciles`). A park made again over a record that never landed takes in the
+  notice the conversation already carries past the watermark rather than posting it twice, and files its
+  `park_awaiting_human` event only where the stream lacks the one naming that notice
+  (`rewrite_recovery_notices.parks_awaiting_human`). A publication gate's hold -- of the ordinary publication's
+  candidate, the landed road's leased no-op, or the retry's reissued push -- is recorded the same way, as `HOLD` over
+  the comment read afresh, so an evidence record, a report, or a revision floor another road wrote while the gate
+  answered is kept, the recovery's proof taken first (`rewrite_recovery_parks.lands_a_hold`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
@@ -1549,8 +1553,10 @@ because there it is the claim that this stage has already rerouted rather than a
   reviews the head, and the recovery of the push already landed finishes it on a later tick from what the records,
   the pull request, and the event stream say was done, the evidence taken up where it stands (the bullet above):
   - **The announcement is the existing checkpoint's.** A head the mark already names gets no second notice,
-    `base_rebased` event, or round reset, and an issue already on `workflow:validating` under that mark is not
-    relabelled again, so it files no second stage-entry event. The notice and the event go out ahead of that
+    `base_rebased` event, or round reset, and an issue on `workflow:validating` beside the relabel's own record
+    naming the head -- landed ahead of the relabel, since that mark and label alone say nothing of a relabel onto a
+    label the issue already wore -- is not relabelled again, so it files no second stage-entry event. The notice and
+    the event go out ahead of that
     checkpoint, so each is recovered on its own (`rewrite_finish_notices.announces`). A finish reads the pull
     request's conversation before it posts anything, and a comment of ours already announcing the head -- posted by
     a tick whose checkpoint was refused, went unconfirmed, or died -- is that notice made, entered in the ledger and
@@ -1571,8 +1577,10 @@ because there it is the claim that this stage has already rerouted rather than a
   - **The relabel is said once too.** The retirement is prepared before the relabel and lands behind it, owning the
     attempt, the round, the park's flags, a spent reply, and a failure notice the route no longer owes, and decided
     on every record the evidence is bound through: a record another road moved -- while the relabel was made, say --
-    refuses it with the attempt standing, and the next recovery finds the issue already on `workflow:validating`
-    under its mark and routes it with no second relabel.
+    refuses it with the attempt standing, and the next recovery finds the relabel's own record naming the head
+    (`pending_auto_base_rebase_relabelled`, landed ahead of the relabel) beside `workflow:validating` and routes it
+    with no second relabel -- the mark and that label alone say nothing of a relabel onto a label the issue already
+    wore, which the record does, the audit log asked beside it where one is configured.
   - **The rebase behind a continuation is the refresh's again.** A landed head the base advanced past again is
     announced only where the dead tick had not announced it, its attempt is retired unrouted, and a rebase replaces
     it. The refresh chose the worktree beside the anchor, so only the late claims were asked to hold it; once the
@@ -3211,7 +3219,9 @@ such pushes and no others:
   already carries it. The one replay the retry does not enter that way is one its attempt's record names, with no
   grant made before the crash, whose re-derived evidence the permit refuses: that is a contribution the base advance
   changed, and the retry enters it with that evidence as the ordinary publication would have, so it is measured --
-  adjudicated afresh past the ceiling -- rather than reset away. Either caller whose hold handed the replay to an
+  adjudicated afresh past the ceiling -- rather than reset away. Either caller records the gate's hold over the comment
+  read afresh, as `rewrite_recovery_parks.HOLD`, so what another road wrote while the gate answered is kept. Either
+  caller whose hold handed the replay to an
   adjudication hands the attempt over with it (`workflow/engine/rewrite_takeover.py`), the reply its road was released
   by recorded read where it only asked for the retry, and a park the gate took leaves the attempt for its recovery (see
   [Base refresh](labels-and-state.md#base-refresh));

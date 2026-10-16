@@ -152,30 +152,6 @@ class RefusedRetryTest(retry.RetryCase):
         self.git.refuses_reset = False
 
 
-# A revision floor another road records while the gate answers the retry.
-_FLOOR = "verification_evidence_revision"
-
-_ANOTHER_ROADS_FLOOR = 17
-
-
-class _BehindTheGate:
-    """The gate's own answer, another road's revision floor written on the comment right behind it."""
-
-    def __init__(self, case) -> None:
-        self._case = case
-        self._live = _late_push._publishes
-
-    def __call__(self, *args, **kwargs):
-        """Answer as the gate does, then write the floor as another road would."""
-        answered = self._live(*args, **kwargs)
-        github = self._case.gh
-        issue = github.get_issue(retry.ISSUE)
-        durable = github.read_pinned_state(issue)
-        durable.set(_FLOOR, _ANOTHER_ROADS_FLOOR)
-        github.write_pinned_state(issue, durable)
-        return answered
-
-
 class GatedRetryRecordTest(retry.RetryCase):
     """A retry the gate holds records its hold over the comment read afresh, keeping what another road wrote."""
 
@@ -189,10 +165,11 @@ class GatedRetryRecordTest(retry.RetryCase):
             with self.subTest(count.__name__):
                 self._fresh()
 
-                with count(), patch.object(_late_push, "_publishes", _BehindTheGate(self)):
+                behind = world.WritesBehindTheGate(self)
+                with count(), patch.object(_late_push, "_publishes", behind):
                     self._ticks()
 
-                self.assertEqual(self.gh.pinned_data(retry.ISSUE).get(_FLOOR), _ANOTHER_ROADS_FLOOR)
+                self.assertEqual(behind.floor(), world.ANOTHER_ROADS_FLOOR)
                 self.assertEqual(holds.left_with(self.gh), left)
                 self.assertEqual(retry.parked(self.gh), parked)
                 self.assertEqual(self.world.pushes, [])

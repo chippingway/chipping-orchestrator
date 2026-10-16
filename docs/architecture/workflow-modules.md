@@ -386,7 +386,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             bounded park reads the comment-id ledger ahead of its post, since the walk needs it; the
                             ordinary park only appends to that ledger, so a malformed legacy entry parks it all the
                             same. `names_the_notice=True`, popped the same way, has the event carry the id of the
-                            notice it posted as `notice_id`; only the debt park of a landed rewrite asks for it
+                            notice it posted as `notice_id`; the debt park of a landed rewrite and every recovery
+                            park (`rewrite_recovery_notices.py`) ask for it
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked
@@ -1169,7 +1170,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the head. A tick lost behind the evidence -- before the announcement, between the notice,
                             the event, and the checkpoint, between the checkpoint and the relabel, or between the
                             relabel and the retirement -- leaves the attempt standing, and the finish that completes it
-                            repeats nothing the mark, the pull request, the event stream, and the label say was done:
+                            repeats nothing the mark, the relabel's own record, the pull request, the event stream,
+                            and the label say was done:
                             no second notice, `base_rebased` event, round reset, relabel, or stage-entry event. It
                             runs under its caller's issue writer claim and takes none. The ordinary
                             publication
@@ -1387,9 +1389,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             again before the coordinator announces (`marked`), and the label read afresh under it
                             before the coordinator relabels, made where it reads `workflow:validating` beside the
                             relabel's own record naming the head, None where it would not read (`relabelled`); and
-                            the relabel landed with that record around it -- ahead of it where the issue wears another
-                            label, right behind it where the issue already wore `workflow:validating` -- through
-                            `rewrite_finish_writes.RELABEL` (`relabels_once`)
+                            the relabel landed with that record ahead of it, whatever label the issue wears, through
+                            `rewrite_finish_writes.RELABEL`, and taken back off where a relabel onto the label the
+                            issue already wore raised (`relabels_once`) -- a record beside a label the issue already wore asked of the audit
+                            log, where one is configured, and read as the relabel made where none is
     rewrite_finish_marks.py
                             settled evidence invalidated over the attempt as reconciled -- read afresh and retried
                             once where a write was refused (`retires_over_the_attempt`) -- or, where another finish's
@@ -2083,8 +2086,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             checkout git names uncommitted paths in reset, cleaned, and parked; the size gate and
                             the transfer permit asked before any push (`stages/implementing/late_push.py`), a permit
                             refusal measured cumulatively and `DECOMPOSE=off` publishing unmeasured as on every other
-                            road; a hold that handed the replay to an adjudication handing the attempt over with
-                            it (`rewrite_takeover.py`), whose proof leaves every park the gate takes its attempt;
+                            road; the gate's hold recorded over the comment read afresh as
+                            `rewrite_recovery_parks.HOLD` (`_records_the_hold`), so a report, an evidence record, or
+                            a revision floor another road wrote while the gate answered is kept, and a hold that
+                            handed the replay to an adjudication handing the attempt over with it
+                            (`rewrite_takeover.py`), whose proof leaves every park the gate takes its attempt;
                             and the push the gate licenses made as the git owner's publication of exactly that
                             candidate under its anchor's lease (`git/base_sync/rewrite_transport.py`), handed to the
                             gate as its two-step transport (`stages/implementing/late_transport.py`) -- the fresh
@@ -2207,7 +2213,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             tick's state (`reconciles`), so a successor another road settled meanwhile is the
                             evidence proved behind it, on its own binding; and the movement a comment a record's
                             commit read carries under each evidence it records is read off that comment by receipt
-                            (`moved_under`)
+                            (`moved_under`) -- a review or report record moved off that evidence's binding, or the
+                            base tip read blank or repointed beside every other member of the attempt as the tick
+                            last read it (`attempt_as_read`), the blank another road records a reset with
+    rewrite_recovery_notices.py
+                            the notice a recovery park says, said once however often the park is made again: the
+                            conversation past the watermark read first for this very notice of ours, one found taken
+                            in as its post would be -- the issue marked awaiting a human, the watermark moved to it,
+                            and the comment entered in the ledger -- and its `park_awaiting_human` event filed only
+                            where the stream lacks the one naming that notice (`notice_id`, which every recovery
+                            park's event carries), nothing filed where the stream will not read; a conversation that
+                            will not read raises, as a post that raised does. With no audit log the stream is the
+                            process's tail, so a restart between a park's event and its record files that event once
+                            more, never the notice
     rewrite_recovery_parks.py
                             the answers every recovery context the workflow builds carries -- each recovery road's,
                             a reset's tail and both replay parks among them, the abort over an unreadable checkout,
@@ -2216,7 +2234,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`answers_a_held_anchor`), whose quiet holds ask the same proof on every poll: the park
                             every recovery park is recorded through (`lands_a_park`, the answer
                             `git/base_sync/persistence._parks_the_recovery` transports) -- the notice posted and the
-                            park staged as every auto-rebase park is, then landed through the guarded commit
+                            park staged as every auto-rebase park is -- or a notice already said taken in instead
+                            (`rewrite_recovery_notices.py`) -- then landed through the guarded commit
                             (`report_commits.ReportCommit`) as `PARK`, owning what the tick staged since its
                             reading, the attempt a landed reset drops and the evidence retired beside it included,
                             decided on the attempt, the park's flags, and the evidence records, and keeping every
@@ -2227,13 +2246,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             comment's evidence laid over the tick's state first where it raised --
                             what the park keeps is proved once more (`rewrite_landing_retirement.retires_unproved`),
                             a binding record its own commit carried spelled otherwise than the tick read it, landed,
-                            sent with its answer lost, or in the comment its strict edit was refused over, handed to
-                            that proof as movement already read (`_moved`)
+                            sent with its answer lost, or in the comment its strict edit was refused over -- or the
+                            attempt's base tip read blank or repointed there beside the rest of the attempt as read
+                            (`rewrite_landing_retirement.moved_under`) -- handed to that proof as movement already
+                            read (`_moved`)
                             however soon it is put back -- unless the record took in evidence under another
                             receipt, which is proved on its own readings. The landed road's hold behind a
                             publication gate that held its leased no-op, and the retry's behind one that held its
                             reissued push (`rewrite_retry.py`), land the same way, as `HOLD`, decided on the attempt
-                            alone and its proof taken first (`lands_a_hold`). Ahead of every reset whose
+                            alone and its proof taken first (`lands_a_hold`); the ordinary publication's hold
+                            (`rewrite_publication.py`) lands as `HOLD` too, with nothing landed to prove. Ahead of
+                            every reset whose
                             attempt records a base tip, that tip is blanked in a write of its own
                             (`records_the_reset`, the context's `records_before_a_reset`), decided on every evidence
                             record and the attempt as the tick read them (`rewrite_finish_writes.INVALIDATION`), so

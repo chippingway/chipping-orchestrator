@@ -130,8 +130,8 @@ BEFORE_THE_CHECKPOINT = Boundary("said, before the checkpoint", _EDITS, _PICKS.c
 
 BEFORE_THE_RELABEL = Boundary("announced, before the relabel", "set_workflow_label", _PICKS.relabelling)
 
-# The record of the relabel lands ahead of the relabel on an issue that wears
-# another label, and right behind it on one already on `workflow:validating`.
+# The record of the relabel lands ahead of the relabel, whatever label the
+# issue wears: on the route's own clock it comes before `BEFORE_THE_RELABEL`.
 BEFORE_THE_RELABEL_RECORD = Boundary("at the relabel's record", _EDITS, _PICKS.recording_the_relabel)
 
 BEFORE_THE_RETIREMENT = Boundary("relabelled, before the retirement", _EDITS, _PICKS.retiring)

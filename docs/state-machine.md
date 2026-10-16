@@ -217,7 +217,8 @@ and every recovery park landed over the comment read afresh (`workflow/engine/re
 `workflow/engine/rewrite_recovery_parks.py`). A tick lost behind
 the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
 checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
-recovery, which reads what was done off the mark, the pull request, the event stream, and the label
+recovery, which reads what was done off the mark, the relabel's own record, the pull request, the event stream, and
+the label
 (`workflow/engine/rewrite_finish_notices.py`, `workflow/engine/rewrite_finish_events.py`): no second notice,
 `base_rebased` or stage-entry event, round reset, relabel, evidence publication, or developer launch. A conversation or
 audit log the finish cannot read holds it with nothing filed.

@@ -22,10 +22,14 @@ them --, the abort over a checkout whose lag could not be counted
 (`rewrite_recovery.answers_an_unreadable_checkout`), the eligibility gate's
 park of an ineligible label (`base_rewrite`), and the dispatcher's stranded
 park of an anchor it holds a handler back for (`answers_a_held_anchor`),
-whose holds that post nothing ask the same proof. The landed road's hold
-behind a publication gate that held its leased no-op is recorded here too
-(`lands_a_hold`): its proof taken first, and only what the tick staged since
-its reading landed, as `HOLD`, over the comment read afresh.
+whose holds that post nothing ask the same proof. The holds behind a
+publication gate that held the landed road's leased no-op or the retry's
+reissued push are recorded here too (`lands_a_hold`): their proof taken
+first, and only what the tick staged since its reading landed, as `HOLD`,
+over the comment read afresh -- the write the ordinary publication's gate
+hold lands as too (`rewrite_publication`). A park made again over a record
+that never landed takes in the notice the conversation already carries
+rather than saying it twice (`rewrite_recovery_notices`).
 
 The park (`lands_a_park`) lands through the guarded commit
 (`report_commits.ReportCommit`) as `PARK`: owning every field the tick staged
@@ -73,8 +77,10 @@ behind the notice (`lands_a_park`) -- landed, refused, or raised -- and a
 report moved meanwhile is movement read under it, invalidated or recorded
 against it before the tick ends; one the park's own commit carried, landed or
 sent with its answer lost -- or one its strict edit found moved under it and
-was refused over -- is handed to that proof as read (`_moved`), so putting
-the earlier report back before the reply revives nothing. Behind a record
+was refused over, a base tip blanked there beside the rest of the attempt as
+the tick read it among them (`rewrite_landing_retirement.moved_under`) -- is
+handed to that proof as read (`_moved`), so putting the earlier report or the
+tip back before the reply revives nothing. Behind a record
 refused or sent with its answer lost, the evidence the comment carries now is
 laid over the tick's state first (`rewrite_landing_retirement.reconciles`),
 so a successor another road settled while the notice was posted is proved on
@@ -95,14 +101,13 @@ from orchestrator.git.base_sync import (
     state as _base_sync_state,
 )
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
-from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    guards as _guards,
     pinned_commit_models as _commit_models,
     prompt_delivery as _prompt_delivery,
     report_commits as _commits,
     rewrite_finish_writes as _writes,
     rewrite_landing_retirement as _retirement,
+    rewrite_recovery_notices as _notices,
     verification_records as _evidence_records,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
@@ -144,8 +149,11 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     """Park `context`'s issue for a human with `message` and `reason`, recorded through the guarded commit as `PARK`.
 
     The notice is posted and the park staged on the tick's state as every
-    auto-rebase park stages it (`git/base_sync/persistence._park_auto_rebase_failure`);
-    what lands is laid over that state, so whatever the recovery does behind
+    auto-rebase park stages it (`git/base_sync/persistence._park_auto_rebase_failure`)
+    -- or, where an earlier tick's park of the attempt posted it and its record
+    never landed, the notice the conversation carries is taken in instead,
+    nothing said twice (`rewrite_recovery_notices.parks_awaiting_human`) --
+    and what lands is laid over that state, so whatever the recovery does behind
     it starts from the comment as it now stands. Behind it, whether it landed
     or not, evidence the park leaves standing beside the attempt is proved once
     more over the comment read afresh (`rewrite_landing_retirement.retires_unproved`),
@@ -167,7 +175,7 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     """
     state = context.state
     try:
-        _guards._park_awaiting_human(context.gh, context.issue, state, message, reason=reason)
+        _notices.parks_awaiting_human(context, message, reason)
     except Exception:
         if context.worktree.is_dir():
             _retirement.reconciles(context)
@@ -282,6 +290,7 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
     state = context.state
     read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}
     held = _retirement.receipts(state)
+    attempt = _retirement.attempt_as_read(state)
     landed = _commits.ReportCommit(context.gh, context.issue, state).lands(state, write)
     if landed.status is not _commit_models.CommitStatus.COMMITTED:
         log.warning(
@@ -290,33 +299,40 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
             context.issue.number, named, (landed.refusal or landed.status).value,
         )
         _retirement.reconciles(context)
-    moved = _moved(context, landed.reading or landed.seen, read, held)
     if context.worktree.is_dir():
-        _retirement.retires_unproved(context, moved)
+        _retirement.retires_unproved(context, _moved(context, landed, read, held, attempt))
 
 
 def _moved(
-    context: _AutoRebaseRecoveryContext, reading: PinnedState | None, read: dict, held: frozenset[str],
+    context: _AutoRebaseRecoveryContext,
+    landed: _commit_models.CommitOutcome,
+    read: dict,
+    held: frozenset[str],
+    attempt: _commit_models.PinnedCommit | None,
 ) -> ReportEvidence | None:
-    """The movement a record's commit read under the evidence `context.state` carries behind it; or None.
+    """The movement a record's commit, `landed`, read under the evidence `context.state` carries behind it; or None.
 
-    `reading` is the record the commit made of the comment -- landed, or sent
-    with no answer -- or, where it was refused, the comment its refusal was
-    read over: the one its strict edit found moved under it, a report another
-    road settled right at that edit among what it carries
-    (`pinned_commit_models.CommitOutcome.seen`); None where the refusal read
-    no comment. `read` is the binding records as the tick read them, and
+    What it read is the record the commit made of the comment -- landed, or
+    sent with no answer -- or, where it was refused, the comment its refusal
+    was read over: the one its strict edit found moved under it, a report
+    another road settled right at that edit among what it carries
+    (`pinned_commit_models.CommitOutcome.seen`); nothing where the refusal
+    read no comment. `read` is the binding records as the tick read them, and
     `held` the receipts the tick's state carried before the record. A binding
     record `reading` spells otherwise than `read` is movement under the
     evidence the tick held (`_MOVED_UNDER_THE_NOTICE`); a review or report
     record it spells off the binding of any evidence it records for the head
     is movement under that evidence (`rewrite_landing_retirement.moved_under`)
-    -- a successor another road settled among it. Only movement under
+    -- a successor another road settled among it -- and so is the base tip of
+    `attempt`, the attempt the tick read, read blank or repointed beside every
+    other member of it: a blank another road recorded right at the record's
+    strict edit and put back behind it. Only movement under
     evidence still standing is handed to the proof, as read, even where what
     carried it is put back before the proof reads the comment again; a
     successor nothing was read moving under is proved on its own readings.
     """
-    moves = _retirement.moved_under(reading)
+    reading = landed.reading or landed.seen
+    moves = _retirement.moved_under(reading, attempt)
     if reading is not None:
         carried = {key: _commit_models.spelled(reading.data, key) for key in read}
         if carried != read:

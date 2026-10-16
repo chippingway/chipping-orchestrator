@@ -97,12 +97,14 @@ _RESOLUTIONS = (
 _VALIDATING = "validating"
 
 # Every resolution and boundary from the stage that asked for the rebase, and
-# from `workflow:validating` behind the checkpoint, whose relabel is owed onto
-# the label the issue already wears -- a tail lost right behind that relabel,
-# at its record, among them.
+# from `workflow:validating` at and behind the relabel's record, whose relabel
+# is owed onto the label the issue already wears -- a tail lost at that record,
+# ahead of the relabel, among them. One lost at the relabel itself, behind its
+# record, is read as relabelled, which `test_rewrite_recovery_relabel_reads`
+# covers.
 _JOURNEYS = (
     *product((False,), _RESOLUTIONS, handoff.BOUNDARIES),
-    *product((True,), _RESOLUTIONS, handoff.BOUNDARIES[4:]),
+    *product((True,), _RESOLUTIONS, (handoff.BEFORE_THE_RELABEL_RECORD, handoff.BEFORE_THE_RETIREMENT)),
 )
 
 _REREAD = "reread_report_location"
@@ -183,9 +185,10 @@ class FinalHandoffRecoveryTest(_HandoffCase, unittest.TestCase):
         # polls leave one announcement, one relabel and stage entry, the
         # evidence exactly as resolved, and nothing run or published again --
         # also on an issue already on `workflow:validating` before its rebase,
-        # whose route relabels it once all the same, a tail lost behind its
-        # checkpoint included: the mark and that label say nothing of this
-        # head's relabel, which only its own stage-entry event does.
+        # whose route relabels it once all the same, a tail lost at the
+        # relabel's record included: the mark and that label say nothing of
+        # this head's relabel, which only its own record, landed ahead of it,
+        # does.
         for validating, resolution, boundary in _JOURNEYS:
             with self.subTest(validating=validating, resolution=resolution.name, boundary=boundary.name):
                 self.setUp()

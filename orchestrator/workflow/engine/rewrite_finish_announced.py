@@ -14,7 +14,8 @@ refused as another road's. The coordinator (`rewrite_finish.finalizes`) asks
 `marked` and `relabelled`, so a finish neither announces a head another
 finish marked meanwhile nor relabels -- and files the stage-entry event of --
 an issue another finish already relabelled for that head, which the relabel's
-own record on the attempt says beside the label (`relabels_once`).
+own record on the attempt, landed ahead of every relabel, says beside the
+label (`relabels_once`).
 """
 from __future__ import annotations
 
@@ -103,27 +104,33 @@ def relabelled(finish: LandedFinish) -> bool | None:
     """Whether this head's relabel to `workflow:validating` is already made, so the route relabels nothing.
 
     Read off the mark as the attempt now carries it (`marked`), the record of
-    the relabel beside it (`relabels_once`), and the label off the issue
-    fetched afresh: made where the record names the head and the issue wears
-    `workflow:validating`, so a relabel another finish of the landing made
-    meanwhile, or one a finish lost before the retirement made -- and its
-    stage-entry event -- is not made twice, with no event log needed. One
-    recorded ahead of a relabel that never landed leaves another label, and
-    the route relabels. An issue on `workflow:validating` with no record
-    beside it either wore that label before the rebase -- whose relabel lands
-    its record right behind it -- or was lost between that relabel and its
-    record, which only the relabel's own stage-entry event, naming the head,
-    can say: the event stream is asked for it (`github/events.filed`), and the
-    route relabels only where it does not carry it, as an uninterrupted route
-    would. None where the label or that stream could not be read: nobody can
-    say whether the relabel is made, so the route holds rather than risk it.
+    the relabel beside it, and the label off the issue fetched afresh. The
+    record lands ahead of every relabel (`relabels_once`), so with none naming
+    the head no finish of the landing relabelled for it, and the route
+    relabels; beside a label other than `workflow:validating` it is a relabel
+    that never landed, and the route relabels too. Made where the record names
+    the head and the issue wears `workflow:validating`: a relabel another
+    finish of the landing made meanwhile, or one a finish lost before the
+    retirement made, so neither it nor its stage-entry event is made twice,
+    with no event log needed. On an issue that already wore that label the
+    label says nothing of whether the relabel behind the record was made, so
+    where the audit log is configured the relabel's stage-entry event naming
+    the head is asked for (`github/events.filed`), and the route relabels
+    where the stream does not carry it; with no log, nothing durable can say,
+    and the relabel is taken as made -- once at most: a finish lost between
+    the record and the relabel files no stage-entry event for the head, on an
+    issue already wearing the label the route puts it on. None where the label
+    or that stream could not be read: nobody can say whether the relabel is
+    made, so the route holds rather than risk it.
     """
     if not marked(finish, already=False):
         return False
     wears = _wears_validating(finish)
     if not wears:
         return wears
-    if finish.state.get(_RELABELLED) == finish.head:
+    if finish.state.get(_RELABELLED) != finish.head:
+        return False
+    if not _github_events.durable():
         return True
     made = _github_events.filed(
         finish.gh, _STAGE_ENTER, issue_number=finish.issue.number, stage=_VALIDATING, sha=finish.head,
@@ -149,49 +156,58 @@ def _wears_validating(finish: LandedFinish) -> bool | None:
     return label == WorkflowLabel.VALIDATING
 
 
-def _records_the_relabel(finish: LandedFinish, observed) -> FinishOutcome | None:
+def _records_the_relabel(finish: LandedFinish, observed, *, made: bool = True) -> FinishOutcome | None:
     """Record on the attempt that `finish`'s relabel is made for its head, in a write of its own; None where it landed.
 
     Landed as `rewrite_finish_writes.RELABEL` over a copy of the tick's
     state, so the tick takes in the record alone and the retirement behind it
     is still decided on every other record as the tick read it; a binding
-    record moved refuses it, the movement collected on `observed`.
+    record moved refuses it, the movement collected on `observed`. `made`
+    False takes the record back off, for a relabel that raised.
     """
+    named = finish.head if made else None
     held = copy.deepcopy(finish.state)
     recorded = _writes.staging(finish)
-    recorded.set(_RELABELLED, finish.head)
+    recorded.set(_RELABELLED, named)
     stopped = _writes.lands(replace(finish, state=held), recorded, _writes.RELABEL, observed)
     finish.state.withheld = finish.state.withheld or held.withheld
     if stopped is None:
-        finish.state.set(_RELABELLED, finish.head)
-        _commit.takes_in(finish.state, {_RELABELLED: finish.head}, (_RELABELLED,))
+        finish.state.set(_RELABELLED, named)
+        _commit.takes_in(finish.state, {_RELABELLED: named}, (_RELABELLED,))
     return stopped
 
 
 def relabels_once(
     finish: LandedFinish, observed, proves: Callable[[LandedFinish], object],
 ) -> FinishOutcome | None:
-    """Relabel `finish`'s issue to `workflow:validating` with its record around it; None where both landed.
+    """Relabel `finish`'s issue to `workflow:validating`, its record landed ahead of it; None where both landed.
 
-    The record (`_records_the_relabel`) lands ahead of the relabel where the
-    issue wears another label -- the label read back then says whether the
-    relabel landed -- and right behind it where the issue already wears
-    `workflow:validating`, which a relabel onto it leaves as it was -- a
-    relabel naming the head on its stage-entry event, which `relabelled`
-    asks the event stream for where a finish was lost between the two. HELD
-    where the label would not read. A relabel that raised has `proves`,
-    the caller's proof of the evidence, asked before the error goes on; a
-    record that did not land is where the route stops.
+    The record (`_records_the_relabel`) lands first whatever label the issue
+    wears, so no relabel is made that nothing durable records: read back
+    beside the label (`relabelled`), it keeps every later finish from
+    relabelling -- and filing the stage-entry event -- a second time, with or
+    without an event log, the relabel naming the head on that event for a log
+    to answer. HELD where the label would not read; a record that did not
+    land is where the route stops, nothing relabelled. A relabel that raised
+    has `proves`, the caller's proof of the evidence, asked before the error
+    goes on. On an issue that wears another label the label read back says
+    whether a relabel whose answer was lost landed, so the record stays; on
+    one already on `workflow:validating` it says nothing, and a relabel that
+    raised filed no stage-entry event, so the record is taken back off for the
+    next finish to relabel -- one that could not be taken back leaves the
+    relabel read as made.
     """
     wears = _wears_validating(finish)
     if wears is None:
         return FinishOutcome.HELD
-    stopped = None if wears else _records_the_relabel(finish, observed)
-    if stopped is None:
-        try:
-            finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING, sha=finish.head)
-        except Exception:
-            proves(finish)
-            raise
-        stopped = _records_the_relabel(finish, observed) if wears else None
-    return stopped
+    stopped = _records_the_relabel(finish, observed)
+    if stopped is not None:
+        return stopped
+    try:
+        finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING, sha=finish.head)
+    except Exception:
+        proves(finish)
+        if wears:
+            _records_the_relabel(finish, observed, made=False)
+        raise
+    return None
