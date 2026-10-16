@@ -28,9 +28,24 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import compress
 
+# A subtest's description as pytest writes it: its message in brackets, its
+# parameters in parentheses, or the one and then the other. It runs to the
+# first closing bracket or parenthesis a node ID free of blanks follows. Where
+# none does, the node ID holds blanks, and the description -- which never
+# holds the dash parting the line's message, so never runs into it -- runs to
+# the last closing bracket of its message, a message holding brackets of its
+# own, then to the first closing parenthesis of its parameters, that a node ID
+# follows.
+_UNDASHED = r"(?:(?! - ).)"
+_BLANK_FREE_NODE = r"(?= [^ ]*::)"
+_SPACED_NODE = rf"(?=(?! - ) {_UNDASHED}*?::)"
+_DESCRIBED = (
+    rf"[\[(].*?[\])]{_BLANK_FREE_NODE}"
+    rf"|(?:\[{_UNDASHED}*\](?: \({_UNDASHED}*?\))?|\({_UNDASHED}*?\)){_SPACED_NODE}"
+)
+
 # A failure pytest's short summary reports: the outcome, or a subtest's with
-# its description -- read up to the first closing bracket or parenthesis a
-# node ID follows -- then the node ID or the path whose collection failed, and
+# its description, then the node ID or the path whose collection failed, and
 # the message after a dash where pytest gives one. A node ID's path, which may
 # hold blanks and brackets whatever file it names, as a doctest's text file
 # or a module in a directory named with them may, runs to its test's
@@ -42,7 +57,7 @@ from itertools import compress
 # gives opens on a rewritten assertion's `assert`, or on the name of the
 # exception it reports, a colon after it unless it says nothing more.
 _SUMMARY_RE = re.compile(
-    r"[ \t]*(?:(?P<outcome>FAILED|ERROR)|SUBFAILED(?P<subtest>[\[(].*?[\])])(?= [^ ]*::))"
+    rf"[ \t]*(?:(?P<outcome>FAILED|ERROR)|SUBFAILED(?P<subtest>{_DESCRIBED}))"
     r" (?P<reported>\S.*?)[ \t\r]*",
 )
 _NODE_PATH_RE = re.compile(r"(?:(?! - |::).)+?(?=::| - |\Z)(?:::(?:(?! - |\[).)+?(?=\[| - |\Z))?")

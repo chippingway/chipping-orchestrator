@@ -862,6 +862,32 @@ _QUIET_SUBTESTS_LEAD = (
     "Failure: `test_second.py::test_second`, subtest `(value=1)`\nError: `assert 2 == 3`\n"
     "Failure: `test_second.py::test_second`\nError: `contains 1 failed subtest`\n"
 )
+# Subtests of a test in a file whose path holds blanks, one described by a
+# message holding brackets of its own, beside one in a file whose path holds
+# none, its message holding brackets and the dash that parts a summary line.
+_SPACED_SUBTESTS = (
+    f"{_SUMMARY_HEADING}"
+    "SUBFAILED(i=0) test probes.py::test_probe - assert 1 == 2\n"
+    "SUBFAILED[case [a] b] (n=3) test probes.py::test_probe - assert 3 == 4\n"
+    "FAILED test probes.py::test_probe - contains 2 failed subtests\n"
+    "SUBFAILED[case [a] - b] (n=3) test_probes.py::test_probe - assert 5 == 6"
+)
+_SPACED_SUBTESTS_LEAD = (
+    "Failure: `test probes.py::test_probe`, subtest `(i=0)`\nError: `assert 1 == 2`\n"
+    "Failure: `test probes.py::test_probe`, subtest `[case [a] b] (n=3)`\nError: `assert 3 == 4`\n"
+    "Failure: `test probes.py::test_probe`\nError: `contains 2 failed subtests`\n"
+    "Failure: `test_probes.py::test_probe`, subtest `[case [a] - b] (n=3)`\nError: `assert 5 == 6`\n"
+)
+# A run closing on its statistics printed as a heading, and a `-q` run after
+# it failing collection alone, which opens on its errors heading.
+_HEADED_THEN_UNCOLLECTED = (
+    f"{_SESSION_HEADING}{_SUMMARY_HEADING}FAILED tests/test_first.py::test_first - ValueError: first\n"
+    "============================== 1 failed in 0.01s ===============================\n"
+    f"{_ERRORS_HEADING}"
+    "_______________________ ERROR collecting tests/test_b.py _______________________\n"
+    "E   ModuleNotFoundError: No module named 'nowhere'\n"
+    f"{_SUMMARY_HEADING}ERROR tests/test_b.py\n{_INTERRUPTED}\n1 error in 0.07s"
+)
 _DOCTEST_COLLECTED = "Failure: collection of `sample.txt`, before any test in it ran\n"
 _DOCTEST_SECTIONED = (
     f"{_ERRORS_HEADING}"
@@ -1378,6 +1404,9 @@ class FailureNamesTest(unittest.TestCase):
             (_NESTED_TITLES, "", _NESTED_TITLES_LEAD),
             (_QUIET_RUNS, "", _QUIET_RUNS_LEAD),
             (_QUIET_UNCOLLECTED, "", _QUIET_UNCOLLECTED_LEAD),
+            # A `-q` run failing collection alone opens a run of its own below
+            # statistics printed as a heading too.
+            (_HEADED_THEN_UNCOLLECTED, "", _QUIET_UNCOLLECTED_LEAD),
             (_QUIET_SKIPPED, "", _QUIET_FIRST_LEAD),
             # Each collection a summary line reports takes the section of its
             # own run, however the two spell its path; and only that run's
@@ -1392,10 +1421,12 @@ class FailureNamesTest(unittest.TestCase):
             (_UNTRACED_RUN, "", _UNTRACED_RUN_LEAD),
             (_SUBTEST_STATS, "", _NESTED_TITLES_LEAD),
             # Each subtest that failed leads by its test's ID and pytest's
-            # description of it, with its own error.
+            # description of it, with its own error, whether or not the ID's
+            # path holds blanks or the description brackets of its own.
             (_SUBTESTS_SUMMARISED, "", _SUBTESTS_SUMMARISED_LEAD),
             (_SUBTESTS_SECTIONED, "", _SUBTESTS_SECTIONED_LEAD),
             (_QUIET_SUBTESTS, "", _QUIET_SUBTESTS_LEAD),
+            (_SPACED_SUBTESTS, "", _SPACED_SUBTESTS_LEAD),
             # A collection pytest says failed, or its run says was interrupted,
             # leads whatever the shape of the path it names.
             (_DOCTEST_SECTIONED, "", _DOCTEST_SECTIONED_LEAD),
