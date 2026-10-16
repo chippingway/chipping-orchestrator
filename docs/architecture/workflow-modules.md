@@ -1389,7 +1389,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stands_as_read`); whether the comment read afresh behind the proof ahead of a relabel
                             still carries the attempt captured ahead of that proof, its base tip aside where blank,
                             settled evidence that very reading records moving invalidated first however soon it is put
-                            back (`stands_afresh`); and the fields of a fresh reading laid over the tick's state, each
+                            back, a successor it carries in that evidence's place asked on its own binding and laid
+                            over the tick's state where it moved (`stands_afresh`); and the fields of a fresh reading
+                            laid over the tick's state, each
                             taken in as read (`lays`)
     rewrite_finish_announced.py
                             a finish's announcement on the attempt as only the dormant policy reads it: an attempt
@@ -2214,7 +2216,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             Before a park that keeps the attempt (`retires_unproved`) the captured run is proved
                             again (`rewrite_landing_moved.proves_captured`) and settled evidence proved ready
                             (`rewrite_finish_readiness.settled_word`) and invalidated where it moved, movement a
-                            caller already read standing as the proof; a checkout gone from disk retires both as
+                            caller already read standing as the proof -- by a finish of the landed head built for
+                            that proof alone and held to the dormant settled-evidence policy, so a mark of movement
+                            under the evidence's receipt is read as movement and an announcement another finish of
+                            the landing put on the attempt is taken in before the invalidation lands over it; a
+                            checkout gone from disk retires both as
                             over a reset. The receipts of what stands (`receipts`) tell whether movement read before
                             a write took another road's records in was read under the evidence still standing; a
                             record that did not land has the evidence records the comment carries now laid over the

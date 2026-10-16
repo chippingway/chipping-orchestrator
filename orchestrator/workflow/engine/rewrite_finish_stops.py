@@ -164,7 +164,8 @@ def relabels(finish: LandedFinish, observed: ProofReading, *, announced: bool) -
     may relabel while they are answered, or another road put an attempt of
     its own in place, so behind them the comment is read afresh -- this
     landing's own bookkeeping taken in, settled evidence that reading records
-    moving invalidated over `observed`'s classifier, and the route held with
+    moving invalidated over `observed`'s classifier -- a successor it carries
+    in that evidence's place asked on its own binding -- and the route held with
     nothing relabelled where it no longer carries the attempt this finish
     holds (`rewrite_finish_rechecks.stands_afresh`) or would not read -- and
     the label once more, so the relabel, and its stage-entry event, is not

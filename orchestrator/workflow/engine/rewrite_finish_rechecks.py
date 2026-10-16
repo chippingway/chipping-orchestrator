@@ -32,7 +32,8 @@ land right behind (`rewrite_finish_unconfirmed.reconciles_the_abandonment`).
   relabel (`rewrite_finish_stops.relabels`), whose requests another road may
   put an attempt of its own in place behind, and says whether it still
   carries the attempt captured ahead of that proof -- settled evidence that
-  reading records moving invalidated first, however soon it is put back.
+  reading records moving invalidated first, however soon it is put back, a
+  successor it carries in that evidence's place asked on its own binding.
 - `lays` lays fields of a comment read afresh over the tick's state, each
   taken in as read.
 
@@ -168,7 +169,8 @@ def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit, ob
     another finish made is read made rather than made twice. `observed`, the
     reading the route's writes collect refusals on
     (`rewrite_finish_stops.observing`), is asked what that very comment
-    records moving under the evidence (`_goes_on_over`), so a report another
+    records moving under the evidence (`_goes_on_over`) -- a successor another
+    road settled in its place asked on its own binding -- so a report another
     road moved and puts back before the writes behind it is still movement.
     """
     durable = read_afresh(finish)
@@ -192,17 +194,34 @@ def _goes_on_over(finish: LandedFinish, durable: PinnedState, observed) -> bool:
     it records moving -- a review or report record moved off its binding, a
     mark, a revision spent past it, a blank of the base tip -- is invalidated
     whole now, however soon what moved is put back, and the comment read
-    afresh behind that write (`invalidates_rechecked`). False, for the route
-    to hold, where that did not land or another road's record or attempt
-    stands behind it.
+    afresh behind that write (`invalidates_rechecked`). That classifier was
+    captured for the evidence the tick holds, so a successor another road
+    settled for the head, which `durable` carries current in its place, is
+    asked of its own binding in that very reading instead
+    (`rewrite_finish_readiness._records_heard`), the movement kept on
+    `observed` beside the rest; where it moved, the evidence records `durable`
+    carries are laid over the tick's state (`lays`) and the successor is the
+    evidence invalidated, so putting its records back revives nothing. False,
+    for the route to hold, where that did not land or another road's record or
+    attempt stands behind it.
     """
     before = len(observed.observed)
     observed.reads(durable)
-    moved = any(not refused.holds for refused in observed.observed[before:])
-    current = _settlement.read_current_evidence(finish.state)
-    if not moved or current is None or current.binding.target.target_head != finish.head:
+    carried = _settlement.read_current_evidence(durable)
+    held = _settlement.read_current_evidence(finish.state)
+    successor = carried is not None and carried != held
+    successor = successor and carried.binding.target.target_head == finish.head
+    if successor:
+        heard = _readiness._records_heard(carried, durable, settled=True)
+        observed.observed.extend(refused for refused in heard if refused and not refused.holds)
+    if all(refused.holds for refused in observed.observed[before:]):
         return True
-    return invalidates_rechecked(finish, current)
+    if successor:
+        lays(finish.state, durable, _durable._EVIDENCE_RECORDS)
+        held = carried
+    if held is None or held.binding.target.target_head != finish.head:
+        return True
+    return invalidates_rechecked(finish, held)
 
 
 def lays(state: PinnedState, durable: PinnedState, fields: Collection[str]) -> None:

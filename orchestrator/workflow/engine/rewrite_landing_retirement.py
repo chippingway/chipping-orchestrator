@@ -64,6 +64,7 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import replace
 
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
@@ -135,7 +136,13 @@ def retires_unproved(context: _AutoRebaseRecoveryContext, moved: ReportEvidence 
     or written where neither stands, and what nothing moved under is kept.
     `moved` is movement the caller already read under that evidence, which is
     the proof the transaction is abandoned with and invalidates settled
-    evidence outright. With no checkout on disk both are retired on the state
+    evidence outright. Settled evidence is proved by a finish of the landed
+    head held to the dormant settled-evidence policy, built here for the proof
+    alone: the mark of movement an earlier finish left under its receipt is
+    read as the movement it is, and an announcement another finish of the
+    landing put on the attempt meanwhile is taken in before the invalidation
+    lands over it, rather than refusing it and leaving the evidence current
+    for a later poll to route. With no checkout on disk both are retired on the state
     the park lands (`retires_over_the_reset`). False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
     its history entry among it, its movement recorded instead -- for the git
@@ -153,7 +160,9 @@ def retires_unproved(context: _AutoRebaseRecoveryContext, moved: ReportEvidence 
     settled = _landing_records.settled(context.state)
     if settled is None:
         return True
-    finish = _landing_moved._finish(context, settled.binding.target.target_head, unread, None)
+    finish = replace(
+        _landing_moved._finish(context, settled.binding.target.target_head, unread, None), proves_settled=True,
+    )
     word = moved or _readiness.settled_word(finish, settled)[0]
     return word is None or _readiness.invalidates(finish, settled)
 

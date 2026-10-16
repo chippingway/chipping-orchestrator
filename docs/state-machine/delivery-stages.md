@@ -1528,8 +1528,10 @@ because there it is the claim that this stage has already rerouted rather than a
   on the evidence records as the tick read them (`rewrite_recovery_parks.records_the_reset`), settled evidence
   invalidated whole in the write that releases the attempt, or kept whole beside it with nothing released where
   history has no room (`rewrite_landing_retirement.retires_over_the_reset`), the proof before a park that keeps the
-  attempt (`rewrite_recovery_parks.proves_before_a_park`), and the park landed through the guarded commit over the
-  comment read afresh and proving what it keeps once more behind its notice
+  attempt (`rewrite_recovery_parks.proves_before_a_park`) -- settled evidence proved there by a finish held to the
+  dormant settled-evidence policy, so a mark of movement under its receipt counts and an announcement another finish
+  put on the attempt is taken in before the invalidation lands -- and the park landed through the guarded commit over
+  the comment read afresh and proving what it keeps once more behind its notice
   (`rewrite_recovery_parks.lands_a_park`) -- a movement its record carried, or that the comment its strict edit was
   refused over carried, a report or review record moved or the attempt's base tip blanked beside the rest of the
   attempt as read, kept as read under whichever evidence it was read under
@@ -1706,7 +1708,8 @@ because there it is the claim that this stage has already rerouted rather than a
     carries past the watermark or that reply, its event filed only where the event stream lacks the one naming that
     notice, the finish held where that conversation will not read; and a relabel is held where the comment read again
     behind its proof carries another attempt, settled evidence that reading records moving invalidated first however
-    soon it is put back, so repeated direct finishes make one notice, `base_rebased` event, park
+    soon it is put back -- a successor another road settled in its place asked on its own binding in that very
+    reading -- so repeated direct finishes make one notice, `base_rebased` event, park
     notice and `park_awaiting_human` event, round reset, relabel, stage-entry event, artifact, and settlement, and
     run, push, or launch nothing again. A newer transaction the proof beside an unfinishable landing finds recorded
     right behind its invalidation is left owed as written, with no last word taken over it, and so is one another

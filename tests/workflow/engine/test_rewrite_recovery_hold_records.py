@@ -32,6 +32,7 @@ from orchestrator.workflow.engine import (
     report_commits as _commits,
     rewrite_recovery_parks as _parks,
     verification_record_state as _record_state,
+    verification_records as _records,
     verification_settlement_state as _settlement,
 )
 from tests.workflow.engine import (
@@ -46,8 +47,9 @@ from tests.workflow.engine import (
 # How the history records evidence a newer transaction for its head settled over.
 _SUPERSEDED = "superseded"
 
-# The guarded commit, read before any case stands in for it.
+# The guarded commit, read before any case stands in for it, and its name on the class.
 _LANDS = _commits.ReportCommit.lands
+_LANDING = "lands"
 
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
@@ -157,6 +159,33 @@ class _AroundTheHold:
         return answered
 
 
+class _AnnouncesBehind:
+    """The guarded commit as `around` answers it, another finish of the landing recording its event behind the hold.
+
+    That finish puts the record of the `base_rebased` event it is filing for
+    `head` on the attempt right behind the hold's record, advancing the
+    attempt the proof behind that record invalidates over.
+    """
+
+    def __init__(self, case, around: _AroundTheHold, head: str) -> None:
+        self._case = case
+        self._around = around
+        self._head = head
+
+    def __call__(self, commit, staged, write):
+        answered = self._around(commit, staged, write)
+        state = self._case.gh.read_pinned_state(self._case.issue)
+        if write is _parks.HOLD and state.get(readings.KEY_ANNOUNCED_EVENT) is None:
+            state.set(readings.KEY_ANNOUNCED_EVENT, self._head)
+            self._case.gh.write_pinned_state(self._case.issue, state)
+        return answered
+
+
+def _holds(case) -> None:
+    """Hand the recovery context read off `case`'s comment as it stands to the dormant guarded hold."""
+    _parks.lands_a_hold(guarded.recovery_context(case))
+
+
 def _assert_routed(case, head: str, current=None) -> None:
     """`head` announced once and routed, its attempt retired, `current` current with nothing pending; run once."""
     case.assert_recovered(head)
@@ -180,8 +209,8 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.setUp()
                 head, settled = self.settles_then_dies()
                 around = _AroundTheHold(self, head, failing, restores=restores)
-                with patch.object(_commits.ReportCommit, "lands", side_effect=around, autospec=True):
-                    self._holds()
+                with patch.object(_commits.ReportCommit, _LANDING, side_effect=around, autospec=True):
+                    _holds(self)
 
                 self.assert_invalidated(settled)
                 self._assert_held()
@@ -196,8 +225,8 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # and routed with the head by the next poll.
         head = self.settles_then_dies()[0]
         around = _AroundTheHold(self, head, successor=True)
-        with patch.object(_commits.ReportCommit, "lands", side_effect=around, autospec=True):
-            self._holds()
+        with patch.object(_commits.ReportCommit, _LANDING, side_effect=around, autospec=True):
+            _holds(self)
 
         self.assertEqual(readings.pinned_records(self)[1], around.successor)
         self._assert_held()
@@ -215,8 +244,8 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.setUp()
                 head = self.settles_then_dies()[0]
                 around = _AroundTheHold(self, head, failing, restores=True, successor=True)
-                with patch.object(_commits.ReportCommit, "lands", side_effect=around, autospec=True):
-                    self._holds()
+                with patch.object(_commits.ReportCommit, _LANDING, side_effect=around, autospec=True):
+                    _holds(self)
 
                 records = readings.pinned_records(self)
                 retired = records[2][-1]
@@ -248,18 +277,14 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # Nothing moved: every hold keeps the run current exactly as it
         # settled, and the next poll routes the head with it.
         head, settled = self.settles_then_dies()
-        self._holds()
-        self._holds()
+        _holds(self)
+        _holds(self)
 
         self.assertEqual(readings.pinned_records(self)[:2], (None, settled))
         self._assert_held()
         self.recovers()
 
         _assert_routed(self, head, settled)
-
-    def _holds(self) -> None:
-        """Hand the recovery context read off the comment as it stands to the dormant guarded hold."""
-        _parks.lands_a_hold(guarded.recovery_context(self))
 
     def _assert_held(self) -> None:
         """The attempt standing on its anchor, unparked, with nothing announced, relabelled, or made again."""
@@ -268,6 +293,45 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(support.announced(self), [])
         self.assertEqual(readings.relabels(self), ())
         self.assert_made_once()
+
+
+
+class HeldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """The proof a dormant hold or park takes, held to the dormant settled-evidence policy as a direct finish is."""
+
+    def test_marked_movement_is_retired(self) -> None:
+        # An earlier finish left the mark of movement under the run's receipt
+        # in the handoff's place: the proof a park asks before it keeps the
+        # attempt, and the one the hold takes, read it as the movement it is
+        # and invalidate the run whole, with the attempt kept.
+        for name, proof in (("park", guarded.GuardedRecoveryCase.proves), ("hold", _holds)):
+            with self.subTest(proof=name):
+                self.setUp()
+                settled = self.settles_then_dies()[1]
+                state = self.gh.read_pinned_state(self.issue)
+                state.set(_records.EVIDENCE_HANDOFF, {"moved": settled.receipt})
+                self.gh.write_pinned_state(self.issue, state)
+
+                proof(self)
+
+                self.assert_invalidated(settled)
+                self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH)[0], self.anchor)
+
+    def test_an_announcement_keeps_the_hold_move(self) -> None:
+        # Report 3 settles ahead of the hold's record and report 2 is put back
+        # right behind it, and another finish of the landing records its
+        # `base_rebased` event on the attempt right behind that record: the
+        # movement the record read invalidates the run over the attempt as
+        # that finish advanced it, so the next poll routes the head with
+        # nothing current.
+        head, settled = self.settles_then_dies()
+        announces = _AnnouncesBehind(self, _AroundTheHold(self, head, restores=True), head)
+        with patch.object(_commits.ReportCommit, _LANDING, side_effect=announces, autospec=True):
+            _holds(self)
+
+        self.assert_invalidated(settled)
+        self.recovers()
+        _assert_routed(self, head)
 
 
 if __name__ == "__main__":
