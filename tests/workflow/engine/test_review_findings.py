@@ -858,6 +858,17 @@ _DOCTEST_SECTIONED_LEAD = (
     f"{_DOCTEST_COLLECTED}Error: `ValueError: line 2 of the docstring for sample.txt lacks b...`\n"
 )
 _DOCTEST_UNTRACED = f"{_SUMMARY_HEADING}ERROR sample.txt\n{_INTERRUPTED}\n1 error in 0.11s"
+# The same, its text file's path holding blanks; a doctest failing in such a
+# file, named by it; and an error line of a check's own, whose words name no
+# Python file, that nothing pytest printed says it failed collecting.
+_SPACED_DOCTEST = "sample spaced.txt"
+_SPACED_DOCTEST_SECTIONED, _SPACED_DOCTEST_SECTIONED_LEAD, _SPACED_DOCTEST_UNTRACED, _SPACED_DOCTEST_COLLECTED = (
+    shown.replace("sample.txt", _SPACED_DOCTEST)
+    for shown in (_DOCTEST_SECTIONED, _DOCTEST_SECTIONED_LEAD, _DOCTEST_UNTRACED, _DOCTEST_COLLECTED)
+)
+_SPACED_DOCTEST_NODE = f"{_SPACED_DOCTEST}::{_SPACED_DOCTEST}"
+_SPACED_DOCTEST_FAILED = f"{_SUMMARY_HEADING}FAILED {_SPACED_DOCTEST_NODE}\n1 failed in 0.01s"
+_UNPYTHONIC_ERROR = "ERROR could not write /tmp/out file - OSError: disk full"
 _SUBTEST_STATS = _NESTED_TITLES.replace(
     "=== 1 failed in 0.01s ===", "=== 1 failed, 1 subtests passed in 0.01s ===",
 )
@@ -908,9 +919,8 @@ _ADJACENT_FINDINGS = (
 )
 _PROBE_ENTRY = f"Failure: A probe\nError: {_RELABEL_ERROR}\n\n"
 _PROBE_SNIPPET = f"Reproduce: .venv/bin/python - reading:\n\n```python\nraise AssertionError('{_RELABEL_ERROR}')\n```"
-# More tests failing than a lead names, and as many as it does.
+# Many tests failing in one check, each named by its lead.
 _FAILED_TESTS = 12
-_NAMED_TESTS = 10
 
 # A line any reader of the contract would take for one of its own.
 _PROTOCOL_LINE_RE = re.compile(r"^[ \t]*(?:VERIFICATION|COMMAND|EXIT):", re.MULTILINE)
@@ -1224,13 +1234,19 @@ class FailureNamesTest(unittest.TestCase):
             f"{_FINDINGS}\n\n{_RUN_LINE}\n{_SUITE}\nEXIT: 1\n{_SUMMARY}\n{_END_LINE}",
             f"{_FINDINGS}\n\n{_SUMMARY_LEAD}`uv run pytest tests` exited with status 1:\n\n```\n{_SUMMARY}\n```",
         )
-        failed = "\n".join(f"FAILED tests/test_c.py::test_{number}" for number in range(_FAILED_TESTS))
-        named = "".join(f"Failure: `tests/test_c.py::test_{number}`\n{_UNSTATED}" for number in range(_NAMED_TESTS))
+        # However many fail, each leads by its own ID and error.
+        failed = "\n".join(
+            f"FAILED tests/test_c.py::test_case[{number}] - AssertionError: case {number}"
+            for number in range(_FAILED_TESTS)
+        )
+        named = "".join(
+            f"Failure: `tests/test_c.py::test_case[{number}]`\nError: `AssertionError: case {number}`\n"
+            for number in range(_FAILED_TESTS)
+        )
         _assert_shown(
             self,
             f"{_RUN_LINE}\n{_SUITE}\nEXIT: 1\n{failed}\n{_END_LINE}",
-            f"{named}Failure: 2 more, named in the output below\n"
-            f"`uv run pytest tests` exited with status 1:\n\n```\n{failed}\n```",
+            f"{named}`uv run pytest tests` exited with status 1:\n\n```\n{failed}\n```",
         )
         # A dash quoted inside an argument, or passed to a program given
         # before it, is no stdin the command reads its code from.
@@ -1366,6 +1382,13 @@ class FailureNamesTest(unittest.TestCase):
             # leads whatever the shape of the path it names.
             (_DOCTEST_SECTIONED, "", _DOCTEST_SECTIONED_LEAD),
             (_DOCTEST_UNTRACED, "", f"{_DOCTEST_COLLECTED}{_UNSTATED}"),
+            # Its path may hold blanks, as the doctest a file's path holding
+            # blanks names may; words naming no Python file are a collection
+            # only where pytest says so.
+            (_SPACED_DOCTEST_SECTIONED, "", _SPACED_DOCTEST_SECTIONED_LEAD),
+            (_SPACED_DOCTEST_UNTRACED, "", f"{_SPACED_DOCTEST_COLLECTED}{_UNSTATED}"),
+            (_SPACED_DOCTEST_FAILED, "", f"Failure: `{_SPACED_DOCTEST_NODE}`\n{_UNSTATED}"),
+            (_UNPYTHONIC_ERROR, "", _UNNAMED),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):

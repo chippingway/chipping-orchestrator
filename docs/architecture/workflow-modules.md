@@ -232,11 +232,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             root there and to where it ran on the line, either ending on the other at a directory -- or
                             its run says collection was interrupted, and otherwise as an error in any of the three, and
                             an `ERROR` path as its collection, never a test ID -- one of any shape, a doctest's text
-                            file too, where pytest says it failed collecting it or the run was interrupted collecting --
-                            each with the error its line gives, else -- a line too long for the terminal carries none
-                            -- the exception of the section pytest printed for it (`review_findings_pytest`), else the
-                            error of the entry naming it, else a line saying the summary gave none; ten at most, the
-                            rest left to the output quoted below.
+                            file too, its path holding blanks or not, where pytest says it failed collecting it or the
+                            run was interrupted collecting, words naming no Python file being no collection without that
+                            -- each with the error its line gives, else -- a line too long for the terminal carries
+                            none -- the exception of the section pytest printed for it (`review_findings_pytest`), else
+                            the error of the entry naming it, else a line saying the summary gave none; every one of
+                            them, however many.
                             A check pytest's summary names nothing in is led by every `Failure:` entry of the findings,
                             however many,
                             whose `Error:` -- or the code block's last line below an empty one -- its output shows,
@@ -256,15 +257,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             layout's feedback holds no declaration to read its checks from again
     review_findings_summary.py
                             a line of pytest's short summary, read for the failure it reports, for
-                            `review_findings_failures` (`SummaryLine`): its outcome -- `FAILED`, `ERROR`, or
-                            `SUBFAILED` and the subtest's description, read up to the bracket a node ID follows -- the
-                            node ID, its file path holding blanks or not, or the path whose collection failed, and the
-                            message after a dash. A parameter may hold the dash that parts an ID from its message and
-                            text of a message's shape after it, and a message a bracket and a dash of its own, so the
-                            ID is the longest an entry of the findings names whole or pytest titled a section by; else
-                            it ends on the first split leaving a message of pytest's shape -- a rewritten assertion's
-                            `assert` or an exception's name -- so the message is never cut short, the line marked
-                            unsure where a later split leaves one too; else on the first split
+                            `review_findings_failures` (`SummaryLine`): its outcome -- `FAILED`, `ERROR`, or `SUBFAILED`
+                            and the subtest's description, read up to the bracket a node ID follows -- the node ID, its
+                            file path and test name holding blanks or not, whatever file it names, or the path whose
+                            collection failed, and the message after a dash. A parameter may hold the dash that parts an
+                            ID from its message and text of a message's shape after it, and a message a bracket and a
+                            dash of its own, so the ID is the longest an entry of the findings names whole or pytest
+                            titled a section by; else it ends on the first split leaving a message of pytest's shape --
+                            a rewritten assertion's `assert` or an exception's name -- so the message is never cut
+                            short, the line marked unsure where a later split leaves one too; else on the first split
     review_findings_pytest.py
                             what pytest's output says beside its short summary, for `review_findings_failures`: each
                             section it printed, titled between underscores -- one each side at least -- by a failed
