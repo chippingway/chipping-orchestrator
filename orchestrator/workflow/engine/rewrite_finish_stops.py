@@ -76,7 +76,6 @@ from orchestrator.workflow.engine.rewrite_finish_announced import relabelled, re
 from orchestrator.workflow.engine.rewrite_finish_marks import retires_as_it_stands
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_proof import ProofReading
-from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -172,7 +171,9 @@ def relabels(finish: LandedFinish, observed: ProofReading, *, announced: bool) -
     made twice. The relabel lands behind its record
     (`rewrite_finish_announced.relabels_once`), and a record that did not land
     has the evidence invalidated over a binding record its refusal read
-    moving, or proved ready once more (`rewrite_finish_readiness.invalidates_behind`).
+    moving, or proved ready once more (`rewrite_finish_readiness.invalidates_behind`)
+    -- and so does a relabel that raised, behind the record's rollback, before
+    the error goes on, so movement that rollback's refusal read is not lost.
     """
     made = relabelled(finish, announced=announced)
     if made:
@@ -180,7 +181,7 @@ def relabels(finish: LandedFinish, observed: ProofReading, *, announced: bool) -
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     stopped = _settled.stands_ready_if_settled(finish)
     goes_on = stopped is None and made is not None
-    if goes_on and finish.proves_settled and not _rechecks.stands_afresh(finish, attempt, observed):
+    if goes_on and not _rechecks.stands_afresh(finish, attempt, observed):
         return FinishOutcome.HELD
     if goes_on:
         made = relabelled(finish, announced=announced)
@@ -188,10 +189,11 @@ def relabels(finish: LandedFinish, observed: ProofReading, *, announced: bool) -
         return None
     if stopped is not None or made is None:
         return stopped or FinishOutcome.HELD
-    if finish.proves_settled:
+    try:
         stopped = relabels_once(finish, observed, partial(_settled.stands_ready_if_settled, afresh=True))
-    else:
-        finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
+    except Exception:
+        _unconfirmed.behind_a_raise(finish, observed.observed)
+        raise
     return _readiness.invalidates_behind(finish, stopped, observed.observed)
 
 

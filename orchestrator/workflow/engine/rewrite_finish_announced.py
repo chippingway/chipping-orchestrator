@@ -157,7 +157,8 @@ def relabels_once(
 ) -> FinishOutcome | None:
     """Relabel `finish`'s issue to `workflow:validating`, its record landed ahead of it; None where both landed.
 
-    For a finish held to the dormant settled-evidence policy. The record
+    Any other finish relabels with no record and nothing read, as it always
+    has. For a finish held to the dormant settled-evidence policy, the record
     (`_records_the_relabel`) lands first whatever label the issue wears, so no
     relabel is made that nothing durable records: read back beside the label
     (`relabelled`), it keeps every later finish from relabelling -- and filing
@@ -177,6 +178,9 @@ def relabels_once(
     carries, or that could not be read, or a record that could not be taken
     back, leaves the relabel read as made: once at most, never twice.
     """
+    if not finish.proves_settled:
+        finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
+        return None
     wears = _wears_validating(finish)
     if wears is None:
         return FinishOutcome.HELD

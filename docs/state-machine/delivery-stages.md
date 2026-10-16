@@ -1614,8 +1614,9 @@ because there it is the claim that this stage has already rerouted rather than a
     recorded, not another attempt -- or this landing's own announcement, taken in, does not, and a comment that will
     not read again holds it too; the evidence that write invalidated, put back current there with the records it
     was bound to or not, is retired again over the comment as it stands and holds the route, since the movement read
-    under it stands whatever is put back, where evidence settled under another receipt is kept as written; asked
-    directly for the base (`stands_ready_if_settled`, which the phase
+    under it stands whatever is put back, where evidence settled under another receipt is kept as written -- save a
+    successor that very reading disproves on its own binding, invalidated whole however soon its records are put
+    back; asked directly for the base (`stands_ready_if_settled`, which the phase
     never asks so), a head with none current is held to its replay's base tip or -- that tip blank, or missing from
     a legacy attempt -- to the base the tick counted it against, one moved since holding the route;
   - a readable revision spent past the evidence outranks it for good, even beside a floor or a pending record nobody

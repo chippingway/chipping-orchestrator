@@ -1390,7 +1390,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             laid over the tick's state, and the route held where a pending record or another attempt
                             stands there, that attempt laid over the state too, where the evidence it invalidated
                             stands current again, which is retired again over the comment as it stands, a settlement
-                            under another receipt kept, or where it would not read (`rechecks_behind`); whether a
+                            under another receipt kept -- save one that reading disproves on its own binding, which is
+                            invalidated whole -- or where it would not read (`rechecks_behind`); whether a
                             comment carries the
                             attempt a finish captured -- unmoved, advanced by its own announcement alone, or, where
                             asked, with its base tip read blank, which records movement rather than another attempt
@@ -1448,8 +1449,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its place taken in whole (`takes_in_the_attempt`); the evidence phase asks
                             `takes_in_the_announcement`, `takes_in_the_attempt`, and `reconciles_the_abandonment`, and
                             the coordinator's stops (`rewrite_finish_stops.py`) ask `takes_in_the_announcement` behind
-                            an unconfirmed announcement, `stands_back` behind an unconfirmed retirement, and
-                            `retires_the_marked` where the attempt is gone
+                            an unconfirmed announcement, `stands_back` behind an unconfirmed retirement,
+                            `retires_the_marked` where the attempt is gone, and `behind_a_raise` behind a relabel that
+                            raised -- the evidence invalidated over movement the relabel record's rollback, or any
+                            write around it, read, or proved ready once more, before the error goes on
     rewrite_finish_outranking.py
                             whether a pinned comment shows a revision spent past settled evidence (`outranks`), read off
                             the handoff, every history entry that reads on its own, and the floor: the policy every road

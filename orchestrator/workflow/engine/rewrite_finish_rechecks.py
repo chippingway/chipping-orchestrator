@@ -117,7 +117,9 @@ def rechecks_behind(finish: LandedFinish, receipt: str, durable: PinnedState | N
     put back, its bound records with it or not -- revives none of the
     movement read under it: it is retired again over the comment as it stands
     (`_revived`), where evidence settled under another receipt is kept as its
-    road wrote it. Its attempt is read against the one the tick's state
+    road wrote it -- save a successor that very reading disproves on its own
+    binding, which is invalidated whole, however soon its records are put
+    back. Its attempt is read against the one the tick's state
     carries as the invalidation left it (`stands_as_read`, the base tip aside
     where it reads blank): one advanced by this landing's own announcement
     alone has that bookkeeping taken in
@@ -132,8 +134,9 @@ def rechecks_behind(finish: LandedFinish, receipt: str, durable: PinnedState | N
     durable = read_afresh(finish) if durable is None else durable
     beside = "the pinned comment would not read again"
     if durable is not None:
+        held = _settlement.read_current_evidence(finish.state)
         lays(finish.state, durable, _durable._EVIDENCE_RECORDS)
-        beside = _revived(finish, receipt) or _readiness.beside_current(durable, None)
+        beside = _revived(finish, receipt, durable, held) or _readiness.beside_current(durable, None)
         if stands_as_read(finish, left, durable, blank_aside=True):
             takes_in_the_announcement(finish, durable)
         else:
@@ -161,7 +164,8 @@ def invalidates_rechecked(finish: LandedFinish, current: _records.CurrentEvidenc
 def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit, observed) -> bool:
     """Whether the comment read afresh still carries the attempt `attempt` captured, its base tip aside where blank.
 
-    False, logged, where another attempt stands there or the comment would
+    Always, with nothing read, for a finish not held to the dormant
+    settled-evidence policy. False, logged, where another attempt stands there or the comment would
     not read, so nothing is made over an attempt not the finish's own. Where
     it stands, the bookkeeping a finish of this landing put on it meanwhile --
     the record of its relabel among it -- is taken in
@@ -178,6 +182,8 @@ def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit, ob
     attempt kept, before the route holds, so putting both back revives
     nothing.
     """
+    if not finish.proves_settled:
+        return True
     durable = read_afresh(finish)
     goes_on = durable is not None and _goes_on_over(finish, durable, observed)
     if goes_on and stands_as_read(finish, attempt, durable, blank_aside=True):
@@ -243,21 +249,37 @@ def lays(state: PinnedState, durable: PinnedState, fields: Collection[str] = _du
     _commit.takes_in(state, durable.data, fields)
 
 
-def _revived(finish: LandedFinish, receipt: str) -> str:
-    """Why evidence current under `receipt` in the tick's state, as a fresh reading laid it, holds the route; or "".
+def _revived(
+    finish: LandedFinish, receipt: str, durable: PinnedState, held: _records.CurrentEvidence | None,
+) -> str:
+    """Why evidence current in the tick's state, as `durable`, a fresh reading, laid it, holds the route; or "".
 
-    That evidence was just invalidated over movement read under it, so its
-    coming back current -- another road putting the comment back as it read
-    before -- makes it nothing anybody may rely on again: it is retired over
-    the comment as it stands, whatever attempt that carries
+    Evidence current under `receipt` was just invalidated over movement read
+    under it, so its coming back current -- another road putting the comment
+    back as it read before -- makes it nothing anybody may rely on again: it
+    is retired over the comment as it stands, whatever attempt that carries
     (`rewrite_finish_marks.retires_as_it_stands`), or its movement marked
     where that has no room, and the route is held either way, so the next
-    finish reads what stands. "" where no evidence, or evidence under another
-    receipt, is current there.
+    finish reads what stands. A successor another road settled for the head
+    under another receipt -- evidence the tick's state did not hold current
+    before that reading (`held`), so not evidence standing beside a
+    transaction this finish abandoned -- is asked of its own binding in that very reading
+    (`rewrite_finish_readiness._records_heard`): where `durable` disproves it,
+    it is invalidated whole, its provenance kept, or its movement marked
+    (`rewrite_finish_readiness.invalidates`), however soon its records are put
+    back, and the route held too. "" where no evidence is current there, or a
+    successor nothing in that reading moved under.
     """
     current = _settlement.read_current_evidence(finish.state)
-    if current is None or current.receipt != receipt:
+    if current is None or current.binding.target.target_head != finish.head:
         return ""
-    if retires_as_it_stands(finish, receipt):
-        return "the verification evidence it invalidated was put back current, and is retired again"
-    return "the verification evidence it invalidated was put back current, and could not be retired again"
+    why = "the verification evidence it invalidated was put back current"
+    if current.receipt != receipt:
+        heard = () if current == held else _readiness._records_heard(current, durable, settled=True)
+        if all(not refused or refused.holds for refused in heard):
+            return ""
+        why = "a successor settled in its place was read moving on its own binding"
+    retired = retires_as_it_stands(finish, receipt) if current.receipt == receipt else _readiness.invalidates(
+        finish, current,
+    )
+    return f"{why}, and is retired" if retired else f"{why}, and could not be retired"
