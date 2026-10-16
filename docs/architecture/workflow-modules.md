@@ -269,8 +269,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             holds standing further in. With `--tb=line` a failure has no section: each line under the
                             failures heading giving a `path:line:` -- its path holding blanks or not -- and the
                             exception is a section titled by nothing, which a summary line naming a test takes in turn.
-                            Each summary line takes the first section it may be that no line before it took -- the one
-                            whose exception the line's error opens where it gives one -- since pytest prints both in one
+                            Each summary line takes a section of its own run alone -- a run printed with `--tb=no`
+                            borrows none of the next run's -- the first it may be that no line before it took, the one
+                            whose exception the line's error opens where it gives one, since pytest prints both in one
                             order and tests of two modules may share a title. A rule of dashes ends a section's
                             traceback: below it stands what pytest captured from the test, or a plugin added, up to
                             the next title, rule, or heading, and nothing there is read as pytest's own -- no marked
@@ -278,7 +279,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             heading where the output holds one -- save the `--tb=line` line closing it, which gives the
                             exception the failure's last marked line showed. A run's opening there -- the session's
                             heading, or a `-q` progress line -- opens a whole run a test printed, captured up to the
-                            line of statistics closing it, unless only the output's last such line, or none, closes
+                            line of statistics closing it -- each count naming its outcome in a word or more, as
+                            `1 subtests passed` does -- unless only the output's last such line, or none, closes
                             it, the test having cut it short; and only the last short summary of a run is read, any
                             above it in the run being one a test printed. Outside anything captured a run opens on the
                             session's heading or a `-q` progress line, or -- a `-q` run failing collection alone

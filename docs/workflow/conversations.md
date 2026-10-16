@@ -658,17 +658,17 @@ the phase whose section raised its error — and one nothing explains as an erro
 Where a summary line carries no error — pytest drops it from a line too long for the terminal — the section pytest
 printed for it gives one: the first line set out least in its last run of lines marked `E`, past an assertion's
 explanation or diff hint, and past an exception another was raised handling, never a local `--showlocals` printed. Each
-section goes to one summary line, in pytest's order, so tests of two modules sharing a name each take their own, and
-where no section gives an error the entry naming the failure does. A section's title may be padded by a single
-underscore each side; a section holding Python's own traceback, as `--tb=native` prints it and as pytest prints an
-exception group in any mode, gives the exception at that traceback's margin — for a group its own, not those it holds —
-and `--tb=line`, which prints a failure as one line of the file it crashed at — its path holding blanks or not — and its
-exception, gives that line's exception to its summary line in turn. What pytest captured from a test, printed under a
-rule of dashes below its traceback, is never read as pytest's own — not as a section's exception, a line traceback, or a
-summary line, which are read below the short summary's heading where the output holds one — so a test printing lines of
-those shapes neither replaces its exception nor adds a failure. A whole run of pytest's a test printed there, from its
-session's heading or `-q` progress line to its line of statistics, is captured too, and only the last short summary of a
-run is read, any above it being one a test printed; each of several runs in one check's output, `-q` ones included,
+section goes to one summary line of its own run, in pytest's order, so tests of two modules sharing a name each take
+their own, and where no section gives an error the entry naming the failure does. A section's title may be padded by a
+single underscore each side; a section holding Python's own traceback, as `--tb=native` prints it and as pytest prints
+an exception group in any mode, gives the exception at that traceback's margin — for a group its own, not those it holds
+— and `--tb=line`, which prints a failure as one line of the file it crashed at — its path holding blanks or not — and
+its exception, gives that line's exception to its summary line in turn. What pytest captured from a test, printed under
+a rule of dashes below its traceback, is never read as pytest's own — not as a section's exception, a line traceback, or
+a summary line, which are read below the short summary's heading where the output holds one — so a test printing lines
+of those shapes neither replaces its exception nor adds a failure. A whole run of pytest's a test printed there, from
+its session's heading or `-q` progress line to its line of statistics, is captured too, and only the last short summary
+of a run is read, any above it being one a test printed; each of several runs in one check's output, `-q` ones included,
 leads with its own failures. Otherwise the check leads with each entry whose error its output shows — matched by that
 error, never by the command, so two runs of `.venv/bin/python -` each lead with their own scenario and are never merged
 — or with a line saying no test ID or scenario name was recorded for it. Whatever is missing stays visible as such: a

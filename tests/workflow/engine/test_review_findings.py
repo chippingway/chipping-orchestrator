@@ -771,6 +771,27 @@ _SHOWN_LOCALS = (
     f"{_SUMMARY_HEADING}FAILED {_LINE_MODULE}::test_failure"
 )
 _SHOWN_LOCALS_LEAD = f"Failure: `{_LINE_MODULE}::test_failure`\nError: `assert 0 == 1`\n"
+# A run printed with `--tb=no`, its fixture's error sectionless, before a run
+# whose fixture failed in teardown; and a run a test printed whose statistics
+# count subtests, each outcome named in more than one word.
+_TEARDOWN_NODE = "tests/test_fixture_with_a_very_long_module_name_to_fill_the_terminal.py::test_same"
+_UNTRACED_RUN = (
+    "E                                                                        [100%]\n"
+    f"{_SUMMARY_HEADING}ERROR {_TEARDOWN_NODE}\n1 error in 0.01s\n"
+    ".E                                                                       [100%]\n"
+    f"{_ERRORS_HEADING}"
+    "_______________________ ERROR at teardown of test_same ________________________\n"
+    "E   ValueError: second run teardown failure\n"
+    f"{_SUMMARY_HEADING}ERROR {_TEARDOWN_NODE}\n1 passed, 1 error in 0.01s"
+)
+_UNTRACED_RUN_LEAD = (
+    f"Failure: `{_TEARDOWN_NODE}`, which errored outside any test body: in its collection, setup, or teardown\n"
+    f"{_UNSTATED}"
+    f"Failure: `{_TEARDOWN_NODE}`, whose teardown failed\nError: `ValueError: second run teardown failure`\n"
+)
+_SUBTEST_STATS = _NESTED_TITLES.replace(
+    "=== 1 failed in 0.01s ===", "=== 1 failed, 1 subtests passed in 0.01s ===",
+)
 # A stdin check running pytest, which names the test that failed, and how it leads.
 _STDIN_PYTEST = "FAILED tests/test_probe.py::test_probe - AssertionError: values differ"
 _STDIN_PYTEST_SHOWN = (
@@ -1263,6 +1284,10 @@ class FailureNamesTest(unittest.TestCase):
             (_INTERRUPTED_BESIDE, "", _INTERRUPTED_BESIDE_LEAD),
             # A local `--showlocals` printed is no exception, though named `E`.
             (_SHOWN_LOCALS, "", _SHOWN_LOCALS_LEAD),
+            # A summary line takes only a section of its own run, and a run a
+            # test printed closes on statistics counting subtests too.
+            (_UNTRACED_RUN, "", _UNTRACED_RUN_LEAD),
+            (_SUBTEST_STATS, "", _NESTED_TITLES_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
