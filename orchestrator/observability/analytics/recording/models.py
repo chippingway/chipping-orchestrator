@@ -173,6 +173,7 @@ PARK_AWAITING_HUMAN_SIGNATURE = inspect.Signature(
         _parameter("timed_out", None),
         _parameter("sha", None),
         _parameter("reservation_id", None),
+        _parameter("notice_id", None),
     )
 )
 

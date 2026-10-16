@@ -82,12 +82,12 @@ class _Picks:
         """Whether an event is the landing's `base_rebased`."""
         return event == "base_rebased"
 
-    def recording(self, _issue, state, *, over: dict) -> bool:
+    def recording(self, _issue, state, *, over: dict, **_options) -> bool:
         """Whether a pinned-comment edit is the record of the event being filed, which the comment lacks."""
         records = state.get(KEY_ANNOUNCED_EVENT) is not None
         return records and over.get(KEY_ANNOUNCED_EVENT) is None
 
-    def checkpointing(self, _issue, state, *, over: dict) -> bool:
+    def checkpointing(self, _issue, state, *, over: dict, **_options) -> bool:
         """Whether a pinned-comment edit is the checkpoint marking the head announced, which the comment lacks."""
         marks = state.get(KEY_ANNOUNCED) is not None
         return marks and over.get(KEY_ANNOUNCED) is None
@@ -96,7 +96,7 @@ class _Picks:
         """Whether a label write is the route to `workflow:validating`."""
         return label == WorkflowLabel.VALIDATING
 
-    def retiring(self, _issue, state, *, over: dict) -> bool:
+    def retiring(self, _issue, state, *, over: dict, **_options) -> bool:
         """Whether a pinned-comment edit is the one that retires the attempt the comment still carries."""
         retires = state.get(KEY_PENDING_PUSH) is None
         return retires and over.get(KEY_PENDING_PUSH) is not None

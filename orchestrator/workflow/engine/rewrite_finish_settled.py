@@ -14,9 +14,10 @@ Each step here is one the evidence phase (`rewrite_finish_settlement.resolves`)
 takes whichever policy holds the finish, and it answers for both: a finish not
 held to the dormant policy goes on exactly as the policy every road selects
 has it, reading nothing more. That phase is callable on its own, announcing,
-relabelling, parking, and retiring nothing; the coordinator
-(`rewrite_finish.finalizes`) takes none of the policy's proofs around its
-announcement, park, relabel, or retirement yet.
+relabelling, parking, and retiring nothing. The coordinator
+(`rewrite_finish.finalizes`) asks `stands_ready_if_settled` itself, ahead of
+the relabel and, for the base, behind it, and takes its other proofs around
+its holds, park, and writes through `rewrite_finish_stops`.
 
 - `stands_ready_if_settled` proves evidence settled current for the head
   ready, where any is -- reading the comment afresh behind an invalidation

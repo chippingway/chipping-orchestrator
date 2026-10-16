@@ -27,8 +27,10 @@ its history entry carrying the revision the floor did.
 
 These are dormant: no production road builds a finish held to that policy,
 whose evidence phase retires a settlement it adopted as the comment stands
-too (`rewrite_finish_settled.retires_the_adopted`), and a finish not held to
-it reads and writes once, as the invalidation always has
+too (`rewrite_finish_settled.retires_the_adopted`), as its coordinator does
+evidence read moving behind a retirement nobody confirmed where another
+attempt stands (`rewrite_finish_stops.behind_the_write`), and a finish not
+held to it reads and writes once, as the invalidation always has
 (`rewrite_finish_readiness.invalidates`).
 """
 from __future__ import annotations

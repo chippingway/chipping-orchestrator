@@ -19,7 +19,14 @@ narrower of the two, and a debt the comment cannot take now is one the route
 would otherwise go on without. A finish whose announcement is already out
 measures on the comment as it stands alone. A proved debt short of either
 room stops the finish before it says anything: the caller parks for a human
-to make room (`unrecorded`), with the push kept and the attempt standing.
+to make room (`unrecorded`), with the push kept and the attempt standing. A
+finish held to the dormant settled-evidence policy asks first whether that
+park already stands -- unless a reply it was handed answers it -- or its
+notice was said, past the watermark or that reply, ahead of a park write that
+did not land (`noticed`) -- holding where the conversation would not read --
+and files the event of a park said that way, naming the landed head and the
+notice, only where the event stream does not carry that park's own
+(`files_the_park`), so it is neither said nor filed twice.
 
 A standing claim the rewrite cannot be carried onto -- another pull request or
 branch, a head somebody else pushed in between, a claim nobody can read -- is
@@ -40,16 +47,25 @@ import logging
 
 from orchestrator import config
 from orchestrator.git.base_sync import state as _base_sync_state
+from orchestrator.github import events as _github_events
+from orchestrator.github.comments import authored_by_us
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
+    prompt_delivery as _prompt_delivery,
     report_record_values as _record_values,
     report_rewrite_debt as _rewrite_debt,
     report_rewrite_room as _rewrite_room,
 )
-from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
+from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The event a park files, and why a debt with no room parks.
+_PARKED = "park_awaiting_human"
+
+_PARKED_FOR_THE_DEBT = _base_sync_state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT
 
 # Why a landed head's route stops short of review, in the operator's own terms.
 _UNRECORDED = (
@@ -61,16 +77,6 @@ _UNRECORDED = (
     "nothing routed. Remove records this issue no longer needs from the pinned "
     "state comment, then reply on this issue with anything to finish the route."
 )
-
-
-def owed(finish: LandedFinish) -> _rewrite_debt.RewriteDebt:
-    """The debt `finish`'s landing leaves: the anchor it replaced and the head it published, on its branch."""
-    return _rewrite_debt.RewriteDebt(
-        pr_number=finish.pr_number,
-        branch=finish.landed.candidate.branch,
-        previous_head=finish.anchor,
-        rewritten_head=finish.head,
-    )
 
 
 def announcement(state: PinnedState, head: str) -> PinnedState:
@@ -109,10 +115,17 @@ def stages(finish: LandedFinish, staged: PinnedState, measured: PinnedState) -> 
     """Stage `finish`'s debt on `staged`, measured on `measured` first; False only where there is no room for it.
 
     `measured` is the write the debt rides, staged with the debt too, and
-    `staged` the comment as it stands. A refusal for anything but room leaves
-    both as they were and answers True: the finish goes on without the claim.
+    `staged` the comment as it stands. The debt is the anchor the landing
+    replaced and the head it published, on its branch. A refusal for anything
+    but room leaves both as they were and answers True: the finish goes on
+    without the claim.
     """
-    rewrite = owed(finish)
+    rewrite = _rewrite_debt.RewriteDebt(
+        pr_number=finish.pr_number,
+        branch=finish.landed.candidate.branch,
+        previous_head=finish.anchor,
+        rewritten_head=finish.head,
+    )
     for reading in (measured, staged):
         if not _rewrite_debt.records_rewrite(reading, rewrite):
             return not _for_want_of_room(finish, reading, rewrite)
@@ -127,6 +140,75 @@ def unrecorded(finish: LandedFinish) -> str:
         published=finish.head,
         replaced=finish.anchor,
     )
+
+
+def noticed(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | int | None:
+    """Where the park a debt with no room takes stands for `finish` already: what to stop at, a notice said, or None.
+
+    For a finish held to the dormant settled-evidence policy, so a park is
+    neither said nor filed twice. A reply the finish was handed that the
+    watermark has not passed answers the park standing, so only a notice said
+    behind that reply counts: a park made over it before that never landed
+    is found there, and a reply newer than every notice parks anew. With no
+    such reply, PARKED where the tick's state carries the park standing:
+    nothing is posted, filed, or written again. HELD, logged, where the
+    issue's conversation would not read: nobody can say whether its notice
+    was said, so nothing is said again. The id of this very park notice of
+    ours the conversation carries past the reply or the watermark -- one a
+    finish posted ahead of a park write that did not land, its answer lost or
+    not -- laid on `staged` as a post of it would be, the watermark moved to
+    it and the comment entered in the ledger, so the park lands over it with
+    nothing posted again (`files_the_park`). None where none was said.
+    """
+    watermark = finish.state.get(_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID) or 0
+    floor = max(watermark, finish.retry or 0)
+    flags = (
+        finish.state.get(_base_sync_state._AWAITING_HUMAN),
+        finish.state.get(_base_sync_state._PARK_REASON),
+    )
+    if floor == watermark and flags == (True, _PARKED_FOR_THE_DEBT):
+        log.info(
+            "issue=#%d already parked for its debt over %.8s; posting nothing again", finish.issue.number, finish.head,
+        )
+        return FinishOutcome.PARKED
+    try:
+        thread = finish.gh.comments_after(finish.issue, floor, state_comment_id=finish.state.comment_id)
+    except Exception:
+        log.exception("issue=#%d could not be read for a debt park notice already posted; holding", finish.issue.number)
+        return FinishOutcome.HELD
+    posted = [
+        comment.id for comment in thread
+        if unrecorded(finish) in (comment.body or "")
+        and authored_by_us(comment, bot_login=getattr(finish.gh, "_bot_login", None))
+    ]
+    if not posted:
+        return None
+    staged.set(_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, posted[-1])
+    _comments._track_orchestrator_comment(staged, posted[-1])
+    return posted[-1]
+
+
+def files_the_park(finish: LandedFinish, notice: int) -> FinishOutcome | None:
+    """File the `park_awaiting_human` event of the park whose notice `notice` was said (`noticed`); None to go on.
+
+    A notice whose post landed with its answer lost went out with no event
+    behind it, so the event stream is asked first and the event filed --
+    attributed as a park files it, naming the landed head and the notice as
+    such a finish's park does -- only where the stream carries no event of
+    this very park: one naming that notice, which no earlier park of the
+    issue, of this head or another, does. HELD, logged, where the stream
+    would not read, so nothing is filed twice.
+    """
+    issue_number = finish.issue.number
+    named = {"reason": _PARKED_FOR_THE_DEBT, "sha": finish.head, "notice_id": notice}
+    found = _github_events.filed(finish.gh, _PARKED, issue_number=issue_number, **named)
+    if found is None:
+        log.warning("issue=#%d could not read the event stream back for its debt park; holding", issue_number)
+        return FinishOutcome.HELD
+    if not found:
+        stage = stage_name(finish.gh.workflow_label(finish.issue))
+        finish.gh.emit_event(_PARKED, issue_number=issue_number, stage=stage, **named)
+    return None
 
 
 def _for_want_of_room(

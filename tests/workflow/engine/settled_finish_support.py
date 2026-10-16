@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A finish held to the dormant settled-evidence policy, its evidence phase asked directly, and the run ledger charged.
+"""A finish held to the dormant settled-evidence policy, asked directly, and the run ledger charged.
 
 No production road selects the policy (`rewrite_finish_models.LandedFinish.proves_settled`),
 so a case builds the finish itself over the pinned comment read afresh
@@ -8,13 +8,17 @@ so a case builds the finish itself over the pinned comment read afresh
 candidate git reads out of the checkout too, the evidence phase
 (`rewrite_finish_settlement.resolves`) or another of the policy's steps
 (`SettledRunCase.asks_dormant`), with nothing behind it to announce, relabel,
-park, or retire the attempt. `SettledRunCase` holds the push transport and
-the agent runner to the case's recorders for the whole test, so a push or a
-launch the phase made is counted as one a refresh made would be. Beside it,
+park, or retire the attempt -- or the whole coordinator
+(`SettledRunCase.finalizes`), on either road, which does all of that
+(`settled_route_support`). Every production road the case drives besides --
+a whole refresh, or a finish built without the policy -- keeps the policy
+every road selects. `SettledRunCase` holds the push transport and the agent
+runner to the case's recorders for the whole test, so a push or a launch a
+direct finish made is counted as one a refresh made would be. Beside it,
 `records_a_newer_run` races a settlement as another road would,
 `abandons_one_past` shows a revision spent past a run beside a floor nobody
-can read, and `charges` leaves the run ledger another road's launch charged on
-the comment for a case to read back exactly as left
+can read, and `charges` leaves the run ledger another road's launch charged
+on the comment for a case to read back exactly as left
 (`assert_charged_as_left`): nothing the policy retires, marks, adopts, or puts
 back spends, reserves, or releases a run.
 """
@@ -30,6 +34,7 @@ from orchestrator.agents import runner as _agent_runner
 from orchestrator.git import branch_transport
 from orchestrator.github.verification_evidence import VerifiedCommand
 from orchestrator.workflow.engine import (
+    rewrite_finish as _finish,
     rewrite_finish_settlement as _settlement_step,
     run_ledger_values as _run_ledger,
     verification_record_state as _record_state,
@@ -63,9 +68,16 @@ def dormant(finish: LandedFinish) -> LandedFinish:
     return replace(finish, proves_settled=True)
 
 
-def _handed_dormant(step, finish: LandedFinish):
-    """What `step` answers handed `finish` held to the policy (`dormant`)."""
-    return step(dormant(finish))
+def _handed_dormant(step, finish: LandedFinish, alters=None, retry: int | None = None):
+    """What `step` answers handed `finish` held to the policy (`dormant`).
+
+    That finish spends `retry`, and its landing is the one `alters`, where
+    given, hands back for the landing git read.
+    """
+    held = replace(dormant(finish), retry=retry)
+    if alters is not None:
+        held = replace(held, landed=alters(held.landed))
+    return step(held)
 
 
 def charges(case) -> None:
@@ -83,20 +95,21 @@ def assert_charged_as_left(case) -> None:
     case.assertEqual(ledger, dict(_CHARGED))
 
 
-def records_a_newer_run(case, *, settles: bool = False):
+def records_a_newer_run(case, *, settles: bool = False, binding=None):
     """Record a newer transaction beside `case`'s settled run, carrying its binding, as another road would; it.
 
-    Its transcript is the configured command passing, as the settled run's own
-    reads, and it raises the revision floor past that run. `settles` posts its
-    artifact and settles it over that run in the same write, which supersedes
-    the run under a receipt of its own.
+    `binding`, where given, is the one it carries instead -- for a run already
+    taken off the comment. Its transcript is the configured command passing,
+    as the settled run's own reads, and it raises the revision floor past that
+    run. `settles` posts its artifact and settles it over that run in the same
+    write, which supersedes the run under a receipt of its own.
     """
     state = case.gh.read_pinned_state(case.issue)
-    command = config.VERIFY_COMMANDS[0]
-    passed = (VerifiedCommand(command=command, exit_status=0, output=_git_support.CHECKED),)
-    newer = _record_state.mint_pending_evidence(
-        state, _git_support.ISSUE, _readings.pinned_records(case)[1].binding, passed,
+    passed = (
+        VerifiedCommand(command=config.VERIFY_COMMANDS[0], exit_status=0, output=_git_support.CHECKED),
     )
+    bound = binding or _readings.pinned_records(case)[1].binding
+    newer = _record_state.mint_pending_evidence(state, _git_support.ISSUE, bound, passed)
     case.assertTrue(_record_state.record_pending_evidence(state, newer))
     if settles:
         posted = case.gh.publish_verification_artifact(case.pull_request, newer.artifact)
@@ -139,6 +152,16 @@ class SettledRunCase(_support.CapturedRunCase):
     def asks_dormant(self, step, head: str):
         """What `step` answers for a recovery's finish of `head` held to the policy, over the comment read now."""
         return self.finishes(head, FinishRoad.RECOVERY, asks=partial(_handed_dormant, step))
+
+    def finalizes(self, head: str, road: FinishRoad = FinishRoad.RECOVERY, alters=None, retry=None) -> FinishOutcome:
+        """The coordinator's answer for `road`'s finish of `head` held to the policy, over the comment read now.
+
+        The publication pins its attempt first, as `finishes` has it. `alters`,
+        where given, is handed the landing git reads and returns the one the
+        finish is handed in its place; `retry` is the reply the finish spends.
+        """
+        asks = partial(_handed_dormant, _finish.finalizes, alters=alters, retry=retry)
+        return self.finishes(head, road, asks=asks)
 
     def assert_phase_left(self, *heads: str) -> None:
         """The attempt standing on its anchor, announced once for each of `heads` and never relabelled; run once.

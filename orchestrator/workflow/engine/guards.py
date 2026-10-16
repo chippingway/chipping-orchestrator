@@ -226,6 +226,7 @@ ALLOWED_CORRELATION_FIELDS: frozenset[str] = frozenset((
     "timed_out",
     "sha",
     "reservation_id",
+    "notice_id",
 ))
 
 
@@ -322,9 +323,17 @@ def _park_awaiting_human(
     so it belongs to neither the event nor the analytics payload. Only a
     bounded park reads the ledger before posting: the walk needs it, and the
     ordinary park appends to that ledger without parsing what it already holds.
+
+    `names_the_notice=True` is popped the same way and asks the event to carry
+    the id of the notice this call posted as `notice_id`, which only the
+    poster can know: a later caller that finds that notice said and asks the
+    event stream whether its park's event was filed then asks for that park's
+    own, not any earlier one's. No park but the dormant debt park of a landed
+    rewrite asks for it, so every other record goes out without the field.
     """
     reason = correlation.pop("reason", None)
     bounded = correlation.pop("bounded", False)
+    names_the_notice = correlation.pop("names_the_notice", False)
     _screened_correlation(correlation)
     said_before = _comments._orchestrator_ids(state) if bounded else None
     posted = _comments._post_issue_comment(gh, issue, state, message)
@@ -334,6 +343,8 @@ def _park_awaiting_human(
         _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
     elif getattr(posted, "id", None) is not None:
         state.set("last_action_comment_id", posted.id)
+    if names_the_notice:
+        correlation["notice_id"] = getattr(posted, "id", None)
     # Read the label AFTER the comment post and state writes so the
     # captured stage reflects the handler that drove the park (the label
     # itself is unchanged by this call -- callers relabel only after the

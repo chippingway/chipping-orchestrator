@@ -51,6 +51,7 @@ _PARK_CORRELATION = MappingProxyType({
     "timed_out": False,
     "sha": "0123456789abcdef0123456789abcdef01234567",
     "reservation_id": "0123456789ab-3",
+    "notice_id": 4242,
 })
 
 # The envelope fields the recorder binds outside the correlation above.

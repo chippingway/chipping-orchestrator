@@ -42,12 +42,12 @@ def loses_answers(case) -> None:
     case.gh.pinned_failures.lost.add(case.issue.number)
 
 
-def fills_the_comment(case) -> None:
-    """Fill the pinned comment to its limit, as another road's records would."""
+def fills_the_comment(case, left: int = 0) -> None:
+    """Fill the pinned comment to `left` characters short of its limit, as another road's records would."""
     filled = case.gh.read_pinned_state(case.issue)
     filled.set(_FILLER, "")
     room = MAX_PINNED_BODY - len(pinned_state_body(filled.data))
-    filled.set(_FILLER, "x" * room)
+    filled.set(_FILLER, "x" * (room - left))
     case.gh.write_pinned_state(case.issue, filled)
 
 
