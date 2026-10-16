@@ -1330,7 +1330,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             current invalidated over that movement, the comment read afresh once that lands so a
                             successor recorded or another attempt put in place right behind it holds the route too
                             (`retires_the_adopted`). The coordinator (`rewrite_finish.py`) asks
-                            `stands_ready_if_settled` itself ahead of the relabel and, for the base, behind it
+                            `stands_ready_if_settled` through its stops (`rewrite_finish_stops.py`) beside an
+                            unfinishable landing, ahead of the park, and ahead of the relabel and behind one that
+                            raised, and itself behind the relabel -- or where it continues the head instead -- for a
+                            routed head over the base too
     rewrite_finish_stops.py the stops of a landed rewrite's finish short of its route, answered for both policies, the
                             policy every road selects taking the last word over a captured transaction behind each and
                             reading nothing more: a landing the record does not account for, settled evidence and a

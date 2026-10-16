@@ -203,7 +203,7 @@ asks -- one a caller selects by building a finish with `proves_settled` and hand
 relabels, parks, and retires nothing), as no production road does (`workflow/engine/rewrite_finish_settled.py`). The
 coordinator under it proves the evidence again before every hold, unfinishable landing, continuation, and debt park,
 around the relabel, and behind every stop of the announcement, the park, or the retirement
-(`workflow/engine/rewrite_finish_stops.py`), and announces or relabels nothing another finish already did; the
+(`workflow/engine/rewrite_finish_stops.py`), and announces, relabels, or parks nothing another finish already did; the
 phase adopts a settlement another road made and invalidates
 it over movement read under it, reads the comment afresh behind every invalidation it lands, holding over a newer
 transaction or another attempt written right behind it (`workflow/engine/rewrite_finish_rechecks.py`), abandons a

@@ -15,9 +15,11 @@ takes whichever policy holds the finish, and it answers for both: a finish not
 held to the dormant policy goes on exactly as the policy every road selects
 has it, reading nothing more. That phase is callable on its own, announcing,
 relabelling, parking, and retiring nothing. The coordinator
-(`rewrite_finish.finalizes`) asks `stands_ready_if_settled` itself, ahead of
-the relabel and, for the base, behind it, and takes its other proofs around
-its holds, park, and writes through `rewrite_finish_stops`.
+(`rewrite_finish.finalizes`) asks `stands_ready_if_settled` itself behind the
+relabel -- or where it continues the head instead -- for a routed head over
+the base too, and asks it beside an unfinishable landing, ahead of the park
+and of the relabel, and takes its other proofs around its writes, through
+`rewrite_finish_stops`.
 
 - `stands_ready_if_settled` proves evidence settled current for the head
   ready, where any is -- reading the comment afresh behind an invalidation
