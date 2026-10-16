@@ -277,8 +277,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             exception the failure's last marked line showed. A run's opening there -- the session's
                             heading, or a `-q` progress line -- opens a whole run a test printed, captured up to the
                             line of statistics closing it, unless only the output's last such line, or none, closes
-                            it, the test having cut it short; and only the last short summary of a run, which opens on
-                            the session's heading, is read, any above it in the run being one a test printed
+                            it, the test having cut it short; and only the last short summary of a run is read, any
+                            above it in the run being one a test printed. Outside anything captured a run opens on the
+                            session's heading or a `-q` progress line, or -- a `-q` run failing collection alone
+                            reports no progress -- on the errors or failures heading standing in the summary of the run
+                            before it, so each of several runs leads with its own failures
     review_findings_entries.py
                             the failure entries a reviewer writes in its findings, for `review_findings_failures` and
                             `review_findings`: an entry runs from one `Failure:` line to the next, or to the next
