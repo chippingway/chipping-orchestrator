@@ -221,12 +221,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     review_findings_failures.py
                             the lead above each check `review_findings` shows failing, in the labels of the
                             reviewer's failure entries: each failure pytest's short summary reports in the check's
-                            output, a `FAILED` test by its exact node ID, its file path holding blanks or not,
-                            parameters included -- even ones holding
-                            the dash that parts an ID from its message, and text of a message's shape after it: the ID
-                            is the longest an entry names whole or pytest titled a section by, else it ends on the last
-                            split leaving a message of pytest's shape, a rewritten assertion's `assert` or an
-                            exception's name, else on the first, a section naming a test by its classes dotted and
+                            output, read as `review_findings_summary` reads its line -- a `FAILED` test by its exact
+                            node ID, a `SUBFAILED` subtest by its test's node ID and pytest's description of it, its
+                            section titled by both, the ID ending where an entry or section names it, else where the
+                            line's message may first begin, a further line saying where the ID ends is unavailable
+                            where a later split could end it too, a section naming a test by its classes dotted and
                             its parameters as they are -- an `ERROR` node ID as the setup or teardown whose section
                             raised its error, or the only one a section says failed, as a collection where a section
                             of its own run says pytest failed collecting it or its path -- spelled relative to pytest's
@@ -254,6 +253,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the margin, outside any code block, closing it on a period or on a colon over a bare
                             backtick fence holding the output -- led as a check read off a declaration is, since that
                             layout's feedback holds no declaration to read its checks from again
+    review_findings_summary.py
+                            a line of pytest's short summary, read for the failure it reports, for
+                            `review_findings_failures` (`SummaryLine`): its outcome -- `FAILED`, `ERROR`, or
+                            `SUBFAILED` and the subtest's description, read up to the bracket a node ID follows -- the
+                            node ID, its file path holding blanks or not, or the path whose collection failed, and the
+                            message after a dash. A parameter may hold the dash that parts an ID from its message and
+                            text of a message's shape after it, and a message a bracket and a dash of its own, so the
+                            ID is the longest an entry of the findings names whole or pytest titled a section by; else
+                            it ends on the first split leaving a message of pytest's shape -- a rewritten assertion's
+                            `assert` or an exception's name -- so the message is never cut short, the line marked
+                            unsure where a later split leaves one too; else on the first split
     review_findings_pytest.py
                             what pytest's output says beside its short summary, for `review_findings_failures`: each
                             section it printed, titled between underscores -- one each side at least -- by a failed
