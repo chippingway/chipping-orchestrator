@@ -244,7 +244,8 @@ _SUMMARY_LEAD = (
     "Error: `AssertionError: lists [1] - [2] differ`\n"
     "Failure: `tests/test_a.py::test_raise[p]`\n"
     "Error: `ValueError`\n"
-    "Failure: `tests/test_a.py::test_setup`, which errored outside the test itself\n"
+    "Failure: `tests/test_a.py::test_setup`, which errored outside any test body: "
+    "in its collection, setup, or teardown\n"
     "Error: `RuntimeError: fixture exploded`\n"
 )
 # A module pytest could not import, as its summary and traceback report it, and how its failure leads.
@@ -313,6 +314,31 @@ _COLLECTED_ERROR = (
 )
 _COLLECTION_ENTRY = f"Failure: pytest collection of tests/test_b.py\n{_COLLECTED_ERROR}\n\n"
 _TEST_ENTRY = f"Failure: tests/test_b.py::test_x\n{_COLLECTED_ERROR}\n\n"
+# A class pytest could not collect, and a test whose fixture failed, as the
+# sections pytest printed for each and its summary report them; and how each
+# leads once that context says which it was.
+_CLASS_SECTION = "___ ERROR collecting tests/test_collector.py ___\nE   RuntimeError: class construction exploded"
+_CLASS_ERROR = "ERROR tests/test_collector.py::TestBroken"
+_CLASS_NAME = "Failure: collection of `tests/test_collector.py::TestBroken`, before any test in it ran\n"
+_CLASS_EXPLODED = "Error: `RuntimeError: class construction exploded`\n"
+_INTERRUPTED = "!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!"
+_SETUP_SECTION = "___ ERROR at setup of test_setup ___\nE       RuntimeError: fixture exploded"
+_SETUP_ERROR = "ERROR tests/test_a.py::test_setup - RuntimeError: fixture exploded"
+_FIXTURE_EXPLODED = "Error: `RuntimeError: fixture exploded`\n"
+# A parameter holding the very dash, and text of a message's shape, that part
+# an ID from its message; and a message holding them past a parameter of its
+# own, with the section pytest titles by the test it failed.
+_SHAPED_NODE = "tests/test_parameter.py::test_value[left] - Error: right]"
+_SHAPED_SUMMARY = f"FAILED {_SHAPED_NODE} - AssertionError: values differ"
+_SHAPED_MESSAGE = "FAILED tests/test_x.py::test_x[a] - AssertionError: got [b] - KeyError: 'c'"
+_SHAPED_SECTION = "___ test_x[a] ___"
+_SHAPED_SHORT = "Failure: `tests/test_x.py::test_x[a]`\nError: `AssertionError: got [b] - KeyError: 'c'`\n"
+_SHAPED_FULL = f"Failure: `{_SHAPED_NODE}`\nError: `AssertionError: values differ`\n"
+# Entries naming each ID exactly.
+_SHAPED_ENTRY = (
+    f"Failure: `{_SHAPED_NODE}`\nError: AssertionError: values differ\nReproduce: pytest '{_SHAPED_NODE}'\n\n"
+)
+_SHORT_ENTRY = "Failure: tests/test_x.py::test_x[a]\nError: AssertionError: got\nReproduce: pytest tests/test_x.py\n\n"
 # What an entry leaving out its name, error, or reproduction is shown saying.
 _UNNAMED_ENTRY = "not named; the entry gives no test ID or scenario name"
 _NO_ENTRY_ERROR = "not recorded; the entry gives no error"
@@ -683,6 +709,18 @@ class FailureNamesTest(unittest.TestCase):
             (_UNCOLLECTED, _TEST_ENTRY, f"{_UNCOLLECTED_NAME}{_UNSTATED}"),
             # A word reading as no path is no collection pytest reports.
             ("ERROR 404", "", _UNNAMED),
+            # A node ID names a collection where pytest says it failed collecting
+            # its path, or that collection was interrupted; and a setup where a
+            # section says that failed; and, nothing saying which, an error in
+            # any of the three.
+            (f"{_CLASS_SECTION}\n{_CLASS_ERROR} - RuntimeError: class construction exploded", "", (
+                f"{_CLASS_NAME}{_CLASS_EXPLODED}"
+            )),
+            (f"{_CLASS_SECTION}\n{_CLASS_ERROR}", "", f"{_CLASS_NAME}{_CLASS_EXPLODED}"),
+            (f"{_CLASS_ERROR}\n{_INTERRUPTED}", "", f"{_CLASS_NAME}{_UNSTATED}"),
+            (f"{_SETUP_SECTION}\n{_SETUP_ERROR}", "", (
+                f"Failure: `tests/test_a.py::test_setup`, whose setup failed\n{_FIXTURE_EXPLODED}"
+            )),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
@@ -690,6 +728,25 @@ class FailureNamesTest(unittest.TestCase):
                     self,
                     f"{written}{_RUN_LINE}\n{_SUITE}\nEXIT: 2\n{output}\n{_END_LINE}",
                     f"{written}{lead}`uv run pytest tests` exited with status 2:\n\n```\n{output}\n```",
+                )
+
+    def test_ids_end_where_they_are_named(self) -> None:
+        # A parameter may hold the dash that parts an ID from its message, and
+        # text of a message's shape after it: the ID is the longest an entry
+        # names whole, or pytest titled a section by, and otherwise ends on the
+        # last split leaving a message of pytest's shape.
+        cases = (
+            ("", _SHAPED_SUMMARY, _SHAPED_FULL),
+            (_SHAPED_ENTRY, _SHAPED_SUMMARY, _SHAPED_FULL),
+            ("", f"{_SHAPED_SECTION}\n{_SHAPED_MESSAGE}", _SHAPED_SHORT),
+            (_SHORT_ENTRY, _SHAPED_MESSAGE, _SHAPED_SHORT),
+        )
+        for written, output, lead in cases:
+            with self.subTest(written=written, output=output):
+                _assert_shown(
+                    self,
+                    f"{written}{_RUN_LINE}\n{_SUITE}\nEXIT: 1\n{output}\n{_END_LINE}",
+                    f"{written}{lead}`uv run pytest tests` exited with status 1:\n\n```\n{output}\n```",
                 )
 
     def test_missing_diagnostics_are_said(self) -> None:
@@ -761,6 +818,15 @@ class FailureNamesTest(unittest.TestCase):
                 + f"\n   Reproduce: {_NO_ENTRY_REPRODUCTION}",
             ),
             (f"{_PROBE_ENTRIES}", f"{_PROBE_ENTRIES}"),
+            # A reproduction said right above a sentence of the reviewer's
+            # opens no lead, so showing it again says it no twice.
+            (
+                "Failure: Linter crashes\nError:\n```\nSegmentation fault\n```\n`make lint` exited with status 139.",
+                (
+                    "Failure: Linter crashes\nError:\n```\nSegmentation fault\n```\n"
+                    f"Reproduce: {_NO_ENTRY_REPRODUCTION}\n`make lint` exited with status 139."
+                ),
+            ),
         )
         for written, shown in cases:
             with self.subTest(written=written):
