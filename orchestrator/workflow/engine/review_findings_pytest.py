@@ -31,7 +31,8 @@ in one run only the last is pytest's, any above it one a test printed. Outside
 anything captured a run opens on its opening, or, with `-q`, where a run
 reporting no progress -- one failing collection alone -- opens: on the errors
 or failures heading, which pytest prints before a run's summary, standing in
-the summary of the run before it.
+the summary of the run before it or below the line of statistics closing
+that run.
 
 A section marks the exception it shows with `E` (`Section`). An assertion's
 explanation, a diff hint, or a syntax error's source sets its lines out
@@ -163,7 +164,8 @@ class _Where:
     says may be read; `shown` is the exception the last marked line outside
     anything captured above it shows; `run` counts the session headings at or
     above the line outside anything captured, and `summaries` the short
-    summary headings.
+    summary headings; and `closed` says a line of statistics closed the run
+    above the line, no section or heading opening since.
     """
 
     region: str = _ELSEWHERE
@@ -173,6 +175,7 @@ class _Where:
     run: int = 0
     summaries: int = 0
     nests: bool = True
+    closed: bool = False
 
     @classmethod
     def of(cls, lines: Sequence[str]) -> tuple[_Where, ...]:
@@ -220,15 +223,14 @@ class _Where:
         below anything it captured, giving the exception its marked lines
         showed. A run's opening in what was captured opens a run a test
         printed, and only its line of statistics closes that; outside it, a
-        run of pytest's own.
+        run of pytest's own, which its line of statistics closes -- a heading
+        or not -- ending its short summary too.
         """
         if self.nested:
             return replace(self, nested=_STATS_RE.fullmatch(line) is None)
-        if _STARTED_RE.fullmatch(line) and (self.nests or not self.captured):
-            return self._started()
-        opened = _SECTION_RE.fullmatch(line)
+        opened = self._opened(line)
         if opened is not None:
-            return self._opening(opened)
+            return opened
         if self.captured:
             lined = _LINE_TRACEBACK_RE.fullmatch(line)
             crashed = lined is not None and lined.group("raised") == self.shown
@@ -237,26 +239,44 @@ class _Where:
         error = None if marked is None else marked.group("error")
         return replace(self, shown=error or self.shown)
 
-    def _started(self) -> _Where:
-        """Where a run's opening stands: in a run a test printed, in what was captured; else first in its own run."""
-        if self.captured:
+    def _opened(self, line: str) -> _Where | None:
+        """Where `line` stands where it opens or closes a run, or opens a section; None where it does none of those.
+
+        A run's opening in what was captured opens a run a test printed, where
+        such a run may be read, and outside it stands first in its own run;
+        a line of statistics outside anything captured closes its run, and
+        that run's short summary with it; and a line opening a section opens
+        what `_opening` says.
+        """
+        started = _STARTED_RE.fullmatch(line) is not None
+        if started and self.captured and self.nests:
             return replace(self, nested=True)
-        return _Where(run=self.run + 1, summaries=self.summaries, nests=self.nests)
+        if started and not self.captured:
+            return _Where(run=self.run + 1, summaries=self.summaries, nests=self.nests)
+        if _STATS_RE.fullmatch(line) and not self.captured:
+            return replace(self, region=_ELSEWHERE, closed=True)
+        section = _SECTION_RE.fullmatch(line)
+        return None if section is None else self._opening(section)
 
     def _opening(self, opened: re.Match[str]) -> _Where:
         """Where the line `opened` reads as opening a section stands: in what pytest captured, or the region it opens.
 
         The errors or failures heading opens a run of its own where it stands
-        in a short summary, which pytest prints below it in any one run.
+        in a short summary, which pytest prints below it in any one run, or
+        below a line of statistics, which closes a run -- printed as a heading
+        or, with `-q`, not.
         """
         if opened.group("rule"):
             return replace(self, captured=True)
         named = opened.group("heading") or ""
         region = _HEADED.get(named, _ELSEWHERE)
-        reopens = named in _SUMMARISED_BELOW and self.stands(_SUMMARISED)
+        reopens = named in _SUMMARISED_BELOW and (self.closed or self.stands(_SUMMARISED))
         run = self.run + 1 if reopens else self.run
         summaries = self.summaries + 1 if region == _SUMMARISED else self.summaries
-        return _Where(region, shown=self.shown, run=run, summaries=summaries, nests=self.nests)
+        return _Where(
+            region, shown=self.shown, run=run, summaries=summaries, nests=self.nests,
+            closed=_STATS_RE.fullmatch(opened.string) is not None,
+        )
 
 
 @dataclass(frozen=True)
