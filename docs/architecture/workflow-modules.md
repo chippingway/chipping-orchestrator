@@ -1391,9 +1391,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             laid over the tick's state, and the route held where a pending record or another attempt
                             stands there, that attempt laid over the state too, where the evidence it invalidated
                             stands current again, which is retired again over the comment as it stands, a settlement
-                            under another receipt kept -- save one that reading disproves on its own binding, which is
-                            invalidated whole -- or where it would not read (`rechecks_behind`); whether a
-                            comment carries the
+                            under another receipt kept -- save one that reading disproves on its own binding, or reads
+                            beside a blank of the base tip, which is invalidated whole -- or where it would not read
+                            (`rechecks_behind`); whether a comment carries the
                             attempt a finish captured -- unmoved, advanced by its own announcement alone, or, where
                             asked, with its base tip read blank, which records movement rather than another attempt
                             (`stands_as_read`); whether the comment read afresh behind the proof ahead of a relabel
@@ -1413,12 +1413,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             before the coordinator relabels, made where it reads `workflow:validating` beside the
                             relabel's own record naming the head, None where it would not read (`relabelled`); and
                             the relabel landed with that record ahead of it, whatever label the issue wears, through
-                            `rewrite_finish_writes.RELABEL`, and taken back off where a relabel onto the label the
-                            issue already wore raised with no stage-entry event filed for the head on the stream
-                            (`relabels_once`) -- a record beside a label the issue already
-                            wore asked of the audit log, where one is configured (`github/events.durable`), and read
-                            as the relabel made where none is; every other finish answers both off the mark and the
-                            label the tick read, and relabels with no record
+                            `rewrite_finish_writes.RELABEL` -- the record alone staged over the comment as the tick
+                            last read it, so nothing else the tick staged since, a usage total among it, lands twice
+                            -- and taken back off where a relabel onto the label the issue already wore raised with no
+                            stage-entry event filed for the head on the stream (`relabels_once`) -- a record beside a
+                            label the issue already wore asked of the audit log, where one is configured
+                            (`github/events.durable`), and read as the relabel made where none is; every other finish
+                            answers both off the mark and the label the tick read, and relabels with no record
     rewrite_finish_marks.py
                             settled evidence invalidated over the attempt as reconciled -- for a dormant finish alone,
                             read afresh and retried once where a write was refused, every other finish reading and

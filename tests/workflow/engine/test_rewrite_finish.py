@@ -63,6 +63,11 @@ _ANNOUNCED_LABELS = (
     (support.LABEL_VALIDATING, None, _ROUTED, 2),
 )
 
+# The usage totals the comment carries as the tick read them, and as the tick
+# staged them before its finish: one run and its tokens spent.
+_USAGE_READ = MappingProxyType({"issue_agent_runs": 4, "issue_total_tokens": 100})
+_USAGE_STAGED = MappingProxyType({"issue_agent_runs": 5, "issue_total_tokens": 120})
+
 # The method a landing this tick sent nothing for is filed under, and the one a
 # push a recovery made is.
 _FOUND_METHOD = "crash_recovery_relabel_only"
@@ -307,6 +312,27 @@ class AnnouncedFinishTest(unittest.TestCase):
                     (([], []), relabelled, _RETIRED),
                 )
                 self.assertEqual(world.github.write_state_calls, writes)
+
+    def test_a_dormant_relabel_counts_usage_once(self) -> None:
+        # The tick staged a run and its tokens on the comment before an
+        # announced landing's route: the relabel's record lands nothing of
+        # them, and the retirement behind it lands them once, under either
+        # policy.
+        self.enterContext(patch("orchestrator.config.EVENT_LOG_PATH", None))
+        for proves_settled in (False, True):
+            with self.subTest(proves_settled=proves_settled):
+                world = support.FinishWorld.seeded(**{
+                    support.KEY_ANNOUNCED: support.LANDED,
+                    support.KEY_REWRITE_DEBT: support.owed(),
+                    **_USAGE_READ,
+                })
+                finish = replace(world.finish(support.FOUND), proves_settled=proves_settled)
+                finish.state.data.update(_USAGE_STAGED)
+
+                self.assertEqual(world.finalizes(finish=finish), FinishOutcome.ROUTED)
+
+                landed = map(world.pinned().get, _USAGE_STAGED)
+                self.assertEqual(tuple(landed), tuple(_USAGE_STAGED.values()))
 
     def test_an_earlier_marks_debt_precedes_its_route(self) -> None:
         # A mark an earlier build wrote with no debt beside it: the claim is

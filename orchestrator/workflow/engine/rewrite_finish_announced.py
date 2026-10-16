@@ -21,7 +21,7 @@ relabels with no record.
 """
 from __future__ import annotations
 
-import copy
+import json
 import logging
 from collections.abc import Callable, Mapping
 from dataclasses import replace
@@ -216,18 +216,24 @@ def _wears_validating(finish: LandedFinish) -> bool | None:
 def _records_the_relabel(finish: LandedFinish, observed, *, made: bool = True) -> FinishOutcome | None:
     """Record on the attempt that `finish`'s relabel is made for its head, in a write of its own; None where it landed.
 
-    Landed as `rewrite_finish_writes.RELABEL` over a copy of the tick's
-    state, so the tick takes in the record alone and the retirement behind it
-    is still decided on every other record as the tick read it; a binding
-    record moved refuses it, the movement collected on `observed`. `made`
-    False takes the record back off, for a relabel that raised.
+    Landed as `rewrite_finish_writes.RELABEL` over a copy of the comment as
+    the tick last read it, the record alone staged on it -- nothing else the
+    tick staged since, a usage total among it, which the retirement behind it
+    lands once -- so the tick takes in the record alone and the retirement is
+    still decided on every other record as the tick read it; a binding record
+    moved refuses it, the movement collected on `observed`. `made` False
+    takes the record back off, for a relabel that raised.
     """
     named = finish.head if made else None
-    held = copy.deepcopy(finish.state)
-    recorded = _writes.staging(finish)
+    synced = finish.state.synced or json.dumps(finish.state.data)
+    held = replace(finish, state=PinnedState(
+        comment_id=finish.state.comment_id, state_data=json.loads(synced), parsed=finish.state.parsed,
+    ))
+    held.state.synced = finish.state.synced
+    recorded = _writes.staging(held)
     recorded.set(_RELABELLED, named)
-    stopped = _writes.lands(replace(finish, state=held), recorded, _writes.RELABEL, observed)
-    finish.state.withheld = finish.state.withheld or held.withheld
+    stopped = _writes.lands(held, recorded, _writes.RELABEL, observed)
+    finish.state.withheld = finish.state.withheld or held.state.withheld
     if stopped is None:
         finish.state.set(_RELABELLED, named)
         _commit.takes_in(finish.state, {_RELABELLED: named}, (_RELABELLED,))

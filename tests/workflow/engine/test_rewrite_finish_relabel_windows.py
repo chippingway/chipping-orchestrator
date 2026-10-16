@@ -19,10 +19,13 @@ and another road moves a record right there and puts it back right behind:
   2 put back for that one reading. That reading disproves the newer run on
   its own binding, so it is invalidated whole too, its provenance kept, and
   putting report 3 back revives nothing: the head is routed with nothing
-  current. Where report 2 is put back right behind that first reading
-  instead, and another road settles a newer run bound to it as the relabel
-  is made, which raises, that run proves on its own readings: the movement
-  read under the run is the run's alone, and the newer run stays current.
+  current. Where that reading carries the newer run beside report 3 with the
+  base tip blanked instead, the tip put back right behind it, the blank is
+  movement under the newer run, invalidated whole as well. Where report 2 is
+  put back right behind that first reading instead, and another road settles
+  a newer run bound to it as the relabel is made, which raises, that run
+  proves on its own readings: the movement read under the run is the run's
+  alone, and the newer run stays current.
 """
 from __future__ import annotations
 
@@ -97,11 +100,13 @@ class _SucceedsBehindTheRecheck:
     The second, the fresh reading behind the invalidation the first earns,
     carries that newer run beside report 2 -- the records as they stood when
     this was built -- put back for that one reading, report 3 put back right
-    behind it. With no `successor`, report 2 is put back right behind the
-    first reading instead, and the second is read as it stands.
+    behind it; where it `blanks`, beside report 3 and the base tip blanked
+    instead, the tip put back right behind it. With no `successor`, report 2
+    is put back right behind the first reading instead, and the second is
+    read as it stands.
     """
 
-    def __init__(self, case, head: str, run, *, successor: bool = True) -> None:
+    def __init__(self, case, head: str, run, *, successor: bool = True, blanks: bool = False) -> None:
         self._case = case
         self._head = head
         self._run = run
@@ -109,6 +114,8 @@ class _SucceedsBehindTheRecheck:
         self._live = _rechecks.read_afresh
         self._readings = 0
         self._earlier = _records_of(case)
+        self._tip = {readings.KEY_REWRITE_BASE: readings.pinned(case)[readings.KEY_REWRITE_BASE]}
+        self._aside = dict.fromkeys(self._tip) if blanks else self._earlier
         self.successor = None
 
     def __call__(self, finish):
@@ -122,12 +129,12 @@ class _SucceedsBehindTheRecheck:
             return durable
         if self._readings != 2 or not self._settles:
             return self._live(finish)
-        later = _records_of(self._case)
+        later = _records_of(self._case) | self._tip
         target = replace(self._run.binding.target, subject=self._subject.recorded())
         self.successor = settled_support.records_a_newer_run(
             self._case, settles=True, binding=replace(self._run.binding, target=target),
         )
-        _writes(self._case, self._earlier)
+        _writes(self._case, self._aside)
         durable = self._live(finish)
         _writes(self._case, later)
         return durable
@@ -169,18 +176,14 @@ class RelabelWindowTest(route.SettledRouteCase, unittest.TestCase):
         # to report 3 beside report 2: that run is invalidated whole on its
         # own binding, its revision and binding kept, and the head is routed
         # with nothing current once report 3 is back.
-        head, run = self._settles_then_dies()
-        reads = _SucceedsBehindTheRecheck(self, head, run)
-        with patch.object(_rechecks, "read_afresh", reads):
-            self.finalizes(head)
-        self.finalizes(head)
+        self._invalidates_the_successor()
 
-        history = readings.pinned_records(self)[2]
-        self.assertEqual(history[-2], (run.receipt, readings.INVALIDATED))
-        self.assertEqual(history[-1], (reads.successor.receipt, readings.INVALIDATED))
-        self.assertIsNone(readings.pinned_records(self)[1])
-        self.assert_routed_once(head)
-
+    def test_a_blank_tip_disproves_a_successor(self) -> None:
+        # The fresh reading behind that invalidation carries a newer run bound
+        # to report 3 beside report 3 itself, the base tip blanked for that
+        # one reading and put back behind it: the blank is movement under the
+        # newer run, so it is invalidated whole too.
+        self._invalidates_the_successor(blanks=True)
 
     def test_a_valid_successor_outlives_a_raise(self) -> None:
         # The recheck's reading invalidates the run over report 3, report 2
@@ -199,6 +202,20 @@ class RelabelWindowTest(route.SettledRouteCase, unittest.TestCase):
         current, retired = readings.pinned_records(self)[1:]
         self.assertEqual(current.receipt, settled[0].receipt)
         self.assertEqual(retired[-1], (run.receipt, readings.INVALIDATED))
+
+    def _invalidates_the_successor(self, **reading) -> None:
+        """Race the recheck with a newer run as `reading` says; both runs end invalidated and the head routed once."""
+        head, run = self._settles_then_dies()
+        reads = _SucceedsBehindTheRecheck(self, head, run, **reading)
+        with patch.object(_rechecks, "read_afresh", reads):
+            self.finalizes(head)
+        self.finalizes(head)
+
+        history = readings.pinned_records(self)[2]
+        self.assertEqual(history[-2], (run.receipt, readings.INVALIDATED))
+        self.assertEqual(history[-1], (reads.successor.receipt, readings.INVALIDATED))
+        self.assertIsNone(readings.pinned_records(self)[1])
+        self.assert_routed_once(head)
 
     def _settles_then_dies(self) -> tuple:
         """Land a reviewed rebase, settle its run, and kill its finish before its announcement; the head and the run."""

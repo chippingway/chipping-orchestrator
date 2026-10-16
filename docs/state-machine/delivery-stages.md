@@ -1615,10 +1615,10 @@ because there it is the claim that this stage has already rerouted rather than a
     not read again holds it too; the evidence that write invalidated, put back current there with the records it
     was bound to or not, is retired again over the comment as it stands and holds the route, since the movement read
     under it stands whatever is put back, where evidence settled under another receipt is kept as written -- save a
-    successor that very reading disproves on its own binding, invalidated whole however soon its records are put
-    back; asked directly for the base (`stands_ready_if_settled`, which the phase
-    never asks so), a head with none current is held to its replay's base tip or -- that tip blank, or missing from
-    a legacy attempt -- to the base the tick counted it against, one moved since holding the route;
+    successor that very reading disproves on its own binding, or carries beside a blank of the base tip, invalidated
+    whole however soon its records or the tip are put back; asked directly for the base (`stands_ready_if_settled`,
+    which the phase never asks so), a head with none current is held to its replay's base tip or -- that tip blank,
+    or missing from a legacy attempt -- to the base the tick counted it against, one moved since holding the route;
   - a readable revision spent past the evidence outranks it for good, even beside a floor or a pending record nobody
     can read, a pending record discounting only the one revision it may own
     (`workflow/engine/rewrite_finish_outranking.py`), while a pending record, a handoff not naming the evidence, or a

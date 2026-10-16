@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Collection
+from types import MappingProxyType
 
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
@@ -76,6 +77,20 @@ log = logging.getLogger("orchestrator.workflow")
 _UNMARKED = frozenset(
     member for member in _attempts._ATTEMPT_KEYS if member != _base_sync_state._PENDING_REWRITE_BASE
 )
+
+# The base tip the attempt recorded its replay as made onto, a blank of which
+# read beside a successor is movement under it (`_revived`).
+_TIP = _base_sync_state._PENDING_REWRITE_BASE
+
+# Why evidence a fresh reading carries current holds the route (`_revived`):
+# the evidence just invalidated put back, or a successor read moving.
+_HOLDS_OVER = MappingProxyType({
+    True: "the verification evidence it invalidated was put back current",
+    False: "a successor settled in its place was read moving on its own binding",
+})
+
+# Whether the evidence `_revived` holds the route over was retired after all.
+_RETIRED = MappingProxyType({True: ", and is retired", False: ", and could not be retired"})
 
 # Why a fresh reading carrying another attempt holds the route (`rechecks_behind`).
 _REPLACED = "another attempt stands in place of the one this finish read"
@@ -118,11 +133,11 @@ def rechecks_behind(finish: LandedFinish, receipt: str, durable: PinnedState | N
     movement read under it: it is retired again over the comment as it stands
     (`_revived`), where evidence settled under another receipt is kept as its
     road wrote it -- save a successor that very reading disproves on its own
-    binding, which is invalidated whole, however soon its records are put
-    back. Its attempt is read against the one the tick's state
-    carries as the invalidation left it (`stands_as_read`, the base tip aside
-    where it reads blank): one advanced by this landing's own announcement
-    alone has that bookkeeping taken in
+    binding or reads beside a blank of the base tip, which is invalidated
+    whole, however soon its records or the tip are put back. Its attempt is
+    read against the one the tick's state carries as the invalidation left it
+    (`stands_as_read`, the base tip aside where it reads blank): one advanced
+    by this landing's own announcement alone has that bookkeeping taken in
     (`rewrite_finish_announced.takes_in_the_announcement`), and any other is
     laid over the tick's state whole, so the caller holds over it rather than
     routing past it, or answering a successor under the movement read under
@@ -136,7 +151,8 @@ def rechecks_behind(finish: LandedFinish, receipt: str, durable: PinnedState | N
     if durable is not None:
         held = _settlement.read_current_evidence(finish.state)
         lays(finish.state, durable, _durable._EVIDENCE_RECORDS)
-        beside = _revived(finish, receipt, durable, held) or _readiness.beside_current(durable, None)
+        beside = _revived(finish, receipt, durable, held, left)
+        beside = beside or _readiness.beside_current(durable, None)
         if stands_as_read(finish, left, durable, blank_aside=True):
             takes_in_the_announcement(finish, durable)
         else:
@@ -250,7 +266,11 @@ def lays(state: PinnedState, durable: PinnedState, fields: Collection[str] = _du
 
 
 def _revived(
-    finish: LandedFinish, receipt: str, durable: PinnedState, held: _records.CurrentEvidence | None,
+    finish: LandedFinish,
+    receipt: str,
+    durable: PinnedState,
+    held: _records.CurrentEvidence | None,
+    left: _commit_models.PinnedCommit,
 ) -> str:
     """Why evidence current in the tick's state, as `durable`, a fresh reading, laid it, holds the route; or "".
 
@@ -263,23 +283,29 @@ def _revived(
     finish reads what stands. A successor another road settled for the head
     under another receipt -- evidence the tick's state did not hold current
     before that reading (`held`), so not evidence standing beside a
-    transaction this finish abandoned -- is asked of its own binding in that very reading
-    (`rewrite_finish_readiness._records_heard`): where `durable` disproves it,
-    it is invalidated whole, its provenance kept, or its movement marked
-    (`rewrite_finish_readiness.invalidates`), however soon its records are put
-    back, and the route held too. "" where no evidence is current there, or a
-    successor nothing in that reading moved under.
+    transaction this finish abandoned -- is asked of its own binding in that
+    very reading (`rewrite_finish_readiness._records_heard`), and of the base
+    tip of `left`, the attempt the invalidation left, which `durable` reading
+    blank is movement under it too: where `durable` disproves it, it is
+    invalidated whole, its provenance kept, or its movement marked
+    (`rewrite_finish_readiness.invalidates`), however soon its records or the
+    tip are put back, and the route held too. "" where no evidence is current
+    there, or a successor nothing in that reading moved under.
     """
     current = _settlement.read_current_evidence(finish.state)
     if current is None or current.binding.target.target_head != finish.head:
         return ""
-    why = "the verification evidence it invalidated was put back current"
-    if current.receipt != receipt:
-        heard = () if current == held else _readiness._records_heard(current, durable, settled=True)
-        if all(not refused or refused.holds for refused in heard):
-            return ""
-        why = "a successor settled in its place was read moving on its own binding"
-    retired = retires_as_it_stands(finish, receipt) if current.receipt == receipt else _readiness.invalidates(
-        finish, current,
-    )
-    return f"{why}, and is retired" if retired else f"{why}, and could not be retired"
+    revived = current.receipt == receipt
+    if current == held and not revived:
+        return ""
+    heard = _readiness._records_heard(current, durable, settled=True)
+    moved = _TIP in left.moved(durable.data)
+    moved = moved and not _attempt_records._recorded_onto(durable)
+    moved = moved or any(refused and not refused.holds for refused in heard)
+    if not (revived or moved):
+        return ""
+    if revived:
+        retired = retires_as_it_stands(finish, receipt)
+    else:
+        retired = _readiness.invalidates(finish, current)
+    return _HOLDS_OVER[revived] + _RETIRED[retired]
