@@ -178,7 +178,8 @@ any diagnostic the reviewer could not obtain. The entries stay in the findings, 
 names each command exactly as it ran. The feedback a request is posted, recovered, and replayed as leads each failed
 check with what failed — the test ID pytest's summary reports, the collection that failed, or the entry whose error the
 check's output shows, never matched by command — or says nothing names it, its command and exit status following as
-supporting details. Full contract:
+supporting details, and says where an entry leaves out its name, error, or reproduction. Feedback persisted or posted
+in the layout before leads is shown led too, its record and post kept as they were. Full contract:
 [`workflow/conversations.md#the-reviewer-verification-contract`][reviewer-verification].
 
 ## Foreground execution and asynchronous command guidance

@@ -284,13 +284,30 @@ class HistoricalRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
                 )
 
     def test_a_recovered_handoff_keeps_the_record(self) -> None:
-        # A failed run's request persisted raw, its post refused, and the tick
-        # recovering it dying on the relabel behind its concise post: the
-        # record handed is the one persisted -- round, subject, raw feedback,
-        # and the claim with its receipt -- beside that post as its anchor,
-        # and the next tick launches the one developer on the concise
-        # findings, posting nothing again.
-        _raw.leaves_raw(self, _resumed.refuses_the_post)
+        # A failed run's request persisted raw, or concise as a tick before
+        # leads formatted it, its post refused, and the tick recovering it
+        # dying on the relabel behind its concise post: the record handed is
+        # the one persisted -- round, subject, feedback as persisted, and the
+        # claim with its receipt -- beside that post as its anchor, and the
+        # next tick launches the one developer on the concise findings, led,
+        # posting nothing again.
+        for name, leaves, feedback in (
+            ("persisted raw", _raw.leaves_raw, _raw.RAW_FAILURE),
+            ("persisted before leads", _raw.leaves_previous, _world.PREVIOUS_CONCISE_FAILURE),
+        ):
+            with self.subTest(name):
+                self.setUp()
+                recovered = self._recovers_the_handoff(leaves)
+                self.assertEqual(recovered, (feedback, ((_world.CONCISE_FAILURE,), True)))
+
+    def _recovers_the_handoff(self, leaves) -> tuple:
+        """Leave the request waiting as `leaves` does, its post refused, then recover it across a refused relabel.
+
+        What the record was persisted with, beside what the developer the last
+        tick launched was handed (`raw_feedback_test_support.handed`); the
+        record handed, its anchor, and the single launch are asserted here.
+        """
+        leaves(self, _resumed.refuses_the_post)
         persisted = self.pinned()[_world.RETURNED_VERDICT]
         refused = patch.object(self.github, SET_LABEL, side_effect=RuntimeError("refused"))
         with refused, self.assertRaises(RuntimeError):
@@ -300,23 +317,16 @@ class HistoricalRequestTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
         ran = self.finishes(**_disposed.fixing())[_world.RUN_AGENT]
 
         self.assertEqual(
+            (handed, self._feedback_ids(), ran.call_count, self.waiting()),
             (
-                persisted["feedback"],
-                handed,
-                self._feedback_ids(),
-                ran.call_count,
-                _raw.handed(self, ran.call_args.args[1], _world.CONCISE_FAILURE),
-                self.waiting(),
-            ),
-            (
-                _raw.RAW_FAILURE,
                 {**persisted, _disposed.HANDED: handed[_disposed.HANDED], HANDED_WITH: handed.get(HANDED_WITH)},
                 [handed.get(HANDED_WITH)],
                 1,
-                ((_world.CONCISE_FAILURE,), True),
                 None,
             ),
         )
+        prompted = ran.call_args.args[1]
+        return persisted["feedback"], _raw.handed(self, prompted, _world.CONCISE_FAILURE)
 
     def _finishes_raw(self, reply, leaves, concise: str) -> tuple:
         """Leave the request `reply(self)` waiting unformatted, as `leaves` does, then finish it in a later tick.

@@ -559,8 +559,9 @@ class HandedLaunch:
         The feedback posted and the words its developer is resumed on are the
         record's feedback as a human is shown it (`review_findings`): a record
         persisted before its findings were formatted still carries the raw
-        slice, verification declaration and all, while formatting findings
-        already concise changes nothing. `handed` itself is kept exactly as
+        slice, verification declaration and all, one persisted in the
+        concise layout before leads goes out with each check led, and
+        formatting findings shown as now changes nothing. `handed` itself is kept exactly as
         read -- the handoff, the launch hold, and every drop compare the
         pinned record against it -- so its feedback is never rewritten on the
         comment, and the claim, its receipt, and the anchor stay the ones that

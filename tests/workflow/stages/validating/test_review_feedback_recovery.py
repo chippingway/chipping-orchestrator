@@ -135,6 +135,12 @@ _UNANCHORED = (
         _world.CONCISE_FAILURE,
     ),
     (
+        "persisted and posted in the previous concise layout and receipted, its response lost",
+        partial(_raw.leaves_previous, leaves=_loses_the_post),
+        None,
+        _world.PREVIOUS_CONCISE_FAILURE,
+    ),
+    (
         "persisted raw, posted in the previous concise layout and receipted, its response lost",
         _RAW_POST_REFUSED,
         partial(_posts_findings, findings=_world.PREVIOUS_CONCISE_FAILURE, receipted=True),

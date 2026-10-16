@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A change request a tick persisted before findings were formatted, and what recovering it hands on.
+"""A change request a tick persisted before findings were formatted as now, and what recovering it hands on.
 
 Such a tick ran the live round as it stands save its formatter, which handed
 findings back as written: the feedback it persisted -- and posted, where it
@@ -11,10 +11,14 @@ and anchor a tick persists now. A case leaves the request of
 such a tick stopped -- on its evidence's publication (`owes_its_evidence`),
 its feedback post, its relabel, or its developer's start -- and reads back
 what was posted (`posted`), what the developer was resumed on (`handed`), and
-what a `/orchestrator continue` replaying that post quoted (`quotes`).
+what a `/orchestrator continue` replaying that post quoted (`quotes`). A tick
+before failing checks were led by what failed formatted them in the layout
+`review_findings._unled_findings` keeps, and a case leaves a request so too
+(`leaves_previous`).
 """
 from __future__ import annotations
 
+from functools import partial
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
@@ -42,10 +46,17 @@ def as_persisted(reply: str) -> str:
 RAW_FAILURE = as_persisted(_world.FAILED_REQUEST)
 
 
-def leaves_raw(case, leaves, reply: str = _world.FAILED_REQUEST) -> None:
-    """`leaves(case, reply)`, the tick leaving `case`'s request returned as `reply` waiting, run unformatted."""
-    with patch.object(_findings, "_concise_findings", _as_written):
+def leaves_raw(case, leaves, reply: str = _world.FAILED_REQUEST, *, formats=None) -> None:
+    """`leaves(case, reply)`, the tick leaving `case`'s request returned as `reply` waiting, run unformatted.
+
+    Where `formats` is given, that tick formatted findings with it instead.
+    """
+    with patch.object(_findings, "_concise_findings", formats or _as_written):
         leaves(case, reply)
+
+
+# The tick leaving a request waiting formatted as a tick before leads formatted it.
+leaves_previous = partial(leaves_raw, formats=_findings._unled_findings)
 
 
 def owes_its_evidence(case, reply: str) -> None:

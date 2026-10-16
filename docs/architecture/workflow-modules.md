@@ -184,7 +184,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             sentence naming its command and how it ended, over the output the reviewer quoted as a
                             code block, below a lead naming what failed (`review_findings_failures`); the findings are
                             read whole for the reviewer's failure entries before any check is shown, and stay as
-                            written. Read apart from the declaration reader and more loosely, since it accepts
+                            written save what an entry leaves out, said where it stands (`review_findings_entries`).
+                            Read apart from the declaration reader and more loosely, since it accepts
                             nothing: a step line outside any block opens one, and a block its RUN line did not open,
                             or that no closing line ends, holds only the unbroken lines below each step line and the
                             code fences below them, so the findings written below it stay. A fence is read whole, from
@@ -210,18 +211,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             change request is persisted with, posted as, and handed to its developer as;
                             `stages/validating/review_handoffs.py` formats a persisted request's feedback here again
                             where a later tick posts it and resumes its developer on it, so a record persisted before
-                            that formatting, its declaration raw, goes out concise, and one already concise goes out as
-                            persisted; `stages/validating/feedback_posts.py` formats here the findings an anchored
-                            feedback post quotes where a `/orchestrator continue` replays it, and reads here
-                            (`_unled_findings`) the concise layout a tick before checks were led by what failed posted
-                            a raw record in -- each check its sentence over its output, nothing leading it -- to find
-                            that post by its words
+                            that formatting, its declaration raw, goes out concise, one concise in the layout before
+                            leads goes out led, and one formatted since goes out as persisted;
+                            `stages/validating/feedback_posts.py` formats here the findings an anchored feedback post
+                            quotes where a `/orchestrator continue` replays it, a post in the layout before leads
+                            replayed led, and reads here (`_unled_findings`) that layout -- each check its sentence
+                            over its output, nothing leading it -- a tick of it posted a raw record in, to find that
+                            post by its words
     review_findings_failures.py
                             the lead above each check `review_findings` shows failing, in the labels of the
                             reviewer's failure entries: each failure pytest's short summary reports in the check's
                             output, a `FAILED` test by its exact node ID, parameters included -- even ones holding
                             the dash and bracket that part an ID from its message, the ID ending where a message of the
-                            shape pytest gives, an exception's name first, begins -- an `ERROR` one as
+                            shape pytest gives begins, a rewritten assertion's `assert` or an exception's name, and
+                            where none does, at the first split -- an `ERROR` one as
                             erroring outside the test itself, and an `ERROR` path as its collection, never a test ID,
                             each with the error its line gives, else for a collection the last exception line of the
                             traceback pytest printed collecting it, else the error of the entry naming it, else a
@@ -233,7 +236,23 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             says too where the check quoted no output, and where its command reads its code from stdin
                             (`-`) and no entry it backs gives the snippet as a code block below its `Reproduce:` line,
                             however the line names the command. No lead line opens on a declaration
-                            keyword, and the names and errors it takes from output stand in code spans
+                            keyword, and the names and errors it takes from output stand in code spans. The reviewer's
+                            own text is shown through here too (`said`): its entries with what each leaves out said,
+                            and each check the concise layout before leads showed -- a sentence opening a paragraph at
+                            the margin, outside any code block, closing it on a period or on a colon over a bare
+                            backtick fence holding the output -- led as a check read off a declaration is, since that
+                            layout's feedback holds no declaration to read its checks from again
+    review_findings_entries.py
+                            the failure entries a reviewer writes in its findings, for `review_findings_failures` and
+                            `review_findings`: an entry runs from one `Failure:` line to the next, each of the taught
+                            labels on a line of its own outside any code block, a blank label giving the code block
+                            below it; a run of label lines right above a check's sentence (`CHECK_SENTENCE_RE`) is the
+                            lead the formatting wrote, never an entry. Each entry is read for its name, its error, and
+                            whether a code block stands below its `Reproduce:` line (`FailureEntry`), and shown with
+                            what it leaves out said: a `Failure:` line naming nothing, an error or a reproduction no
+                            label of the entry gives -- said in place on a blank label, else added in the entry's own
+                            indentation, an error below its name and a reproduction below all its last label gives --
+                            each said once, since what is said gives the label a value
     review_findings_fences.py
                             where the code of a reviewer's findings -- fences and indented code -- opens and ends as
                             Markdown renders it, for `review_findings`: a fence opens on a run at most three spaces
