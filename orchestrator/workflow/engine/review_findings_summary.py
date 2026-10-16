@@ -32,19 +32,20 @@ from itertools import compress
 # its description -- read up to the first closing bracket or parenthesis a
 # node ID follows -- then the node ID or the path whose collection failed, and
 # the message after a dash where pytest gives one. A node ID's path, which may
-# hold blanks whatever file it names, as a doctest's text file may, runs to
-# its test's separator, its parameters' bracket, the dash, or the line's end,
-# whichever comes first; its test, which may hold blanks too, as a doctest's
-# named by its text file does, runs to the bracket, the dash, or the line's
-# end. Parameters, which may hold blanks, dashes, and brackets, end on a
-# closing bracket that the dash or the line's end follows. A message pytest
+# hold blanks and brackets whatever file it names, as a doctest's text file
+# or a module in a directory named with them may, runs to its test's
+# separator, the dash, or the line's end, whichever comes first; its test,
+# which may hold blanks too, as a doctest's named by its text file does, runs
+# to the bracket opening its parameters, the dash, or the line's end. Only a
+# test has parameters, which may hold blanks, dashes, and brackets, and end on
+# a closing bracket that the dash or the line's end follows. A message pytest
 # gives opens on a rewritten assertion's `assert`, or on the name of the
 # exception it reports, a colon after it unless it says nothing more.
 _SUMMARY_RE = re.compile(
     r"[ \t]*(?:(?P<outcome>FAILED|ERROR)|SUBFAILED(?P<subtest>[\[(].*?[\])])(?= [^ ]*::))"
     r" (?P<reported>\S.*?)[ \t\r]*",
 )
-_NODE_PATH_RE = re.compile(r"(?:(?! - |::|\[).)+?(?=::|\[| - |\Z)(?:::(?:(?! - |\[).)+?(?=\[| - |\Z))?")
+_NODE_PATH_RE = re.compile(r"(?:(?! - |::).)+?(?=::| - |\Z)(?:::(?:(?! - |\[).)+?(?=\[| - |\Z))?")
 _NODE_END_RE = re.compile(r"(?= - |\Z)")
 _PARAMETERS_END_RE = re.compile(r"\](?= - |\Z)")
 _OPENING_BRACKET = "["
@@ -117,7 +118,7 @@ class SummaryLine:
 
     @classmethod
     def _ends(cls, reported: str) -> list[int]:
-        """Where in `reported` a node ID may end: its path's end, or each closing bracket of its parameters."""
+        """Where in `reported` a node ID may end: past its path or test, or on a closing bracket of its parameters."""
         path = _NODE_PATH_RE.match(reported)
         if path is None:
             return []

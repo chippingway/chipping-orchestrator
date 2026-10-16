@@ -520,6 +520,23 @@ _SPACED_UNCOLLECTED_LEAD = (
     "Failure: collection of `tests/test file.py`, before any test in it ran\n"
     "Error: `ImportError: cannot import name 'b' from 'a::c'`\n"
 )
+# Tests in a file and directory named with brackets, which pytest prints as
+# they are, beside a parameter holding the dash; and a module named so that
+# pytest could not collect.
+_BRACKETED_MODULE = "dir [x]/test_[api].py"
+_BRACKETED = (
+    f"FAILED {_BRACKETED_MODULE}::test_value - assert 0 == 1\n"
+    f"FAILED {_BRACKETED_MODULE}::test_param[a - b] - AssertionError: assert 'a - b' == 1"
+)
+_BRACKETED_LEAD = (
+    f"Failure: `{_BRACKETED_MODULE}::test_value`\nError: `assert 0 == 1`\n"
+    f"Failure: `{_BRACKETED_MODULE}::test_param[a - b]`\nError: `AssertionError: assert 'a - b' == 1`\n"
+)
+_BRACKETED_UNCOLLECTED = _COLLECTION_TRACEBACK.replace("tests/test_b.py", "tests/test_[b].py")
+_BRACKETED_UNCOLLECTED_LEAD = (
+    "Failure: collection of `tests/test_[b].py`, before any test in it ran\n"
+    "Error: `ModuleNotFoundError: No module named 'nowhere'`\n"
+)
 _SPACED_MODULE = "test spaced_module_with_a_long_name_to_fill_the_terminal.py"
 _SECOND_MODULE = "test_second_module_with_a_long_name_to_fill_the_terminal.py"
 _SPACED_LINES = (
@@ -1337,10 +1354,11 @@ class FailureNamesTest(unittest.TestCase):
             # An exception group's own exception stands at the margin its rail
             # sets, past the exceptions it holds set further in.
             (_GROUPED, "", _GROUPED_LEAD),
-            # A path pytest could not collect may hold blanks, and its message
-            # a separator of its own; so may the path a line traceback names,
-            # which still goes to its own summary line.
+            # A path pytest could not collect may hold blanks or brackets, and
+            # its message a separator of its own; so may the path a line
+            # traceback names, which still goes to its own summary line.
             (_SPACED_UNCOLLECTED, "", _SPACED_UNCOLLECTED_LEAD),
+            (_BRACKETED_UNCOLLECTED, "", _BRACKETED_UNCOLLECTED_LEAD),
             (_SPACED_LINES, "", _SPACED_LINES_LEAD),
             # What pytest captured from a test is never read as its own: not
             # as a section's exception, a summary line, or a line traceback.
@@ -1418,8 +1436,10 @@ class FailureNamesTest(unittest.TestCase):
             # frame separator is no title; a summary line too long to carry its
             # error takes the first exception line of the test's section.
             ("", _LONG_OUTPUT, _LONG_LEAD),
-            # A test's file path may hold blanks.
+            # A test's file path may hold blanks, and brackets that open no
+            # parameters.
             ("", _SPACED, _SPACED_LEAD),
+            ("", _BRACKETED, _BRACKETED_LEAD),
         )
         for written, output, lead in cases:
             with self.subTest(written=written, output=output):
