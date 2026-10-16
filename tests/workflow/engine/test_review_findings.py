@@ -358,6 +358,36 @@ _BOTH_LEAD = (
 _SEPARATED_NODE = "tests/test_fixture.py::TestK::test_m[a::b]"
 _SEPARATED = f"___ TestK.test_m[a::b] ___\nFAILED {_SEPARATED_NODE} - AssertionError: got [b] - KeyError: c"
 _SEPARATED_LEAD = f"Failure: `{_SEPARATED_NODE}`\nError: `AssertionError: got [b] - KeyError: c`\n"
+# A long parameterized ID and a long module path, as pytest prints them on an
+# 80-column terminal: a section titled with a single underscore each side, a
+# frame separator inside it, and summary lines too long to carry a message.
+_LONG_CASE = "a_very_long_parameter_value_with_separators_left] - Error: right"
+_LONG_NODE = f"test_id.py::test_value[{_LONG_CASE}]"
+_LONG_OUTPUT = (
+    f"_ test_value[{_LONG_CASE}] _\n"
+    "    def test_value(case):\n"
+    "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n"
+    "E       assert 0 == 1\n"
+    "= short test summary info =\n"
+    f"FAILED {_LONG_NODE}"
+)
+_LONG_LEAD = f"Failure: `{_LONG_NODE}`\nError: `assert 0 == 1`\n"
+_LONG_MODULE = "test_configuration_with_a_long_module_name_for_the_setup_failure.py"
+_UNSTATED_SETUP = (
+    "___________________________ ERROR at setup of test_x ___________________________\n"
+    "E       RuntimeError: fixture initialization exploded\n"
+    f"ERROR {_LONG_MODULE}::test_x"
+)
+_UNSTATED_SETUP_LEAD = (
+    f"Failure: `{_LONG_MODULE}::test_x`, whose setup failed\n"
+    "Error: `RuntimeError: fixture initialization exploded`\n"
+)
+# A stdin check running pytest, which names the test that failed, and how it leads.
+_STDIN_PYTEST = "FAILED tests/test_probe.py::test_probe - AssertionError: values differ"
+_STDIN_PYTEST_SHOWN = (
+    "Failure: `tests/test_probe.py::test_probe`\nError: `AssertionError: values differ`\n"
+    f"{_STDIN_UNREPRODUCED}`.venv/bin/python -` exited with status 1:\n\n```\n{_STDIN_PYTEST}\n```"
+)
 # Entries whose reproduction is a fence holding no code, empty or blank.
 _EMPTY_FENCE_ENTRY = (
     f"Failure: A probe\nError: {_RELABEL_ERROR}\nReproduce: `.venv/bin/python -` reading:\n\n```python\n```\n\n"
@@ -748,6 +778,8 @@ class FailureNamesTest(unittest.TestCase):
             # A test failing in setup and teardown both: each summary line
             # takes the phase whose section raised its error.
             (_BOTH_PHASES, "", _BOTH_LEAD),
+            # A summary line too long to carry its error takes its section's.
+            (_UNSTATED_SETUP, "", _UNSTATED_SETUP_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
@@ -770,6 +802,10 @@ class FailureNamesTest(unittest.TestCase):
             # A section names a test by its classes dotted, its parameters as
             # they are, a separator they hold included.
             ("", _SEPARATED, _SEPARATED_LEAD),
+            # A long title is padded by a single underscore each side, and a
+            # frame separator is no title; a summary line too long to carry its
+            # error takes the first exception line of the test's section.
+            ("", _LONG_OUTPUT, _LONG_LEAD),
         )
         for written, output, lead in cases:
             with self.subTest(written=written, output=output):
@@ -798,6 +834,8 @@ class FailureNamesTest(unittest.TestCase):
                 _RELABEL_ERROR,
                 f"{_COMMAND_ONLY_ENTRY}Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}",
             ),
+            # A stdin check pytest names the failure of says no snippet too.
+            ("", _STDIN_PYTEST, _STDIN_PYTEST_SHOWN),
             (
                 _EMPTY_FENCE_ENTRY,
                 _RELABEL_ERROR,
