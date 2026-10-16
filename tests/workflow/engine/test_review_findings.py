@@ -339,6 +339,30 @@ _SHAPED_ENTRY = (
     f"Failure: `{_SHAPED_NODE}`\nError: AssertionError: values differ\nReproduce: pytest '{_SHAPED_NODE}'\n\n"
 )
 _SHORT_ENTRY = "Failure: tests/test_x.py::test_x[a]\nError: AssertionError: got\nReproduce: pytest tests/test_x.py\n\n"
+# A test whose setup and teardown both failed, and a method whose parameter
+# holds the very separator its class does, as pytest prints them.
+_BOTH_PHASES = (
+    "___ ERROR at setup of test_both ___\n"
+    "E       RuntimeError: setup exploded\n"
+    "___ ERROR at teardown of test_both ___\n"
+    "E       ValueError: teardown exploded\n"
+    "ERROR tests/test_fixture.py::test_both - RuntimeError: setup exploded\n"
+    "ERROR tests/test_fixture.py::test_both - ValueError: teardown exploded"
+)
+_BOTH_LEAD = (
+    "Failure: `tests/test_fixture.py::test_both`, whose setup failed\n"
+    "Error: `RuntimeError: setup exploded`\n"
+    "Failure: `tests/test_fixture.py::test_both`, whose teardown failed\n"
+    "Error: `ValueError: teardown exploded`\n"
+)
+_SEPARATED_NODE = "tests/test_fixture.py::TestK::test_m[a::b]"
+_SEPARATED = f"___ TestK.test_m[a::b] ___\nFAILED {_SEPARATED_NODE} - AssertionError: got [b] - KeyError: c"
+_SEPARATED_LEAD = f"Failure: `{_SEPARATED_NODE}`\nError: `AssertionError: got [b] - KeyError: c`\n"
+# Entries whose reproduction is a fence holding no code, empty or blank.
+_EMPTY_FENCE_ENTRY = (
+    f"Failure: A probe\nError: {_RELABEL_ERROR}\nReproduce: `.venv/bin/python -` reading:\n\n```python\n```\n\n"
+)
+_BLANK_FENCE_ENTRY = _EMPTY_FENCE_ENTRY.replace("```python\n", "```python\n   \n")
 # What an entry leaving out its name, error, or reproduction is shown saying.
 _UNNAMED_ENTRY = "not named; the entry gives no test ID or scenario name"
 _NO_ENTRY_ERROR = "not recorded; the entry gives no error"
@@ -721,6 +745,9 @@ class FailureNamesTest(unittest.TestCase):
             (f"{_SETUP_SECTION}\n{_SETUP_ERROR}", "", (
                 f"Failure: `tests/test_a.py::test_setup`, whose setup failed\n{_FIXTURE_EXPLODED}"
             )),
+            # A test failing in setup and teardown both: each summary line
+            # takes the phase whose section raised its error.
+            (_BOTH_PHASES, "", _BOTH_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
@@ -740,6 +767,9 @@ class FailureNamesTest(unittest.TestCase):
             (_SHAPED_ENTRY, _SHAPED_SUMMARY, _SHAPED_FULL),
             ("", f"{_SHAPED_SECTION}\n{_SHAPED_MESSAGE}", _SHAPED_SHORT),
             (_SHORT_ENTRY, _SHAPED_MESSAGE, _SHAPED_SHORT),
+            # A section names a test by its classes dotted, its parameters as
+            # they are, a separator they hold included.
+            ("", _SEPARATED, _SEPARATED_LEAD),
         )
         for written, output, lead in cases:
             with self.subTest(written=written, output=output):
@@ -752,8 +782,9 @@ class FailureNamesTest(unittest.TestCase):
     def test_missing_diagnostics_are_said(self) -> None:
         # A failure nothing names, that quoted no output, or that a stdin
         # command ran with no snippet given -- the command alone named as its
-        # reproduction included -- stays, saying what is missing; an entry
-        # quoted in a code block, or backing another check, names nothing.
+        # reproduction, or a fence holding no code below it, included -- stays,
+        # saying what is missing; an entry quoted in a code block, or backing
+        # another check, names nothing.
         cases = (
             ("", _RELABEL_ERROR, f"{_UNNAMED}{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
             (_QUOTED_ENTRY, _RELABEL_ERROR, f"{_QUOTED_ENTRY}{_UNNAMED}{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
@@ -766,6 +797,16 @@ class FailureNamesTest(unittest.TestCase):
                 _COMMAND_ONLY_ENTRY,
                 _RELABEL_ERROR,
                 f"{_COMMAND_ONLY_ENTRY}Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}",
+            ),
+            (
+                _EMPTY_FENCE_ENTRY,
+                _RELABEL_ERROR,
+                f"{_EMPTY_FENCE_ENTRY}Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}",
+            ),
+            (
+                _BLANK_FENCE_ENTRY,
+                _RELABEL_ERROR,
+                f"{_BLANK_FENCE_ENTRY}Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}",
             ),
             (
                 _UNREPRODUCED_ENTRY,
@@ -818,6 +859,14 @@ class FailureNamesTest(unittest.TestCase):
                 + f"\n   Reproduce: {_NO_ENTRY_REPRODUCTION}",
             ),
             (f"{_PROBE_ENTRIES}", f"{_PROBE_ENTRIES}"),
+            # A label over a fence holding no code gives nothing.
+            (
+                "Failure: A probe\nError:\n\n```text\n```\nReproduce:\n\n```python\n   \n```",
+                (
+                    f"Failure: A probe\nError: {_NO_ENTRY_ERROR}\n\n```text\n```\n"
+                    f"Reproduce: {_NO_ENTRY_REPRODUCTION}\n\n```python\n   \n```"
+                ),
+            ),
             # A reproduction said right above a sentence of the reviewer's
             # opens no lead, so showing it again says it no twice.
             (
