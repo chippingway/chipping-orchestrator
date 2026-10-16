@@ -126,7 +126,7 @@ _UNDER_THE_EDIT = MappingProxyType({
 # prerequisite that moved, and keeps that comment.
 _REFUSED_UNDER_THE_EDIT = MappingProxyType({
     (_MOVED, False): (_REFUSAL.MOVED, (), False),
-    (_MOVED, True): (_REFUSAL.MOVED, (), False),
+    (_MOVED, True): (_REFUSAL.MOVED, (), True),
     (_MOVED_PREREQUISITE, False): (_REFUSAL.MOVED, (), False),
     (_MOVED_PREREQUISITE, True): (_REFUSAL.PREREQUISITE_CHANGED, (support.PR,), True),
     (_REPLACED, False): (_REFUSAL.REPLACED, (), False),
@@ -335,8 +335,8 @@ class CommitRefusalTest(unittest.TestCase):
         # strict edit's walk is the last reading, and it sends nothing over a
         # record that is no longer the one the candidate was derived over --
         # naming no field, save for a guard that reads a move, which names the
-        # prerequisites the comment that walk read spells otherwise and
-        # carries that comment.
+        # prerequisites the comment that walk read spells otherwise, and
+        # carries that comment whether or not any prerequisite moved there.
         for case, reads in product(_UNDER_THE_EDIT, (False, True)):
             with self.subTest(case=case, reads_a_move=reads):
                 world = support.seeded()

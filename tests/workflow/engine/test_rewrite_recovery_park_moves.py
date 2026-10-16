@@ -20,9 +20,11 @@ transaction -- a record the park was decided on -- refuses it, so the next
 tick's recovery answers the attempt again and records the park around that
 transaction. A process killed before the record lands is answered the same
 way, and so is a record GitHub refused; one that landed with its answer lost
-is found parked, and a poll behind the park changes nothing. The run is
-invalidated whole and made once, and nothing is announced, relabelled,
-pushed, or launched.
+is found parked, and a poll behind the park changes nothing. The park's
+notice is said and its event filed once across all of it: a park made again
+takes in the notice the conversation already carries. The run is invalidated
+whole and made once, and nothing is announced, relabelled, pushed, or
+launched.
 """
 from __future__ import annotations
 
@@ -94,6 +96,9 @@ _WRITES = (
     _Write("a later report settled and reviewed", _settles_a_later_report, 3, refuses=False),
     _Write("a newer transaction recorded beside the run", _records_a_newer_run, 2, refuses=True),
 )
+
+# The event every park files.
+_PARKED = "park_awaiting_human"
 
 # Each write, with the first poll running through or killed before the park's record.
 _CASES = tuple(product(_WRITES, (None, guarded.BEFORE_THE_RECORD)))
@@ -171,10 +176,19 @@ class ResetParkMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         return parked
 
     def _assert_parked(self, settled, receipt: str | None, revision: int) -> None:
-        """Parked and released, report `revision` current, `settled` invalidated whole beside `receipt` pending."""
+        """Parked and released, report `revision` current, `settled` invalidated whole beside `receipt` pending.
+
+        Its notice said and its `park_awaiting_human` event filed once, however
+        many polls parked it: a park made again over a record that never
+        landed takes in the notice the conversation carries, and files its
+        event only where the stream lacks it.
+        """
         self.assert_released()
         self.assertEqual(readings.pinned(self)[_CURRENT_REPORT]["revision"], revision)
         self.assert_invalidated(settled, receipt)
+        noticed = [body for number, body in self.gh.posted_comments if number == git_support.ISSUE]
+        filed = [event for event in self.gh.recorded_events if event["event"] == _PARKED]
+        self.assertEqual((len(noticed), len(filed)), (1, 1))
 
 
 if __name__ == "__main__":

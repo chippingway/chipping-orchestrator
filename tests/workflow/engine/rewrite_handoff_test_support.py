@@ -16,8 +16,12 @@ the event and before the checkpoint, so the retry finds the notice and the
 event with no mark beside them; behind the checkpoint and before the relabel,
 so the retry reads the head as already announced; and behind the relabel and
 before the retirement, so the retry reads the issue as already relabelled
-too. A boundary can also stand for another road's move behind the call it
-picks rather than a death (`Boundary.moving`).
+too. A finish held to the dormant settled-evidence policy lands a record of
+its relabel right ahead of it, so its own boundaries (`DORMANT_BOUNDARIES`)
+add a death at that record, behind the checkpoint and before the relabel,
+where the retry has to tell whether that relabel landed. A boundary can also
+stand for another road's move behind the call it picks rather than a death
+(`Boundary.moving`).
 
 The death is the process exiting (`sys.exit`): the handler around the
 notice's post catches whatever an `Exception` would raise, to read the
@@ -36,10 +40,18 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.engine.rewrite_finish_readings import KEY_ANNOUNCED, KEY_ANNOUNCED_EVENT, KEY_PENDING_PUSH
+from tests.workflow.engine.rewrite_finish_readings import (
+    KEY_ANNOUNCED,
+    KEY_ANNOUNCED_EVENT,
+    KEY_PENDING_PUSH,
+    KEY_RELABELLED,
+)
 
 # How the announcement of a landing opens on the pull request.
 _ANNOUNCES = ":mag:"
+
+# The client step every pinned-comment boundary dies at.
+_EDITS = "edit_pinned_state"
 
 
 @dataclass(frozen=True)
@@ -96,6 +108,11 @@ class _Picks:
         """Whether a label write is the route to `workflow:validating`."""
         return label == WorkflowLabel.VALIDATING
 
+    def recording_the_relabel(self, _issue, state, *, over: dict, **_options) -> bool:
+        """Whether a pinned-comment edit is the record of the route's relabel, which the comment lacks."""
+        records = state.get(KEY_RELABELLED) is not None
+        return records and over.get(KEY_RELABELLED) is None
+
     def retiring(self, _issue, state, *, over: dict, **_options) -> bool:
         """Whether a pinned-comment edit is the one that retires the attempt the comment still carries."""
         retires = state.get(KEY_PENDING_PUSH) is None
@@ -106,15 +123,22 @@ _PICKS = _Picks()
 
 BEFORE_THE_ANNOUNCEMENT = Boundary("before the announcement", "pr_comment", _PICKS.announcing)
 
-BEFORE_THE_EVENT_RECORD = Boundary("noticed, before the event's record", "edit_pinned_state", _PICKS.recording)
+BEFORE_THE_EVENT_RECORD = Boundary("noticed, before the event's record", _EDITS, _PICKS.recording)
 
 BEFORE_THE_EVENT = Boundary("the event recorded, before it is filed", "emit_event", _PICKS.filing)
 
-BEFORE_THE_CHECKPOINT = Boundary("said, before the checkpoint", "edit_pinned_state", _PICKS.checkpointing)
+BEFORE_THE_CHECKPOINT = Boundary("said, before the checkpoint", _EDITS, _PICKS.checkpointing)
 
 BEFORE_THE_RELABEL = Boundary("announced, before the relabel", "set_workflow_label", _PICKS.relabelling)
 
-BEFORE_THE_RETIREMENT = Boundary("relabelled, before the retirement", "edit_pinned_state", _PICKS.retiring)
+# The record of the relabel a finish held to the dormant settled-evidence
+# policy lands ahead of the relabel, whatever label the issue wears: on the
+# route's own clock it comes before `BEFORE_THE_RELABEL`. No production road
+# writes that record, so it stays out of `BOUNDARIES`, which every road's
+# matrix walks.
+BEFORE_THE_RELABEL_RECORD = Boundary("at the relabel's record", _EDITS, _PICKS.recording_the_relabel)
+
+BEFORE_THE_RETIREMENT = Boundary("relabelled, before the retirement", _EDITS, _PICKS.retiring)
 
 BOUNDARIES = (
     BEFORE_THE_ANNOUNCEMENT,
@@ -124,6 +148,10 @@ BOUNDARIES = (
     BEFORE_THE_RELABEL,
     BEFORE_THE_RETIREMENT,
 )
+
+# Every boundary a direct finish held to the dormant settled-evidence policy
+# can be killed at, in the order its route reaches them.
+DORMANT_BOUNDARIES = (*BOUNDARIES[:4], BEFORE_THE_RELABEL_RECORD, *BOUNDARIES[4:])
 
 
 def dies_at(client, boundary: Boundary | None, finishing: Callable[[], object]) -> None:

@@ -1530,7 +1530,17 @@ because there it is the claim that this stage has already rerouted rather than a
   history has no room (`rewrite_landing_retirement.retires_over_the_reset`), the proof before a park that keeps the
   attempt (`rewrite_recovery_parks.proves_before_a_park`), and the park landed through the guarded commit over the
   comment read afresh and proving what it keeps once more behind its notice
-  (`rewrite_recovery_parks.lands_a_park`).
+  (`rewrite_recovery_parks.lands_a_park`) -- a movement its record carried, or that the comment its strict edit was
+  refused over carried, a report or review record moved or the attempt's base tip blanked beside the rest of the
+  attempt as read, kept as read under whichever evidence it was read under
+  (`rewrite_landing_retirement.moved_under`); behind a notice that raised, or a record refused or sent with its
+  answer lost, the evidence the comment carries now laid over the tick's state first, so a successor another road
+  settled meanwhile is proved on its own binding (`rewrite_landing_retirement.reconciles`); and a park made again over
+  a record that never landed taking in the notice the conversation already carries past the watermark, its
+  `park_awaiting_human` event filed only where the stream lacks the one naming that notice
+  (`rewrite_recovery_notices.parks_awaiting_human`). So is the hold a publication gate's hold of a recovery's push
+  would be recorded through, as `HOLD` over the comment read afresh, its proof taken first
+  (`rewrite_recovery_parks.lands_a_hold`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
@@ -1683,12 +1693,20 @@ because there it is the claim that this stage has already rerouted rather than a
     attempt is put back before the evidence is invalidated over it, and movement the comment read to reconcile a lost
     announcement write records counts as a refusal's does. The mark is read again before the announcement and the
     label afresh under it before the relabel and once more behind the proof ahead of it
-    (`workflow/engine/rewrite_finish_announced.py`), a label that will not read holding the route; a debt park
+    (`workflow/engine/rewrite_finish_announced.py`), a label that will not read holding the route; the relabel lands
+    behind a guarded record of its own naming the head (`pending_auto_base_rebase_relabelled`,
+    `rewrite_finish_writes.RELABEL`), the debt measured beside that record too, and is read made only where that
+    record names the head beside `workflow:validating` -- on an issue that already wore that label, where the audit log
+    is configured, only once the log carries the stage-entry event the relabel names the head on (`sha`), the route
+    held while it will not read; with no log it is read made, once at most -- and a relabel onto that label that
+    raises takes its record back off; behind a relabel that raised the evidence the comment then carries is proved, a
+    successor another road settled meanwhile on its own binding; a debt park
     standing is reused unless a reply the watermark has not passed is handed in, and a park whose write never landed
     -- a first one, or one made again over a reply handed in once more -- lands over the notice the conversation
     carries past the watermark or that reply, its event filed only where the event stream lacks the one naming that
     notice, the finish held where that conversation will not read; and a relabel is held where the comment read again
-    behind its proof carries another attempt, so repeated direct finishes make one notice, `base_rebased` event, park
+    behind its proof carries another attempt, settled evidence that reading records moving invalidated first however
+    soon it is put back, so repeated direct finishes make one notice, `base_rebased` event, park
     notice and `park_awaiting_human` event, round reset, relabel, stage-entry event, artifact, and settlement, and
     run, push, or launch nothing again. A newer transaction the proof beside an unfinishable landing finds recorded
     right behind its invalidation is left owed as written, with no last word taken over it, and so is one another

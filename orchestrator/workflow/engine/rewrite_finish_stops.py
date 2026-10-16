@@ -23,12 +23,14 @@ whole before anything keeps it standing for a later finish:
   (`rewrite_finish_unconfirmed.retires_the_marked`).
 - `ahead_of_the_park` proves that evidence and a captured transaction whole
   ahead of the park a debt with no room takes, which keeps both for the reply.
-- `relabels` routes the issue to `workflow:validating` once under the mark
-  (`rewrite_finish_announced.relabelled`), the evidence proved ready ahead of
-  the relabel and behind one that raised, the label and the attempt read
-  again behind that proof's requests, and holds where the label could not be
-  read again or another attempt stands, so nobody relabels twice or over an
-  attempt not its own.
+- `relabels` routes the issue to `workflow:validating` once for the head
+  (`rewrite_finish_announced.relabelled`), behind the relabel's own record
+  (`rewrite_finish_announced.relabels_once`), the evidence proved ready ahead
+  of the relabel and behind one that raised -- over the evidence the comment
+  carries by then -- the label and the attempt read again behind that proof's
+  requests, settled evidence that reading records moving invalidated, and
+  holds where the label could not be read again or another attempt stands, so
+  nobody relabels twice or over an attempt not its own.
 - `observing` is where a stop's guarded writes collect the movement their
   refusals read (`rewrite_finish_writes.lands`) -- a binding record named
   moved, and what the comment a refusal was read over records under the
@@ -70,7 +72,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish_unconfirmed as _unconfirmed,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.rewrite_finish_announced import relabelled
+from orchestrator.workflow.engine.rewrite_finish_announced import relabelled, relabels_once
 from orchestrator.workflow.engine.rewrite_finish_marks import retires_as_it_stands
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_proof import ProofReading
@@ -144,24 +146,32 @@ def ahead_of_the_park(finish: LandedFinish) -> FinishOutcome | None:
     return _captured.stands_before_the_route(finish, whole=True)
 
 
-def relabels(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
-    """Relabel `finish`'s issue to `workflow:validating` where nobody has under the mark; None to go on.
+def relabels(finish: LandedFinish, observed: ProofReading, *, announced: bool) -> FinishOutcome | None:
+    """Relabel `finish`'s issue to `workflow:validating` where nobody has for the head; None to go on.
 
     `announced` is whether the tick read the mark down for the landed head.
     Every finish but one held to the settled-evidence policy relabels unless
-    that mark and the tick's label say the issue is already there; such a
-    finish reads the mark and the label afresh (`rewrite_finish_announced.relabelled`),
+    that mark and the tick's label say the issue is already there, and
+    records nothing of it. Such a finish reads the mark, the relabel's own
+    record, and the label afresh (`rewrite_finish_announced.relabelled`),
     proves settled evidence ready ahead of a relabel it makes
     (`rewrite_finish_settled.stands_ready_if_settled`) -- a proof that holds
-    holding the relabel too -- and once more behind one that raised, and holds
-    the route, the evidence proved, where the label would not read. That proof
-    makes requests of its own, and another finish of the landing may relabel
-    while they are answered, or another road put an attempt of its own in
-    place, so behind them the label is read afresh once more and the relabel,
-    and its stage-entry event, is not made twice -- and the comment is read
-    afresh too, the route held with nothing relabelled where it no longer
-    carries the attempt this finish holds (`rewrite_finish_rechecks.stands_afresh`)
-    or would not read.
+    holding the relabel too -- and once more behind one that raised, over the
+    evidence records the comment carries by then, so a successor another road
+    settled while the relabel was made is proved on its own binding -- and
+    holds the route, the evidence proved, where the label would not read.
+    That proof makes requests of its own, and another finish of the landing
+    may relabel while they are answered, or another road put an attempt of
+    its own in place, so behind them the comment is read afresh -- this
+    landing's own bookkeeping taken in, settled evidence that reading records
+    moving invalidated over `observed`'s classifier, and the route held with
+    nothing relabelled where it no longer carries the attempt this finish
+    holds (`rewrite_finish_rechecks.stands_afresh`) or would not read -- and
+    the label once more, so the relabel, and its stage-entry event, is not
+    made twice. The relabel lands behind its record
+    (`rewrite_finish_announced.relabels_once`), and a record that did not land
+    has the evidence invalidated over a binding record its refusal read
+    moving, or proved ready once more (`rewrite_finish_readiness.invalidates_behind`).
     """
     made = relabelled(finish, announced=announced)
     if made:
@@ -169,7 +179,7 @@ def relabels(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     stopped = _settled.stands_ready_if_settled(finish)
     goes_on = stopped is None and made is not None
-    if goes_on and finish.proves_settled and not _rechecks.stands_afresh(finish, attempt):
+    if goes_on and finish.proves_settled and not _rechecks.stands_afresh(finish, attempt, observed):
         return FinishOutcome.HELD
     if goes_on:
         made = relabelled(finish, announced=announced)
@@ -177,12 +187,11 @@ def relabels(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
         return None
     if stopped is not None or made is None:
         return stopped or FinishOutcome.HELD
-    try:
+    if finish.proves_settled:
+        stopped = relabels_once(finish, observed, partial(_settled.stands_ready_if_settled, afresh=True))
+    else:
         finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
-    except Exception:
-        _settled.stands_ready_if_settled(finish)
-        raise
-    return None
+    return _readiness.invalidates_behind(finish, stopped, observed.observed)
 
 
 def observing(finish: LandedFinish) -> ProofReading:

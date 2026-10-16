@@ -23,7 +23,7 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.workflow.engine import report_record_values as _record_values
+from orchestrator.workflow.engine import report_record_values as _record_values, rewrite_finish_debt as _debt
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
     rewrite_finish_effects_support as effects,
@@ -273,6 +273,29 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         """How many notices PR #42 was given and `base_rebased` events filed, and every label written."""
         notices, events = world.said()
         return len(notices), len(events), world.relabels()
+
+
+class RelabelRecordRoomTest(unittest.TestCase):
+    """The room an announced landing's debt needs beside the record of the relabel a dormant finish lands."""
+
+    def test_the_relabel_record_needs_room(self) -> None:
+        # The comment has room for the debt of a landing already announced
+        # and no more. Every finish measures that debt on the comment as it
+        # stands, and it fits; one held to the dormant settled-evidence policy
+        # also lands the record of its relabel before the retirement clears
+        # it, so it measures beside that record, finds no room, and parks
+        # with nothing recorded or relabelled.
+        for proves_settled in (False, True):
+            with self.subTest(proves_settled=proves_settled):
+                world = support.FinishWorld.seeded(**{support.KEY_ANNOUNCED: support.LANDED})
+                effects.leaves(world, effects.room_for(world) + 1)
+                finish = replace(world.finish(support.FOUND), proves_settled=proves_settled)
+
+                self.assertEqual(_debt.fits(finish, announced=True), not proves_settled)
+
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.PARKED)
+        self.assertEqual(world.relabels(), ())
+        self.assertEqual(world.pinned().get(support.KEY_RELABELLED), None)
 
 
 class SettledDebtRoomTest(DebtRoomTest):

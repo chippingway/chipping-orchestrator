@@ -108,6 +108,19 @@ _PENDING_ANNOUNCED_EVENT = "pending_auto_base_rebase_announced_event"
 # none.
 _PENDING_EVIDENCE_RECEIPT = "pending_auto_base_rebase_evidence_receipt"
 
+# The head whose relabel to `workflow:validating` a finish of this attempt
+# made, written in a write of its own ahead of that relabel whatever label the
+# issue wears, and taken back off where a relabel onto the label the issue
+# already wore raised. Only a finish held to the dormant settled-evidence
+# policy writes it, so no production road does yet. Read beside the label, it
+# is what keeps a finish lost before the retirement from relabelling -- and
+# filing the stage-entry event -- twice: beside another label it is a relabel
+# that never landed. On an issue that already wore `workflow:validating` the
+# label says nothing, so the audit log, where one is configured, is asked for
+# the stage-entry event naming the head; with none the relabel is read as
+# made. Additive: an attempt from before this record existed carries none.
+_PENDING_RELABELLED = "pending_auto_base_rebase_relabelled"
+
 _REASON_AUTO_BASE_REBASE_FAILED = "auto_base_rebase_failed"
 
 _REASON_AUTO_BASE_REBASE_PUSH_FAILED = "auto_base_rebase_push_failed"

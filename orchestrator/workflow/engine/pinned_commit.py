@@ -152,7 +152,8 @@ def commit(
     spells otherwise, where any did
     (`pinned_commit_models.PinnedCommit.under_the_edit`). Such a guard's
     refusal of moved prerequisites carries the comment it read them moved on,
-    the fresh reading or the edit's (`PinnedCommit.keeps_the_move`).
+    the fresh reading or the edit's, and its MOVED refusal the comment the
+    edit found in place of the fresh reading (`PinnedCommit.keeps_the_move`).
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)

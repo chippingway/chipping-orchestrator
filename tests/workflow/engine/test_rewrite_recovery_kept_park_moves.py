@@ -20,13 +20,20 @@ or abandoned, whole, even where report 2 is put back right behind that record
 and before the proof reads the comment again. So is the run behind the
 stranded park the dispatcher's hold takes under a label the refresh does not
 drive, whose notice's post raises after report 3 settled: the proof is taken
-before the error goes on, and nothing is parked. Nothing is run again,
-announced, relabelled, pushed, or launched.
+before the error goes on, and nothing is parked -- over the evidence the
+comment then carries, so a newer run another road settled bound to report 3
+is proved on its own binding. Report 3 settled right under the strict edit of
+that park's record, which is refused over it, is movement read off the comment
+that edit found, however soon report 2 is put back; and a newer run settled
+beside report 3 at a record refused or sent with its answer lost is the
+evidence proved behind it, invalidated whole over report 2 put back. Nothing
+is run again, announced, relabelled, pushed, or launched.
 """
 from __future__ import annotations
 
 import subprocess
 import unittest
+from dataclasses import replace
 from functools import partial
 from types import MappingProxyType
 from unittest.mock import patch
@@ -39,6 +46,7 @@ from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
+    settled_finish_support as settled,
     verification_report_fixture as _report,
 )
 from tests.workflow.interleaving import _RacesPastTheCall
@@ -73,26 +81,52 @@ def _refuses(original, *called, **options) -> subprocess.CompletedProcess:
     return original(*called, **options)
 
 
-def _answering(answer: PinnedEdit, live, issue, state, *, over: dict):
+def _answering(answer: PinnedEdit, live, issue, state, **options):
     """`live`, the client's pinned edit, its answer lost where it is a park's record and `answer` says so."""
-    landed = live(issue, state, over=over)
-    if answer is PinnedEdit.EDITED or not guarded.parking(issue, state, over=over):
+    landed = live(issue, state, **options)
+    if answer is PinnedEdit.EDITED or not guarded.parking(issue, state, **options):
         return landed
     return answer
 
 
-def _settles_a_later_report(case, head: str, replaced: list) -> None:
-    """Settle report 3 of `head` and hand a reviewer it, as another road would; what it moved, into `replaced`."""
+def _settles_a_later_report(case, head: str, replaced: list, *, successor: bool = False):
+    """Settle report 3 of `head` and hand a reviewer it, as another road would; what it moved, into `replaced`.
+
+    `successor` settles a newer run bound to report 3 over the run beside it, as another road would, and answers it.
+    """
     case.state = case.gh.read_pinned_state(case.issue)
     replaced.append({key: case.state.get(key) for key in _MOVED_RECORDS})
-    _report.settles_report(case, 3, "Implemented the change and covered a base that moved twice.", head=head)
+    subject = _report.settles_report(case, 3, "Implemented the change and covered a base that moved twice.", head=head)
     case.gh.write_pinned_state(case.issue, case.state)
+    if not successor:
+        return None
+    earlier = readings.pinned_records(case)[1].binding
+    bound = replace(earlier, target=replace(earlier.target, subject=subject.recorded()))
+    return settled.records_a_newer_run(case, settles=True, binding=bound)
 
 
-def _raises_behind(case, head: str, replaced: list, *_posted, **_options):
-    """The issue-thread post of a park's notice, answered by report 3 of `head` settled and then a raise."""
-    _settles_a_later_report(case, head, replaced)
-    raise RuntimeError("GitHub did not answer the notice's post")
+class _RaisesBehind:
+    """The issue-thread post of a park's notice, answered by report 3 of `head` settled and then a raise.
+
+    `successor` settles a newer run bound to report 3 beside it, kept as
+    `successor`, and puts report 2 back before the raise; what report 3 moved
+    is kept in `replaced`.
+    """
+
+    def __init__(self, case, head: str, *, successor: bool = False) -> None:
+        self._case = case
+        self._head = head
+        self._with_successor = successor
+        self.replaced: list = []
+        self.successor = None
+
+    def __call__(self, *_posted, **_options):
+        """Settle report 3 -- and the successor, putting report 2 back -- then raise as GitHub not answering."""
+        case = self._case
+        self.successor = _settles_a_later_report(case, self._head, self.replaced, successor=self._with_successor)
+        if self._with_successor:
+            _puts_back(case, self.replaced)
+        raise RuntimeError("GitHub did not answer the notice's post")
 
 
 def _puts_back(case, replaced: list) -> None:
@@ -101,6 +135,37 @@ def _puts_back(case, replaced: list) -> None:
     for key, recorded in replaced[-1].items():
         state.set(key, recorded)
     case.gh.write_pinned_state(case.issue, state)
+
+
+class _MovesUnderThePark:
+    """The client's strict edit, report 3 of `head` settled at the park's record and put back right behind it.
+
+    Settled under the edit, which is refused over it, or -- `lost` -- right
+    behind an edit that landed, whose answer is then lost; `successor` settles
+    a newer run bound to report 3 beside it, kept as `successor`.
+    """
+
+    def __init__(self, case, head: str, *, successor: bool = False, lost: bool = False) -> None:
+        self._case = case
+        self._head = head
+        self._live = case.gh.edit_pinned_state
+        self._replaced: list = []
+        self._settles = partial(_settles_a_later_report, case, head, self._replaced, successor=successor)
+        self._lost = lost
+        self.successor = None
+
+    def __call__(self, issue, state, **options):
+        """Answer the edit, the park's record the first time with report 3 settled and put back around it."""
+        if self._replaced or not guarded.parking(issue, state, **options):
+            return self._live(issue, state, **options)
+        if not self._lost:
+            self.successor = self._settles()
+        answered = self._live(issue, state, **options)
+        if self._lost:
+            self.successor = self._settles()
+            answered = PinnedEdit.UNCONFIRMED
+        _puts_back(self._case, self._replaced)
+        return answered
 
 
 class KeptParkProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
@@ -124,19 +189,66 @@ class KeptParkProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_a_raised_notice_proves_behind_it(self) -> None:
         # The dispatcher's hold strands the attempt under a label the refresh
-        # does not drive, and its notice's post raises behind report 3: the
-        # run is proved again before the error goes on, and invalidated whole,
-        # with nothing parked.
+        # does not drive, and its notice's post raises behind report 3 -- or
+        # behind a newer run another road settled bound to report 3, report 2
+        # put back: the evidence the comment carries is proved again before
+        # the error goes on, the run or that successor on its own binding, and
+        # invalidated whole, its revision and binding kept, with nothing parked.
+        for successor in (False, True):
+            with self.subTest(successor=successor):
+                self.setUp()
+                head, settled = self.settles_then_dies()
+                self.issue.labels = [FakeLabel(_UNDRIVEN)]
+                raises = _RaisesBehind(self, head, successor=successor)
+                with patch.object(self.gh, "comment", raises):
+                    self.assertRaises(RuntimeError, guarded.answers_a_held_anchor, self)
+                self.issue.labels = [FakeLabel(git_support.REVIEWING)]
+                _puts_back(self, raises.replaced)
+
+                self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
+                if successor:
+                    self.assert_invalidated(raises.successor, over=settled)
+                else:
+                    self.assert_invalidated(settled)
+
+    def test_a_move_under_the_parks_edit_is_read(self) -> None:
+        # The dispatcher's hold strands the attempt under a label the refresh
+        # does not drive, and report 3 settles right under the strict edit of
+        # the park's record, which is refused over it, report 2 put back right
+        # behind: what that edit read invalidates the run whole, so the head
+        # is routed with nothing current once the label is back.
         head, settled = self.settles_then_dies()
         self.issue.labels = [FakeLabel(_UNDRIVEN)]
-        replaced: list = []
-        with patch.object(self.gh, "comment", partial(_raises_behind, self, head, replaced)):
-            self.assertRaises(RuntimeError, guarded.answers_a_held_anchor, self)
+        with patch.object(self.gh, "edit_pinned_state", _MovesUnderThePark(self, head)):
+            guarded.answers_a_held_anchor(self)
         self.issue.labels = [FakeLabel(git_support.REVIEWING)]
-        _puts_back(self, replaced)
 
-        self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
         self.assert_invalidated(settled)
+        self.recovers()
+        self.assert_recovered(head)
+        self.assertEqual(readings.pinned_records(self)[:2], (None, None))
+        self.assertEqual(self.runs(), 1)
+
+    def test_a_successor_by_an_unlanded_park(self) -> None:
+        # The dispatcher's hold strands the attempt, and another road settles
+        # report 3 and a newer run bound to it at the park's record -- under
+        # its strict edit, which is refused, or right behind an edit whose
+        # answer is lost -- then puts report 2 back: the newer run is the
+        # evidence the proof behind the record takes, on its own binding, and
+        # is invalidated whole over report 2 rather than left current.
+        for lost in (False, True):
+            with self.subTest(lost=lost):
+                self.setUp()
+                head = self.settles_then_dies()[0]
+                self.issue.labels = [FakeLabel(_UNDRIVEN)]
+                moves = _MovesUnderThePark(self, head, successor=True, lost=lost)
+                with patch.object(self.gh, "edit_pinned_state", moves):
+                    guarded.answers_a_held_anchor(self)
+
+                records = readings.pinned_records(self)
+                retired = records[2][-1]
+                self.assertIsNone(records[1])
+                self.assertEqual(retired, (moves.successor.receipt, readings.INVALIDATED))
 
     def _parks_under_a_later_report(self, head: str, *, restoring=False, lost=False) -> None:
         """Recover over a refused fetch and reset with report 3 of `head` settled behind the park's notice.

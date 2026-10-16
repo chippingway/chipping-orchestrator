@@ -1052,7 +1052,9 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   every record the evidence is bound through, puts back an attempt a
   retirement nobody confirmed took before invalidating over it, and announces, relabels, or parks nothing another
   finish of the landing already did (`workflow/engine/rewrite_finish_stops.py`,
-  `workflow/engine/rewrite_finish_announced.py`, `workflow/engine/rewrite_finish_writes.py`). Dormant guarded
+  `workflow/engine/rewrite_finish_announced.py`, `workflow/engine/rewrite_finish_writes.py`) -- its relabel landed
+  behind a guarded record of its own on the attempt (`pending_auto_base_rebase_relabelled`), read beside the label,
+  and beside a label the issue already wore against the audit log where one is configured. Dormant guarded
   recovery operations are built on the readiness
   primitives,
   and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof
@@ -1061,7 +1063,9 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   reset recorded against captured or settled evidence before git moves the checkout, with every recovery park landed
   through the guarded commit over the comment read afresh and proving what it keeps once more behind its notice
   (`workflow/engine/rewrite_recovery_parks.py`), each an optional answer the git owner transports
-  (`records_before_a_reset`, `lands_a_park`). It runs under its caller's issue writer claim.
+  (`records_before_a_reset`, `lands_a_park`) -- a park made again over a notice already said taking it in rather than
+  posting it twice (`workflow/engine/rewrite_recovery_notices.py`) -- beside the guarded hold a publication gate's
+  hold of a recovery's push would be recorded as (`lands_a_hold`). It runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

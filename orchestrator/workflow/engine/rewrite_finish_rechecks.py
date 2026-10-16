@@ -31,7 +31,8 @@ land right behind (`rewrite_finish_unconfirmed.reconciles_the_abandonment`).
 - `stands_afresh` reads the comment afresh behind the proof ahead of a
   relabel (`rewrite_finish_stops.relabels`), whose requests another road may
   put an attempt of its own in place behind, and says whether it still
-  carries the attempt captured ahead of that proof.
+  carries the attempt captured ahead of that proof -- settled evidence that
+  reading records moving invalidated first, however soon it is put back.
 - `lays` lays fields of a comment read afresh over the tick's state, each
   taken in as read.
 
@@ -156,14 +157,24 @@ def invalidates_rechecked(finish: LandedFinish, current: _records.CurrentEvidenc
     return _readiness.invalidates(finish, current) and rechecks_behind(finish, current.receipt)
 
 
-def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit) -> bool:
+def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit, observed) -> bool:
     """Whether the comment read afresh still carries the attempt `attempt` captured, its base tip aside where blank.
 
     False, logged, where another attempt stands there or the comment would
-    not read, so nothing is made over an attempt not the finish's own.
+    not read, so nothing is made over an attempt not the finish's own. Where
+    it stands, the bookkeeping a finish of this landing put on it meanwhile --
+    the record of its relabel among it -- is taken in
+    (`rewrite_finish_announced.takes_in_the_announcement`), so a relabel
+    another finish made is read made rather than made twice. `observed`, the
+    reading the route's writes collect refusals on
+    (`rewrite_finish_stops.observing`), is asked what that very comment
+    records moving under the evidence (`_goes_on_over`), so a report another
+    road moved and puts back before the writes behind it is still movement.
     """
     durable = read_afresh(finish)
-    if durable is not None and stands_as_read(finish, attempt, durable, blank_aside=True):
+    stands = durable is not None and stands_as_read(finish, attempt, durable, blank_aside=True)
+    if stands and _goes_on_over(finish, durable, observed):
+        takes_in_the_announcement(finish, durable)
         return True
     log.warning(
         "issue=#%d holding the route of %.8s: the pinned comment would not read again, or another attempt "
@@ -171,6 +182,28 @@ def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit) ->
         finish.issue.number, finish.head,
     )
     return False
+
+
+def _goes_on_over(finish: LandedFinish, durable: PinnedState, observed) -> bool:
+    """Whether the route may go on over `durable`, settled evidence it reads moving invalidated first.
+
+    `durable` is asked of `observed`'s classifier as it was read
+    (`verification_proof.ProofReading.reads`): settled evidence for the head
+    it records moving -- a review or report record moved off its binding, a
+    mark, a revision spent past it, a blank of the base tip -- is invalidated
+    whole now, however soon what moved is put back, and the comment read
+    afresh behind that write (`invalidates_rechecked`). False, for the route
+    to hold, where that did not land or another road's record or attempt
+    stands behind it.
+    """
+    before = len(observed.observed)
+    observed.reads(durable)
+    moved = any(not refused.holds for refused in observed.observed[before:])
+    current = _settlement.read_current_evidence(finish.state)
+    if not moved or current is None or current.binding.target.target_head != finish.head:
+        return True
+    return invalidates_rechecked(finish, current)
+
 
 def lays(state: PinnedState, durable: PinnedState, fields: Collection[str]) -> None:
     """Lay each of `fields` over `state` as `durable`, a comment read afresh, spells it, every one taken in as read.

@@ -579,7 +579,9 @@ The room the debt needs is measured on the whole write it rides -- the announcem
 ledger entry (reserved at the widest id a comment is recorded at), the record of the `base_rebased` event
 (`pending_auto_base_rebase_announced_event`), the `review_round` both finishes reset ahead of the mark, and the
 mark -- rather than on the debt alone, and on the comment as it stands as well, since resetting a wide
-round can make the announcement the narrower of the two; the writes past it only clear. A proved debt that does not fit
+round can make the announcement the narrower of the two; the writes past it only clear. A finish held to the dormant
+settled-evidence policy measures both beside the record of the relabel its route makes behind them
+(`pending_auto_base_rebase_relabelled`), which lands before the retirement clears it. A proved debt that does not fit
 stops the finish before it announces anything: no notice, no `base_rebased`, no relabel, and no clear. It parks
 `auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay standing, and the anchor holding every
 stage handler back; the park asks for room to be made on the pinned comment and a reply, and the reply brings the
@@ -3274,6 +3276,22 @@ The keys that matter for the state machine fall into a few groups:
   another road left pending, and the replay the attempt's record names counts as landed for the rollback park. Additive:
   an attempt whose finish recorded no transaction carries none, and one from before this member existed recorded its
   evidence only behind its mark, so with none on it a transaction about the head the mark names is that finish's.
+  `pending_auto_base_rebase_relabelled` — the head whose relabel to `workflow:validating` a finish of the attempt
+  made, written only by a finish held to the dormant settled-evidence policy, so no production road writes it yet:
+  landed in a guarded write of its own (`workflow/engine/rewrite_finish_writes.RELABEL`) ahead of that relabel,
+  whatever label the issue wears, so no relabel is made that nothing durable records. Such a finish reads the
+  relabel made only where this member names the head and the issue wears `workflow:validating`
+  (`workflow/engine/rewrite_finish_announced.relabelled`), so a finish lost before the retirement -- or another
+  finish of the landing -- makes neither the relabel nor its stage-entry event twice, with no event log needed.
+  Beside another label the member is a relabel that never landed, and the route relabels. On an issue that already
+  wore `workflow:validating` the label says nothing of whether the relabel behind the member was made: with the
+  audit log configured the next finish asks it for the relabel's `stage_enter` event, which names the head
+  (`sha`), relabels where it is missing, and holds where the log will not read; with no log the relabel is read as
+  made, so a finish lost between this member and that relabel files no stage-entry event for the head -- once at
+  most, never twice. A relabel onto that label that raises filed no stage-entry event, so it takes the member back
+  off before the error goes on, for the next finish to relabel. Blanked with the rest of the attempt by every write
+  that ends it, whichever road ends it. Additive: an attempt from before this member existed, or one a production
+  finish routes, carries none.
   `pending_auto_base_rebase_announced_event` — the head whose `base_rebased` event a finish of the attempt is
   filing, written in a guarded write of its own right ahead of the event and of the mark
   (`workflow/engine/rewrite_finish_writes.ANNOUNCED_EVENT`), carried by the checkpoint as well, and blanked with the
@@ -3332,7 +3350,12 @@ The keys that matter for the state machine fall into a few groups:
   has proved again first and abandoned where anything it rests on moved (`proves_before_a_park`). Each park still
   writes the tick's state whole: the guarded park that records it over the comment read afresh, and the record of a
   reset made ahead of it, are dormant answers no recovery context carries yet (`lands_a_park`,
-  `records_before_a_reset`, `workflow/engine/rewrite_recovery_parks.py`).
+  `records_before_a_reset`, `workflow/engine/rewrite_recovery_parks.py`), and so is the guarded hold a publication
+  gate's hold of a recovery's push would be recorded through (`lands_a_hold`, `HOLD`). Their records keep what moved
+  under them as read -- the comment a refused strict edit found among it, a base tip blanked there beside the rest of
+  the attempt included -- lay the evidence the comment carries over the tick's state behind a record that did not
+  land, so a successor another road settled is proved on its own binding, and take in a park notice already said past
+  the watermark rather than posting it twice (`workflow/engine/rewrite_recovery_notices.py`).
   **The post-publication route is live too.** The recovery hands every head the pull request already carries, beside
   how far the transfer got, to the workflow's landed road (`workflow/engine/rewrite_landed.py`), which asks
   `landed_recovery` why it may not finish one, and eligibility's open-PR gate hands `terminal_handoff` every

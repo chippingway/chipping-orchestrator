@@ -52,6 +52,17 @@ _FOUND_TO_REVIEW = f"{_FOUND}{_TO_REVIEW} so the reviewer re-runs against the re
 
 _ROUTED = (support.LABEL_VALIDATING,)
 
+# For a finish held to the dormant settled-evidence policy: the label an
+# announced issue wears, the head the record of its relabel names (None for
+# none recorded), the relabels its route makes, and the pinned writes the
+# finish makes -- the relabel's record and the retirement, or the retirement
+# alone.
+_ANNOUNCED_LABELS = (
+    (support.LABEL_FIXING, None, _ROUTED, 2),
+    (support.LABEL_VALIDATING, support.LANDED, (), 1),
+    (support.LABEL_VALIDATING, None, _ROUTED, 2),
+)
+
 # The method a landing this tick sent nothing for is filed under, and the one a
 # push a recovery made is.
 _FOUND_METHOD = "crash_recovery_relabel_only"
@@ -272,6 +283,30 @@ class AnnouncedFinishTest(unittest.TestCase):
                     (([], []), relabelled, _RETIRED),
                 )
                 self.assertEqual(world.github.write_state_calls, 1)
+
+    def test_a_dormant_finish_relabels_once(self) -> None:
+        # Held to the dormant settled-evidence policy, with no audit log: a
+        # validating label beside the relabel's record naming the head is
+        # that relabel made, and is not written again; one the issue wore
+        # before the rebase, with no record, is, as an uninterrupted route's
+        # would be, its record landed right ahead of it.
+        self.enterContext(patch.object(support.FinishWorld, "proves_settled", True))
+        self.enterContext(patch("orchestrator.config.EVENT_LOG_PATH", None))
+        for label, recorded, relabelled, writes in _ANNOUNCED_LABELS:
+            with self.subTest(label=label, recorded=recorded):
+                world = support.FinishWorld.seeded(label=label, **{
+                    support.KEY_ANNOUNCED: support.LANDED,
+                    support.KEY_REWRITE_DEBT: support.owed(),
+                    support.KEY_RELABELLED: recorded,
+                })
+
+                self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
+
+                self.assertEqual(
+                    (world.said(), world.relabels(), support.attempt(world.pinned())),
+                    (([], []), relabelled, _RETIRED),
+                )
+                self.assertEqual(world.github.write_state_calls, writes)
 
     def test_an_earlier_marks_debt_precedes_its_route(self) -> None:
         # A mark an earlier build wrote with no debt beside it: the claim is

@@ -4,10 +4,11 @@
 
 Direct finishes held to the dormant settled-evidence policy
 (`settled_route_support`): issue #7's run settled beside another road's
-charged run ledger, its finish killed at each final handoff boundary, nothing
-the run rests on moving. The next finish routes the head; one after that finds
-no attempt -- retired, replaced, or beside a successor whose handoff is
-missing or damaged -- and touches nothing. The issue ends with one notice,
+charged run ledger, its finish killed at each final handoff boundary -- the
+relabel's own record among them -- nothing the run rests on moving. The next
+finish routes the head; one after that finds no attempt -- retired, replaced,
+or beside a successor whose handoff is missing or damaged -- and touches
+nothing. The issue ends with one notice,
 event, artifact, settlement, round reset, relabel, and stage-entry event, the
 command run once, nothing pushed or launched, and the run ledger exactly as
 charged.
@@ -37,7 +38,7 @@ class RepeatedFinishTest(route.SettledRouteCase, unittest.TestCase):
         # The run stays current whole beside the evidence the rewrite moved
         # past, posted once, and a transaction another road records for the
         # head behind the route is left owed and unposted.
-        for boundary in handoff.BOUNDARIES:
+        for boundary in handoff.DORMANT_BOUNDARIES:
             with self.subTest(boundary=boundary.name):
                 self.setUp()
                 head, run = self._routes_behind(boundary)

@@ -18,7 +18,12 @@ These are the answers a recovery context carries for that
 `proves_before_a_park`), and they are dormant: no recovery road, eligibility
 gate, or dispatcher hold the workflow builds a context for is handed them
 yet, so every recovery park is still written whole and every reset made with
-nothing recorded ahead of it.
+nothing recorded ahead of it. So is the hold behind a publication gate that
+held a recovery's push (`lands_a_hold`): its proof taken first, and only what
+the tick staged since its reading landed, as `HOLD`, over the comment read
+afresh; no recovery road records its hold through it yet. A park made again
+over a record that never landed takes in the notice the conversation already
+carries rather than saying it twice (`rewrite_recovery_notices`).
 
 The park (`lands_a_park`) lands through the guarded commit
 (`report_commits.ReportCommit`) as `PARK`: owning every field the tick staged
@@ -65,8 +70,15 @@ keeps as the fresh comment carries it. So the evidence is proved once more
 behind the notice (`lands_a_park`) -- landed, refused, or raised -- and a
 report moved meanwhile is movement read under it, invalidated or recorded
 against it before the tick ends; one the park's own commit carried, landed or
-sent with its answer lost, is handed to that proof as read (`_adopted`), so
-putting the earlier report back before the reply revives nothing. A checkout
+sent with its answer lost -- or one its strict edit found moved under it and
+was refused over, a base tip blanked there beside the rest of the attempt as
+the tick read it among them (`rewrite_landing_retirement.moved_under`) -- is
+handed to that proof as read (`_moved`), so putting the earlier report or the
+tip back before the reply revives nothing. Behind a record
+refused or sent with its answer lost, the evidence the comment carries now is
+laid over the tick's state first (`rewrite_landing_retirement.reconciles`),
+so a successor another road settled while the notice was posted is proved on
+its own binding rather than left unread behind the tick's older reading. A checkout
 gone from disk has nothing to prove the landing over, so its evidence is
 retired on the state the park writes -- and the reset recorded against it
 first, in a write of its own, so a park write that fails or never lands
@@ -82,14 +94,13 @@ from orchestrator.git.base_sync import (
     state as _base_sync_state,
 )
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
-from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    guards as _guards,
     pinned_commit_models as _commit_models,
     prompt_delivery as _prompt_delivery,
     report_commits as _commits,
     rewrite_finish_writes as _writes,
     rewrite_landing_retirement as _retirement,
+    rewrite_recovery_notices as _notices,
     verification_records as _evidence_records,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
@@ -98,14 +109,25 @@ log = logging.getLogger("orchestrator.workflow")
 
 _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PARK_REASON))
 
-# What a park's record read where the record it landed or sent carried one the
-# evidence's binding rests on that another road moved while its notice was posted.
+# What a park's record read where the record it landed or sent, or the comment
+# its refused edit read, carried one the evidence's binding rests on that
+# another road moved while its notice was posted.
 _MOVED_UNDER_THE_NOTICE = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved while a park's notice was posted",
 )
 
+# What a recovery hold records: whatever the tick staged since its reading --
+# a publication gate's own record of the no-op it held -- decided on the
+# attempt it keeps, so every evidence record stays as the comment carries it.
+# Its strict edit keeps the comment a refusal read (`reads_a_move`), which the
+# proof behind it reads for movement (`_moved`).
+HOLD = _commits.ReportWrite(
+    owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS),
+).reading_moves(True)
+
 # A park's record, decided on the attempt it keeps or drops, the park's own
-# flags, and the evidence records a landed reset retires beside the attempt.
+# flags, and the evidence records a landed reset retires beside the attempt,
+# its strict edit keeping the comment a refusal read as the hold's does.
 PARK = _commits.ReportWrite(
     owned=_PARK_FLAGS | {_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID},
     decided_on=frozenset(_attempts._ATTEMPT_KEYS) | _PARK_FLAGS | {
@@ -113,15 +135,18 @@ PARK = _commits.ReportWrite(
         _evidence_records.CURRENT_EVIDENCE,
         _evidence_records.EVIDENCE_HISTORY,
     },
-)
+).reading_moves(True)
 
 
 def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str) -> None:
     """Park `context`'s issue for a human with `message` and `reason`, recorded through the guarded commit as `PARK`.
 
     The notice is posted and the park staged on the tick's state as every
-    auto-rebase park stages it (`git/base_sync/persistence._park_auto_rebase_failure`);
-    what lands is laid over that state, so whatever the recovery does behind
+    auto-rebase park stages it (`git/base_sync/persistence._park_auto_rebase_failure`)
+    -- or, where an earlier tick's park of the attempt posted it and its record
+    never landed, the notice the conversation carries is taken in instead,
+    nothing said twice (`rewrite_recovery_notices.parks_awaiting_human`) --
+    and what lands is laid over that state, so whatever the recovery does behind
     it starts from the comment as it now stands. Behind it, whether it landed
     or not, evidence the park leaves standing beside the attempt is proved once
     more over the comment read afresh (`rewrite_landing_retirement.retires_unproved`),
@@ -130,36 +155,51 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     the record the commit made of the comment already carried such a move --
     a record the evidence's binding rests on
     (`rewrite_finish_writes.BINDING_RECORDS`) spelled otherwise than the tick
-    read it, in the record that landed or in the one sent with its answer
-    lost, which is never laid over the tick's state -- that is movement read,
+    read it, in the record that landed, in the one sent with its answer lost,
+    which is never laid over the tick's state, or in the comment its strict
+    edit found moved under it and was refused over -- that is movement read,
     handed to the proof as its answer, so a record put back between the
     park's commit and the proof revives nothing. A notice whose post raised --
     refused, or posted with its answer lost -- records nothing, and the proof
-    is taken before the error goes on, so a report moved while it was posted
-    is read moving all the same.
+    is taken before the error goes on, over the evidence the comment carries
+    by then (`rewrite_landing_retirement.reconciles`), so a report moved while
+    it was posted is read moving all the same -- under a successor another
+    road settled meanwhile too, proved on its own binding.
     """
     state = context.state
     try:
-        _guards._park_awaiting_human(context.gh, context.issue, state, message, reason=reason)
+        _notices.parks_awaiting_human(context, message, reason)
     except Exception:
         if context.worktree.is_dir():
+            _retirement.reconciles(context)
             _retirement.retires_unproved(context)
         raise
     state.set(_base_sync_state._PARK_REASON, reason)
     if state.synced is None:
         context.gh.write_pinned_state(context.issue, state)
         return
-    read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}
-    landed = _commits.ReportCommit(context.gh, context.issue, state).lands(state, PARK)
-    if landed.status is not _commit_models.CommitStatus.COMMITTED:
-        log.warning(
-            "issue=#%d the park of its auto-rebase recovery did not land (%s); nothing is recorded, "
-            "and the next tick's recovery answers the comment as it then stands",
-            context.issue.number, (landed.refusal or landed.status).value,
-        )
-    moved = _adopted(landed.reading, read)
-    if context.worktree.is_dir():
-        _retirement.retires_unproved(context, moved)
+    _lands_then_proves(context, PARK, "park")
+
+
+def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
+    """Prove what a recovery hold keeps, then record the hold over the comment read afresh, as `HOLD`.
+
+    A publication gate that held a recovery's push -- the landed road's leased
+    no-op, or the retry's reissued push -- keeps the attempt, so its evidence
+    is proved first
+    (`rewrite_landing_retirement.retires_unproved`). The gate's answer is long
+    enough for another road to record a newer transaction, so only what the
+    tick staged since its reading lands, every other field kept as the fresh
+    comment carries it, and a record refused or never confirmed withholds the
+    tick's state. Behind the record the evidence is proved once more, over the
+    move the record itself carried, as behind every park (`lands_a_park`). A
+    state nothing was read into is written whole.
+    """
+    _retirement.retires_unproved(context)
+    if context.state.synced is None:
+        context.gh.write_pinned_state(context.issue, context.state)
+        return
+    _lands_then_proves(context, HOLD, "hold")
 
 
 def proves_before_a_park(context: _AutoRebaseRecoveryContext) -> bool:
@@ -215,15 +255,70 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     return False
 
 
-def _adopted(reading: PinnedState | None, read: dict) -> ReportEvidence | None:
-    """The movement a park's record carried: `reading` spelling a binding record otherwise than `read` did, or None.
+def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, named: str) -> None:
+    """Land the tick's state as `write` over the comment read afresh, then prove once more what it keeps.
 
-    `reading` is the record the park's commit made of the comment -- landed,
-    or sent with no answer -- and None where it was refused with nothing sent.
-    The movement is answered as read even where the record that carried it is
-    put back before the proof behind the park reads the comment again.
+    Whether the record landed or not, the proof behind it -- taken only over a
+    checkout on disk -- is handed the move the record carried or its strict
+    edit was refused over (`_moved`), under whichever evidence still stands
+    behind it (`rewrite_landing_retirement.receipts`). A record that did not
+    land has the evidence the comment carries now laid over the tick's state
+    first (`rewrite_landing_retirement.reconciles`), so a successor another
+    road recorded or settled meanwhile -- one the record took in, or one its
+    refusal or lost answer left out of the tick's state -- is proved on its
+    own binding, and invalidated over movement read under it however soon that
+    is put back. `named` is the record, logged where it did not land.
     """
-    if reading is None:
-        return None
-    carried = {key: _commit_models.spelled(reading.data, key) for key in read}
-    return None if carried == read else _MOVED_UNDER_THE_NOTICE
+    state = context.state
+    read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}
+    held = _retirement.receipts(state)
+    attempt = _retirement.attempt_as_read(state)
+    landed = _commits.ReportCommit(context.gh, context.issue, state).lands(state, write)
+    if landed.status is not _commit_models.CommitStatus.COMMITTED:
+        log.warning(
+            "issue=#%d the %s of its auto-rebase recovery did not land (%s); nothing is recorded, "
+            "and the next tick's recovery answers the comment as it then stands",
+            context.issue.number, named, (landed.refusal or landed.status).value,
+        )
+        _retirement.reconciles(context)
+    if context.worktree.is_dir():
+        _retirement.retires_unproved(context, _moved(context, landed, read, held, attempt))
+
+
+def _moved(
+    context: _AutoRebaseRecoveryContext,
+    landed: _commit_models.CommitOutcome,
+    read: dict,
+    held: frozenset[str],
+    attempt: _commit_models.PinnedCommit | None,
+) -> ReportEvidence | None:
+    """The movement a record's commit, `landed`, read under the evidence `context.state` carries behind it; or None.
+
+    What it read is the record the commit made of the comment -- landed, or
+    sent with no answer -- or, where it was refused, the comment its refusal
+    was read over: the one its strict edit found moved under it, a report
+    another road settled right at that edit among what it carries
+    (`pinned_commit_models.CommitOutcome.seen`); nothing where the refusal
+    read no comment. `read` is the binding records as the tick read them, and
+    `held` the receipts the tick's state carried before the record. A binding
+    record `reading` spells otherwise than `read` is movement under the
+    evidence the tick held (`_MOVED_UNDER_THE_NOTICE`); a review or report
+    record it spells off the binding of any evidence it records for the head
+    is movement under that evidence (`rewrite_landing_retirement.moved_under`)
+    -- a successor another road settled among it -- and so is the base tip of
+    `attempt`, the attempt the tick read, read blank or repointed beside every
+    other member of it: a blank another road recorded right at the record's
+    strict edit and put back behind it. Only movement under
+    evidence still standing is handed to the proof, as read, even where what
+    carried it is put back before the proof reads the comment again; a
+    successor nothing was read moving under is proved on its own readings.
+    """
+    reading = landed.reading or landed.seen
+    moves = _retirement.moved_under(reading, attempt)
+    if reading is not None:
+        carried = {key: _commit_models.spelled(reading.data, key) for key in read}
+        if carried != read:
+            moves = {**dict.fromkeys(held, _MOVED_UNDER_THE_NOTICE), **moves}
+    standing = sorted(_retirement.receipts(context.state))
+    under = [moves[receipt] for receipt in standing if receipt in moves]
+    return under[0] if under else None

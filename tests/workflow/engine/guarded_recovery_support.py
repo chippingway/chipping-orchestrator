@@ -10,9 +10,9 @@ park every recovery park is recorded through. It hands them to the context the
 git owner's fail-closed abort is taken over (`guarded_aborts`), which every
 tick whose fetch of the branch fails (`unfetched`) reaches, to the dispatcher's
 held anchor (`answers_a_held_anchor`), or to a context read off the comment as
-it stands (`recovery_context`), for a case asking the park proof alone. A
-real-git finish case whose every tick takes the guarded abort is a
-`GuardedRecoveryCase`.
+it stands (`recovery_context`), for a case asking the park proof or the guarded
+hold alone. A real-git finish case whose every tick takes the guarded abort is
+a `GuardedRecoveryCase`.
 """
 from __future__ import annotations
 
@@ -76,7 +76,7 @@ def unfetched(spec, ref: str, **options) -> subprocess.CompletedProcess:
     return _FETCH(spec, ref, **options)
 
 
-def parking(_issue, state, *, over: dict) -> bool:
+def parking(_issue, state, *, over: dict, **_options) -> bool:
     """Whether a pinned-comment edit is a park's record, which the comment lacks."""
     return bool(state.get(AWAITING)) and not over.get(AWAITING)
 
@@ -126,15 +126,19 @@ class GuardedRecoveryCase(support.CapturedRunCase):
         handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
         return head, readings.pinned_records(self)[1]
 
-    def assert_invalidated(self, settled, pending: str | None = None) -> None:
+    def assert_invalidated(self, settled, pending: str | None = None, *, over=None) -> None:
         """`settled` invalidated whole behind the anchor's evidence, its revision and binding kept, `pending` beside it.
 
         `pending` is the receipt of a transaction another road recorded, None
-        where nothing is pending. Nothing is announced or relabelled, and the
-        run was made once, with nothing pushed or launched.
+        where nothing is pending; `over` is the run `settled` superseded where
+        another road settled it in that run's place. Nothing is announced or
+        relabelled, and the run was made once, with nothing pushed or launched.
         """
         records = readings.pinned_records(self)
-        retired = (*git_support.invalidated(self), (settled.receipt, readings.INVALIDATED))
+        retired = [*git_support.invalidated(self), (settled.receipt, readings.INVALIDATED)]
+        if over is not None:
+            retired.insert(-1, (over.receipt, readings.SUPERSEDED))
+        retired = tuple(retired)
         self.assertEqual(records[1:], (None, retired))
         self.assertEqual(getattr(records[0], "receipt", None), pending)
         entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]

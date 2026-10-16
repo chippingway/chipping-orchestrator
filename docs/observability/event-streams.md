@@ -50,7 +50,14 @@ two spellings and which labels have only one.
 capped in-memory tail (`recorded_events`, `_RECORDED_EVENTS_CAP = 500`) for tests and short-window debugging — the
 file is the durable record.
 
-- `stage_enter` — `set_workflow_label` (via `_emit_stage_enter`) for every label flip; extras: `stage`.
+- `stage_enter` — `set_workflow_label` (via `_emit_stage_enter`) for every label flip; extras: `stage`, and `sha` --
+  the landed head -- on the relabel to `workflow:validating` the route of a landed rewrite finished directly under the
+  dormant settled-evidence policy makes (`workflow/engine/rewrite_finish_announced.relabels_once`), which no
+  production road selects. That relabel's pinned record lands ahead of it, and beside that record on an issue that
+  already wore `workflow:validating` the next such finish asks the audit log for this event before relabelling again
+  (`rewrite_finish_announced.relabelled`), holding while it will not read; with no log configured the record alone
+  answers, and the relabel is read as made -- at most once, never twice. The correlation rides the audit event alone,
+  not the analytics row.
 - `agent_spawn` / `agent_exit` — `_run_agent_tracked` (in `workflow/engine/usage.py`) wraps every `run_agent` call
   (decomposer, implementer, reviewer, dev-resume, conflict-resolution dev); extras: `agent` (backend), `agent_role`,
   `review_round`, `retry_count`. `session_id` and `agent_exit`-only fields are described below. A launch the
@@ -72,7 +79,9 @@ file is the durable record.
   question- and discussion-stage
   `_park_question` / `_park_discussion` funnels, and the debt park of a landed rewrite finished directly under the
   dormant settled-evidence policy whose notice was said with no event behind it
-  (`workflow/engine/rewrite_finish_debt.py`, `files_the_park`), which no production road selects;
+  (`workflow/engine/rewrite_finish_debt.py`, `files_the_park`), which no production road selects, and the dormant
+  guarded recovery park of an automatic base rewrite made again over a notice it finds already said
+  (`workflow/engine/rewrite_recovery_notices.py`), which no recovery context carries yet;
   fanned out to `ANALYTICS_LOG_PATH` alongside this audit log through the shared `GitHubClient.emit_event` chokepoint;
   extras: `stage` (read from the current
   workflow label, not passed in), `reason` (e.g. `agent_timeout`, `push_failed`, `failed_checks`, `agent_question`,
@@ -348,7 +357,15 @@ lost finish is still to retry, can let that retry file its `base_rebased` a seco
 anywhere else: a finish handed to the coordinator directly under the dormant settled-evidence policy also asks it
 whether the `park_awaiting_human` of a debt park whose notice it finds already said is filed -- matched on the issue,
 the `reason`, the landed head such a park names as `sha`, and the id of that notice it names as `notice_id`, which the
-park asks the funnel to name (`names_the_notice=True`) -- and holds while it will not read.
+park asks the funnel to name (`names_the_notice=True`) -- and holds while it will not read. Two more dormant readers
+ask it the same way. The guarded recovery park (`workflow/engine/rewrite_recovery_parks.lands_a_park`), made again over
+a notice of its own it finds said past the watermark, asks for its event, matched on the issue, the `reason`, and the
+`notice_id` such a park's event names (`workflow/engine/rewrite_recovery_notices.py`), filing nothing while the log will
+not read; with no log configured it asks only the process's in-memory tail, so a restart between that event and the
+park's record files the event once more, though never the notice. And the dormant finish asks for the `stage_enter`
+its relabel filed where the relabel's record stands beside a label the issue already wore
+(`rewrite_finish_announced.relabelled`); there `github/events.durable` tells it whether a log is configured at all, and
+with none the record alone answers.
 
 ## Analytics sink (`ANALYTICS_LOG_PATH`)
 
