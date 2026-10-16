@@ -221,7 +221,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     review_findings_failures.py
                             the lead above each check `review_findings` shows failing, in the labels of the
                             reviewer's failure entries: each failure pytest's short summary reports in the check's
-                            output, a `FAILED` test by its exact node ID, parameters included -- even ones holding
+                            output, a `FAILED` test by its exact node ID, its file path holding blanks or not,
+                            parameters included -- even ones holding
                             the dash that parts an ID from its message, and text of a message's shape after it: the ID
                             is the longest an entry names whole or pytest titled a section by, else it ends on the last
                             split leaving a message of pytest's shape, a rewritten assertion's `assert` or an
@@ -259,8 +260,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             what it collected, a line of spaced underscores parting frames and titling nothing.
                             A section's exception is the first line set out least in its last run of lines marked
                             `E`, not an explanation, diff hint, or source line set out further, nor an exception
-                            another was raised handling; one marking no line holds `--tb=native`'s own traceback, its
-                            exception the first line at the margin below the last header. With `--tb=line` a failure
+                            another was raised handling; one marking no line holds Python's own traceback -- as
+                            `--tb=native` prints it, and as pytest prints an exception group in any mode -- its
+                            exception the first line at the margin below the last header, for a group the margin its
+                            rail sets, the exceptions it holds standing further in. With `--tb=line` a failure
                             has no section: each `path:line: exception` line under the failures heading is a section
                             titled by nothing, which a summary line naming a test takes in turn. Each summary line
                             takes the first section it may be that no
