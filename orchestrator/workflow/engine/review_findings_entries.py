@@ -298,11 +298,17 @@ class _Lines:
         return self._blocks.get(below)
 
     def _end(self, number: int) -> int:
-        """The number of the line after the lines label line `number` goes on over: none blank, labeled, or code."""
+        """The number of the line after the lines label line `number` goes on over.
+
+        None of them is blank, labeled, or code, nor opens the next finding
+        (`_reach`), so what is said below a label stays the entry's own.
+        """
+        line = self._lines[number]
+        indent = len(_INDENT_RE.match(line).group().expandtabs())
         end = number + 1
-        for line in self._lines[end:]:
-            stops = not line.strip(_BLANKS) or end in self._blocks
-            if stops or _LABEL_RE.fullmatch(line):
+        for below in self._lines[end:]:
+            stops = not below.strip(_BLANKS) or end in self._blocks
+            if stops or self._reach[end] <= indent or _LABEL_RE.fullmatch(below):
                 break
             end += 1
         return end

@@ -665,6 +665,49 @@ _NESTED_TITLES_LEAD = (
     f"Failure: `{_LINE_MODULE}::test_prints_child`\nError: `RuntimeError: outer first failure`\n"
     f"Failure: `{_LINE_MODULE}::test_same`\nError: `TypeError: outer second failure`\n"
 )
+# Runs `-q` printed one after another, each opening on no session's heading:
+# on its progress line, or -- failing collection alone, it reports no progress
+# -- on its errors heading.
+_QUIET_PROGRESS = "F                                                                        [100%]\n"
+_QUIET_FIRST = (
+    f"{_QUIET_PROGRESS}"
+    "=================================== FAILURES ===================================\n"
+    "__________________________________ test_first __________________________________\n"
+    "E   ValueError: first\n"
+    f"{_SUMMARY_HEADING}"
+    "FAILED tests/test_first.py::test_first - ValueError: first\n"
+    "1 failed in 0.01s\n"
+)
+_QUIET_FIRST_LEAD = "Failure: `tests/test_first.py::test_first`\nError: `ValueError: first`\n"
+_QUIET_RUNS = (
+    f"{_QUIET_FIRST}{_QUIET_PROGRESS}"
+    "=================================== FAILURES ===================================\n"
+    "_________________________________ test_second __________________________________\n"
+    "E   KeyError: 'second'\n"
+    f"{_SUMMARY_HEADING}"
+    "FAILED tests/test_second.py::test_second - KeyError: 'second'\n"
+    "1 failed in 0.01s"
+)
+_QUIET_RUNS_LEAD = f"{_QUIET_FIRST_LEAD}Failure: `tests/test_second.py::test_second`\nError: `KeyError: 'second'`\n"
+_QUIET_UNCOLLECTED = (
+    f"{_QUIET_FIRST}\n"
+    "==================================== ERRORS ====================================\n"
+    "_______________________ ERROR collecting tests/test_b.py _______________________\n"
+    "E   ModuleNotFoundError: No module named 'nowhere'\n"
+    f"{_SUMMARY_HEADING}"
+    f"ERROR tests/test_b.py\n{_INTERRUPTED}\n"
+    "1 error in 0.07s"
+)
+_QUIET_UNCOLLECTED_LEAD = (
+    f"{_QUIET_FIRST_LEAD}{_UNCOLLECTED_NAME}Error: `ModuleNotFoundError: No module named 'nowhere'`\n"
+)
+_QUIET_SKIPPED = (
+    f"{_QUIET_FIRST}"
+    ".s                                                                       [100%]\n"
+    f"{_SUMMARY_HEADING}"
+    "SKIPPED [1] tests/test_skips.py:5: later\n"
+    "1 passed, 1 skipped in 0.01s"
+)
 # A stdin check running pytest, which names the test that failed, and how it leads.
 _STDIN_PYTEST = "FAILED tests/test_probe.py::test_probe - AssertionError: values differ"
 _STDIN_PYTEST_SHOWN = (
@@ -695,6 +738,20 @@ _FINDINGS_APART = (
     "Reproduce: .venv/bin/python -m pytest tests/probe.py\n\n"
     "## A heading's finding\n\n"
     "Reproduce: .venv/bin/python -m pytest tests/heading.py"
+)
+# Entries the next finding opens right below -- a heading, a list item, and
+# the next item of a numbered list the entry stands under -- each with the
+# indentation it stands in.
+_ADJACENT_FINDINGS = (
+    ("Failure: Named probe\nError: AssertionError: expected 1\n## Next finding", ""),
+    ("Failure: Named probe\nError: AssertionError: expected 1\n- Next finding", ""),
+    (
+        (
+            "1. First finding\n   Failure: Named probe\n   Error: AssertionError: expected 1\n"
+            "2. Second finding\n   Reproduce: x"
+        ),
+        "   ",
+    ),
 )
 _PROBE_ENTRY = f"Failure: A probe\nError: {_RELABEL_ERROR}\n\n"
 _PROBE_SNIPPET = f"Reproduce: .venv/bin/python - reading:\n\n```python\nraise AssertionError('{_RELABEL_ERROR}')\n```"
@@ -1132,6 +1189,9 @@ class FailureNamesTest(unittest.TestCase):
             (_CUT_RUN, "", _OUTER_LEAD),
             (_TWO_RUNS, "", _TWO_RUNS_LEAD),
             (_NESTED_TITLES, "", _NESTED_TITLES_LEAD),
+            (_QUIET_RUNS, "", _QUIET_RUNS_LEAD),
+            (_QUIET_UNCOLLECTED, "", _QUIET_UNCOLLECTED_LEAD),
+            (_QUIET_SKIPPED, "", _QUIET_FIRST_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
@@ -1318,6 +1378,12 @@ class FailureEntriesTest(unittest.TestCase):
             _FINDINGS_APART,
             _FINDINGS_APART.replace("expected 1\n", f"expected 1\n   Reproduce: {_NO_ENTRY_REPRODUCTION}\n"),
         )
+        # What an entry leaves out is said above the next finding even where
+        # that opens right below its last label, so it is said once.
+        for written, indent in _ADJACENT_FINDINGS:
+            with self.subTest(written=written):
+                said = f"expected 1\n{indent}Reproduce: {_NO_ENTRY_REPRODUCTION}\n"
+                _assert_shown(self, written, written.replace("expected 1\n", said))
 
     def test_entries_read_across_the_declaration(self) -> None:
         # Entries are read across the findings whole, the declaration's place
