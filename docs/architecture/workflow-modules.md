@@ -1368,7 +1368,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             hears moving in the records alone, a mark, a revision spent past it, a review or report
                             record moved, where a newer transaction recorded beside it or a successor under another
                             receipt reads none -- save a successor that very comment disproves on its own binding,
-                            laid over the tick's state for the invalidation behind the stop to take (`observing`);
+                            or carries beside a blank of the base tip, laid over the tick's state for the
+                            invalidation behind the stop to take (`observing`);
                             and behind a stop of the announcement or the park --
                             refused, unconfirmed, held, or raising -- an unconfirmed record or checkpoint's
                             bookkeeping taken in, the comment that reconciliation read asked what it records moving,
@@ -2226,7 +2227,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             Before a park that keeps the attempt (`retires_unproved`) the captured run is proved
                             again (`rewrite_landing_moved.proves_captured`) and settled evidence proved ready
                             (`rewrite_finish_readiness.settled_word`) and invalidated where it moved, movement a
-                            caller already read standing as the proof -- by a finish of the landed head built for
+                            caller already read standing as the proof of the evidence under the receipt it was read
+                            under, and of none other -- by a finish of the landed head built for
                             that proof alone and held to the dormant settled-evidence policy, so a mark of movement
                             under the evidence's receipt is read as movement and an announcement another finish of
                             the landing put on the attempt is taken in before the invalidation lands over it; a

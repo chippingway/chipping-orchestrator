@@ -278,7 +278,7 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
     read = _as_read(state)
     attempt = _retirement.attempt_as_read(state)
     landed = _commits.ReportCommit(context.gh, context.issue, state).lands(state, write)
-    reconciled = None
+    reconciled = {}
     if landed.status is not _commit_models.CommitStatus.COMMITTED:
         log.warning(
             "issue=#%d the %s of its auto-rebase recovery did not land (%s); nothing is recorded, "
@@ -287,7 +287,7 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
         )
         reconciled = _retirement.reconciles(context)
     if context.worktree.is_dir():
-        _retirement.retires_unproved(context, _moved(context, landed, read, attempt) or reconciled)
+        _retirement.retires_unproved(context, {**reconciled, **_moved(context, landed, read, attempt)})
 
 
 def _as_read(state) -> tuple[dict, dict, frozenset[str]]:
@@ -314,8 +314,8 @@ def _moved(
     landed: _commit_models.CommitOutcome,
     read: tuple[dict, dict, frozenset[str]],
     attempt: _commit_models.PinnedCommit | None,
-) -> ReportEvidence | None:
-    """The movement a record's commit, `landed`, read under the evidence `context.state` carries behind it; or None.
+) -> dict[str, ReportEvidence]:
+    """The movement a record's commit, `landed`, read under the evidence `context.state` carries behind it, by receipt.
 
     What it read is the record the commit made of the comment -- landed, or
     sent with no answer -- or, where it was refused, the comment its refusal
@@ -336,9 +336,11 @@ def _moved(
     `attempt`, the attempt the tick read, read blank or repointed beside every
     other member of it: a blank another road recorded right at the record's
     strict edit and put back behind it. Only movement under
-    evidence still standing is handed to the proof, as read, even where what
-    carried it is put back before the proof reads the comment again; a
-    successor nothing was read moving under is proved on its own readings.
+    evidence still standing is handed to the proof, as read, each under the
+    receipt it was read under, even where what carried it is put back before
+    the proof reads the comment again; evidence nothing was read moving under
+    -- a successor, or a transaction beside evidence that moved -- is proved
+    on its own readings.
     """
     reading = landed.reading or landed.seen
     baseline = read[1] if landed.reading is None else read[0]
@@ -347,5 +349,5 @@ def _moved(
         carried = {key: _commit_models.spelled(reading.data, key) for key in baseline}
         if carried != baseline:
             moves = {**dict.fromkeys(read[2], _MOVED_UNDER_THE_NOTICE), **moves}
-    standing = sorted(_retirement.receipts(context.state))
-    return next((moves[receipt] for receipt in standing if receipt in moves), None)
+    standing = _retirement.receipts(context.state)
+    return {receipt: moves[receipt] for receipt in moves if receipt in standing}

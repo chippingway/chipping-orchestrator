@@ -332,16 +332,19 @@ def _reads_moving(
     disproves it, the evidence records it carries are laid over the tick's
     state (`rewrite_finish_rechecks.lays`), so the invalidation behind the
     stop (`rewrite_finish_readiness.invalidates_behind`) takes that successor,
-    and the movement is answered, however soon its records are put back.
+    and the movement is answered, however soon its records are put back --
+    the blank of the base tip among it, which is movement under whichever
+    evidence that reading carries.
     """
     blanked = _TIP in attempt.moved(state.data)
     blanked = blanked and not _attempt_records._recorded_onto(state)
-    if blanked and _rechecks.stands_as_read(finish, attempt, state, blank_aside=True):
-        return _BLANKED
+    blanked = blanked and _rechecks.stands_as_read(finish, attempt, state, blank_aside=True)
     carried = _settlement.read_current_evidence(state)
     if carried is None or carried.binding.target.target_head != finish.head:
-        return None
+        return _BLANKED if blanked else None
     heard = _readiness._records_heard(carried, state, settled=True)
+    if blanked:
+        heard = (_BLANKED, *heard)
     moving = next((refused for refused in heard if refused and not refused.holds), None)
     if moving is not None and carried.receipt != receipt:
         _rechecks.lays(finish.state, state)

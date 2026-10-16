@@ -37,8 +37,9 @@ so every recovery context still carries the captured-only answers alone.
   it moved (`rewrite_finish_readiness.invalidates`), over the checkout as it
   reads now and the branch the comment names, none of it needing the fetch an
   abort could not take. Movement the caller already read -- a record a park's
-  own commit adopted while its notice was posted -- stands as that proof, so
-  no reading taken now hides it by finding it put back. With no checkout on
+  own commit adopted while its notice was posted -- stands as that proof of
+  the evidence under the receipt it was read under, and of none other, so no
+  reading taken now hides it by finding it put back. With no checkout on
   disk there is nothing to prove the landing over, so both are retired as
   over a reset, on the state the park lands; the movement is recorded against
   them first, in a write of its own, by the proof that hands this one in
@@ -131,25 +132,58 @@ def retires_over_the_reset(
     off the landed head, which is movement under both. The transaction is
     abandoned as the captured-only answer abandons it
     (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
-    invalidated on the same state (`_invalidates_over_the_reset`), so both
-    land with the attempt's release or neither does. False only where the
-    settled evidence has no room for its history entry, and is kept whole
-    beside the attempt. `why` names the write it rides, logged.
+    invalidated on the same state, into history whole, its revision and
+    binding kept, so both land with the attempt's release or neither does.
+    With no room for its history entry the settled evidence is not dropped:
+    it stays current, whole, beside the attempt that keeps every reader off
+    it, and the movement is recorded instead by blanking the base tip the
+    attempt recorded its replay as made onto, so every later proof of the
+    evidence reads movement (`rewrite_evidence_proof.standing_refusal`) and
+    invalidates it whole once the comment has room -- putting the checkout
+    back first revives nothing. A reset recorded ahead of it has that blank
+    landed already (`rewrite_recovery_parks.records_the_reset`); a checkout
+    gone from disk has it landed here. It only shrinks the comment, so it
+    lands at once, guarded as the finish's own abandonment is
+    (`rewrite_finish_writes.ABANDONMENT`), with whatever else this answer
+    staged. False then, for the git owner to keep the attempt and hold the
+    tick with nothing parked until room is made. `why` names the write it
+    rides, logged.
     """
     _landing_moved.abandons_over_the_reset(context, why)
-    return _invalidates_over_the_reset(context, why)
+    settled = _landing_records.settled(context.state)
+    if settled is None:
+        return True
+    log.info(
+        "issue=#%d invalidating verification evidence revision %d settled for %.8s, %s",
+        context.issue.number, settled.revision, settled.binding.target.target_head, why,
+    )
+    if _settlement.retire_current_evidence(context.state):
+        return True
+    context.state.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+    recorded = _commits.ReportCommit(context.gh, context.issue, context.state).lands(
+        context.state, _writes.ABANDONMENT,
+    )
+    log.error(
+        "issue=#%d the pinned comment has no room to retire verification evidence revision %d settled for %.8s; "
+        "keeping it current beside the attempt, its base tip blanked (%s), and holding until room is made",
+        context.issue.number, settled.revision, settled.binding.target.target_head, recorded.status.value,
+    )
+    return False
 
 
-def retires_unproved(context: _AutoRebaseRecoveryContext, moved: ReportEvidence | None = None) -> bool:
+def retires_unproved(context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence] | None = None) -> bool:
     """Prove what a finish captured or settled for the landed head before a park keeps it, retiring what moved.
 
     Whether the park may go on. The transaction is proved first
     (`rewrite_landing_moved.proves_captured`), and settled evidence then
     proved ready again and invalidated whole where it moved; nothing is read
     or written where neither stands, and what nothing moved under is kept.
-    `moved` is movement the caller already read under that evidence, which is
-    the proof the transaction is abandoned with and invalidates settled
-    evidence outright. Settled evidence is proved by a finish of the landed
+    `moved` is movement the caller already read under that evidence, by the
+    receipt it was read under (`moved_under`), which is the proof the
+    transaction under that receipt is abandoned with, or that invalidates the
+    settled evidence under it outright -- movement read under one receipt
+    proving nothing about evidence standing under another, which is proved on
+    its own readings. Settled evidence is proved by a finish of the landed
     head held to the dormant settled-evidence policy, built here for the proof
     alone: the mark of movement an earlier finish left under its receipt is
     read as the movement it is, and an announcement another finish of the
@@ -161,23 +195,18 @@ def retires_unproved(context: _AutoRebaseRecoveryContext, moved: ReportEvidence 
     its history entry among it, its movement recorded instead -- for the git
     owner to hold the tick with nothing parked.
     """
-    settled = _landing_records.settled(context.state)
-    if _landing_records.captured(context.state) is None and settled is None:
+    moved = moved or {}
+    captured = _landing_records.captured(context.state)
+    if captured is None and _landing_records.settled(context.state) is None:
         return True
     if not context.worktree.is_dir():
         return retires_over_the_reset(context, _landing_moved._CHECKOUT_GONE)
     branch = _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
     unread = _AutoRebaseRecoverySnapshot(branch=branch, local_head="")
-    if not _landing_moved.proves_captured(context, unread, moved):
+    proof = None if captured is None else moved.get(captured.receipt)
+    if not _landing_moved.proves_captured(context, unread, proof):
         return False
-    settled = _landing_records.settled(context.state)
-    if settled is None:
-        return True
-    finish = replace(
-        _landing_moved._finish(context, settled.binding.target.target_head, unread, None), proves_settled=True,
-    )
-    word = moved or _readiness.settled_word(finish, settled)[0]
-    return word is None or _readiness.invalidates(finish, settled)
+    return _proves_settled(context, unread, moved)
 
 
 def receipts(state) -> frozenset[str]:
@@ -191,7 +220,7 @@ def receipts(state) -> frozenset[str]:
     return frozenset(record.receipt for record in recorded if record is not None)
 
 
-def reconciles(context: _AutoRebaseRecoveryContext) -> ReportEvidence | None:
+def reconciles(context: _AutoRebaseRecoveryContext) -> dict[str, ReportEvidence]:
     """Lay the evidence records the comment read afresh carries over `context.state`; the movement it reads under them.
 
     For a caller whose record did not land -- refused, or sent and never
@@ -200,13 +229,13 @@ def reconciles(context: _AutoRebaseRecoveryContext) -> ReportEvidence | None:
     meanwhile is the evidence the proof behind that record has to take, on its
     own binding, each record taken in as read. That very reading is asked what
     it records moving under the evidence it carries for the head
-    (`moved_under`, the attempt as the tick last read it beside it), and the
-    first such movement is the answer, for the caller to hand the proof behind
-    it as movement already read, so a record put back between this reading
-    and that proof revives nothing. A comment that would not read is read
+    (`moved_under`, the attempt as the tick last read it beside it), by
+    receipt, which is the answer, for the caller to hand the proof behind it
+    as movement already read, so a record put back between this reading and
+    that proof revives nothing. A comment that would not read is read
     once more, so one failed request does not leave the proof behind it
     classifying the tick's older evidence while its own reading carries a
-    successor. None where nothing moved, or where the comment would not read
+    successor. Empty where nothing moved, or where the comment would not read
     either time, which lays nothing.
     """
     attempt = attempt_as_read(context.state)
@@ -214,9 +243,9 @@ def reconciles(context: _AutoRebaseRecoveryContext) -> ReportEvidence | None:
     if durable is None:
         durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
     if durable is None:
-        return None
+        return {}
     lays(context.state, durable, _durable._EVIDENCE_RECORDS)
-    return next(iter(moved_under(durable, attempt).values()), None)
+    return moved_under(durable, attempt)
 
 
 def attempt_as_read(state: PinnedState) -> PinnedCommit | None:
@@ -274,40 +303,23 @@ def moved_under(comment: PinnedState | None, attempt: PinnedCommit | None = None
     return moved
 
 
-def _invalidates_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext, why: str) -> bool:
-    """Stage the invalidation of evidence a finish settled for the landed head on `context.state`; may the attempt go.
+def _proves_settled(
+    context: _AutoRebaseRecoveryContext, unread: _AutoRebaseRecoverySnapshot, moved: dict[str, ReportEvidence],
+) -> bool:
+    """Prove evidence a finish settled for the landed head ready again, invalidated whole where it moved; may it go.
 
-    Into history whole, its revision and binding kept, for the park to land
-    with the attempt's release. With no room for its history entry it is not
-    dropped: it stays current, whole, beside the attempt that keeps every
-    reader off it, and the movement is recorded instead by blanking the base
-    tip the attempt recorded its replay as made onto, so every later proof of
-    the evidence reads movement (`rewrite_evidence_proof.standing_refusal`)
-    and invalidates it whole once the comment has room -- putting the checkout
-    back first revives nothing. A reset recorded ahead of it has that blank
-    landed already (`rewrite_recovery_parks.records_the_reset`); a checkout
-    gone from disk has it landed here. It only shrinks the comment, so it
-    lands at once, guarded as the finish's own abandonment is
-    (`rewrite_finish_writes.ABANDONMENT`), with whatever else this answer
-    staged. False then, for the git owner to keep the attempt and hold the
-    tick with nothing parked until room is made.
+    By a finish of the landed head held to the dormant settled-evidence policy,
+    built for the proof alone, over the landing as `unread` reads it. Movement
+    `moved` holds under that evidence's own receipt stands as the proof;
+    movement under any other receipt says nothing about it. True where none
+    stands, or where nothing moved; otherwise whether its invalidation landed.
     """
     settled = _landing_records.settled(context.state)
     if settled is None:
         return True
-    log.info(
-        "issue=#%d invalidating verification evidence revision %d settled for %.8s, %s",
-        context.issue.number, settled.revision, settled.binding.target.target_head, why,
+    finish = replace(
+        _landing_moved._finish(context, settled.binding.target.target_head, unread, None), proves_settled=True,
     )
-    if _settlement.retire_current_evidence(context.state):
-        return True
-    context.state.set(_base_sync_state._PENDING_REWRITE_BASE, None)
-    recorded = _commits.ReportCommit(context.gh, context.issue, context.state).lands(
-        context.state, _writes.ABANDONMENT,
-    )
-    log.error(
-        "issue=#%d the pinned comment has no room to retire verification evidence revision %d settled for %.8s; "
-        "keeping it current beside the attempt, its base tip blanked (%s), and holding until room is made",
-        context.issue.number, settled.revision, settled.binding.target.target_head, recorded.status.value,
-    )
-    return False
+    word = moved.get(settled.receipt)
+    word = word or _readiness.settled_word(finish, settled)[0]
+    return word is None or _readiness.invalidates(finish, settled)

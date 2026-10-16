@@ -200,16 +200,21 @@ class _SucceedsUnderTheRecheck:
     its raise swallowed), so the reading disproves the successor's own
     binding; report 3 is put back right behind it. `at_the_record` races the
     strict edit of the relabel's own record instead (`edits`), which is
-    refused over the comment it finds, report 3 put back behind that refusal.
+    refused over the comment it finds, report 3 put back behind that refusal
+    -- or, `blanks`, a newer run settled bound to report 2 beside the
+    attempt's base tip blanked there, the tip put back behind the refusal.
     """
 
-    def __init__(self, case, head: str, *, at_the_record: bool = False) -> None:
+    def __init__(self, case, head: str, *, at_the_record: bool = False, blanks: bool = False) -> None:
         self._case = case
         self._at_the_record = at_the_record
+        self._blanks = blanks
         self._live = _rechecks.read_afresh
         self._edit = case.gh.edit_pinned_state
         self._race = _RaisesUnderTheRelabel(case, head)
         self._head = head
+        self._tip: dict = {}
+        self._successor = None
 
     def __call__(self, finish):
         """Read the comment afresh, the first time with the successor settled and report 2 put back for it."""
@@ -223,11 +228,15 @@ class _SucceedsUnderTheRecheck:
     def edits(self, issue, state, *, over: dict, **options):
         """The client's strict edit, the relabel's record the first time raced by the successor and refused over it."""
         records = state.get(readings.KEY_RELABELLED) == self._head
-        if not records or over.get(readings.KEY_RELABELLED) or self._race.raised:
+        if not records or over.get(readings.KEY_RELABELLED) or self._race.raised or self._tip:
             return self._edit(issue, state, over=over, **options)
-        self._case.assertRaises(RuntimeError, self._race)
+        if self._blanks:
+            self._successor = settled_support.records_a_newer_run(self._case, settles=True)
+            _writes(self._case, {readings.KEY_REWRITE_BASE: None}, keeping=self._tip)
+        else:
+            self._case.assertRaises(RuntimeError, self._race)
         answered = self._edit(issue, state, over=over, **options)
-        _writes(self._case, self._race.settled, keeping={})
+        _writes(self._case, self._tip or self._race.settled, keeping={})
         return answered
 
     def patching(self):
@@ -238,17 +247,25 @@ class _SucceedsUnderTheRecheck:
 
     def assert_retired(self, run) -> None:
         """History ending with `run` superseded by the successor, and the successor invalidated whole."""
-        self._race.assert_retired(run)
+        if self._successor is None:
+            self._race.assert_retired(run)
+            return
+        history = readings.pinned_records(self._case)[2]
+        superseded = (run.receipt, readings.SUPERSEDED)
+        invalidated = (self._successor.receipt, readings.INVALIDATED)
+        self._case.assertEqual(history[-2:], (superseded, invalidated))
 
 
 # Each race around the route's relabel, and what the finish it races comes
 # to: report 3 moved under the recheck, beside another attempt there too, a
-# successor settled under the recheck, or one settled at the relabel's record.
+# successor settled under the recheck, or one settled at the relabel's record
+# -- off its binding, or beside the base tip blanked there.
 _RELABEL_READS = (
     (partial(_MovesUnderTheRecheck), FinishOutcome.ROUTED),
     (partial(_MovesUnderTheRecheck, replaces=True), FinishOutcome.HELD),
     (partial(_SucceedsUnderTheRecheck), FinishOutcome.ROUTED),
     (partial(_SucceedsUnderTheRecheck, at_the_record=True), FinishOutcome.REFUSED),
+    (partial(_SucceedsUnderTheRecheck, at_the_record=True, blanks=True), FinishOutcome.REFUSED),
 )
 
 

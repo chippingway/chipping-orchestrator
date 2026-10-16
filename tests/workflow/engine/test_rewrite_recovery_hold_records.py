@@ -32,6 +32,7 @@ from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
     report_commits as _commits,
+    rewrite_landing_records as _landing_records,
     rewrite_recovery_parks as _parks,
     verification_record_state as _record_state,
     verification_records as _records,
@@ -169,26 +170,38 @@ class _AroundTheHold:
         return answered
 
 
-class _AnnouncesBehind:
-    """The guarded commit as `around` answers it, another finish of the landing recording its event behind the hold.
+class _WritesAtTheHold:
+    """The guarded commit as `around` answers it -- or as it always does -- `fields` written once at the hold's record.
 
-    That finish puts the record of the `base_rebased` event it is filing for
-    `head` on the attempt right behind the hold's record, advancing the
-    attempt the proof behind that record invalidates over.
+    Another road writes them right behind the hold's record -- another finish
+    of the landing recording its event on the attempt, say, advancing the
+    attempt the proof behind that record invalidates over -- or, `ahead`,
+    right ahead of it, so the record lands over them.
     """
 
-    def __init__(self, case, around: _AroundTheHold, head: str) -> None:
+    def __init__(self, case, fields: dict, *, around: _AroundTheHold | None = None, ahead: bool = False) -> None:
         self._case = case
-        self._around = around
-        self._head = head
+        self._fields = fields
+        self._around = around or _LANDS
+        self._ahead = ahead
+        self._written = False
 
     def __call__(self, commit, staged, write):
+        holds = write is _parks.HOLD and not self._written
+        if holds and self._ahead:
+            self._writes()
         answered = self._around(commit, staged, write)
-        state = self._case.gh.read_pinned_state(self._case.issue)
-        if write is _parks.HOLD and state.get(readings.KEY_ANNOUNCED_EVENT) is None:
-            state.set(readings.KEY_ANNOUNCED_EVENT, self._head)
-            self._case.gh.write_pinned_state(self._case.issue, state)
+        if holds and not self._ahead:
+            self._writes()
         return answered
+
+    def _writes(self) -> None:
+        """Write `fields` onto the comment as it stands, once."""
+        self._written = True
+        state = self._case.gh.read_pinned_state(self._case.issue)
+        for key, recorded in self._fields.items():
+            state.set(key, recorded)
+        self._case.gh.write_pinned_state(self._case.issue, state)
 
 
 def _holds(case) -> None:
@@ -336,13 +349,34 @@ class HeldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # that finish advanced it, so the next poll routes the head with
         # nothing current.
         head, settled = self.settles_then_dies()
-        announces = _AnnouncesBehind(self, _AroundTheHold(self, head, restores=True), head)
+        around = _AroundTheHold(self, head, restores=True)
+        announces = _WritesAtTheHold(self, {readings.KEY_ANNOUNCED_EVENT: head}, around=around)
         with patch.object(_commits.ReportCommit, _LANDING, side_effect=announces, autospec=True):
             _holds(self)
 
         self.assert_invalidated(settled)
         self.recovers()
         _assert_routed(self, head)
+
+    def test_a_mark_leaves_another_receipt_intact(self) -> None:
+        # The run stands settled beside a newer transaction another road
+        # recorded for the head under the attempt's own receipt, and another
+        # finish marks the run moved under the run's receipt right ahead of
+        # the hold's record, which carries that mark: the run is invalidated
+        # whole, and the transaction, intact under a receipt of its own, is
+        # kept pending as recorded.
+        run = self.settles_then_dies()[1]
+        newer = settled_support.records_a_newer_run(self)
+        state = self.gh.read_pinned_state(self.issue)
+        self.assertTrue(_landing_records.records(state, newer))
+        self.gh.write_pinned_state(self.issue, state)
+        marks = _WritesAtTheHold(self, {_records.EVIDENCE_HANDOFF: {"moved": run.receipt}}, ahead=True)
+        with patch.object(_commits.ReportCommit, _LANDING, side_effect=marks, autospec=True):
+            _holds(self)
+
+        self.assertEqual(readings.pinned_records(self)[:2], (newer, None))
+        retired = readings.pinned_records(self)[2][-1]
+        self.assertEqual(retired, (run.receipt, readings.INVALIDATED))
 
 
 if __name__ == "__main__":
