@@ -142,7 +142,9 @@ def relabels(finish: LandedFinish, observed: ProofReading) -> FinishOutcome | No
     (`rewrite_finish_announced.relabelled`), and settled evidence is proved
     ready ahead of a relabel the finish makes
     (`rewrite_finish_settled.stands_ready_if_settled`) -- a proof that holds
-    holding the relabel too -- and once more behind one that raised, and holds
+    holding the relabel too -- and once more behind one that raised, over the
+    evidence records the comment carries by then, so a successor another road
+    settled while the relabel was made is proved on its own binding -- and holds
     the route, the evidence proved, where the label would not read. That proof
     makes requests of its own, and another finish of the landing may relabel
     while they are answered, or another road put an attempt of its own in
@@ -171,7 +173,7 @@ def relabels(finish: LandedFinish, observed: ProofReading) -> FinishOutcome | No
         return None
     if stopped is not None or made is None:
         return stopped or FinishOutcome.HELD
-    stopped = relabels_once(finish, observed, _settled.stands_ready_if_settled)
+    stopped = relabels_once(finish, observed, partial(_settled.stands_ready_if_settled, afresh=True))
     return _readiness.invalidates_behind(finish, stopped, observed.observed)
 
 

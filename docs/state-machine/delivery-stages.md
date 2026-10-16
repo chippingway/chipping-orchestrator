@@ -1536,8 +1536,10 @@ because there it is the claim that this stage has already rerouted rather than a
   it was read under (`rewrite_recovery_parks.lands_a_park`); behind a notice that raised, or a record refused or sent
   with its answer lost, the evidence the comment carries now is laid over the tick's state first, so a successor
   another road settled meanwhile is proved on its own binding rather than left unread
-  (`rewrite_landing_retirement.reconciles`). A publication gate's hold of the landed road's
-  leased no-op is recorded the same way, as `HOLD`, its proof taken first (`rewrite_recovery_parks.lands_a_hold`).
+  (`rewrite_landing_retirement.reconciles`). A publication gate's hold of the landed road's leased no-op, or of the
+  retry's reissued push, is recorded the same way, as `HOLD` over the comment read afresh, so an evidence record or a
+  revision floor another road wrote while the gate answered is kept, its proof taken first
+  (`rewrite_recovery_parks.lands_a_hold`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
@@ -1679,10 +1681,12 @@ because there it is the claim that this stage has already rerouted rather than a
     transaction proved whole ahead of that park; ahead of and behind the relabel, a head with none current held to its
     replay's base tip or, with none recorded, to the base the tick counted; and behind every refused, unconfirmed,
     held, or raising stop of the checkpoint, the event's record, the park and its notice, the relabel, and the
-    retirement. The checkpoint, the event's record, and the park are decided on every bound record
-    (`workflow/engine/rewrite_finish_writes.py`), and a refusal over a record the evidence's binding rests on, or one
-    whose comment -- the preparation's fresh reading or the strict edit's own -- was read recording movement under
-    the evidence, a mark in its handoff's place, a revision spent past it, or a blank of the attempt's base tip,
+    retirement -- behind a relabel that raised, over the evidence the comment then carries, so a successor another
+    road settled meanwhile is proved on its own binding. The checkpoint, the event's record, and the park are
+    decided on every bound record (`workflow/engine/rewrite_finish_writes.py`), and a refusal over a record the
+    evidence's binding rests on, or one whose comment -- the preparation's fresh reading or the strict edit's own --
+    was read recording movement under the evidence, a mark in its handoff's place, a revision spent past it, or a
+    blank of the attempt's base tip,
     invalidates the evidence however soon that comment is put back, where a newer transaction recorded beside it or
     a successor settled under another receipt moves nothing under it; behind a retirement nobody confirmed the
     attempt is put back before the evidence is invalidated over it, and movement the comment read to reconcile a lost

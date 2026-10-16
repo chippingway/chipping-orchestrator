@@ -1328,8 +1328,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`retires_the_adopted`). The coordinator (`rewrite_finish.py`) asks
                             `stands_ready_if_settled` through its stops (`rewrite_finish_stops.py`) beside an
                             unfinishable landing, ahead of the park, and ahead of the relabel and behind one that
-                            raised, and itself behind the relabel -- or where it continues the head instead -- for a
-                            routed head over the base too
+                            raised -- that one over the evidence the comment then carries, laid over the tick's state
+                            (`afresh`) so a successor settled meanwhile is proved on its own binding -- and itself
+                            behind the relabel -- or where it continues the head instead -- for a routed head over
+                            the base too
     rewrite_finish_stops.py the stops of a landed rewrite's finish short of its route, the last word over a captured
                             transaction taken behind each: a landing the record does not account for, settled evidence
                             and a captured transaction proved first beside a standing attempt -- a newer transaction
@@ -2130,8 +2132,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             gate measures as the publication would have; an ordinary replay measured; the
                             exact candidate pushed under the anchor's lease through `rewrite_publication.py`'s
                             transport, a refused or unlanded push reset and parked `auto_base_rebase_push_failed`, a
-                            gate's hold written as it left it, the reply that brought the attempt back recorded read
-                            in that write where it only asked for the retry (`rewrite_replies.py`), and offered to
+                            gate's hold written as it left it through the guarded `HOLD`
+                            (`rewrite_recovery_parks.lands_a_hold`), the reply that brought the attempt back
+                            recorded read in that write where it only asked for the retry (`rewrite_replies.py`),
+                            and offered to
                             the adjudication it may have left (`rewrite_takeover.py`), and a landing whose verdict
                             did not rotate parked with
                             HEAD and the anchor kept; and every other landing handed to `rewrite_finish.py` on its
@@ -2227,8 +2231,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that proof as movement already read (`_moved`)
                             however soon it is put back -- unless the record took in evidence under another
                             receipt, which is proved on its own readings. The landed road's hold behind a
-                            publication gate that held its leased no-op lands the same way, as `HOLD`, decided on the
-                            attempt alone and its proof taken first (`lands_a_hold`). Ahead of every reset whose
+                            publication gate that held its leased no-op, and the retry's behind one that held its
+                            reissued push (`rewrite_retry.py`), land the same way, as `HOLD`, decided on the attempt
+                            alone and its proof taken first (`lands_a_hold`). Ahead of every reset whose
                             attempt records a base tip, that tip is blanked in a write of its own
                             (`records_the_reset`, the context's `records_before_a_reset`), decided on every evidence
                             record and the attempt as the tick read them (`rewrite_finish_writes.INVALIDATION`), so

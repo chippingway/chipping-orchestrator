@@ -8,16 +8,21 @@ announcement, so the next tick's recovery finishes the route. Report 3
 settled just as the relabel's recheck reads the comment afresh, report 2 put
 back right behind that reading, is movement read under the run: the run is
 invalidated whole before the relabel and the head routed once with nothing
-current, putting report 2 back reviving nothing. And on an issue already on
-`workflow:validating`, a finish lost right behind its relabel, before the
-relabel's own record lands, comes back behind a restart with its event tail
-gone: the audit log it configured carries the stage-entry event naming the
-head, so neither the relabel nor that event is made twice.
+current, putting report 2 back reviving nothing. A relabel that raises, behind
+another road settling report 3 and a newer run bound to it and then putting
+report 2 back, is proved again over the comment as it then stands: that newer
+run is invalidated on its own binding before the error goes on, so putting
+report 3 back revives nothing and the next tick routes the head once. And on
+an issue already on `workflow:validating`, a finish lost right behind its
+relabel, before the relabel's own record lands, comes back behind a restart
+with its event tail gone: the audit log it configured carries the stage-entry
+event naming the head, so neither the relabel nor that event is made twice.
 """
 from __future__ import annotations
 
 import tempfile
 import unittest
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 from unittest.mock import patch
@@ -29,6 +34,7 @@ from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
+    settled_finish_support as settled_support,
     verification_report_fixture as _report,
 )
 
@@ -62,6 +68,45 @@ class _MovesUnderTheRecheck:
         return durable
 
 
+class _RaisesUnderTheRelabel:
+    """The relabel, the first time answered by another road's newer run of `head` and a raise.
+
+    That road settles report 3 and a run bound to it, kept as `successor`,
+    keeps the records report 3 moved in `settled`, and puts report 2 back.
+    """
+
+    def __init__(self, case, head: str) -> None:
+        self._case = case
+        self._head = head
+        self._live = case.gh.set_workflow_label
+        self.settled: dict = {}
+        self.successor = None
+
+    def __call__(self, *labelled, **correlation):
+        """Settle the newer run and put report 2 back, then raise as GitHub not answering; relabel after that."""
+        if self.successor is not None:
+            return self._live(*labelled, **correlation)
+        case = self._case
+        case.state = case.gh.read_pinned_state(case.issue)
+        replaced = {key: case.state.get(key) for key in _MOVED_RECORDS}
+        subject = _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
+        case.gh.write_pinned_state(case.issue, case.state)
+        earlier = readings.pinned_records(case)[1].binding
+        bound = replace(earlier, target=replace(earlier.target, subject=subject.recorded()))
+        self.successor = settled_support.records_a_newer_run(case, settles=True, binding=bound)
+        _writes(case, replaced, keeping=self.settled)
+        raise RuntimeError("GitHub did not answer the relabel")
+
+
+def _writes(case, records: dict, *, keeping: dict) -> None:
+    """Write `records` onto the comment, keeping what they replace in `keeping`."""
+    state = case.gh.read_pinned_state(case.issue)
+    for key, recorded in records.items():
+        keeping[key] = state.get(key)
+        state.set(key, recorded)
+    case.gh.write_pinned_state(case.issue, state)
+
+
 class RelabelReadsTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """What the recovery's relabel reads, and what it finds made, decide that relabel once."""
 
@@ -78,6 +123,25 @@ class RelabelReadsTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         retired = records[2][-1]
         self.assertIsNone(records[1])
         self.assertEqual(retired, (settled.receipt, readings.INVALIDATED))
+        self.assert_routed(head)
+
+    def test_a_raised_relabel_proves_a_successor(self) -> None:
+        # Another road settles report 3 and a newer run bound to it as the
+        # relabel is made, puts report 2 back, and the relabel raises: that
+        # run is proved on its own binding behind the raise and invalidated
+        # whole, so putting report 3 back revives nothing, and the next tick
+        # routes the head once with nothing current.
+        head, run = self.settles_then_dies()
+        raises = _RaisesUnderTheRelabel(self, head)
+        with patch.object(self.gh, "set_workflow_label", raises):
+            self.recovers()
+
+        records = readings.pinned_records(self)
+        moved = ((run.receipt, readings.SUPERSEDED), (raises.successor.receipt, readings.INVALIDATED))
+        self.assertIsNone(records[1])
+        self.assertEqual(records[2][-2:], moved)
+        _writes(self, raises.settled, keeping={})
+        self.recovers()
         self.assert_routed(head)
 
     def test_a_restart_finds_the_relabel_on_the_log(self) -> None:

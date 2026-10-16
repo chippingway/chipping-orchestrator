@@ -74,10 +74,10 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.rewrite_evidence_proof import standing_refusal
-from orchestrator.workflow.engine.rewrite_finish_marks import retires_as_it_stands
+from orchestrator.workflow.engine.rewrite_finish_marks import read_afresh, retires_as_it_stands
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.rewrite_finish_outranking import outranks_the_owed
-from orchestrator.workflow.engine.rewrite_finish_rechecks import rechecks_behind, stands_as_read
+from orchestrator.workflow.engine.rewrite_finish_rechecks import lays, rechecks_behind, stands_as_read
 from orchestrator.workflow.engine.verification_proof import recorded_verdict
 
 log = logging.getLogger("orchestrator.workflow")
@@ -86,6 +86,16 @@ log = logging.getLogger("orchestrator.workflow")
 # blanks to record movement read under the evidence where nothing else has
 # room (`rewrite_finish_readiness._invalidates_on_the_tick`).
 _TIP = _base_sync_state._PENDING_REWRITE_BASE
+
+# The evidence records a proof asked `afresh` lays over the finish's state
+# first, as the comment carries them (`stands_ready_if_settled`).
+_EVIDENCE_RECORDS = (
+    _records.PENDING_EVIDENCE,
+    _records.CURRENT_EVIDENCE,
+    _records.EVIDENCE_HISTORY,
+    _records.EVIDENCE_HANDOFF,
+    _records.REVISION_FLOOR,
+)
 
 # That blank read by an answer (`reads_moving`): the movement it records,
 # however soon the tip is put back.
@@ -103,7 +113,9 @@ _SPENT_PAST = ReportEvidence(
 )
 
 
-def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) -> FinishOutcome | None:
+def stands_ready_if_settled(
+    finish: LandedFinish, *, or_the_base: bool = False, afresh: bool = False,
+) -> FinishOutcome | None:
     """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None to go on.
 
     Where that proof invalidated the evidence, the comment is read afresh
@@ -117,16 +129,22 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
     legacy attempt -- proves no base, so its head is held to the base this
     tick counted it against (`rewrite_evidence_proof.standing_refusal`): one
     advanced, rewound or repointed under the local ref, or unreadable holds
-    the route for the next tick's fetch to count the head again.
+    the route for the next tick's fetch to count the head again. `afresh`
+    lays the evidence records the comment read afresh carries over the
+    finish's state first, for a caller behind a request that raised, whose
+    state may predate a successor another road settled meanwhile: that
+    successor is the evidence proved, on its own binding.
     """
+    durable = read_afresh(finish) if afresh else None
+    if durable is not None:
+        lays(finish.state, durable, _EVIDENCE_RECORDS)
     current = _settlement.read_current_evidence(finish.state)
     stopped = None
     if current is not None and current.binding.target.target_head == finish.head:
         stopped = _proves_ready(finish, current)
     elif or_the_base:
         stopped = _captured.stands_before_the_route(finish, landing=False)
-    unproven = not _attempt_records._recorded_onto(finish.state)
-    if stopped is not None or not (or_the_base and unproven):
+    if stopped is not None or not or_the_base or _attempt_records._recorded_onto(finish.state):
         return stopped
     counted = finish.landed.candidate.checkout
     moved = standing_refusal(finish, onto=counted.base.tip)

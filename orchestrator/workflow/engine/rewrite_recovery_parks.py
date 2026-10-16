@@ -183,8 +183,9 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
 def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
     """Prove what a recovery hold keeps, then record the hold over the comment read afresh, as `HOLD`.
 
-    The landed road's leased no-op that a publication gate held keeps the
-    attempt (`rewrite_landed`), so its evidence is proved first
+    A publication gate that held the landed road's leased no-op
+    (`rewrite_landed`) or the retry's reissued push (`rewrite_retry`) keeps
+    the attempt, so its evidence is proved first
     (`rewrite_landing_retirement.retires_unproved`). The gate's answer is long
     enough for another road to record a newer transaction, so only what the
     tick staged since its reading lands, every other field kept as the fresh
