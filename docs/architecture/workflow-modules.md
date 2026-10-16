@@ -268,7 +268,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             exception is a section titled by nothing, which a summary line naming a test takes in turn.
                             Each summary line takes the first section it may be that no line before it took -- the one
                             whose exception the line's error opens where it gives one -- since pytest prints both in one
-                            order and tests of two modules may share a title
+                            order and tests of two modules may share a title. A rule of dashes ends a section's
+                            traceback: below it stands what pytest captured from the test, or a plugin added, up to
+                            the next title, rule, or heading, and nothing there is read as pytest's own -- no marked
+                            line, line traceback, or summary line, the summary lines read below the short summary's
+                            heading where the output holds one -- save the `--tb=line` line closing it, which gives the
+                            exception the failure's last marked line showed
     review_findings_entries.py
                             the failure entries a reviewer writes in its findings, for `review_findings_failures` and
                             `review_findings`: an entry runs from one `Failure:` line to the next, each of the taught

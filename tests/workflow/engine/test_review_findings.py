@@ -544,6 +544,52 @@ _GROUPED = (
     f"ERROR {_GROUP_MODULE}::test_group"
 )
 _GROUPED_LEAD = f"Failure: `{_GROUP_MODULE}::test_group`, whose teardown failed\nError: `{_GROUP_RAISED}`\n"
+# Tests printing lines of pytest's own shapes, which it captured and prints
+# under a rule below each traceback, as on an 80-column terminal: a marked
+# line below a long ID's section; a summary line above the short summary, and
+# with no short summary at all (`-rN`); and, with `--tb=line`, a crash line
+# and a marked line above the crash line pytest printed for the failure.
+_CAPTURE_RULE = "----------------------------- Captured stdout call -----------------------------\n"
+_OUTER_SECTION = (
+    "__________________________________ test_outer __________________________________\n"
+    "E       RuntimeError: outer test failed\n"
+    f"{_CAPTURE_RULE}"
+    "FAILED tests/test_child.py::test_child - ValueError: simulated output\n"
+    "ERROR tests/test_child.py - ImportError: simulated collection\n"
+)
+_CAPTURED_MARKED = (
+    "_________________________________ test_output __________________________________\n"
+    "E       RuntimeError: actual failure\n"
+    f"/tmp/run/{_LINE_MODULE}:3: RuntimeError\n"
+    f"{_CAPTURE_RULE}"
+    "E   captured stdout is not the exception\n"
+    "=========================== short test summary info ============================\n"
+    f"FAILED {_LINE_MODULE}::test_output"
+)
+_CAPTURED_MARKED_LEAD = f"Failure: `{_LINE_MODULE}::test_output`\nError: `RuntimeError: actual failure`\n"
+_CAPTURED_SUMMARY = (
+    f"{_OUTER_SECTION}"
+    "=========================== short test summary info ============================\n"
+    "FAILED tests/test_outer.py::test_outer - RuntimeError: outer test failed"
+)
+_CAPTURED_SUMMARY_LEAD = "Failure: `tests/test_outer.py::test_outer`\nError: `RuntimeError: outer test failed`\n"
+_CAPTURED_UNSUMMARISED = f"{_OUTER_SECTION}1 failed in 0.01s"
+_CAPTURED_LINES = (
+    "=================================== FAILURES ===================================\n"
+    "E   RuntimeError: actual failure\n"
+    f"{_CAPTURE_RULE}"
+    "tests/helper.py:3: printed a crash-shaped line\n"
+    "E   printed a marked line\n"
+    f"/tmp/run/{_LINE_MODULE}:4: RuntimeError: actual failure\n"
+    "E   assert 1 == 2\n"
+    f"/tmp/run/{_LINE_MODULE}:8: assert 1 == 2\n"
+    "=========================== short test summary info ============================\n"
+    f"FAILED {_LINE_MODULE}::test_output\nFAILED {_LINE_MODULE}::test_second"
+)
+_CAPTURED_LINES_LEAD = (
+    f"Failure: `{_LINE_MODULE}::test_output`\nError: `RuntimeError: actual failure`\n"
+    f"Failure: `{_LINE_MODULE}::test_second`\nError: `assert 1 == 2`\n"
+)
 # A stdin check running pytest, which names the test that failed, and how it leads.
 _STDIN_PYTEST = "FAILED tests/test_probe.py::test_probe - AssertionError: values differ"
 _STDIN_PYTEST_SHOWN = (
@@ -977,6 +1023,12 @@ class FailureNamesTest(unittest.TestCase):
             # which still goes to its own summary line.
             (_SPACED_UNCOLLECTED, "", _SPACED_UNCOLLECTED_LEAD),
             (_SPACED_LINES, "", _SPACED_LINES_LEAD),
+            # What pytest captured from a test is never read as its own: not
+            # as a section's exception, a summary line, or a line traceback.
+            (_CAPTURED_MARKED, "", _CAPTURED_MARKED_LEAD),
+            (_CAPTURED_SUMMARY, "", _CAPTURED_SUMMARY_LEAD),
+            (_CAPTURED_UNSUMMARISED, "", _UNNAMED),
+            (_CAPTURED_LINES, "", _CAPTURED_LINES_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):

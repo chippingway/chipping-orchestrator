@@ -13,6 +13,15 @@ path, a dot parting each class from what it holds, the parameters as written
 alone parts a traceback's frames, titling nothing, and a line of equals
 signs, a heading inside or not, opens the summary.
 
+Below a section's traceback, pytest prints what it captured from the test --
+its output, its log -- and what a plugin added to its report, each under a
+rule of dashes titling it, up to the next line that opens a section. A test
+may print anything there, lines of a traceback's or a summary's shape too, so
+nothing captured is read as pytest's own: a section's exception is read from
+its traceback alone, and the summary lines from below the short summary's
+heading (`PytestOutput.summary`) -- or, in output quoting the summary lines
+alone, from any line nothing captured holds.
+
 A section marks the exception it shows with `E` (`Section`). An assertion's
 explanation, a diff hint, or a syntax error's source sets its lines out
 further than the exception, and a chained exception marks each exception in
@@ -27,7 +36,11 @@ holds stands further in.
 With `--tb=line` a failed test has no section: under the failures heading,
 pytest prints the file and line it crashed at -- the test's, or a helper's --
 and its exception on one line, and each such line is a section titled by
-nothing (`PytestOutput.take` reads it for a summary line naming a test).
+nothing (`PytestOutput.take` reads it for a summary line naming a test). It
+prints that line last, below the failure's marked lines and anything it
+captured, and the exception it gives is the one the last of those marked
+lines shows; so below a rule only a line giving that exception is one, and
+it closes what was captured (`_Where`).
 
 Tests in different modules may share a name, and their sections a title, so
 each summary line takes a section of its own (`PytestOutput.take`). pytest
@@ -39,24 +52,27 @@ from __future__ import annotations
 
 import re
 from collections.abc import Collection, Iterable, Iterator, Sequence
-from dataclasses import dataclass
-from itertools import chain, groupby, takewhile
+from dataclasses import dataclass, replace
+from itertools import accumulate, chain, compress, groupby, takewhile
+from types import MappingProxyType
 
-# A section's title, and a line that opens a section: a title, or the
-# summary's line of equals signs.
+# A section's title, a rule titling what pytest captured below its traceback,
+# and a line that opens a section: a title, a rule, or a line of equals signs.
 _TITLE_RE = re.compile(r"[ \t]*_+ (?P<title>(?=.*[^_ ]).+?) _+[ \t\r]*")
-_SECTION_RE = re.compile(r"[ \t]*(?:_+ (?=.*[^_ ]).+ _+|=+(?: .+ =+)?)[ \t\r]*")
+_RULE_RE = re.compile(r"[ \t]*-+ (?=.*[^- ]).+ -+[ \t\r]*")
+_SECTION_RE = re.compile(r"[ \t]*(?:_+ (?=.*[^_ ]).+ _+|-+ (?=.*[^- ]).+ -+|=+(?: .+ =+)?)[ \t\r]*")
 
 # A line a section marks with `E`, how far it sets out what it says, and what
 # it says -- nothing, on a line marked blank.
 _MARKED_RE = re.compile(r"[ \t]*E(?:(?P<indent>[ \t]+)(?P<error>.*?))?[ \t\r]*")
 
-# A heading of equals signs, and the one the failures stand under. With
-# `--tb=line` a failure has no section of its own there: pytest prints the
-# file and line it crashed at, and its exception, on one line -- the file's
-# path holding blanks or not, and the line no marked one.
+# A heading of equals signs, and those the failures and the short summary
+# stand under. With `--tb=line` a failure has no section of its own under the
+# first: pytest prints the file and line it crashed at, and its exception, on
+# one line -- the file's path holding blanks or not, and the line no marked one.
 _HEADING_RE = re.compile(r"[ \t]*=+ (?P<heading>.+?) =+[ \t\r]*")
 _FAILURES = "FAILURES"
+_SUMMARY = "short test summary info"
 _LINE_TRACEBACK_RE = re.compile(r"[ \t]*(?!E[ \t])[^\s:][^:]*?:\d+: (?P<raised>\S.*?)[ \t\r]*")
 _UNTITLED = ""
 
@@ -88,6 +104,71 @@ _ELLIPSIS = "..."
 
 _UNPHASED = ("", "")
 
+# Where in the output a line stands: under the failures heading, outside any
+# titled section, where `--tb=line` prints each failure's line traceback; in
+# the short summary below its heading; or elsewhere -- by the heading opening
+# the region.
+_TRACED = "traced"
+_SUMMARISED = "summarised"
+_ELSEWHERE = ""
+_HEADED = MappingProxyType({_FAILURES: _TRACED, _SUMMARY: _SUMMARISED})
+
+
+@dataclass(frozen=True)
+class _Where:
+    """Where a line of the output stands: its region, and whether in what pytest captured below a rule.
+
+    `shown` is the exception the last marked line outside anything captured
+    above it shows.
+    """
+
+    region: str = _ELSEWHERE
+    captured: bool = False
+    shown: str = ""
+
+    @classmethod
+    def of(cls, lines: Sequence[str]) -> tuple[_Where, ...]:
+        """Where each of `lines` stands, in turn."""
+        return tuple(accumulate(lines, cls.below, initial=cls()))[1:]
+
+    @classmethod
+    def standing(
+        cls, lines: Sequence[str], wheres: Iterable[_Where], region: str | None = None,
+    ) -> list[str]:
+        """Those of `lines` standing, by `wheres`, outside anything captured: in `region`, where that names one."""
+        return list(compress(lines, (where.stands(region) for where in wheres)))
+
+    def stands(self, region: str | None) -> bool:
+        """Whether the line stands outside anything captured: in `region`, where that names one."""
+        return not self.captured and region in {None, self.region}
+
+    def below(self, line: str) -> _Where:
+        """Where `line`, the line below the one this says, stands.
+
+        A heading opens a region, and a title closes it; a rule opens what
+        pytest captured, and the next line opening a section closes that --
+        as does the line traceback `--tb=line` prints last for a failure,
+        below anything it captured, giving the exception its marked lines
+        showed.
+        """
+        if _SECTION_RE.fullmatch(line):
+            return self._opening(line)
+        if self.captured:
+            lined = _LINE_TRACEBACK_RE.fullmatch(line)
+            crashed = lined is not None and lined.group("raised") == self.shown
+            return replace(self, captured=not crashed)
+        marked = _MARKED_RE.fullmatch(line)
+        error = None if marked is None else marked.group("error")
+        return replace(self, shown=error or self.shown)
+
+    def _opening(self, line: str) -> _Where:
+        """Where `line`, opening a section, stands: in what pytest captured, below a rule, or the region it opens."""
+        if _RULE_RE.fullmatch(line):
+            return replace(self, captured=True)
+        heading = _HEADING_RE.fullmatch(line)
+        named = "" if heading is None else heading.group("heading")
+        return _Where(_HEADED.get(named, _ELSEWHERE), shown=self.shown)
+
 
 @dataclass(frozen=True)
 class Section:
@@ -101,6 +182,10 @@ class Section:
         """The section titled `title` that holds `lines`: what its marked lines show, else its native traceback."""
         held = list(lines)
         return cls(title, cls._marked(held) or cls._native(held))
+
+    def opens(self, shown: str) -> bool:
+        """Whether a summary line giving the error `shown` opens on the exception this section shows."""
+        return bool(shown) and self.raised.startswith(shown)
 
     @classmethod
     def _marked(cls, lines: Sequence[str]) -> str:
@@ -147,12 +232,18 @@ class PytestOutput:
 
     def __init__(self, lines: Sequence[str]) -> None:
         self.lines = lines
+        self._wheres = _Where.of(lines)
         self._sections = tuple(self._read())
         titles = frozenset(section.title for section in self._sections)
         phased = filter(None, map(_PHASE_TITLE_RE.fullmatch, titles))
         self._sectioned = titles.union(found.group("name") for found in phased)
         self._collected = _collections(self._sections)
-        self._interrupted = any(map(_INTERRUPTED_RE.search, lines))
+        uncaptured = _Where.standing(lines, self._wheres)
+        self._interrupted = any(map(_INTERRUPTED_RE.search, uncaptured))
+        summarised = _Where.standing(lines, self._wheres, _SUMMARISED)
+        # The lines pytest's short summary lines may stand on. Its heading
+        # stands in the summary, so none does only where the output holds none.
+        self.summary = summarised or uncaptured
         self._taken: set[int] = set()
 
     def sectioned(self, node: str) -> bool:
@@ -172,7 +263,7 @@ class PytestOutput:
             if section.title in titles and index not in self._taken
         ]
         shown = error.removesuffix(_ELLIPSIS)
-        opened = [index for index in untaken if _opens(self._sections[index], shown)]
+        opened = [index for index in untaken if self._sections[index].opens(shown)]
         index = next(chain(opened, untaken), None)
         if index is None:
             return None
@@ -220,15 +311,15 @@ class PytestOutput:
     def _read(self) -> Iterator[Section]:
         """Each section the output holds, in order: each titled one, and each failure `--tb=line` printed untitled.
 
-        A line traceback stands under the failures heading and outside any
-        titled section, and is a section with no title of its own.
+        A line traceback stands under the failures heading, outside any
+        titled section and anything captured, and is a section with no title
+        of its own.
         """
-        traced = False
         for number, line in enumerate(self.lines):
             titled = _TITLE_RE.fullmatch(line)
             if titled is not None:
                 yield Section.read(titled.group("title"), _held_below(self.lines, number))
-            traced = _traced_below(line, traced and titled is None)
+            traced = self._wheres[number].stands(_TRACED)
             lined = _LINE_TRACEBACK_RE.fullmatch(line) if traced else None
             if lined is not None:
                 yield Section(_UNTITLED, lined.group("raised"))
@@ -242,21 +333,6 @@ def _collections(sections: Iterable[Section]) -> dict[str, str]:
         if found is not None:
             collected.setdefault(found.group("subject"), section.raised)
     return collected
-
-
-def _opens(section: Section, shown: str) -> bool:
-    """Whether a summary line giving the error `shown` opens on the exception `section` shows."""
-    return bool(shown) and section.raised.startswith(shown)
-
-
-def _traced_below(line: str, traced: bool) -> bool:
-    """Whether a line traceback may stand below `line`, where `traced` says whether one may above it.
-
-    One may from the failures heading to the next heading -- or the next title,
-    which the caller has `traced` say.
-    """
-    heading = _HEADING_RE.fullmatch(line)
-    return traced if heading is None else heading.group("heading") == _FAILURES
 
 
 def _held_below(lines: Sequence[str], number: int) -> Iterator[str]:

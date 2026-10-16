@@ -7,9 +7,12 @@ diagnostic a developer acts on, and leads it with the lines written here
 (`lead`), so the developer reads what failed before the command that ran it
 and how it ended, which follow as supporting details over the output quoted.
 
-A check's output names its failures where pytest's short summary reports them:
-a `FAILED` line names a test by its exact node ID, parameters included and a
-file path holding blanks too, and an `ERROR` line a node by its ID, or a path.
+A check's output names its failures where pytest's short summary reports them
+-- below its heading, where the output holds one, and never in what pytest
+captured from a test, which may print lines of the summary's shape
+(`review_findings_pytest`): a `FAILED` line names a test by its exact node ID,
+parameters included and a file path holding blanks too, and an `ERROR` line a
+node by its ID, or a path.
 A path names a collection that failed before any test in it ran -- the check
 that failed, not a test. A node ID names the setup or teardown of a test where
 a section pytest printed says that failed -- where both did, the one whose
@@ -235,7 +238,7 @@ class _Reported:
     def of(cls, output: str, entries: _Entries) -> Iterator[_Reported]:
         """Each failure a summary line of `output` reports, read beside the findings' `entries`."""
         read = _pytest.PytestOutput(output.split("\n"))
-        for summary in filter(None, map(_SUMMARY_RE.fullmatch, read.lines)):
+        for summary in filter(None, map(_SUMMARY_RE.fullmatch, read.summary)):
             reported = cls._summarised(summary, read, entries)
             if reported is not None:
                 yield reported
