@@ -28,6 +28,10 @@ land right behind (`rewrite_finish_unconfirmed.reconciles_the_abandonment`).
   invalidated put back current, which it retires again first.
 - `invalidates_rechecked` is the readiness proof's invalidation
   (`rewrite_finish_readiness.invalidates`) with that reading behind it.
+- `stands_afresh` reads the comment afresh behind the proof ahead of a
+  relabel (`rewrite_finish_stops.relabels`), whose requests another road may
+  put an attempt of its own in place behind, and says whether it still
+  carries the attempt captured ahead of that proof.
 - `lays` lays fields of a comment read afresh over the tick's state, each
   taken in as read.
 
@@ -151,6 +155,22 @@ def invalidates_rechecked(finish: LandedFinish, current: _records.CurrentEvidenc
     """
     return _readiness.invalidates(finish, current) and rechecks_behind(finish, current.receipt)
 
+
+def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit) -> bool:
+    """Whether the comment read afresh still carries the attempt `attempt` captured, its base tip aside where blank.
+
+    False, logged, where another attempt stands there or the comment would
+    not read, so nothing is made over an attempt not the finish's own.
+    """
+    durable = read_afresh(finish)
+    if durable is not None and stands_as_read(finish, attempt, durable, blank_aside=True):
+        return True
+    log.warning(
+        "issue=#%d holding the route of %.8s: the pinned comment would not read again, or another attempt "
+        "stands in place of the one this finish holds",
+        finish.issue.number, finish.head,
+    )
+    return False
 
 def lays(state: PinnedState, durable: PinnedState, fields: Collection[str]) -> None:
     """Lay each of `fields` over `state` as `durable`, a comment read afresh, spells it, every one taken in as read.

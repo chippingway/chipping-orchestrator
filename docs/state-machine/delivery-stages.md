@@ -1292,9 +1292,10 @@ because there it is the claim that this stage has already rerouted rather than a
   past it spent, its handoff, its artifact re-read at the recorded comment with the pass flag its commands earn, and
   then the whole proof above -- so newer evidence posted and never settled, a deleted or edited artifact, or a flag it
   contradicts is not reported as current. Its live readers are three (the dormant readiness proof of a landed
-  rewrite's settled evidence, `workflow/engine/rewrite_finish_readiness.py`, asks it too, though only the evidence
-  phase of the dormant settled-evidence finish policy -- **Base-rewrite evidence, the dormant settled-evidence
-  policy** below -- and the recovery's dormant guarded operations ask that): the approval's proof over the evidence
+  rewrite's settled evidence, `workflow/engine/rewrite_finish_readiness.py`, asks it too, though only a finish held
+  to the dormant settled-evidence policy and handed directly to the coordinator or its evidence phase -- **Base-rewrite
+  evidence, the dormant settled-evidence policy** below -- and the recovery's dormant guarded operations ask that,
+  every production road keeping the policy every road selects): the approval's proof over the evidence
   its verdict
   names (`stages/validating/approved_evidence.py`); the squash handoff, which proves a settled carry whole again before
   the label moves over it (`stages/validating/squash_evidence.py`); and `stages/validating/review_evidence.py`, which
@@ -1580,12 +1581,12 @@ because there it is the claim that this stage has already rerouted rather than a
   `workflow:validating` tick asks for are the same ones the uninterrupted journey asks for.
 - **Base-rewrite evidence, the dormant settled-evidence policy**: beside the policy every road hands over stands a
   dormant one, which a caller selects only by building the finish with `proves_settled`
-  (`rewrite_finish_models.LandedFinish`) and asking its evidence phase (`rewrite_finish_settlement.resolves`) or its
-  primitives directly. No production road builds such a finish, and neither the recovery nor the coordinator asks
-  that phase or those primitives yet, so none of the bullets above changes for a live issue; a finish not built with
-  it reads, retries, and writes exactly as it always has. None of them announces, relabels, parks, or retires the
-  attempt, launches a developer, or spends, reserves, or releases an agent run, and the coordinator takes none of the
-  policy's proofs around those steps yet:
+  (`rewrite_finish_models.LandedFinish`) and handing it directly to the coordinator (`rewrite_finish.finalizes`), to
+  its evidence phase (`rewrite_finish_settlement.resolves`), or to its primitives. No production road builds such a
+  finish -- the publication, the recovery, and every announcement and park caller keep the policy every road selects
+  -- so none of the bullets above changes for a live issue; a finish not built with it reads, retries, and writes
+  exactly as it always has. The phase and the primitives announce, relabel, park, or retire nothing, and none of
+  them launches a developer or spends, reserves, or releases an agent run:
   - the phase's steps (`workflow/engine/rewrite_finish_settled.py`) prove evidence settled for the landed head ready
     again (`rewrite_finish_readiness.stands_ready`) before every route, before a hold over records out of step, and
     beside a stop of the evidence step or of a settlement that leaves its transaction recorded -- the evidence records,
@@ -1666,7 +1667,33 @@ because there it is the claim that this stage has already rerouted rather than a
     evidence is still invalidated over it, or marked where it does not fit back; nothing is put back beside a
     successor another road settled, and a finish of the landing that finds no attempt and that very receipt marked
     retires the evidence whole once room is made (`retires_the_marked`) -- a handoff that names it, is missing, or is
-    left null is no mark.
+    left null is no mark;
+  - the coordinator held to the policy (`workflow/engine/rewrite_finish_stops.py`) proves that evidence ready again
+    before every out-of-step hold, unfinishable landing beside a standing attempt -- reading nothing more where the
+    attempt was retired or replaced, save evidence marked moving -- continuation, and debt park, a captured
+    transaction proved whole ahead of that park; ahead of and behind the relabel, a head with none current held to its
+    replay's base tip or, with none recorded, to the base the tick counted; and behind every refused, unconfirmed,
+    held, or raising stop of the checkpoint, the event's record, the park and its notice, the relabel, and the
+    retirement. The checkpoint, the event's record, and the park are decided on every bound record
+    (`workflow/engine/rewrite_finish_writes.py`), and a refusal over a record the evidence's binding rests on, or one
+    whose comment -- the preparation's fresh reading or the strict edit's own -- was read recording movement under
+    the evidence, a mark in its handoff's place, a revision spent past it, or a blank of the attempt's base tip,
+    invalidates the evidence however soon that comment is put back, where a newer transaction recorded beside it or
+    a successor settled under another receipt moves nothing under it; behind a retirement nobody confirmed the
+    attempt is put back before the evidence is invalidated over it, and movement the comment read to reconcile a lost
+    announcement write records counts as a refusal's does. The mark is read again before the announcement and the
+    label afresh under it before the relabel and once more behind the proof ahead of it
+    (`workflow/engine/rewrite_finish_announced.py`), a label that will not read holding the route, and a debt park
+    standing is reused where no reply the watermark has not passed is handed in -- one whose write never landed,
+    a park made again over a reply that reply's replay finds, parked over the notice the conversation carries past
+    the watermark or that reply, its event filed only where the event stream lacks the one naming that notice, and
+    the finish held where that conversation will not read -- and a relabel is held where the comment read again
+    behind its proof carries another attempt, so repeated direct finishes make one notice, `base_rebased` event, park
+    notice and `park_awaiting_human` event, round reset, relabel, stage-entry event, artifact, and settlement, and
+    run, push, or launch nothing again. A newer transaction the proof beside an unfinishable landing finds recorded
+    right behind its invalidation is left owed as written, with no last word taken over it, and so is one another
+    road recorded behind a stopped announcement's writes, which the movement those writes read under the evidence
+    they found -- however that evidence is invalidated over it -- never abandons.
 
   The primitives run no command. The phase runs the configured commands only where its evidence step decides a head
   afresh, exactly as the policy every road selects does: a fresh landing whose head no finish of this landing has

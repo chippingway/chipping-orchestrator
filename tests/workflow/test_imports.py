@@ -129,6 +129,7 @@ _ENGINE_OWNERS = (
     "rewrite_finish_evidence",
     "rewrite_finish_settled",
     "rewrite_finish_settlement",
+    "rewrite_finish_stops",
     "rewrite_finish",
     "rewrite_landed",
     "rewrite_landing_retirement",

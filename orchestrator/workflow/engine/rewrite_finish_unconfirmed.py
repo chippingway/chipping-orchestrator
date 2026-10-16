@@ -11,10 +11,11 @@ read behind that write is recorded over the attempt as it stands rather than
 refused as though another road had replaced it. That policy's evidence phase
 asks `takes_in_the_announcement` and `takes_in_the_attempt`
 (`rewrite_finish_settled.adopts_the_answer`), and
-`reconciles_the_abandonment` (`rewrite_finish_captured`); the rest are
-primitives a caller holding such a
-finish asks directly, and no recovery or coordinator road (`rewrite_finish`)
-asks any of them yet:
+`reconciles_the_abandonment` (`rewrite_finish_captured`); its coordinator's
+stops (`rewrite_finish_stops`) ask `takes_in_the_announcement` behind an
+announcement nobody confirmed, `stands_back` behind a retirement nobody
+confirmed, and `retires_the_marked` where the attempt is retired or replaced.
+No recovery road asks any of them:
 
 - `takes_in_the_announcement` takes in that bookkeeping, naming the landed
   head (`rewrite_finish_announced.takes_in_the_announcement`), and hands back

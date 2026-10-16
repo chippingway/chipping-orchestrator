@@ -1029,10 +1029,11 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   -- the base readings that made a continuation excused over a head the base advanced past again, and proved once more
   behind any stop of a write the finish makes after it -- and invalidating it into history whole where anything it is
   bound to moved -- over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the
-  invalidation cannot land, so nothing put back revives it. In a finish only the evidence phase of the dormant
-  settled-evidence policy asks them: a caller selects it by building the finish with `proves_settled` and asking
-  `rewrite_finish_settlement.resolves` directly, which announces, relabels, parks, and retires nothing, and no
-  production road builds such a finish (`workflow/engine/rewrite_finish_settled.py`). That phase proves settled evidence
+  invalidation cannot land, so nothing put back revives it. In a finish only the dormant settled-evidence policy
+  asks them: a caller selects it by building the finish with `proves_settled` and handing it directly to the
+  coordinator (`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which
+  announces, relabels, parks, and retires nothing), and no production road builds such a finish
+  (`workflow/engine/rewrite_finish_settled.py`). That phase proves settled evidence
   ready before the route goes on, abandons a continuation's captured transaction before proving the settled evidence
   beside it, takes in a settlement and announcement another finish made beside its answer and invalidates that
   settlement over movement read under it, reads the comment afresh behind every invalidation it lands so a newer
@@ -1042,8 +1043,17 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   stands, and movement history has no room for recorded under the evidence's own receipt -- a mark in its handoff's
   place, its whole compact retirement, or a revision spent past it -- however the attempt or the comment moved since
   (`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_outranking.py`,
-  `workflow/engine/rewrite_finish_unconfirmed.py`); the coordinator takes none of the policy's proofs around its
-  announcement, park, relabel, or retirement yet. Dormant guarded recovery operations are built on the readiness
+  `workflow/engine/rewrite_finish_unconfirmed.py`). The coordinator held to the policy proves the evidence again
+  before every out-of-step hold, unfinishable landing beside a standing attempt, and debt park, ahead of and behind
+  the relabel, and behind every stop of the announcement, the park, or the retirement -- a refusal over a record the
+  evidence's binding rests on, or one whose comment, its preparation's fresh reading or the strict edit's own, was read
+  recording movement under the evidence, a mark, a revision spent past it, or a blank of the attempt's base tip,
+  invalidating it however soon that comment is put back -- decides the checkpoint, the event's record, and the park on
+  every record the evidence is bound through, puts back an attempt a
+  retirement nobody confirmed took before invalidating over it, and announces, relabels, or parks nothing another
+  finish of the landing already did (`workflow/engine/rewrite_finish_stops.py`,
+  `workflow/engine/rewrite_finish_announced.py`, `workflow/engine/rewrite_finish_writes.py`). Dormant guarded
+  recovery operations are built on the readiness
   primitives,
   and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof
   before a park that keeps the attempt (`workflow/engine/rewrite_landing_retirement.py`), which retire settled

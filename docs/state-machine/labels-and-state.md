@@ -722,7 +722,12 @@ lets the route go on (`workflow/engine/rewrite_finish_readiness.py`), invalidati
 to moved, a readable revision spent past it outranking it for good, and a settlement another road made while it
 answered or abandoned the run adopted and invalidated over movement read under it; behind each such invalidation it
 reads the comment afresh, so evidence put back current under the receipt it just invalidated is retired again, and a
-pending record or another attempt written there holds the route.
+pending record or another attempt written there holds the route. The coordinator a caller hands such a finish to
+directly proves that evidence again around every hold, debt park, relabel, and stop of its own writes
+(`workflow/engine/rewrite_finish_stops.py`), decides its announcement and park on every record the evidence is bound
+through, reading what a comment one of them was refused over records under the evidence however soon it is put back,
+and announces, relabels, or parks nothing another finish of the landing already did, so no field here is written
+twice for one landing.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
@@ -3228,9 +3233,9 @@ The keys that matter for the state machine fall into a few groups:
   dropped with this member blanked, in a write that only shrinks the comment, so no later reading proves a base for it
   and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`). The dormant readiness
   primitives blank it too where an invalidation of settled evidence cannot land
-  (`workflow/engine/rewrite_finish_readiness.py`), and the dormant settled-evidence policy's readiness step holds a
-  head with no evidence current to the base the tick counted it against where this member is blank or missing
-  (`workflow/engine/rewrite_finish_settled.py`).
+  (`workflow/engine/rewrite_finish_readiness.py`), and the dormant settled-evidence policy's readiness step, which
+  its coordinator asks behind the relabel, holds a head with no evidence current to the base the tick counted it
+  against where this member is blank or missing (`workflow/engine/rewrite_finish_settled.py`).
   `pending_auto_base_rebase_announced_sha` is the member written last and covers the last window a finish has:
   everything a finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out
   before the relabel, and the write that clears this record goes out after it, so the head it has already said it

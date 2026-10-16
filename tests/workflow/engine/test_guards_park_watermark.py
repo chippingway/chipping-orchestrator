@@ -8,6 +8,9 @@ than whatever the thread ends on afterwards -- on a park whose whole point is
 waiting for a reply, reading the tip would throw away the answer with the
 question -- and a post nothing identified moves it nowhere.
 
+A park asked with `names_the_notice=True` tells its event that same posted id,
+and only such a park's event carries one.
+
 A park asked with `bounded=True` answers differently: minutes passed inside
 the run it follows, so its notice lands above whatever a human wrote in them.
 It walks only through our own identified comments, and where it cannot walk --
@@ -52,6 +55,8 @@ _BAD_GATEWAY = "502 Bad Gateway"
 _LEDGER = "orchestrator_comment_ids"
 _UNREADABLE_ID = "not-an-id"
 _STAMP_READ_THIS_FAR = "_stamp_read_this_far"
+
+_NAMES_THE_NOTICE = "names_the_notice"
 
 
 class ParkWatermarkTest(unittest.TestCase):
@@ -111,6 +116,20 @@ class ParkWatermarkTest(unittest.TestCase):
         self.assertIsNone(self.state.get(_WATERMARK))
         self.assertTrue(self.state.get(_AWAITING_HUMAN))
 
+    def test_only_a_park_asked_names_its_notice(self) -> None:
+        # The event of a park asked to name its notice carries the id of the
+        # notice it posted, and the flag is no field of either sink's; any
+        # other park's event carries no notice at all.
+        for names in (False, True):
+            with self.subTest(names=names):
+                self.setUp()
+                self._park(names_the_notice=names)
+
+                posted = self.issue.comments[-1].id
+                recorded = self.github.recorded_events[0]
+                self.assertEqual(recorded.get("notice_id"), posted if names else None)
+                self.assertNotIn(_NAMES_THE_NOTICE, recorded)
+
     def _reply(self) -> int:
         identified = self.github.next_reply_id(self.issue)
         self.issue.comments.append(
@@ -118,9 +137,9 @@ class ParkWatermarkTest(unittest.TestCase):
         )
         return identified
 
-    def _park(self) -> None:
+    def _park(self, **flags: bool) -> None:
         _guards._park_awaiting_human(
-            self.github, self.issue, self.state, _NOTICE,
+            self.github, self.issue, self.state, _NOTICE, **flags,
         )
 
 

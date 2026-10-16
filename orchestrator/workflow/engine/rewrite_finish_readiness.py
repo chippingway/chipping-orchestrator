@@ -18,17 +18,20 @@ or base that moved since leaves evidence that no longer answers for the head
 it would be routed with.
 
 These are the primitives a route that takes settled evidence as it stands
-proves it ready with (`stands_ready`), and they are dormant: only the
-evidence phase of a finish held to the dormant settled-evidence policy
-(`rewrite_finish_models.LandedFinish.proves_settled`,
-`rewrite_finish_settlement.resolves`) and the recovery's dormant answers
+proves it ready with (`stands_ready`), and they are dormant: only a finish
+held to the dormant settled-evidence policy
+(`rewrite_finish_models.LandedFinish.proves_settled`) -- its evidence phase
+(`rewrite_finish_settlement.resolves`) and its coordinator's stops
+(`rewrite_finish_stops`) -- and the recovery's dormant answers
 (`rewrite_landing_retirement`) ask them, and no production finish, recovery,
 announcement, dispatcher, or park road selects that policy or carries those
 answers, so every route those roads take reads such evidence behind the
 settlement step's own record check and the last word over the landing and
 the base (`rewrite_finish_captured.stands_before_the_route`). Such a finish
 has them read and retire more, as below, and only a caller that builds one
-and asks that phase, or them, directly reaches that (`rewrite_finish_settled`). The proof
+and hands it to the coordinator (`rewrite_finish.finalizes`) or that phase,
+or asks them, directly reaches that (`rewrite_finish_settled`); every
+production road keeps the policy every road selects. The proof
 (`settled_word`) reads the evidence records over the issue and pinned comment
 read afresh, and the requirements of that issue, then, where they neither
 move nor hold, the readiness proof every reader relying on current evidence
@@ -95,15 +98,19 @@ decided again: the evidence goes on as it settled, or into history as it was.
   describes another pull request or head, which the proof refuses the evidence
   over as movement too.
 
-A write a finish makes behind the proof -- its announcement checkpoint or its
-retirement -- is refused by a report or review record another road moved
-while the notice was posted or the relabel made. Such a refusal, handed in
-as `rewrite_finish_writes.BINDING_MOVED` -- which no write of the finish
-collects yet -- is movement read under the evidence too, which
-`invalidates_behind` invalidates however soon the record is put back; any
-other stop behind the proof -- a refusal naming none, a write nobody
-confirmed, a hold -- leaves the evidence standing behind requests made since
-it was proved, and has it proved ready once more. A head the base has
+A write a finish makes behind the proof -- its announcement checkpoint, the
+record of its event, its debt park, or its retirement -- is refused by a
+report or review record another road moved while the notice was posted or the
+relabel made. Such a refusal, handed in as `rewrite_finish_writes.BINDING_MOVED`
+-- which every write of a finish held to the dormant policy collects -- is
+movement read under the evidence too, and so is movement the comment that
+refusal was read over records under it -- a mark in its handoff's place, a
+revision spent past it, a blank of the attempt's base tip
+(`rewrite_finish_stops.observing`) -- which `invalidates_behind` invalidates
+however soon the record is put back; any other stop behind the proof -- a
+refusal reading neither, a write nobody confirmed, a hold -- leaves the
+evidence standing behind requests made since it was proved, and has it proved
+ready once more. A head the base has
 advanced past again is continued rather than routed, and keeps its evidence
 for the rebase behind it: the base reading that made that continuation is
 excused from the last word (`rewrite_evidence_proof.ADVANCED`), so it neither
@@ -308,15 +315,17 @@ def invalidates_behind(
     """`stopped`, behind proving again evidence settled for the landed head that the finish leaves standing.
 
     For a write a finish makes behind the proof -- its announcement
-    checkpoint or its retirement (`rewrite_finish`) -- guarded by the records
-    the evidence is bound through: a report or review record another road
-    wrote while the notice was posted, the relabel made, or the write itself
-    sent refuses the write. A refusal that named such a record
-    (`rewrite_finish_writes.BINDING_MOVED` in `observed`) is movement read
-    under the evidence, so it is invalidated now (`invalidates`), the attempt
-    and the newer records kept as the comment carries them, and putting the
+    checkpoint, the record of its event, its park, or its retirement
+    (`rewrite_finish`) -- guarded by the records the evidence is bound
+    through: a report or review record another road wrote while the notice
+    was posted, the relabel made, or the write itself sent refuses the write.
+    A refusal that named such a record (`rewrite_finish_writes.BINDING_MOVED`
+    in `observed`), or whose comment was read recording movement under the
+    evidence -- any refusal in `observed` that does not hold -- is movement
+    read under it, so it is invalidated now (`invalidates`), the attempt and
+    the newer records kept as the comment carries them, and putting the
     record back before the next poll revives nothing. Any other stop -- a
-    refusal that named none, a write nobody confirmed, a request behind a
+    refusal that read neither, a write nobody confirmed, a request behind a
     notice already posted that would not answer -- leaves the evidence
     standing behind requests made since it was proved, so it is proved ready
     once more right away (`stands_ready`), which invalidates it where a
@@ -328,7 +337,7 @@ def invalidates_behind(
         return stopped
     if current.binding.target.target_head != finish.head:
         return stopped
-    if _writes.BINDING_MOVED not in observed:
+    if all(refused.holds for refused in observed):
         stands_ready(finish, current)
         return stopped
     if invalidates(finish, current):

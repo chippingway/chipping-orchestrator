@@ -384,7 +384,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `park_watermarks.py`'s walk instead, and is popped before the correlation screen. Only a
                             bounded park reads the comment-id ledger ahead of its post, since the walk needs it; the
                             ordinary park only appends to that ledger, so a malformed legacy entry parks it all the
-                            same
+                            same. `names_the_notice=True`, popped the same way, has the event carry the id of the
+                            notice it posted as `notice_id`; only the dormant debt park of a landed rewrite asks for it
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked
@@ -1173,7 +1174,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`rewrite_publication.py`) hands its landing here, and the recovery's retry
                             (`rewrite_retry.py`) and its finish of a push already landed (`rewrite_landed.py`) hand
                             theirs through `finishes_the_recovery`, on the recovery road with the reply that brought
-                            the attempt back, so every landing shares one post-push policy and one evidence decision
+                            the attempt back, so every landing shares one post-push policy and one evidence decision.
+                            Every one of those roads builds its finish without `proves_settled`; a caller handing
+                            `finalizes` a finish built with it holds that order to the dormant settled-evidence
+                            policy, whose steps around the stops, the relabel, and the writes are answered by
+                            `rewrite_finish_stops.py`, `rewrite_finish_announced.py`, and `rewrite_finish_writes.py`
     rewrite_finish_models.py
                             the finish's input -- the typed landing, the issue, its pinned state and label, the road
                             (`FinishRoad`), the lag the publication's notice reports, and the human reply a recovery
@@ -1186,13 +1191,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             announcement nobody could tell was already made -- a conversation or event stream that
                             would not read, a post that raised and is not found -- or unfinishable; and which evidence
                             policy the finish is held to (`proves_settled`): the one every road hands over, or the
-                            dormant settled-evidence policy only a caller building the finish itself selects
+                            dormant settled-evidence policy only a caller building the finish itself selects, which
+                            every shared helper the finish calls reads before taking any of its proofs, write
+                            profiles, adoptions, or retirements
     rewrite_finish_debt.py  the debt a landed rewrite leaves, staged only where both the announcement write it rides
                             -- the notice's ledger entry reserved at the widest id, the record of the event, the
                             reset round, and the mark --
                             and the comment as it stands have room for it, a refusal for anything but room leaving a
                             standing claim as it is -- measured ahead of the evidence too (`fits`), so a debt with no
-                            room parks before anything runs; and the park notice of a debt with no room
+                            room parks before anything runs; the park notice of a debt with no room; and, for a
+                            dormant finish, whether that park already stands -- asked only where no reply the
+                            watermark has not passed was handed in, since such a reply answers it -- or its notice
+                            was said past the watermark or that reply ahead of a park write that never landed, laid
+                            on the park as a fresh post would be, the finish held where the conversation would not
+                            read (`noticed`), and that park's `park_awaiting_human` event filed only where the event
+                            stream lacks one naming that very notice, as such a finish's park does, so no earlier
+                            park of the issue, of the same head or another, counts for it (`files_the_park`)
     rewrite_finish_evidence.py
                             the finish's evidence step for a head it routes: asks the policy (`rewrite_evidence.py`)
                             and lands what the decision requires in one guarded commit before the announcement -- the
@@ -1278,7 +1292,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             announced or routed (`_holds_out_of_step`), so a settlement or retirement another road
                             made while the run was published, which comes in with the comment the answer adopted,
                             holds the route out of step too. Under the dormant settled-evidence policy, which a caller
-                            selects only by asking `resolves` directly over a finish built with `proves_settled`,
+                            selects only by handing a finish built with `proves_settled` to `resolves` or to the
+                            coordinator directly,
                             settled evidence is proved ready before every route, before a hold over records out of step,
                             and beside a stop of the evidence step or of a settlement that leaves the transaction
                             recorded (`_decided_and_settled`), a readable revision spent past it outranks it, a
@@ -1314,8 +1329,39 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             in beside that settlement, the successor left owed; and a settlement the answer left
                             current invalidated over that movement, the comment read afresh once that lands so a
                             successor recorded or another attempt put in place right behind it holds the route too
-                            (`retires_the_adopted`). The coordinator (`rewrite_finish.py`) takes none of the policy's
-                            proofs around its announcement, park, relabel, or retirement yet
+                            (`retires_the_adopted`). The coordinator (`rewrite_finish.py`) asks
+                            `stands_ready_if_settled` itself ahead of the relabel and, for the base, behind it
+    rewrite_finish_stops.py the stops of a landed rewrite's finish short of its route, answered for both policies, the
+                            policy every road selects taking the last word over a captured transaction behind each and
+                            reading nothing more: a landing the record does not account for, settled evidence and a
+                            captured transaction proved first beside a standing attempt -- a newer transaction that
+                            proof's fresh reading behind an invalidation finds recorded left owed as written, with no
+                            last word over it -- and nothing read where the
+                            attempt was retired or replaced but evidence marked moving under its receipt, retired whole
+                            where room allows (`unfinishable`); the same proofs ahead of the park a debt with no room
+                            takes (`ahead_of_the_park`); the relabel made once under the mark read afresh, the evidence
+                            proved ahead of it and behind one that raised, the label and the attempt read again
+                            behind that proof's requests (`rewrite_finish_rechecks.stands_afresh`), and the route
+                            held where the label would not read or another attempt stands there (`relabels`); the
+                            reading a stop's guarded writes collect their refusals on, which asks the comment any
+                            refusal of moved records was read over what it records moving
+                            behind the attempt captured before those writes -- the prerequisite's reading of a
+                            transaction captured for the head (`rewrite_finish_settled.reads_moving`), or, under
+                            evidence settled for it, a blank of the attempt's base tip and what the readiness proof
+                            hears moving in the records alone, a mark, a revision spent past it, a review or report
+                            record moved, where a newer transaction recorded beside it or a successor under another
+                            receipt reads none (`observing`); and behind a stop of the announcement or the park --
+                            refused, unconfirmed, held, or raising -- an unconfirmed record or checkpoint's
+                            bookkeeping taken in, the comment that reconciliation read asked what it records moving,
+                            settled evidence invalidated over any movement a refusal or that reading read or proved
+                            once more, and the transaction the stop's writes found captured proved whole over that
+                            movement -- one that reconciliation or that invalidation's fresh reading laid in its
+                            place, another road's successor, left owed as written with no last word over it
+                            (`behind_the_announcement`) -- and behind a retirement that
+                            did not land the same invalidation, or -- behind one nobody confirmed -- the attempt it took
+                            put back exactly before the evidence is invalidated over it, or that receipt retired as the
+                            comment stands, or marked (`behind_the_write`). Only a finish built with `proves_settled`
+                            reads any of that
     rewrite_finish_rechecks.py
                             the comment that evidence phase reads afresh behind every invalidation it lands -- of
                             settled evidence its readiness proof read moving or took under a configuration no longer
@@ -1328,12 +1374,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             comment carries the
                             attempt a finish captured -- unmoved, advanced by its own announcement alone, or, where
                             asked, with its base tip read blank, which records movement rather than another attempt
-                            (`stands_as_read`); and the fields of a fresh reading laid over the tick's state, each
+                            (`stands_as_read`); whether the comment read afresh behind the proof ahead of a relabel
+                            still carries the attempt captured ahead of that proof, its base tip aside where blank
+                            (`stands_afresh`); and the fields of a fresh reading laid over the tick's state, each
                             taken in as read (`lays`)
     rewrite_finish_announced.py
                             a finish's announcement on the attempt as only the dormant policy reads it: an attempt
-                            advanced by it rather than replaced (`advanced_by_the_announcement`), and its mark and
-                            event record taken in ahead of every invalidation (`takes_in_the_announcement`)
+                            advanced by it rather than replaced (`advanced_by_the_announcement`), its mark and event
+                            record taken in ahead of every invalidation (`takes_in_the_announcement`), the mark read
+                            again before the coordinator announces (`marked`), and the label read afresh under it
+                            before the coordinator relabels, None where it would not read (`relabelled`); every other
+                            finish answers both off the mark and the label the tick read
     rewrite_finish_marks.py
                             settled evidence invalidated over the attempt as reconciled -- for a dormant finish alone,
                             read afresh and retried once where a write was refused, every other finish reading and
@@ -1364,8 +1415,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`reconciles_the_abandonment`), and another road's attempt a settlement's adoption read in
                             its place taken in whole (`takes_in_the_attempt`); the evidence phase asks
                             `takes_in_the_announcement`, `takes_in_the_attempt`, and `reconciles_the_abandonment`, and
-                            the rest are primitives a caller holding such a finish asks directly, which no coordinator
-                            asks yet
+                            the coordinator's stops (`rewrite_finish_stops.py`) ask `takes_in_the_announcement` behind
+                            an unconfirmed announcement, `stands_back` behind an unconfirmed retirement, and
+                            `retires_the_marked` where the attempt is gone
     rewrite_finish_outranking.py
                             whether a pinned comment shows a revision spent past settled evidence (`outranks`), read off
                             the handoff, every history entry that reads on its own, and the floor: the policy every road
@@ -1380,9 +1432,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whole retirement nothing else makes room for (`unfloors`), only where it shows no revision
                             past the evidence
     rewrite_finish_readiness.py
-                            dormant -- asked only by the evidence phase of the dormant settled-evidence finish policy
-                            (`rewrite_finish_settled.py`) and the recovery's dormant guarded operations, so by no
-                            production finish, recovery, announcement, dispatcher, or park road: the
+                            dormant -- asked only by a finish held to the dormant settled-evidence policy, its evidence
+                            phase (`rewrite_finish_settled.py`) and its coordinator's stops (`rewrite_finish_stops.py`)
+                            alike, and the recovery's dormant guarded operations, so by no production finish,
+                            recovery, announcement, dispatcher, or park road: the
                             proof that evidence a finish of the landing settled for its head is ready again before a
                             route takes it (`stands_ready`, over `settled_word`) -- the evidence records over the issue
                             and pinned comment read afresh, and that issue's requirements, then, where they neither move
@@ -1411,8 +1464,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`beside_current`: a pending record, a handoff not naming it, a revision floor nobody can
                             read), holds -- beside any movement the same reading established, which it never hides; a
                             refusal of a finish's later write that read a binding record moved
-                            (`rewrite_finish_writes.BINDING_MOVED`) invalidates it however soon the record is put back
-                            (`invalidates_behind`), and any other stop of such a write -- a refusal naming none, a
+                            (`rewrite_finish_writes.BINDING_MOVED`), or whose comment was read recording movement
+                            under the evidence, invalidates it however soon that comment is put back
+                            (`invalidates_behind`), and any other stop of such a write -- a refusal reading neither, a
                             write nobody confirmed, a hold -- proves it ready once more. Over a head the base advanced
                             past again, which a continuation keeps the evidence over for the rebase behind it, the
                             base readings that made the continuation are excused from the last word
@@ -1446,7 +1500,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `rewrite_finish_writes.ANNOUNCED_EVENT`) so it goes out only for an attempt still
                             standing -- that write prepared ahead of the notice too (`prepares_the_record`), over the
                             round the checkpoint has yet to reset; an unreadable log holds the finish with nothing
-                            filed
+                            filed. The movement a refusal of that record reads is collected for the coordinator's
+                            stops, which the notice's announcement (`rewrite_finish_notices.announces`) hands through
     rewrite_finish_writes.py
                             the guarded commits the finish writes through, under the tick-state guard
                             (`report_commits.py`) and decided on the publication's pinned fields as well: the
@@ -1478,9 +1533,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             files (`ANNOUNCED_EVENT`), owning that member alone and decided on the attempt; and the
                             records settled evidence's binding rests on beyond the evidence records themselves
                             (`BINDING_RECORDS`) with the movement a refusal naming one of them reads
-                            (`BINDING_MOVED`), which `rewrite_finish_readiness.invalidates_behind` invalidates over and
-                            no write of the finish collects yet; for a dormant finish only those records make a
-                            refusal of its own writes movement, so another road settling a transaction is none
+                            (`BINDING_MOVED`), which `rewrite_finish_readiness.invalidates_behind` invalidates over.
+                            For a dormant finish only those records make a refusal of its own writes movement by
+                            the fields it names, so another road settling a transaction is none, and such a refusal
+                            is collected as `BINDING_MOVED`, beside what the comment any refusal of moved records
+                            was read over -- its preparation's fresh reading or its strict edit's -- records under the
+                            evidence (`rewrite_finish_stops.observing`); such a finish also decides the checkpoint,
+                            the event's record, and the park on every bound record (`_SETTLED`), and reuses a debt
+                            park the tick reads standing where no reply it was handed answers it, and lands one over
+                            its notice already said -- behind a replayed reply too -- ahead of a park write that
+                            never landed, its event filed only where the stream lacks it, rather than posting it
+                            again -- holding where the conversation would not read -- its park's event naming the
+                            landed head and its notice (`parks`)
     rewrite_evidence.py     the evidence policy for a landed rewrite's head, handed the finish's input and writing
                             nothing; the finish's evidence step (`rewrite_finish_evidence.py`) asks it for every head
                             it routes, ahead of the announcement and with the attempt standing, and asks whether

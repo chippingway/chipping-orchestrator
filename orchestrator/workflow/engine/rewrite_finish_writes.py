@@ -74,6 +74,25 @@ handed any more. `PARK` records the park a debt with no room takes, decided on
 what the checkpoint would have been -- the round included, since how wide it is
 decides which of the two writes the debt was measured on had no room.
 
+A finish held to the dormant settled-evidence policy
+(`rewrite_finish_models.LandedFinish.proves_settled`) decides three of them on
+more records (`prepares`, `lands`): the checkpoint, the event's record, and the
+park on every record the evidence is bound through, so a report or review
+record -- or an evidence record -- another road moved while the notice was
+posted refuses each rather than riding into it unread. That policy alone reads
+a refusal naming one of the records settled evidence's binding rests on
+beyond the evidence records themselves (`BINDING_RECORDS`) as the movement
+under that evidence it is (`BINDING_MOVED`, `_stopped`) -- a record the strict
+edit found moved under any of its writes among them, named even where it is
+put back before the comment is read again -- has the comment any refusal of
+moved records was read over, its preparation's or its strict edit's, asked
+what it records moving under the evidence however soon it is put back
+(`verification_proof.ProofReading.reads`), and reuses a debt park the tick
+reads standing, or lands one over its notice already said, rather than
+posting it again (`parks`). Every other finish
+decides those writes as above, reads any refusal over a bound record as
+`_BOUND_MOVED`, and parks anew.
+
 Anything but a commit that landed stops the finish there (`lands`,
 `prepares`), and nothing that depends on the write is made: a refusal writes
 nothing, and an edit GitHub never confirmed may or may not have landed. Either
@@ -114,6 +133,9 @@ _ROUND = _base_sync_state._REVIEW_ROUND
 _ATTEMPT = frozenset(_attempts._ATTEMPT_KEYS)
 
 _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PARK_REASON))
+
+# Why a debt with no room parks.
+_FOR_THE_DEBT = _base_sync_state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT
 
 # The records a rewrite's debt is staged over: the report records whose settled
 # subject it follows, and the claim already standing.
@@ -200,7 +222,6 @@ PARK = _commits.ReportWrite(
     decided_on=_CLAIM | _ATTEMPT | _PARK_FLAGS | {_ROUND},
 )
 
-# What a write that did not land is answered as.
 # The records a transaction recorded for the landed head is bound through.
 _BOUND = frozenset(_durable._BOUND_RECORDS)
 
@@ -209,23 +230,35 @@ _BOUND = frozenset(_durable._BOUND_RECORDS)
 # write that reads one of them moved has read movement under the evidence.
 BINDING_RECORDS = _BOUND - _EVIDENCE_RECORDS
 
-# What a refusal that read one of them moved observed: movement under any
-# transaction recorded for the head, which the caller hands to the last word as
-# its proof, so a record put back before that word reads it again revives
-# nothing (`rewrite_finish_captured.stands_before_the_route`).
+# The announcement's writes and the debt's park as a finish held to the
+# dormant settled-evidence policy prepares and lands them: decided on every
+# bound record besides, so one another road moved while the notice was posted
+# refuses each rather than riding into it unread, and the comment that
+# refusal read is asked what it records moving under the evidence.
+_SETTLED = MappingProxyType({
+    CHECKPOINT: CHECKPOINT.deciding_on(*_BOUND),
+    ANNOUNCED_EVENT: ANNOUNCED_EVENT.deciding_on(*_BOUND),
+    PARK: PARK.deciding_on(*_BOUND),
+})
+
+# What a refusal that read a record of `_BOUND` moved observed: movement under
+# any transaction recorded for the head, which the caller hands to the last
+# word as its proof, so a record put back before that word reads it again
+# revives nothing (`rewrite_finish_captured.stands_before_the_route`).
 _BOUND_MOVED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence is bound through moved under a write finishing the landing",
 )
 
-# The same reading where what moved is one of those records, and not only
-# the evidence records themselves, whose movement is a newer transaction for
-# the head to answer: a caller holding it invalidates settled evidence over it
-# (`rewrite_finish_readiness.invalidates_behind`). No write here collects it
-# yet; `_stopped` collects `_BOUND_MOVED` alone.
+# The same reading, for a finish held to the dormant settled-evidence policy,
+# where what moved is one of `BINDING_RECORDS`, and not only the evidence
+# records themselves, whose movement is a newer transaction for the head to
+# answer: settled evidence is invalidated over it
+# (`rewrite_finish_readiness.invalidates_behind`).
 BINDING_MOVED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved under a write finishing the landing",
 )
 
+# What a write that did not land is answered as.
 _UNLANDED = MappingProxyType({
     _commit_models.CommitStatus.UNCONFIRMED: FinishOutcome.UNCONFIRMED,
     _commit_models.CommitStatus.REFUSED: FinishOutcome.REFUSED,
@@ -275,11 +308,16 @@ def prepares(
     at, over the ledger the fresh comment carries (`reserves`): `notice` is
     one on the issue thread, which enters the ledger and moves the watermark,
     and `ledger_entry` one on the pull request, which only enters the ledger.
-    `observed` collects the movement a refusal read (`_stopped`).
+    `observed` collects the movement a refusal read (`_stopped`). A finish
+    held to the settled-evidence policy prepares the write as that policy
+    decides it (`_SETTLED`), its refusal of moved records carrying the fresh
+    reading it read them on, so what that comment records is asked of it
+    however soon it is put back.
     """
     commit = _commits.ReportCommit(finish.gh, finish.issue, finish.state)
-    prepared = commit.prepares(staged, write.on_the_publication(), **reserves)
-    return _stopped(finish, prepared, observed)
+    held = _SETTLED.get(write, write) if finish.proves_settled else write
+    decided = held.on_the_publication().reading_moves(observed is not None and finish.proves_settled)
+    return _stopped(finish, commit.prepares(staged, decided, **reserves), observed)
 
 
 def lands(
@@ -300,9 +338,12 @@ def lands(
     `publication` False decides it on what `write` declares alone, the
     publication's pinned fields kept as the fresh comment carries them -- for
     `INVALIDATION`, which only ever makes evidence the tick read count for less.
+    A finish held to the settled-evidence policy lands the write as that
+    policy decides it (`_SETTLED`).
     """
     commit = _commits.ReportCommit(finish.gh, finish.issue, finish.state)
-    decided = write.on_the_publication() if publication else write
+    held = _SETTLED.get(write, write) if finish.proves_settled else write
+    decided = held.on_the_publication() if publication else held
     decided = decided.reading_moves(observed is not None and finish.proves_settled)
     return _stopped(finish, commit.lands(staged, decided), observed)
 
@@ -318,25 +359,43 @@ def abandons(finish: LandedFinish, stage: Callable[[PinnedState], bool]) -> bool
     return fits if lands(finish, staged, ABANDONMENT) is None else None
 
 
-def parks(finish: LandedFinish) -> FinishOutcome:
+def parks(finish: LandedFinish, observed: ProofReading | None = None) -> FinishOutcome:
     """Park `finish`'s landing for want of room for its debt, prepared before the park's notice is posted.
 
     Nothing is reset and nothing is cleared: the pull request already carries
     the head, and the attempt is what the reply brings back to record the debt
     and finish the route once somebody has made room. A park that would not
-    land posts nothing.
+    land posts nothing. `observed` collects the movement a refusal read
+    (`_stopped`). A finish held to the settled-evidence policy reuses a park
+    the tick reads standing for the debt where no reply it was handed answers
+    it, holds where the issue's conversation would not read, and lands one
+    over the notice an earlier finish posted -- past the watermark, or past a
+    reply handed in again -- ahead of a park write that did not land
+    (`rewrite_finish_debt.noticed`), filing its `park_awaiting_human` event
+    only where the event stream lacks that park's own
+    (`rewrite_finish_debt.files_the_park`), so neither is made twice; its
+    park's event names the landed head and the notice; the evidence is still
+    proved around it (`rewrite_finish_stops`).
     """
-    reason = _base_sync_state._REASON_AUTO_BASE_REBASE_UNRECORDED_DEBT
     staged = staging(finish)
     staged.set(_base_sync_state._AWAITING_HUMAN, True)
-    staged.set(_base_sync_state._PARK_REASON, reason)
-    stopped = prepares(finish, staged, PARK, notice=True)
+    staged.set(_base_sync_state._PARK_REASON, _FOR_THE_DEBT)
+    noticed = _debt.noticed(finish, staged) if finish.proves_settled else None
+    if isinstance(noticed, FinishOutcome):
+        return noticed
+    stopped = prepares(finish, staged, PARK, observed, notice=noticed is None)
+    if stopped is None and noticed is not None:
+        stopped = _debt.files_the_park(finish, noticed)
     if stopped is not None:
         return stopped
-    message = _debt.unrecorded(finish)
-    _guards._park_awaiting_human(finish.gh, finish.issue, staged, message, reason=reason)
-    staged.set(_base_sync_state._PARK_REASON, reason)
-    return lands(finish, staged, PARK) or FinishOutcome.PARKED
+    if noticed is None:
+        # A dormant park names its head and its notice, so a later finish that
+        # finds this notice said asks the event stream for this park's event alone.
+        named = {"sha": finish.head, "names_the_notice": True} if finish.proves_settled else {}
+        message = _debt.unrecorded(finish)
+        _guards._park_awaiting_human(finish.gh, finish.issue, staged, message, reason=_FOR_THE_DEBT, **named)
+    staged.set(_base_sync_state._PARK_REASON, _FOR_THE_DEBT)
+    return lands(finish, staged, PARK, observed) or FinishOutcome.PARKED
 
 
 def _stopped(
@@ -351,27 +410,30 @@ def _stopped(
     it is (`_BOUND_MOVED`): the guard read it once, and whatever reads the
     comment after may find it put back. For a finish held to the dormant
     settled-evidence policy only the records a binding rests on beyond the
-    evidence records count (`BINDING_RECORDS`): another road recording,
-    settling, or retiring a transaction moves none of them, so a settlement
-    another finish made under the write is no movement under that
-    transaction (`verification_durable.moves_only_the_evidence`) -- but a
-    review or report record that edit read moved beside it is, named off the
-    comment the strict edit read (`lands`), and so is any movement that very
-    comment records under the transaction, asked of it as it was read
+    evidence records count (`BINDING_RECORDS`), observed as `BINDING_MOVED`:
+    another road recording, settling, or retiring a transaction moves none of
+    them, so a settlement another finish made under the write is no movement
+    under that transaction (`verification_durable.moves_only_the_evidence`) --
+    but a review or report record that edit read moved beside it is, named off
+    the comment the strict edit read (`lands`), and so is any movement that
+    very comment records under the transaction, asked of it as it was read
     (`verification_proof.ProofReading.reads`): a mark in the evidence's handoff
     place, a revision spent past it, or a blank of the attempt's base tip.
     """
     stopped = _UNLANDED.get(outcome.status)
-    if stopped is not None:
-        why = outcome.refusal or outcome.status
-        log.warning(
-            "issue=#%d a write finishing its landed base rewrite of %.8s did not land (%s); "
-            "posting, relabeling, and clearing nothing behind it",
-            finish.issue.number, finish.head, why.value,
-        )
-        bound = BINDING_RECORDS if finish.proves_settled else _BOUND
-        if observed is not None and bound.intersection(outcome.fields):
-            observed.observes(_BOUND_MOVED)
-        if observed is not None and outcome.seen is not None:
-            observed.reads(outcome.seen)
+    if stopped is None:
+        return None
+    why = outcome.refusal or outcome.status
+    log.warning(
+        "issue=#%d a write finishing its landed base rewrite of %.8s did not land (%s); "
+        "posting, relabeling, and clearing nothing behind it",
+        finish.issue.number, finish.head, why.value,
+    )
+    moved = _BOUND.intersection(outcome.fields)
+    if finish.proves_settled:
+        moved = BINDING_RECORDS.intersection(moved)
+    if observed is not None and moved:
+        observed.observes(BINDING_MOVED if finish.proves_settled else _BOUND_MOVED)
+    if observed is not None and outcome.seen is not None:
+        observed.reads(outcome.seen)
     return stopped

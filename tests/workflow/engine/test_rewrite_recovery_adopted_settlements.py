@@ -23,7 +23,10 @@ put back -- also where another finish of the landing announced the run
 meanwhile, or routed it, over the comment as it stands: marked in its
 handoff's place where the comment is full, retired whole once room is made,
 and a successor settled under its own receipt kept. A run settled and
-announced with nothing else moving stays current.
+announced with nothing else moving stays current. The whole coordinator asked
+directly under the same policy holds over the dropped handoff with nothing
+announced, and invalidates an outranked or moved settlement ahead of the
+announcement, routing the head once to the fresh reviewer.
 """
 from __future__ import annotations
 
@@ -33,9 +36,7 @@ from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
     rewrite_finish_unconfirmed as _unconfirmed,
-    verification_carries as _carries,
     verification_proof as _proof,
-    verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
@@ -47,48 +48,25 @@ from tests.workflow.engine import (
     rewrite_handoff_test_support as handoff,
     rewrite_verification_recovery_support as support,
     settled_finish_support as settled,
+    settled_route_support as route,
     verification_report_fixture as _report,
 )
+from tests.workflow.engine.adopted_settlement_support import drops_the_handoff, settles_the_run, spends_a_revision_past
 from tests.workflow.interleaving import _RacesPastTheCall
-
-
-def _settles_the_run(case: support.CapturedRunCase, captured):
-    """Settle `captured` over the artifact just posted, as another road would; the comment it left, unwritten."""
-    state = case.gh.read_pinned_state(case.issue)
-    posted = case.pull_request.issue_comments[-1]
-    settled_comment = _settlement.settled_state(state, captured, posted.id, git_support.REVIEWING)
-    case.assertIsNotNone(settled_comment)
-    return settled_comment
-
-
-def _spends_a_revision_past(case: support.CapturedRunCase, captured) -> None:
-    """Settle `captured`, then record a newer transaction and retire it, raising the floor past the run."""
-    state = _settles_the_run(case, captured)
-    newer = _record_state.mint_pending_evidence(state, git_support.ISSUE, case.source.binding, captured.commands)
-    case.assertTrue(_record_state.record_pending_evidence(state, newer))
-    case.assertTrue(_carries.abandons(state, newer))
-    case.gh.write_pinned_state(case.issue, state)
-
-
-def _drops_the_handoff(case: support.CapturedRunCase, captured) -> None:
-    """Settle `captured`, then drop the handoff that names it."""
-    state = _settles_the_run(case, captured)
-    state.set(_records.EVIDENCE_HANDOFF, None)
-    case.gh.write_pinned_state(case.issue, state)
-
 
 # What another road leaves beside the run it settled, and the revision floor
 # that leaves: one past the run's, or the run's own.
 _OUT_OF_STEP = (
-    ("a revision spent past it", _spends_a_revision_past, 1),
-    ("its handoff dropped", _drops_the_handoff, 0),
+    ("a revision spent past it", spends_a_revision_past, 1),
+    ("its handoff dropped", drops_the_handoff, 0),
 )
 
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
 
 # The proof's observation of a refusal, read before any case stands in for it.
-_OBSERVES = _proof.ProofReading.observes
+_OBSERVED = "observes"
+_OBSERVES = getattr(_proof.ProofReading, _OBSERVED)
 
 # Whether another finish routes the run before report 3 moves, what is made
 # behind that route, and how the run then reads (`_assert_invalidated`).
@@ -132,7 +110,7 @@ class _MovesTheReport:
 
     def settles(self, case: support.CapturedRunCase, captured) -> None:
         """Settle `captured` over the artifact just posted, then report 3 of its head, as another road would."""
-        case.state = _settles_the_run(case, captured)
+        case.state = settles_the_run(case, captured)
         self._moves(case, captured.binding.target.target_head)
 
     def finishes_then_settles(self, case: _AdoptionCase, captured) -> None:
@@ -209,7 +187,7 @@ class _AdoptionCase(support.CapturedRunCase):
         The evidence phase is asked once behind that race, and holds.
         """
         moves = _MovesTheReport()
-        with patch.object(_proof.ProofReading, "observes", side_effect=moves, autospec=True):
+        with patch.object(_proof.ProofReading, _OBSERVED, side_effect=moves, autospec=True):
             captured = self.races_the_post(partial(moves.finishes_around, first=first, then=then))
             self.assertEqual(self.resolves(self.head), FinishOutcome.HELD)
         return captured
@@ -264,7 +242,7 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
         # The run is current as that road settled it, its handoff dropped
         # and left so, and the attempt stands with nothing announced, however
         # often the phase is asked; the artifact was posted once.
-        captured = self.races_the_post(_drops_the_handoff)
+        captured = self.races_the_post(drops_the_handoff)
         settled.charges(self)
 
         answers = tuple(self.resolves(self.head) for _ in range(3))
@@ -279,7 +257,7 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
         # That road spent a revision past the run it settled: the phase
         # invalidates the run whole, its revision and binding kept, and lets
         # the route go on to the fresh reviewer, the next one changing nothing.
-        captured = self.races_the_post(_spends_a_revision_past)
+        captured = self.races_the_post(spends_a_revision_past)
         settled.charges(self)
 
         self.assertIsNone(self.resolves(self.head))
@@ -301,7 +279,7 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
         # settlement is adopted: the run is invalidated whole all the same,
         # and the route goes on with nothing current for the fresh reviewer.
         moves = _MovesTheReport()
-        with patch.object(_proof.ProofReading, "observes", side_effect=moves, autospec=True):
+        with patch.object(_proof.ProofReading, _OBSERVED, side_effect=moves, autospec=True):
             captured = self.races_the_post(moves.settles)
             settled.charges(self)
             self.assertIsNone(self.resolves(self.head))
@@ -316,7 +294,7 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
         # finish left are this attempt advanced, not replaced, so the run is
         # invalidated whole over the movement read, that mark kept.
         moves = _MovesTheReport()
-        with patch.object(_proof.ProofReading, "observes", side_effect=moves, autospec=True):
+        with patch.object(_proof.ProofReading, _OBSERVED, side_effect=moves, autospec=True):
             captured = self.races_the_post(moves.finishes_then_settles)
             settled.charges(self)
             self.assertIsNone(self.resolves(self.head))
@@ -369,6 +347,50 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
         self.assertEqual(len(readings.notices(self)), 1)
         self.assertEqual(readings.relabels(self), relabels)
         self.assertEqual(self.runs(), 1)
+
+
+class FinalizedAdoptionTest(_AdoptionCase, route.SettledRouteCase, unittest.TestCase):
+    """The coordinator held to the policy over a settlement another road made while the run was published."""
+
+    def test_an_adopted_settlement_out_of_step_holds(self) -> None:
+        # The run is current as that road settled it, its handoff dropped:
+        # every finish holds with nothing announced, relabelled, or retired,
+        # and the artifact was posted once.
+        captured = self.races_the_post(drops_the_handoff)
+
+        self.assertEqual(self.finalizes(self.head), FinishOutcome.HELD)
+        self.assertEqual(self.finalizes(self.head), FinishOutcome.HELD)
+
+        self.assert_held_as_settled(captured)
+        self.assertEqual(self.posted(captured), [captured.commands])
+
+    def test_an_outranked_settlement_is_routed_past(self) -> None:
+        # That road spent a revision past the run it settled: the run is
+        # invalidated whole ahead of the announcement, and the head is said
+        # and routed once to the fresh reviewer.
+        captured = self.races_the_post(spends_a_revision_past)
+
+        self.assertEqual(self.finalizes(self.head), FinishOutcome.ROUTED)
+
+        self.assert_routed_past(captured)
+
+    def test_a_settlement_read_moving_is_routed_past(self) -> None:
+        # That road settled the run and then report 3 of its head, report 2
+        # put back right behind the proof that read it: the run is
+        # invalidated whole all the same, and the head is routed once.
+        moves = _MovesTheReport()
+        with patch.object(_proof.ProofReading, _OBSERVED, side_effect=moves, autospec=True):
+            captured = self.races_the_post(moves.settles)
+            self.assertEqual(self.finalizes(self.head), FinishOutcome.ROUTED)
+
+        self.assert_invalidated(captured)
+        self.assert_routed_past(captured)
+
+    def assert_routed_past(self, captured) -> None:
+        """`captured` invalidated whole with nothing current or pending, and the head said and routed once."""
+        self.assertEqual(readings.pinned_records(self)[:2], (None, None))
+        self.assert_whole(captured)
+        self.assert_routed_once(self.head)
 
 
 if __name__ == "__main__":
