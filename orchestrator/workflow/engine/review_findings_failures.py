@@ -12,26 +12,26 @@ A check's output names its failures where pytest's short summary reports them
 never in what pytest captured from a test, which may print lines of the
 summary's shape or a whole run of pytest's (`review_findings_pytest`), each
 line read as `review_findings_summary` reads it: a `FAILED` line names a test
-by its exact node ID, parameters included and a file path or test name holding
-blanks too, a `SUBFAILED` line a subtest by its test's node ID and pytest's
-description of it, and an `ERROR` line a node by its ID, or a path. A path
-names a collection that failed before any test in it ran -- the check that
-failed, not a test -- whatever file it is and whether it holds blanks, though
-words naming no Python file are one only where pytest says so. A node ID names
-the setup or teardown of a test where a section pytest printed says that
-failed -- where both did, the one whose section raised the error the line
-gives; a collection where a section of its run says pytest failed collecting
-the node or its path, or its run says collection was interrupted, since a
-class pytest could not collect is reported by its ID; and, nothing saying
-which, an error outside any test body, in one of the three. An ID is the
-longest an entry of the findings names whole, or pytest titled a section by;
-where nothing names one, it ends where the line's message may first begin, so
-the message is never cut short, and where a later split could end it too the
-lead says where the ID ends is unavailable. Each failure leads with its name
-and the error the line gives. Where the line gives none -- pytest drops it
-from a line too long for the terminal -- the exception the section pytest
-printed for it shows gives it, each section going to one summary line, so
-tests of two modules sharing a name each take their own
+by its exact node ID, parameters included and a file path holding blanks or
+brackets, or a test name holding blanks, too, a `SUBFAILED` line a subtest by
+its test's node ID and pytest's description of it, and an `ERROR` line a node
+by its ID, or a path. A path names a collection that failed before any test in
+it ran -- the check that failed, not a test -- whatever file it is and whether
+it holds blanks or brackets, though words naming no Python file are one only
+where pytest says so. A node ID names the setup or teardown of a test where a
+section pytest printed says that failed -- where both did, the one whose
+section raised the error the line gives; a collection where a section of its
+run says pytest failed collecting the node or its path, or its run says
+collection was interrupted, since a class pytest could not collect is reported
+by its ID; and, nothing saying which, an error outside any test body, in one
+of the three. An ID is the longest an entry of the findings names whole, or
+pytest titled a section by; where nothing names one, it ends where the line's
+message may first begin, so the message is never cut short, and where a later
+split could end it too the lead says where the ID ends is unavailable. Each
+failure leads with its name and the error the line gives. Where the line gives
+none -- pytest drops it from a line too long for the terminal -- the exception
+the section pytest printed for it shows gives it, each section going to one
+summary line, so tests of two modules sharing a name each take their own
 (`review_findings_pytest`); or else the error of the reviewer's entry naming
 it. Where none is found the lead says so. No name is ever made up: a check
 pytest's summary names nothing in is led by the failure entries
