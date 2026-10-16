@@ -36,11 +36,13 @@ is a check's where the check's output shows the entry's error -- never because
 the two name one command, since one stdin command, such as `.venv/bin/python
 -`, may run several scenarios, each a check of its own. A lead says too where
 the check quoted no output to show an error by, and -- whatever names its
-failures -- where its command, split as a shell splits it, reads its code from
-stdin and no entry it backs gives the snippet it read, as a code block holding
-code below its `Reproduce:` line: such a command reproduces nothing alone,
-however an entry names it. A check naming more failures than a lead lists
-leaves the rest to its output, which is quoted whole below it.
+failures -- where its command reads its code from stdin -- a `-` argument,
+split as a shell splits it, that no argument before it gave a program inline,
+by module, or as a script and no entry it backs gives the snippet it read, as
+a code block holding code below its `Reproduce:` line: such a command
+reproduces nothing alone, however an entry names it. A check naming more
+failures than a lead lists leaves the rest to its output, which is quoted
+whole below it.
 
 The reviewer's own text is shown through here too (`said`): each entry with
 what it leaves out said, and each check the concise layout before leads
@@ -117,14 +119,19 @@ _PATH_RE = re.compile(r".*(?:/.*|\.py)")
 
 _UNPHASED = ("", "")
 
+# The title a failure `--tb=line` printed stands under: none.
+_UNTITLED = ""
+
 # The bare fence the layout before leads quoted a check's output in, below its
 # sentence (`review_findings_entries.CHECK_SENTENCE_RE`), which closes on a
 # period where the check quoted no output.
 _BARE_FENCE_RE = re.compile(f"{_BACKTICK}{{3,}}")
 _NO_OUTPUT_CLOSE = "."
 
-# The argument a command reads the code it runs from stdin by.
+# The argument a command reads the code it runs from stdin by, and one giving
+# the program before it otherwise: inline, by module, or as a script.
 _STDIN = "-"
+_PROGRAM_RE = re.compile(r"-[cme].*|--(?:command|eval)(?:=.*)?|.*\.py")
 
 # As many failures as one lead names; the output quoted below it names the rest.
 _NAMED_AT_MOST = 10
@@ -168,7 +175,7 @@ def lead(command: str, output: str, entries: _Entries) -> tuple[str, ...]:
     if not output:
         said.append(_NO_OUTPUT)
     snippet = any(entry.snippet for entry in backed)
-    if not snippet and _STDIN in _arguments(command):
+    if not snippet and _reads_stdin(command):
         said.append(_UNREPRODUCED.format(command=span(command)))
     return tuple(said)
 
@@ -183,12 +190,22 @@ def said(text: str, entries: _Entries) -> str:
     return _Unled(annotated.split("\n")).led(entries)
 
 
-def _arguments(command: str) -> list[str]:
-    """The arguments `command` passes, as a shell splits them -- a quoted dash is no stdin -- or on blanks unclosed."""
+def _reads_stdin(command: str) -> bool:
+    """Whether `command` reads the code it runs from stdin: a `-` argument no earlier one gave the program before.
+
+    Its arguments are split as a shell splits them, so a dash quoted inside one
+    is no argument -- or on blanks where its quoting does not close. A program
+    given inline or by module (`-c`, `-m`, `-e`), or as a script, makes a `-`
+    after it the program's own argument.
+    """
     try:
-        return shlex.split(command)
+        arguments = shlex.split(command)
     except ValueError:
-        return command.split()
+        arguments = command.split()
+    if _STDIN not in arguments:
+        return False
+    given = arguments[:arguments.index(_STDIN)]
+    return not any(map(_PROGRAM_RE.fullmatch, given))
 
 
 def span(text: str) -> str:
@@ -263,7 +280,7 @@ class _Reported:
         """
         if _NODE_SEPARATOR not in node:
             return None
-        section = read.take({read.name(node)}, error)
+        section = read.take({read.name(node), _UNTITLED}, error)
         raised = "" if section is None else section.raised
         return cls(span(node), error or raised or named)
 

@@ -17,7 +17,14 @@ A section marks the exception it shows with `E` (`Section`). An assertion's
 explanation, a diff hint, or a syntax error's source sets its lines out
 further than the exception, and a chained exception marks each exception in
 turn, the last the one raised; so a section's exception is the first line set
-out least in its last run of marked lines.
+out least in its last run of marked lines. A section marking no line holds
+Python's own traceback, as `--tb=native` prints one, and its exception is the
+first line at the margin below the traceback's last header.
+
+With `--tb=line` a failed test has no section: under the failures heading,
+pytest prints the file and line it crashed at -- the test's, or a helper's --
+and its exception on one line, and each such line is a section titled by
+nothing (`PytestOutput.take` reads it for a summary line naming a test).
 
 Tests in different modules may share a name, and their sections a title, so
 each summary line takes a section of its own (`PytestOutput.take`). pytest
@@ -40,6 +47,19 @@ _SECTION_RE = re.compile(r"[ \t]*(?:_+ (?=.*[^_ ]).+ _+|=+(?: .+ =+)?)[ \t\r]*")
 # A line a section marks with `E`, how far it sets out what it says, and what
 # it says -- nothing, on a line marked blank.
 _MARKED_RE = re.compile(r"[ \t]*E(?:(?P<indent>[ \t]+)(?P<error>.*?))?[ \t\r]*")
+
+# A heading of equals signs, and the one the failures stand under. With
+# `--tb=line` a failure has no section of its own there: pytest prints the
+# file and line it crashed at, and its exception, on one line.
+_HEADING_RE = re.compile(r"[ \t]*=+ (?P<heading>.+?) =+[ \t\r]*")
+_FAILURES = "FAILURES"
+_LINE_TRACEBACK_RE = re.compile(r"[ \t]*[^\s:]+:\d+: (?P<raised>\S.*?)[ \t\r]*")
+_UNTITLED = ""
+
+# The header of a traceback in Python's own form, which `--tb=native` prints
+# with no line marked: the exception stands on the first line at the margin
+# below the last such header.
+_NATIVE_HEADER = "Traceback (most recent call last):"
 
 _PHASES = ("setup", "teardown")
 _IN_PHASE = "ERROR at {phase} of {name}"
@@ -68,11 +88,29 @@ class Section:
 
     @classmethod
     def read(cls, title: str, lines: Iterable[str]) -> Section:
-        """The section titled `title` that holds `lines`."""
-        marked = [_MARKED_RE.fullmatch(line) for line in lines]
-        grouped = groupby(marked, key=bool)
+        """The section titled `title` that holds `lines`: what its marked lines show, else its native traceback."""
+        held = list(lines)
+        return cls(title, cls._marked(held) or cls._native(held))
+
+    @classmethod
+    def _marked(cls, lines: Sequence[str]) -> str:
+        """The exception the last run of lines marked `E` among `lines` shows; "" for none."""
+        grouped = groupby(map(_MARKED_RE.fullmatch, lines), key=bool)
         runs = [list(run) for marking, run in grouped if marking]
-        return cls(title, cls._raised(runs[-1]) if runs else "")
+        return cls._raised(runs[-1]) if runs else ""
+
+    @classmethod
+    def _native(cls, lines: Sequence[str]) -> str:
+        """The exception the last traceback in Python's own form among `lines` ends on; "" for none."""
+        raised = ""
+        below = False
+        for line in lines:
+            if line.strip() == _NATIVE_HEADER:
+                below = True
+            elif below and line[:1].strip():
+                raised = line.rstrip()
+                below = False
+        return raised
 
     @classmethod
     def _raised(cls, run: Sequence[re.Match[str]]) -> str:
@@ -160,12 +198,20 @@ class PytestOutput:
         return f"{scope.replace(_NODE_SEPARATOR, _NAME_SEPARATOR)}{bracket}{ids}"
 
     def _read(self) -> Iterator[Section]:
-        """Each section the output holds, in order."""
+        """Each section the output holds, in order: each titled one, and each failure `--tb=line` printed untitled.
+
+        A line traceback stands under the failures heading and outside any
+        titled section, and is a section with no title of its own.
+        """
+        traced = False
         for number, line in enumerate(self.lines):
             titled = _TITLE_RE.fullmatch(line)
             if titled is not None:
-                held = takewhile(_held, self.lines[number + 1:])
-                yield Section.read(titled.group("title"), held)
+                yield Section.read(titled.group("title"), _held_below(self.lines, number))
+            traced = _traced_below(line, traced and titled is None)
+            lined = _LINE_TRACEBACK_RE.fullmatch(line) if traced else None
+            if lined is not None:
+                yield Section(_UNTITLED, lined.group("raised"))
 
 
 def _collections(sections: Iterable[Section]) -> dict[str, str]:
@@ -183,6 +229,17 @@ def _opens(section: Section, shown: str) -> bool:
     return bool(shown) and section.raised.startswith(shown)
 
 
-def _held(line: str) -> bool:
-    """Whether `line` is held in the section above it, rather than opening one."""
-    return _SECTION_RE.fullmatch(line) is None
+def _traced_below(line: str, traced: bool) -> bool:
+    """Whether a line traceback may stand below `line`, where `traced` says whether one may above it.
+
+    One may from the failures heading to the next heading -- or the next title,
+    which the caller has `traced` say.
+    """
+    heading = _HEADING_RE.fullmatch(line)
+    return traced if heading is None else heading.group("heading") == _FAILURES
+
+
+def _held_below(lines: Sequence[str], number: int) -> Iterator[str]:
+    """The lines the section line `number` of `lines` opens holds: those up to the next that opens one."""
+    below = lines[number + 1:]
+    return takewhile(lambda line: _SECTION_RE.fullmatch(line) is None, below)
