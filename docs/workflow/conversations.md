@@ -663,16 +663,18 @@ a failure as one line of the file it crashed at — its path holding blanks or n
 exception to its summary line in turn. What pytest captured from a test, printed under a rule of dashes below its
 traceback, is never read as pytest's own — not as a section's exception, a line traceback, or a summary line, which are
 read below the short summary's heading where the output holds one — so a test printing lines of those shapes neither
-replaces its exception nor adds a failure. Otherwise the check leads with each entry whose error its output shows —
-matched by that error, never by the command, so two runs of `.venv/bin/python -` each lead with their own scenario and
-are never merged — or with a line saying no test ID or scenario name was recorded for it. Whatever is missing stays
-visible as such: a check that quoted no output says no error was recorded, and one whose command reads its code from
-stdin — a `-` argument, split as a shell splits it, after no program given inline (`-c`, `-e`), by module (`-m`), or as
-a script; whatever names its failures — with no entry giving the snippet as a code block holding code below its
-`Reproduce:` line, says none was recorded, whatever the entry names as its command. A lead names at most ten failures,
-the output quoted below naming the rest. No lead line opens on a declaration keyword, so formatting the shown feedback
-again changes nothing, and what a lead says is read from the text alone: the evidence, statuses, and provenance stay
-those the declaration recorded.
+replaces its exception nor adds a failure. A whole run of pytest's a test printed there, from its session's heading or
+`-q` progress line to its line of statistics, is captured too, and only the last short summary of a run is read, any
+above it being one a test printed. Otherwise the check leads with each entry whose error its output shows — matched by
+that error, never by the command, so two runs of `.venv/bin/python -` each lead with their own scenario and are never
+merged — or with a line saying no test ID or scenario name was recorded for it. Whatever is missing stays visible as
+such: a check that quoted no output says no error was recorded, and one whose command reads its code from stdin — a `-`
+argument, split as a shell splits it, after no program given inline (`-c`, `-e`), by module (`-m`), or as a script;
+whatever names its failures — with no entry giving the snippet as a code block holding code below its `Reproduce:` line,
+says none was recorded, whatever the entry names as its command. A lead names at most ten failures, the output quoted
+below naming the rest. No lead line opens on a declaration keyword, so formatting the shown feedback again changes
+nothing, and what a lead says is read from the text alone: the evidence, statuses, and provenance stay those the
+declaration recorded.
 
 Findings that are a declaration and nothing else read as a sentence saying the reviewer stated none, never as the raw
 message they sit in. The transaction keeps every command, exit status, and output exactly, and the formatting decides

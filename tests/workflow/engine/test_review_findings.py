@@ -590,6 +590,60 @@ _CAPTURED_LINES_LEAD = (
     f"Failure: `{_LINE_MODULE}::test_output`\nError: `RuntimeError: actual failure`\n"
     f"Failure: `{_LINE_MODULE}::test_second`\nError: `assert 1 == 2`\n"
 )
+# Tests printing pytest's own output: a summary heading and line alone, above
+# the run's own summary; a whole run, its sections and summary among it, with
+# the outer run summarised and not (`-rN`); and a run cut short below its
+# session's heading. Two runs of a check each keep their own summary.
+_SESSION_HEADING = "============================= test session starts ==============================\n"
+_SUMMARY_HEADING = "=========================== short test summary info ============================\n"
+_OUTER_OPENING = (
+    "__________________________________ test_outer __________________________________\n"
+    "E   RuntimeError: outer failure\n"
+    f"{_CAPTURE_RULE}"
+)
+_OUTER_LEAD = f"Failure: `{_LINE_MODULE}::test_outer`\nError: `RuntimeError: outer failure`\n"
+_PRINTED_SUMMARY = (
+    f"{_OUTER_OPENING}{_SUMMARY_HEADING}"
+    "FAILED nested/test_inner.py::test_inner - ValueError: only captured text\n"
+    f"{_SUMMARY_HEADING}FAILED {_LINE_MODULE}::test_outer"
+)
+_NESTED_RUN = (
+    f"{_OUTER_OPENING}{_SESSION_HEADING}"
+    "collected 1 item\n"
+    "\n"
+    "test_inner.py F                                                          [100%]\n"
+    "\n"
+    "=================================== FAILURES ===================================\n"
+    "E   ValueError: inner only\n"
+    "/tmp/inner/test_inner.py:2: ValueError: inner only\n"
+    f"{_SUMMARY_HEADING}"
+    "FAILED test_inner.py::test_inner - ValueError: inner only\n"
+    "============================== 1 failed in 0.01s ===============================\n"
+    "\n"
+    "__________________________________ test_plain __________________________________\n"
+    "E   assert 1 == 2\n"
+)
+_OUTER_STATS = "============================== 2 failed in 0.02s ==============================="
+_NESTED_SUMMARISED = (
+    f"{_NESTED_RUN}{_SUMMARY_HEADING}FAILED {_LINE_MODULE}::test_outer\nFAILED {_LINE_MODULE}::test_plain\n"
+    f"{_OUTER_STATS}"
+)
+_NESTED_SUMMARISED_LEAD = f"{_OUTER_LEAD}Failure: `{_LINE_MODULE}::test_plain`\nError: `assert 1 == 2`\n"
+_NESTED_UNSUMMARISED = f"{_NESTED_RUN}{_OUTER_STATS}"
+_CUT_RUN = (
+    f"{_OUTER_OPENING}{_SESSION_HEADING}collected 1 item\n{_SUMMARY_HEADING}FAILED {_LINE_MODULE}::test_outer\n"
+    "============================== 1 failed in 0.01s ==============================="
+)
+_TWO_RUNS = (
+    f"{_SESSION_HEADING}{_SUMMARY_HEADING}FAILED tests/test_a.py::test_a - ValueError: first run\n"
+    "============================== 1 failed in 0.01s ===============================\n"
+    f"{_SESSION_HEADING}{_SUMMARY_HEADING}FAILED tests/test_b.py::test_b - KeyError: second run\n"
+    "============================== 1 failed in 0.01s ==============================="
+)
+_TWO_RUNS_LEAD = (
+    "Failure: `tests/test_a.py::test_a`\nError: `ValueError: first run`\n"
+    "Failure: `tests/test_b.py::test_b`\nError: `KeyError: second run`\n"
+)
 # A stdin check running pytest, which names the test that failed, and how it leads.
 _STDIN_PYTEST = "FAILED tests/test_probe.py::test_probe - AssertionError: values differ"
 _STDIN_PYTEST_SHOWN = (
@@ -1029,6 +1083,15 @@ class FailureNamesTest(unittest.TestCase):
             (_CAPTURED_SUMMARY, "", _CAPTURED_SUMMARY_LEAD),
             (_CAPTURED_UNSUMMARISED, "", _UNNAMED),
             (_CAPTURED_LINES, "", _CAPTURED_LINES_LEAD),
+            # Nor is pytest's own output a test printed: only the last short
+            # summary of a run is the run's, and a whole run printed below a
+            # rule is captured to its statistics -- unless a test cut it short,
+            # which hides nothing below it.
+            (_PRINTED_SUMMARY, "", _OUTER_LEAD),
+            (_NESTED_SUMMARISED, "", _NESTED_SUMMARISED_LEAD),
+            (_NESTED_UNSUMMARISED, "", _UNNAMED),
+            (_CUT_RUN, "", _OUTER_LEAD),
+            (_TWO_RUNS, "", _TWO_RUNS_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):

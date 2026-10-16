@@ -273,7 +273,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the next title, rule, or heading, and nothing there is read as pytest's own -- no marked
                             line, line traceback, or summary line, the summary lines read below the short summary's
                             heading where the output holds one -- save the `--tb=line` line closing it, which gives the
-                            exception the failure's last marked line showed
+                            exception the failure's last marked line showed. A run's opening there -- the session's
+                            heading, or a `-q` progress line -- opens a whole run a test printed, captured up to the
+                            line of statistics closing it, unless only the output's last such line, or none, closes
+                            it, the test having cut it short; and only the last short summary of a run, which opens on
+                            the session's heading, is read, any above it in the run being one a test printed
     review_findings_entries.py
                             the failure entries a reviewer writes in its findings, for `review_findings_failures` and
                             `review_findings`: an entry runs from one `Failure:` line to the next, each of the taught
