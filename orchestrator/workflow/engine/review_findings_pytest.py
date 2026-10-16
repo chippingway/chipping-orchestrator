@@ -17,10 +17,18 @@ Below a section's traceback, pytest prints what it captured from the test --
 its output, its log -- and what a plugin added to its report, each under a
 rule of dashes titling it, up to the next line that opens a section. A test
 may print anything there, lines of a traceback's or a summary's shape too, so
-nothing captured is read as pytest's own: a section's exception is read from
-its traceback alone, and the summary lines from below the short summary's
-heading (`PytestOutput.summary`) -- or, in output quoting the summary lines
-alone, from any line nothing captured holds.
+no line there is read as pytest's own: a section's exception is read from its
+traceback alone, and the summary lines from below the short summary's heading
+(`PytestOutput.summary`) -- or, in output quoting the summary lines alone,
+from any line nothing captured holds. A test may print a whole run of
+pytest's: below a rule, where pytest itself never opens a run, a run's opening
+-- its session's heading, or the progress line its first tests report on with
+`-q` -- opens one a test printed, captured up to the line of statistics that
+closes it. Any other line of a section's or a heading's shape a test prints
+ends what is read as captured there, being one pytest might print next; but
+pytest prints one short summary for a run, last, so of the summary headings
+in one run -- which opens on the session's heading, where pytest prints one --
+only the last is pytest's, any above it one a test printed.
 
 A section marks the exception it shows with `E` (`Section`). An assertion's
 explanation, a diff hint, or a syntax error's source sets its lines out
@@ -51,7 +59,7 @@ exception the line's own error opens, where it gives one.
 from __future__ import annotations
 
 import re
-from collections.abc import Collection, Iterable, Iterator, Sequence
+from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from itertools import accumulate, chain, compress, groupby, takewhile
 from types import MappingProxyType
@@ -73,6 +81,15 @@ _MARKED_RE = re.compile(r"[ \t]*E(?:(?P<indent>[ \t]+)(?P<error>.*?))?[ \t\r]*")
 _HEADING_RE = re.compile(r"[ \t]*=+ (?P<heading>.+?) =+[ \t\r]*")
 _FAILURES = "FAILURES"
 _SUMMARY = "short test summary info"
+_SESSION = "test session starts"
+
+# What opens a run of pytest's: its session's heading, or, with `-q`, the
+# progress line its first tests report on, by percentage or count; and the
+# line of statistics closing it, a heading or, with `-q`, not.
+_STARTED_RE = re.compile(r"[ \t]*(?:=+ test session starts =+|[.FEsxXR]+[ \t]+\[(?:[ \t]*\d+%|\d+/\d+)\])[ \t\r]*")
+_STATS_RE = re.compile(
+    r"[ \t]*(?:=+ )?(?:no tests ran|\d+ \w+(?:, \d+ \w+)*) in \d+\.\d+s(?: \([\d:]+\))?(?: =+)?[ \t\r]*",
+)
 _LINE_TRACEBACK_RE = re.compile(r"[ \t]*(?!E[ \t])[^\s:][^:]*?:\d+: (?P<raised>\S.*?)[ \t\r]*")
 _UNTITLED = ""
 
@@ -118,29 +135,57 @@ _HEADED = MappingProxyType({_FAILURES: _TRACED, _SUMMARY: _SUMMARISED})
 class _Where:
     """Where a line of the output stands: its region, and whether in what pytest captured below a rule.
 
-    `shown` is the exception the last marked line outside anything captured
-    above it shows.
+    `nested` says the line stands in a run a test printed, which `nests`
+    says may be read; `shown` is the exception the last marked line outside
+    anything captured above it shows; `run` counts the session headings at or
+    above the line outside anything captured, and `summaries` the short
+    summary headings.
     """
 
     region: str = _ELSEWHERE
     captured: bool = False
+    nested: bool = False
     shown: str = ""
+    run: int = 0
+    summaries: int = 0
+    nests: bool = True
 
     @classmethod
     def of(cls, lines: Sequence[str]) -> tuple[_Where, ...]:
-        """Where each of `lines` stands, in turn."""
-        return tuple(accumulate(lines, cls.below, initial=cls()))[1:]
+        """Where each of `lines` stands, in turn.
+
+        Where a run a test printed is closed by no line of statistics but the
+        output's last -- the run's own -- or by none, the test cut it short,
+        and the output is read as if no run were nested, lest that hide the
+        run's own summary.
+        """
+        wheres = tuple(accumulate(lines, cls.below, initial=cls()))
+        if _unclosed(lines, wheres):
+            wheres = tuple(accumulate(lines, cls.below, initial=cls(nests=False)))
+        return wheres[1:]
 
     @classmethod
-    def standing(
-        cls, lines: Sequence[str], wheres: Iterable[_Where], region: str | None = None,
-    ) -> list[str]:
-        """Those of `lines` standing, by `wheres`, outside anything captured: in `region`, where that names one."""
-        return list(compress(lines, (where.stands(region) for where in wheres)))
+    def uncaptured(cls, lines: Sequence[str], wheres: Iterable[_Where]) -> list[str]:
+        """Those of `lines` standing, by `wheres`, outside anything captured."""
+        return list(compress(lines, (not where.captured for where in wheres)))
 
-    def stands(self, region: str | None) -> bool:
-        """Whether the line stands outside anything captured: in `region`, where that names one."""
-        return not self.captured and region in {None, self.region}
+    @classmethod
+    def summary(cls, lines: Sequence[str], wheres: Sequence[_Where]) -> list[str]:
+        """Those of `lines` standing, by `wheres`, in the last short summary of their run; none where none stands.
+
+        pytest prints a run's short summary last, so a summary heading above
+        another in one run is one a test printed.
+        """
+        last = {where.run: where.summaries for where in wheres if where.region == _SUMMARISED}
+        return list(compress(lines, (where.summarises(last) for where in wheres)))
+
+    def stands(self, region: str) -> bool:
+        """Whether the line stands in `region`, outside anything captured."""
+        return self.region == region and not self.captured
+
+    def summarises(self, last: Mapping[int, int]) -> bool:
+        """Whether the line stands in its run's last short summary, `last` counting each run's summary headings."""
+        return self.stands(_SUMMARISED) and last[self.run] == self.summaries
 
     def below(self, line: str) -> _Where:
         """Where `line`, the line below the one this says, stands.
@@ -149,8 +194,13 @@ class _Where:
         pytest captured, and the next line opening a section closes that --
         as does the line traceback `--tb=line` prints last for a failure,
         below anything it captured, giving the exception its marked lines
-        showed.
+        showed. A run's opening in what was captured opens a run a test
+        printed, and only its line of statistics closes that.
         """
+        if self.nested:
+            return replace(self, nested=_STATS_RE.fullmatch(line) is None)
+        if self.captured and self.nests and _STARTED_RE.fullmatch(line):
+            return replace(self, nested=True)
         if _SECTION_RE.fullmatch(line):
             return self._opening(line)
         if self.captured:
@@ -167,7 +217,10 @@ class _Where:
             return replace(self, captured=True)
         heading = _HEADING_RE.fullmatch(line)
         named = "" if heading is None else heading.group("heading")
-        return _Where(_HEADED.get(named, _ELSEWHERE), shown=self.shown)
+        region = _HEADED.get(named, _ELSEWHERE)
+        run = self.run + 1 if named == _SESSION else self.run
+        summaries = self.summaries + 1 if region == _SUMMARISED else self.summaries
+        return _Where(region, shown=self.shown, run=run, summaries=summaries, nests=self.nests)
 
 
 @dataclass(frozen=True)
@@ -238,9 +291,9 @@ class PytestOutput:
         phased = filter(None, map(_PHASE_TITLE_RE.fullmatch, titles))
         self._sectioned = titles.union(found.group("name") for found in phased)
         self._collected = _collections(self._sections)
-        uncaptured = _Where.standing(lines, self._wheres)
+        uncaptured = _Where.uncaptured(lines, self._wheres)
         self._interrupted = any(map(_INTERRUPTED_RE.search, uncaptured))
-        summarised = _Where.standing(lines, self._wheres, _SUMMARISED)
+        summarised = _Where.summary(lines, self._wheres)
         # The lines pytest's short summary lines may stand on. Its heading
         # stands in the summary, so none does only where the output holds none.
         self.summary = summarised or uncaptured
@@ -333,6 +386,17 @@ def _collections(sections: Iterable[Section]) -> dict[str, str]:
         if found is not None:
             collected.setdefault(found.group("subject"), section.raised)
     return collected
+
+
+def _unclosed(lines: Sequence[str], wheres: Sequence[_Where]) -> bool:
+    """Whether a run a test printed runs on into the output's last line of statistics, or its end.
+
+    `wheres` says where each of `lines` stands, the first where the line above
+    them does.
+    """
+    stats = [number for number, line in enumerate(lines) if _STATS_RE.fullmatch(line)]
+    last = stats[-1] if stats else len(lines)
+    return wheres[last].nested or wheres[-1].nested
 
 
 def _held_below(lines: Sequence[str], number: int) -> Iterator[str]:
