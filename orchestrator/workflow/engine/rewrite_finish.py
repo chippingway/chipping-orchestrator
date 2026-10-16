@@ -156,14 +156,17 @@ since it settled (`rewrite_finish_readiness`):
 
 A finish under that policy announces nothing for a head another finish of
 the landing marked meanwhile, relabels nothing another one relabelled under
-that mark, holds where the label would not read again, reuses a debt park
-standing that no reply handed in answers, parks over a notice said behind a
-reply it is handed again, and -- finding the attempt retired or
-replaced -- reads nothing more than evidence an earlier finish marked moving,
-which it retires whole once room is made. So repeated direct finishes say and
-make everything once: one notice, `base_rebased` event, round reset, relabel,
-stage-entry event, artifact, and settlement, nothing pushed, run again, or
-launched, and the run ledger as another road charged it.
+that mark, holds where the label would not read again or another attempt
+stands behind the proof ahead of its relabel, reuses a debt park standing
+that no reply handed in answers, parks over a notice said behind a reply it
+is handed again, leaves a transaction another road recorded behind its
+unfinishable proof or its stopped announcement owed as written, and --
+finding the attempt retired or replaced -- reads nothing more than evidence
+an earlier finish marked moving, which it retires whole once room is made.
+So repeated direct finishes say and make everything once: one notice,
+`base_rebased` event, park notice and `park_awaiting_human` event, round
+reset, relabel, stage-entry event, artifact, and settlement, nothing pushed,
+run again, or launched, and the run ledger as another road charged it.
 """
 from __future__ import annotations
 
@@ -429,8 +432,9 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     carries now and the label read afresh (`rewrite_finish_announced.relabelled`),
     and once more behind the proof ahead of it, so one another finish of the
     landing made meanwhile -- even while that proof was answered -- is not made again,
-    nor its stage-entry event; a label nobody could read holds the route, the
-    evidence proved ready once more.
+    nor its stage-entry event; a label nobody could read, or a comment read
+    again behind that proof that carries another attempt or will not read,
+    holds the route, the evidence proved ready once more.
     """
     observed = _stops.observing(finish)
     stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)

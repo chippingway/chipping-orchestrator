@@ -1683,11 +1683,11 @@ because there it is the claim that this stage has already rerouted rather than a
     attempt is put back before the evidence is invalidated over it, and movement the comment read to reconcile a lost
     announcement write records counts as a refusal's does. The mark is read again before the announcement and the
     label afresh under it before the relabel and once more behind the proof ahead of it
-    (`workflow/engine/rewrite_finish_announced.py`), a label that will not read holding the route, and a debt park
-    standing is reused where no reply the watermark has not passed is handed in -- one whose write never landed,
-    a park made again over a reply that reply's replay finds, parked over the notice the conversation carries past
-    the watermark or that reply, its event filed only where the event stream lacks the one naming that notice, and
-    the finish held where that conversation will not read -- and a relabel is held where the comment read again
+    (`workflow/engine/rewrite_finish_announced.py`), a label that will not read holding the route; a debt park
+    standing is reused unless a reply the watermark has not passed is handed in, and a park whose write never landed
+    -- a first one, or one made again over a reply handed in once more -- lands over the notice the conversation
+    carries past the watermark or that reply, its event filed only where the event stream lacks the one naming that
+    notice, the finish held where that conversation will not read; and a relabel is held where the comment read again
     behind its proof carries another attempt, so repeated direct finishes make one notice, `base_rebased` event, park
     notice and `park_awaiting_human` event, round reset, relabel, stage-entry event, artifact, and settlement, and
     run, push, or launch nothing again. A newer transaction the proof beside an unfinishable landing finds recorded
