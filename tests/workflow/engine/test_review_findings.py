@@ -14,8 +14,9 @@ entry of the reviewer's whose error its output shows -- so two runs of one
 stdin command each lead with their own scenario -- and otherwise a line saying
 nothing names it, beside any error or reproduction the check leaves missing.
 An entry leaving out its name, error, or reproduction says so where it
-stands, and a check the concise layout before leads showed is led as if read
-off the declaration it came from.
+stands -- its labels read across the findings whole, the declaration's place
+aside, up to the next finding -- and a check the concise layout before leads
+showed is led as if read off the declaration it came from.
 A declaration out of shape, or about something else, goes all the same,
 without taking the findings written below a block cut short or below a fence
 Markdown ends, and what is shown declares nothing the verification reader
@@ -644,6 +645,26 @@ _TWO_RUNS_LEAD = (
     "Failure: `tests/test_a.py::test_a`\nError: `ValueError: first run`\n"
     "Failure: `tests/test_b.py::test_b`\nError: `KeyError: second run`\n"
 )
+# A run a test printed holding a section titled as a test of the outer run is,
+# whose summary line is too long to carry its error.
+_NESTED_TITLES = (
+    "______________________________ test_prints_child _______________________________\n"
+    "E   RuntimeError: outer first failure\n"
+    f"{_CAPTURE_RULE}{_SESSION_HEADING}"
+    "__________________________________ test_same ___________________________________\n"
+    "E   ValueError: captured child failure\n"
+    f"{_SUMMARY_HEADING}"
+    "FAILED child/test_inner.py::test_same - ValueError: captured child failure\n"
+    "============================== 1 failed in 0.01s ===============================\n"
+    "__________________________________ test_same ___________________________________\n"
+    "E   TypeError: outer second failure\n"
+    f"{_SUMMARY_HEADING}FAILED {_LINE_MODULE}::test_prints_child\nFAILED {_LINE_MODULE}::test_same\n"
+    f"{_OUTER_STATS}"
+)
+_NESTED_TITLES_LEAD = (
+    f"Failure: `{_LINE_MODULE}::test_prints_child`\nError: `RuntimeError: outer first failure`\n"
+    f"Failure: `{_LINE_MODULE}::test_same`\nError: `TypeError: outer second failure`\n"
+)
 # A stdin check running pytest, which names the test that failed, and how it leads.
 _STDIN_PYTEST = "FAILED tests/test_probe.py::test_probe - AssertionError: values differ"
 _STDIN_PYTEST_SHOWN = (
@@ -659,6 +680,24 @@ _BLANK_FENCE_ENTRY = _EMPTY_FENCE_ENTRY.replace("```python\n", "```python\n   \n
 _UNNAMED_ENTRY = "not named; the entry gives no test ID or scenario name"
 _NO_ENTRY_ERROR = "not recorded; the entry gives no error"
 _NO_ENTRY_REPRODUCTION = "not recorded; the entry gives no reproduction"
+# Findings each opening on a list item or a heading, entries under them, and a
+# paragraph of a finding's own between its entry's labels; and an entry above
+# the declaration whose reproduction the reviewer wrote below it.
+_FINDINGS_APART = (
+    "1. A failed assertion without a reproduction.\n\n"
+    "   Failure: Named assertion\n"
+    "   Error: AssertionError: expected 1\n\n"
+    "2. Another check has a reproduction but no failure-entry layout.\n\n"
+    "   Reproduce: .venv/bin/python -m pytest tests/other.py\n\n"
+    "Failure: Named probe\n"
+    "Error: KeyError: 'x'\n\n"
+    "The probe reads a missing key.\n\n"
+    "Reproduce: .venv/bin/python -m pytest tests/probe.py\n\n"
+    "## A heading's finding\n\n"
+    "Reproduce: .venv/bin/python -m pytest tests/heading.py"
+)
+_PROBE_ENTRY = f"Failure: A probe\nError: {_RELABEL_ERROR}\n\n"
+_PROBE_SNIPPET = f"Reproduce: .venv/bin/python - reading:\n\n```python\nraise AssertionError('{_RELABEL_ERROR}')\n```"
 # More tests failing than a lead names, and as many as it does.
 _FAILED_TESTS = 12
 _NAMED_TESTS = 10
@@ -1092,6 +1131,7 @@ class FailureNamesTest(unittest.TestCase):
             (_NESTED_UNSUMMARISED, "", _UNNAMED),
             (_CUT_RUN, "", _OUTER_LEAD),
             (_TWO_RUNS, "", _TWO_RUNS_LEAD),
+            (_NESTED_TITLES, "", _NESTED_TITLES_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
@@ -1182,6 +1222,34 @@ class FailureNamesTest(unittest.TestCase):
                 step = f"{_PROBE}\nEXIT: 1\n{output}".rstrip("\n")
                 _assert_shown(self, f"{written}{_RUN_LINE}\n{step}\n{_END_LINE}", shown)
 
+    def test_previous_layout_is_led(self) -> None:
+        # Feedback a tick before leads formatted holds no declaration, so each
+        # check is read off the paragraph its sentence opens -- over its fenced
+        # output, or alone -- and led as a live round's is. A sentence that
+        # opens no paragraph, goes on with one, or a code block holds is the
+        # reviewer's own text.
+        previous = f"{_FINDINGS}\n\n`uv run pytest tests` exited with status 1:\n\n```\n{_SUMMARY}\n```"
+        bare = "`make lint` exited with status 2."
+        kept = (
+            f"{_FINDINGS}\n{bare}",
+            f"{bare}\nThe linter crashed before reporting.",
+            f"```text\n{bare}\n```",
+            f"{_FINDINGS}\n\n`uv run pytest tests` exited with status 1:\n\n```text\n{_SUMMARY}\n```",
+        )
+        _assert_shown(self, previous, previous.replace("\n\n`uv", f"\n\n{_SUMMARY_LEAD}`uv", 1))
+        _assert_shown(self, bare, f"{_UNNAMED}{_NO_OUTPUT}{bare}")
+        for written in kept:
+            with self.subTest(written=written):
+                _assert_shown(self, written, written)
+
+
+class FailureEntriesTest(unittest.TestCase):
+    """Each failure entry the reviewer writes is shown as written, what it leaves out said where it stands.
+
+    Every case is formatted twice too (`_assert_shown`): what is said gives
+    each label a value, so what was shown formats to itself.
+    """
+
     def test_incomplete_entries_say_what_is_missing(self) -> None:
         # An entry naming nothing, or giving no error or reproduction -- its
         # label blank, or missing -- says so where it stands, in its own
@@ -1240,25 +1308,25 @@ class FailureNamesTest(unittest.TestCase):
             "`.venv/bin/python -` exited with status 1:\n\n```\nprobe started\n```",
         )
 
-    def test_previous_layout_is_led(self) -> None:
-        # Feedback a tick before leads formatted holds no declaration, so each
-        # check is read off the paragraph its sentence opens -- over its fenced
-        # output, or alone -- and led as a live round's is. A sentence that
-        # opens no paragraph, goes on with one, or a code block holds is the
-        # reviewer's own text.
-        previous = f"{_FINDINGS}\n\n`uv run pytest tests` exited with status 1:\n\n```\n{_SUMMARY}\n```"
-        bare = "`make lint` exited with status 2."
-        kept = (
-            f"{_FINDINGS}\n{bare}",
-            f"{bare}\nThe linter crashed before reporting.",
-            f"```text\n{bare}\n```",
-            f"{_FINDINGS}\n\n`uv run pytest tests` exited with status 1:\n\n```text\n{_SUMMARY}\n```",
+    def test_entries_end_at_the_next_finding(self) -> None:
+        # An entry ends at the next finding -- a list item or a heading set
+        # out no further, or a paragraph set out less -- so a later finding's
+        # label never stands for one it leaves out; a paragraph of its own
+        # finding's ends nothing.
+        _assert_shown(
+            self,
+            _FINDINGS_APART,
+            _FINDINGS_APART.replace("expected 1\n", f"expected 1\n   Reproduce: {_NO_ENTRY_REPRODUCTION}\n"),
         )
-        _assert_shown(self, previous, previous.replace("\n\n`uv", f"\n\n{_SUMMARY_LEAD}`uv", 1))
-        _assert_shown(self, bare, f"{_UNNAMED}{_NO_OUTPUT}{bare}")
-        for written in kept:
-            with self.subTest(written=written):
-                _assert_shown(self, written, written)
+
+    def test_entries_read_across_the_declaration(self) -> None:
+        # Entries are read across the findings whole, the declaration's place
+        # aside, so a reproduction written below it is the entry's above it.
+        _assert_shown(
+            self,
+            f"{_PROBE_ENTRY}{_RUN_LINE}\n{_PROBE}\nEXIT: 1\n{_RELABEL_ERROR}\n{_END_LINE}\n\n{_PROBE_SNIPPET}",
+            f"{_PROBE_ENTRY}Failure: A probe\n{_PROBE_FAILED}\n\n{_PROBE_SNIPPET}",
+        )
 
 
 def _assert_malformed_shown(case: unittest.TestCase, *cases: tuple[str, str]) -> None:

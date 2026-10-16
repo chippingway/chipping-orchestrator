@@ -43,9 +43,10 @@ whatever names its failures -- where its command reads its code from stdin --
 a `-` argument, split as a shell splits it, that no argument before it gave a
 program inline, by module, or as a script and no entry it backs gives the
 snippet it read, as a code block holding code below its `Reproduce:` line:
-such a command reproduces nothing alone, however an entry names it. A check
-naming more failures than a lead lists leaves the rest to its output, which is
-quoted whole below it.
+such a command reproduces nothing alone, however an entry names it. A lead
+names at most ten of the failures pytest's summary reports, leaving the rest
+to the check's output, which is quoted whole below it; a lead by entries names
+every entry the output backs, each written out in the findings already.
 
 The reviewer's own text is shown through here too (`said`): each entry with
 what it leaves out said, and each check the concise layout before leads
@@ -138,7 +139,9 @@ _NO_OUTPUT_CLOSE = "."
 _STDIN = "-"
 _PROGRAM_RE = re.compile(r"-[cme].*|--(?:command|eval)(?:=.*)?|.*\.py")
 
-# As many failures as one lead names; the output quoted below it names the rest.
+# As many of the failures pytest's summary reports as one lead names; the
+# output quoted below it names the rest. Entries leading a check are never
+# capped: the findings hold each one whole.
 _NAMED_AT_MOST = 10
 
 _UNNAMED = f"{_NAME}: not named; no test ID or scenario name was recorded for this check"
@@ -186,13 +189,13 @@ def lead(command: str, output: str, entries: _Entries) -> tuple[str, ...]:
 
 
 def said(text: str, entries: _Entries) -> str:
-    """The reviewer's `text` as shown: what each entry leaves out said, and each check left unled, led.
+    """The reviewer's `text`, what each entry leaves out said already, as shown: each check left unled, led.
 
     `entries` are those of the findings `text` stands among, read before
-    anything is said of them.
+    anything is said of them (`review_findings_entries.FailureEntry.annotated`
+    says it).
     """
-    annotated = _entries.FailureEntry.annotated(text)
-    return _Unled(annotated.split("\n")).led(entries)
+    return _Unled(text.split("\n")).led(entries)
 
 
 def _reads_stdin(command: str) -> bool:

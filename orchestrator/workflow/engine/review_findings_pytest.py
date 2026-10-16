@@ -364,12 +364,13 @@ class PytestOutput:
     def _read(self) -> Iterator[Section]:
         """Each section the output holds, in order: each titled one, and each failure `--tb=line` printed untitled.
 
-        A line traceback stands under the failures heading, outside any
-        titled section and anything captured, and is a section with no title
-        of its own.
+        A title stands outside anything captured -- a title a run a test
+        printed holds is that run's -- and a line traceback under the failures
+        heading, outside any titled section and anything captured, is a
+        section with no title of its own.
         """
         for number, line in enumerate(self.lines):
-            titled = _TITLE_RE.fullmatch(line)
+            titled = None if self._wheres[number].captured else _TITLE_RE.fullmatch(line)
             if titled is not None:
                 yield Section.read(titled.group("title"), _held_below(self.lines, number))
             traced = self._wheres[number].stands(_TRACED)
