@@ -23,14 +23,15 @@ block holding no code, empty or blank, gives nothing.
 checks its error shows in. `review_findings` shows the entries themselves as
 written, save what one leaves out, which it says where the entry stands
 (`FailureEntry.annotated`), reading the findings' parts around their
-declarations whole, as the entries are read, so an entry's labels may stand
-in parts the declaration stood between: a `Failure:` line naming nothing, and an error or
-a reproduction an entry has no label for, or a label giving nothing. A label
-giving nothing is said in place; one an entry has none of is added in the
-entry's own indentation -- an error below its `Failure:` line, a
+declarations whole, as the entries are read, so an entry's labels may stand in
+parts the declaration stood between: a `Failure:` line naming nothing, and an
+error or a reproduction an entry has no label for, or a label giving nothing.
+A label giving nothing is said in place; one an entry has none of is added in
+the entry's own indentation -- an error below its `Failure:` line, a
 reproduction below its last label -- each past the lines its label goes on
-over and the code block below it. What is said gives each label a value, so
-showing an entry again says nothing more.
+over and the code block below it, a block nothing closes closed first, so what
+is added stands outside it. What is said gives each label a value, so showing
+an entry again says nothing more.
 """
 from __future__ import annotations
 
@@ -112,11 +113,16 @@ _MISSING = MappingProxyType({
     _REPRODUCTION: "not recorded; the entry gives no reproduction",
 })
 
-# Where a line said of an entry stands among those at its place: an error
-# added before a reproduction added, and both before the line written there.
+# Where a line said of an entry stands among those at its place: the fence
+# closing a code block the findings never close, then an error added, then a
+# reproduction added, all before the line written there.
+_CLOSED = -1
 _ERROR_ADDED = 0
 _REPRODUCTION_ADDED = 1
 _WRITTEN = 2
+
+# A fence's opening line, read up to the run a line closing it repeats.
+_FENCE_RE = re.compile(r"[ \t]*(?:`{3,}|~{3,})")
 _Place = tuple[int, int]
 _Said = tuple[_Place, str]
 
@@ -184,9 +190,11 @@ class _Label:
 
     `number` is the line's; `prefix` what stands before the label; `given`
     what follows its colon; `quoted` the lines of the code block below it,
-    only blank lines between, or None where none stands there; and `end` the
+    only blank lines between, or None where none stands there; `end` the
     number of the line after all it gives -- that block, or the lines it goes
-    on over.
+    on over; and `unclosed` the line that would close that block where it is
+    a fence nothing closes, "" otherwise: a line said at `end` would stand in
+    the block, the reviewer's, unless the block is closed first.
     """
 
     number: int
@@ -195,6 +203,7 @@ class _Label:
     given: str
     quoted: tuple[str, ...] | None
     end: int
+    unclosed: str = ""
 
     @property
     def stated(self) -> str:
@@ -300,8 +309,14 @@ class _Lines:
         written = labeled.group(*_FIELDS)
         if below is None:
             return _Label(number, *written, None, self._end(number))
-        held = self._lines[below.held_start:below.held_end]
-        return _Label(number, *written, tuple(held), below.end)
+        opening = _FENCE_RE.match(self._lines[below.start])
+        return _Label(
+            number,
+            *written,
+            tuple(self._lines[below.held_start:below.held_end]),
+            below.end,
+            "" if below.closing or opening is None else opening.group(),
+        )
 
     def _block_below(self, number: int) -> _markdown.CodeBlock | None:
         """The code block opening on the first non-blank line below line `number`, if one does."""
@@ -373,22 +388,26 @@ def _left_out(labels: Sequence[_Label]) -> Iterator[_Said]:
     A name its `Failure:` line gives nothing of is said in place; so is an
     error or a reproduction where no label of that kind gives anything. One
     with no such label is added in the entry's indentation, an error after all
-    its `Failure:` line gives, a reproduction after all its last label gives.
+    its `Failure:` line gives, a reproduction after all its last label gives
+    -- a code block there that nothing closes closed first, so what is added
+    stands outside the reviewer's block, as it reads again.
     """
     named = labels[0]
     if not named.stated:
         yield (named.number, _WRITTEN), named.said(_UNNAMED)
-    yield from _unstated(labels, _ERROR, named.end, _ERROR_ADDED)
-    yield from _unstated(labels, _REPRODUCTION, labels[-1].end, _REPRODUCTION_ADDED)
+    yield from _unstated(labels, _ERROR, named, _ERROR_ADDED)
+    yield from _unstated(labels, _REPRODUCTION, labels[-1], _REPRODUCTION_ADDED)
 
 
-def _unstated(labels: Sequence[_Label], kind: str, end: int, added: int) -> Iterator[_Said]:
-    """The line said where the entry `labels` make up gives no `kind`: in place, or added `added` at line `end`."""
+def _unstated(labels: Sequence[_Label], kind: str, below: _Label, added: int) -> Iterator[_Said]:
+    """The line said where the entry `labels` make up gives no `kind`: in place, or added `added` below `below`."""
     given = [label for label in labels if label.label == kind]
     missing = _MISSING[kind]
     if not given:
         unlabeled = replace(labels[0], label=kind)
-        yield (end, added), unlabeled.said(missing)
+        if below.unclosed:
+            yield (below.end, _CLOSED), below.unclosed
+        yield (below.end, added), unlabeled.said(missing)
     elif not any(label.gives for label in given):
         first = given[0]
         yield (first.number, _WRITTEN), first.said(missing)

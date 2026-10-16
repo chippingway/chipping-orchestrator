@@ -381,10 +381,22 @@ class PytestOutput:
         self._interrupted = frozenset(interrupted)
         self._taken: set[int] = set()
 
-    def sectioned(self, node: str) -> bool:
-        """Whether pytest printed a section for the test `node` names: its failure's, or its fixture's."""
+    def sectioned(self, node: str, error: str | None = None, run: int = 0) -> bool:
+        """Whether pytest printed a section for the test `node` names: its failure's, or its fixture's.
+
+        Given the `error` a summary line of `run` gives after `node`, whether
+        one of that run shows the exception `error` opens, pytest's ellipsis
+        aside: the section that line reports -- or a failure `--tb=line`
+        printed untitled, which names no test.
+        """
         name = self.name(node)
-        return bool(name) and name in self._sectioned
+        if not name or error is None:
+            return bool(name) and name in self._sectioned
+        phased = (_IN_PHASE.format(phase=phase, name=name) for phase in _PHASES)
+        titles = {name, _UNTITLED, *phased}
+        ran = (section for section in self.sections if section.run == run)
+        held = (section for section in ran if section.title in titles)
+        return any(section.opens(error.removesuffix(_ELLIPSIS)) for section in held)
 
     def take(self, titles: Collection[str], error: str, run: int) -> Section | None:
         """The section titled one of `titles` a summary line of `run` giving `error` reports; None for none.

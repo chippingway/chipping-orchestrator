@@ -263,10 +263,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and only a bracket past that name opens parameters -- or the path whose collection failed,
                             and the message after a dash. A parameter may hold the dash that parts an ID from its
                             message and text of a message's shape after it, and a message a bracket and a dash of its
-                            own, so the ID is the longest an entry of the findings names whole or pytest titled a
-                            section by; else it ends on the first split leaving a message of pytest's shape -- a
-                            rewritten assertion's `assert` or an exception's name -- so the message is never cut short,
-                            the line marked unsure where a later split leaves one too; else on the first split
+                            own, so the ID is the longest whose section of the line's run -- or `--tb=line` line
+                            traceback -- shows the exception the message after it opens, as where two tests' IDs
+                            overlap, else the longest an entry of the findings names whole or pytest titled a section
+                            by; else it ends on the first split leaving a message of pytest's shape -- a rewritten
+                            assertion's `assert` or an exception's name -- so the message is never cut short, the line
+                            marked unsure where a later split leaves one too; else on the first split
     review_findings_pytest.py
                             what pytest's output says beside its short summary, for `review_findings_failures`: each
                             section it printed, titled between underscores -- one each side at least -- by a failed
@@ -315,7 +317,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             blank, gives nothing -- and shown with what it leaves out said: a `Failure:` line naming
                             nothing, an error or a reproduction no label of the entry gives -- said in place on a blank
                             label, else added in the entry's own indentation, an error below its name and a reproduction
-                            below all its last label gives -- each said once, since what is said gives the label a value
+                            below all its last label gives, a code block there that nothing closes closed first -- each
+                            said once, since what is said gives the label a value
     review_findings_fences.py
                             where the code of a reviewer's findings -- fences and indented code -- opens and ends as
                             Markdown renders it, for `review_findings`: a fence opens on a run at most three spaces
