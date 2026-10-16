@@ -103,7 +103,9 @@ _UNAVAILABLE = "Unavailable"
 
 # What separates a node ID's path from the test it names. An ID without it
 # names no test: pytest's summary reports such an ID only for a path it failed
-# to collect, so a word that reads as no path is no failure of pytest's.
+# to collect, so where nothing pytest printed says it failed collecting it, a
+# word that reads as no path -- one holding no `/` and no `.py` -- is no
+# failure of pytest's.
 _NODE_SEPARATOR = "::"
 _PATH_RE = re.compile(r".*(?:/.*|\.py)")
 
@@ -306,11 +308,14 @@ class _Reported:
 
         `named` is the error of the entry naming the failure.
 
-        A path names a collection. A node ID names the setup or teardown its
-        section says failed with the line's error (`PytestOutput.phase`); or
-        a collection, where pytest says it failed collecting the node or its
-        path, or that the line's `run` says collection was interrupted; or
-        else an error in one of the three, nothing saying which. A setup's,
+        A path names a collection -- one of any shape where pytest says it
+        failed collecting it or that the line's `run` was interrupted
+        collecting, as a doctest's text file. A node ID names the setup or
+        teardown its section says failed with the line's error
+        (`PytestOutput.phase`); or a collection, where pytest says it failed
+        collecting the node or its path, or that the line's `run` says
+        collection was interrupted; or else an error in one of the three,
+        nothing saying which. A setup's,
         teardown's, or collection's error is the summary line's, else the
         exception the section pytest printed for it shows -- the line may be
         too long to carry one -- and either's, the entry naming the failure's
@@ -322,10 +327,10 @@ class _Reported:
             failed = _PHASE_FAILED.format(node=span(node), phase=phase)
             return cls(failed, summary.error or raised or named, summary.unsure)
         collected = read.collection(node, summary.error, run)
-        if collected is None:
+        if collected is None and _NODE_SEPARATOR in node:
             failed = _ERRED.format(node=span(node))
             return cls(failed, summary.error or named, summary.unsure)
-        if _NODE_SEPARATOR not in node and not _PATH_RE.fullmatch(node):
+        if collected is None and not _PATH_RE.fullmatch(node):
             return None
         failed = _UNCOLLECTED.format(path=span(node))
         return cls(failed, summary.error or collected or named, summary.unsure)

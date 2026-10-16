@@ -231,7 +231,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             of its own run says pytest failed collecting it or its path -- spelled relative to pytest's
                             root there and to where it ran on the line, either ending on the other at a directory -- or
                             its run says collection was interrupted, and otherwise as an error in any of the three, and
-                            an `ERROR` path as its collection, never a test ID,
+                            an `ERROR` path as its collection, never a test ID -- one of any shape, a doctest's text
+                            file too, where pytest says it failed collecting it or the run was interrupted collecting --
                             each with the error its line gives, else -- a line too long for the terminal carries none
                             -- the exception of the section pytest printed for it (`review_findings_pytest`), else the
                             error of the entry naming it, else a line saying the summary gave none; ten at most, the

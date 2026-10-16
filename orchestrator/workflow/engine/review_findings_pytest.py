@@ -99,10 +99,13 @@ _SUMMARY = "short test summary info"
 _SUMMARISED_BELOW = frozenset((_FAILURES, "ERRORS"))
 
 # What opens a run of pytest's: its session's heading, or, with `-q`, the
-# progress line its first tests report on, by percentage or count; and the
-# line of statistics closing it, a heading or, with `-q`, not, each count
-# naming its outcome in a word or more -- `1 subtests passed` too.
-_STARTED_RE = re.compile(r"[ \t]*(?:=+ test session starts =+|[.FEsxXR]+[ \t]+\[(?:[ \t]*\d+%|\d+/\d+)\])[ \t\r]*")
+# progress line its first tests report on, by percentage or count, a letter
+# for each outcome -- a subtest's `u`, `y`, or `-` among them; and the line of
+# statistics closing it, a heading or, with `-q`, not, each count naming its
+# outcome in a word or more -- `1 subtests passed` too.
+_STARTED_RE = re.compile(
+    r"[ \t]*(?:=+ test session starts =+|[.FEsxXRuy-]+[ \t]+\[(?:[ \t]*\d+%|\d+/\d+)\])[ \t\r]*",
+)
 _COUNT = r"\d+ \w+(?: \w+)*"
 _STATS_RE = re.compile(
     rf"[ \t]*(?:=+ )?(?:no tests ran|{_COUNT}(?:, {_COUNT})*) in \d+\.\d+s(?: \([\d:]+\))?(?: =+)?[ \t\r]*",
@@ -374,10 +377,9 @@ class PytestOutput:
         """The exception pytest failed collecting `node` with, "" for none; None where nothing says it failed to.
 
         pytest failed collecting `node` itself, or the path holding it, where
-        a section says so: the one a summary line of `run` giving `error`
-        reports (`take`); where that run says collection was interrupted; and
-        always where `node` is a path, pytest's summary naming one for its
-        collection alone.
+        a section says so -- the one a summary line of `run` giving `error`
+        reports (`take`), whatever the path's shape -- and where that run says
+        collection was interrupted.
         """
         path = node.partition(_NODE_SEPARATOR)[0]
         titles = {
@@ -387,7 +389,7 @@ class PytestOutput:
         section = self.take(titles, error, run)
         if section is not None:
             return section.raised
-        return "" if run in self._interrupted or path == node else None
+        return "" if run in self._interrupted else None
 
     @classmethod
     def name(cls, node: str) -> str:
