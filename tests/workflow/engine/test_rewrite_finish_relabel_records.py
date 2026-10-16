@@ -69,6 +69,11 @@ _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "revie
 
 _UNANSWERED = "GitHub did not answer the relabel"
 
+# Each relabel that raises behind another road's move: whether that road
+# blanked the attempt's base tip rather than settling a successor, and whether
+# what it moved is put back right behind the reading the proof starts from.
+_RAISED_RELABELS = ((False, False), (False, True), (True, True))
+
 
 class _MovesUnderTheRecheck:
     """The relabel recheck's reading of the comment, report 3 of `head` settled ahead of it and put back behind it."""
@@ -102,21 +107,29 @@ class _RaisesUnderTheRelabel:
     """The relabel, the first time answered by another road's newer run of `head` and a raise.
 
     That road settles report 3 and a run bound to it, kept as `successor`,
-    keeps the records report 3 moved in `settled`, and puts report 2 back.
+    keeps the records report 3 moved in `settled`, and puts report 2 back --
+    or, `blanks`, blanks the base tip the attempt recorded its replay as made
+    onto instead, as a reset is recorded, keeping that tip in `settled`.
     """
 
-    def __init__(self, case, head: str) -> None:
+    def __init__(self, case, head: str, *, blanks: bool = False) -> None:
         self._case = case
         self._head = head
+        self._blanks = blanks
         self._live = case.gh.set_workflow_label
+        self.raised = False
         self.settled: dict = {}
         self.successor = None
 
     def __call__(self, *labelled, **correlation):
-        """Settle the newer run and put report 2 back, then raise as GitHub not answering; relabel after that."""
-        if self.successor is not None:
+        """Settle the newer run and put report 2 back, or blank the tip, then raise; relabel after that."""
+        if self.raised:
             return self._live(*labelled, **correlation)
+        self.raised = True
         case = self._case
+        if self._blanks:
+            _writes(case, {readings.KEY_REWRITE_BASE: None}, keeping=self.settled)
+            raise RuntimeError(_UNANSWERED)
         case.state = case.gh.read_pinned_state(case.issue)
         replaced = {key: case.state.get(key) for key in _MOVED_RECORDS}
         subject = _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
@@ -128,31 +141,35 @@ class _RaisesUnderTheRelabel:
         raise RuntimeError(_UNANSWERED)
 
     def assert_retired(self, run) -> None:
-        """History ending with `run` superseded by the successor, and the successor invalidated whole."""
+        """History ending with `run` superseded by the successor and that invalidated whole -- or `run` itself."""
         history = readings.pinned_records(self._case)[2]
+        if self.successor is None:
+            self._case.assertEqual(history[-1], (run.receipt, readings.INVALIDATED))
+            return
         superseded = (run.receipt, readings.SUPERSEDED)
         invalidated = (self.successor.receipt, readings.INVALIDATED)
         self._case.assertEqual(history[-2:], (superseded, invalidated))
 
 
 class _RestoresBehindTheProof:
-    """The proof's fresh reading behind a raised relabel, `raises`' report 3 put back right behind it.
+    """The proof's fresh reading behind a raised relabel, what `raises` moved put back right behind it where `restores`.
 
-    That reading carries the successor `raises` settled beside report 2, which
-    disproves its binding; report 3 put back behind it would prove it again
-    to any reading taken after.
+    That reading carries the successor `raises` settled beside report 2,
+    which disproves its binding, or the base tip it blanked; report 3, or the
+    tip, put back behind it would prove the evidence again to any reading
+    taken after.
     """
 
-    def __init__(self, case, raises: _RaisesUnderTheRelabel) -> None:
+    def __init__(self, case, raises: _RaisesUnderTheRelabel, *, restores: bool) -> None:
         self._case = case
         self._raises = raises
         self._live = _settled.read_afresh
-        self._restored = False
+        self._restored = not restores
 
     def __call__(self, finish):
-        """Read the comment afresh, the first time behind the raise with report 3 put back right behind it."""
+        """Read the comment afresh, the first time behind the raise with what it moved put back right behind it."""
         durable = self._live(finish)
-        if self._raises.successor is not None and not self._restored:
+        if self._raises.raised and not self._restored:
             self._restored = True
             _writes(self._case, self._raises.settled, keeping={})
         return durable
@@ -174,7 +191,7 @@ class _SucceedsUnderTheRecheck:
 
     def __call__(self, finish):
         """Read the comment afresh, the first time with the successor settled and report 2 put back for it."""
-        if self._race.successor is not None:
+        if self._race.raised:
             return self._live(finish)
         self._case.assertRaises(RuntimeError, self._race)
         durable = self._live(finish)
@@ -230,14 +247,18 @@ class RelabelReadsTest(route.SettledRouteCase, unittest.TestCase):
         # run is proved on its own binding behind the raise and invalidated
         # whole -- also where report 3 is put back right behind the reading
         # that proof starts from -- so putting report 3 back revives nothing,
-        # and the next finish routes the head once with nothing current.
-        for restored in (False, True):
-            with self.subTest(restored=restored):
+        # and the next finish routes the head once with nothing current. So is
+        # the run itself where another road blanked the attempt's base tip
+        # instead, and put it back right behind that reading.
+        for blanks, restores in _RAISED_RELABELS:
+            with self.subTest(blanks=blanks, restores=restores):
                 self.setUp()
                 head, run = self._settles_then_dies()
-                raises = _RaisesUnderTheRelabel(self, head)
-                reads = _RestoresBehindTheProof(self, raises) if restored else _settled.read_afresh
-                with patch.object(self.gh, "set_workflow_label", raises), patch.object(_settled, "read_afresh", reads):
+                raises = _RaisesUnderTheRelabel(self, head, blanks=blanks)
+                with (
+                    patch.object(self.gh, "set_workflow_label", raises),
+                    patch.object(_settled, "read_afresh", _RestoresBehindTheProof(self, raises, restores=restores)),
+                ):
                     self.assertRaises(RuntimeError, self.finalizes, head)
 
                 raises.assert_retired(run)

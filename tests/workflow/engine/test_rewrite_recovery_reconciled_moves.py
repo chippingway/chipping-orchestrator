@@ -11,7 +11,8 @@ comment is handed straight to the dormant guarded park
 Another road settles report 3 behind the park's notice, whose post then
 raises, or right behind the park's own record, whose answer is lost -- and
 settles a newer run bound to report 3 in the run's place, report 2 put back,
-too. The reconciliation behind that notice or record reads the comment, and
+too -- or leaves the mark of movement under the run's receipt in the handoff's
+place. The reconciliation behind that notice or record reads the comment, and
 the records it read moving under the evidence there are put back right behind
 that reading, before the proof behind it reads the comment again: the movement
 that very reading recorded is kept for that proof, so the run, or that
@@ -30,6 +31,7 @@ from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import (
     rewrite_recovery_parks as _parks,
     verification_durable as _durable,
+    verification_records as _records,
 )
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
@@ -83,15 +85,19 @@ class _MovesBehindThePark:
     Settled behind the park's notice, whose post then raises (`raises`), or
     right behind the park's own record, whose answer is then lost (`loses`);
     `successor` settles a newer run bound to report 3 in the run's place as
-    well, kept as `run`, and puts report 2 back. The reconciliation's reading
-    of the comment (`reads`) has what it read moving written back right behind
-    it -- report 2, or report 3 under the successor.
+    well, kept as `run`, and puts report 2 back; `marks`, the receipt of the
+    run, has another finish leave the mark of movement under it in the
+    handoff's place instead of any report. The reconciliation's reading of
+    the comment (`reads`) has what it read moving written back right behind
+    it -- report 2, report 3 under the successor, or the handoff the mark took
+    the place of.
     """
 
-    def __init__(self, case, head: str, *, successor: bool = False) -> None:
+    def __init__(self, case, head: str, *, successor: bool = False, marks: str | None = None) -> None:
         self._case = case
         self._head = head
         self._successor = successor
+        self._marks = marks
         self._edit = case.gh.edit_pinned_state
         self._read = _durable.durable_comment
         self._restores: dict | None = None
@@ -120,8 +126,12 @@ class _MovesBehindThePark:
         return durable
 
     def _settles(self) -> None:
-        """Settle report 3 -- and the successor bound to it, putting report 2 back -- as another road would."""
+        """Settle report 3 -- and the successor bound to it, putting report 2 back -- or mark the run moved."""
         case = self._case
+        if self._marks is not None:
+            self._restores = {_records.EVIDENCE_HANDOFF: readings.pinned(case).get(_records.EVIDENCE_HANDOFF)}
+            _writes(case, {_records.EVIDENCE_HANDOFF: {"moved": self._marks}})
+            return
         earlier = _records_of(case)
         case.state = case.gh.read_pinned_state(case.issue)
         subject = _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
@@ -158,6 +168,21 @@ class ReconciledMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                     self.assert_invalidated(moves.run, over=run)
                 else:
                     self.assert_invalidated(run)
+
+    def test_a_raised_notice_keeps_the_mark_it_read(self) -> None:
+        # The notice's post raises behind another finish's mark of movement
+        # under the run's receipt in the handoff's place, and the handoff is
+        # put back right behind the reconciliation's reading: the mark that
+        # reading read is the movement it is, and the run is invalidated whole
+        # with nothing parked.
+        head, run = self.settles_then_dies()
+        moves = _MovesBehindThePark(self, head, marks=run.receipt)
+        context = guarded.recovery_context(self)
+        with patch.object(self.gh, "comment", moves.raises), _reads_through(moves):
+            self.assertRaises(RuntimeError, _parks.lands_a_park, context, _NOTICE, _REASON)
+
+        self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
+        self.assert_invalidated(run)
 
     def test_a_lost_record_keeps_the_move_it_read(self) -> None:
         # The park's record lands with its answer lost, report 3 settled right

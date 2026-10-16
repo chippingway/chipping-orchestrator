@@ -225,7 +225,11 @@ def moved_under(comment: PinnedState | None, attempt: PinnedCommit | None = None
     `comment` is one a record's commit read -- the record it landed or sent,
     or the comment a refusal was read over -- and the movement is a review or
     report record it spells off that evidence's own binding
-    (`verification_proof.recorded_verdict`), asked of that very reading, so it
+    (`verification_proof.recorded_verdict`), and, under evidence settled for
+    the head, whatever else the records alone refuse it over as the dormant
+    settled-evidence policy reads them (`rewrite_finish_readiness._records_heard`):
+    the mark of movement an earlier finish left under its receipt in the
+    handoff's place among them. Each is asked of that very reading, so it
     stands however soon the record is put back. `attempt` is the attempt the
     tick read (`attempt_as_read`), where the caller has one: `comment` reading
     its base tip moved, every other member as the tick read it, is movement
@@ -236,12 +240,17 @@ def moved_under(comment: PinnedState | None, attempt: PinnedCommit | None = None
     """
     if comment is None:
         return {}
-    tipped = attempt is not None and attempt.moved(comment.data) == _TIP_ALONE
+    if attempt is not None and attempt.moved(comment.data) == _TIP_ALONE:
+        return dict.fromkeys(receipts(comment), _TIP_MOVED_UNDER_THE_RECORD)
     moved = {}
-    for record in filter(None, (_landing_records.captured(comment), _landing_records.settled(comment))):
-        refused = _TIP_MOVED_UNDER_THE_RECORD if tipped else _proof.recorded_verdict(comment, record.binding)
-        if refused is not None and not refused.holds:
-            moved[record.receipt] = refused
+    settled = _landing_records.settled(comment)
+    for record in filter(None, (_landing_records.captured(comment), settled)):
+        heard = (_proof.recorded_verdict(comment, record.binding),)
+        if record is settled:
+            heard = _readiness._records_heard(record, comment, settled=True)
+        heard = [refused for refused in heard if refused and not refused.holds]
+        if heard:
+            moved[record.receipt] = heard[0]
     return moved
 
 

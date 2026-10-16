@@ -20,7 +20,9 @@ would otherwise go on without. A finish whose announcement is already out
 measures on the comment as it stands alone. A finish held to the dormant
 settled-evidence policy measures beside both the record of the relabel its
 route lands behind them (`rewrite_finish_announced.relabels_once`), since that
-record is written too before the retirement clears. A proved debt short of either
+record is written too before the retirement clears; the coordinator reserves
+it again on the checkpoint it prepares over the fresh comment
+(`rewrite_finish._checkpoints`). A proved debt short of either
 room stops the finish before it says anything: the caller parks for a human
 to make room (`unrecorded`), with the push kept and the attempt standing. A
 finish held to the dormant settled-evidence policy asks first whether that

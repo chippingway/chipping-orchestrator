@@ -247,9 +247,12 @@ BINDING_RECORDS = _BOUND - _EVIDENCE_RECORDS
 # dormant settled-evidence policy prepares and lands them: decided on every
 # bound record besides, so one another road moved while the notice was posted
 # refuses each rather than riding into it unread, and the comment that
-# refusal read is asked what it records moving under the evidence.
+# refusal read is asked what it records moving under the evidence. The
+# checkpoint owns the record of the relabel its route lands behind it too, so
+# its preparation measures that record where the coordinator stages it
+# (`rewrite_finish._checkpoints`); staged as the tick read it, it is no move.
 _SETTLED = MappingProxyType({
-    CHECKPOINT: CHECKPOINT.deciding_on(*_BOUND),
+    CHECKPOINT: CHECKPOINT.deciding_on(*_BOUND).owning(_base_sync_state._PENDING_RELABELLED),
     ANNOUNCED_EVENT: ANNOUNCED_EVENT.deciding_on(*_BOUND),
     PARK: PARK.deciding_on(*_BOUND),
 })

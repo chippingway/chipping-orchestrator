@@ -275,6 +275,23 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         return len(notices), len(events), world.relabels()
 
 
+# Whether a finish is held to the dormant settled-evidence policy, and what it
+# comes to over a comment filled after the tick read it, with room for the
+# announcement and its debt and none for the relabel's record, and how many
+# notices and `base_rebased` events it says together: one of each, or none.
+_FRESH_FILL = (
+    (False, FinishOutcome.ROUTED, 2),
+    (True, FinishOutcome.REFUSED, 0),
+)
+
+
+def _fills_short_of_the_relabel(world: support.FinishWorld, finish) -> None:
+    """Fill the comment `finish` read until it has room for the announcement and its debt, and one character more."""
+    announced = {**_debt.announcement(finish.state, support.LANDED).data}
+    announced[support.KEY_REWRITE_DEBT] = support.owed()
+    effects.leaves(world, effects.room_for(world, **announced) + 1)
+
+
 class RelabelRecordRoomTest(unittest.TestCase):
     """The room an announced landing's debt needs beside the record of the relabel a dormant finish lands."""
 
@@ -296,6 +313,23 @@ class RelabelRecordRoomTest(unittest.TestCase):
         self.assertEqual(world.finalizes(finish=finish), FinishOutcome.PARKED)
         self.assertEqual(world.relabels(), ())
         self.assertEqual(world.pinned().get(support.KEY_RELABELLED), None)
+
+    def test_a_fresh_fill_spares_the_notice(self) -> None:
+        # Another road fills the comment after the tick read it, leaving room
+        # for the announcement and its debt and none for the relabel's record
+        # behind them. Every other finish announces and routes there; one held
+        # to the dormant settled-evidence policy reserves that record on the
+        # fresh checkpoint it prepares, so it posts and files nothing and stops
+        # with the attempt standing, rather than announcing a head whose
+        # relabel's record could not follow.
+        for proves_settled, outcome, said in _FRESH_FILL:
+            with self.subTest(proves_settled=proves_settled):
+                world = support.FinishWorld.seeded()
+                finish = replace(world.finish(), proves_settled=proves_settled)
+                _fills_short_of_the_relabel(world, finish)
+
+                self.assertEqual(world.finalizes(finish=finish), outcome)
+                self.assertEqual(sum(map(len, world.said())), said)
 
 
 class SettledDebtRoomTest(DebtRoomTest):

@@ -185,6 +185,7 @@ run again, or launched, and the run ledger as another road charged it.
 """
 from __future__ import annotations
 
+import copy
 import logging
 
 from orchestrator.git.base_sync import (
@@ -336,6 +337,10 @@ def _checkpoints(finish: LandedFinish, observed: ProofReading, *, announced: boo
     the notice adds to the ledger reserved over the one that comment carries
     rather than over the tick's: an id the tick's ledger lacks may be one
     another road has recorded since, and reserved there it is no room at all.
+    A finish held to the dormant settled-evidence policy reserves the record
+    of the relabel its route lands behind the checkpoint there too, so a
+    comment another road filled since the tick read it, with room for the
+    checkpoint and none for that record, posts and files nothing.
     Both of the announcement's writes are prepared before its notice: the
     checkpoint whole -- the record of its event staged on it too -- and the
     write that lands that record on its own ahead of the event
@@ -361,7 +366,10 @@ def _checkpoints(finish: LandedFinish, observed: ProofReading, *, announced: boo
     staged.set(_base_sync_state._PENDING_ANNOUNCED_EVENT, finish.head)
     staged.set(_base_sync_state._REVIEW_ROUND, 0)
     staged.set(_base_sync_state._PENDING_ANNOUNCED_SHA, finish.head)
-    stopped = _writes.prepares(finish, staged, _writes.CHECKPOINT, observed, ledger_entry=True)
+    reserved = copy.deepcopy(staged)
+    if finish.proves_settled:
+        reserved.set(_base_sync_state._PENDING_RELABELLED, finish.head)
+    stopped = _writes.prepares(finish, reserved, _writes.CHECKPOINT, observed, ledger_entry=True)
     if stopped is None:
         stopped = prepares_the_record(finish, observed)
     if stopped is None:

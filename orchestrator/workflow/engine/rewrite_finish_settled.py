@@ -359,7 +359,9 @@ def _proves_ready(
 
     `durable` is a comment the caller read afresh and laid `current` off,
     where it has one: the records it carries are asked first what they refuse
-    `current` over (`rewrite_finish_readiness._records_heard`), and movement
+    `current` over (`rewrite_finish_readiness._records_heard`) -- and the base
+    tip the attempt recorded its replay as made onto, read blank there beside
+    every other member as the tick holds it (`_BLANKED`) -- and movement
     there invalidates `current` outright (`rewrite_finish_readiness.invalidates`),
     the route going on with nothing current where that lands, so a record
     another road put back behind that reading revives nothing. Gone from the
@@ -370,6 +372,11 @@ def _proves_ready(
     over the tick's state, rather than being routed past.
     """
     heard = () if durable is None else _readiness._records_heard(current, durable, settled=True)
+    if durable is not None and not _attempt_records._recorded_onto(durable):
+        attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
+        blanked = _TIP in attempt.moved(durable.data)
+        blanked = blanked and stands_as_read(finish, attempt, durable, blank_aside=True)
+        heard = (*heard, _BLANKED if blanked else None)
     if any(refused and not refused.holds for refused in heard):
         stopped = None if _readiness.invalidates(finish, current) else FinishOutcome.HELD
     else:

@@ -1339,7 +1339,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             unfinishable landing, ahead of the park, and ahead of the relabel and behind one that
                             raised -- that one over the evidence the comment then carries, laid over the tick's state
                             (`afresh`) so a successor settled meanwhile is proved on its own binding, what that very
-                            reading records moving under it invalidating it outright -- and itself
+                            reading records moving under it -- the records, or the attempt's base tip read blank --
+                            invalidating it outright -- and itself
                             behind the relabel -- or where it continues the head instead -- for a routed head over
                             the base too
     rewrite_finish_stops.py the stops of a landed rewrite's finish short of its route, answered for both policies, the
@@ -2230,7 +2231,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             evidence proved behind it, on its own binding, the movement that very reading records
                             under it handed to that proof as already read; and the movement a comment a record's
                             commit read carries under each evidence it records is read off that comment by receipt
-                            (`moved_under`) -- a review or report record moved off that evidence's binding, or the
+                            (`moved_under`) -- a review or report record moved off that evidence's binding, for
+                            settled evidence whatever else its records refuse it over as the dormant policy reads
+                            them, a mark of movement under its receipt among it, or the
                             base tip read blank or repointed beside every other member of the attempt as the tick
                             last read it (`attempt_as_read`), the blank another road records a reset with
     rewrite_recovery_notices.py
