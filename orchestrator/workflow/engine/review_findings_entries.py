@@ -12,7 +12,9 @@ line, or a paragraph set out less, which leaves its list item -- and a line a
 code block holds is the block's, never a label, so a snippet quoting the
 layout enters nothing;
 and a paragraph of label lines opening on `Failure:` right above a check's
-sentence is the lead the formatting wrote for that check, never an entry.
+sentence, each line written as a lead writes it, is the lead the formatting
+wrote for that check, never an entry -- one holding a label that gives
+nothing is the reviewer's, since a lead's every label gives something.
 A label gives what follows it on its line, or, where that is blank, the code
 block below it, only blank lines between: a multi-line error, or a snippet. A
 block holding no code, empty or blank, gives nothing.
@@ -68,6 +70,18 @@ CHECK_SENTENCE_RE = re.compile(
     r" (?:exited with status .*|reported (?:no exit status|a blank exit status|the exit statuses .*))(?P<close>[.:])",
 )
 
+# Each line a lead the formatting writes holds (`review_findings_failures`),
+# at the margin: what failed, named; its error, as a code span or a sentence
+# saying why none is shown; where its test ID ends, unavailable; and a stdin
+# command's snippet, unrecorded. A label giving nothing, or written any other
+# way, is never the formatting's.
+_LEAD_LINE_RE = re.compile(
+    rf"{_NAME}: \S.*"
+    rf"|{_ERROR}: (?:`.*`|not on pytest's summary line; see the output below|not recorded; the check quoted no output)"
+    r"|Unavailable: where the test ID ends; .*"
+    rf"|{_REPRODUCTION}: not recorded; `.*` reads its code from stdin, and no snippet was given",
+)
+
 # What the findings' parts around their declarations are read whole as
 # joined by: one blank line.
 _PARTED = "\n\n"
@@ -80,7 +94,8 @@ _OPENING_RE = re.compile(r"[ \t]*(?:\d{1,9}[.)]|[-+*]|#{1,6})(?:[ \t]|$)")
 _UNREACHED = math.inf
 
 # A line ending no entry wherever it stands: a blank line, a label line, or the
-# sentence the formatting shows a check by.
+# sentence the formatting shows a check by -- each ending what a label goes
+# on over, too.
 _ENDING_NOTHING_RE = re.compile(rf"[{_BLANKS}]*|{_LABEL_RE.pattern}|{CHECK_SENTENCE_RE.pattern}")
 
 # What a label line holds besides its number, in the order `_Label` keeps it.
@@ -300,15 +315,16 @@ class _Lines:
     def _end(self, number: int) -> int:
         """The number of the line after the lines label line `number` goes on over.
 
-        None of them is blank, labeled, or code, nor opens the next finding
+        None of them is blank, labeled, or code, nor a check's sentence -- the
+        check's, as is the output below it -- nor opens the next finding
         (`_reach`), so what is said below a label stays the entry's own.
         """
         line = self._lines[number]
         indent = len(_INDENT_RE.match(line).group().expandtabs())
         end = number + 1
         for below in self._lines[end:]:
-            stops = not below.strip(_BLANKS) or end in self._blocks
-            if stops or self._reach[end] <= indent or _LABEL_RE.fullmatch(below):
+            stops = end in self._blocks or _ENDING_NOTHING_RE.fullmatch(below)
+            if stops or self._reach[end] <= indent:
                 break
             end += 1
         return end
@@ -335,10 +351,11 @@ def _lead_above(lines: Sequence[str], labels: _Labels, number: int) -> range:
     """The numbers of the lines of the lead right above the sentence on line `number`; none where no lead stands there.
 
     A lead is a paragraph of its own up to the sentence: label lines, `labels`
-    reading each of `lines`, opening on a `Failure:` line. A run of label
-    lines that opens no paragraph, or opens on another label -- an entry's
-    reproduction said right above a sentence the reviewer wrote, say -- is the
-    reviewer's.
+    reading each of `lines`, opening on a `Failure:` line, each written as a
+    lead writes it. A run of label lines that opens no paragraph, opens on
+    another label -- an entry's reproduction said right above a sentence the
+    reviewer wrote, say -- or holds a line no lead writes, a label giving
+    nothing among them, is the reviewer's.
     """
     top = number
     while top and labels[top - 1] is not None:
@@ -346,7 +363,8 @@ def _lead_above(lines: Sequence[str], labels: _Labels, number: int) -> range:
     above = lines[top - 1] if top else ""
     opens = not above.strip(_BLANKS)
     named = top < number and labels[top].group("label") == _NAME
-    return range(top, number) if opens and named else range(0)
+    written = all(map(_LEAD_LINE_RE.fullmatch, lines[top:number]))
+    return range(top, number) if opens and named and written else range(0)
 
 
 def _left_out(labels: Sequence[_Label]) -> Iterator[_Said]:

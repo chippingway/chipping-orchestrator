@@ -24,10 +24,13 @@ from any line nothing captured holds. A test may print a whole run of
 pytest's: below a rule, where pytest itself never opens a run, a run's opening
 -- its session's heading, or the progress line its first tests report on with
 `-q` -- opens one a test printed, captured up to the line of statistics that
-closes it. Any other line of a section's or a heading's shape a test prints
-ends what is read as captured there, being one pytest might print next; but
-pytest prints one short summary for a run, last, so of the summary headings
-in one run only the last is pytest's, any above it one a test printed. Outside
+closes it. pytest pads every title, rule, and heading of a run to its
+terminal's width, so a line of a section's or a heading's shape narrower than
+the last heading pytest printed is one a test printed, and stays captured;
+any other ends what is read as captured there, being one pytest might print
+next. pytest prints one short summary for a run, last, so of the summary
+headings in one run only the last is pytest's, any above it one a test
+printed. Outside
 anything captured a run opens on its opening, or, with `-q`, where a run
 reporting no progress -- one failing collection alone -- opens: on the errors
 or failures heading, which pytest prints before a run's summary, standing in
@@ -76,10 +79,12 @@ from types import MappingProxyType
 
 # A section's title, and a line that opens a section: a title, a rule
 # titling what pytest captured below its traceback, or a line of equals signs
-# -- a heading, where it titles anything.
+# -- a heading, where it titles anything. pytest pads each to its terminal's
+# width -- one too long for it set off by a character each side, wider still.
 _TITLE_RE = re.compile(r"[ \t]*_+ (?P<title>(?=.*[^_ ]).+?) _+[ \t\r]*")
 _SECTION_RE = re.compile(
-    r"[ \t]*(?:_+ (?=.*[^_ ]).+ _+|(?P<rule>-+ (?=.*[^- ]).+ -+)|=+(?: (?P<heading>.+?) =+)?)[ \t\r]*",
+    r"[ \t]*(?P<line>_+ (?=.*[^_ ]).+ _+|(?P<rule>-+ (?=.*[^- ]).+ -+)"
+    r"|(?P<equals>=+)(?: (?P<heading>.+?) =+)?)[ \t\r]*",
 )
 
 # A line a section marks with `E`, how far it sets out what it says, and what
@@ -164,8 +169,9 @@ class _Where:
     says may be read; `shown` is the exception the last marked line outside
     anything captured above it shows; `run` counts the session headings at or
     above the line outside anything captured, and `summaries` the short
-    summary headings; and `closed` says a line of statistics closed the run
-    above the line, no section or heading opening since.
+    summary headings; `closed` says a line of statistics closed the run
+    above the line, no section or heading opening since; and `width` is that
+    of the last heading pytest printed, 0 before any.
     """
 
     region: str = _ELSEWHERE
@@ -176,6 +182,7 @@ class _Where:
     summaries: int = 0
     nests: bool = True
     closed: bool = False
+    width: int = 0
 
     @classmethod
     def of(cls, lines: Sequence[str]) -> tuple[_Where, ...]:
@@ -246,17 +253,24 @@ class _Where:
         such a run may be read, and outside it stands first in its own run;
         a line of statistics outside anything captured closes its run, and
         that run's short summary with it; and a line opening a section opens
-        what `_opening` says.
+        what `_opening` says -- in what was captured, only one as wide as the
+        last heading pytest printed, one narrower being a test's.
         """
         started = _STARTED_RE.fullmatch(line) is not None
         if started and self.captured and self.nests:
             return replace(self, nested=True)
         if started and not self.captured:
-            return _Where(run=self.run + 1, summaries=self.summaries, nests=self.nests)
+            return _Where(
+                run=self.run + 1, summaries=self.summaries,
+                nests=self.nests, width=self.width,
+            )
         if _STATS_RE.fullmatch(line) and not self.captured:
             return replace(self, region=_ELSEWHERE, closed=True)
         section = _SECTION_RE.fullmatch(line)
-        return None if section is None else self._opening(section)
+        if section is None:
+            return None
+        narrower = len(section.group("line")) < self.width
+        return None if self.captured and narrower else self._opening(section)
 
     def _opening(self, opened: re.Match[str]) -> _Where:
         """Where the line `opened` reads as opening a section stands: in what pytest captured, or the region it opens.
@@ -276,6 +290,7 @@ class _Where:
         return _Where(
             region, shown=self.shown, run=run, summaries=summaries, nests=self.nests,
             closed=_STATS_RE.fullmatch(opened.string) is not None,
+            width=len(opened.group("line")) if opened.group("equals") else self.width,
         )
 
 
@@ -292,6 +307,12 @@ class Section:
         """The section of `run` titled `title` holding `lines`, its exception read off its marked lines or traceback."""
         held = list(lines)
         return cls(title, cls._marked(held) or cls._native(held), run)
+
+    @property
+    def collected(self) -> str:
+        """What pytest says it failed collecting, by this section's title; "" where it says no such thing."""
+        found = _COLLECTING_TITLE_RE.fullmatch(self.title)
+        return "" if found is None else found.group("subject")
 
     def opens(self, shown: str) -> bool:
         """Whether a summary line giving the error `shown` opens on the exception this section shows."""
@@ -338,13 +359,16 @@ class Section:
 
 
 class PytestOutput:
-    """A check's output read for the sections pytest printed, each taken by one summary line at most."""
+    """A check's output read for the sections pytest printed, each taken by one summary line at most.
+
+    `sections` are those sections, in order.
+    """
 
     def __init__(self, lines: Sequence[str]) -> None:
         self.lines = lines
         self._wheres = _Where.of(lines)
-        self._sections = tuple(self._read())
-        titles = frozenset(section.title for section in self._sections)
+        self.sections = tuple(self._read())
+        titles = frozenset(section.title for section in self.sections)
         phased = filter(None, map(_PHASE_TITLE_RE.fullmatch, titles))
         self._sectioned = titles.union(found.group("name") for found in phased)
         # The lines pytest's short summary lines may stand on, each with the
@@ -370,16 +394,16 @@ class PytestOutput:
         where one does, and is taken.
         """
         untaken = [
-            index for index, section in enumerate(self._sections)
+            index for index, section in enumerate(self.sections)
             if section.title in titles and section.run == run and index not in self._taken
         ]
         shown = error.removesuffix(_ELLIPSIS)
-        opened = [index for index in untaken if self._sections[index].opens(shown)]
+        opened = [index for index in untaken if self.sections[index].opens(shown)]
         index = next(chain(opened, untaken), None)
         if index is None:
             return None
         self._taken.add(index)
-        return self._sections[index]
+        return self.sections[index]
 
     def phase(self, node: str, error: str, run: int) -> tuple[str, str]:
         """The phase of the test `node` names whose section a line of `run` giving `error` reports, and its exception.
@@ -403,8 +427,8 @@ class PytestOutput:
         """
         path = node.partition(_NODE_SEPARATOR)[0]
         titles = {
-            section.title for section in self._sections
-            if _collects(section.title, (node, path))
+            section.title for section in self.sections
+            if _collects(section.collected, (node, path))
         }
         section = self.take(titles, error, run)
         if section is not None:
@@ -441,15 +465,15 @@ class PytestOutput:
                 yield Section(_UNTITLED, lined["raised"], where.run)
 
 
-def _collects(title: str, subjects: Iterable[str]) -> bool:
-    """Whether the section titled `title` says pytest failed collecting one of `subjects`.
+def _collects(collected: str, subjects: Iterable[str]) -> bool:
+    """Whether a section saying pytest failed collecting `collected` says it failed collecting one of `subjects`.
 
     pytest titles it by a path relative to its root directory, and its summary
     line names one relative to where it ran, so either spelling may end on the
-    other at a directory's boundary.
+    other at a directory's boundary. A section saying no such thing -- ""
+    for `collected` -- says it of none.
     """
-    found = _COLLECTING_TITLE_RE.fullmatch(title)
-    titled = "" if found is None else f"/{found.group('subject')}"
+    titled = f"/{collected}" if collected else ""
     rooted = (f"/{subject}" for subject in subjects)
     alike = (titled.endswith(spelled) or spelled.endswith(titled) for spelled in rooted)
     return bool(titled) and any(alike)
