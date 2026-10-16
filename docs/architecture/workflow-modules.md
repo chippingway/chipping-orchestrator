@@ -232,17 +232,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its path or collection was interrupted, and otherwise as an error in any of the three, and
                             an `ERROR` path as its collection, never a test ID,
                             each with the error its line gives, else -- a line too long for the terminal carries none
-                            -- the first exception line of a failed test's section, or the last of a setup's,
-                            teardown's, or collection's, else the error of the entry naming it, else a line saying the
-                            summary gave none; ten at most, the rest left to the output quoted below. A section title
-                            sits between underscores, one each side at least, and a line of spaced underscores alone
-                            parts frames, titling nothing.
+                            -- the exception of the section pytest printed for it (`review_findings_pytest`), else the
+                            error of the entry naming it, else a line saying the summary gave none; ten at most, the
+                            rest left to the output quoted below.
                             A check pytest's summary names nothing in is led by each `Failure:` entry of the findings
                             whose `Error:` -- or the code block's last line below an empty one -- its output shows,
                             matched by that error and never by command, so two runs of one stdin command each lead with
                             their own scenario; else by a line saying no test ID or scenario name was recorded. A lead
                             says too where the check quoted no output, and, whatever names its failures, where its
-                            command reads its code from stdin (`-`) and no entry it backs gives the snippet as a code
+                            command, split as a shell splits it, reads its code from stdin (`-`) and no entry it backs
+                            gives the snippet as a code
                             block holding code below its `Reproduce:` line, however the line names the command. No
                             lead line opens on a declaration
                             keyword, and the names and errors it takes from output stand in code spans. The reviewer's
@@ -251,6 +250,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the margin, outside any code block, closing it on a period or on a colon over a bare
                             backtick fence holding the output -- led as a check read off a declaration is, since that
                             layout's feedback holds no declaration to read its checks from again
+    review_findings_pytest.py
+                            what pytest's output says beside its short summary, for `review_findings_failures`: each
+                            section it printed, titled between underscores -- one each side at least -- by a failed
+                            test's name, its node ID past the path with classes dotted and parameters as written, by
+                            `ERROR at setup of` or `ERROR at teardown of` and that name, or by `ERROR collecting` and
+                            what it collected, a line of spaced underscores parting frames and titling nothing.
+                            A section's exception is the first line set out least in its last run of lines marked
+                            `E`, not an explanation, diff hint, or source line set out further, nor an exception
+                            another was raised handling. Each summary line takes the first section it may be that no
+                            line before it took -- the one whose exception the line's error opens where it gives one
+                            -- since pytest prints both in one order and tests of two modules may share a title
     review_findings_entries.py
                             the failure entries a reviewer writes in its findings, for `review_findings_failures` and
                             `review_findings`: an entry runs from one `Failure:` line to the next, each of the taught

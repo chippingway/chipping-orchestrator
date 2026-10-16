@@ -382,6 +382,58 @@ _UNSTATED_SETUP_LEAD = (
     f"Failure: `{_LONG_MODULE}::test_x`, whose setup failed\n"
     "Error: `RuntimeError: fixture initialization exploded`\n"
 )
+# Sections as pytest prints them on an 80-column terminal, summary lines too
+# long to carry their errors: tests of two modules sharing a name, and their
+# fixtures; a fixture's assertion over its explanation and diff hint, a line
+# marked blank among them; and an exception raised handling another.
+_FIRST = "tests/test_first_with_a_very_long_module_name_to_fill_the_terminal.py::test_same"
+_SECOND = "tests/test_second_with_a_very_long_module_name_to_fill_the_terminal.py::test_same"
+_SAME_TITLES = (
+    "__________________________________ test_same ___________________________________\n"
+    "E       ValueError: first module failed\n"
+    "__________________________________ test_same ___________________________________\n"
+    "E       TypeError: second module failed\n"
+    "=========================== short test summary info ============================\n"
+    f"FAILED {_FIRST}\nFAILED {_SECOND}"
+)
+_SAME_TITLES_LEAD = (
+    f"Failure: `{_FIRST}`\nError: `ValueError: first module failed`\n"
+    f"Failure: `{_SECOND}`\nError: `TypeError: second module failed`\n"
+)
+_SAME_FIXTURES = (
+    "___ ERROR at setup of test_same ___\nE       RuntimeError: first fixture failed\n"
+    "___ ERROR at setup of test_same ___\nE       KeyError: second fixture failed\n"
+    f"ERROR {_FIRST}\nERROR {_SECOND}"
+)
+_SAME_FIXTURES_LEAD = (
+    f"Failure: `{_FIRST}`, whose setup failed\nError: `RuntimeError: first fixture failed`\n"
+    f"Failure: `{_SECOND}`, whose setup failed\nError: `KeyError: second fixture failed`\n"
+)
+_ASSERTED = "tests/test_fixture_assert_with_a_long_module_name_for_setup.py"
+_DIFF_HINT = (
+    "___________________________ ERROR at setup of test_x ___________________________\n"
+    "E       assert [1, 2] == [3, 4]\n"
+    "E         \n"
+    "E         At index 0 diff: 1 != 3\n"
+    "E         Use -v to get more diff\n"
+    "=========================== short test summary info ============================\n"
+    f"ERROR {_ASSERTED}::test_x"
+)
+_DIFF_HINT_LEAD = f"Failure: `{_ASSERTED}::test_x`, whose setup failed\nError: `assert [1, 2] == [3, 4]`\n"
+_CHAINED = (
+    "__________________________________ test_chain __________________________________\n"
+    "E           KeyError: 'x'\n"
+    "During handling of the above exception, another exception occurred:\n"
+    "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n"
+    "E           ValueError: chained failure\n"
+    "=========================== short test summary info ============================\n"
+    f"FAILED {_ASSERTED}::test_chain"
+)
+_CHAINED_LEAD = f"Failure: `{_ASSERTED}::test_chain`\nError: `ValueError: chained failure`\n"
+# A command running a parameterized test it names quoted, a dash among its
+# parameters, which reads nothing from stdin.
+_QUOTED_NODE = "tests/test_values.py::test_value[x - y]"
+_QUOTED_COMMAND = f".venv/bin/python -m pytest '{_QUOTED_NODE}'"
 # A stdin check running pytest, which names the test that failed, and how it leads.
 _STDIN_PYTEST = "FAILED tests/test_probe.py::test_probe - AssertionError: values differ"
 _STDIN_PYTEST_SHOWN = (
@@ -721,6 +773,14 @@ class FailureNamesTest(unittest.TestCase):
             f"{named}Failure: 2 more, named in the output below\n"
             f"`uv run pytest tests` exited with status 1:\n\n```\n{failed}\n```",
         )
+        # A dash quoted among a command's arguments is no stdin it reads.
+        quoted = f"FAILED {_QUOTED_NODE} - assert 0 == 1"
+        _assert_shown(
+            self,
+            f"{_RUN_LINE}\nCOMMAND: {_QUOTED_COMMAND}\nEXIT: 1\n{quoted}\n{_END_LINE}",
+            f"Failure: `{_QUOTED_NODE}`\nError: `assert 0 == 1`\n"
+            f"`{_QUOTED_COMMAND}` exited with status 1:\n\n```\n{quoted}\n```",
+        )
 
     def test_probes_sharing_a_command_stay_apart(self) -> None:
         # Two runs of one stdin command are two checks, each led by the entry
@@ -747,10 +807,12 @@ class FailureNamesTest(unittest.TestCase):
             f"`.venv/bin/python -` exited with status 1:\n\n```\n{_ANNOUNCE_ERROR}\n```",
         )
 
-    def test_collection_errors_name_the_failed_check(self) -> None:
+    def test_sections_say_what_failed(self) -> None:
         # A module pytest could not collect is named by that collection, never
-        # by a test ID, with the exception its traceback ends on, else the
-        # error of the entry naming it, else a line saying the summary gave none.
+        # by a test ID, with the exception its section shows, else the error of
+        # the entry naming it, else a line saying the summary gave none; and a
+        # summary line too long to carry its error takes the exception of the
+        # section it reports.
         cases = (
             (
                 _COLLECTION_TRACEBACK,
@@ -780,6 +842,15 @@ class FailureNamesTest(unittest.TestCase):
             (_BOTH_PHASES, "", _BOTH_LEAD),
             # A summary line too long to carry its error takes its section's.
             (_UNSTATED_SETUP, "", _UNSTATED_SETUP_LEAD),
+            # Sections sharing a title each go to the summary line pytest
+            # printed in their turn.
+            (_SAME_TITLES, "", _SAME_TITLES_LEAD),
+            (_SAME_FIXTURES, "", _SAME_FIXTURES_LEAD),
+            # A section's exception is the first line set out least in its
+            # last run of marked lines: not an explanation or diff hint set out
+            # further, nor an exception another one was raised handling.
+            (_DIFF_HINT, "", _DIFF_HINT_LEAD),
+            (_CHAINED, "", _CHAINED_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
