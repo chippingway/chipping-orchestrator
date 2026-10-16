@@ -14,8 +14,8 @@ reading lands, over the comment read afresh.
 A newer transaction recorded before the record survives it with its revision
 floor, and a newer run settled beside report 3 is proved on its own readings.
 Behind the record the run is proved once more, so a report settled at the
-record -- landed, answer lost, or refused -- is read moving even where report
-2 is put back, and so is the base tip the attempt recorded its replay as made
+record -- landed, answer lost, or refused, for room among the rest -- is
+read moving even where report 2 is put back, and so is the base tip the attempt recorded its replay as made
 onto, blanked right under the record's strict edit -- beside the record of the
 event another finish of the landing is filing for the head, which advances this
 very attempt, or not -- and put back behind it.
@@ -30,6 +30,7 @@ from dataclasses import replace
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from orchestrator.workflow.engine import (
     report_commits as _commits,
     rewrite_landing_records as _landing_records,
@@ -81,6 +82,12 @@ _STAGED_BY_THE_GATE = "late_gate_hold"
 # over the reading that carries report 3.
 _CONFLICTS_WITH_THE_GATE = "a conflict with the gate's record"
 
+# Report 3 settled ahead of the record beside another road's field filling the
+# comment right to the limit, so the record is refused for room over the
+# reading that carries report 3; that field is taken off with report 3.
+_FILLS_THE_COMMENT = "the comment filled at the record"
+_FILLER = "another_road_filler"
+
 _AT_THE_RECORD = (
     ("", True),
     ("lost", True),
@@ -89,6 +96,7 @@ _AT_THE_RECORD = (
     (_TIP_UNDER_THE_EDIT, True),
     (_TIP_BESIDE_THE_EVENT, True),
     (_CONFLICTS_WITH_THE_GATE, True),
+    (_FILLS_THE_COMMENT, True),
 )
 
 
@@ -138,8 +146,9 @@ class _AroundTheHold:
         return landed
 
     def puts_back(self) -> None:
-        """Write the report and review records back as they stood before report 3 moved them."""
+        """Write the report and review records back as they stood before report 3 moved them, any filler taken off."""
         state = self._case.gh.read_pinned_state(self._case.issue)
+        state.data.pop(_FILLER, None)
         for key, recorded in self._replaced.items():
             state.set(key, recorded)
         self._case.gh.write_pinned_state(self._case.issue, state)
@@ -155,6 +164,10 @@ class _AroundTheHold:
             self.successor = _settles_a_successor(case, subject)
         if self._failing == _CONFLICTS_WITH_THE_GATE:
             case.state.set(_STAGED_BY_THE_GATE, "another road's gate")
+        if self._failing == _FILLS_THE_COMMENT:
+            case.state.set(_FILLER, "")
+            room = MAX_PINNED_BODY - len(pinned_state_body(case.state.data))
+            case.state.set(_FILLER, "x" * room)
         case.gh.write_pinned_state(case.issue, case.state)
 
     def _blanks(self) -> None:
@@ -230,7 +243,8 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def test_a_report_moved_at_the_record_is_read(self) -> None:
         # Report 3 settles behind the proof and ahead of the hold's record,
         # which lands it, loses its answer, or is refused -- for an owned
-        # field another road spelled otherwise beside report 3 too -- or right
+        # field another road spelled otherwise beside report 3 too, or for
+        # room beside another road's field filling the comment -- or right
         # under its strict edit, refused over it; report 2 put back right behind a
         # record that carried report 3, or that edit, still leaves the run
         # moved -- and so does the base tip blanked right under that edit, beside

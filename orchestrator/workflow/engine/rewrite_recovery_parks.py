@@ -320,7 +320,8 @@ def _moved(
     What it read is the record the commit made of the comment -- landed, or
     sent with no answer -- or, where it was refused, the comment its refusal
     was read over: the one its strict edit found moved under it, a report
-    another road settled right at that edit among what it carries
+    another road settled right at that edit among what it carries, or the
+    fresh one a record too long for the comment was measured over
     (`pinned_commit_models.CommitOutcome.seen`); nothing where the refusal
     read no comment. `read` is the binding records as the tick staged them
     and as the comment it last read spelled them, and the receipts the tick's

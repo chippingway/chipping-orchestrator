@@ -1532,8 +1532,9 @@ because there it is the claim that this stage has already rerouted rather than a
   dormant settled-evidence policy, so a mark of movement under its receipt counts and an announcement another finish
   put on the attempt is taken in before the invalidation lands -- and the park landed through the guarded commit over
   the comment read afresh and proving what it keeps once more behind its notice
-  (`rewrite_recovery_parks.lands_a_park`) -- a movement its record carried, or that the comment its strict edit was
-  refused over carried, a report or review record moved, a mark of movement under settled evidence's receipt, or the
+  (`rewrite_recovery_parks.lands_a_park`) -- a movement its record carried, or that the comment its refusal was read
+  over carried, the fresh one a record too long for the comment was measured over among them, a report or review
+  record moved, a mark of movement under settled evidence's receipt, or the
   attempt's base tip blanked beside the rest of the attempt as read -- this landing's announcement bookkeeping set
   aside -- kept as read under whichever evidence it was read under
   (`rewrite_landing_retirement.moved_under`); behind a notice that raised, or a record refused or sent with its
@@ -1708,19 +1709,21 @@ because there it is the claim that this stage has already rerouted rather than a
     held while it will not read; with no log it is read made, once at most -- and a relabel onto that label that
     raises before the stream carries its stage-entry event takes its record back off; behind a relabel that raised
     the evidence the comment then carries is proved, a successor another road settled meanwhile on its own binding,
-    movement that very reading records invalidating it however soon it is put back; a debt park
+    movement that very reading records invalidating it however soon it is put back, and a record a later refusal
+    names moved off the records the tick read counting under it only where those records bind it; a debt park
     standing is reused unless a reply the watermark has not passed is handed in, and a park whose write never landed
     -- a first one, or one made again over a reply handed in once more -- lands over the notice the conversation
     carries past the watermark or that reply, its event filed only where the event stream lacks the one naming that
     notice, the finish held where that conversation will not read; and a relabel is held where the comment read again
     behind its proof carries another attempt, settled evidence that reading records moving invalidated first however
     soon it is put back -- a successor another road settled in its place asked on its own binding in that very
-    reading -- so repeated direct finishes make one notice, `base_rebased` event, park
-    notice and `park_awaiting_human` event, round reset, relabel, stage-entry event, artifact, and settlement, and
-    run, push, or launch nothing again. A newer transaction the proof beside an unfinishable landing finds recorded
-    right behind its invalidation is left owed as written, with no last word taken over it, and so is one another
-    road recorded behind a stopped announcement's writes, which the movement those writes read under the evidence
-    they found -- however that evidence is invalidated over it -- never abandons.
+    reading, and beside a blank of the base tip, whatever was read current before it -- so repeated direct finishes
+    make one notice, `base_rebased` event, park notice and `park_awaiting_human` event, round reset, relabel,
+    stage-entry event, artifact, and settlement, and run, push, or launch nothing again. A newer transaction the
+    proof beside an unfinishable landing finds recorded right behind its invalidation is left owed as written, with
+    no last word taken over it, and so is one another road recorded behind a stopped announcement's writes, which
+    the movement those writes read under the evidence they found -- however that evidence is invalidated over it --
+    never abandons.
 
   The primitives run no command. The phase runs the configured commands only where its evidence step decides a head
   afresh, exactly as the policy every road selects does: a fresh landing whose head no finish of this landing has

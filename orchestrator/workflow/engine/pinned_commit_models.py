@@ -103,7 +103,8 @@ class CommitOutcome:
     what the guard's own domain check answered where it refused the candidate.
     `seen`, for a guard that `reads_a_move` alone, is the comment a
     PREREQUISITE_CHANGED or OWNED_CONFLICT refusal read those fields moved
-    on, or the one a MOVED edit found in place of the fresh reading
+    on, the fresh reading an OVERFLOW or INADMISSIBLE candidate was laid
+    over, or the one a MOVED edit found in place of the fresh reading
     (`PinnedCommit.keeps_the_move`), so the caller can say what moved and to
     what however soon it is put back.
     """
@@ -117,11 +118,17 @@ class CommitOutcome:
     seen: PinnedState | None = None
 
 
-# The refusals a guard that `reads_a_move` keeps the comment it read for: the
-# fresh reading an owned field was found conflicting on among them, since
-# whatever else moved there moved under the write all the same.
+# The refusals a guard that `reads_a_move` keeps the comment it read for:
+# every one read over a comment -- the fresh reading an owned field was found
+# conflicting on, or a candidate measured past what one comment holds, or
+# refused by the caller's own domain, over it among them -- since whatever
+# else moved there moved under the write all the same.
 _READ_MOVES = frozenset((
-    CommitRefusal.PREREQUISITE_CHANGED, CommitRefusal.MOVED, CommitRefusal.OWNED_CONFLICT,
+    CommitRefusal.PREREQUISITE_CHANGED,
+    CommitRefusal.MOVED,
+    CommitRefusal.OWNED_CONFLICT,
+    CommitRefusal.OVERFLOW,
+    CommitRefusal.INADMISSIBLE,
 ))
 
 
@@ -206,10 +213,12 @@ class PinnedCommit:
         return (CommitRefusal.PREREQUISITE_CHANGED if moved else refusal), moved
 
     def keeps_the_move(self, outcome: CommitOutcome, reading: PinnedState | None) -> CommitOutcome:
-        """`outcome`, carrying `reading` as `seen` where this guard `reads_a_move` and it refuses a move.
+        """`outcome`, carrying `reading` as `seen` where this guard `reads_a_move` and it refuses over a comment.
 
-        `reading` is the comment that refusal was read over: the fresh reading,
-        or the one the strict edit read under it (`under_the_edit`) -- which,
+        `reading` is the comment that refusal was read over: the fresh reading
+        -- a move of the prerequisites, an owned field's conflict, or a
+        candidate past the limit or refused by the domain's own check over it
+        -- or the one the strict edit read under it (`under_the_edit`) -- which,
         where it moved no prerequisite, is the comment a MOVED refusal found
         moved under the edit, a record the caller keeps as the fresh comment
         carries it among what may have moved.

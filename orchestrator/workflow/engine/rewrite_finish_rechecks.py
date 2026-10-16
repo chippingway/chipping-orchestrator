@@ -33,7 +33,9 @@ land right behind (`rewrite_finish_unconfirmed.reconciles_the_abandonment`).
   put an attempt of its own in place behind, and says whether it still
   carries the attempt captured ahead of that proof -- settled evidence that
   reading records moving invalidated first, however soon it is put back, a
-  successor it carries in that evidence's place asked on its own binding.
+  successor it carries in that evidence's place asked on its own binding --
+  and of a blank of the base tip the tick's state carries readable, whatever
+  evidence was read current before it.
 - `lays` lays fields of a comment read afresh over the tick's state, each
   taken in as read.
 
@@ -60,6 +62,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.rewrite_finish_announced import (
     advanced_by_the_announcement,
     takes_in_the_announcement,
@@ -81,6 +84,16 @@ _UNMARKED = frozenset(
 # The base tip the attempt recorded its replay as made onto, a blank of which
 # read beside a successor is movement under it (`_revived`).
 _TIP = _base_sync_state._PENDING_REWRITE_BASE
+
+# A blank of that tip read beside a successor ahead of a relabel (`_goes_on_over`):
+# movement under it, however soon the tip is put back.
+_BLANKED_BESIDE = MappingProxyType({
+    True: ReportEvidence(
+        ReportEvidenceVerdict.DEFER,
+        "the attempt's base tip was read blanked beside a successor, recording movement read under it",
+    ),
+    False: None,
+})
 
 # Why evidence a fresh reading carries current holds the route (`_revived`):
 # the evidence just invalidated put back, or a successor read moving.
@@ -190,8 +203,11 @@ def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit, ob
     reading the route's writes collect refusals on
     (`rewrite_finish_stops.observing`), is asked what that very comment
     records moving under the evidence (`_goes_on_over`) -- a successor another
-    road settled in its place asked on its own binding -- so a report another
-    road moved and puts back before the writes behind it is still movement.
+    road settled in its place asked on its own binding, and beside the base
+    tip the tick's state carries, read blank there beside the attempt as
+    captured, whatever evidence that reading's classifier was captured for,
+    none included -- so a report another road moved, or the tip it blanked,
+    and puts back before the writes behind it is still movement.
     That is asked whatever attempt the reading carries: beside another
     attempt the evidence it reads moving is retired, or marked, over the
     comment as it stands (`rewrite_finish_readiness.invalidates`), that
@@ -200,9 +216,12 @@ def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit, ob
     """
     if not finish.proves_settled:
         return True
+    left = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     durable = read_afresh(finish)
-    goes_on = durable is not None and _goes_on_over(finish, durable, observed)
-    if goes_on and stands_as_read(finish, attempt, durable, blank_aside=True):
+    unmoved = durable is not None and stands_as_read(finish, attempt, durable, blank_aside=True)
+    blanked = unmoved and _TIP in left.moved(durable.data)
+    blanked = blanked and not _attempt_records._recorded_onto(durable)
+    if durable is not None and _goes_on_over(finish, durable, observed, blanked=blanked) and unmoved:
         takes_in_the_announcement(finish, durable)
         return True
     log.warning(
@@ -213,7 +232,7 @@ def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit, ob
     return False
 
 
-def _goes_on_over(finish: LandedFinish, durable: PinnedState, observed) -> bool:
+def _goes_on_over(finish: LandedFinish, durable: PinnedState, observed, *, blanked: bool = False) -> bool:
     """Whether the route may go on over `durable`, settled evidence it reads moving invalidated first.
 
     `durable` is asked of `observed`'s classifier as it was read
@@ -225,7 +244,9 @@ def _goes_on_over(finish: LandedFinish, durable: PinnedState, observed) -> bool:
     captured for the evidence the tick holds, so a successor another road
     settled for the head, which `durable` carries current in its place, is
     asked of its own binding in that very reading instead
-    (`rewrite_finish_readiness._records_heard`), the movement kept on
+    (`rewrite_finish_readiness._records_heard`) -- and, where the caller read
+    it `blanked`, of the base tip the tick's state carries read blank there,
+    which no classifier hears where none was captured -- the movement kept on
     `observed` beside the rest; where it moved, the evidence records `durable`
     carries are laid over the tick's state (`lays`) and the successor is the
     evidence invalidated, so putting its records back revives nothing. False,
@@ -239,7 +260,7 @@ def _goes_on_over(finish: LandedFinish, durable: PinnedState, observed) -> bool:
     successor = carried is not None and carried != held
     successor = successor and carried.binding.target.target_head == finish.head
     if successor:
-        heard = _readiness._records_heard(carried, durable, settled=True)
+        heard = (*_readiness._records_heard(carried, durable, settled=True), _BLANKED_BESIDE[blanked])
         observed.observed.extend(refused for refused in heard if refused and not refused.holds)
     if all(refused.holds for refused in observed.observed[before:]):
         return True

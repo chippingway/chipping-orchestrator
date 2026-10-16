@@ -452,8 +452,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             save for a guard that `reads_a_move`, which names the prerequisites the comment the edit
                             read spells otherwise as PREREQUISITE_CHANGED, and has every refusal of moved prerequisites
                             carry the comment it read them moving on (`seen`) -- an owned-field conflict's fresh
-                            reading among them -- a MOVED one the comment its edit found in place of the fresh
-                            reading. A refusal writes nothing and moves
+                            reading among them, and so the fresh reading a candidate past the limit or refused by the
+                            caller's own check was laid over -- a MOVED one the comment its edit found in place of the
+                            fresh reading. A refusal writes nothing and moves
                             nothing the caller holds, and an edit that went out unconfirmed is reported as neither
                             answer, for the domain's own receipts to settle. `reread` is that fresh reading alone -- the
                             captured comment, still parsing -- for a caller with requests of its own to make over it
@@ -1399,11 +1400,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stands_as_read`); whether the comment read afresh behind the proof ahead of a relabel
                             still carries the attempt captured ahead of that proof, its base tip aside where blank,
                             settled evidence that very reading records moving invalidated first however soon it is put
-                            back, a successor it carries in that evidence's place asked on its own binding and laid
-                            over the tick's state where it moved, and that reading asked whatever attempt it carries,
-                            the evidence retired or marked as the comment stands beside another
-                            (`stands_afresh`); and the fields of a fresh reading
-                            laid over the tick's state, each
+                            back, a successor it carries in that evidence's place asked on its own binding, and beside
+                            a blank of the base tip the tick's state carries readable, whatever was read before it,
+                            and laid over the tick's state where it moved, and that reading asked whatever attempt it
+                            carries, the evidence retired or marked as the comment stands beside another
+                            (`stands_afresh`); and the fields of a fresh reading laid over the tick's state, each
                             taken in as read (`lays`)
     rewrite_finish_announced.py
                             a finish's announcement on the attempt as only the dormant policy reads it: an attempt
@@ -1501,9 +1502,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`beside_current`: a pending record, a handoff not naming it, a revision floor nobody can
                             read), holds -- beside any movement the same reading established, which it never hides; a
                             refusal of a finish's later write that read a binding record moved
-                            (`rewrite_finish_writes.BINDING_MOVED`), or whose comment was read recording movement
-                            under the evidence, invalidates it however soon that comment is put back
-                            (`invalidates_behind`), and any other stop of such a write -- a refusal reading neither, a
+                            (`rewrite_finish_writes.BINDING_MOVED`) -- only where the records the tick's state
+                            carries bind the evidence, so a successor laid over it bound to newer records answers for
+                            its own binding alone -- or whose comment was read recording movement under the evidence,
+                            invalidates it however soon that comment is put back (`invalidates_behind`), and any other
+                            stop of such a write -- a refusal reading neither, a
                             write nobody confirmed, a hold -- proves it ready once more. Over a head the base advanced
                             past again, which a continuation keeps the evidence over for the rebase behind it, the
                             base readings that made the continuation are excused from the last word
@@ -2279,8 +2282,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             not land -- what the park keeps is proved once more
                             (`rewrite_landing_retirement.retires_unproved`), a binding record its own commit carried
                             spelled otherwise than the tick read it -- the record it landed or sent held to the
-                            tick's staging, the comment its strict edit was refused over to the comment as the tick
-                            last read it, so the park's own reason or a field no binding rests on is no movement --
+                            tick's staging, the comment its refusal was read over, the fresh one a record too long for
+                            the comment was measured over among them, to the comment as the tick last read it, so the
+                            park's own reason or a field no binding rests on is no movement --
                             or the attempt's base tip read blank or
                             repointed there beside the rest of the attempt as read
                             (`rewrite_landing_retirement.moved_under`) -- handed to that proof as movement already

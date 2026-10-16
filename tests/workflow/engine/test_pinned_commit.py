@@ -153,6 +153,15 @@ def _filler(unit: str, excess: int) -> str:
     return unit * units + "x" * (room - len(unit) * units)
 
 
+# Another road's write a candidate is refused over, laid over the fresh
+# reading: a field filling the comment one past the limit, or a total past
+# the domain check's cap.
+_OVER_THE_READING = MappingProxyType({
+    _REFUSAL.OVERFLOW: MappingProxyType({support.UNKNOWN: _filler("", 1)}),
+    _REFUSAL.INADMISSIBLE: MappingProxyType({support.TOTAL: _PAST_THE_CAP}),
+})
+
+
 class CommitLandingTest(unittest.TestCase):
     """What a commit lands, and what it leaves the record carrying beside it."""
 
@@ -396,6 +405,24 @@ class CommitBoundaryTest(unittest.TestCase):
                     (outcome.status, outcome.inadmissible, world.record()[support.SETTLED]),
                     landed,
                 )
+
+    def test_a_refused_candidate_keeps_its_reading(self) -> None:
+        # A candidate refused over the fresh reading -- one past the limit,
+        # or by the domain's own check -- carries that reading for a guard
+        # reading a move, as a moved prerequisite's refusal does, so its
+        # caller can say what else moved there; any other guard's carries none.
+        for refusal, reads in product(_OVER_THE_READING, (False, True)):
+            with self.subTest(refusal=refusal, reads_a_move=reads):
+                world = support.seeded()
+                world.guard = replace(world.guard, admits=self._caps_the_total, reads_a_move=reads)
+                world.settle()
+                world.another_road(**_OVER_THE_READING[refusal])
+
+                outcome = world.commit()
+
+                kept = world.record() if reads else None
+                self.assertEqual((outcome.status, outcome.refusal), (_STATUS.REFUSED, refusal))
+                self.assertEqual(getattr(outcome.seen, "data", None), kept)
 
     def test_unanswered_edits_are_unconfirmed(self) -> None:
         # A lost response and a refused edit are one answer to the caller,

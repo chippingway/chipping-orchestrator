@@ -124,7 +124,9 @@ def prepare(
     for a record that could not follow it. A PREPARED answer licenses nothing
     past the requests that follow it: `commit` derives everything again. A
     guard that `reads_a_move` has a refusal of moved prerequisites carry the
-    fresh reading it read them on (`pinned_commit_models.PinnedCommit.keeps_the_move`).
+    fresh reading it read them on, and a candidate refused over that reading
+    -- past the limit, or by the domain's own check -- carry it too
+    (`pinned_commit_models.PinnedCommit.keeps_the_move`).
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)
@@ -152,8 +154,9 @@ def commit(
     spells otherwise, where any did
     (`pinned_commit_models.PinnedCommit.under_the_edit`). Such a guard's
     refusal of moved prerequisites carries the comment it read them moved on,
-    the fresh reading or the edit's, and its MOVED refusal the comment the
-    edit found in place of the fresh reading (`PinnedCommit.keeps_the_move`).
+    the fresh reading or the edit's, a candidate it refused over the fresh
+    reading carries that reading, and its MOVED refusal the comment the edit
+    found in place of the fresh reading (`PinnedCommit.keeps_the_move`).
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)

@@ -324,7 +324,13 @@ def invalidates_behind(
     evidence -- any refusal in `observed` that does not hold -- is movement
     read under it, so it is invalidated now (`invalidates`), the attempt and
     the newer records kept as the comment carries them, and putting the
-    record back before the next poll revives nothing. Any other stop -- a
+    record back before the next poll revives nothing. A record named moved is
+    named off the records the tick's state carries, so it is movement under
+    the evidence only where those records bind it
+    (`verification_proof.recorded_verdict`): a successor another road settled
+    bound to newer records, laid over the tick's state from a fresh reading
+    without them, is asked only what a refusal's comment records moving off
+    its own binding (`rewrite_finish_stops.observing`). Any other stop -- a
     refusal that read neither, a write nobody confirmed, a request behind a
     notice already posted that would not answer -- leaves the evidence
     standing behind requests made since it was proved, so it is proved ready
@@ -337,7 +343,11 @@ def invalidates_behind(
         return stopped
     if current.binding.target.target_head != finish.head:
         return stopped
-    if all(refused.holds for refused in observed):
+    moving = [refused for refused in observed if not refused.holds]
+    unbound = _writes.BINDING_MOVED in moving and _proof.recorded_verdict(finish.state, current.binding)
+    if unbound and not unbound.holds:
+        moving = [refused for refused in moving if refused != _writes.BINDING_MOVED]
+    if not moving:
         stands_ready(finish, current)
         return stopped
     if invalidates(finish, current):
