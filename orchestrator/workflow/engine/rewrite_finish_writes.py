@@ -14,7 +14,7 @@ the pinned fields the publication is resolved from
 (`ReportWrite.on_the_publication`), and keeping every other field -- unknown
 ones included -- as the fresh reading carries it.
 
-Seven writes, and each lists what it has to land exactly among the records it
+Eight writes, and each lists what it has to land exactly among the records it
 is decided on as well as among its own, since a field staged as it was read is
 no move of the write's and would otherwise be left to whatever another road
 did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
@@ -61,8 +61,11 @@ with no room for its history entry blanks -- decided on the current record
 as well, so a successor another road settled in that evidence's place is
 never marked moved, however the bounded history reads.
 `ANNOUNCED_EVENT` records the `base_rebased` event a finish is filing for
-the landed head, on its own and right ahead of it, decided on the attempt
-alone, so the event goes out only behind a write proving the attempt stands.
+the landed head, on its own and right ahead of it, decided on the attempt and
+every bound record, so the event goes out only behind a write proving the
+attempt stands. `RELABEL` records the relabel the route makes to
+`workflow:validating`, on its own around it and decided the same way, so a
+later finish reads that relabel made rather than making it twice.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, the claim the checkpoint made durable, and every
@@ -209,6 +212,14 @@ INVALIDATION = _commits.ReportWrite(
 # the event goes out only behind a write proving the attempt still stands.
 ANNOUNCED_EVENT = _commits.ReportWrite(
     owned=frozenset((_base_sync_state._PENDING_ANNOUNCED_EVENT,)),
+    decided_on=_ATTEMPT | _BOUND,
+)
+
+# The record of the relabel a finish is making, landed on its own around that
+# relabel (`rewrite_finish_announced.relabels_once`), decided on the
+# attempt and every bound record, so one another road moved refuses it.
+RELABEL = _commits.ReportWrite(
+    owned=frozenset((_base_sync_state._PENDING_RELABELLED,)),
     decided_on=_ATTEMPT | _BOUND,
 )
 

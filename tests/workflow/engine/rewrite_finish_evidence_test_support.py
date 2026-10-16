@@ -137,7 +137,7 @@ class _DurableAtTheRelabel:
         self._case = case
         self._relabel = case.gh.set_workflow_label
 
-    def __call__(self, issue, label, **correlation) -> None:
+    def __call__(self, issue, label) -> None:
         """Read the durable record, then apply the label."""
         self._case.durable.append(_readings.pinned(self._case))
-        self._relabel(issue, label, **correlation)
+        self._relabel(issue, label)

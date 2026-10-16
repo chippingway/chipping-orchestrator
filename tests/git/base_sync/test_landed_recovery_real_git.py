@@ -16,11 +16,10 @@ import unittest
 from tests.git.base_sync import recovery_git_support as fixtures
 from tests.git.base_sync.vouched_replay_git_support import VouchedReplayGitFixtureMixin
 
-# The stage-entry event a route's relabel files, naming the head it relabels for.
-_STAGE_ENTER = "stage_enter"
-_VALIDATING = "validating"
+# The record of the relabel a finish made, naming the head it relabelled for.
+_RELABELLED = "pending_auto_base_rebase_relabelled"
 
-# Whether that event names the recovered head, and the relabels the recovery
+# Whether that record names the recovered head, and the relabels the recovery
 # of an announced landing on `workflow:validating` makes.
 _RELABELS_BEHIND_THE_MARK = (
     (True, []),
@@ -78,18 +77,20 @@ class LandedRecoveryRealGitTest(VouchedReplayGitFixtureMixin, unittest.TestCase)
         self.assertEqual(self.gh.label_history, [(fixtures.ISSUE, fixtures.VALIDATING)])
 
     def test_a_relabelled_route_is_only_written(self) -> None:
-        # Lost after its relabel landed -- its stage-entry event naming the
-        # head on the stream -- so the issue is already where the route goes:
-        # nothing is said or relabelled, and only the write that retires the
-        # attempt is made. Lost ahead of the relabel on an issue that wore
-        # `workflow:validating` before the rebase, no event names the head,
-        # so the recovery makes this head's relabel once, as the uninterrupted
+        # Lost after its relabel landed -- its record on the attempt naming
+        # the head -- so the issue is already where the route goes: nothing is
+        # said or relabelled, and only the write that retires the attempt is
+        # made. Lost ahead of the relabel on an issue that wore
+        # `workflow:validating` before the rebase, nothing records this
+        # head's relabel, so the recovery makes it once, as the uninterrupted
         # route would.
-        for filed, relabelled in _RELABELS_BEHIND_THE_MARK:
-            with self.subTest(filed=filed):
+        for recorded, relabelled in _RELABELS_BEHIND_THE_MARK:
+            with self.subTest(recorded=recorded):
                 self.setUp()
-                if filed:
-                    self.gh.emit_event(_STAGE_ENTER, issue_number=fixtures.ISSUE, stage=_VALIDATING, sha=self.recovered)
+                if recorded:
+                    state = self.gh.read_pinned_state(self.issue)
+                    state.set(_RELABELLED, self.recovered)
+                    self.gh.write_pinned_state(self.issue, state)
 
                 self._recovers_an_announced_landing(fixtures.VALIDATING)
 

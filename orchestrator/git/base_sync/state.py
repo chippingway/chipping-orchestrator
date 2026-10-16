@@ -108,6 +108,16 @@ _PENDING_ANNOUNCED_EVENT = "pending_auto_base_rebase_announced_event"
 # none.
 _PENDING_EVIDENCE_RECEIPT = "pending_auto_base_rebase_evidence_receipt"
 
+# The head whose relabel to `workflow:validating` a finish of this attempt
+# made, written in a write of its own around that relabel: ahead of it where
+# the issue wears another label, so the label read back says whether it
+# landed, and right behind it where the issue already wore
+# `workflow:validating`, which a relabel onto it leaves saying nothing. Read
+# beside the label, it is what keeps a finish lost before the retirement from
+# relabelling -- and filing the stage-entry event -- twice, with no event log
+# needed. Additive: an attempt from before this record existed carries none.
+_PENDING_RELABELLED = "pending_auto_base_rebase_relabelled"
+
 _REASON_AUTO_BASE_REBASE_FAILED = "auto_base_rebase_failed"
 
 _REASON_AUTO_BASE_REBASE_PUSH_FAILED = "auto_base_rebase_push_failed"

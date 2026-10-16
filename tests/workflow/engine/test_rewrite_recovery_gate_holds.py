@@ -70,7 +70,8 @@ _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "revie
 _UNDER_THE_EDIT = "under the edit"
 
 # A record the tick staged since its reading, as a gate holding over a
-# reading of its own does, so the hold's record has an edit to send.
+# reading of its own does, so the hold's record has an edit to send -- one
+# that fails as a case asks.
 _STAGED_BY_THE_GATE = "late_gate_hold"
 
 _AT_THE_RECORD = (
@@ -129,8 +130,9 @@ class _AroundTheHold:
         if write is not _parks.HOLD or self._replaced:
             return _LANDS(commit, staged, write)
         case = self._case
-        if self._failing == _UNDER_THE_EDIT:
+        if self._failing:
             staged.set(_STAGED_BY_THE_GATE, self._head)
+        if self._failing == _UNDER_THE_EDIT:
             with patch.object(case.gh, "edit_pinned_state", partial(self._moves_under, case.gh.edit_pinned_state)):
                 return _LANDS(commit, staged, write)
         self._settles()
@@ -229,6 +231,26 @@ class GateHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self._assert_held()
         self.recovers()
         self.assert_routed(head, current=around.successor)
+
+    def test_a_successor_moved_back_is_invalidated(self) -> None:
+        # Another road settles report 3 and a newer run bound to it ahead of
+        # the hold's record -- which lands it, loses its answer, or is refused
+        # -- then puts report 2 back right behind it: the newer run is the
+        # evidence the proof behind the record takes, on its own binding, and
+        # is invalidated whole over report 2 rather than routed as current.
+        for failing in ("", "lost", "refused"):
+            with self.subTest(record=failing or "landed"):
+                self.setUp()
+                head = self.settles_then_dies()[0]
+                around = _AroundTheHold(self, head, failing, restores=True, successor=True)
+                with _gate_holds(), patch.object(_commits.ReportCommit, "lands", side_effect=around, autospec=True):
+                    self.recovers()
+
+                records = readings.pinned_records(self)
+                retired = records[2][-1]
+                self.assertIsNone(records[1])
+                self.assertEqual(retired, (around.successor.receipt, readings.INVALIDATED))
+                self._assert_held()
 
     def test_a_newer_run_survives_the_hold(self) -> None:
         # Another road records a newer transaction for the head while the gate

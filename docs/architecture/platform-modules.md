@@ -889,8 +889,9 @@ orchestrator/
                         let the rebase start on, and carries the retry the workflow staged read from it
                         (`workflow/engine/rewrite_replies.py`)
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
-                        that ends an auto-rebase attempt, the recorded base tip and the record of the `base_rebased`
-                        event a finish files (`pending_auto_base_rebase_announced_event`) among its members. The
+                        that ends an auto-rebase attempt, the recorded base tip, the record of the `base_rebased`
+                        event a finish files (`pending_auto_base_rebase_announced_event`), and the record of the
+                        relabel it makes (`pending_auto_base_rebase_relabelled`) among its members. The
                         workflow's publication records its replay here, with the base tip frozen before git ran
                         beside it (`pending_auto_base_rebase_rewrite_base`); the
                         workflow's finish of every landing puts the mark down through its own guarded checkpoint,

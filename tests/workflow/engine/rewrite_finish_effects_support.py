@@ -60,10 +60,10 @@ class DurableAtTheRelabel:
         self.seen: list[dict] = []
         world.github.set_workflow_label = self
 
-    def __call__(self, issue, label, **correlation) -> None:
+    def __call__(self, issue, label) -> None:
         """Read the durable record, then apply the label."""
         self.seen.append(self._github.pinned_data(issue.number))
-        self._relabel(issue, label, **correlation)
+        self._relabel(issue, label)
 
 
 def leaves(world: FinishWorld, room: int) -> None:

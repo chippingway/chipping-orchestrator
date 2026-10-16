@@ -52,16 +52,14 @@ _FOUND_TO_REVIEW = f"{_FOUND}{_TO_REVIEW} so the reviewer re-runs against the re
 
 _ROUTED = (support.LABEL_VALIDATING,)
 
-# The stage-entry event a route's relabel files, naming the head it relabels for.
-_STAGE_ENTER = "stage_enter"
-_VALIDATING = "validating"
-
-# The label an announced issue wears, the head a stage-entry event filed for
-# its relabel names (None for none filed), and the relabels its route makes.
+# The label an announced issue wears, the head the record of its relabel names
+# (None for none recorded), the relabels its route makes, and the pinned writes
+# the finish makes -- the relabel's record and the retirement, or the
+# retirement alone.
 _ANNOUNCED_LABELS = (
-    (support.LABEL_FIXING, None, _ROUTED),
-    (support.LABEL_VALIDATING, support.LANDED, ()),
-    (support.LABEL_VALIDATING, None, _ROUTED),
+    (support.LABEL_FIXING, None, _ROUTED, 2),
+    (support.LABEL_VALIDATING, support.LANDED, (), 1),
+    (support.LABEL_VALIDATING, None, _ROUTED, 2),
 )
 
 # The method a landing this tick sent nothing for is filed under, and the one a
@@ -204,9 +202,9 @@ class PublishedFinishTest(unittest.TestCase):
             ),
             (_RETIRED, 0, support.owed(), 1),
         )
-        # The record of the event, the announcement, and the retirement, and
-        # no other write.
-        self.assertEqual(world.github.write_state_calls, 3)
+        # The record of the event, the announcement, the record of the
+        # relabel, and the retirement, and no other write.
+        self.assertEqual(world.github.write_state_calls, 4)
 
 
     def test_a_publication_found_standing_says_so(self) -> None:
@@ -269,18 +267,17 @@ class AnnouncedFinishTest(unittest.TestCase):
     """A finish whose mark already names the landed head says nothing again and owes only its route."""
 
     def test_an_announced_finish_says_nothing_again(self) -> None:
-        # A validating label this head's relabel already wrote -- its
-        # stage-entry event naming the head on the stream -- is not written
-        # again; one the issue wore before the rebase is, as an uninterrupted
-        # route's would be.
-        for label, filed, relabelled in _ANNOUNCED_LABELS:
-            with self.subTest(label=label, filed=filed):
+        # A validating label this head's relabel already wrote -- its record
+        # on the attempt naming the head -- is not written again; one the
+        # issue wore before the rebase is, as an uninterrupted route's would
+        # be, its record landed right behind it.
+        for label, recorded, relabelled, writes in _ANNOUNCED_LABELS:
+            with self.subTest(label=label, recorded=recorded):
                 world = support.FinishWorld.seeded(label=label, **{
                     support.KEY_ANNOUNCED: support.LANDED,
                     support.KEY_REWRITE_DEBT: support.owed(),
+                    support.KEY_RELABELLED: recorded,
                 })
-                if filed:
-                    world.github.emit_event(_STAGE_ENTER, issue_number=support.ISSUE, stage=_VALIDATING, sha=filed)
 
                 self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
 
@@ -288,7 +285,7 @@ class AnnouncedFinishTest(unittest.TestCase):
                     (world.said(), world.relabels(), support.attempt(world.pinned())),
                     (([], []), relabelled, _RETIRED),
                 )
-                self.assertEqual(world.github.write_state_calls, 1)
+                self.assertEqual(world.github.write_state_calls, writes)
 
     def test_an_earlier_marks_debt_precedes_its_route(self) -> None:
         # A mark an earlier build wrote with no debt beside it: the claim is

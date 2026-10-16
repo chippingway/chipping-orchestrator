@@ -168,14 +168,13 @@ class GitHubClient(
             lazy_repository=True,
         )
 
-    def _emit_stage_enter(self, issue: Issue, stage: str, **correlation: object) -> None:
-        """Record matching audit and analytics stage-enter events, `correlation` on the audit event alone."""
+    def _emit_stage_enter(self, issue: Issue, stage: str) -> None:
+        """Record matching audit and analytics stage-enter events."""
         issue_number = getattr(issue, "number", 0) or 0
         self.emit_event(
             "stage_enter",
             issue_number=issue_number,
             stage=stage,
-            **correlation,
         )
         _recording_events.record_stage_enter(
             repo=self._repo_slug,

@@ -27,6 +27,7 @@ KEY_REWRITE_BASE = "pending_auto_base_rebase_rewrite_base"
 KEY_ANNOUNCED = "pending_auto_base_rebase_announced_sha"
 KEY_EVIDENCE_RECEIPT = "pending_auto_base_rebase_evidence_receipt"
 KEY_ANNOUNCED_EVENT = "pending_auto_base_rebase_announced_event"
+KEY_RELABELLED = "pending_auto_base_rebase_relabelled"
 KEY_REVIEW_ROUND = "review_round"
 KEY_REVISION_FLOOR = "verification_evidence_revision"
 KEY_FAILED_VERIFICATION = "auto_base_rebase_failed_verification"
@@ -41,6 +42,7 @@ ATTEMPT_KEYS = (
     KEY_ANNOUNCED,
     KEY_EVIDENCE_RECEIPT,
     KEY_ANNOUNCED_EVENT,
+    KEY_RELABELLED,
 )
 
 # The attempt as a finish leaves it: every member blanked rather than removed.

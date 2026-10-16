@@ -94,10 +94,11 @@ refuses stops the finish there with nothing behind it made:
   it settled. The retirement is decided on every record the evidence is
   bound through, so a report or review another road moved after the evidence
   was decided or settled refuses the route rather than riding it. The
-  relabel names the landed head on its stage-entry event, and an issue whose
-  relabel for that head the event stream already carries is not relabelled
-  again -- one already on `workflow:validating` before its rebase, with no
-  such event, is, as an uninterrupted route would relabel it.
+  relabel lands with a record of its own on the attempt
+  (`pending_auto_base_rebase_relabelled`, `rewrite_finish_announced`), and an
+  issue on `workflow:validating` beside that record is not relabelled again --
+  one already on `workflow:validating` before its rebase, with no record, is,
+  as an uninterrupted route would relabel it.
 
 A tick lost anywhere in that tail -- behind the evidence it settled, retired,
 or left to the fresh reviewer and before the announcement, between the
@@ -106,11 +107,12 @@ relabel, or behind the relabel and before the retirement -- leaves the
 attempt standing, so the anchor holds every handler until a later finish
 discharges what it still owes. That finish takes the evidence up where the
 records leave it and reads the rest off the mark, the pull request, the event
-stream, and the label: a head the mark already names gets no second notice,
-`base_rebased` event, or round reset, a notice found on the pull request or
-an event found on the stream with no mark beside them is not said again, and
-an issue whose relabel for the head the stream carries gets no second relabel
-or stage-entry event.
+stream, the relabel's record, and the label: a head the mark already names
+gets no second notice, `base_rebased` event, or round reset, a notice found
+on the pull request or an event found on the stream with no mark beside them
+is not said again, and an issue whose relabel for the head is recorded beside
+its label gets no second relabel or stage-entry event, with no event log
+needed.
 
 Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
@@ -155,7 +157,7 @@ wherever anything it is bound to moved since it settled
 
 A finish announces nothing for a head another finish of the landing marked
 meanwhile, relabels nothing another one relabelled for
-that head, holds where the label or the event stream would not read again or another attempt
+that head, holds where the label would not read again or another attempt
 stands behind the proof ahead of its relabel, reuses a debt park standing
 that no reply handed in answers, parks over a notice said behind a reply it
 is handed again, leaves a transaction another road recorded behind its
@@ -311,9 +313,10 @@ def _checkpoints(finish: LandedFinish, observed: ProofReading, *, announced: boo
     Asked once the landed head's evidence is resolved (`_resolves`), so a
     notice, an event, and a round reset are never made for a head whose
     evidence is still owed to its pull request. Measured on the announcement
-    the debt rides, or -- where the mark already
-    names this head -- on the comment as it stands, and landed there only
-    where it is a claim the comment does not carry yet. An announcement is
+    the debt rides, or -- where the mark already names this head -- on the
+    comment as it stands, either beside the record of the relabel the route
+    makes behind it (`rewrite_finish_debt.announcement`), and landed there
+    only where it is a claim the comment does not carry yet. An announcement is
     prepared over the fresh comment before its notice is posted, the entry
     the notice adds to the ledger reserved over the one that comment carries
     rather than over the tick's: an id the tick's ledger lacks may be one
@@ -332,7 +335,7 @@ def _checkpoints(finish: LandedFinish, observed: ProofReading, *, announced: boo
     read is collected on `observed` (`rewrite_finish_writes.lands`).
     """
     staged = _writes.staging(finish)
-    measured = _writes.staging(finish) if announced else _debt.announcement(staged, finish.head)
+    measured = _debt.announcement(staged, finish.head, announced=announced)
     if not _debt.stages(finish, staged, measured):
         return _writes.parks(finish, observed)
     if announced:
@@ -438,7 +441,7 @@ def _routes(finish: LandedFinish, headed: FinishOutcome) -> FinishOutcome:
     if stopped is not None:
         return _stops.behind_the_write(finish, stopped, observed)
     routed = headed is FinishOutcome.ROUTED
-    stopped = _stops.relabels(finish) if routed else None
+    stopped = _stops.relabels(finish, observed) if routed else None
     stopped = stopped or _settled.stands_ready_if_settled(finish, or_the_base=routed)
     if stopped is not None:
         return stopped

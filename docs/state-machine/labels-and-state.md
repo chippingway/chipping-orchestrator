@@ -577,9 +577,10 @@ no claim.
 
 The room the debt needs is measured on the whole write it rides -- the announcement, which also puts down the notice's
 ledger entry (reserved at the widest id a comment is recorded at), the record of the `base_rebased` event
-(`pending_auto_base_rebase_announced_event`), the `review_round` both finishes reset ahead of the mark, and the
-mark -- rather than on the debt alone, and on the comment as it stands as well, since resetting a wide
-round can make the announcement the narrower of the two; the writes past it only clear. A proved debt that does not fit
+(`pending_auto_base_rebase_announced_event`), the `review_round` both finishes reset ahead of the mark, the
+mark, and the record of the relabel the route makes behind it (`pending_auto_base_rebase_relabelled`) -- rather than
+on the debt alone, and on the comment as it stands as well, since resetting a wide round can make the announcement
+the narrower of the two; the retirement past them only clears. A proved debt that does not fit
 stops the finish before it announces anything: no notice, no `base_rebased`, no relabel, and no clear. It parks
 `auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay standing, and the anchor holding every
 stage handler back; the park asks for room to be made on the pinned comment and a reply, and the reply brings the
@@ -3275,6 +3276,17 @@ The keys that matter for the state machine fall into a few groups:
   another road left pending, and the replay the attempt's record names counts as landed for the rollback park. Additive:
   an attempt whose finish recorded no transaction carries none, and one from before this member existed recorded its
   evidence only behind its mark, so with none on it a transaction about the head the mark names is that finish's.
+  `pending_auto_base_rebase_relabelled` — the head whose relabel to `workflow:validating` a finish of the attempt
+  made, landed in a guarded write of its own (`workflow/engine/rewrite_finish_writes.RELABEL`) around that relabel:
+  ahead of it where the issue wears another label, so the label read back says whether the relabel landed, and
+  right behind it where the issue already wore `workflow:validating`, which a relabel onto it leaves as it was. A
+  finish reads the relabel made only where this member names the head and the issue wears `workflow:validating`
+  (`workflow/engine/rewrite_finish_announced.relabelled`), so a finish lost before the retirement -- or another
+  finish of the landing -- makes neither the relabel nor its stage-entry event twice, with no event log needed; a
+  finish lost between a relabel onto `workflow:validating` and the record right behind it makes both once more,
+  the one window the member cannot close. Blanked with the rest of the attempt by every write that ends it.
+  Additive: an attempt from before this member existed carries none, and is relabelled once more where a finish
+  of it was lost behind its relabel.
   `pending_auto_base_rebase_announced_event` — the head whose `base_rebased` event a finish of the attempt is
   filing, written in a guarded write of its own right ahead of the event and of the mark
   (`workflow/engine/rewrite_finish_writes.ANNOUNCED_EVENT`), carried by the checkpoint as well, and blanked with the

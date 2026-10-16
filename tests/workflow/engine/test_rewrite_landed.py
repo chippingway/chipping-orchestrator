@@ -11,12 +11,15 @@ what the next tick does.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.git.base_sync import landed_recovery as _landed_recovery
 from tests.git.base_sync import refresh_test_support as base
 from tests.git.base_sync.candidate_reads_support import _checkout_carries
 from tests.git.base_sync.report_debt_test_support import owed
 from tests.workflow.engine import (
+    rewrite_handoff_test_support as handoff,
     rewrite_landed_test_support as landed,
     rewrite_publication_moves as moves,
     rewrite_publication_test_support as world,
@@ -137,6 +140,28 @@ class InterruptedFinishTest(landed.LandedCase):
                 self._ticks()
 
                 self._assert_finished(said)
+
+    def test_a_restart_relabels_nothing_again(self) -> None:
+        # With no event log configured, a process lost behind its relabel
+        # comes back with an empty event tail: the relabel's record on the
+        # attempt, beside the label, says the relabel was made, so the ticks
+        # behind the restart route with no second relabel or stage-entry event.
+        after_the_relabel = landed.WINDOWS[2]
+        loses, said = after_the_relabel[1], after_the_relabel[3]
+        with patch.object(config, "EVENT_LOG_PATH", None):
+            self._fresh()
+            with loses(self), self.assertRaises(RuntimeError):
+                self._ticks()
+            filed = list(self.gh.recorded_events)
+            self.gh.recorded_events.clear()
+            self._ticks()
+            self._ticks()
+        restarted = list(self.gh.recorded_events)
+        self.gh.recorded_events.clear()
+        self.gh.recorded_events.extend(filed + restarted)
+
+        self._assert_finished(said)
+        self.assertEqual(handoff.stage_entries(self.gh, retry.ISSUE), ["validating"])
 
     def test_an_announced_park_spends_its_reply(self) -> None:
         # An earlier finish announced the replay and its debt and was parked

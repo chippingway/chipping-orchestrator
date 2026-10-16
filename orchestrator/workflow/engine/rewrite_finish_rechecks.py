@@ -155,10 +155,15 @@ def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit) ->
     """Whether the comment read afresh still carries the attempt `attempt` captured, its base tip aside where blank.
 
     False, logged, where another attempt stands there or the comment would
-    not read, so nothing is made over an attempt not the finish's own.
+    not read, so nothing is made over an attempt not the finish's own. Where
+    it stands, the bookkeeping a finish of this landing put on it meanwhile --
+    the record of its relabel among it -- is taken in
+    (`rewrite_finish_announced.takes_in_the_announcement`), so a relabel
+    another finish made is read made rather than made twice.
     """
     durable = read_afresh(finish)
     if durable is not None and stands_as_read(finish, attempt, durable, blank_aside=True):
+        takes_in_the_announcement(finish, durable)
         return True
     log.warning(
         "issue=#%d holding the route of %.8s: the pinned comment would not read again, or another attempt "

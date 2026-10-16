@@ -1179,8 +1179,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the attempt back, so every landing shares one post-push policy and one evidence decision.
                             Every one of those roads holds that order to the settled-evidence policy, whose steps
                             around the stops, the relabel, and the writes are answered by `rewrite_finish_stops.py`,
-                            `rewrite_finish_announced.py`, and `rewrite_finish_writes.py`; the relabel names the
-                            landed head on its stage-entry event, which is what says it was made
+                            `rewrite_finish_announced.py`, and `rewrite_finish_writes.py`; the relabel lands with a
+                            record of its own on the attempt, which is what says it was made
     rewrite_finish_models.py
                             the finish's input -- the typed landing, the issue, its pinned state and label, the road
                             (`FinishRoad`), the lag the publication's notice reports, and the human reply a recovery
@@ -1194,7 +1194,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             would not read, a post that raised and is not found -- or unfinishable
     rewrite_finish_debt.py  the debt a landed rewrite leaves, staged only where both the announcement write it rides
                             -- the notice's ledger entry reserved at the widest id, the record of the event, the
-                            reset round, and the mark --
+                            reset round, the mark, and the record of the relabel the route makes behind it --
                             and the comment as it stands have room for it, a refusal for anything but room leaving a
                             standing claim as it is -- measured ahead of the evidence too (`fits`), so a debt with no
                             room parks before anything runs; the park notice of a debt with no room; and whether that
@@ -1382,9 +1382,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             mark and event record taken in ahead of every invalidation (`takes_in_the_announcement`),
                             the mark read
                             again before the coordinator announces (`marked`), and the label read afresh under it
-                            before the coordinator relabels, and where it reads `workflow:validating` the event stream
-                            asked for the stage-entry event naming the head, None where either would not read
-                            (`relabelled`)
+                            before the coordinator relabels, made where it reads `workflow:validating` beside the
+                            relabel's own record naming the head, None where it would not read (`relabelled`); and
+                            the relabel landed with that record around it -- ahead of it where the issue wears another
+                            label, right behind it where the issue already wore `workflow:validating` -- through
+                            `rewrite_finish_writes.RELABEL` (`relabels_once`)
     rewrite_finish_marks.py
                             settled evidence invalidated over the attempt as reconciled -- read afresh and retried
                             once where a write was refused (`retires_over_the_attempt`) -- or, where another finish's
@@ -1528,8 +1530,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             fields (`lands`, `publication` False), so a repointed pull request is kept rather than
                             refusing it -- the fallback of `rewrite_finish_readiness.invalidates`; the record of the
                             `base_rebased` event a finish files (`ANNOUNCED_EVENT`), owning that member alone and
-                            decided on the attempt; and the records settled evidence's binding rests on beyond the
-                            evidence records themselves
+                            decided on the attempt and every bound record; the record of the relabel the route makes
+                            (`RELABEL`), decided the same way; and the records settled evidence's binding rests on
+                            beyond the evidence records themselves
                             (`BINDING_RECORDS`) with the movement a refusal naming one of them reads
                             (`BINDING_MOVED`), which `rewrite_finish_readiness.invalidates_behind` invalidates over.
                             Only those records make a refusal of a finish's own writes movement by the fields it
@@ -2194,7 +2197,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`rewrite_finish_readiness.settled_word`) and invalidated where it moved, movement a
                             caller already read standing as the proof; a checkout gone from disk retires both as
                             over a reset. The receipts of what stands (`receipts`) tell whether movement read before
-                            a write took another road's records in was read under the evidence still standing
+                            a write took another road's records in was read under the evidence still standing; a
+                            record that did not land has the evidence records the comment carries now laid over the
+                            tick's state (`reconciles`), so a successor another road settled meanwhile is the
+                            evidence proved behind it, on its own binding; and the movement a comment a record's
+                            commit read carries under each evidence it records is read off that comment by receipt
+                            (`moved_under`)
     rewrite_recovery_parks.py
                             the answers every recovery context the workflow builds carries -- each recovery road's,
                             a reset's tail and both replay parks among them, the abort over an unreadable checkout,
@@ -2214,7 +2222,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             what the park keeps is proved once more (`rewrite_landing_retirement.retires_unproved`),
                             a binding record its own commit carried spelled otherwise than the tick read it, landed,
                             sent with its answer lost, or in the comment its strict edit was refused over, handed to
-                            that proof as movement already read (`_adopted`)
+                            that proof as movement already read (`_moved`)
                             however soon it is put back -- unless the record took in evidence under another
                             receipt, which is proved on its own readings. The landed road's hold behind a
                             publication gate that held its leased no-op lands the same way, as `HOLD`, decided on the

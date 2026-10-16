@@ -12,12 +12,13 @@ head it replaced.
 The room that debt needs is measured on the WHOLE write that carries it
 (`announcement`): the announcement also puts down the notice's ledger entry,
 reserved at the widest id a comment is recorded at, the reset round, and the
-mark, and a claim that fits without them can still carry that write past what
-GitHub accepts. It is measured on the comment as it stands as well, since a
-round wider than everything the announcement adds makes that write the
-narrower of the two, and a debt the comment cannot take now is one the route
-would otherwise go on without. A finish whose announcement is already out
-measures on the comment as it stands alone. A proved debt short of either
+mark, and the route behind it the record of its relabel, and a claim that
+fits without them can still carry those writes past what GitHub accepts. It
+is measured on the comment as it stands as well, since a round wider than
+everything the announcement adds makes that write the narrower of the two,
+and a debt the comment cannot take now is one the route would otherwise go on
+without. A finish whose announcement is already out measures on the comment
+as it stands with the relabel's record alone. A proved debt short of either
 room stops the finish before it says anything: the caller parks for a human
 to make room (`unrecorded`), with the push kept and the attempt standing. The
 finish asks first whether that park already stands -- unless a reply it was handed answers it -- or its
@@ -78,21 +79,26 @@ _UNRECORDED = (
 )
 
 
-def announcement(state: PinnedState, head: str) -> PinnedState:
-    """The write that announces `head`, as `state` would make it, taken before anything is announced.
+def announcement(state: PinnedState, head: str, *, announced: bool = False) -> PinnedState:
+    """The writes that announce and route `head`, as `state` would make them, taken before anything is announced.
 
-    Everything that write puts on the comment: the ledger entry of the notice
-    it follows, reserved at the widest id a comment is recorded at, the record
-    of its event -- which the write ahead of the event lands on its own too --
-    the round reset ahead of the mark, and the mark. The writes past it only
-    clear, so none of them carries more.
+    Everything those writes put on the comment: the ledger entry of the
+    notice the announcement follows, reserved at the widest id a comment is
+    recorded at, the record of its event -- which the write ahead of the event
+    lands on its own too -- the round reset ahead of the mark, and the mark;
+    and the record of the relabel the route makes behind them
+    (`rewrite_finish_announced.relabels_once`). With the mark `announced`
+    already, the relabel's record alone. The retirement past them only
+    clears, so none of them carries more.
     """
-    announced = PinnedState(state_data=copy.deepcopy(state.data))
-    _comments._reserve_comment_slot(announced, _record_values.MAX_RECORDED_NUMBER)
-    announced.set(_base_sync_state._PENDING_ANNOUNCED_EVENT, head)
-    announced.set(_base_sync_state._REVIEW_ROUND, 0)
-    announced.set(_base_sync_state._PENDING_ANNOUNCED_SHA, head)
-    return announced
+    written = PinnedState(state_data=copy.deepcopy(state.data))
+    if not announced:
+        _comments._reserve_comment_slot(written, _record_values.MAX_RECORDED_NUMBER)
+        written.set(_base_sync_state._PENDING_ANNOUNCED_EVENT, head)
+        written.set(_base_sync_state._REVIEW_ROUND, 0)
+        written.set(_base_sync_state._PENDING_ANNOUNCED_SHA, head)
+    written.set(_base_sync_state._PENDING_RELABELLED, head)
+    return written
 
 
 def fits(finish: LandedFinish, *, announced: bool) -> bool:
@@ -104,10 +110,7 @@ def fits(finish: LandedFinish, *, announced: bool) -> bool:
     that leaves it.
     """
     staged = PinnedState(state_data=copy.deepcopy(finish.state.data))
-    measured = PinnedState(state_data=copy.deepcopy(finish.state.data))
-    if not announced:
-        measured = announcement(staged, finish.head)
-    return stages(finish, staged, measured)
+    return stages(finish, staged, announcement(staged, finish.head, announced=announced))
 
 
 def stages(finish: LandedFinish, staged: PinnedState, measured: PinnedState) -> bool:

@@ -49,7 +49,12 @@ refresh does not drive (`base_rewrite`), and the dispatcher's held anchor
 
 The receipts of what stands (`receipts`) say whether movement a caller read
 before a write took another road's records in was read under the evidence
-still standing behind that write.
+still standing behind that write; a record that did not land has the evidence
+the comment carries now laid over the tick's state (`reconciles`), so what
+the proof behind it proves is that, a successor another road settled
+meanwhile among it; and the movement a comment such a record read carries
+under each evidence it records for the head is read off that very comment
+(`moved_under`), however soon it is put back.
 
 Nothing here posts, parks, resets, or routes anything.
 """
@@ -64,15 +69,19 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoverySnapshot,
 )
 from orchestrator.git.worktrees import naming as _naming
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_commits as _commits,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_writes as _writes,
     rewrite_landing_moved as _landing_moved,
     rewrite_landing_records as _landing_records,
+    verification_durable as _durable,
+    verification_proof as _proof,
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
+from orchestrator.workflow.engine.rewrite_finish_rechecks import lays
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -136,6 +145,40 @@ def receipts(state) -> frozenset[str]:
     """
     recorded = (_landing_records.captured(state), _landing_records.settled(state))
     return frozenset(record.receipt for record in recorded if record is not None)
+
+
+def reconciles(context: _AutoRebaseRecoveryContext) -> None:
+    """Lay the evidence records the comment read afresh carries over `context.state`, each taken in as read.
+
+    For a caller whose record did not land -- refused, or sent and never
+    confirmed -- whose state still holds the evidence as the tick read it: a
+    successor another road recorded or settled meanwhile is the evidence the
+    proof behind that record has to take, on its own binding. Nothing is laid
+    where the comment would not read.
+    """
+    durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
+    if durable is not None:
+        lays(context.state, durable, _writes._EVIDENCE_RECORDS)
+
+
+def moved_under(comment: PinnedState | None) -> dict[str, ReportEvidence]:
+    """The movement `comment` records under each evidence it carries for the landed head, by that evidence's receipt.
+
+    `comment` is one a record's commit read -- the record it landed or sent,
+    or the comment a refusal was read over -- and the movement is a review or
+    report record it spells off that evidence's own binding
+    (`verification_proof.recorded_verdict`), asked of that very reading, so it
+    stands however soon the record is put back. Empty where `comment` is None
+    or carries no evidence for the head that moved.
+    """
+    if comment is None:
+        return {}
+    moved = {}
+    for record in (_landing_records.captured(comment), _landing_records.settled(comment)):
+        refused = None if record is None else _proof.recorded_verdict(comment, record.binding)
+        if refused is not None and not refused.holds:
+            moved[record.receipt] = refused
+    return moved
 
 
 def _invalidates_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryContext, why: str) -> bool:

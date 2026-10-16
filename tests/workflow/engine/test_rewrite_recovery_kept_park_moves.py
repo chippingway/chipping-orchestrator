@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import subprocess
 import unittest
+from dataclasses import replace
 from functools import partial
 from types import MappingProxyType
 from unittest.mock import patch
@@ -43,6 +44,7 @@ from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
+    settled_finish_support as settled,
     verification_report_fixture as _report,
 )
 from tests.workflow.interleaving import _RacesPastTheCall
@@ -88,20 +90,27 @@ def _answering(answer: PinnedEdit, live, issue, state, **options):
     return answer
 
 
-def _settles_a_later_report(case, head: str, replaced: list, *, respelled: bool = False) -> None:
+def _settles_a_later_report(case, head: str, replaced: list, *, respelled: bool = False, successor: bool = False):
     """Settle report 3 of `head` and hand a reviewer it, as another road would; what it moved, into `replaced`.
 
     `respelled` writes report 2 back with its revision spelled as a float instead, which reads as the same number.
+    `successor` settles a newer run bound to report 3 over the run beside it, as another road would, and answers it.
     """
     case.state = case.gh.read_pinned_state(case.issue)
     replaced.append({key: case.state.get(key) for key in _MOVED_RECORDS})
+    subject = None
     if respelled:
         current = dict(case.state.get(_MOVED_RECORDS[0]))
         current["revision"] = float(current["revision"])
         case.state.set(_MOVED_RECORDS[0], current)
     else:
-        _report.settles_report(case, 3, "Implemented the change and covered a base that moved twice.", head=head)
+        subject = _report.settles_report(case, 3, "Implemented the change and covered a base moved twice.", head=head)
     case.gh.write_pinned_state(case.issue, case.state)
+    if not successor:
+        return None
+    earlier = readings.pinned_records(case)[1].binding
+    bound = replace(earlier, target=replace(earlier.target, subject=subject.recorded()))
+    return settled.records_a_newer_run(case, settles=True, binding=bound)
 
 
 def _raises_behind(case, head: str, replaced: list, *_posted, **_options):
@@ -119,20 +128,32 @@ def _puts_back(case, replaced: list) -> None:
 
 
 class _MovesUnderThePark:
-    """The client's strict edit, report 3 of `head` settled under the park's record and put back right behind it."""
+    """The client's strict edit, report 3 of `head` settled at the park's record and put back right behind it.
 
-    def __init__(self, case, head: str) -> None:
+    Settled under the edit, which is refused over it, or -- `lost` -- right
+    behind an edit that landed, whose answer is then lost; `successor` settles
+    a newer run bound to report 3 beside it, kept as `successor`.
+    """
+
+    def __init__(self, case, head: str, *, successor: bool = False, lost: bool = False) -> None:
         self._case = case
         self._head = head
         self._live = case.gh.edit_pinned_state
         self._replaced: list = []
+        self._settles = partial(_settles_a_later_report, case, head, self._replaced, successor=successor)
+        self._lost = lost
+        self.successor = None
 
     def __call__(self, issue, state, **options):
         """Answer the edit, the park's record the first time with report 3 settled and put back around it."""
         if self._replaced or not guarded.parking(issue, state, **options):
             return self._live(issue, state, **options)
-        _settles_a_later_report(self._case, self._head, self._replaced)
+        if not self._lost:
+            self.successor = self._settles()
         answered = self._live(issue, state, **options)
+        if self._lost:
+            self.successor = self._settles()
+            answered = PinnedEdit.UNCONFIRMED
         _puts_back(self._case, self._replaced)
         return answered
 
@@ -192,6 +213,27 @@ class KeptParkProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_invalidated(settled)
         self.recovers()
         self.assert_routed(head)
+
+    def test_a_successor_by_an_unlanded_park(self) -> None:
+        # The dispatcher's hold strands the attempt, and another road settles
+        # report 3 and a newer run bound to it at the park's record -- under
+        # its strict edit, which is refused, or right behind an edit whose
+        # answer is lost -- then puts report 2 back: the newer run is the
+        # evidence the proof behind the record takes, on its own binding, and
+        # is invalidated whole over report 2 rather than left current.
+        for lost in (False, True):
+            with self.subTest(lost=lost):
+                self.setUp()
+                head = self.settles_then_dies()[0]
+                self.issue.labels = [FakeLabel(_UNDRIVEN)]
+                moves = _MovesUnderThePark(self, head, successor=True, lost=lost)
+                with patch.object(self.gh, "edit_pinned_state", moves):
+                    guarded.answers_a_held_anchor(self)
+
+                records = readings.pinned_records(self)
+                retired = records[2][-1]
+                self.assertIsNone(records[1])
+                self.assertEqual(retired, (moves.successor.receipt, readings.INVALIDATED))
 
     def _parks_under_a_later_report(self, head: str, *, restoring=False, lost=False, respelled=False) -> None:
         """Recover over a refused fetch and reset with report 3 of `head` settled behind the park's notice.

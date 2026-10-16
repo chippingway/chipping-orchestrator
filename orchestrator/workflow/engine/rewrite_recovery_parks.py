@@ -73,8 +73,12 @@ behind the notice (`lands_a_park`) -- landed, refused, or raised -- and a
 report moved meanwhile is movement read under it, invalidated or recorded
 against it before the tick ends; one the park's own commit carried, landed or
 sent with its answer lost -- or one its strict edit found moved under it and
-was refused over -- is handed to that proof as read (`_adopted`), so putting
-the earlier report back before the reply revives nothing. A checkout
+was refused over -- is handed to that proof as read (`_moved`), so putting
+the earlier report back before the reply revives nothing. Behind a record
+refused or sent with its answer lost, the evidence the comment carries now is
+laid over the tick's state first (`rewrite_landing_retirement.reconciles`),
+so a successor another road settled while the notice was posted is proved on
+its own binding rather than left unread behind the tick's older reading. A checkout
 gone from disk has nothing to prove the landing over, so its evidence is
 retired on the state the park writes -- and the reset recorded against it
 first, in a write of its own, so a park write that fails or never lands
@@ -118,7 +122,7 @@ _MOVED_UNDER_THE_NOTICE = ReportEvidence(
 # a publication gate's own record of the no-op it held -- decided on the
 # attempt it keeps, so every evidence record stays as the comment carries it.
 # Its strict edit keeps the comment a refusal read (`reads_a_move`), which the
-# proof behind it reads for movement (`_adopted`).
+# proof behind it reads for movement (`_moved`).
 HOLD = _commits.ReportWrite(
     owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS),
 ).reading_moves(True)
@@ -262,10 +266,14 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
 
     Whether the record landed or not, the proof behind it -- taken only over a
     checkout on disk -- is handed the move the record carried or its strict
-    edit was refused over (`_adopted`), while the evidence the tick held still
-    stands behind it (`rewrite_landing_retirement.receipts`): a successor the
-    record took in is proved on its own readings. `named` is the record,
-    logged where it did not land.
+    edit was refused over (`_moved`), under whichever evidence still stands
+    behind it (`rewrite_landing_retirement.receipts`). A record that did not
+    land has the evidence the comment carries now laid over the tick's state
+    first (`rewrite_landing_retirement.reconciles`), so a successor another
+    road recorded or settled meanwhile -- one the record took in, or one its
+    refusal or lost answer left out of the tick's state -- is proved on its
+    own binding, and invalidated over movement read under it however soon that
+    is put back. `named` is the record, logged where it did not land.
     """
     state = context.state
     read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}
@@ -277,26 +285,38 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
             "and the next tick's recovery answers the comment as it then stands",
             context.issue.number, named, (landed.refusal or landed.status).value,
         )
-    moved = _adopted(landed.reading or landed.seen, read)
-    if _retirement.receipts(context.state) != held:
-        moved = None
+        _retirement.reconciles(context)
+    moved = _moved(context, landed.reading or landed.seen, read, held)
     if context.worktree.is_dir():
         _retirement.retires_unproved(context, moved)
 
 
-def _adopted(reading: PinnedState | None, read: dict) -> ReportEvidence | None:
-    """The movement a park's record carried: `reading` spelling a binding record otherwise than `read` did, or None.
+def _moved(
+    context: _AutoRebaseRecoveryContext, reading: PinnedState | None, read: dict, held: frozenset[str],
+) -> ReportEvidence | None:
+    """The movement a record's commit read under the evidence `context.state` carries behind it; or None.
 
-    `reading` is the record the park's commit made of the comment -- landed,
-    or sent with no answer -- or, where it was refused, the comment its
-    refusal was read over: the one its strict edit found moved under it, a
-    report another road settled right at that edit among what it carries
-    (`pinned_commit_models.CommitOutcome.seen`). None where the refusal read
-    no comment. The movement is answered as read even where the record that
-    carried it is put back before the proof behind the park reads the
-    comment again.
+    `reading` is the record the commit made of the comment -- landed, or sent
+    with no answer -- or, where it was refused, the comment its refusal was
+    read over: the one its strict edit found moved under it, a report another
+    road settled right at that edit among what it carries
+    (`pinned_commit_models.CommitOutcome.seen`); None where the refusal read
+    no comment. `read` is the binding records as the tick read them, and
+    `held` the receipts the tick's state carried before the record. A binding
+    record `reading` spells otherwise than `read` is movement under the
+    evidence the tick held (`_MOVED_UNDER_THE_NOTICE`); a review or report
+    record it spells off the binding of any evidence it records for the head
+    is movement under that evidence (`rewrite_landing_retirement.moved_under`)
+    -- a successor another road settled among it. Only movement under
+    evidence still standing is handed to the proof, as read, even where what
+    carried it is put back before the proof reads the comment again; a
+    successor nothing was read moving under is proved on its own readings.
     """
-    if reading is None:
-        return None
-    carried = {key: _commit_models.spelled(reading.data, key) for key in read}
-    return None if carried == read else _MOVED_UNDER_THE_NOTICE
+    moves = _retirement.moved_under(reading)
+    if reading is not None:
+        carried = {key: _commit_models.spelled(reading.data, key) for key in read}
+        if carried != read:
+            moves = {**dict.fromkeys(held, _MOVED_UNDER_THE_NOTICE), **moves}
+    standing = sorted(_retirement.receipts(context.state))
+    under = [moves[receipt] for receipt in standing if receipt in moves]
+    return under[0] if under else None
