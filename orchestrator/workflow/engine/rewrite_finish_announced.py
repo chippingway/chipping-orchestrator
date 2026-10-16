@@ -168,10 +168,14 @@ def relabels_once(
     that raised has `proves`, the caller's proof of the evidence, asked before
     the error goes on. On an issue that wears another label the label read
     back says whether a relabel whose answer was lost landed, so the record
-    stays; on one already on `workflow:validating` it says nothing, and a
-    relabel that raised filed no stage-entry event, so the record is taken
-    back off for the next finish to relabel -- one that could not be taken
-    back leaves the relabel read as made.
+    stays; on one already on `workflow:validating` it says nothing, so the
+    event stream is asked for the stage-entry event the relabel names the head
+    on -- this process's own tail first, where a relabel that landed and then
+    raised filed it (`github/events.filed`) -- and only where the stream reads
+    and carries none, a relabel that raised before it filed anything, is the
+    record taken back off for the next finish to relabel. One the stream
+    carries, or that could not be read, or a record that could not be taken
+    back, leaves the relabel read as made: once at most, never twice.
     """
     wears = _wears_validating(finish)
     if wears is None:
@@ -183,7 +187,10 @@ def relabels_once(
         finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING, sha=finish.head)
     except Exception:
         proves(finish)
-        if wears:
+        entered = wears and _github_events.filed(
+            finish.gh, _STAGE_ENTER, issue_number=finish.issue.number, stage=_VALIDATING, sha=finish.head,
+        )
+        if entered is False and wears:
             _records_the_relabel(finish, observed, made=False)
         raise
     return None

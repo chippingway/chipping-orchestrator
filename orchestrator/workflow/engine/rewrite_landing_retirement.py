@@ -50,7 +50,8 @@ stands (`receipts`) say whether movement a caller read before a write took
 another road's records in was read under the evidence still standing behind
 that write; a record that did not land has the evidence the comment carries
 now laid over the tick's state (`reconciles`), so what the proof behind it
-proves is that, a successor another road settled meanwhile among it; and the
+proves is that, a successor another road settled meanwhile among it, with the
+movement that very reading records under it kept for that proof; and the
 movement a comment such a record read carries under each evidence it records
 for the head is read off that very comment (`moved_under`), however soon it is
 put back -- a report or review record moved off that evidence's binding, or
@@ -178,18 +179,27 @@ def receipts(state) -> frozenset[str]:
     return frozenset(record.receipt for record in recorded if record is not None)
 
 
-def reconciles(context: _AutoRebaseRecoveryContext) -> None:
-    """Lay the evidence records the comment read afresh carries over `context.state`, each taken in as read.
+def reconciles(context: _AutoRebaseRecoveryContext) -> ReportEvidence | None:
+    """Lay the evidence records the comment read afresh carries over `context.state`; the movement it reads under them.
 
     For a caller whose record did not land -- refused, or sent and never
     confirmed -- or whose notice raised, whose state still holds the evidence
     as the tick read it: a successor another road recorded or settled
     meanwhile is the evidence the proof behind that record has to take, on its
-    own binding. Nothing is laid where the comment would not read.
+    own binding, each record taken in as read. That very reading is asked what
+    it records moving under the evidence it carries for the head
+    (`moved_under`, the attempt as the tick last read it beside it), and the
+    first such movement is the answer, for the caller to hand the proof behind
+    it as movement already read, so a record put back between this reading
+    and that proof revives nothing. None where nothing moved, or where the
+    comment would not read, which lays nothing.
     """
+    attempt = attempt_as_read(context.state)
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
-    if durable is not None:
-        lays(context.state, durable, _durable._EVIDENCE_RECORDS)
+    if durable is None:
+        return None
+    lays(context.state, durable, _durable._EVIDENCE_RECORDS)
+    return next(iter(moved_under(durable, attempt).values()), None)
 
 
 def attempt_as_read(state: PinnedState) -> PinnedCommit | None:

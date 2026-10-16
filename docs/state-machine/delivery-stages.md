@@ -1537,7 +1537,8 @@ because there it is the claim that this stage has already rerouted rather than a
   attempt as read, kept as read under whichever evidence it was read under
   (`rewrite_landing_retirement.moved_under`); behind a notice that raised, or a record refused or sent with its
   answer lost, the evidence the comment carries now laid over the tick's state first, so a successor another road
-  settled meanwhile is proved on its own binding (`rewrite_landing_retirement.reconciles`); and a park made again over
+  settled meanwhile is proved on its own binding, movement that very reading records kept for the proof however soon
+  it is put back (`rewrite_landing_retirement.reconciles`); and a park made again over
   a record that never landed taking in the notice the conversation already carries past the watermark, its
   `park_awaiting_human` event filed only where the stream lacks the one naming that notice
   (`rewrite_recovery_notices.parks_awaiting_human`). So is the hold a publication gate's hold of a recovery's push
@@ -1701,8 +1702,9 @@ because there it is the claim that this stage has already rerouted rather than a
     record names the head beside `workflow:validating` -- on an issue that already wore that label, where the audit log
     is configured, only once the log carries the stage-entry event the relabel names the head on (`sha`), the route
     held while it will not read; with no log it is read made, once at most -- and a relabel onto that label that
-    raises takes its record back off; behind a relabel that raised the evidence the comment then carries is proved, a
-    successor another road settled meanwhile on its own binding; a debt park
+    raises before the stream carries its stage-entry event takes its record back off; behind a relabel that raised
+    the evidence the comment then carries is proved, a successor another road settled meanwhile on its own binding,
+    movement that very reading records invalidating it however soon it is put back; a debt park
     standing is reused unless a reply the watermark has not passed is handed in, and a park whose write never landed
     -- a first one, or one made again over a reply handed in once more -- lands over the notice the conversation
     carries past the watermark or that reply, its event filed only where the event stream lacks the one naming that

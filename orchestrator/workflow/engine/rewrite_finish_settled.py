@@ -133,7 +133,9 @@ def stands_ready_if_settled(
     lays the evidence records the comment read afresh carries over the
     finish's state first, for a caller behind a request that raised, whose
     state may predate a successor another road settled meanwhile: that
-    successor is the evidence proved, on its own binding.
+    successor is the evidence proved, on its own binding -- asked first of
+    that very reading, so movement it records under the evidence is kept
+    however soon it is put back before the proof reads the comment again.
     """
     if not finish.proves_settled:
         return None
@@ -143,7 +145,7 @@ def stands_ready_if_settled(
     current = _settlement.read_current_evidence(finish.state)
     stopped = None
     if current is not None and current.binding.target.target_head == finish.head:
-        stopped = _proves_ready(finish, current)
+        stopped = _proves_ready(finish, current, durable)
     elif or_the_base:
         stopped = _captured.stands_before_the_route(finish, landing=False)
     if stopped is not None or not or_the_base or _attempt_records._recorded_onto(finish.state):
@@ -350,16 +352,28 @@ def reads_moving(
     return next((refused for refused in heard if refused and not refused.holds), None)
 
 
-def _proves_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> FinishOutcome | None:
+def _proves_ready(
+    finish: LandedFinish, current: _records.CurrentEvidence, durable: PinnedState | None = None,
+) -> FinishOutcome | None:
     """`current` proved ready again (`rewrite_finish_readiness.stands_ready`), read afresh behind its invalidation.
 
-    Gone from the tick's state, `current` was invalidated -- over the comment
+    `durable` is a comment the caller read afresh and laid `current` off,
+    where it has one: the records it carries are asked first what they refuse
+    `current` over (`rewrite_finish_readiness._records_heard`), and movement
+    there invalidates `current` outright (`rewrite_finish_readiness.invalidates`),
+    the route going on with nothing current where that lands, so a record
+    another road put back behind that reading revives nothing. Gone from the
+    tick's state, `current` was invalidated -- over the comment
     or the tick's own copy -- so the comment is read afresh behind that write
     (`rewrite_finish_rechecks.rechecks_behind`): a newer transaction recorded,
     or another attempt put in place, right behind it holds the route, laid
     over the tick's state, rather than being routed past.
     """
-    stopped = _readiness.stands_ready(finish, current)
+    heard = () if durable is None else _readiness._records_heard(current, durable, settled=True)
+    if any(refused and not refused.holds for refused in heard):
+        stopped = None if _readiness.invalidates(finish, current) else FinishOutcome.HELD
+    else:
+        stopped = _readiness.stands_ready(finish, current)
     if _settlement.read_current_evidence(finish.state) == current or rechecks_behind(finish, current.receipt):
         return stopped
     return FinishOutcome.HELD

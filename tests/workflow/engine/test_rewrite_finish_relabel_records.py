@@ -38,7 +38,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.workflow.engine import rewrite_finish_rechecks as _rechecks
+from orchestrator.workflow.engine import rewrite_finish_rechecks as _rechecks, rewrite_finish_settled as _settled
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import (
@@ -127,6 +127,36 @@ class _RaisesUnderTheRelabel:
         _writes(case, replaced, keeping=self.settled)
         raise RuntimeError(_UNANSWERED)
 
+    def assert_retired(self, run) -> None:
+        """History ending with `run` superseded by the successor, and the successor invalidated whole."""
+        history = readings.pinned_records(self._case)[2]
+        superseded = (run.receipt, readings.SUPERSEDED)
+        invalidated = (self.successor.receipt, readings.INVALIDATED)
+        self._case.assertEqual(history[-2:], (superseded, invalidated))
+
+
+class _RestoresBehindTheProof:
+    """The proof's fresh reading behind a raised relabel, `raises`' report 3 put back right behind it.
+
+    That reading carries the successor `raises` settled beside report 2, which
+    disproves its binding; report 3 put back behind it would prove it again
+    to any reading taken after.
+    """
+
+    def __init__(self, case, raises: _RaisesUnderTheRelabel) -> None:
+        self._case = case
+        self._raises = raises
+        self._live = _settled.read_afresh
+        self._restored = False
+
+    def __call__(self, finish):
+        """Read the comment afresh, the first time behind the raise with report 3 put back right behind it."""
+        durable = self._live(finish)
+        if self._raises.successor is not None and not self._restored:
+            self._restored = True
+            _writes(self._case, self._raises.settled, keeping={})
+        return durable
+
 
 class _SucceedsUnderTheRecheck:
     """The relabel recheck's reading of the comment, another road's newer run of `head` settled in the run's place.
@@ -153,10 +183,13 @@ class _SucceedsUnderTheRecheck:
 
     def assert_retired(self, run) -> None:
         """History ending with `run` superseded by the successor, and the successor invalidated whole."""
-        history = readings.pinned_records(self._case)[2]
-        superseded = (run.receipt, readings.SUPERSEDED)
-        invalidated = (self._race.successor.receipt, readings.INVALIDATED)
-        self._case.assertEqual(history[-2:], (superseded, invalidated))
+        self._race.assert_retired(run)
+
+
+def _lands_then_raises(live, *labelled, **correlation) -> None:
+    """`live`, the client's relabel, landing -- its stage-entry event filed -- and then raising as an answer lost."""
+    live(*labelled, **correlation)
+    raise RuntimeError(_UNANSWERED)
 
 
 def _writes(case, records: dict, *, keeping: dict) -> None:
@@ -195,21 +228,24 @@ class RelabelReadsTest(route.SettledRouteCase, unittest.TestCase):
         # Another road settles report 3 and a newer run bound to it as the
         # relabel is made, puts report 2 back, and the relabel raises: that
         # run is proved on its own binding behind the raise and invalidated
-        # whole, so putting report 3 back revives nothing, and the next
-        # finish routes the head once with nothing current.
-        head, run = self._settles_then_dies()
-        raises = _RaisesUnderTheRelabel(self, head)
-        with patch.object(self.gh, "set_workflow_label", raises):
-            self.assertRaises(RuntimeError, self.finalizes, head)
+        # whole -- also where report 3 is put back right behind the reading
+        # that proof starts from -- so putting report 3 back revives nothing,
+        # and the next finish routes the head once with nothing current.
+        for restored in (False, True):
+            with self.subTest(restored=restored):
+                self.setUp()
+                head, run = self._settles_then_dies()
+                raises = _RaisesUnderTheRelabel(self, head)
+                reads = _RestoresBehindTheProof(self, raises) if restored else _settled.read_afresh
+                with patch.object(self.gh, "set_workflow_label", raises), patch.object(_settled, "read_afresh", reads):
+                    self.assertRaises(RuntimeError, self.finalizes, head)
 
-        records = readings.pinned_records(self)
-        moved = ((run.receipt, readings.SUPERSEDED), (raises.successor.receipt, readings.INVALIDATED))
-        self.assertIsNone(records[1])
-        self.assertEqual(records[2][-2:], moved)
-        _writes(self, raises.settled, keeping={})
-        self.assertEqual(self.finalizes(head), FinishOutcome.ROUTED)
-        self.assertIsNone(readings.pinned_records(self)[1])
-        self.assert_routed_once(head)
+                raises.assert_retired(run)
+                self.assertIsNone(readings.pinned_records(self)[1])
+                _writes(self, raises.settled, keeping={})
+                self.assertEqual(self.finalizes(head), FinishOutcome.ROUTED)
+                self.assertIsNone(readings.pinned_records(self)[1])
+                self.assert_routed_once(head)
 
     def test_a_restart_without_a_log_relabels_once(self) -> None:
         # The issue already wears `workflow:validating`, no audit log is
@@ -254,20 +290,30 @@ class RelabelReadsTest(route.SettledRouteCase, unittest.TestCase):
 
     def test_a_raised_relabel_takes_its_record_back(self) -> None:
         # The issue already wears `workflow:validating`, and the finish's
-        # relabel raises behind its record: the record is taken back off
-        # before the error goes on, so the next finish relabels once.
+        # relabel raises behind its record: one that raised before it filed
+        # anything takes the record back off before the error goes on, so the
+        # next finish relabels once; one that landed, its stage-entry event
+        # filed, and then raised keeps it, so the next finish relabels
+        # nothing. Either way the route's relabel is made once.
         self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
-        self.gh.set_workflow_label(self.issue, WorkflowLabel.VALIDATING)
-        head = self.lands_a_reviewed_rebase()
-        with patch.object(self.gh, "set_workflow_label", side_effect=RuntimeError(_UNANSWERED)):
-            self.assertRaises(RuntimeError, self.finalizes, head, FinishRoad.PUBLICATION)
+        for lands in (False, True):
+            with self.subTest(landed=lands):
+                self.setUp()
+                self.gh.set_workflow_label(self.issue, WorkflowLabel.VALIDATING)
+                head = self.lands_a_reviewed_rebase()
+                answers = {"new": partial(_lands_then_raises, self.gh.set_workflow_label)} if lands else {
+                    "side_effect": RuntimeError(_UNANSWERED),
+                }
+                with patch.object(self.gh, "set_workflow_label", **answers):
+                    self.assertRaises(RuntimeError, self.finalizes, head, FinishRoad.PUBLICATION)
 
-        self.assertIsNone(readings.pinned(self).get(readings.KEY_RELABELLED))
-        self.assertEqual(self.finalizes(head), FinishOutcome.ROUTED)
-        self.assertEqual(readings.relabels(self), readings.ROUTED * 2)
-        entered = handoff.stage_entries(self.gh, self.issue.number)
-        self.assertEqual(tuple(entered), _ENTERED_TWICE)
-        self.assertEqual(support.announced(self), [head])
+                kept = readings.pinned(self).get(readings.KEY_RELABELLED)
+                self.assertEqual(kept, head if lands else None)
+                self.assertEqual(self.finalizes(head), FinishOutcome.ROUTED)
+                self.assertEqual(readings.relabels(self), readings.ROUTED * 2)
+                entered = handoff.stage_entries(self.gh, self.issue.number)
+                self.assertEqual(tuple(entered), _ENTERED_TWICE)
+                self.assertEqual(support.announced(self), [head])
 
     def _settles_then_dies(self) -> tuple:
         """Land a reviewed rebase, settle its run, and kill its finish before its announcement; the head and the run."""

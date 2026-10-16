@@ -78,7 +78,12 @@ tip back before the reply revives nothing. Behind a record
 refused or sent with its answer lost, the evidence the comment carries now is
 laid over the tick's state first (`rewrite_landing_retirement.reconciles`),
 so a successor another road settled while the notice was posted is proved on
-its own binding rather than left unread behind the tick's older reading. A checkout
+its own binding rather than left unread behind the tick's older reading, and
+what that very reading records moving under it is handed to the proof as
+read, however soon it is put back. A record the commit sent or landed is held
+to the tick's own staging, and the comment a refused edit found to the comment
+as the tick last read it (`_as_read`), so neither the park's own reason nor a
+field no binding rests on reads as movement. A checkout
 gone from disk has nothing to prove the landing over, so its evidence is
 retired on the state the park writes -- and the reset recorded against it
 first, in a write of its own, so a park write that fails or never lands
@@ -86,6 +91,7 @@ leaves no evidence a checkout put back would take up as current.
 """
 from __future__ import annotations
 
+import json
 import logging
 
 from orchestrator.git.base_sync import (
@@ -171,8 +177,7 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
         _notices.parks_awaiting_human(context, message, reason)
     except Exception:
         if context.worktree.is_dir():
-            _retirement.reconciles(context)
-            _retirement.retires_unproved(context)
+            _retirement.retires_unproved(context, _retirement.reconciles(context))
         raise
     state.set(_base_sync_state._PARK_REASON, reason)
     if state.synced is None:
@@ -270,26 +275,44 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
     is put back. `named` is the record, logged where it did not land.
     """
     state = context.state
-    read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}
-    held = _retirement.receipts(state)
+    read = _as_read(state)
     attempt = _retirement.attempt_as_read(state)
     landed = _commits.ReportCommit(context.gh, context.issue, state).lands(state, write)
+    reconciled = None
     if landed.status is not _commit_models.CommitStatus.COMMITTED:
         log.warning(
             "issue=#%d the %s of its auto-rebase recovery did not land (%s); nothing is recorded, "
             "and the next tick's recovery answers the comment as it then stands",
             context.issue.number, named, (landed.refusal or landed.status).value,
         )
-        _retirement.reconciles(context)
+        reconciled = _retirement.reconciles(context)
     if context.worktree.is_dir():
-        _retirement.retires_unproved(context, _moved(context, landed, read, held, attempt))
+        _retirement.retires_unproved(context, _moved(context, landed, read, attempt) or reconciled)
+
+
+def _as_read(state) -> tuple[dict, dict, frozenset[str]]:
+    """What a record's commit is held to: the binding records as staged and as last read, and the receipts held.
+
+    The binding records as `state` stages them are what a record the commit
+    sent or landed carries where nobody else moved them, the tick's own
+    staging -- a park's reason among it -- included; as the comment `state`
+    was last read from spelled them, what the comment a refused edit found
+    carries where nobody did, since that comment carries none of the tick's
+    staging. The receipts are those of the evidence `state` carries for the
+    landed head before the record (`rewrite_landing_retirement.receipts`).
+    """
+    synced = state.data if state.synced is None else json.loads(state.synced)
+    staged, read = (
+        {key: _commit_models.spelled(spelled_from, key) for key in _writes.BINDING_RECORDS}
+        for spelled_from in (state.data, synced)
+    )
+    return staged, read, _retirement.receipts(state)
 
 
 def _moved(
     context: _AutoRebaseRecoveryContext,
     landed: _commit_models.CommitOutcome,
-    read: dict,
-    held: frozenset[str],
+    read: tuple[dict, dict, frozenset[str]],
     attempt: _commit_models.PinnedCommit | None,
 ) -> ReportEvidence | None:
     """The movement a record's commit, `landed`, read under the evidence `context.state` carries behind it; or None.
@@ -299,9 +322,13 @@ def _moved(
     was read over: the one its strict edit found moved under it, a report
     another road settled right at that edit among what it carries
     (`pinned_commit_models.CommitOutcome.seen`); nothing where the refusal
-    read no comment. `read` is the binding records as the tick read them, and
-    `held` the receipts the tick's state carried before the record. A binding
-    record `reading` spells otherwise than `read` is movement under the
+    read no comment. `read` is the binding records as the tick staged them
+    and as the comment it last read spelled them, and the receipts the tick's
+    state carried before the record (`_as_read`) -- the record is held to the
+    first, which carries the tick's own staging, and a refusal's comment to
+    the second, which carries none of it, so a park's own reason or a field
+    nobody's binding rests on moved there is no movement. A binding
+    record `reading` spells otherwise than its baseline is movement under the
     evidence the tick held (`_MOVED_UNDER_THE_NOTICE`); a review or report
     record it spells off the binding of any evidence it records for the head
     is movement under that evidence (`rewrite_landing_retirement.moved_under`)
@@ -314,11 +341,11 @@ def _moved(
     successor nothing was read moving under is proved on its own readings.
     """
     reading = landed.reading or landed.seen
+    baseline = read[1] if landed.reading is None else read[0]
     moves = _retirement.moved_under(reading, attempt)
     if reading is not None:
-        carried = {key: _commit_models.spelled(reading.data, key) for key in read}
-        if carried != read:
-            moves = {**dict.fromkeys(held, _MOVED_UNDER_THE_NOTICE), **moves}
+        carried = {key: _commit_models.spelled(reading.data, key) for key in baseline}
+        if carried != baseline:
+            moves = {**dict.fromkeys(read[2], _MOVED_UNDER_THE_NOTICE), **moves}
     standing = sorted(_retirement.receipts(context.state))
-    under = [moves[receipt] for receipt in standing if receipt in moves]
-    return under[0] if under else None
+    return next((moves[receipt] for receipt in standing if receipt in moves), None)

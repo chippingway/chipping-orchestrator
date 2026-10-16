@@ -111,7 +111,8 @@ _PENDING_EVIDENCE_RECEIPT = "pending_auto_base_rebase_evidence_receipt"
 # The head whose relabel to `workflow:validating` a finish of this attempt
 # made, written in a write of its own ahead of that relabel whatever label the
 # issue wears, and taken back off where a relabel onto the label the issue
-# already wore raised. Only a finish held to the dormant settled-evidence
+# already wore raised before it filed its stage-entry event. Only a finish
+# held to the dormant settled-evidence
 # policy writes it, so no production road does yet. Read beside the label, it
 # is what keeps a finish lost before the retirement from relabelling -- and
 # filing the stage-entry event -- twice: beside another label it is a relabel

@@ -1338,7 +1338,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `stands_ready_if_settled` through its stops (`rewrite_finish_stops.py`) beside an
                             unfinishable landing, ahead of the park, and ahead of the relabel and behind one that
                             raised -- that one over the evidence the comment then carries, laid over the tick's state
-                            (`afresh`) so a successor settled meanwhile is proved on its own binding -- and itself
+                            (`afresh`) so a successor settled meanwhile is proved on its own binding, what that very
+                            reading records moving under it invalidating it outright -- and itself
                             behind the relabel -- or where it continues the head instead -- for a routed head over
                             the base too
     rewrite_finish_stops.py the stops of a landed rewrite's finish short of its route, answered for both policies, the
@@ -1402,7 +1403,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             relabel's own record naming the head, None where it would not read (`relabelled`); and
                             the relabel landed with that record ahead of it, whatever label the issue wears, through
                             `rewrite_finish_writes.RELABEL`, and taken back off where a relabel onto the label the
-                            issue already wore raised (`relabels_once`) -- a record beside a label the issue already
+                            issue already wore raised with no stage-entry event filed for the head on the stream
+                            (`relabels_once`) -- a record beside a label the issue already
                             wore asked of the audit log, where one is configured (`github/events.durable`), and read
                             as the relabel made where none is; every other finish answers both off the mark and the
                             label the tick read, and relabels with no record
@@ -2225,7 +2227,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a write took another road's records in was read under the evidence still standing; a
                             record that did not land has the evidence records the comment carries now laid over the
                             tick's state (`reconciles`), so a successor another road settled meanwhile is the
-                            evidence proved behind it, on its own binding; and the movement a comment a record's
+                            evidence proved behind it, on its own binding, the movement that very reading records
+                            under it handed to that proof as already read; and the movement a comment a record's
                             commit read carries under each evidence it records is read off that comment by receipt
                             (`moved_under`) -- a review or report record moved off that evidence's binding, or the
                             base tip read blank or repointed beside every other member of the attempt as the tick
@@ -2256,8 +2259,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the comment's evidence laid over the tick's state first where it raised or the record did
                             not land -- what the park keeps is proved once more
                             (`rewrite_landing_retirement.retires_unproved`), a binding record its own commit carried
-                            spelled otherwise than the tick read it, landed, sent with its answer lost, or in the
-                            comment its strict edit was refused over -- or the attempt's base tip read blank or
+                            spelled otherwise than the tick read it -- the record it landed or sent held to the
+                            tick's staging, the comment its strict edit was refused over to the comment as the tick
+                            last read it, so the park's own reason or a field no binding rests on is no movement --
+                            or the attempt's base tip read blank or
                             repointed there beside the rest of the attempt as read
                             (`rewrite_landing_retirement.moved_under`) -- handed to that proof as movement already
                             read (`_moved`) however soon it is put back, unless the record took in evidence under

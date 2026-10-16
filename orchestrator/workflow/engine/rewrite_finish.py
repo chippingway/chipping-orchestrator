@@ -163,7 +163,8 @@ uninterrupted route would relabel it. Beside a record on an issue that
 already wore that label, the audit log, where one is configured, says
 whether the relabel behind the record was made, by the stage-entry event the
 relabel names the head on; with none it is read as made, so it is made once
-at most. A relabel onto that label that raised takes its record back off.
+at most. A relabel onto that label that raised before filing its stage-entry
+event takes its record back off.
 
 A finish under that policy announces nothing for a head another finish of
 the landing marked meanwhile, relabels nothing another one relabelled for

@@ -3288,10 +3288,11 @@ The keys that matter for the state machine fall into a few groups:
   audit log configured the next finish asks it for the relabel's `stage_enter` event, which names the head
   (`sha`), relabels where it is missing, and holds where the log will not read; with no log the relabel is read as
   made, so a finish lost between this member and that relabel files no stage-entry event for the head -- once at
-  most, never twice. A relabel onto that label that raises filed no stage-entry event, so it takes the member back
-  off before the error goes on, for the next finish to relabel. Blanked with the rest of the attempt by every write
-  that ends it, whichever road ends it. Additive: an attempt from before this member existed, or one a production
-  finish routes, carries none.
+  most, never twice. A relabel onto that label that raises takes the member back off before the error goes on, for
+  the next finish to relabel, only where the event stream -- this process's own tail first -- reads and carries no
+  stage-entry event naming the head; one that landed and then raised keeps it. Blanked with the rest of the
+  attempt by every write that ends it, whichever road ends it. Additive: an attempt from before this member
+  existed, or one a production finish routes, carries none.
   `pending_auto_base_rebase_announced_event` — the head whose `base_rebased` event a finish of the attempt is
   filing, written in a guarded write of its own right ahead of the event and of the mark
   (`workflow/engine/rewrite_finish_writes.ANNOUNCED_EVENT`), carried by the checkpoint as well, and blanked with the
