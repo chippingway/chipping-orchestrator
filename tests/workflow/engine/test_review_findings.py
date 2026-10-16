@@ -431,9 +431,72 @@ _CHAINED = (
 )
 _CHAINED_LEAD = f"Failure: `{_ASSERTED}::test_chain`\nError: `ValueError: chained failure`\n"
 # A command running a parameterized test it names quoted, a dash among its
-# parameters, which reads nothing from stdin.
+# parameters, which reads nothing from stdin; and commands passing a dash to a
+# program given before it -- inline, by module, or as a script.
 _QUOTED_NODE = "tests/test_values.py::test_value[x - y]"
 _QUOTED_COMMAND = f".venv/bin/python -m pytest '{_QUOTED_NODE}'"
+_ARGUMENT_DASHES = (
+    _QUOTED_COMMAND,
+    ".venv/bin/python -c 'raise RuntimeError(\"dash is argv\")' -",
+    ".venv/bin/python -m pytest -",
+    ".venv/bin/python tests/probe.py -",
+)
+# Failures as pytest prints them with `--tb=line` on an 80-column terminal:
+# under the failures heading each is its marked lines and the file and line it
+# crashed at -- a helper's, for one -- with its exception, titled by nothing,
+# while a fixture's error keeps its section; and with `--tb=native`, each in a
+# section of its own holding Python's own traceback, one raised handling
+# another.
+_LINE_MODULE = "tests/test_failure_with_a_long_module_name_to_fill_the_terminal.py"
+_LINE_TRACEBACKS = (
+    "==================================== ERRORS ====================================\n"
+    "_________________________ ERROR at setup of test_setup _________________________\n"
+    "E   RuntimeError: fixture exploded\n"
+    "=================================== FAILURES ===================================\n"
+    "E   RuntimeError: the supplied diagnostic\n"
+    f"/tmp/run/{_LINE_MODULE}:9: RuntimeError: the supplied diagnostic\n"
+    "E   KeyError: 'deep in a helper'\n"
+    "/tmp/run/tests/helper_mod.py:2: KeyError: 'deep in a helper'\n"
+    "E   assert [1, 2] == [3, 4]\n"
+    "      \n"
+    "      At index 0 diff: 1 != 3\n"
+    "      Use -v to get more diff\n"
+    f"/tmp/run/{_LINE_MODULE}:18: assert [1, 2] == [3, 4]\n"
+    "=========================== short test summary info ============================\n"
+    f"ERROR {_LINE_MODULE}::test_setup\n"
+    f"FAILED {_LINE_MODULE}::test_check\nFAILED {_LINE_MODULE}::test_helper\nFAILED {_LINE_MODULE}::test_assert"
+)
+_LINE_TRACEBACKS_LEAD = (
+    f"Failure: `{_LINE_MODULE}::test_setup`, whose setup failed\nError: `RuntimeError: fixture exploded`\n"
+    f"Failure: `{_LINE_MODULE}::test_check`\nError: `RuntimeError: the supplied diagnostic`\n"
+    f"Failure: `{_LINE_MODULE}::test_helper`\nError: `KeyError: 'deep in a helper'`\n"
+    f"Failure: `{_LINE_MODULE}::test_assert`\nError: `assert [1, 2] == [3, 4]`\n"
+)
+_NATIVE_TRACEBACKS = (
+    "__________________________________ test_check __________________________________\n"
+    "Traceback (most recent call last):\n"
+    f'  File "/tmp/run/{_LINE_MODULE}", line 9, in test_check\n'
+    '    raise RuntimeError("the supplied diagnostic")\n'
+    "RuntimeError: the supplied diagnostic\n"
+    "__________________________________ test_chain __________________________________\n"
+    "Traceback (most recent call last):\n"
+    f'  File "/tmp/run/{_LINE_MODULE}", line 13, in chained\n'
+    '    {}["x"]\n'
+    "KeyError: 'x'\n"
+    "\n"
+    "During handling of the above exception, another exception occurred:\n"
+    "\n"
+    "Traceback (most recent call last):\n"
+    f'  File "/tmp/run/{_LINE_MODULE}", line 15, in chained\n'
+    '    raise ValueError("chained failure")\n'
+    "ValueError: chained failure\n"
+    "=========================== short test summary info ============================\n"
+    f"FAILED {_LINE_MODULE}::test_check\nFAILED {_LINE_MODULE}::test_chain"
+)
+_NATIVE_TRACEBACKS_LEAD = (
+    f"Failure: `{_LINE_MODULE}::test_check`\nError: `RuntimeError: the supplied diagnostic`\n"
+    f"Failure: `{_LINE_MODULE}::test_chain`\nError: `ValueError: chained failure`\n"
+)
 # A stdin check running pytest, which names the test that failed, and how it leads.
 _STDIN_PYTEST = "FAILED tests/test_probe.py::test_probe - AssertionError: values differ"
 _STDIN_PYTEST_SHOWN = (
@@ -773,14 +836,17 @@ class FailureNamesTest(unittest.TestCase):
             f"{named}Failure: 2 more, named in the output below\n"
             f"`uv run pytest tests` exited with status 1:\n\n```\n{failed}\n```",
         )
-        # A dash quoted among a command's arguments is no stdin it reads.
+        # A dash quoted inside an argument, or passed to a program given
+        # before it, is no stdin the command reads its code from.
         quoted = f"FAILED {_QUOTED_NODE} - assert 0 == 1"
-        _assert_shown(
-            self,
-            f"{_RUN_LINE}\nCOMMAND: {_QUOTED_COMMAND}\nEXIT: 1\n{quoted}\n{_END_LINE}",
-            f"Failure: `{_QUOTED_NODE}`\nError: `assert 0 == 1`\n"
-            f"`{_QUOTED_COMMAND}` exited with status 1:\n\n```\n{quoted}\n```",
-        )
+        for command in _ARGUMENT_DASHES:
+            with self.subTest(command=command):
+                _assert_shown(
+                    self,
+                    f"{_RUN_LINE}\nCOMMAND: {command}\nEXIT: 1\n{quoted}\n{_END_LINE}",
+                    f"Failure: `{_QUOTED_NODE}`\nError: `assert 0 == 1`\n"
+                    f"`{command}` exited with status 1:\n\n```\n{quoted}\n```",
+                )
 
     def test_probes_sharing_a_command_stay_apart(self) -> None:
         # Two runs of one stdin command are two checks, each led by the entry
@@ -851,6 +917,11 @@ class FailureNamesTest(unittest.TestCase):
             # further, nor an exception another one was raised handling.
             (_DIFF_HINT, "", _DIFF_HINT_LEAD),
             (_CHAINED, "", _CHAINED_LEAD),
+            # Failures `--tb=line` printed untitled go to their summary lines
+            # in turn; a section holding Python's own traceback shows the
+            # exception it ends on.
+            (_LINE_TRACEBACKS, "", _LINE_TRACEBACKS_LEAD),
+            (_NATIVE_TRACEBACKS, "", _NATIVE_TRACEBACKS_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):

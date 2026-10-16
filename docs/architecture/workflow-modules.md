@@ -240,7 +240,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             matched by that error and never by command, so two runs of one stdin command each lead with
                             their own scenario; else by a line saying no test ID or scenario name was recorded. A lead
                             says too where the check quoted no output, and, whatever names its failures, where its
-                            command, split as a shell splits it, reads its code from stdin (`-`) and no entry it backs
+                            command reads its code from stdin -- a `-` argument, split as a shell splits it, after no
+                            program given inline (`-c`, `-e`), by module (`-m`), or as a script -- and no entry it backs
                             gives the snippet as a code
                             block holding code below its `Reproduce:` line, however the line names the command. No
                             lead line opens on a declaration
@@ -258,7 +259,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             what it collected, a line of spaced underscores parting frames and titling nothing.
                             A section's exception is the first line set out least in its last run of lines marked
                             `E`, not an explanation, diff hint, or source line set out further, nor an exception
-                            another was raised handling. Each summary line takes the first section it may be that no
+                            another was raised handling; one marking no line holds `--tb=native`'s own traceback, its
+                            exception the first line at the margin below the last header. With `--tb=line` a failure
+                            has no section: each `path:line: exception` line under the failures heading is a section
+                            titled by nothing, which a summary line naming a test takes in turn. Each summary line
+                            takes the first section it may be that no
                             line before it took -- the one whose exception the line's error opens where it gives one
                             -- since pytest prints both in one order and tests of two modules may share a title
     review_findings_entries.py
