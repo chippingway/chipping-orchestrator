@@ -16,9 +16,10 @@ file path holding blanks too, and an `ERROR` line a node by its ID, or a path.
 A path names a collection that failed before any test in it ran -- the check
 that failed, not a test. A node ID names the setup or teardown of a test where
 a section pytest printed says that failed -- where both did, the one whose
-section raised the error the line gives; a collection where a section says
-pytest failed collecting the node or its path, or the run says collection was
-interrupted, since a class pytest could not collect is reported by its ID;
+section raised the error the line gives; a collection where a section of its
+run says pytest failed collecting the node or its path, or its run says
+collection was interrupted, since a class pytest could not collect is
+reported by its ID;
 and, nothing saying which, an error outside any test body, in one of the
 three. A parameter may hold the very dash that parts an ID from its message,
 and even text of a message's shape after it (`_Reported._end`), so the ID is
@@ -241,8 +242,9 @@ class _Reported:
     def of(cls, output: str, entries: _Entries) -> Iterator[_Reported]:
         """Each failure a summary line of `output` reports, read beside the findings' `entries`."""
         read = _pytest.PytestOutput(output.split("\n"))
-        for summary in filter(None, map(_SUMMARY_RE.fullmatch, read.summary)):
-            reported = cls._summarised(summary, read, entries)
+        for line, interrupted in read.summary:
+            summary = _SUMMARY_RE.fullmatch(line)
+            reported = None if summary is None else cls._summarised(summary, read, entries, interrupted)
             if reported is not None:
                 yield reported
 
@@ -259,11 +261,14 @@ class _Reported:
         return tuple(said)
 
     @classmethod
-    def _summarised(cls, summary: re.Match[str], read: _Pytest, entries: _Entries) -> _Reported | None:
+    def _summarised(
+        cls, summary: re.Match[str], read: _Pytest, entries: _Entries, interrupted: bool,
+    ) -> _Reported | None:
         """The failure the summary line `summary` of `read` reports, if it is pytest's; None where not.
 
         A failed test is named by its node ID (`_failed`), an error by what
-        failed (`_erred`).
+        failed (`_erred`), `interrupted` saying whether the line's run says
+        pytest interrupted its collection.
         """
         reported = summary.group("reported")
         end = cls._end(reported, read, entries)
@@ -273,7 +278,7 @@ class _Reported:
         error = reported[end:].removeprefix(_DELIMITER)
         named = _entries.FailureEntry.error_naming(entries, node)
         if summary.group("outcome") != _FAILED:
-            return cls._erred(node, error, named, read)
+            return cls._erred(node, error, named, read, interrupted)
         return cls._failed(node, error, named, read)
 
     @classmethod
@@ -293,7 +298,7 @@ class _Reported:
         return cls(span(node), error or raised or named)
 
     @classmethod
-    def _erred(cls, node: str, error: str, named: str, read: _Pytest) -> _Reported | None:
+    def _erred(cls, node: str, error: str, named: str, read: _Pytest, interrupted: bool) -> _Reported | None:
         """The failure an `ERROR` summary line of `read` reports of `node`; None where it is not pytest's.
 
         `error` is what follows the ID on the line, and `named` the error of
@@ -302,7 +307,7 @@ class _Reported:
         A path names a collection. A node ID names the setup or teardown its
         section says failed with `error` (`PytestOutput.phase`); or a collection,
         where pytest says it failed collecting the node or its path, or that
-        collection was interrupted; or else an error in one of the three,
+        the line's run's collection was `interrupted`; or else an error in one of the three,
         nothing saying which. A setup's, teardown's, or collection's error is
         the summary line's, else the exception the section pytest printed for
         it shows -- the line may be too long to carry one -- and either's, the
@@ -313,13 +318,13 @@ class _Reported:
         if phase:
             failed = _PHASE_FAILED.format(node=span(node), phase=phase)
             return cls(failed, error or raised or named)
-        collected = read.collection(node)
+        collected = read.collection(node, error, interrupted)
         if collected is None:
             return cls(_ERRED.format(node=span(node)), error or named)
         if not (separated or _PATH_RE.fullmatch(node)):
             return None
         failed = _UNCOLLECTED.format(path=span(node))
-        return cls(failed, error or collected[1] or named)
+        return cls(failed, error or collected or named)
 
     @classmethod
     def _end(cls, reported: str, read: _Pytest, entries: _Entries) -> int | None:
