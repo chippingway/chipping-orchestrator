@@ -451,8 +451,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             already reads as -- a comment that moved under that edit refused as MOVED, naming nothing,
                             save for a guard that `reads_a_move`, which names the prerequisites the comment the edit
                             read spells otherwise as PREREQUISITE_CHANGED, and has every refusal of moved prerequisites
-                            carry the comment it read them moving on (`seen`), a MOVED one the comment its edit found
-                            in place of the fresh reading. A refusal writes nothing and moves
+                            carry the comment it read them moving on (`seen`) -- an owned-field conflict's fresh
+                            reading among them -- a MOVED one the comment its edit found in place of the fresh
+                            reading. A refusal writes nothing and moves
                             nothing the caller holds, and an edit that went out unconfirmed is reported as neither
                             answer, for the domain's own receipts to settle. `reread` is that fresh reading alone -- the
                             captured comment, still parsing -- for a caller with requests of its own to make over it

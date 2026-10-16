@@ -174,6 +174,9 @@ def relabels(finish: LandedFinish, observed: ProofReading, *, announced: bool) -
     moving, or proved ready once more (`rewrite_finish_readiness.invalidates_behind`)
     -- and so does a relabel that raised, behind the record's rollback, before
     the error goes on, so movement that rollback's refusal read is not lost.
+    Only movement the record's own writes read is asked there: what the
+    recheck ahead of them read was answered under the evidence it was read
+    under, so a successor proved since on its own readings is kept.
     """
     made = relabelled(finish, announced=announced)
     if made:
@@ -189,12 +192,13 @@ def relabels(finish: LandedFinish, observed: ProofReading, *, announced: bool) -
         return None
     if stopped is not None or made is None:
         return stopped or FinishOutcome.HELD
+    before = len(observed.observed)
     try:
         stopped = relabels_once(finish, observed, partial(_settled.stands_ready_if_settled, afresh=True))
     except Exception:
-        _unconfirmed.behind_a_raise(finish, observed.observed)
+        _unconfirmed.behind_a_raise(finish, observed.observed[before:])
         raise
-    return _readiness.invalidates_behind(finish, stopped, observed.observed)
+    return _readiness.invalidates_behind(finish, stopped, observed.observed[before:])
 
 
 def observing(finish: LandedFinish) -> ProofReading:

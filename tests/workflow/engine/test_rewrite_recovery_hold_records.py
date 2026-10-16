@@ -76,6 +76,11 @@ _TIP_BESIDE_THE_EVENT = "the tip beside the event record under the edit"
 # that fails as a case asks.
 _STAGED_BY_THE_GATE = "late_gate_hold"
 
+# Report 3 settled ahead of the record beside another road's own spelling of
+# what the gate staged, so the record is refused as an owned-field conflict
+# over the reading that carries report 3.
+_CONFLICTS_WITH_THE_GATE = "a conflict with the gate's record"
+
 _AT_THE_RECORD = (
     ("", True),
     ("lost", True),
@@ -83,6 +88,7 @@ _AT_THE_RECORD = (
     (_UNDER_THE_EDIT, True),
     (_TIP_UNDER_THE_EDIT, True),
     (_TIP_BESIDE_THE_EVENT, True),
+    (_CONFLICTS_WITH_THE_GATE, True),
 )
 
 
@@ -123,7 +129,7 @@ class _AroundTheHold:
             with patch.object(case.gh, "edit_pinned_state", partial(self._moves_under, case.gh.edit_pinned_state)):
                 return _LANDS(commit, staged, write)
         self._settles()
-        failures = getattr(case.gh.pinned_failures, self._failing) if self._failing else set()
+        failures = getattr(case.gh.pinned_failures, self._failing, set())
         failures.add(case.issue.number)
         landed = _LANDS(commit, staged, write)
         failures.discard(case.issue.number)
@@ -147,6 +153,8 @@ class _AroundTheHold:
         subject = _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
         if self.successor:
             self.successor = _settles_a_successor(case, subject)
+        if self._failing == _CONFLICTS_WITH_THE_GATE:
+            case.state.set(_STAGED_BY_THE_GATE, "another road's gate")
         case.gh.write_pinned_state(case.issue, case.state)
 
     def _blanks(self) -> None:
@@ -221,8 +229,9 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_a_report_moved_at_the_record_is_read(self) -> None:
         # Report 3 settles behind the proof and ahead of the hold's record,
-        # which lands it, loses its answer, or is refused -- or right under
-        # its strict edit, refused over it; report 2 put back right behind a
+        # which lands it, loses its answer, or is refused -- for an owned
+        # field another road spelled otherwise beside report 3 too -- or right
+        # under its strict edit, refused over it; report 2 put back right behind a
         # record that carried report 3, or that edit, still leaves the run
         # moved -- and so does the base tip blanked right under that edit, beside
         # another finish's event record for the head or not, and put back behind

@@ -102,8 +102,8 @@ class CommitOutcome:
     `length` is the rendered body an OVERFLOW measured, and `inadmissible` is
     what the guard's own domain check answered where it refused the candidate.
     `seen`, for a guard that `reads_a_move` alone, is the comment a
-    PREREQUISITE_CHANGED refusal read those fields moved on, or the one a
-    MOVED edit found in place of the fresh reading
+    PREREQUISITE_CHANGED or OWNED_CONFLICT refusal read those fields moved
+    on, or the one a MOVED edit found in place of the fresh reading
     (`PinnedCommit.keeps_the_move`), so the caller can say what moved and to
     what however soon it is put back.
     """
@@ -117,8 +117,12 @@ class CommitOutcome:
     seen: PinnedState | None = None
 
 
-# The refusals a guard that `reads_a_move` keeps the comment it read for.
-_READ_MOVES = frozenset((CommitRefusal.PREREQUISITE_CHANGED, CommitRefusal.MOVED))
+# The refusals a guard that `reads_a_move` keeps the comment it read for: the
+# fresh reading an owned field was found conflicting on among them, since
+# whatever else moved there moved under the write all the same.
+_READ_MOVES = frozenset((
+    CommitRefusal.PREREQUISITE_CHANGED, CommitRefusal.MOVED, CommitRefusal.OWNED_CONFLICT,
+))
 
 
 @dataclass(frozen=True)

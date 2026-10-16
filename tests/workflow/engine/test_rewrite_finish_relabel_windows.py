@@ -19,7 +19,10 @@ and another road moves a record right there and puts it back right behind:
   2 put back for that one reading. That reading disproves the newer run on
   its own binding, so it is invalidated whole too, its provenance kept, and
   putting report 3 back revives nothing: the head is routed with nothing
-  current.
+  current. Where report 2 is put back right behind that first reading
+  instead, and another road settles a newer run bound to it as the relabel
+  is made, which raises, that run proves on its own readings: the movement
+  read under the run is the run's alone, and the newer run stays current.
 """
 from __future__ import annotations
 
@@ -92,16 +95,20 @@ class _SucceedsBehindTheRecheck:
     """The recheck's readings of the comment: report 3 settled for the first, a newer run bound to it for the second.
 
     The second, the fresh reading behind the invalidation the first earns,
-    carries that newer run beside report 2, put back for that one reading,
-    report 3 put back right behind it.
+    carries that newer run beside report 2 -- the records as they stood when
+    this was built -- put back for that one reading, report 3 put back right
+    behind it. With no `successor`, report 2 is put back right behind the
+    first reading instead, and the second is read as it stands.
     """
 
-    def __init__(self, case, head: str, run) -> None:
+    def __init__(self, case, head: str, run, *, successor: bool = True) -> None:
         self._case = case
         self._head = head
         self._run = run
+        self._settles = successor
         self._live = _rechecks.read_afresh
         self._readings = 0
+        self._earlier = _records_of(case)
         self.successor = None
 
     def __call__(self, finish):
@@ -109,7 +116,11 @@ class _SucceedsBehindTheRecheck:
         self._readings += 1
         if self._readings == 1:
             self._subject = _settles_report_three(self._case, self._head)
-        if self._readings != 2:
+        if self._readings == 1 and not self._settles:
+            durable = self._live(finish)
+            _writes(self._case, self._earlier)
+            return durable
+        if self._readings != 2 or not self._settles:
             return self._live(finish)
         later = _records_of(self._case)
         target = replace(self._run.binding.target, subject=self._subject.recorded())
@@ -121,9 +132,11 @@ class _SucceedsBehindTheRecheck:
         _writes(self._case, later)
         return durable
 
-    def remembers(self) -> None:
-        """Keep the report and review records as they stand now, to put back for the second reading."""
-        self._earlier = _records_of(self._case)
+
+def _raises_beside_a_valid_run(case, run, settled: list, *_labelled, **_correlation) -> None:
+    """The relabel, answered by another road settling a newer run bound to `run`'s own records, then a raise."""
+    settled.append(settled_support.records_a_newer_run(case, settles=True, binding=run.binding))
+    raise RuntimeError("GitHub did not answer the relabel")
 
 
 class RelabelWindowTest(route.SettledRouteCase, unittest.TestCase):
@@ -156,12 +169,8 @@ class RelabelWindowTest(route.SettledRouteCase, unittest.TestCase):
         # to report 3 beside report 2: that run is invalidated whole on its
         # own binding, its revision and binding kept, and the head is routed
         # with nothing current once report 3 is back.
-        head = self.lands_a_reviewed_rebase()
-        published = partial(self.finalizes, head, FinishRoad.PUBLICATION)
-        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, published)
-        run = readings.pinned_records(self)[1]
+        head, run = self._settles_then_dies()
         reads = _SucceedsBehindTheRecheck(self, head, run)
-        reads.remembers()
         with patch.object(_rechecks, "read_afresh", reads):
             self.finalizes(head)
         self.finalizes(head)
@@ -171,6 +180,32 @@ class RelabelWindowTest(route.SettledRouteCase, unittest.TestCase):
         self.assertEqual(history[-1], (reads.successor.receipt, readings.INVALIDATED))
         self.assertIsNone(readings.pinned_records(self)[1])
         self.assert_routed_once(head)
+
+
+    def test_a_valid_successor_outlives_a_raise(self) -> None:
+        # The recheck's reading invalidates the run over report 3, report 2
+        # put back right behind it, and another road settles a newer run bound
+        # to report 2 as the relabel is made, which then raises. That run
+        # proves on its own readings: the movement read under the run ahead of
+        # the relabel is the run's alone, so the newer run stays current.
+        head, run = self._settles_then_dies()
+        settled: list = []
+        with (
+            patch.object(_rechecks, "read_afresh", _SucceedsBehindTheRecheck(self, head, run, successor=False)),
+            patch.object(self.gh, "set_workflow_label", partial(_raises_beside_a_valid_run, self, run, settled)),
+        ):
+            self.assertRaises(RuntimeError, self.finalizes, head)
+
+        current, retired = readings.pinned_records(self)[1:]
+        self.assertEqual(current.receipt, settled[0].receipt)
+        self.assertEqual(retired[-1], (run.receipt, readings.INVALIDATED))
+
+    def _settles_then_dies(self) -> tuple:
+        """Land a reviewed rebase, settle its run, and kill its finish before its announcement; the head and the run."""
+        head = self.lands_a_reviewed_rebase()
+        published = partial(self.finalizes, head, FinishRoad.PUBLICATION)
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, published)
+        return head, readings.pinned_records(self)[1]
 
 
 if __name__ == "__main__":
