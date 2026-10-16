@@ -1693,7 +1693,8 @@ because there it is the claim that this stage has already rerouted rather than a
     whose comment -- the preparation's fresh reading or the strict edit's own -- was read recording movement under
     the evidence, a mark in its handoff's place, a revision spent past it, or a blank of the attempt's base tip,
     invalidates the evidence however soon that comment is put back, where a newer transaction recorded beside it or
-    a successor settled under another receipt moves nothing under it; behind a retirement nobody confirmed the
+    a successor settled under another receipt moves nothing under it -- save a successor that very comment disproves
+    on its own binding, which is the evidence invalidated there; behind a retirement nobody confirmed the
     attempt is put back before the evidence is invalidated over it, and movement the comment read to reconcile a lost
     announcement write records counts as a refusal's does. The mark is read again before the announcement and the
     label afresh under it before the relabel and once more behind the proof ahead of it

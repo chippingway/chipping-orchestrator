@@ -69,6 +69,12 @@ _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "revie
 
 _UNANSWERED = "GitHub did not answer the relabel"
 
+# An attempt another road anchors in place of the finish's.
+_ANOTHER_ANCHOR = "e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0"
+
+# What `_MovesUnderTheRecheck` moves for its one reading, put back behind it.
+_RACED_RECORDS = (*_MOVED_RECORDS, readings.KEY_PENDING_PUSH)
+
 # Each relabel that raises behind another road's move: whether that road
 # blanked the attempt's base tip rather than settling a successor, and whether
 # what it moved is put back right behind the reading the proof starts from.
@@ -76,26 +82,37 @@ _RAISED_RELABELS = ((False, False), (False, True), (True, True))
 
 
 class _MovesUnderTheRecheck:
-    """The relabel recheck's reading of the comment, report 3 of `head` settled ahead of it and put back behind it."""
+    """The relabel recheck's reading of the comment, report 3 of `head` settled ahead of it and put back behind it.
 
-    def __init__(self, case, head: str) -> None:
+    `replaces` has another road anchor an attempt of its own in place of the
+    finish's beside report 3, for that one reading, put back with it.
+    """
+
+    def __init__(self, case, head: str, *, replaces: bool = False) -> None:
         self._case = case
         self._head = head
+        self._replaces = replaces
         self._live = _rechecks.read_afresh
         self._replaced: dict = {}
 
     def __call__(self, finish):
-        """Read the comment afresh, the first time with report 3 settled for that one reading."""
+        """Read the comment afresh, the first time with report 3 -- and another attempt -- settled for it alone."""
         if self._replaced:
             return self._live(finish)
         case = self._case
         case.state = case.gh.read_pinned_state(case.issue)
-        self._replaced = {key: case.state.get(key) for key in _MOVED_RECORDS}
+        self._replaced = {key: case.state.get(key) for key in _RACED_RECORDS}
         _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
+        if self._replaces:
+            case.state.set(readings.KEY_PENDING_PUSH, _ANOTHER_ANCHOR)
         case.gh.write_pinned_state(case.issue, case.state)
         durable = self._live(finish)
         _writes(case, self._replaced, keeping={})
         return durable
+
+    def patching(self):
+        """This reading in place of the recheck's own."""
+        return patch.object(_rechecks, "read_afresh", self)
 
     def assert_retired(self, run) -> None:
         """History ending with `run`, read moving, invalidated whole."""
@@ -181,13 +198,18 @@ class _SucceedsUnderTheRecheck:
     That road settles report 3 and a run bound to it, kept as `successor`,
     and puts report 2 back ahead of the reading (`_RaisesUnderTheRelabel`,
     its raise swallowed), so the reading disproves the successor's own
-    binding; report 3 is put back right behind it.
+    binding; report 3 is put back right behind it. `at_the_record` races the
+    strict edit of the relabel's own record instead (`edits`), which is
+    refused over the comment it finds, report 3 put back behind that refusal.
     """
 
-    def __init__(self, case, head: str) -> None:
+    def __init__(self, case, head: str, *, at_the_record: bool = False) -> None:
         self._case = case
+        self._at_the_record = at_the_record
         self._live = _rechecks.read_afresh
+        self._edit = case.gh.edit_pinned_state
         self._race = _RaisesUnderTheRelabel(case, head)
+        self._head = head
 
     def __call__(self, finish):
         """Read the comment afresh, the first time with the successor settled and report 2 put back for it."""
@@ -198,9 +220,36 @@ class _SucceedsUnderTheRecheck:
         _writes(self._case, self._race.settled, keeping={})
         return durable
 
+    def edits(self, issue, state, *, over: dict, **options):
+        """The client's strict edit, the relabel's record the first time raced by the successor and refused over it."""
+        records = state.get(readings.KEY_RELABELLED) == self._head
+        if not records or over.get(readings.KEY_RELABELLED) or self._race.raised:
+            return self._edit(issue, state, over=over, **options)
+        self._case.assertRaises(RuntimeError, self._race)
+        answered = self._edit(issue, state, over=over, **options)
+        _writes(self._case, self._race.settled, keeping={})
+        return answered
+
+    def patching(self):
+        """This race in place of the recheck's reading, or of the client's strict edit `at_the_record`."""
+        if self._at_the_record:
+            return patch.object(self._case.gh, "edit_pinned_state", self.edits)
+        return patch.object(_rechecks, "read_afresh", self)
+
     def assert_retired(self, run) -> None:
         """History ending with `run` superseded by the successor, and the successor invalidated whole."""
         self._race.assert_retired(run)
+
+
+# Each race around the route's relabel, and what the finish it races comes
+# to: report 3 moved under the recheck, beside another attempt there too, a
+# successor settled under the recheck, or one settled at the relabel's record.
+_RELABEL_READS = (
+    (partial(_MovesUnderTheRecheck), FinishOutcome.ROUTED),
+    (partial(_MovesUnderTheRecheck, replaces=True), FinishOutcome.HELD),
+    (partial(_SucceedsUnderTheRecheck), FinishOutcome.ROUTED),
+    (partial(_SucceedsUnderTheRecheck, at_the_record=True), FinishOutcome.REFUSED),
+)
 
 
 def _lands_then_raises(live, *labelled, **correlation) -> None:
@@ -228,14 +277,19 @@ class RelabelReadsTest(route.SettledRouteCase, unittest.TestCase):
         # report 2 back ahead of that reading, report 3 back right behind it:
         # the evidence that reading carries, the run or that successor on its
         # own binding, is invalidated whole before the relabel, and the head
-        # is routed once with nothing current.
-        for reader in (_MovesUnderTheRecheck, _SucceedsUnderTheRecheck):
-            with self.subTest(reading=reader.__name__):
+        # is routed once with nothing current. So it is where that reading
+        # carries another attempt beside report 3, both put back behind it --
+        # the route held over that attempt -- and where the successor is read
+        # by the refused strict edit of the relabel's record instead: the next
+        # finish routes the head once with nothing current.
+        for reader, outcome in _RELABEL_READS:
+            with self.subTest(reading=reader.func.__name__, **reader.keywords):
                 self.setUp()
                 head, run = self._settles_then_dies()
                 reads = reader(self, head)
-                with patch.object(_rechecks, "read_afresh", reads):
-                    self.assertEqual(self.finalizes(head), FinishOutcome.ROUTED)
+                with reads.patching():
+                    self.assertEqual(self.finalizes(head), outcome)
+                self.finalizes(head)
 
                 reads.assert_retired(run)
                 self.assertIsNone(readings.pinned_records(self)[1])

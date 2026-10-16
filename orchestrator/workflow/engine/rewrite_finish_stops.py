@@ -207,7 +207,8 @@ def observing(finish: LandedFinish) -> ProofReading:
     records moving behind the attempt as captured here, before those writes:
     under a transaction captured for the head, the prerequisite's own reading
     of it (`rewrite_finish_settled.reads_moving`), and otherwise under evidence
-    settled for the head (`_reads_moving`). Any other finish reads nothing.
+    settled for the head (`_reads_moving`) -- a successor settled in its place
+    asked of its own binding there. Any other finish reads nothing.
     """
     classifies = None
     if finish.proves_settled:
@@ -326,14 +327,22 @@ def _reads_moving(
     newer transaction recorded beside it, discounted the one revision it may
     own, or a successor settled under another receipt -- reads none, and
     nothing that holds is kept: the stop is proved ready again behind it
-    instead.
+    instead. A successor settled for the head under another receipt is asked
+    of its own binding in that very reading, though: where the reading
+    disproves it, the evidence records it carries are laid over the tick's
+    state (`rewrite_finish_rechecks.lays`), so the invalidation behind the
+    stop (`rewrite_finish_readiness.invalidates_behind`) takes that successor,
+    and the movement is answered, however soon its records are put back.
     """
-    moved = attempt.moved(state.data)
-    blanked = _TIP in moved and not _attempt_records._recorded_onto(state)
+    blanked = _TIP in attempt.moved(state.data)
+    blanked = blanked and not _attempt_records._recorded_onto(state)
     if blanked and _rechecks.stands_as_read(finish, attempt, state, blank_aside=True):
         return _BLANKED
     carried = _settlement.read_current_evidence(state)
-    if carried is None or carried.receipt != receipt:
+    if carried is None or carried.binding.target.target_head != finish.head:
         return None
     heard = _readiness._records_heard(carried, state, settled=True)
-    return next((refused for refused in heard if refused and not refused.holds), None)
+    moving = next((refused for refused in heard if refused and not refused.holds), None)
+    if moving is not None and carried.receipt != receipt:
+        _rechecks.lays(finish.state, state)
+    return moving

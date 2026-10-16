@@ -172,10 +172,15 @@ def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit, ob
     records moving under the evidence (`_goes_on_over`) -- a successor another
     road settled in its place asked on its own binding -- so a report another
     road moved and puts back before the writes behind it is still movement.
+    That is asked whatever attempt the reading carries: beside another
+    attempt the evidence it reads moving is retired, or marked, over the
+    comment as it stands (`rewrite_finish_readiness.invalidates`), that
+    attempt kept, before the route holds, so putting both back revives
+    nothing.
     """
     durable = read_afresh(finish)
-    stands = durable is not None and stands_as_read(finish, attempt, durable, blank_aside=True)
-    if stands and _goes_on_over(finish, durable, observed):
+    goes_on = durable is not None and _goes_on_over(finish, durable, observed)
+    if goes_on and stands_as_read(finish, attempt, durable, blank_aside=True):
         takes_in_the_announcement(finish, durable)
         return True
     log.warning(
@@ -224,10 +229,10 @@ def _goes_on_over(finish: LandedFinish, durable: PinnedState, observed) -> bool:
     return invalidates_rechecked(finish, held)
 
 
-def lays(state: PinnedState, durable: PinnedState, fields: Collection[str]) -> None:
+def lays(state: PinnedState, durable: PinnedState, fields: Collection[str] = _durable._EVIDENCE_RECORDS) -> None:
     """Lay each of `fields` over `state` as `durable`, a comment read afresh, spells it, every one taken in as read.
 
-    A field `durable` lacks is dropped from `state`. Each is remembered as
+    The evidence records by default. A field `durable` lacks is dropped from `state`. Each is remembered as
     read (`pinned_commit.takes_in`), so a guarded write decided behind this
     counts none of them as the tick's own move.
     """

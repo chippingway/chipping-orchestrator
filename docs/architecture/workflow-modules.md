@@ -1367,7 +1367,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             evidence settled for it, a blank of the attempt's base tip and what the readiness proof
                             hears moving in the records alone, a mark, a revision spent past it, a review or report
                             record moved, where a newer transaction recorded beside it or a successor under another
-                            receipt reads none (`observing`); and behind a stop of the announcement or the park --
+                            receipt reads none -- save a successor that very comment disproves on its own binding,
+                            laid over the tick's state for the invalidation behind the stop to take (`observing`);
+                            and behind a stop of the announcement or the park --
                             refused, unconfirmed, held, or raising -- an unconfirmed record or checkpoint's
                             bookkeeping taken in, the comment that reconciliation read asked what it records moving,
                             settled evidence invalidated over any movement a refusal or that reading read or proved
@@ -1395,7 +1397,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             still carries the attempt captured ahead of that proof, its base tip aside where blank,
                             settled evidence that very reading records moving invalidated first however soon it is put
                             back, a successor it carries in that evidence's place asked on its own binding and laid
-                            over the tick's state where it moved (`stands_afresh`); and the fields of a fresh reading
+                            over the tick's state where it moved, and that reading asked whatever attempt it carries,
+                            the evidence retired or marked as the comment stands beside another
+                            (`stands_afresh`); and the fields of a fresh reading
                             laid over the tick's state, each
                             taken in as read (`lays`)
     rewrite_finish_announced.py
