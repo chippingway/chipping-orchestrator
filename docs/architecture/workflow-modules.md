@@ -229,8 +229,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             exception's name, else on the first, a section naming a test by its classes dotted and
                             its parameters as they are -- an `ERROR` node ID as the setup or teardown whose section
                             raised its error, or the only one a section says failed, as a collection where a section
-                            says pytest failed collecting it or
-                            its path or collection was interrupted, and otherwise as an error in any of the three, and
+                            of its own run says pytest failed collecting it or its path -- spelled relative to pytest's
+                            root there and to where it ran on the line, either ending on the other at a directory -- or
+                            its run says collection was interrupted, and otherwise as an error in any of the three, and
                             an `ERROR` path as its collection, never a test ID,
                             each with the error its line gives, else -- a line too long for the terminal carries none
                             -- the exception of the section pytest printed for it (`review_findings_pytest`), else the
@@ -261,7 +262,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             what it collected, a line of spaced underscores parting frames and titling nothing. A
                             section's exception is the first line set out least in its last run of lines marked `E`, not
                             an explanation, diff hint, or source line set out further, nor an exception another was
-                            raised handling; one marking no line holds Python's own traceback -- as `--tb=native` prints
+                            raised handling, nor the line `--showlocals` prints for a local named `E`; one marking no
+                            line holds Python's own traceback -- as `--tb=native` prints
                             it, and as pytest prints an exception group in any mode -- its exception the first line at
                             the margin below the last header, for a group the margin its rail sets, the exceptions it
                             holds standing further in. With `--tb=line` a failure has no section: each line under the

@@ -708,6 +708,69 @@ _QUIET_SKIPPED = (
     "SKIPPED [1] tests/test_skips.py:5: later\n"
     "1 passed, 1 skipped in 0.01s"
 )
+# Collections pytest failed, their summary lines too long to carry an error:
+# one module in two runs, each failing with an exception of its own; a module
+# its section titles relative to pytest's root and its summary line names
+# relative to where pytest ran -- either spelling the longer -- or another
+# module ending on the same name; and a run interrupted during collection
+# beside a run whose setup error printed no section (`--tb=no`).
+_ERRORS_HEADING = "==================================== ERRORS ====================================\n"
+_COLLECTED = "test_collection_long_name_long_name_long_name_long_name_long_name_long_name.py"
+_COLLECTED_LEAD = f"Failure: collection of `{_COLLECTED}`, before any test in it ran\n"
+_COLLECTED_RUN = (
+    f"{_ERRORS_HEADING}___ ERROR collecting {_COLLECTED} ___\nE   {{error}}\n"
+    f"{_SUMMARY_HEADING}ERROR {_COLLECTED}\n{_INTERRUPTED}\n1 error in 0.01s"
+)
+_COLLECTED_TWICE = "\n".join(
+    _COLLECTED_RUN.format(error=error) for error in ("ValueError: first run", "TypeError: second run")
+)
+_COLLECTED_TWICE_LEAD = (
+    f"{_COLLECTED_LEAD}Error: `ValueError: first run`\n{_COLLECTED_LEAD}Error: `TypeError: second run`\n"
+)
+_ROOTED = "sub/test_broken_with_a_long_module_name_to_fill_the_terminal_width.py"
+_MISSING_DEPENDENCY = "ModuleNotFoundError: No module named 'missing_dependency'"
+_ROOTED_SECTION = (
+    f"{_ERRORS_HEADING}______ ERROR collecting {_ROOTED} ______\n"
+    f"ImportError while importing test module '/tmp/proj/{_ROOTED}'.\n"
+    f"E   {_MISSING_DEPENDENCY}\n{_SUMMARY_HEADING}"
+)
+_WITHIN = _ROOTED.removeprefix("sub/")
+_COLLECTION_OF = "Failure: collection of `{path}`, before any test in it ran\n"
+_MISSING_LEAD = f"Error: `{_MISSING_DEPENDENCY}`\n"
+_SPELLED_APART = tuple(
+    (f"{_ROOTED_SECTION}ERROR {spelled}\n{_INTERRUPTED}", "", _COLLECTION_OF.format(path=spelled) + error)
+    for spelled, error in (
+        (f"../../proj/{_ROOTED}", _MISSING_LEAD),
+        (_WITHIN, _MISSING_LEAD),
+        (f"other/{_WITHIN}", _UNSTATED),
+    )
+)
+_SETUP_UNSECTIONED = "tests/test_setup_error_with_a_long_module_name_to_fill_the_terminal.py::test_x"
+_INTERRUPTED_BESIDE = (
+    f"{_COLLECTED_RUN.format(error='ValueError: first run')}\n"
+    f"E                                                                        [100%]\n{_SUMMARY_HEADING}"
+    f"ERROR {_SETUP_UNSECTIONED} - KeyError: 'k'\n1 error in 0.01s"
+)
+_INTERRUPTED_BESIDE_LEAD = (
+    f"{_COLLECTED_LEAD}Error: `ValueError: first run`\n"
+    f"Failure: `{_SETUP_UNSECTIONED}`, which errored outside any test body: in its collection, setup, or teardown\n"
+    "Error: `KeyError: 'k'`\n"
+)
+# A failure `--showlocals` printed, a local named `E` among its locals below
+# the assertion -- and among the source above it.
+_SHOWN_LOCALS = (
+    "_________________________________ test_failure _________________________________\n\n"
+    "    def test_failure():\n"
+    '        E = "local value"\n'
+    "        value = 0\n"
+    ">       assert value == 1\n"
+    "E       assert 0 == 1\n\n"
+    "E          = 'local value'\n"
+    "value      = 0\n\n"
+    f"{_LINE_MODULE}:4: AssertionError\n"
+    f"{_SUMMARY_HEADING}FAILED {_LINE_MODULE}::test_failure"
+)
+_SHOWN_LOCALS_LEAD = f"Failure: `{_LINE_MODULE}::test_failure`\nError: `assert 0 == 1`\n"
 # A stdin check running pytest, which names the test that failed, and how it leads.
 _STDIN_PYTEST = "FAILED tests/test_probe.py::test_probe - AssertionError: values differ"
 _STDIN_PYTEST_SHOWN = (
@@ -1192,6 +1255,14 @@ class FailureNamesTest(unittest.TestCase):
             (_QUIET_RUNS, "", _QUIET_RUNS_LEAD),
             (_QUIET_UNCOLLECTED, "", _QUIET_UNCOLLECTED_LEAD),
             (_QUIET_SKIPPED, "", _QUIET_FIRST_LEAD),
+            # Each collection a summary line reports takes the section of its
+            # own run, however the two spell its path; and only that run's
+            # interruption makes a node ID a collection.
+            (_COLLECTED_TWICE, "", _COLLECTED_TWICE_LEAD),
+            *_SPELLED_APART,
+            (_INTERRUPTED_BESIDE, "", _INTERRUPTED_BESIDE_LEAD),
+            # A local `--showlocals` printed is no exception, though named `E`.
+            (_SHOWN_LOCALS, "", _SHOWN_LOCALS_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):

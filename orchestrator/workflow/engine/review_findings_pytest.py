@@ -57,7 +57,12 @@ Tests in different modules may share a name, and their sections a title, so
 each summary line takes a section of its own (`PytestOutput.take`). pytest
 prints the sections and the summary lines in one order, so a line takes the
 first section it may be that no line before it took -- the one whose
-exception the line's own error opens, where it gives one.
+exception the line's own error opens, where it gives one -- and so takes its
+own run's. A collection's section names its path relative to pytest's root
+directory, and its summary line relative to where pytest ran, so the line
+takes a section either spelling of which ends on the other at a directory's
+boundary (`PytestOutput.collection`); and a run says collection was
+interrupted below its own summary lines, of them alone.
 """
 from __future__ import annotations
 
@@ -76,8 +81,10 @@ _SECTION_RE = re.compile(
 )
 
 # A line a section marks with `E`, how far it sets out what it says, and what
-# it says -- nothing, on a line marked blank.
-_MARKED_RE = re.compile(r"[ \t]*E(?:(?P<indent>[ \t]+)(?P<error>.*?))?[ \t\r]*")
+# it says -- nothing, on a line marked blank. `--showlocals` prints each local
+# below the traceback as its name padded to ten, ` = `, and its value, so the
+# line of a local named `E` is no marked line.
+_MARKED_RE = re.compile(r"[ \t]*E(?! {10}= )(?:(?P<indent>[ \t]+)(?P<error>.*?))?[ \t\r]*")
 
 # The headings the failures and the short summary stand under. With
 # `--tb=line` a failure has no section of its own under the first: pytest
@@ -137,6 +144,10 @@ _SUMMARISED = "summarised"
 _ELSEWHERE = ""
 _HEADED = MappingProxyType({_FAILURES: _TRACED, _SUMMARY: _SUMMARISED})
 
+# A line of a short summary, and whether pytest says it interrupted
+# collecting the run the summary closes.
+_Summarised = tuple[str, bool]
+
 
 @dataclass(frozen=True)
 class _Where:
@@ -172,14 +183,24 @@ class _Where:
         return wheres[1:]
 
     @classmethod
-    def summary(cls, lines: Sequence[str], wheres: Sequence[_Where]) -> list[str]:
+    def summary(cls, lines: Sequence[str], wheres: Sequence[_Where]) -> list[_Summarised]:
         """Those of `lines` standing, by `wheres`, in the last short summary of their run; none where none stands.
 
         pytest prints a run's short summary last, so a summary heading above
-        another in one run is one a test printed.
+        another in one run is one a test printed. Each line goes with whether
+        its summary says pytest interrupted that run's collection.
         """
         last = {where.run: where.summaries for where in wheres if where.region == _SUMMARISED}
-        return list(compress(lines, (where.summarises(last) for where in wheres)))
+        stopped = {
+            where.summaries
+            for line, where in zip(lines, wheres, strict=True)
+            if where.summarises(last) and _INTERRUPTED_RE.search(line)
+        }
+        return [
+            (line, where.summaries in stopped)
+            for line, where in zip(lines, wheres, strict=True)
+            if where.summarises(last)
+        ]
 
     def stands(self, region: str) -> bool:
         """Whether the line stands in `region`, outside anything captured."""
@@ -304,13 +325,14 @@ class PytestOutput:
         titles = frozenset(section.title for section in self._sections)
         phased = filter(None, map(_PHASE_TITLE_RE.fullmatch, titles))
         self._sectioned = titles.union(found.group("name") for found in phased)
-        self._collected = _collections(self._sections)
         uncaptured = _uncaptured(lines, self._wheres)
-        self._interrupted = any(map(_INTERRUPTED_RE.search, uncaptured))
+        interrupted = any(map(_INTERRUPTED_RE.search, uncaptured))
         summarised = _Where.summary(lines, self._wheres)
-        # The lines pytest's short summary lines may stand on. Its heading
-        # stands in the summary, so none does only where the output holds none.
-        self.summary = summarised or uncaptured
+        # The lines pytest's short summary lines may stand on, each with
+        # whether pytest interrupted its run's collection. The summary's
+        # heading stands in it, so none does only where the output holds none,
+        # read then as one run.
+        self.summary = summarised or [(line, interrupted) for line in uncaptured]
         self._taken: set[int] = set()
 
     def sectioned(self, node: str) -> bool:
@@ -349,21 +371,24 @@ class PytestOutput:
         section = self.take(titles, error)
         return _UNPHASED if section is None else (titles[section.title], section.raised)
 
-    def collection(self, node: str) -> tuple[str, str] | None:
-        """What pytest failed collecting for `node`, and its section's exception; None where nothing says so.
+    def collection(self, node: str, error: str, interrupted: bool) -> str | None:
+        """The exception pytest failed collecting `node` with, "" for none; None where nothing says it failed to.
 
-        That is `node` itself, or the path holding it, where a section says
-        pytest failed collecting it; the path where collection was
-        interrupted; and a path always, pytest's summary naming one for its
-        collection alone.
+        pytest failed collecting `node` itself, or the path holding it, where
+        a section says so: the one a summary line giving `error` reports
+        (`take`), so a line takes its own run's; where the line's run says
+        collection was `interrupted`; and always where `node` is a path,
+        pytest's summary naming one for its collection alone.
         """
         path = node.partition(_NODE_SEPARATOR)[0]
-        titled = [subject for subject in (node, path) if subject in self._collected]
-        implied = self._interrupted or path == node
-        subject = next(iter(titled), path if implied else None)
-        if subject is None:
-            return None
-        return subject, self._collected.get(subject, "")
+        titles = {
+            section.title for section in self._sections
+            if _collects(section.title, (node, path))
+        }
+        section = self.take(titles, error)
+        if section is not None:
+            return section.raised
+        return "" if interrupted or path == node else None
 
     @classmethod
     def name(cls, node: str) -> str:
@@ -393,14 +418,18 @@ class PytestOutput:
                 yield Section(_UNTITLED, lined.group("raised"))
 
 
-def _collections(sections: Iterable[Section]) -> dict[str, str]:
-    """What each section titled as a collection pytest failed collected, with its exception; the first of a subject."""
-    collected: dict[str, str] = {}
-    for section in sections:
-        found = _COLLECTING_TITLE_RE.fullmatch(section.title)
-        if found is not None:
-            collected.setdefault(found.group("subject"), section.raised)
-    return collected
+def _collects(title: str, subjects: Iterable[str]) -> bool:
+    """Whether the section titled `title` says pytest failed collecting one of `subjects`.
+
+    pytest titles it by a path relative to its root directory, and its summary
+    line names one relative to where it ran, so either spelling may end on the
+    other at a directory's boundary.
+    """
+    found = _COLLECTING_TITLE_RE.fullmatch(title)
+    titled = "" if found is None else f"/{found.group('subject')}"
+    rooted = (f"/{subject}" for subject in subjects)
+    alike = (titled.endswith(spelled) or spelled.endswith(titled) for spelled in rooted)
+    return bool(titled) and any(alike)
 
 
 def _uncaptured(lines: Sequence[str], wheres: Iterable[_Where]) -> list[str]:
