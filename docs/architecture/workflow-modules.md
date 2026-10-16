@@ -1286,7 +1286,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proved, and a settlement the answer adopted is invalidated over movement it read, the
                             evidence records' own moves and the attempt's members aside -- save what any comment it read
                             was read recording, a blank of the captured attempt's base tip among it, however soon that
-                            is put back
+                            is put back; behind every invalidation and every abandonment that phase lands the comment
+                            is read afresh (`rewrite_finish_rechecks.py`), so a successor or another attempt written
+                            right behind that write holds the route, and evidence put back current under the receipt
+                            just invalidated is retired again rather than routed
     rewrite_finish_settled.py
                             the steps that evidence phase takes where its two policies differ, reading nothing more for
                             a finish not built with `proves_settled`: settled evidence proved ready, the comment read
