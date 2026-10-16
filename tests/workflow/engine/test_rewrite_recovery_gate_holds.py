@@ -65,8 +65,20 @@ _LANDS = _commits.ReportCommit.lands
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
 
 # How the hold's record goes once report 3 settled ahead of it -- landed, its
-# answer lost, or refused -- and whether report 2 is put back right behind it.
-_AT_THE_RECORD = (("", True), ("lost", True), ("refused", False))
+# answer lost, or refused -- or right under its strict edit, which is refused
+# over it, and whether report 2 is put back right behind it.
+_UNDER_THE_EDIT = "under the edit"
+
+# A record the tick staged since its reading, as a gate holding over a
+# reading of its own does, so the hold's record has an edit to send.
+_STAGED_BY_THE_GATE = "late_gate_hold"
+
+_AT_THE_RECORD = (
+    ("", True),
+    ("lost", True),
+    ("refused", False),
+    (_UNDER_THE_EDIT, True),
+)
 
 
 @contextlib.contextmanager
@@ -117,13 +129,11 @@ class _AroundTheHold:
         if write is not _parks.HOLD or self._replaced:
             return _LANDS(commit, staged, write)
         case = self._case
-        pinned = readings.pinned(case)
-        self._replaced = {key: pinned.get(key) for key in _MOVED_RECORDS}
-        case.state = case.gh.read_pinned_state(case.issue)
-        subject = _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
-        if self.successor:
-            self.successor = _settles_a_successor(case, subject)
-        case.gh.write_pinned_state(case.issue, case.state)
+        if self._failing == _UNDER_THE_EDIT:
+            staged.set(_STAGED_BY_THE_GATE, self._head)
+            with patch.object(case.gh, "edit_pinned_state", partial(self._moves_under, case.gh.edit_pinned_state)):
+                return _LANDS(commit, staged, write)
+        self._settles()
         failures = getattr(case.gh.pinned_failures, self._failing) if self._failing else set()
         failures.add(case.issue.number)
         landed = _LANDS(commit, staged, write)
@@ -138,6 +148,24 @@ class _AroundTheHold:
         for key, recorded in self._replaced.items():
             state.set(key, recorded)
         self._case.gh.write_pinned_state(self._case.issue, state)
+
+    def _settles(self) -> None:
+        """Settle report 3 -- and a newer run bound to it, where `successor` -- keeping what it moved."""
+        case = self._case
+        pinned = readings.pinned(case)
+        self._replaced = {key: pinned.get(key) for key in _MOVED_RECORDS}
+        case.state = case.gh.read_pinned_state(case.issue)
+        subject = _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
+        if self.successor:
+            self.successor = _settles_a_successor(case, subject)
+        case.gh.write_pinned_state(case.issue, case.state)
+
+    def _moves_under(self, live, issue, state, *, over: dict, **options):
+        """`live`, the strict edit, with report 3 settled under it and report 2 put back right behind its answer."""
+        self._settles()
+        answered = live(issue, state, over=over, **options)
+        self.puts_back()
+        return answered
 
 
 class GateHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
@@ -168,8 +196,9 @@ class GateHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_a_report_moved_at_the_record_is_read(self) -> None:
         # Report 3 settles behind the proof and ahead of the hold's record,
-        # which lands it, loses its answer, or is refused; report 2 put back
-        # right behind a record that carried report 3 still leaves the run
+        # which lands it, loses its answer, or is refused -- or right under
+        # its strict edit, refused over it; report 2 put back right behind a
+        # record that carried report 3, or that edit, still leaves the run
         # moved. The run is invalidated whole with the attempt kept, and the
         # poll the gate lets through routes the head with nothing current.
         for failing, restores in _AT_THE_RECORD:

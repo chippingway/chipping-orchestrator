@@ -52,6 +52,18 @@ _FOUND_TO_REVIEW = f"{_FOUND}{_TO_REVIEW} so the reviewer re-runs against the re
 
 _ROUTED = (support.LABEL_VALIDATING,)
 
+# The stage-entry event a route's relabel files, naming the head it relabels for.
+_STAGE_ENTER = "stage_enter"
+_VALIDATING = "validating"
+
+# The label an announced issue wears, the head a stage-entry event filed for
+# its relabel names (None for none filed), and the relabels its route makes.
+_ANNOUNCED_LABELS = (
+    (support.LABEL_FIXING, None, _ROUTED),
+    (support.LABEL_VALIDATING, support.LANDED, ()),
+    (support.LABEL_VALIDATING, None, _ROUTED),
+)
+
 # The method a landing this tick sent nothing for is filed under, and the one a
 # push a recovery made is.
 _FOUND_METHOD = "crash_recovery_relabel_only"
@@ -257,13 +269,18 @@ class AnnouncedFinishTest(unittest.TestCase):
     """A finish whose mark already names the landed head says nothing again and owes only its route."""
 
     def test_an_announced_finish_says_nothing_again(self) -> None:
-        # A label the issue already wears is not written again.
-        for label, relabelled in ((support.LABEL_FIXING, _ROUTED), (support.LABEL_VALIDATING, ())):
-            with self.subTest(label=label):
+        # A validating label this head's relabel already wrote -- its
+        # stage-entry event naming the head on the stream -- is not written
+        # again; one the issue wore before the rebase is, as an uninterrupted
+        # route's would be.
+        for label, filed, relabelled in _ANNOUNCED_LABELS:
+            with self.subTest(label=label, filed=filed):
                 world = support.FinishWorld.seeded(label=label, **{
                     support.KEY_ANNOUNCED: support.LANDED,
                     support.KEY_REWRITE_DEBT: support.owed(),
                 })
+                if filed:
+                    world.github.emit_event(_STAGE_ENTER, issue_number=support.ISSUE, stage=_VALIDATING, sha=filed)
 
                 self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
 

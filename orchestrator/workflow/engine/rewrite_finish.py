@@ -93,9 +93,11 @@ refuses stops the finish there with nothing behind it made:
   tick lost between them back, to the mark this finish left and the evidence
   it settled. The retirement is decided on every record the evidence is
   bound through, so a report or review another road moved after the evidence
-  was decided or settled refuses the route rather than riding it. An issue
-  already on `workflow:validating` under its own mark is not relabelled
-  again.
+  was decided or settled refuses the route rather than riding it. The
+  relabel names the landed head on its stage-entry event, and an issue whose
+  relabel for that head the event stream already carries is not relabelled
+  again -- one already on `workflow:validating` before its rebase, with no
+  such event, is, as an uninterrupted route would relabel it.
 
 A tick lost anywhere in that tail -- behind the evidence it settled, retired,
 or left to the fresh reviewer and before the announcement, between the
@@ -107,8 +109,8 @@ records leave it and reads the rest off the mark, the pull request, the event
 stream, and the label: a head the mark already names gets no second notice,
 `base_rebased` event, or round reset, a notice found on the pull request or
 an event found on the stream with no mark beside them is not said again, and
-an issue already relabelled under the mark gets no second relabel or
-stage-entry event.
+an issue whose relabel for the head the stream carries gets no second relabel
+or stage-entry event.
 
 Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
@@ -152,8 +154,8 @@ wherever anything it is bound to moved since it settled
   as it stands (`rewrite_finish_marks`), the route held.
 
 A finish announces nothing for a head another finish of the landing marked
-meanwhile, relabels nothing another one relabelled under
-that mark, holds where the label would not read again or another attempt
+meanwhile, relabels nothing another one relabelled for
+that head, holds where the label or the event stream would not read again or another attempt
 stands behind the proof ahead of its relabel, reuses a debt park standing
 that no reply handed in answers, parks over a notice said behind a reply it
 is handed again, leaves a transaction another road recorded behind its
@@ -218,7 +220,7 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     if stopped is not None:
         return stopped
     headed = FinishOutcome.CONTINUED if finish.behind else FinishOutcome.ROUTED
-    return _routes(finish, headed, announced=announced)
+    return _routes(finish, headed)
 
 
 def finishes_the_recovery(context: _AutoRebaseRecoveryContext, landing: _LandedRewrite) -> bool:
@@ -400,7 +402,7 @@ def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     return _stops.behind_the_announcement(finish, stopped, observed)
 
 
-def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> FinishOutcome:
+def _routes(finish: LandedFinish, headed: FinishOutcome) -> FinishOutcome:
     """Retire the attempt and take the route `headed` names; `headed`, or where the write behind it stopped.
 
     The retirement is prepared before the relabel and lands behind it, so a
@@ -436,7 +438,7 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     if stopped is not None:
         return _stops.behind_the_write(finish, stopped, observed)
     routed = headed is FinishOutcome.ROUTED
-    stopped = _stops.relabels(finish, announced=announced) if routed else None
+    stopped = _stops.relabels(finish) if routed else None
     stopped = stopped or _settled.stands_ready_if_settled(finish, or_the_base=routed)
     if stopped is not None:
         return stopped

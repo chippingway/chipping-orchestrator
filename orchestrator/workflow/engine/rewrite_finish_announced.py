@@ -12,7 +12,8 @@ under settled evidence is retired over the attempt as it stands rather than
 refused as another road's. The coordinator (`rewrite_finish.finalizes`) asks
 `marked` and `relabelled`, so a finish neither announces a head another
 finish marked meanwhile nor relabels -- and files the stage-entry event of --
-an issue another finish already relabelled under that mark.
+an issue another finish already relabelled for that head, which the
+stage-entry event naming the head says.
 """
 from __future__ import annotations
 
@@ -21,15 +22,20 @@ from collections.abc import Mapping
 from typing import Any
 
 from orchestrator.git.base_sync import attempts as _attempts, state as _base_sync_state
+from orchestrator.github import events as _github_events
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import pinned_commit as _commit, pinned_commit_models as _commit_models
 from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
-from orchestrator.workflow.state import WorkflowLabel
+from orchestrator.workflow.state import WorkflowLabel, stage_name
 
 log = logging.getLogger("orchestrator.workflow")
 
 # The attempt's members the announcement writes: the record of its event, and the mark.
 _ANNOUNCING = frozenset((_base_sync_state._PENDING_ANNOUNCED_EVENT, _base_sync_state._PENDING_ANNOUNCED_SHA))
+
+# The event a relabel files, and the stage the route's relabel enters.
+_STAGE_ENTER = "stage_enter"
+_VALIDATING = stage_name(WorkflowLabel.VALIDATING)
 
 
 def advanced_by_the_announcement(
@@ -77,20 +83,20 @@ def marked(finish: LandedFinish, *, already: bool) -> bool:
     return already or _attempts._already_announced(finish.state, finish.head)
 
 
-def relabelled(finish: LandedFinish, *, announced: bool) -> bool | None:
-    """Whether the issue is already on `workflow:validating` under the mark, so the route relabels nothing.
+def relabelled(finish: LandedFinish) -> bool | None:
+    """Whether this head's relabel to `workflow:validating` is already made, so the route relabels nothing.
 
-    Read off the mark as the attempt now carries it (`marked`) and, where it
-    is down, the label off the issue fetched afresh rather than the one the
-    tick read, so a relabel another finish made meanwhile -- and its
-    stage-entry event -- is not made twice. That label is the relabel made
-    under the mark only where it cannot predate the mark: `announced`, the
-    mark the tick read down already, or a label the tick read as another. An
-    issue the tick read on `workflow:validating` with no mark down for the
-    head -- an earlier head's route, a head since continued to another rebase
-    -- is relabelled for this head's route all the same, as an uninterrupted
-    journey's would be. None where that label could not be read: nobody can
-    say whether the relabel is made, so the route holds rather than risk it.
+    Read off the mark as the attempt now carries it (`marked`), the label off
+    the issue fetched afresh, and -- where that label reads
+    `workflow:validating` -- the event stream: a relabel the route made names
+    the head on its `stage_enter` event (`rewrite_finish_stops.relabels`), so
+    one another finish of the landing made, or a finish lost behind its
+    relabel, is found there and not made twice, nor its stage-entry event. A
+    label the issue already wore before the rebase, which a relabel onto it
+    leaves as it was, is no relabel of this head's: with no such event filed,
+    the route relabels it as an uninterrupted journey's does. None where the
+    label or the event stream could not be read: nobody can say whether the
+    relabel is made, so the route holds rather than risk it.
     """
     if not marked(finish, already=False):
         return False
@@ -104,4 +110,12 @@ def relabelled(finish: LandedFinish, *, announced: bool) -> bool | None:
         return None
     if label != WorkflowLabel.VALIDATING:
         return False
-    return announced or finish.label != WorkflowLabel.VALIDATING
+    made = _github_events.filed(
+        finish.gh, _STAGE_ENTER, issue_number=finish.issue.number, stage=_VALIDATING, sha=finish.head,
+    )
+    if made is None:
+        log.warning(
+            "issue=#%d could not read the event stream for the relabel of %.8s; holding the route",
+            finish.issue.number, finish.head,
+        )
+    return made

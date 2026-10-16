@@ -47,7 +47,7 @@ def unfetched(spec, ref: str, **options) -> subprocess.CompletedProcess:
     return _FETCH(spec, ref, **options)
 
 
-def parking(_issue, state, *, over: dict) -> bool:
+def parking(_issue, state, *, over: dict, **_options) -> bool:
     """Whether a pinned-comment edit is a park's record, which the comment lacks."""
     return bool(state.get(AWAITING)) and not over.get(AWAITING)
 

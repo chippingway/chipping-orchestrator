@@ -1532,7 +1532,8 @@ because there it is the claim that this stage has already rerouted rather than a
   (`rewrite_recovery_parks.proves_before_a_park`) -- the dispatcher's quiet holds and an already-standing stranded
   park included, on every poll -- and each park landed through the guarded commit over the comment read afresh,
   proving what it keeps once more behind its notice, raised or not, and behind its record, a movement that record
-  carried kept as read (`rewrite_recovery_parks.lands_a_park`). A publication gate's hold of the landed road's
+  carried -- or that the comment its strict edit was refused over carried -- kept as read
+  (`rewrite_recovery_parks.lands_a_park`). A publication gate's hold of the landed road's
   leased no-op is recorded the same way, as `HOLD`, its proof taken first (`rewrite_recovery_parks.lands_a_hold`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the

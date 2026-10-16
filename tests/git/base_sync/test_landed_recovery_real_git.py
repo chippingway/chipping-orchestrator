@@ -16,6 +16,17 @@ import unittest
 from tests.git.base_sync import recovery_git_support as fixtures
 from tests.git.base_sync.vouched_replay_git_support import VouchedReplayGitFixtureMixin
 
+# The stage-entry event a route's relabel files, naming the head it relabels for.
+_STAGE_ENTER = "stage_enter"
+_VALIDATING = "validating"
+
+# Whether that event names the recovered head, and the relabels the recovery
+# of an announced landing on `workflow:validating` makes.
+_RELABELS_BEHIND_THE_MARK = (
+    (True, []),
+    (False, [(fixtures.ISSUE, fixtures.VALIDATING)]),
+)
+
 RELABEL_ONLY = "crash_recovery_relabel_only"
 
 KEY_REWRITE_DEBT = "developer_report_rewrite_debt"
@@ -67,12 +78,22 @@ class LandedRecoveryRealGitTest(VouchedReplayGitFixtureMixin, unittest.TestCase)
         self.assertEqual(self.gh.label_history, [(fixtures.ISSUE, fixtures.VALIDATING)])
 
     def test_a_relabelled_route_is_only_written(self) -> None:
-        # Lost after its relabel landed, so the issue is already where the
-        # route goes: nothing is said or relabelled, and only the write that
-        # retires the attempt is made.
-        self._recovers_an_announced_landing(fixtures.VALIDATING)
+        # Lost after its relabel landed -- its stage-entry event naming the
+        # head on the stream -- so the issue is already where the route goes:
+        # nothing is said or relabelled, and only the write that retires the
+        # attempt is made. Lost ahead of the relabel on an issue that wore
+        # `workflow:validating` before the rebase, no event names the head,
+        # so the recovery makes this head's relabel once, as the uninterrupted
+        # route would.
+        for filed, relabelled in _RELABELS_BEHIND_THE_MARK:
+            with self.subTest(filed=filed):
+                self.setUp()
+                if filed:
+                    self.gh.emit_event(_STAGE_ENTER, issue_number=fixtures.ISSUE, stage=_VALIDATING, sha=self.recovered)
 
-        self.assertEqual(self.gh.label_history, [])
+                self._recovers_an_announced_landing(fixtures.VALIDATING)
+
+                self.assertEqual(self.gh.label_history, relabelled)
 
     def _recovers_an_announced_landing(self, label: str) -> None:
         """Recover the landing under `label` past a mark naming it; nothing pushed or said, the attempt retired."""

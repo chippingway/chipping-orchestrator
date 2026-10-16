@@ -41,11 +41,11 @@ _UNDRIVEN = "workflow:resolving_conflict"
 _AWAY = "checkout-away"
 
 
-def _refuses_the_park(refused: set, live, issue, state, *, over: dict):
+def _refuses_the_park(refused: set, live, issue, state, **options):
     """`live`, the client's pinned-comment edit, refused by GitHub where it is a park's record."""
-    if guarded.parking(issue, state, over=over):
+    if guarded.parking(issue, state, **options):
         refused.add(issue.number)
-    answered = live(issue, state, over=over)
+    answered = live(issue, state, **options)
     refused.discard(issue.number)
     return answered
 

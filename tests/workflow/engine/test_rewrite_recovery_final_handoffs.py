@@ -96,6 +96,14 @@ _RESOLUTIONS = (
 
 _VALIDATING = "validating"
 
+# Every resolution and boundary from the stage that asked for the rebase, and
+# from `workflow:validating` behind the checkpoint, whose relabel is owed onto
+# the label the issue already wears.
+_JOURNEYS = (
+    *product((False,), _RESOLUTIONS, handoff.BOUNDARIES),
+    *product((True,), _RESOLUTIONS, (handoff.BEFORE_THE_RELABEL, handoff.BEFORE_THE_RETIREMENT)),
+)
+
 _REREAD = "reread_report_location"
 
 # The pull request read answering as one nobody could take does.
@@ -128,12 +136,16 @@ class _HandoffCase(support.CapturedRunCase):
         failed = [notice.split("`")[1] for notice in failures]
         return support.announced(self), len(posted) - len(failures), failed
 
-    def assert_announced_once(self, head: str, *, failed: bool = False) -> None:
-        """`head` announced, relabelled, and entered into `validating` once; a failure it `failed` noticed once."""
+    def assert_announced_once(self, head: str, *, failed: bool = False, wore: int = 0) -> None:
+        """`head` announced, relabelled, and entered into `validating` once; a failure it `failed` noticed once.
+
+        `wore` is how many relabels onto `validating` the issue took before the rebase landed.
+        """
         failures = [head[:8]] if failed else []
         self.assertEqual(self.said(), ([head], 1, failures))
-        routed = (readings.relabels(self), handoff.stage_entries(self.gh, git_support.ISSUE))
-        self.assertEqual(routed, (readings.ROUTED, [_VALIDATING]))
+        entered = handoff.stage_entries(self.gh, git_support.ISSUE)[wore:]
+        relabelled = readings.relabels(self)[wore:]
+        self.assertEqual((relabelled, entered), (readings.ROUTED, [_VALIDATING]))
 
     def assert_finished(self, ran: int) -> None:
         """The attempt retired with its round reset and no failure owed, `ran` runs, nothing pushed or launched."""
@@ -168,10 +180,16 @@ class FinalHandoffRecoveryTest(_HandoffCase, unittest.TestCase):
     def test_each_boundary_finishes_once(self) -> None:
         # Whatever resolved the evidence and wherever the tail died, two later
         # polls leave one announcement, one relabel and stage entry, the
-        # evidence exactly as resolved, and nothing run or published again.
-        for resolution, boundary in product(_RESOLUTIONS, handoff.BOUNDARIES):
-            with self.subTest(resolution=resolution.name, boundary=boundary.name):
+        # evidence exactly as resolved, and nothing run or published again --
+        # also on an issue already on `workflow:validating` before its rebase,
+        # whose route relabels it once all the same, a tail lost behind its
+        # checkpoint included: the mark and that label say nothing of this
+        # head's relabel, which only its own stage-entry event does.
+        for validating, resolution, boundary in _JOURNEYS:
+            with self.subTest(validating=validating, resolution=resolution.name, boundary=boundary.name):
                 self.setUp()
+                if validating:
+                    self.gh.set_workflow_label(self.issue, WorkflowLabel.VALIDATING)
                 head = resolution.lands(self)
                 self.dies_finishing(head, boundary)
                 resolved = (self.records(), self.artifacts())
@@ -179,7 +197,7 @@ class FinalHandoffRecoveryTest(_HandoffCase, unittest.TestCase):
                 self.recovers()
                 self.recovers()
 
-                self.assert_announced_once(head, failed=resolution.failed)
+                self.assert_announced_once(head, failed=resolution.failed, wore=validating)
                 self.assertEqual((self.records(), self.artifacts()), resolved)
                 self.assert_finished(resolution.ran)
 

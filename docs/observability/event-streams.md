@@ -50,7 +50,11 @@ two spellings and which labels have only one.
 capped in-memory tail (`recorded_events`, `_RECORDED_EVENTS_CAP = 500`) for tests and short-window debugging — the
 file is the durable record.
 
-- `stage_enter` — `set_workflow_label` (via `_emit_stage_enter`) for every label flip; extras: `stage`.
+- `stage_enter` — `set_workflow_label` (via `_emit_stage_enter`) for every label flip; extras: `stage`, and `sha` --
+  the landed head -- on the relabel a landed rewrite's route makes to `workflow:validating`
+  (`workflow/engine/rewrite_finish_stops.py`). That finish asks the stream for this event before relabelling an issue
+  already on `workflow:validating` under its mark (`rewrite_finish_announced.relabelled`), since a relabel onto the
+  label the issue wore leaves the label saying nothing, and holds while the stream will not read.
 - `agent_spawn` / `agent_exit` — `_run_agent_tracked` (in `workflow/engine/usage.py`) wraps every `run_agent` call
   (decomposer, implementer, reviewer, dev-resume, conflict-resolution dev); extras: `agent` (backend), `agent_role`,
   `review_round`, `retry_count`. `session_id` and `agent_exit`-only fields are described below. A launch the

@@ -451,7 +451,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             already reads as -- a comment that moved under that edit refused as MOVED, naming nothing,
                             save for a guard that `reads_a_move`, which names the prerequisites the comment the edit
                             read spells otherwise as PREREQUISITE_CHANGED, and has every refusal of moved prerequisites
-                            carry the comment it read them moving on (`seen`). A refusal writes nothing and moves
+                            carry the comment it read them moving on (`seen`), a MOVED one the comment its edit read
+                            in place of the fresh reading. A refusal writes nothing and moves
                             nothing the caller holds, and an edit that went out unconfirmed is reported as neither
                             answer, for the domain's own receipts to settle. `reread` is that fresh reading alone -- the
                             captured comment, still parsing -- for a caller with requests of its own to make over it
@@ -1178,8 +1179,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the attempt back, so every landing shares one post-push policy and one evidence decision.
                             Every one of those roads holds that order to the settled-evidence policy, whose steps
                             around the stops, the relabel, and the writes are answered by `rewrite_finish_stops.py`,
-                            `rewrite_finish_announced.py`, and `rewrite_finish_writes.py`; a validating label the
-                            tick read with no mark down for the head predates the mark, so the route relabels
+                            `rewrite_finish_announced.py`, and `rewrite_finish_writes.py`; the relabel names the
+                            landed head on its stage-entry event, which is what says it was made
     rewrite_finish_models.py
                             the finish's input -- the typed landing, the issue, its pinned state and label, the road
                             (`FinishRoad`), the lag the publication's notice reports, and the human reply a recovery
@@ -1337,7 +1338,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             last word over it -- and nothing read where the
                             attempt was retired or replaced but evidence marked moving under its receipt, retired whole
                             where room allows (`unfinishable`); the same proofs ahead of the park a debt with no room
-                            takes (`ahead_of_the_park`); the relabel made once under the mark read afresh, the evidence
+                            takes (`ahead_of_the_park`); the relabel made once for the head, read afresh, the evidence
                             proved ahead of it and behind one that raised, the label and the attempt read again
                             behind that proof's requests (`rewrite_finish_rechecks.stands_afresh`), and the route
                             held where the label would not read or another attempt stands there (`relabels`); the
@@ -1381,8 +1382,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             mark and event record taken in ahead of every invalidation (`takes_in_the_announcement`),
                             the mark read
                             again before the coordinator announces (`marked`), and the label read afresh under it
-                            before the coordinator relabels, None where it would not read, a validating label the tick
-                            read with no mark down for the head no relabel made under it (`relabelled`)
+                            before the coordinator relabels, and where it reads `workflow:validating` the event stream
+                            asked for the stage-entry event naming the head, None where either would not read
+                            (`relabelled`)
     rewrite_finish_marks.py
                             settled evidence invalidated over the attempt as reconciled -- read afresh and retried
                             once where a write was refused (`retires_over_the_attempt`) -- or, where another finish's
@@ -2210,8 +2212,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             refused or never confirmed records nothing and withholds the tick's state; a state
                             nothing was read into is written whole. Behind the notice -- landed, refused, or raised --
                             what the park keeps is proved once more (`rewrite_landing_retirement.retires_unproved`),
-                            a binding record its own commit carried spelled otherwise than the tick read it, landed or
-                            sent with its answer lost, handed to that proof as movement already read (`_adopted`)
+                            a binding record its own commit carried spelled otherwise than the tick read it, landed,
+                            sent with its answer lost, or in the comment its strict edit was refused over, handed to
+                            that proof as movement already read (`_adopted`)
                             however soon it is put back -- unless the record took in evidence under another
                             receipt, which is proved on its own readings. The landed road's hold behind a
                             publication gate that held its leased no-op lands the same way, as `HOLD`, decided on the

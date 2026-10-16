@@ -102,9 +102,10 @@ class CommitOutcome:
     `length` is the rendered body an OVERFLOW measured, and `inadmissible` is
     what the guard's own domain check answered where it refused the candidate.
     `seen`, for a guard that `reads_a_move` alone, is the comment a
-    PREREQUISITE_CHANGED refusal read those fields moved on
-    (`PinnedCommit.keeps_the_move`), so the caller can say what they moved to
-    however soon they are put back.
+    PREREQUISITE_CHANGED refusal read those fields moved on, or the one a
+    MOVED edit found in place of the fresh reading
+    (`PinnedCommit.keeps_the_move`), so the caller can say what moved and to
+    what however soon it is put back.
     """
 
     status: CommitStatus
@@ -114,6 +115,10 @@ class CommitOutcome:
     length: int | None = None
     inadmissible: Any = None
     seen: PinnedState | None = None
+
+
+# The refusals a guard that `reads_a_move` keeps the comment it read for.
+_READ_MOVES = frozenset((CommitRefusal.PREREQUISITE_CHANGED, CommitRefusal.MOVED))
 
 
 @dataclass(frozen=True)
@@ -197,12 +202,15 @@ class PinnedCommit:
         return (CommitRefusal.PREREQUISITE_CHANGED if moved else refusal), moved
 
     def keeps_the_move(self, outcome: CommitOutcome, reading: PinnedState | None) -> CommitOutcome:
-        """`outcome`, carrying `reading` as `seen` where this guard `reads_a_move` and it refuses moved prerequisites.
+        """`outcome`, carrying `reading` as `seen` where this guard `reads_a_move` and it refuses a move.
 
         `reading` is the comment that refusal was read over: the fresh reading,
-        or the one the strict edit read under it (`under_the_edit`).
+        or the one the strict edit read under it (`under_the_edit`) -- which,
+        where it moved no prerequisite, is the comment a MOVED refusal found
+        moved under the edit, a record the caller keeps as the fresh comment
+        carries it among what may have moved.
         """
-        if not self.reads_a_move or outcome.refusal is not CommitRefusal.PREREQUISITE_CHANGED:
+        if not self.reads_a_move or outcome.refusal not in _READ_MOVES:
             return outcome
         return replace(outcome, seen=reading)
 

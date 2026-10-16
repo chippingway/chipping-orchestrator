@@ -136,15 +136,17 @@ def ahead_of_the_park(finish: LandedFinish) -> FinishOutcome | None:
     return _captured.stands_before_the_route(finish, whole=True)
 
 
-def relabels(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
-    """Relabel `finish`'s issue to `workflow:validating` where nobody has under the mark; None to go on.
+def relabels(finish: LandedFinish) -> FinishOutcome | None:
+    """Relabel `finish`'s issue to `workflow:validating` where nobody has for the head; None to go on.
 
-    `announced` is whether the tick read the mark down for the landed head.
-    The mark and the label are read afresh (`rewrite_finish_announced.relabelled`),
-    and settled evidence is proved ready ahead of a relabel the finish makes
+    The mark, the label, and the event stream are read afresh
+    (`rewrite_finish_announced.relabelled`), the relabel naming the head on
+    its stage-entry event so a later finish finds it there, and settled
+    evidence is proved ready ahead of a relabel the finish makes
     (`rewrite_finish_settled.stands_ready_if_settled`) -- a proof that holds
     holding the relabel too -- and once more behind one that raised, and holds
-    the route, the evidence proved, where the label would not read. That proof
+    the route, the evidence proved, where the label or the stream would not
+    read. That proof
     makes requests of its own, and another finish of the landing may relabel
     while they are answered, or another road put an attempt of its own in
     place, so behind them the label is read afresh once more and the relabel,
@@ -153,7 +155,7 @@ def relabels(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     carries the attempt this finish holds (`rewrite_finish_rechecks.stands_afresh`)
     or would not read.
     """
-    made = relabelled(finish, announced=announced)
+    made = relabelled(finish)
     if made:
         return None
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
@@ -162,13 +164,13 @@ def relabels(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     if goes_on and not _rechecks.stands_afresh(finish, attempt):
         return FinishOutcome.HELD
     if goes_on:
-        made = relabelled(finish, announced=announced)
+        made = relabelled(finish)
     if made:
         return None
     if stopped is not None or made is None:
         return stopped or FinishOutcome.HELD
     try:
-        finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
+        finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING, sha=finish.head)
     except Exception:
         _settled.stands_ready_if_settled(finish)
         raise

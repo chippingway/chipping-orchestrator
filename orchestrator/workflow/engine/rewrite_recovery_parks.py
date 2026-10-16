@@ -72,8 +72,9 @@ keeps as the fresh comment carries it. So the evidence is proved once more
 behind the notice (`lands_a_park`) -- landed, refused, or raised -- and a
 report moved meanwhile is movement read under it, invalidated or recorded
 against it before the tick ends; one the park's own commit carried, landed or
-sent with its answer lost, is handed to that proof as read (`_adopted`), so
-putting the earlier report back before the reply revives nothing. A checkout
+sent with its answer lost -- or one its strict edit found moved under it and
+was refused over -- is handed to that proof as read (`_adopted`), so putting
+the earlier report back before the reply revives nothing. A checkout
 gone from disk has nothing to prove the landing over, so its evidence is
 retired on the state the park writes -- and the reset recorded against it
 first, in a write of its own, so a park write that fails or never lands
@@ -106,8 +107,9 @@ log = logging.getLogger("orchestrator.workflow")
 
 _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PARK_REASON))
 
-# What a park's record read where the record it landed or sent carried one the
-# evidence's binding rests on that another road moved while its notice was posted.
+# What a park's record read where the record it landed or sent, or the comment
+# its refused edit read, carried one the evidence's binding rests on that
+# another road moved while its notice was posted.
 _MOVED_UNDER_THE_NOTICE = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved while a park's notice was posted",
 )
@@ -115,10 +117,15 @@ _MOVED_UNDER_THE_NOTICE = ReportEvidence(
 # What a recovery hold records: whatever the tick staged since its reading --
 # a publication gate's own record of the no-op it held -- decided on the
 # attempt it keeps, so every evidence record stays as the comment carries it.
-HOLD = _commits.ReportWrite(owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS))
+# Its strict edit keeps the comment a refusal read (`reads_a_move`), which the
+# proof behind it reads for movement (`_adopted`).
+HOLD = _commits.ReportWrite(
+    owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS),
+).reading_moves(True)
 
 # A park's record, decided on the attempt it keeps or drops, the park's own
-# flags, and the evidence records a landed reset retires beside the attempt.
+# flags, and the evidence records a landed reset retires beside the attempt,
+# its strict edit keeping the comment a refusal read as the hold's does.
 PARK = _commits.ReportWrite(
     owned=_PARK_FLAGS | {_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID},
     decided_on=frozenset(_attempts._ATTEMPT_KEYS) | _PARK_FLAGS | {
@@ -126,7 +133,7 @@ PARK = _commits.ReportWrite(
         _evidence_records.CURRENT_EVIDENCE,
         _evidence_records.EVIDENCE_HISTORY,
     },
-)
+).reading_moves(True)
 
 
 def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str) -> None:
@@ -143,8 +150,9 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     the record the commit made of the comment already carried such a move --
     a record the evidence's binding rests on
     (`rewrite_finish_writes.BINDING_RECORDS`) spelled otherwise than the tick
-    read it, in the record that landed or in the one sent with its answer
-    lost, which is never laid over the tick's state -- that is movement read,
+    read it, in the record that landed, in the one sent with its answer lost,
+    which is never laid over the tick's state, or in the comment its strict
+    edit found moved under it and was refused over -- that is movement read,
     handed to the proof as its answer, so a record put back between the
     park's commit and the proof revives nothing. A notice whose post raised --
     refused, or posted with its answer lost -- records nothing, and the proof
@@ -253,11 +261,11 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
     """Land the tick's state as `write` over the comment read afresh, then prove once more what it keeps.
 
     Whether the record landed or not, the proof behind it -- taken only over a
-    checkout on disk -- is handed the move the record carried (`_adopted`),
-    while the evidence the tick held still stands behind it
-    (`rewrite_landing_retirement.receipts`): a successor the record took in is
-    proved on its own readings. `named` is the record, logged where it did
-    not land.
+    checkout on disk -- is handed the move the record carried or its strict
+    edit was refused over (`_adopted`), while the evidence the tick held still
+    stands behind it (`rewrite_landing_retirement.receipts`): a successor the
+    record took in is proved on its own readings. `named` is the record,
+    logged where it did not land.
     """
     state = context.state
     read = {key: _commit_models.spelled(state.data, key) for key in _writes.BINDING_RECORDS}
@@ -269,7 +277,7 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
             "and the next tick's recovery answers the comment as it then stands",
             context.issue.number, named, (landed.refusal or landed.status).value,
         )
-    moved = _adopted(landed.reading, read)
+    moved = _adopted(landed.reading or landed.seen, read)
     if _retirement.receipts(context.state) != held:
         moved = None
     if context.worktree.is_dir():
@@ -280,9 +288,13 @@ def _adopted(reading: PinnedState | None, read: dict) -> ReportEvidence | None:
     """The movement a park's record carried: `reading` spelling a binding record otherwise than `read` did, or None.
 
     `reading` is the record the park's commit made of the comment -- landed,
-    or sent with no answer -- and None where it was refused with nothing sent.
-    The movement is answered as read even where the record that carried it is
-    put back before the proof behind the park reads the comment again.
+    or sent with no answer -- or, where it was refused, the comment its
+    refusal was read over: the one its strict edit found moved under it, a
+    report another road settled right at that edit among what it carries
+    (`pinned_commit_models.CommitOutcome.seen`). None where the refusal read
+    no comment. The movement is answered as read even where the record that
+    carried it is put back before the proof behind the park reads the
+    comment again.
     """
     if reading is None:
         return None

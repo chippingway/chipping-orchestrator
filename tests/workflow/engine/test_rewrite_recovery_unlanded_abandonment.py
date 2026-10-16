@@ -113,17 +113,17 @@ _AWAITING = "awaiting_human"
 _RELEASED_BY_THE_WRITE = "is dropped by the pinned-state write that records this park, and still stands"
 
 
-def _answers_the_park(edit, lands: bool, issue, state, *, over: dict) -> PinnedEdit:
+def _answers_the_park(edit, lands: bool, issue, state, **options) -> PinnedEdit:
     """`edit`, the client's strict edit, answering the park's record as refused -- or, where it `lands`, as lost.
 
     The park's record is the edit flagging the issue awaiting a human over a
     comment that does not; every other edit is answered as it always is.
     """
-    if not state.get(_AWAITING) or over.get(_AWAITING):
-        return edit(issue, state, over=over)
+    if not state.get(_AWAITING) or options["over"].get(_AWAITING):
+        return edit(issue, state, **options)
     if not lands:
         return PinnedEdit.MOVED
-    edit(issue, state, over=over)
+    edit(issue, state, **options)
     return PinnedEdit.UNCONFIRMED
 
 
