@@ -11,7 +11,8 @@ is the block's, never a label, so a snippet quoting the layout enters nothing;
 and a paragraph of label lines opening on `Failure:` right above a check's
 sentence is the lead the formatting wrote for that check, never an entry.
 A label gives what follows it on its line, or, where that is blank, the code
-block below it, only blank lines between: a multi-line error, or a snippet.
+block below it, only blank lines between: a multi-line error, or a snippet. A
+block holding no code, empty or blank, gives nothing.
 
 `review_findings_failures` reads each entry (`FailureEntry`) to lead the
 checks its error shows in. `review_findings` shows the entries themselves as
@@ -93,9 +94,9 @@ class FailureEntry:
 
     `name` is what that line names it; `error` what its `Error:` line gives,
     code-span backticks aside, or, where that line gives nothing, the last
-    line of the code block below it; `snippet` whether a code block stands
-    below its `Reproduce:` line -- the code a stdin command would read, which
-    the command alone, however it is written there, does not give.
+    line of code in the block below it; `snippet` whether a code block holding
+    code stands below its `Reproduce:` line -- the code a stdin command would
+    read, which the command alone, however it is written there, does not give.
     """
 
     name: str
@@ -132,7 +133,7 @@ class FailureEntry:
     def _of(cls, labels: Sequence[_Label]) -> FailureEntry:
         """The entry the label lines `labels` make up, a later label of a kind taking the place of an earlier."""
         errors = [label.error for label in labels if label.label == _ERROR]
-        snippets = [label.quoted is not None for label in labels if label.label == _REPRODUCTION]
+        snippets = [bool(label.code) for label in labels if label.label == _REPRODUCTION]
         error = errors[-1] if errors else ""
         snippet = snippets[-1] if snippets else False
         return cls(labels[0].stated, error, snippet)
@@ -162,16 +163,21 @@ class _Label:
         return self.given.strip(_BLANKS)
 
     @property
+    def code(self) -> tuple[str, ...]:
+        """The lines of the code block below the label that hold anything, blanks aside; none for no block."""
+        held = (line.strip(_BLANKS) for line in self.quoted or ())
+        return tuple(filter(None, held))
+
+    @property
     def gives(self) -> bool:
-        """Whether the label gives anything: on its line, or as the code block below it."""
-        return bool(self.stated) or self.quoted is not None
+        """Whether the label gives anything: on its line, or as code in the block below it."""
+        return bool(self.stated or self.code)
 
     @property
     def error(self) -> str:
-        """What the label gives as an error: its line, code-span backticks aside, or its block's last line."""
+        """What the label gives as an error: its line, code-span backticks aside, or its block's last line of code."""
         stated = self.stated.strip(_BACKTICK).strip(_BLANKS)
-        held = [line.strip(_BLANKS) for line in self.quoted or ()]
-        return stated or next(filter(None, reversed(held)), "")
+        return stated or next(reversed(self.code), "")
 
     def said(self, text: str) -> str:
         """This label's line giving `text`."""

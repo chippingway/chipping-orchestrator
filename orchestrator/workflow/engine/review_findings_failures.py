@@ -12,32 +12,32 @@ a `FAILED` line names a test by its exact node ID, parameters included, and an
 `ERROR` line a node by its ID, or a path. A path names a collection that
 failed before any test in it ran -- the check that failed, not a test. A node
 ID names the setup or teardown of a test where a section pytest printed says
-that failed; a collection where a section says pytest failed collecting the
-node or its path, or the run says collection was interrupted, since a class
-pytest could not collect is reported by its ID; and, nothing saying which, an
-error outside any test body, in one of the three. A parameter may hold the
-very dash that parts an ID from its message, and even text of a message's
-shape after it (`_Reported._end`), so the ID is the longest an entry of the
-findings names whole, or pytest titled a section by; where nothing names one,
-it ends on the last split leaving a message of the shape pytest gives -- a
-rewritten assertion's `assert`, or the name of the exception, a colon after it
-unless it says nothing more -- and where none does, on the first. Each failure
-leads with its name and the error the line gives; for a collection error,
-which pytest's summary may give none for, the last exception line of the
-traceback pytest printed collecting it; or else the error of the reviewer's
-entry naming it. Where none is found the lead says so. No name is
-ever made up: a check pytest's summary names nothing in is led by the failure
-entries (`review_findings_entries`) the reviewer wrote for it in the findings,
-each named as the reviewer named it, or by a line saying nothing names it. An
-entry is a check's where the check's output shows the entry's error -- never
-because the two name one command, since one stdin command, such as
-`.venv/bin/python -`, may run several scenarios, each a check of its own. A
-lead says too where the check quoted no output to show an error by, and where
-its command reads its code from stdin and no entry it backs gives the snippet
-it read, as a code block below its `Reproduce:` line: such a command
-reproduces nothing alone, however an entry names it. A check naming more
-failures than a lead lists leaves the rest to its output, which is quoted
-whole below it.
+that failed -- where both did, the one whose section raised the error the line
+gives; a collection where a section says pytest failed collecting the node or
+its path, or the run says collection was interrupted, since a class pytest
+could not collect is reported by its ID; and, nothing saying which, an error
+outside any test body, in one of the three. A parameter may hold the very dash
+that parts an ID from its message, and even text of a message's shape after it
+(`_Reported._end`), so the ID is the longest an entry of the findings names
+whole, or pytest titled a section by; where nothing names one, it ends on the
+last split leaving a message of the shape pytest gives -- a rewritten
+assertion's `assert`, or the name of the exception, a colon after it unless it
+says nothing more -- and where none does, on the first. Each failure leads
+with its name and the error the line gives; for a collection error, which
+pytest's summary may give none for, the last exception line of the traceback
+pytest printed collecting it; or else the error of the reviewer's entry naming
+it. Where none is found the lead says so. No name is ever made up: a check
+pytest's summary names nothing in is led by the failure entries
+(`review_findings_entries`) the reviewer wrote for it in the findings, each
+named as the reviewer named it, or by a line saying nothing names it. An entry
+is a check's where the check's output shows the entry's error -- never because
+the two name one command, since one stdin command, such as `.venv/bin/python
+-`, may run several scenarios, each a check of its own. A lead says too where
+the check quoted no output to show an error by, and where its command reads
+its code from stdin and no entry it backs gives the snippet it read, as a code
+block holding code below its `Reproduce:` line: such a command reproduces
+nothing alone, however an entry names it. A check naming more failures than a
+lead lists leaves the rest to its output, which is quoted whole below it.
 
 The reviewer's own text is shown through here too (`said`): each entry with
 what it leaves out said, and each check the concise layout before leads
@@ -111,7 +111,8 @@ _PATH_RE = re.compile(r".*(?:/.*|\.py)")
 
 # The title of a section pytest prints a traceback in, what opens a section,
 # and the lines it marks as the exception. A failed test's section is titled
-# by its name -- the node ID past its path, classes parted by dots -- one that
+# by its name -- the node ID past its path, classes parted by dots, parameters
+# as they are -- one that
 # errored in a fixture by that name after `ERROR at setup of` or `ERROR at
 # teardown of`, and one it failed collecting by `ERROR collecting` and what it
 # collected; a run collection stopped says it was interrupted.
@@ -254,15 +255,16 @@ class _Reported:
         the entry naming the failure.
 
         A path names a collection. A node ID names the setup or teardown its
-        section says failed; or a collection, where pytest says it failed
-        collecting the node or its path, or that collection was interrupted;
-        or else an error in one of the three, nothing saying which. A
+        section says failed with `error` (`_Output.phase`); or a collection,
+        where pytest says it failed collecting the node or its path, or that
+        collection was interrupted; or else an error in one of the three,
+        nothing saying which. A
         collection's error is the summary line's, else the last exception
         line of the traceback pytest printed collecting it; and either's, the
         entry naming the failure's where neither gives one.
         """
         separated = _NODE_SEPARATOR in node
-        phase = read.phase(node) if separated else ""
+        phase = read.phase(node, error) if separated else ""
         if phase:
             failed = _PHASE_FAILED.format(node=span(node), phase=phase)
             return cls(failed, error or named)
@@ -271,7 +273,7 @@ class _Reported:
             return cls(_ERRED.format(node=span(node)), error or named)
         if not (separated or _PATH_RE.fullmatch(node)):
             return None
-        quoted = error or read.traceback(collected) or named
+        quoted = error or read.traceback(_COLLECTING.format(subject=collected)) or named
         return cls(_UNCOLLECTED.format(path=span(node)), quoted)
 
     @classmethod
@@ -305,16 +307,16 @@ class _Output:
     """A check's output read as pytest's, beside the findings' entries: what tells a summary line's failure apart.
 
     `lines` are the output's; `entries` the findings'. The titles of the
-    sections pytest printed name the tests that failed or errored and what
-    it failed collecting.
+    sections pytest printed name the tests that failed or errored, in which
+    phase, and what it failed collecting.
     """
 
     def __init__(self, lines: Sequence[str], entries: _Entries) -> None:
         self.lines = lines
         self.entries = entries
-        self._titles = {title: number for number, title in self._titled(lines)}
-        phased = filter(None, map(_PHASE_TITLE_RE.fullmatch, self._titles))
-        self._phases = dict(found.group("name", "phase") for found in phased)
+        titled = enumerate(map(_TITLE_RE.fullmatch, lines))
+        self._titles = {found.group("title"): number for number, found in titled if found}
+        self._phases = self._phased()
         self._sectioned = frozenset(self._titles).union(self._phases)
         collecting = map(_COLLECTING_TITLE_RE.fullmatch, self._titles)
         self._collected = frozenset(found.group("subject") for found in collecting if found)
@@ -326,9 +328,20 @@ class _Output:
         sectioned = bool(name) and name in self._sectioned
         return sectioned or bool(_entries.FailureEntry.naming(self.entries, node))
 
-    def phase(self, node: str) -> str:
-        """The phase of the test `node` names that pytest printed a section for as failing; "" for none."""
-        return self._phases.get(self._name(node), "")
+    def phase(self, node: str, error: str) -> str:
+        """The phase of the test `node` names that a section says failed with `error`; "" where none says which.
+
+        A test may fail in its setup and its teardown both, each with a section
+        and a summary line of its own, so the phase is the one whose section's
+        exception the summary line's `error` opens, pytest's ellipsis aside;
+        where none does, the only phase a section says failed.
+        """
+        raised = self._phases.get(self._name(node), {})
+        shown = error.removesuffix("...")
+        opening = [phase for phase, section in raised.items() if section.startswith(shown)]
+        if not (shown and opening):
+            opening = list(raised) if len(raised) == 1 else [""]
+        return opening[0]
 
     def collection(self, node: str) -> str | None:
         """What pytest failed collecting for `node` -- itself, or the path holding it; None where nothing says.
@@ -339,9 +352,9 @@ class _Output:
         subjects = [subject for subject in (node, path) if subject in self._collected]
         return next(iter(subjects), path if self._interrupted else None)
 
-    def traceback(self, subject: str) -> str:
-        """The last exception line of the traceback pytest printed collecting `subject`; "" for none."""
-        number = self._titles.get(_COLLECTING.format(subject=subject))
+    def traceback(self, title: str) -> str:
+        """The last exception line of the section pytest titled `title`; "" for none."""
+        number = self._titles.get(title)
         if number is None:
             return ""
         below = self.lines[number + 1:]
@@ -349,17 +362,25 @@ class _Output:
         errors = [found.group("error") for found in map(_EXCEPTION_RE.fullmatch, section) if found]
         return errors[-1] if errors else ""
 
-    @classmethod
-    def _name(cls, node: str) -> str:
-        """The name pytest titles the section of the test `node` names by: past its path, classes parted by dots."""
-        return node.partition(_NODE_SEPARATOR)[2].replace(_NODE_SEPARATOR, _NAME_SEPARATOR)
+    def _phased(self) -> dict[str, dict[str, str]]:
+        """Each test a section says failed in setup or teardown, by name: each such phase, and its exception."""
+        phases: dict[str, dict[str, str]] = {}
+        for title in self._titles:
+            found = _PHASE_TITLE_RE.fullmatch(title)
+            if found is not None:
+                name, phase = found.group("name", "phase")
+                phases.setdefault(name, {})[phase] = self.traceback(title)
+        return phases
 
     @classmethod
-    def _titled(cls, lines: Sequence[str]) -> Iterator[tuple[int, str]]:
-        """The title of each section `lines` open, by the number of the line opening it."""
-        for number, title in enumerate(map(_TITLE_RE.fullmatch, lines)):
-            if title is not None:
-                yield number, title.group("title")
+    def _name(cls, node: str) -> str:
+        """The name pytest titles the section of the test `node` names by.
+
+        That is the ID past its path, a dot parting each class from what it
+        holds; the parameters stay as they are, separators they hold too.
+        """
+        scope, bracket, ids = node.partition(_NODE_SEPARATOR)[2].partition(_OPENING_BRACKET)
+        return f"{scope.replace(_NODE_SEPARATOR, _NAME_SEPARATOR)}{bracket}{ids}"
 
 
 class _Unled:

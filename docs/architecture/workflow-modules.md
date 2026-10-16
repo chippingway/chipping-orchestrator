@@ -225,8 +225,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the dash that parts an ID from its message, and text of a message's shape after it: the ID
                             is the longest an entry names whole or pytest titled a section by, else it ends on the last
                             split leaving a message of pytest's shape, a rewritten assertion's `assert` or an
-                            exception's name, else on the first -- an `ERROR` node ID as the setup or teardown its
-                            section says failed, as a collection where a section says pytest failed collecting it or
+                            exception's name, else on the first, a section naming a test by its classes dotted and
+                            its parameters as they are -- an `ERROR` node ID as the setup or teardown whose section
+                            raised its error, or the only one a section says failed, as a collection where a section
+                            says pytest failed collecting it or
                             its path or collection was interrupted, and otherwise as an error in any of the three, and
                             an `ERROR` path as its collection, never a test ID,
                             each with the error its line gives, else for a collection the last exception line of the
@@ -237,7 +239,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             matched by that error and never by command, so two runs of one stdin command each lead with
                             their own scenario; else by a line saying no test ID or scenario name was recorded. A lead
                             says too where the check quoted no output, and where its command reads its code from stdin
-                            (`-`) and no entry it backs gives the snippet as a code block below its `Reproduce:` line,
+                            (`-`) and no entry it backs gives the snippet as a code block holding code below its
+                            `Reproduce:` line,
                             however the line names the command. No lead line opens on a declaration
                             keyword, and the names and errors it takes from output stand in code spans. The reviewer's
                             own text is shown through here too (`said`): its entries with what each leaves out said,
@@ -253,7 +256,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`CHECK_SENTENCE_RE`) is the lead the formatting wrote, never an entry, while a label said
                             of an entry right above a sentence of the reviewer's stays the entry's. Each entry is read
                             for its name, its error, and
-                            whether a code block stands below its `Reproduce:` line (`FailureEntry`), and shown with
+                            whether a code block holding code stands below its `Reproduce:` line (`FailureEntry`) --
+                            a block holding none, empty or blank, gives nothing -- and shown with
                             what it leaves out said: a `Failure:` line naming nothing, an error or a reproduction no
                             label of the entry gives -- said in place on a blank label, else added in the entry's own
                             indentation, an error below its name and a reproduction below all its last label gives --
