@@ -508,6 +508,32 @@ _NATIVE_TRACEBACKS_LEAD = (
     f"Failure: `{_LINE_MODULE}::test_check`\nError: `RuntimeError: the supplied diagnostic`\n"
     f"Failure: `{_LINE_MODULE}::test_chain`\nError: `ValueError: chained failure`\n"
 )
+# Two tests whose IDs overlap -- the second's parameter holding the first's
+# ID, the dash, and text of the first's message -- each with the section
+# pytest printed for it, and with the line traceback `--tb=line` printed.
+_OVERLAPPING_SUMMARY = (
+    "=========================== short test summary info ============================\n"
+    "FAILED test_p.py::test_v[a] - ValueError: b] - RuntimeError: first\n"
+    "FAILED test_p.py::test_v[a] - ValueError: b] - RuntimeError: second"
+)
+_OVERLAPPING = (
+    "=================================== FAILURES ===================================\n"
+    "__________________________________ test_v[a] ___________________________________\n"
+    "E           ValueError: b] - RuntimeError: first\n"
+    "__________________________ test_v[a] - ValueError: b] __________________________\n"
+    f"E       RuntimeError: second\n{_OVERLAPPING_SUMMARY}"
+)
+_OVERLAPPING_LINES = (
+    "=================================== FAILURES ===================================\n"
+    "E   ValueError: b] - RuntimeError: first\n"
+    "/tmp/run/test_p.py:5: ValueError: b] - RuntimeError: first\n"
+    "E   RuntimeError: second\n"
+    f"/tmp/run/test_p.py:6: RuntimeError: second\n{_OVERLAPPING_SUMMARY}"
+)
+_OVERLAPPING_LEAD = (
+    "Failure: `test_p.py::test_v[a]`\nError: `ValueError: b] - RuntimeError: first`\n"
+    "Failure: `test_p.py::test_v[a] - ValueError: b]`\nError: `RuntimeError: second`\n"
+)
 # A test in a file whose path holds blanks, a module there pytest could not
 # collect -- its message holding a separator of its own -- and a fixture whose
 # finalizers both failed, which pytest prints as an exception group in any
@@ -1505,6 +1531,10 @@ class FailureNamesTest(unittest.TestCase):
             # frame separator is no title; a summary line too long to carry its
             # error takes the first exception line of the test's section.
             ("", _LONG_OUTPUT, _LONG_LEAD),
+            # Where IDs overlap, each line's ID is the one whose section, or
+            # line traceback, shows the exception its message opens.
+            ("", _OVERLAPPING, _OVERLAPPING_LEAD),
+            ("", _OVERLAPPING_LINES, _OVERLAPPING_LEAD),
             # A test's file path may hold blanks, and brackets that open no
             # parameters.
             ("", _SPACED, _SPACED_LEAD),
@@ -1634,6 +1664,20 @@ class FailureEntriesTest(unittest.TestCase):
                 (
                     f"Failure: A probe\nError: {_NO_ENTRY_ERROR}\n\n```text\n```\n"
                     f"Reproduce: {_NO_ENTRY_REPRODUCTION}\n\n```python\n   \n```"
+                ),
+            ),
+            # A code block nothing closes -- the findings ending, or its list
+            # item -- is closed before what is added below it, which stands
+            # outside the reviewer's block, so showing it again adds nothing.
+            (
+                "Failure: Probe\nError:\n\n```text\nAssertionError: boom",
+                f"Failure: Probe\nError:\n\n```text\nAssertionError: boom\n```\nReproduce: {_NO_ENTRY_REPRODUCTION}",
+            ),
+            (
+                "1. Finding\n   Failure: Probe\n\n   ~~~~\n   boom\n2. Next finding",
+                (
+                    f"1. Finding\n   Failure: Probe\n\n   ~~~~\n   boom\n   ~~~~\n   Error: {_NO_ENTRY_ERROR}\n"
+                    f"   Reproduce: {_NO_ENTRY_REPRODUCTION}\n2. Next finding"
                 ),
             ),
             # Labels right above a check's sentence that give nothing, or give

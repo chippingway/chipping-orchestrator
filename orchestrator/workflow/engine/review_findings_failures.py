@@ -160,6 +160,13 @@ _UNTAKEN = _pytest.Section(_UNTITLED, "", -1)
 # A lead, by the number of the line it goes above.
 _Lead = tuple[int, tuple[str, ...]]
 
+# How surely a summary line's node ID ends where it is read to
+# (`review_findings_summary`): its section shows the line's error, it titles a
+# section or an entry names it, or nothing names it.
+_SHOWN = 2
+_TITLED = 1
+_NOT_NAMED = 0
+
 
 def lead(command: str, output: str, entries: _Entries) -> tuple[str, ...]:
     """The lines leading the failing check that ran `command` and quoted `output`, given the findings' `entries`.
@@ -274,9 +281,18 @@ class _Reported:
                 yield cls(_UNCOLLECTED.format(path=span(taken.collected)), taken.raised)
 
     @classmethod
-    def _named(cls, read: _Pytest, entries: _Entries, node: str) -> bool:
-        """Whether pytest titled a section of `read` by `node`, or an entry of the findings names it whole."""
-        return read.sectioned(node) or bool(_entries.FailureEntry.naming(entries, node))
+    def _named(cls, read: _Pytest, entries: _Entries, run: int, node: str, error: str) -> int:
+        """How surely `node` is the ID a summary line of `read`'s `run` reports, `error` after it.
+
+        Surest where a section of that run shows the exception `error` opens;
+        less where pytest titled a section by it, or an entry of the findings
+        names it whole; not at all otherwise.
+        """
+        if read.sectioned(node, error, run):
+            return _SHOWN
+        if read.sectioned(node) or _entries.FailureEntry.naming(entries, node):
+            return _TITLED
+        return _NOT_NAMED
 
     @classmethod
     def _summarised(cls, line: str, read: _Pytest, entries: _Entries, run: int) -> _Reported | None:
@@ -286,7 +302,7 @@ class _Reported:
         by what failed (`_erred`), each from the sections of the line's `run`
         alone.
         """
-        summary = _Summary.read(line, partial(cls._named, read, entries))
+        summary = _Summary.read(line, partial(cls._named, read, entries, run))
         if summary is None:
             return None
         named = _entries.FailureEntry.error_naming(entries, summary.node)
