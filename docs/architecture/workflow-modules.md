@@ -236,7 +236,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             -- the exception of the section pytest printed for it (`review_findings_pytest`), else the
                             error of the entry naming it, else a line saying the summary gave none; ten at most, the
                             rest left to the output quoted below.
-                            A check pytest's summary names nothing in is led by each `Failure:` entry of the findings
+                            A check pytest's summary names nothing in is led by every `Failure:` entry of the findings,
+                            however many,
                             whose `Error:` -- or the code block's last line below an empty one -- its output shows,
                             matched by that error and never by command, so two runs of one stdin command each lead with
                             their own scenario; else by a line saying no test ID or scenario name was recorded. A lead
@@ -280,7 +281,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the session's heading, is read, any above it in the run being one a test printed
     review_findings_entries.py
                             the failure entries a reviewer writes in its findings, for `review_findings_failures` and
-                            `review_findings`: an entry runs from one `Failure:` line to the next, each of the taught
+                            `review_findings`: an entry runs from one `Failure:` line to the next, or to the next
+                            finding before it -- a list item or a heading set out no further than its `Failure:` line,
+                            or a paragraph set out less -- read across the findings' parts around their declarations,
+                            each of the taught
                             labels on a line of its own outside any code block, a blank label giving the code block
                             below it; a paragraph of label lines opening on `Failure:` right above a check's sentence
                             (`CHECK_SENTENCE_RE`) is the lead the formatting wrote, never an entry, while a label said

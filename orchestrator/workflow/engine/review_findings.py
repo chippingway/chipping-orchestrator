@@ -248,17 +248,20 @@ def _concise_findings(findings: str) -> str:
     What is left is the reviewer's text around the declaration and each check
     the declaration does not show passing, one paragraph apart, each check led
     by the failures it records -- the failure entries that text holds among
-    them -- so the text is read whole before any check is shown.
+    them -- so the text is read whole before any check is shown, and each
+    entry is shown with what it leaves out said as the whole text reads it.
     """
     chunks = tuple(_chunks(findings))
-    said = "\n\n".join(chunk for chunk in chunks if isinstance(chunk, str))
+    said = [chunk for chunk in chunks if isinstance(chunk, str)]
     entries = _entries.FailureEntry.read(said)
+    annotated = iter(_entries.FailureEntry.annotated(said))
     shown = (
-        _failures.said(chunk, entries) if isinstance(chunk, str) else chunk.shown(entries)
+        _failures.said(next(annotated), entries)
+        if isinstance(chunk, str)
+        else chunk.shown(entries)
         for chunk in chunks
     )
-    concise = "\n\n".join(chunk for chunk in shown if chunk)
-    return concise or _NO_FINDINGS
+    return "\n\n".join(chunk for chunk in shown if chunk) or _NO_FINDINGS
 
 
 def _unled_findings(findings: str) -> str:

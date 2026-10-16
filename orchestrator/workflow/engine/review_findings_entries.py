@@ -6,8 +6,11 @@ A reviewer is taught (`review_evidence_prompts`) to enter each failure its
 findings rest on under the numbered item it supports, opening on a line
 naming it -- `Failure:` -- with its own labels below, each on a line of its
 own: `Error:`, `Expected:`, `Observed:`, `Reproduce:`, `Unavailable:`. An
-entry runs from one `Failure:` line to the next, and a line a code block holds
-is the block's, never a label, so a snippet quoting the layout enters nothing;
+entry runs from one `Failure:` line to the next, or to the next finding
+before it -- a list item or a heading set out no further than its `Failure:`
+line, or a paragraph set out less, which leaves its list item -- and a line a
+code block holds is the block's, never a label, so a snippet quoting the
+layout enters nothing;
 and a paragraph of label lines opening on `Failure:` right above a check's
 sentence is the lead the formatting wrote for that check, never an entry.
 A label gives what follows it on its line, or, where that is blank, the code
@@ -17,7 +20,9 @@ block holding no code, empty or blank, gives nothing.
 `review_findings_failures` reads each entry (`FailureEntry`) to lead the
 checks its error shows in. `review_findings` shows the entries themselves as
 written, save what one leaves out, which it says where the entry stands
-(`FailureEntry.annotated`): a `Failure:` line naming nothing, and an error or
+(`FailureEntry.annotated`), reading the findings' parts around their
+declarations whole, as the entries are read, so an entry's labels may stand
+in parts the declaration stood between: a `Failure:` line naming nothing, and an error or
 a reproduction an entry has no label for, or a label giving nothing. A label
 giving nothing is said in place; one an entry has none of is added in the
 entry's own indentation -- an error below its `Failure:` line, a
@@ -27,10 +32,11 @@ showing an entry again says nothing more.
 """
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, replace
-from itertools import chain
+from itertools import accumulate, chain
 from types import MappingProxyType
 
 from orchestrator.workflow.engine import review_findings_fences as _markdown
@@ -61,6 +67,21 @@ CHECK_SENTENCE_RE = re.compile(
     r"(?:(?P<run>`+)(?P<command>.+?)(?P=run)(?!`)|A check naming no command)"
     r" (?:exited with status .*|reported (?:no exit status|a blank exit status|the exit statuses .*))(?P<close>[.:])",
 )
+
+# What the findings' parts around their declarations are read whole as
+# joined by: one blank line.
+_PARTED = "\n\n"
+
+# A line's indentation, and a line opening a list item or a heading: a new
+# finding, where it stands no further in than an entry's `Failure:` line. A
+# line no new finding opens sets out nothing an entry has to reach.
+_INDENT_RE = re.compile(r"[ \t]*")
+_OPENING_RE = re.compile(r"[ \t]*(?:\d{1,9}[.)]|[-+*]|#{1,6})(?:[ \t]|$)")
+_UNREACHED = math.inf
+
+# A line ending no entry wherever it stands: a blank line, a label line, or the
+# sentence the formatting shows a check by.
+_ENDING_NOTHING_RE = re.compile(rf"[{_BLANKS}]*|{_LABEL_RE.pattern}|{CHECK_SENTENCE_RE.pattern}")
 
 # What a label line holds besides its number, in the order `_Label` keeps it.
 _FIELDS = ("prefix", "label", "given")
@@ -104,14 +125,17 @@ class FailureEntry:
     snippet: bool = False
 
     @classmethod
-    def read(cls, findings: str) -> tuple[FailureEntry, ...]:
-        """Every entry `findings` hold, in order."""
-        return tuple(map(cls._of, _Lines(findings.split("\n")).entries))
+    def read(cls, parts: Sequence[str]) -> tuple[FailureEntry, ...]:
+        """Every entry the findings' `parts`, read whole, hold, in order."""
+        return tuple(map(cls._of, _Lines(parts).entries))
 
     @classmethod
-    def annotated(cls, findings: str) -> str:
-        """`findings` with what each entry leaves out said where it stands, every other line as written."""
-        return _Lines(findings.split("\n")).annotated()
+    def annotated(cls, parts: Sequence[str]) -> tuple[str, ...]:
+        """Each of the findings' `parts`, read whole, with what each entry leaves out said where it stands.
+
+        Every other line stays as written, in the part it stands in.
+        """
+        return _Lines(parts).annotated()
 
     @classmethod
     def naming(cls, entries: Sequence[FailureEntry], node: str) -> tuple[FailureEntry, ...]:
@@ -183,38 +207,58 @@ class _Label:
         """This label's line giving `text`."""
         return f"{self.prefix}{self.label}: {text}"
 
+    def takes(self, label: _Label, reach: Sequence[float]) -> bool:
+        """Whether the entry this `Failure:` line opens takes `label`, below it: no line between ends it.
+
+        `reach` says how far set out an entry has to be for each line of the
+        findings to end it.
+        """
+        indent = len(_INDENT_RE.match(self.prefix).group().expandtabs())
+        between = reach[self.number + 1:label.number]
+        return min(between, default=_UNREACHED) > indent
+
 
 class _Lines:
-    """The lines of the findings, and the failure entries they hold: each one's label lines, in order."""
+    """The lines of the findings, read whole across their parts, and the failure entries they hold.
 
-    def __init__(self, lines: Sequence[str]) -> None:
+    The parts are those around the findings' declarations, joined a blank
+    line apart (`_parted` numbers each such line); each entry is its label
+    lines, in order.
+    """
+
+    def __init__(self, parts: Sequence[str]) -> None:
+        lines = _PARTED.join(parts).split("\n")
         self._lines = lines
+        ends = accumulate(part.count("\n") + 2 for part in parts)
+        self._parted = frozenset(end - 1 for end in ends)
         self._blocks = {block.start: block for block in _markdown.markdown_code_blocks(lines)}
         spans = (range(block.start, block.end) for block in self._blocks.values())
         self._held = frozenset(chain.from_iterable(spans)) | self._led()
+        above = chain(("",), lines)
+        holding = map(self._held.__contains__, range(len(lines)))
+        self._reach = tuple(map(_reach, above, lines, holding))
         self.entries = self._grouped()
 
-    def annotated(self) -> str:
-        """The lines, with what each entry leaves out said, joined."""
+    def annotated(self) -> tuple[str, ...]:
+        """Each part, with what each entry leaves out said: in the part holding the line above where it is said."""
         shown = {(number, _WRITTEN): line for number, line in enumerate(self._lines)}
         shown.update(chain.from_iterable(map(_left_out, self.entries)))
-        return "\n".join(shown[place] for place in sorted(shown))
+        parts: list[list[str]] = [[]]
+        for number, place in sorted(shown):
+            if place == _WRITTEN and number in self._parted:
+                parts.append([])
+            else:
+                parts[-1].append(shown[number, place])
+        return tuple("\n".join(part) for part in parts)
 
     def _grouped(self) -> tuple[tuple[_Label, ...], ...]:
-        """Each entry's label lines, from its `Failure:` line to the next; those above the first name no entry.
-
-        A line a code block holds is the block's, and a lead's line the
-        formatting's, never a label of an entry.
-        """
+        """Each entry's label lines, from its `Failure:` line to the next finding; those above the first, no entry's."""
         entries: list[list[_Label]] = []
-        for number, line in enumerate(self._lines):
-            labeled = None if number in self._held else _LABEL_RE.fullmatch(line)
-            if labeled is None:
-                continue
-            label = self._label(number, labeled)
+        read = map(self._label, range(len(self._lines)))
+        for label in filter(None, read):
             if label.label == _NAME:
                 entries.append([label])
-            elif entries:
+            elif entries and entries[-1][0].takes(label, self._reach):
                 entries[-1].append(label)
         return tuple(map(tuple, entries))
 
@@ -227,8 +271,16 @@ class _Lines:
                 led.update(_lead_above(self._lines, labels, number))
         return frozenset(led)
 
-    def _label(self, number: int, labeled: re.Match[str]) -> _Label:
-        """The label line `number`, as `labeled` reads it, with the block below it and where all it gives ends."""
+    def _label(self, number: int) -> _Label | None:
+        """Line `number` as a label line, with the block below it and where all it gives ends; None for no label.
+
+        A line a code block holds is the block's, and a lead's line the
+        formatting's, never a label of an entry.
+        """
+        line = "" if number in self._held else self._lines[number]
+        labeled = _LABEL_RE.fullmatch(line)
+        if labeled is None:
+            return None
         below = self._block_below(number)
         written = labeled.group(*_FIELDS)
         if below is None:
@@ -254,6 +306,23 @@ class _Lines:
                 break
             end += 1
         return end
+
+
+def _reach(above: str, line: str, held: bool) -> float:
+    """How far set out an entry standing above `line`, below `above`, has to be for `line` to end it.
+
+    A new finding ends it: a list item or a heading set out no further than
+    its `Failure:` line, or a paragraph set out less, which leaves its list
+    item. A blank line, a label, a line going on over the one above it, the
+    sentence the formatting shows a check by, and a line a code block or a
+    lead holds -- `held` -- end none.
+    """
+    opening = _OPENING_RE.match(line)
+    goes_on = opening is None and bool(above.strip(_BLANKS))
+    if held or goes_on or _ENDING_NOTHING_RE.fullmatch(line):
+        return _UNREACHED
+    indent = len(_INDENT_RE.match(line).group().expandtabs())
+    return indent if opening else indent + 1
 
 
 def _lead_above(lines: Sequence[str], labels: _Labels, number: int) -> range:
