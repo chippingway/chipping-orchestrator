@@ -720,7 +720,9 @@ hold the route behind a revision spent past it. The evidence phase of a finish h
 policy, which a caller asks directly and no production road selects, proves settled evidence ready again before it
 lets the route go on (`workflow/engine/rewrite_finish_readiness.py`), invalidating it whole where anything it is bound
 to moved, a readable revision spent past it outranking it for good, and a settlement another road made while it
-answered or abandoned the run adopted and invalidated over movement read under it.
+answered or abandoned the run adopted and invalidated over movement read under it; behind each such invalidation it
+reads the comment afresh, so evidence put back current under the receipt it just invalidated is retired again, and a
+pending record or another attempt written there holds the route.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
