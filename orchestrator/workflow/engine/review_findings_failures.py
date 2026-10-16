@@ -12,22 +12,24 @@ A check's output names its failures where pytest's short summary reports them
 never in what pytest captured from a test, which may print lines of the
 summary's shape or a whole run of pytest's (`review_findings_pytest`), each
 line read as `review_findings_summary` reads it: a `FAILED` line names a test
-by its exact node ID, parameters included and a file path holding blanks too,
-a `SUBFAILED` line a subtest by its test's node ID and pytest's description of
-it, and an `ERROR` line a node by its ID, or a path. A path names a collection
-that failed before any test in it ran -- the check that failed, not a test. A
-node ID names the setup or teardown of a test where a section pytest printed
-says that failed -- where both did, the one whose section raised the error the
-line gives; a collection where a section of its run says pytest failed
-collecting the node or its path, or its run says collection was interrupted,
-since a class pytest could not collect is reported by its ID; and, nothing
-saying which, an error outside any test body, in one of the three. An ID is
-the longest an entry of the findings names whole, or pytest titled a section
-by; where nothing names one, it ends where the line's message may first begin,
-so the message is never cut short, and where a later split could end it too
-the lead says where the ID ends is unavailable. Each failure leads with its
-name and the error the line gives. Where the line gives none -- pytest drops
-it from a line too long for the terminal -- the exception the section pytest
+by its exact node ID, parameters included and a file path or test name holding
+blanks too, a `SUBFAILED` line a subtest by its test's node ID and pytest's
+description of it, and an `ERROR` line a node by its ID, or a path. A path
+names a collection that failed before any test in it ran -- the check that
+failed, not a test -- whatever file it is and whether it holds blanks, though
+words naming no Python file are one only where pytest says so. A node ID names
+the setup or teardown of a test where a section pytest printed says that
+failed -- where both did, the one whose section raised the error the line
+gives; a collection where a section of its run says pytest failed collecting
+the node or its path, or its run says collection was interrupted, since a
+class pytest could not collect is reported by its ID; and, nothing saying
+which, an error outside any test body, in one of the three. An ID is the
+longest an entry of the findings names whole, or pytest titled a section by;
+where nothing names one, it ends where the line's message may first begin, so
+the message is never cut short, and where a later split could end it too the
+lead says where the ID ends is unavailable. Each failure leads with its name
+and the error the line gives. Where the line gives none -- pytest drops it
+from a line too long for the terminal -- the exception the section pytest
 printed for it shows gives it, each section going to one summary line, so
 tests of two modules sharing a name each take their own
 (`review_findings_pytest`); or else the error of the reviewer's entry naming
@@ -43,10 +45,9 @@ failures -- where its command reads its code from stdin -- a `-` argument,
 split as a shell splits it, that no argument before it gave a program inline,
 by module, or as a script and no entry it backs gives the snippet it read, as
 a code block holding code below its `Reproduce:` line: such a command
-reproduces nothing alone, however an entry names it. A lead names at most ten
-of the failures pytest's summary reports, leaving the rest to the check's
-output, which is quoted whole below it; a lead by entries names every entry
-the output backs, each written out in the findings already.
+reproduces nothing alone, however an entry names it. A lead names every
+failure pytest's summary reports, each with its error, as a lead by entries
+names every entry the output backs.
 
 The reviewer's own text is shown through here too (`said`): each entry with
 what it leaves out said, and each check the concise layout before leads
@@ -75,7 +76,7 @@ import shlex
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from functools import partial
-from itertools import chain, islice
+from itertools import chain
 
 from orchestrator.workflow.engine import (
     review_findings_entries as _entries,
@@ -103,11 +104,12 @@ _UNAVAILABLE = "Unavailable"
 
 # What separates a node ID's path from the test it names. An ID without it
 # names no test: pytest's summary reports such an ID only for a path it failed
-# to collect, so where nothing pytest printed says it failed collecting it, a
-# word that reads as no path -- one holding no `/` and no `.py` -- is no
-# failure of pytest's.
+# to collect, so where nothing pytest printed says it failed collecting it,
+# text that reads as no path is no failure of pytest's -- a word holding no
+# `/` and not naming a `.py` file, or words, as an `ERROR` line of a check's
+# own may hold, not naming one either.
 _NODE_SEPARATOR = "::"
-_PATH_RE = re.compile(r".*(?:/.*|\.py)")
+_PATH_RE = re.compile(r"\S*/\S*|.*\.py")
 
 # The title a failure `--tb=line` printed stands under: none.
 _UNTITLED = ""
@@ -122,11 +124,6 @@ _NO_OUTPUT_CLOSE = "."
 # the program before it otherwise: inline, by module, or as a script.
 _STDIN = "-"
 _PROGRAM_RE = re.compile(r"-[cme].*|--(?:command|eval)(?:=.*)?|.*\.py")
-
-# As many of the failures pytest's summary reports as one lead names; the
-# output quoted below it names the rest. Entries leading a check are never
-# capped: the findings hold each one whole.
-_NAMED_AT_MOST = 10
 
 _UNNAMED = f"{_NAME}: not named; no test ID or scenario name was recorded for this check"
 
@@ -148,8 +145,6 @@ _ERRED = "{node}, which errored outside any test body: in its collection, setup,
 _PHASE_FAILED = "{node}, whose {phase} failed"
 
 _SUBTEST = "{node}, subtest {subtest}"
-
-_MORE = f"{_NAME}: {{count}} more, named in the output below"
 
 _Entries = Sequence[_entries.FailureEntry]
 
@@ -249,15 +244,12 @@ class _Reported:
 
     @classmethod
     def leading(cls, reported: Sequence[_Reported]) -> tuple[str, ...]:
-        """The lines naming each of `reported` and its error, as many as a lead names, then how many more there are."""
+        """The lines naming each of `reported` and its error."""
         said: list[str] = []
-        for failure in islice(reported, _NAMED_AT_MOST):
+        for failure in reported:
             error = f"{_ERROR}: {span(failure.error)}" if failure.error else _UNSTATED
             said.extend((f"{_NAME}: {failure.name}", error))
             said.extend((_UNSURE,) if failure.unsure else ())
-        rest = len(reported) - _NAMED_AT_MOST
-        if rest > 0:
-            said.append(_MORE.format(count=rest))
         return tuple(said)
 
     @classmethod
@@ -310,12 +302,12 @@ class _Reported:
 
         A path names a collection -- one of any shape where pytest says it
         failed collecting it or that the line's `run` was interrupted
-        collecting, as a doctest's text file. A node ID names the setup or
-        teardown its section says failed with the line's error
-        (`PytestOutput.phase`); or a collection, where pytest says it failed
-        collecting the node or its path, or that the line's `run` says
-        collection was interrupted; or else an error in one of the three,
-        nothing saying which. A setup's,
+        collecting, as a doctest's text file, its path holding blanks or not.
+        A node ID names the setup or teardown its section says failed with the
+        line's error (`PytestOutput.phase`); or a collection, where pytest
+        says it failed collecting the node or its path, or that the line's
+        `run` says collection was interrupted; or else an error in one of the
+        three, nothing saying which. A setup's,
         teardown's, or collection's error is the summary line's, else the
         exception the section pytest printed for it shows -- the line may be
         too long to carry one -- and either's, the entry naming the failure's
