@@ -644,23 +644,24 @@ gives.
 
 Each check shown leads with what failed (`workflow/engine/review_findings_failures.py`), its command and exit status
 following as supporting details, in the entries' own labels. A test pytest's short summary reports in the check's output
-leads by its exact node ID, parameters included — even a parameter holding the dash that parts an ID from its message,
-and text of a message's shape after it: the ID is the longest an entry names whole or pytest titled a section by — its
-classes dotted, its parameters as they are — and otherwise ends on the last split leaving a message of pytest's shape, a
-rewritten assertion's `assert` or an exception's name, else on the first — with the error its summary line gives. A path
-pytest could not collect leads as that collection, never under a test ID nobody reported, and so does a node ID where
-pytest says it failed collecting it or its path, or that collection was interrupted, as for a class it could not
-collect; a node ID whose setup or teardown a section says failed leads as that — where both did, each summary line as
-the phase whose section raised its error — and one nothing explains as an error in its collection, setup, or teardown.
-Where a summary line carries no error — pytest drops it from a line too long for the terminal — the section pytest
-printed for it gives one: the first line set out least in its last run of lines marked `E`, past an assertion's
-explanation or diff hint, and past an exception another was raised handling. Each section goes to one summary line, in
-pytest's order, so tests of two modules sharing a name each take their own, and where no section gives an error the
-entry naming the failure does. A section's title may be padded by a single underscore each side; a section holding
-Python's own traceback, as `--tb=native` prints it, gives the exception that traceback ends on, and `--tb=line`, which
-prints a failure as one line of the file it crashed at and its exception, gives that line's exception to its summary
-line in turn. Otherwise the check leads with each entry whose error its output shows — matched by that error, never by
-the command, so two runs of `.venv/bin/python -` each lead with their own scenario and are never merged — or with a line
+leads by its exact node ID, its file path holding blanks or not and its parameters included — even a parameter holding
+the dash that parts an ID from its message, and text of a message's shape after it: the ID is the longest an entry names
+whole or pytest titled a section by — its classes dotted, its parameters as they are — and otherwise ends on the last
+split leaving a message of pytest's shape, a rewritten assertion's `assert` or an exception's name, else on the first —
+with the error its summary line gives. A path pytest could not collect leads as that collection, never under a test ID
+nobody reported, and so does a node ID where pytest says it failed collecting it or its path, or that collection was
+interrupted, as for a class it could not collect; a node ID whose setup or teardown a section says failed leads as that
+— where both did, each summary line as the phase whose section raised its error — and one nothing explains as an error
+in its collection, setup, or teardown. Where a summary line carries no error — pytest drops it from a line too long for
+the terminal — the section pytest printed for it gives one: the first line set out least in its last run of lines marked
+`E`, past an assertion's explanation or diff hint, and past an exception another was raised handling. Each section goes
+to one summary line, in pytest's order, so tests of two modules sharing a name each take their own, and where no section
+gives an error the entry naming the failure does. A section's title may be padded by a single underscore each side; a
+section holding Python's own traceback, as `--tb=native` prints it and as pytest prints an exception group in any mode,
+gives the exception at that traceback's margin — for a group its own, not those it holds — and `--tb=line`, which prints
+a failure as one line of the file it crashed at and its exception, gives that line's exception to its summary line in
+turn. Otherwise the check leads with each entry whose error its output shows — matched by that error, never by the
+command, so two runs of `.venv/bin/python -` each lead with their own scenario and are never merged — or with a line
 saying no test ID or scenario name was recorded for it. Whatever is missing stays visible as such: a check that quoted
 no output says no error was recorded, and one whose command reads its code from stdin — a `-` argument, split as a shell
 splits it, after no program given inline (`-c`, `-e`), by module (`-m`), or as a script; whatever names its failures —

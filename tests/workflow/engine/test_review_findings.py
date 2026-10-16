@@ -497,6 +497,38 @@ _NATIVE_TRACEBACKS_LEAD = (
     f"Failure: `{_LINE_MODULE}::test_check`\nError: `RuntimeError: the supplied diagnostic`\n"
     f"Failure: `{_LINE_MODULE}::test_chain`\nError: `ValueError: chained failure`\n"
 )
+# A test in a file whose path holds blanks, a module there pytest could not
+# collect -- its message holding a separator of its own -- and a fixture whose
+# finalizers both failed, which pytest prints as an exception group in any
+# mode: each exception it holds set further in, behind the group's rail.
+_SPACED_NODE = "tests/test file.py::test_value[a b]"
+_SPACED = f"FAILED {_SPACED_NODE} - ValueError: actual failure"
+_SPACED_LEAD = f"Failure: `{_SPACED_NODE}`\nError: `ValueError: actual failure`\n"
+_SPACED_UNCOLLECTED = "ERROR tests/test file.py - ImportError: cannot import name 'b' from 'a::c'"
+_SPACED_UNCOLLECTED_LEAD = (
+    "Failure: collection of `tests/test file.py`, before any test in it ran\n"
+    "Error: `ImportError: cannot import name 'b' from 'a::c'`\n"
+)
+_GROUP_MODULE = "test_teardown_failure_with_a_long_module_name_to_fill_the_terminal.py"
+_GROUP_RAISED = 'ExceptionGroup: errors while tearing down fixture "broken" of <Function test_group> (2 sub-exceptions)'
+_GROUPED = (
+    "_______________________ ERROR at teardown of test_group ________________________\n"
+    "  + Exception Group Traceback (most recent call last):\n"
+    "  |     raise BaseExceptionGroup(msg, exceptions[::-1])\n"
+    f"  | {_GROUP_RAISED}\n"
+    "  +-+---------------- 1 ----------------\n"
+    "    | Traceback (most recent call last):\n"
+    "    |     raise ValueError('first finalizer')\n"
+    "    | ValueError: first finalizer\n"
+    "    +---------------- 2 ----------------\n"
+    "    | Traceback (most recent call last):\n"
+    "    |     raise TypeError('second finalizer')\n"
+    "    | TypeError: second finalizer\n"
+    "    +------------------------------------\n"
+    "=========================== short test summary info ============================\n"
+    f"ERROR {_GROUP_MODULE}::test_group"
+)
+_GROUPED_LEAD = f"Failure: `{_GROUP_MODULE}::test_group`, whose teardown failed\nError: `{_GROUP_RAISED}`\n"
 # A stdin check running pytest, which names the test that failed, and how it leads.
 _STDIN_PYTEST = "FAILED tests/test_probe.py::test_probe - AssertionError: values differ"
 _STDIN_PYTEST_SHOWN = (
@@ -922,6 +954,12 @@ class FailureNamesTest(unittest.TestCase):
             # exception it ends on.
             (_LINE_TRACEBACKS, "", _LINE_TRACEBACKS_LEAD),
             (_NATIVE_TRACEBACKS, "", _NATIVE_TRACEBACKS_LEAD),
+            # An exception group's own exception stands at the margin its rail
+            # sets, past the exceptions it holds set further in.
+            (_GROUPED, "", _GROUPED_LEAD),
+            # A path pytest could not collect may hold blanks, and its message
+            # a separator of its own.
+            (_SPACED_UNCOLLECTED, "", _SPACED_UNCOLLECTED_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
@@ -948,6 +986,8 @@ class FailureNamesTest(unittest.TestCase):
             # frame separator is no title; a summary line too long to carry its
             # error takes the first exception line of the test's section.
             ("", _LONG_OUTPUT, _LONG_LEAD),
+            # A test's file path may hold blanks.
+            ("", _SPACED, _SPACED_LEAD),
         )
         for written, output, lead in cases:
             with self.subTest(written=written, output=output):

@@ -8,41 +8,41 @@ diagnostic a developer acts on, and leads it with the lines written here
 and how it ended, which follow as supporting details over the output quoted.
 
 A check's output names its failures where pytest's short summary reports them:
-a `FAILED` line names a test by its exact node ID, parameters included, and an
-`ERROR` line a node by its ID, or a path. A path names a collection that
-failed before any test in it ran -- the check that failed, not a test. A node
-ID names the setup or teardown of a test where a section pytest printed says
-that failed -- where both did, the one whose section raised the error the line
-gives; a collection where a section says pytest failed collecting the node or
-its path, or the run says collection was interrupted, since a class pytest
-could not collect is reported by its ID; and, nothing saying which, an error
-outside any test body, in one of the three. A parameter may hold the very dash
-that parts an ID from its message, and even text of a message's shape after it
-(`_Reported._end`), so the ID is the longest an entry of the findings names
-whole, or pytest titled a section by; where nothing names one, it ends on the
-last split leaving a message of the shape pytest gives -- a rewritten
-assertion's `assert`, or the name of the exception, a colon after it unless it
-says nothing more -- and where none does, on the first. Each failure leads
-with its name and the error the line gives. Where the line gives none --
-pytest drops it from a line too long for the terminal -- the exception the
-section pytest printed for it shows gives it, each section going to one
-summary line, so tests of two modules sharing a name each take their own
-(`review_findings_pytest`); or else the error of the reviewer's entry naming
-it. Where none is found the lead says so. No name is ever made up: a check
-pytest's summary names nothing in is led by the failure entries
-(`review_findings_entries`) the reviewer wrote for it in the findings, each
-named as the reviewer named it, or by a line saying nothing names it. An entry
-is a check's where the check's output shows the entry's error -- never because
-the two name one command, since one stdin command, such as `.venv/bin/python
--`, may run several scenarios, each a check of its own. A lead says too where
-the check quoted no output to show an error by, and -- whatever names its
-failures -- where its command reads its code from stdin -- a `-` argument,
-split as a shell splits it, that no argument before it gave a program inline,
-by module, or as a script and no entry it backs gives the snippet it read, as
-a code block holding code below its `Reproduce:` line: such a command
-reproduces nothing alone, however an entry names it. A check naming more
-failures than a lead lists leaves the rest to its output, which is quoted
-whole below it.
+a `FAILED` line names a test by its exact node ID, parameters included and a
+file path holding blanks too, and an `ERROR` line a node by its ID, or a path.
+A path names a collection that failed before any test in it ran -- the check
+that failed, not a test. A node ID names the setup or teardown of a test where
+a section pytest printed says that failed -- where both did, the one whose
+section raised the error the line gives; a collection where a section says
+pytest failed collecting the node or its path, or the run says collection was
+interrupted, since a class pytest could not collect is reported by its ID;
+and, nothing saying which, an error outside any test body, in one of the
+three. A parameter may hold the very dash that parts an ID from its message,
+and even text of a message's shape after it (`_Reported._end`), so the ID is
+the longest an entry of the findings names whole, or pytest titled a section
+by; where nothing names one, it ends on the last split leaving a message of
+the shape pytest gives -- a rewritten assertion's `assert`, or the name of the
+exception, a colon after it unless it says nothing more -- and where none
+does, on the first. Each failure leads with its name and the error the line
+gives. Where the line gives none -- pytest drops it from a line too long for
+the terminal -- the exception the section pytest printed for it shows gives
+it, each section going to one summary line, so tests of two modules sharing a
+name each take their own (`review_findings_pytest`); or else the error of the
+reviewer's entry naming it. Where none is found the lead says so. No name is
+ever made up: a check pytest's summary names nothing in is led by the failure
+entries (`review_findings_entries`) the reviewer wrote for it in the findings,
+each named as the reviewer named it, or by a line saying nothing names it. An
+entry is a check's where the check's output shows the entry's error -- never
+because the two name one command, since one stdin command, such as
+`.venv/bin/python -`, may run several scenarios, each a check of its own. A
+lead says too where the check quoted no output to show an error by, and --
+whatever names its failures -- where its command reads its code from stdin --
+a `-` argument, split as a shell splits it, that no argument before it gave a
+program inline, by module, or as a script and no entry it backs gives the
+snippet it read, as a code block holding code below its `Reproduce:` line:
+such a command reproduces nothing alone, however an entry names it. A check
+naming more failures than a lead lists leaves the rest to its output, which is
+quoted whole below it.
 
 The reviewer's own text is shown through here too (`said`): each entry with
 what it leaves out said, and each check the concise layout before leads
@@ -96,13 +96,15 @@ _REPRODUCTION = "Reproduce"
 
 # A failure pytest's short summary reports: the outcome, then the node ID or
 # the path whose collection failed, and the message after a dash where pytest
-# gives one. A node ID's path runs to its first blank or bracket; parameters,
+# gives one. A node ID's path runs to its first blank or bracket, or, holding
+# blanks, to the `.py` its test's separator, its parameters, the dash, or the
+# line's end follows; its test runs to the first blank or bracket. Parameters,
 # which may hold blanks, dashes, and brackets, end on a closing bracket that
 # the dash or the line's end follows. A message pytest gives opens on a
 # rewritten assertion's `assert`, or on the name of the exception it reports,
 # a colon after it unless it says nothing more.
 _SUMMARY_RE = re.compile(r"[ \t]*(?P<outcome>FAILED|ERROR) (?P<reported>\S.*?)[ \t\r]*")
-_NODE_PATH_RE = re.compile(r"[^\s\[]+")
+_NODE_PATH_RE = re.compile(r"(?:(?:(?! - |::|\[).)+?\.py(?=::|\[| - |\Z)|[^\s\[]+)(?:::[^\s\[]+)?")
 _NODE_END_RE = re.compile(r"(?= - |\Z)")
 _PARAMETERS_END_RE = re.compile(r"\](?= - |\Z)")
 _OPENING_BRACKET = "["

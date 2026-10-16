@@ -18,8 +18,11 @@ explanation, a diff hint, or a syntax error's source sets its lines out
 further than the exception, and a chained exception marks each exception in
 turn, the last the one raised; so a section's exception is the first line set
 out least in its last run of marked lines. A section marking no line holds
-Python's own traceback, as `--tb=native` prints one, and its exception is the
-first line at the margin below the traceback's last header.
+Python's own traceback, as `--tb=native` prints one and as pytest prints an
+exception group -- several fixture finalizers failing, say -- in any mode, and
+its exception is the first line at the margin below the traceback's last
+header: for a group, the margin its rail sets, past which each exception it
+holds stands further in.
 
 With `--tb=line` a failed test has no section: under the failures heading,
 pytest prints the file and line it crashed at -- the test's, or a helper's --
@@ -57,9 +60,15 @@ _LINE_TRACEBACK_RE = re.compile(r"[ \t]*[^\s:]+:\d+: (?P<raised>\S.*?)[ \t\r]*")
 _UNTITLED = ""
 
 # The header of a traceback in Python's own form, which `--tb=native` prints
-# with no line marked: the exception stands on the first line at the margin
-# below the last such header.
-_NATIVE_HEADER = "Traceback (most recent call last):"
+# with no line marked, as pytest prints an exception group in any mode: the
+# exception stands on the first line at the margin below the last such header
+# -- for a group, the margin its rail sets, `| ` where its header has `+ `,
+# below which each exception it holds is set further in, a traceback of its own.
+_NATIVE_HEADER_RE = re.compile(
+    r"(?P<rail>[ \t]*(?:\+ )?)(?:Exception Group )?Traceback \(most recent call last\):[ \t\r]*",
+)
+_GROUP_HEADER_RAIL = "+"
+_GROUP_RAIL = "|"
 
 _PHASES = ("setup", "teardown")
 _IN_PHASE = "ERROR at {phase} of {name}"
@@ -103,14 +112,24 @@ class Section:
     def _native(cls, lines: Sequence[str]) -> str:
         """The exception the last traceback in Python's own form among `lines` ends on; "" for none."""
         raised = ""
-        below = False
+        margin: str | None = None
         for line in lines:
-            if line.strip() == _NATIVE_HEADER:
-                below = True
-            elif below and line[:1].strip():
-                raised = line.rstrip()
-                below = False
+            header = _NATIVE_HEADER_RE.fullmatch(line)
+            if header is not None:
+                margin = header.group("rail").replace(_GROUP_HEADER_RAIL, _GROUP_RAIL)
+                continue
+            said = cls._past(line, margin)
+            if said[:1].strip():
+                raised = said.rstrip()
+                margin = None
         return raised
+
+    @classmethod
+    def _past(cls, line: str, margin: str | None) -> str:
+        """What `line` says past `margin`; "" where no margin is open, or the line stands on another."""
+        if margin is None or not line.startswith(margin):
+            return ""
+        return line[len(margin):]
 
     @classmethod
     def _raised(cls, run: Sequence[re.Match[str]]) -> str:
