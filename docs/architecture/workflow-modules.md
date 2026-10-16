@@ -257,18 +257,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             section it printed, titled between underscores -- one each side at least -- by a failed
                             test's name, its node ID past the path with classes dotted and parameters as written, by
                             `ERROR at setup of` or `ERROR at teardown of` and that name, or by `ERROR collecting` and
-                            what it collected, a line of spaced underscores parting frames and titling nothing.
-                            A section's exception is the first line set out least in its last run of lines marked
-                            `E`, not an explanation, diff hint, or source line set out further, nor an exception
-                            another was raised handling; one marking no line holds Python's own traceback -- as
-                            `--tb=native` prints it, and as pytest prints an exception group in any mode -- its
-                            exception the first line at the margin below the last header, for a group the margin its
-                            rail sets, the exceptions it holds standing further in. With `--tb=line` a failure
-                            has no section: each `path:line: exception` line under the failures heading is a section
-                            titled by nothing, which a summary line naming a test takes in turn. Each summary line
-                            takes the first section it may be that no
-                            line before it took -- the one whose exception the line's error opens where it gives one
-                            -- since pytest prints both in one order and tests of two modules may share a title
+                            what it collected, a line of spaced underscores parting frames and titling nothing. A
+                            section's exception is the first line set out least in its last run of lines marked `E`, not
+                            an explanation, diff hint, or source line set out further, nor an exception another was
+                            raised handling; one marking no line holds Python's own traceback -- as `--tb=native` prints
+                            it, and as pytest prints an exception group in any mode -- its exception the first line at
+                            the margin below the last header, for a group the margin its rail sets, the exceptions it
+                            holds standing further in. With `--tb=line` a failure has no section: each line under the
+                            failures heading giving a `path:line:` -- its path holding blanks or not -- and the
+                            exception is a section titled by nothing, which a summary line naming a test takes in turn.
+                            Each summary line takes the first section it may be that no line before it took -- the one
+                            whose exception the line's error opens where it gives one -- since pytest prints both in one
+                            order and tests of two modules may share a title
     review_findings_entries.py
                             the failure entries a reviewer writes in its findings, for `review_findings_failures` and
                             `review_findings`: an entry runs from one `Failure:` line to the next, each of the taught

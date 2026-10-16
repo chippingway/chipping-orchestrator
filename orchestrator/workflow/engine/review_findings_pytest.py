@@ -53,10 +53,11 @@ _MARKED_RE = re.compile(r"[ \t]*E(?:(?P<indent>[ \t]+)(?P<error>.*?))?[ \t\r]*")
 
 # A heading of equals signs, and the one the failures stand under. With
 # `--tb=line` a failure has no section of its own there: pytest prints the
-# file and line it crashed at, and its exception, on one line.
+# file and line it crashed at, and its exception, on one line -- the file's
+# path holding blanks or not, and the line no marked one.
 _HEADING_RE = re.compile(r"[ \t]*=+ (?P<heading>.+?) =+[ \t\r]*")
 _FAILURES = "FAILURES"
-_LINE_TRACEBACK_RE = re.compile(r"[ \t]*[^\s:]+:\d+: (?P<raised>\S.*?)[ \t\r]*")
+_LINE_TRACEBACK_RE = re.compile(r"[ \t]*(?!E[ \t])[^\s:][^:]*?:\d+: (?P<raised>\S.*?)[ \t\r]*")
 _UNTITLED = ""
 
 # The header of a traceback in Python's own form, which `--tb=native` prints
