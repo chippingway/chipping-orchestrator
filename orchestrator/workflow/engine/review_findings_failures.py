@@ -18,7 +18,9 @@ its test's node ID and pytest's description of it, and an `ERROR` line a node
 by its ID, or a path. A path names a collection that failed before any test in
 it ran -- the check that failed, not a test -- whatever file it is and whether
 it holds blanks or brackets, though words naming no Python file are one only
-where pytest says so. A node ID names the setup or teardown of a test where a
+where pytest says so; and a collection a section pytest printed says failed
+that no summary line reports -- a run printed with `-rN` reports none -- leads
+by that section alone. A node ID names the setup or teardown of a test where a
 section pytest printed says that failed -- where both did, the one whose
 section raised the error the line gives; a collection where a section of its
 run says pytest failed collecting the node or its path, or its run says
@@ -235,12 +237,17 @@ class _Reported:
 
     @classmethod
     def of(cls, output: str, entries: _Entries) -> Iterator[_Reported]:
-        """Each failure a summary line of `output` reports, read beside the findings' `entries`."""
+        """Each failure a summary line of `output` reports, read beside the findings' `entries`, then each it does not.
+
+        Those a summary line does not report are the collections pytest's
+        sections say failed that no line took (`_unsummarised`).
+        """
         read = _pytest.PytestOutput(output.split("\n"))
         for line, run in read.summary:
             reported = cls._summarised(line, read, entries, run)
             if reported is not None:
                 yield reported
+        yield from cls._unsummarised(read)
 
     @classmethod
     def leading(cls, reported: Sequence[_Reported]) -> tuple[str, ...]:
@@ -251,6 +258,20 @@ class _Reported:
             said.extend((f"{_NAME}: {failure.name}", error))
             said.extend((_UNSURE,) if failure.unsure else ())
         return tuple(said)
+
+    @classmethod
+    def _unsummarised(cls, read: _Pytest) -> Iterator[_Reported]:
+        """Each collection a section of `read` says pytest failed that no summary line took, with its exception.
+
+        A run printed with `-rN`, or with a summary leaving errors out, reports
+        none on a summary line, while its section still names the path and
+        the error; a test it may have held never ran, so no test ID is said.
+        """
+        collected = (section for section in read.sections if section.collected)
+        for section in collected:
+            taken = read.take({section.title}, "", section.run)
+            if taken is not None:
+                yield cls(_UNCOLLECTED.format(path=span(taken.collected)), taken.raised)
 
     @classmethod
     def _named(cls, read: _Pytest, entries: _Entries, node: str) -> bool:

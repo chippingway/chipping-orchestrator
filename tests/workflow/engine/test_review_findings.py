@@ -739,8 +739,9 @@ _QUIET_SKIPPED = (
 # one module in two runs, each failing with an exception of its own; a module
 # its section titles relative to pytest's root and its summary line names
 # relative to where pytest ran -- either spelling the longer -- or another
-# module ending on the same name; and a run interrupted during collection
-# beside a run whose setup error printed no section (`--tb=no`).
+# module ending on the same name, the section's then leading as a collection
+# of its own; and a run interrupted during collection beside a run whose setup
+# error printed no section (`--tb=no`).
 _ERRORS_HEADING = "==================================== ERRORS ====================================\n"
 _COLLECTED = "test_collection_long_name_long_name_long_name_long_name_long_name_long_name.py"
 _COLLECTED_LEAD = f"Failure: collection of `{_COLLECTED}`, before any test in it ran\n"
@@ -765,11 +766,11 @@ _WITHIN = _ROOTED.removeprefix("sub/")
 _COLLECTION_OF = "Failure: collection of `{path}`, before any test in it ran\n"
 _MISSING_LEAD = f"Error: `{_MISSING_DEPENDENCY}`\n"
 _SPELLED_APART = tuple(
-    (f"{_ROOTED_SECTION}ERROR {spelled}\n{_INTERRUPTED}", "", _COLLECTION_OF.format(path=spelled) + error)
-    for spelled, error in (
+    (f"{_ROOTED_SECTION}ERROR {spelled}\n{_INTERRUPTED}", "", _COLLECTION_OF.format(path=spelled) + rest)
+    for spelled, rest in (
         (f"../../proj/{_ROOTED}", _MISSING_LEAD),
         (_WITHIN, _MISSING_LEAD),
-        (f"other/{_WITHIN}", _UNSTATED),
+        (f"other/{_WITHIN}", f"{_UNSTATED}{_COLLECTION_OF.format(path=_ROOTED)}{_MISSING_LEAD}"),
     )
 )
 _SETUP_UNSECTIONED = "tests/test_setup_error_with_a_long_module_name_to_fill_the_terminal.py::test_x"
@@ -861,6 +862,37 @@ _QUIET_SUBTESTS_LEAD = (
     f"{_QUIET_FIRST_LEAD}"
     "Failure: `test_second.py::test_second`, subtest `(value=1)`\nError: `assert 2 == 3`\n"
     "Failure: `test_second.py::test_second`\nError: `contains 1 failed subtest`\n"
+)
+# A test printing a title and a marked line, narrower than pytest pads its
+# own, in its captured output above the section of the test the title names;
+# and a run printed with `-rN`, whose collection pytest failed only its
+# section names.
+_PRINTED_TITLE = (
+    "=================================== FAILURES ===================================\n"
+    "__________________________________ test_first __________________________________\n"
+    "E       RuntimeError: actual first failure\n"
+    f"{_CAPTURE_RULE}"
+    "___ test_second ___\n"
+    "E   ValueError: captured text only\n"
+    "_________________________________ test_second __________________________________\n"
+    "E       TypeError: actual second failure\n"
+    f"{_SUMMARY_HEADING}"
+    f"FAILED {_LINE_MODULE}::test_first\nFAILED {_LINE_MODULE}::test_second"
+)
+_PRINTED_TITLE_LEAD = (
+    f"Failure: `{_LINE_MODULE}::test_first`\nError: `RuntimeError: actual first failure`\n"
+    f"Failure: `{_LINE_MODULE}::test_second`\nError: `TypeError: actual second failure`\n"
+)
+_UNSUMMARISED_COLLECTION = (
+    f"{_ERRORS_HEADING}"
+    "_______________________ ERROR collecting test_broken.py ________________________\n"
+    "ImportError while importing test module '/tmp/run/test_broken.py'.\n"
+    "E   ModuleNotFoundError: No module named 'missing'\n"
+    f"{_INTERRUPTED}\n1 error in 0.07s"
+)
+_UNSUMMARISED_COLLECTION_LEAD = (
+    "Failure: collection of `test_broken.py`, before any test in it ran\n"
+    "Error: `ModuleNotFoundError: No module named 'missing'`\n"
 )
 # Subtests of a test in a file whose path holds blanks, one described by a
 # message holding brackets of its own, beside one in a file whose path holds
@@ -1392,6 +1424,9 @@ class FailureNamesTest(unittest.TestCase):
             (_CAPTURED_SUMMARY, "", _CAPTURED_SUMMARY_LEAD),
             (_CAPTURED_UNSUMMARISED, "", _UNNAMED),
             (_CAPTURED_LINES, "", _CAPTURED_LINES_LEAD),
+            # Nor is a title a test printed narrower than pytest pads its own,
+            # which would give another test's section its error.
+            (_PRINTED_TITLE, "", _PRINTED_TITLE_LEAD),
             # Nor is pytest's own output a test printed: only the last short
             # summary of a run is the run's, and a whole run printed below a
             # rule is captured to its statistics -- unless a test cut it short,
@@ -1431,6 +1466,9 @@ class FailureNamesTest(unittest.TestCase):
             # leads whatever the shape of the path it names.
             (_DOCTEST_SECTIONED, "", _DOCTEST_SECTIONED_LEAD),
             (_DOCTEST_UNTRACED, "", f"{_DOCTEST_COLLECTED}{_UNSTATED}"),
+            # A collection pytest's section says failed leads, with its
+            # exception, though no summary line reports it.
+            (_UNSUMMARISED_COLLECTION, "", _UNSUMMARISED_COLLECTION_LEAD),
             # Its path may hold blanks, as the doctest a file's path holding
             # blanks names may; words naming no Python file are a collection
             # only where pytest says so.
@@ -1596,6 +1634,22 @@ class FailureEntriesTest(unittest.TestCase):
                 (
                     f"Failure: A probe\nError: {_NO_ENTRY_ERROR}\n\n```text\n```\n"
                     f"Reproduce: {_NO_ENTRY_REPRODUCTION}\n\n```python\n   \n```"
+                ),
+            ),
+            # Labels right above a check's sentence that give nothing, or give
+            # what no lead writes, are no lead the formatting wrote: an entry's.
+            (
+                f"{blank}\n`make probe` exited with status 1.",
+                (
+                    f"Failure: {_UNNAMED_ENTRY}\nError: {_NO_ENTRY_ERROR}\nReproduce: {_NO_ENTRY_REPRODUCTION}\n"
+                    "`make probe` exited with status 1."
+                ),
+            ),
+            (
+                "Failure: A probe\nError: boom\n`make probe` exited with status 1.",
+                (
+                    f"Failure: A probe\nError: boom\nReproduce: {_NO_ENTRY_REPRODUCTION}\n"
+                    "`make probe` exited with status 1."
                 ),
             ),
             # A reproduction said right above a sentence of the reviewer's
