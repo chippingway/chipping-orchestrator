@@ -580,15 +580,15 @@ ledger entry (reserved at the widest id a comment is recorded at), the record of
 (`pending_auto_base_rebase_announced_event`), the `review_round` both finishes reset ahead of the mark, and the
 mark -- rather than on the debt alone, and on the comment as it stands as well, since resetting a wide
 round can make the announcement the narrower of the two; the writes past it only clear. A finish held to the dormant
-settled-evidence policy measures both beside the record of the relabel its route makes behind them
-(`pending_auto_base_rebase_relabelled`), which lands before the retirement clears it, and reserves it on the
-checkpoint it prepares over the comment read afresh, so a comment filled since posts nothing. A proved debt that does
-not fit stops the finish before it announces anything: no notice, no `base_rebased`, no relabel, and no clear. It parks
-`auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay standing, and the anchor holding every
-stage handler back; the park asks for room to be made on the pinned comment and a reply, and the reply brings the
-recovery back to finish the landed head -- recording the debt first, or parking again if there is still no room. A
-standing claim the rewrite cannot be carried onto is no such debt, and `workflow/engine/report_rewrite_room.py` is what
-tells the two refusals apart, for the conflict stage as well.
+settled-evidence policy that routes its head -- a continuation relabels nothing -- measures both beside the record of
+the relabel its route makes behind them (`pending_auto_base_rebase_relabelled`), which lands before the retirement
+clears it, and reserves it on the checkpoint it prepares over the comment read afresh, so a comment filled since posts
+nothing. A proved debt that does not fit stops the finish before it announces anything: no notice, no `base_rebased`, no
+relabel, and no clear. It parks `auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay
+standing, and the anchor holding every stage handler back; the park asks for room to be made on the pinned comment and a
+reply, and the reply brings the recovery back to finish the landed head -- recording the debt first, or parking again if
+there is still no room. A standing claim the rewrite cannot be carried onto is no such debt, and
+`workflow/engine/report_rewrite_room.py` is what tells the two refusals apart, for the conflict stage as well.
 
 A clean rebase whose candidate the size gate hands to an adjudication instead of pushing leaves two owners over one
 unpublished replay: the attempt's anchor, and the live late generation whose candidate that replay is. Left that way

@@ -16,7 +16,9 @@ floor, and a newer run settled beside report 3 is proved on its own readings.
 Behind the record the run is proved once more, so a report settled at the
 record -- landed, answer lost, or refused -- is read moving even where report
 2 is put back, and so is the base tip the attempt recorded its replay as made
-onto, blanked right under the record's strict edit and put back behind it.
+onto, blanked right under the record's strict edit -- beside the record of the
+event another finish of the landing is filing for the head, which advances this
+very attempt, or not -- and put back behind it.
 Where nothing moved the run is kept current. The attempt stands behind every
 hold, the run is made once with nothing pushed or launched, and the poll a
 later tick makes routes the head over whatever the hold left current.
@@ -63,6 +65,11 @@ _UNDER_THE_EDIT = "under the edit"
 # reset is recorded, and put back right behind the edit's refusal.
 _TIP_UNDER_THE_EDIT = "the tip under the edit"
 
+# The tip blanked under that edit beside the record of the `base_rebased`
+# event another finish of the landing is filing for the head, which advances
+# this very attempt rather than replacing it; the tip alone is put back.
+_TIP_BESIDE_THE_EVENT = "the tip beside the event record under the edit"
+
 # A record the tick staged since its reading, as a gate holding over a
 # reading of its own does, so the hold's record has an edit to send -- one
 # that fails as a case asks.
@@ -74,6 +81,7 @@ _AT_THE_RECORD = (
     ("refused", False),
     (_UNDER_THE_EDIT, True),
     (_TIP_UNDER_THE_EDIT, True),
+    (_TIP_BESIDE_THE_EVENT, True),
 )
 
 
@@ -110,7 +118,7 @@ class _AroundTheHold:
         case = self._case
         if self._failing:
             staged.set(_STAGED_BY_THE_GATE, self._head)
-        if self._failing in {_UNDER_THE_EDIT, _TIP_UNDER_THE_EDIT}:
+        if self._failing in {_UNDER_THE_EDIT, _TIP_UNDER_THE_EDIT, _TIP_BESIDE_THE_EVENT}:
             with patch.object(case.gh, "edit_pinned_state", partial(self._moves_under, case.gh.edit_pinned_state)):
                 return _LANDS(commit, staged, write)
         self._settles()
@@ -146,11 +154,13 @@ class _AroundTheHold:
         durable = case.gh.read_pinned_state(case.issue)
         self._replaced = {readings.KEY_REWRITE_BASE: durable.get(readings.KEY_REWRITE_BASE)}
         durable.set(readings.KEY_REWRITE_BASE, None)
+        if self._failing == _TIP_BESIDE_THE_EVENT:
+            durable.set(readings.KEY_ANNOUNCED_EVENT, self._head)
         case.gh.write_pinned_state(case.issue, durable)
 
     def _moves_under(self, live, issue, state, *, over: dict, **options):
         """`live`, the strict edit, with report 3 settled -- or the tip blanked -- under it and put back behind it."""
-        if self._failing == _TIP_UNDER_THE_EDIT:
+        if self._failing in {_TIP_UNDER_THE_EDIT, _TIP_BESIDE_THE_EVENT}:
             self._blanks()
         else:
             self._settles()
@@ -201,8 +211,9 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # which lands it, loses its answer, or is refused -- or right under
         # its strict edit, refused over it; report 2 put back right behind a
         # record that carried report 3, or that edit, still leaves the run
-        # moved -- and so does the base tip blanked right under that edit and
-        # put back behind it. The run is invalidated whole with the attempt
+        # moved -- and so does the base tip blanked right under that edit, beside
+        # another finish's event record for the head or not, and put back behind
+        # it. The run is invalidated whole with the attempt
         # kept, and the next poll routes the head with nothing current.
         for failing, restores in _AT_THE_RECORD:
             with self.subTest(record=failing or "landed"):

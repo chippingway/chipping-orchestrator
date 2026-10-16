@@ -146,6 +146,36 @@ class _MovesBehindThePark:
         _writes(case, earlier)
 
 
+class _FailsReadingFirst(_MovesBehindThePark):
+    """`_MovesBehindThePark`, the reconciliation's first reading behind report 3 failing as a request GitHub refused.
+
+    The reading behind it is the first that carries what moved, and has it
+    put back right behind it.
+    """
+
+    def __init__(self, case, head: str, **options) -> None:
+        super().__init__(case, head, **options)
+        self._failed = False
+
+    def reads(self, *read, **options):
+        """The comment read afresh, the first time behind report 3 failing, every reading after as `reads` answers."""
+        if self._restores is None or self._failed:
+            return super().reads(*read, **options)
+        self._failed = True
+        with patch.object(self._case.gh, "read_pinned_state", side_effect=RuntimeError("GitHub refused the read")):
+            return self._read(*read, **options)
+
+
+# Each race behind a park's notice that raises: report 3 settled, a newer run
+# settled bound to it, or that run again where the reconciliation's first
+# reading of the comment fails.
+_RAISED_NOTICES = (
+    partial(_MovesBehindThePark),
+    partial(_MovesBehindThePark, successor=True),
+    partial(_FailsReadingFirst, successor=True),
+)
+
+
 class ReconciledMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """What a dormant park's reconciliation read moving counts, and what an unrelated edit under it does not."""
 
@@ -153,21 +183,23 @@ class ReconciledMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # The notice's post raises behind report 3 -- or behind a newer run
         # settled bound to it, report 2 put back -- and what the
         # reconciliation's reading read moving is put back right behind it:
-        # the run, or that successor, is invalidated whole with nothing parked.
-        for successor in (False, True):
-            with self.subTest(successor=successor):
+        # the run, or that successor, is invalidated whole with nothing parked
+        # -- also where the reconciliation's first reading fails, the one
+        # behind it reading the successor on its own binding.
+        for mover in _RAISED_NOTICES:
+            with self.subTest(moves=mover.func.__name__, **mover.keywords):
                 self.setUp()
                 head, run = self.settles_then_dies()
-                moves = _MovesBehindThePark(self, head, successor=successor)
+                moves = mover(self, head)
                 context = guarded.recovery_context(self)
                 with patch.object(self.gh, "comment", moves.raises), _reads_through(moves):
                     self.assertRaises(RuntimeError, _parks.lands_a_park, context, _NOTICE, _REASON)
 
                 self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
-                if successor:
-                    self.assert_invalidated(moves.run, over=run)
-                else:
+                if moves.run is None:
                     self.assert_invalidated(run)
+                else:
+                    self.assert_invalidated(moves.run, over=run)
 
     def test_a_raised_notice_keeps_the_mark_it_read(self) -> None:
         # The notice's post raises behind another finish's mark of movement

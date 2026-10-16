@@ -1197,11 +1197,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             policy the finish is held to (`proves_settled`): the one every road hands over, or the
                             dormant settled-evidence policy only a caller building the finish itself selects, which
                             every shared helper the finish calls reads before taking any of its proofs, write
-                            profiles, adoptions, or retirements
+                            profiles, adoptions, or retirements; and whether a finish's route lands a record of its
+                            own relabel -- held to that dormant policy and routing, not continuing, its head
+                            (`routes_a_relabel`)
     rewrite_finish_debt.py  the debt a landed rewrite leaves, staged only where both the announcement write it rides
                             -- the notice's ledger entry reserved at the widest id, the record of the event, the
-                            reset round, and the mark, and for a dormant finish the record of the relabel its route
-                            makes behind them --
+                            reset round, and the mark, and for a dormant finish routing its head
+                            (`rewrite_finish_models.routes_a_relabel`, no continuation) the record of the relabel
+                            its route makes behind them --
                             and the comment as it stands have room for it, a refusal for anything but room leaving a
                             standing claim as it is -- measured ahead of the evidence too (`fits`), so a debt with no
                             room parks before anything runs; the park notice of a debt with no room; and, for a
@@ -2229,13 +2232,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             record that did not land has the evidence records the comment carries now laid over the
                             tick's state (`reconciles`), so a successor another road settled meanwhile is the
                             evidence proved behind it, on its own binding, the movement that very reading records
-                            under it handed to that proof as already read; and the movement a comment a record's
+                            under it handed to that proof as already read, a comment that would not read read once
+                            more; and the movement a comment a record's
                             commit read carries under each evidence it records is read off that comment by receipt
                             (`moved_under`) -- a review or report record moved off that evidence's binding, for
                             settled evidence whatever else its records refuse it over as the dormant policy reads
                             them, a mark of movement under its receipt among it, or the
                             base tip read blank or repointed beside every other member of the attempt as the tick
-                            last read it (`attempt_as_read`), the blank another road records a reset with
+                            last read it (`attempt_as_read`) -- the bookkeeping a finish of the landing puts down as
+                            it announces and relabels set aside -- the blank another road records a reset with
     rewrite_recovery_notices.py
                             dormant, beside the park below: the notice a recovery park says, said once however often
                             the park is made again -- the conversation past the watermark read first for this very

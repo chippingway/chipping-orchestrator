@@ -1534,8 +1534,8 @@ because there it is the claim that this stage has already rerouted rather than a
   the comment read afresh and proving what it keeps once more behind its notice
   (`rewrite_recovery_parks.lands_a_park`) -- a movement its record carried, or that the comment its strict edit was
   refused over carried, a report or review record moved, a mark of movement under settled evidence's receipt, or the
-  attempt's base tip blanked beside the rest of the attempt as read, kept as read under whichever evidence it was read
-  under
+  attempt's base tip blanked beside the rest of the attempt as read -- this landing's announcement bookkeeping set
+  aside -- kept as read under whichever evidence it was read under
   (`rewrite_landing_retirement.moved_under`); behind a notice that raised, or a record refused or sent with its
   answer lost, the evidence the comment carries now laid over the tick's state first, so a successor another road
   settled meanwhile is proved on its own binding, movement that very reading records kept for the proof however soon

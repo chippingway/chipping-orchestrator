@@ -23,6 +23,7 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.git.base_sync import attempts as _attempts
 from orchestrator.workflow.engine import report_record_values as _record_values, rewrite_finish_debt as _debt
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
@@ -275,6 +276,13 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         return len(notices), len(events), world.relabels()
 
 
+# Every member of an attempt, which an attempt's clear blanks: one the comment
+# lacks is put there blank first, so the clear grows nothing.
+_ATTEMPT_MEMBERS = frozenset(_attempts._ATTEMPT_KEYS)
+
+# A recovery that finds its push standing on a head the base advanced past again.
+_CONTINUED = replace(support.FOUND, behind=1)
+
 # Whether a finish is held to the dormant settled-evidence policy, and what it
 # comes to over a comment filled after the tick read it, with room for the
 # announcement and its debt and none for the relabel's record, and how many
@@ -313,6 +321,21 @@ class RelabelRecordRoomTest(unittest.TestCase):
         self.assertEqual(world.finalizes(finish=finish), FinishOutcome.PARKED)
         self.assertEqual(world.relabels(), ())
         self.assertEqual(world.pinned().get(support.KEY_RELABELLED), None)
+
+    def test_a_continuation_reserves_no_relabel(self) -> None:
+        # A landing already announced whose head the base advanced past again
+        # is continued to another rebase and relabels nothing, so the comment
+        # having room for its debt and no more continues it under either
+        # policy: no room is reserved for a relabel record it never makes.
+        for proves_settled in (False, True):
+            with self.subTest(proves_settled=proves_settled):
+                world = support.FinishWorld.seeded(**{support.KEY_ANNOUNCED: support.LANDED})
+                world.another_road(**dict.fromkeys(_ATTEMPT_MEMBERS.difference(world.pinned())))
+                effects.leaves(world, effects.room_for(world) + 1)
+                finish = replace(world.finish(_CONTINUED), proves_settled=proves_settled)
+
+                self.assertEqual(world.finalizes(finish=finish), FinishOutcome.CONTINUED)
+                self.assertEqual(world.relabels(), ())
 
     def test_a_fresh_fill_spares_the_notice(self) -> None:
         # Another road fills the comment after the tick read it, leaving room

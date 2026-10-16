@@ -179,3 +179,13 @@ class LandedFinish:
         """Whether a guard stopped the publication for anything but the remote already standing on it."""
         landed = self.landed
         return landed.outcome is _PushOutcome.REFUSED and landed.refusal is not _RewriteRefusal.PUBLISHED
+
+
+def routes_a_relabel(finish: LandedFinish) -> bool:
+    """Whether `finish`'s route lands a record of its own relabel: one held to the dormant policy routing its head.
+
+    A head the base has advanced past again is continued to another rebase
+    rather than routed, and relabels nothing, so it has no record to make
+    room for (`rewrite_finish_debt.announcement`).
+    """
+    return finish.proves_settled and not finish.behind

@@ -101,6 +101,18 @@ log = logging.getLogger("orchestrator.workflow")
 # member moved is another attempt (`moved_under`).
 _TIP_ALONE = (_base_sync_state._PENDING_REWRITE_BASE,)
 
+# The attempt's members a tip move is read against (`attempt_as_read`): every
+# one but the bookkeeping a finish of the landing puts down as it announces
+# and relabels -- the record of its event, the mark, and the record of its
+# relabel -- which advances the attempt rather than replacing it.
+_AS_READ = tuple(
+    member for member in _attempts._ATTEMPT_KEYS if member not in {
+        _base_sync_state._PENDING_ANNOUNCED_EVENT,
+        _base_sync_state._PENDING_ANNOUNCED_SHA,
+        _base_sync_state._PENDING_RELABELLED,
+    }
+)
+
 # What that move, read by a record's commit, is under the evidence the comment
 # carries for the landed head: no base the tick read proves which one its head
 # was replayed onto, however soon the tip is put back.
@@ -191,11 +203,16 @@ def reconciles(context: _AutoRebaseRecoveryContext) -> ReportEvidence | None:
     (`moved_under`, the attempt as the tick last read it beside it), and the
     first such movement is the answer, for the caller to hand the proof behind
     it as movement already read, so a record put back between this reading
-    and that proof revives nothing. None where nothing moved, or where the
-    comment would not read, which lays nothing.
+    and that proof revives nothing. A comment that would not read is read
+    once more, so one failed request does not leave the proof behind it
+    classifying the tick's older evidence while its own reading carries a
+    successor. None where nothing moved, or where the comment would not read
+    either time, which lays nothing.
     """
     attempt = attempt_as_read(context.state)
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
+    if durable is None:
+        durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
     if durable is None:
         return None
     lays(context.state, durable, _durable._EVIDENCE_RECORDS)
@@ -208,7 +225,10 @@ def attempt_as_read(state: PinnedState) -> PinnedCommit | None:
     As the comment carried it when the tick last read it, not as the tick
     holds it now: a tip the tick staged back over its own blank -- a reset git
     refused, whose recorded blank landed -- is no tip another road moved.
-    None where that reading records no tip, so names no base to move.
+    Captured without the announcement's bookkeeping (`_AS_READ`), so a comment
+    carrying a finish of the landing's event record, mark, or relabel record
+    beside the moved tip is still this attempt. None where that reading
+    records no tip, so names no base to move.
     """
     read = state
     if state.synced is not None:
@@ -216,7 +236,7 @@ def attempt_as_read(state: PinnedState) -> PinnedCommit | None:
         read = PinnedState(comment_id=state.comment_id, state_data=synced, parsed=state.parsed)
     if not _attempt_records._recorded_onto(read):
         return None
-    return PinnedCommit.capture(read, prerequisites=_attempts._ATTEMPT_KEYS)
+    return PinnedCommit.capture(read, prerequisites=_AS_READ)
 
 
 def moved_under(comment: PinnedState | None, attempt: PinnedCommit | None = None) -> dict[str, ReportEvidence]:

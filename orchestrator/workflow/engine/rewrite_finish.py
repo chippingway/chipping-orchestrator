@@ -208,7 +208,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.rewrite_finish_announced import marked
 from orchestrator.workflow.engine.rewrite_finish_events import method, prepares_the_record
-from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish, routes_a_relabel
 from orchestrator.workflow.engine.verification_proof import ProofReading
 
 log = logging.getLogger("orchestrator.workflow")
@@ -330,15 +330,18 @@ def _checkpoints(finish: LandedFinish, observed: ProofReading, *, announced: boo
     evidence is still owed to its pull request. Measured on the announcement
     the debt rides, or -- where the mark already
     names this head -- on the comment as it stands, for a finish held to the
-    dormant settled-evidence policy beside the record of the relabel its route
-    makes behind it either way (`rewrite_finish_debt.announcement`), and
+    dormant settled-evidence policy that routes its head beside the record of
+    the relabel its route makes behind it either way
+    (`rewrite_finish_debt.announcement`), and
     landed there only where it is a claim the comment does not carry yet. An announcement is
     prepared over the fresh comment before its notice is posted, the entry
     the notice adds to the ledger reserved over the one that comment carries
     rather than over the tick's: an id the tick's ledger lacks may be one
     another road has recorded since, and reserved there it is no room at all.
-    A finish held to the dormant settled-evidence policy reserves the record
-    of the relabel its route lands behind the checkpoint there too, so a
+    A finish held to the dormant settled-evidence policy that routes its head
+    (`rewrite_finish_models.routes_a_relabel`) reserves the record of the relabel its route
+    lands behind the checkpoint there too -- a continuation, relabelling
+    nothing, reserves none -- so a
     comment another road filled since the tick read it, with room for the
     checkpoint and none for that record, posts and files nothing.
     Both of the announcement's writes are prepared before its notice: the
@@ -355,7 +358,7 @@ def _checkpoints(finish: LandedFinish, observed: ProofReading, *, announced: boo
     read is collected on `observed` (`rewrite_finish_writes.lands`).
     """
     staged = _writes.staging(finish)
-    measured = _debt.announcement(staged, finish.head, announced=announced, relabels=finish.proves_settled)
+    measured = _debt.announcement(staged, finish.head, announced=announced, relabels=routes_a_relabel(finish))
     if not _debt.stages(finish, staged, measured):
         return _writes.parks(finish, observed)
     if announced:
@@ -367,7 +370,7 @@ def _checkpoints(finish: LandedFinish, observed: ProofReading, *, announced: boo
     staged.set(_base_sync_state._REVIEW_ROUND, 0)
     staged.set(_base_sync_state._PENDING_ANNOUNCED_SHA, finish.head)
     reserved = copy.deepcopy(staged)
-    if finish.proves_settled:
+    if routes_a_relabel(finish):
         reserved.set(_base_sync_state._PENDING_RELABELLED, finish.head)
     stopped = _writes.prepares(finish, reserved, _writes.CHECKPOINT, observed, ledger_entry=True)
     if stopped is None:
