@@ -829,6 +829,35 @@ _SUBTESTS_SECTIONED_LEAD = (
     f"Failure: `{_LINE_MODULE}::TestCase::test_values`, subtest `(value=2)`\nError: `AssertionError: 2 != 0`\n"
     f"Failure: `{_LINE_MODULE}::test_fixture`, subtest `[first case] (n=3)`\nError: `assert 1 == 2`\n"
 )
+# A quiet run whose subtest reports progress by its own letter, after a quiet
+# run that failed; and a doctest's text file pytest could not collect, its
+# section naming it, and with `--tb=no` no section but the run's interruption.
+_QUIET_SUBTESTS = (
+    f"{_QUIET_FIRST}\n"
+    "uF                                                                       [100%]\n"
+    f"{_SUMMARY_HEADING}"
+    "SUBFAILED(value=1) test_second.py::test_second - assert 2 == 3\n"
+    "FAILED test_second.py::test_second - contains 1 failed subtest\n"
+    "2 failed in 0.01s"
+)
+_QUIET_SUBTESTS_LEAD = (
+    f"{_QUIET_FIRST_LEAD}"
+    "Failure: `test_second.py::test_second`, subtest `(value=1)`\nError: `assert 2 == 3`\n"
+    "Failure: `test_second.py::test_second`\nError: `contains 1 failed subtest`\n"
+)
+_DOCTEST_COLLECTED = "Failure: collection of `sample.txt`, before any test in it ran\n"
+_DOCTEST_SECTIONED = (
+    f"{_ERRORS_HEADING}"
+    "_________________________ ERROR collecting sample.txt __________________________\n"
+    "E   ValueError: line 2 of the docstring for sample.txt lacks blank after ...\n"
+    f"{_SUMMARY_HEADING}"
+    "ERROR sample.txt - ValueError: line 2 of the docstring for sample.txt lacks b...\n"
+    f"{_INTERRUPTED}\n1 error in 0.11s"
+)
+_DOCTEST_SECTIONED_LEAD = (
+    f"{_DOCTEST_COLLECTED}Error: `ValueError: line 2 of the docstring for sample.txt lacks b...`\n"
+)
+_DOCTEST_UNTRACED = f"{_SUMMARY_HEADING}ERROR sample.txt\n{_INTERRUPTED}\n1 error in 0.11s"
 _SUBTEST_STATS = _NESTED_TITLES.replace(
     "=== 1 failed in 0.01s ===", "=== 1 failed, 1 subtests passed in 0.01s ===",
 )
@@ -1332,6 +1361,11 @@ class FailureNamesTest(unittest.TestCase):
             # description of it, with its own error.
             (_SUBTESTS_SUMMARISED, "", _SUBTESTS_SUMMARISED_LEAD),
             (_SUBTESTS_SECTIONED, "", _SUBTESTS_SECTIONED_LEAD),
+            (_QUIET_SUBTESTS, "", _QUIET_SUBTESTS_LEAD),
+            # A collection pytest says failed, or its run says was interrupted,
+            # leads whatever the shape of the path it names.
+            (_DOCTEST_SECTIONED, "", _DOCTEST_SECTIONED_LEAD),
+            (_DOCTEST_UNTRACED, "", f"{_DOCTEST_COLLECTED}{_UNSTATED}"),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
