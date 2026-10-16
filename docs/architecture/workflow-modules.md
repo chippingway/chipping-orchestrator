@@ -231,17 +231,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             says pytest failed collecting it or
                             its path or collection was interrupted, and otherwise as an error in any of the three, and
                             an `ERROR` path as its collection, never a test ID,
-                            each with the error its line gives, else for a collection the last exception line of the
-                            traceback pytest printed collecting it, else the error of the entry naming it, else a
-                            line saying the summary gave none; ten at most, the rest left to the output quoted below.
+                            each with the error its line gives, else -- a line too long for the terminal carries none
+                            -- the first exception line of a failed test's section, or the last of a setup's,
+                            teardown's, or collection's, else the error of the entry naming it, else a line saying the
+                            summary gave none; ten at most, the rest left to the output quoted below. A section title
+                            sits between underscores, one each side at least, and a line of spaced underscores alone
+                            parts frames, titling nothing.
                             A check pytest's summary names nothing in is led by each `Failure:` entry of the findings
                             whose `Error:` -- or the code block's last line below an empty one -- its output shows,
                             matched by that error and never by command, so two runs of one stdin command each lead with
                             their own scenario; else by a line saying no test ID or scenario name was recorded. A lead
-                            says too where the check quoted no output, and where its command reads its code from stdin
-                            (`-`) and no entry it backs gives the snippet as a code block holding code below its
-                            `Reproduce:` line,
-                            however the line names the command. No lead line opens on a declaration
+                            says too where the check quoted no output, and, whatever names its failures, where its
+                            command reads its code from stdin (`-`) and no entry it backs gives the snippet as a code
+                            block holding code below its `Reproduce:` line, however the line names the command. No
+                            lead line opens on a declaration
                             keyword, and the names and errors it takes from output stand in code spans. The reviewer's
                             own text is shown through here too (`said`): its entries with what each leaves out said,
                             and each check the concise layout before leads showed -- a sentence opening a paragraph at

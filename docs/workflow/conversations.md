@@ -651,16 +651,18 @@ rewritten assertion's `assert` or an exception's name, else on the first — wit
 pytest could not collect leads as that collection, never under a test ID nobody reported, and so does a node ID where
 pytest says it failed collecting it or its path, or that collection was interrupted, as for a class it could not
 collect; a node ID whose setup or teardown a section says failed leads as that — where both did, each summary line as
-the phase whose section raised its error — and one nothing explains as an error in its collection, setup, or teardown. A
-collection's error is its summary line's, else the exception its traceback ends on, else the error of the entry naming
-it. Otherwise the check leads with each entry whose error its output shows — matched by that error, never by the
-command, so two runs of `.venv/bin/python -` each lead with their own scenario and are never merged — or with a line
-saying no test ID or scenario name was recorded for it. Whatever is missing stays visible as such: a check that quoted
-no output says no error was recorded, and one whose command reads its code from stdin, with no entry giving the snippet
-as a code block holding code below its `Reproduce:` line, says none was recorded, whatever the entry names as its
-command. A lead names at most ten failures, the output quoted below naming the rest. No lead line opens on a declaration
-keyword, so formatting the shown feedback again changes nothing, and what a lead says is read from the text alone: the
-evidence, statuses, and provenance stay those the declaration recorded.
+the phase whose section raised its error — and one nothing explains as an error in its collection, setup, or teardown.
+Where a summary line carries no error — pytest drops it from a line too long for the terminal — the section pytest
+printed gives it, its first exception line for a failed test and its last for a setup, teardown, or collection, else the
+entry naming the failure gives it; a section's title may be padded by a single underscore each side. Otherwise the check
+leads with each entry whose error its output shows — matched by that error, never by the command, so two runs of
+`.venv/bin/python -` each lead with their own scenario and are never merged — or with a line saying no test ID or
+scenario name was recorded for it. Whatever is missing stays visible as such: a check that quoted no output says no
+error was recorded, and one whose command reads its code from stdin — whatever names its failures — with no entry giving
+the snippet as a code block holding code below its `Reproduce:` line, says none was recorded, whatever the entry names
+as its command. A lead names at most ten failures, the output quoted below naming the rest. No lead line opens on a
+declaration keyword, so formatting the shown feedback again changes nothing, and what a lead says is read from the text
+alone: the evidence, statuses, and provenance stay those the declaration recorded.
 
 Findings that are a declaration and nothing else read as a sentence saying the reviewer stated none, never as the raw
 message they sit in. The transaction keeps every command, exit status, and output exactly, and the formatting decides
