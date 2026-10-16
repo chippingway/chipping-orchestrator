@@ -335,6 +335,16 @@ _SHAPED_MESSAGE = "FAILED tests/test_x.py::test_x[a] - AssertionError: got [b] -
 _SHAPED_SECTION = "___ test_x[a] ___"
 _SHAPED_SHORT = "Failure: `tests/test_x.py::test_x[a]`\nError: `AssertionError: got [b] - KeyError: 'c'`\n"
 _SHAPED_FULL = f"Failure: `{_SHAPED_NODE}`\nError: `AssertionError: values differ`\n"
+# Where nothing names the ID, it ends where the message may first begin, the
+# lead saying where it ends is unavailable when a later split would do too.
+_UNSURE = (
+    "Unavailable: where the test ID ends; pytest's summary line could part it from its message at a later"
+    " dash too, the ID running on into the error shown\n"
+)
+_SHAPED_UNSURE = (
+    "Failure: `tests/test_parameter.py::test_value[left]`\n"
+    f"Error: `Error: right] - AssertionError: values differ`\n{_UNSURE}"
+)
 # Entries naming each ID exactly.
 _SHAPED_ENTRY = (
     f"Failure: `{_SHAPED_NODE}`\nError: AssertionError: values differ\nReproduce: pytest '{_SHAPED_NODE}'\n\n"
@@ -788,6 +798,36 @@ _UNTRACED_RUN_LEAD = (
     f"Failure: `{_TEARDOWN_NODE}`, which errored outside any test body: in its collection, setup, or teardown\n"
     f"{_UNSTATED}"
     f"Failure: `{_TEARDOWN_NODE}`, whose teardown failed\nError: `ValueError: second run teardown failure`\n"
+)
+# Subtests that failed, each reported by its test's node ID and pytest's
+# description of it: with their errors on the summary lines, and with
+# summary lines too long to carry them, each taking the section its test's
+# name and its description title.
+_SUBTESTS_SUMMARISED = (
+    f"{_SUMMARY_HEADING}"
+    "SUBFAILED(value=1) test_sub.py::TestCase::test_values - AssertionError: 1 != 0\n"
+    "SUBFAILED(value=2) test_sub.py::TestCase::test_values - AssertionError: 2 != 0"
+)
+_SUBTESTS_SUMMARISED_LEAD = (
+    "Failure: `test_sub.py::TestCase::test_values`, subtest `(value=1)`\nError: `AssertionError: 1 != 0`\n"
+    "Failure: `test_sub.py::TestCase::test_values`, subtest `(value=2)`\nError: `AssertionError: 2 != 0`\n"
+)
+_SUBTESTS_SECTIONED = (
+    "________________________ TestCase.test_values (value=1) ________________________\n"
+    "E               AssertionError: 1 != 0\n"
+    "________________________ TestCase.test_values (value=2) ________________________\n"
+    "E               AssertionError: 2 != 0\n"
+    "_______________________ test_fixture [first case] (n=3) ________________________\n"
+    "E           assert 1 == 2\n"
+    f"{_SUMMARY_HEADING}"
+    f"SUBFAILED(value=1) {_LINE_MODULE}::TestCase::test_values\n"
+    f"SUBFAILED(value=2) {_LINE_MODULE}::TestCase::test_values\n"
+    f"SUBFAILED[first case] (n=3) {_LINE_MODULE}::test_fixture"
+)
+_SUBTESTS_SECTIONED_LEAD = (
+    f"Failure: `{_LINE_MODULE}::TestCase::test_values`, subtest `(value=1)`\nError: `AssertionError: 1 != 0`\n"
+    f"Failure: `{_LINE_MODULE}::TestCase::test_values`, subtest `(value=2)`\nError: `AssertionError: 2 != 0`\n"
+    f"Failure: `{_LINE_MODULE}::test_fixture`, subtest `[first case] (n=3)`\nError: `assert 1 == 2`\n"
 )
 _SUBTEST_STATS = _NESTED_TITLES.replace(
     "=== 1 failed in 0.01s ===", "=== 1 failed, 1 subtests passed in 0.01s ===",
@@ -1288,6 +1328,10 @@ class FailureNamesTest(unittest.TestCase):
             # test printed closes on statistics counting subtests too.
             (_UNTRACED_RUN, "", _UNTRACED_RUN_LEAD),
             (_SUBTEST_STATS, "", _NESTED_TITLES_LEAD),
+            # Each subtest that failed leads by its test's ID and pytest's
+            # description of it, with its own error.
+            (_SUBTESTS_SUMMARISED, "", _SUBTESTS_SUMMARISED_LEAD),
+            (_SUBTESTS_SECTIONED, "", _SUBTESTS_SECTIONED_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
@@ -1299,11 +1343,14 @@ class FailureNamesTest(unittest.TestCase):
 
     def test_ids_end_where_they_are_named(self) -> None:
         # A parameter may hold the dash that parts an ID from its message, and
-        # text of a message's shape after it: the ID is the longest an entry
-        # names whole, or pytest titled a section by, and otherwise ends on the
-        # last split leaving a message of pytest's shape.
+        # text of a message's shape after it, as a message may hold a bracket
+        # and a dash: the ID is the longest an entry names whole, or pytest
+        # titled a section by, and otherwise ends where a message of pytest's
+        # shape may first begin, saying where it ends is unavailable when a
+        # later split leaves one too.
         cases = (
-            ("", _SHAPED_SUMMARY, _SHAPED_FULL),
+            ("", _SHAPED_SUMMARY, _SHAPED_UNSURE),
+            ("", _SHAPED_MESSAGE, f"{_SHAPED_SHORT}{_UNSURE}"),
             (_SHAPED_ENTRY, _SHAPED_SUMMARY, _SHAPED_FULL),
             ("", f"{_SHAPED_SECTION}\n{_SHAPED_MESSAGE}", _SHAPED_SHORT),
             (_SHORT_ENTRY, _SHAPED_MESSAGE, _SHAPED_SHORT),
