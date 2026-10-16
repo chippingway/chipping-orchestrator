@@ -18,14 +18,17 @@ or base that moved since leaves evidence that no longer answers for the head
 it would be routed with.
 
 These are the primitives a route that takes settled evidence as it stands
-proves it ready with (`stands_ready`), and they are dormant: no finish,
-recovery, announcement, dispatcher, or park road asks any of them yet, so the
-finish routes such evidence behind the settlement step's own record check and
-the last word over the landing and the base
-(`rewrite_finish_captured.stands_before_the_route`). A finish held to the
-dormant settled-evidence policy (`rewrite_finish_models.LandedFinish.proves_settled`)
+proves it ready with (`stands_ready`), and they are dormant: only the
+evidence phase of a finish held to the dormant settled-evidence policy
+(`rewrite_finish_models.LandedFinish.proves_settled`,
+`rewrite_finish_settlement.resolves`) and the recovery's dormant answers
+(`rewrite_landing_retirement`) ask them, and no production finish, recovery,
+announcement, dispatcher, or park road selects that policy or carries those
+answers, so every route those roads take reads such evidence behind the
+settlement step's own record check and the last word over the landing and
+the base (`rewrite_finish_captured.stands_before_the_route`). Such a finish
 has them read and retire more, as below, and only a caller that builds one
-and asks them directly reaches that (`rewrite_finish_settled`). The proof
+and asks that phase, or them, directly reaches that (`rewrite_finish_settled`). The proof
 (`settled_word`) reads the evidence records over the issue and pinned comment
 read afresh, and the requirements of that issue, then, where they neither
 move nor hold, the readiness proof every reader relying on current evidence

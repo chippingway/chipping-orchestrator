@@ -9,13 +9,16 @@ pinned writes sent, and the caller's state exactly as they were. That the whole
 candidate is measured as it would be written before anything goes out, and that
 an edit nobody confirmed is reported as neither answer. And that the fresh
 reading taken alone is refused as a commit's would be, and names the
-prerequisites that moved rather than refusing over them.
+prerequisites that moved rather than refusing over them -- as a commit whose
+guard reads a move does over the comment its edit found moved, carrying the
+comment any of its refusals read a prerequisite moving on.
 """
 from __future__ import annotations
 
 import json
 import unittest
 from dataclasses import replace
+from itertools import product
 from types import MappingProxyType
 from typing import Any
 
@@ -41,6 +44,9 @@ _SETTLED_READ = support.RECORD[support.SETTLED]
 
 # Another road moving nothing but a total.
 _MOVED_TOTAL = MappingProxyType({support.TOTAL: _ANOTHER_TOTAL})
+
+# Another road repointing the pull request, the guard's one prerequisite.
+_MOVED_PR = MappingProxyType({support.PR: 18})
 
 # Another road's write while the caller decided: a total moved, a marker
 # retired, a field no binary here knows recorded, and a watermark the caller
@@ -102,10 +108,31 @@ _SPOILED = MappingProxyType({
 })
 
 # What lands between the commit's own fresh reading and its edit.
+_MOVED = "moved"
+_MOVED_PREREQUISITE = "a prerequisite moved"
+_REPLACED = "replaced"
+_UNREADABLE = "unreadable"
+
 _UNDER_THE_EDIT = MappingProxyType({
-    "moved": (lambda world: world.another_road(**_MOVED_TOTAL), _REFUSAL.MOVED),
-    "replaced": (support.repin, _REFUSAL.REPLACED),
-    "unreadable": (lambda world: world.github.pinned_failures.unreadable.add(support.ISSUE), _REFUSAL.UNREADABLE),
+    _MOVED: lambda world: world.another_road(**_MOVED_TOTAL),
+    _MOVED_PREREQUISITE: lambda world: world.another_road(**_MOVED_PR),
+    _REPLACED: support.repin,
+    _UNREADABLE: lambda world: world.github.pinned_failures.unreadable.add(support.ISSUE),
+})
+
+# What the commit refuses each as, the fields it names, and whether it keeps the
+# comment the edit read, under a guard that reads a move and one that does not:
+# only the guard reading the comment its edit found moved names the
+# prerequisite that moved, and keeps that comment.
+_REFUSED_UNDER_THE_EDIT = MappingProxyType({
+    (_MOVED, False): (_REFUSAL.MOVED, (), False),
+    (_MOVED, True): (_REFUSAL.MOVED, (), False),
+    (_MOVED_PREREQUISITE, False): (_REFUSAL.MOVED, (), False),
+    (_MOVED_PREREQUISITE, True): (_REFUSAL.PREREQUISITE_CHANGED, (support.PR,), True),
+    (_REPLACED, False): (_REFUSAL.REPLACED, (), False),
+    (_REPLACED, True): (_REFUSAL.REPLACED, (), False),
+    (_UNREADABLE, False): (_REFUSAL.UNREADABLE, (), False),
+    (_UNREADABLE, True): (_REFUSAL.UNREADABLE, (), False),
 })
 
 # A filler of one unit -- empty for plain characters -- bringing the candidate to
@@ -306,15 +333,20 @@ class CommitRefusalTest(unittest.TestCase):
     def test_a_comment_moving_under_the_edit(self) -> None:
         # Behind the commit's own fresh reading and ahead of its edit: the
         # strict edit's walk is the last reading, and it sends nothing over a
-        # record that is no longer the one the candidate was derived over.
-        for case, (move, refusal) in _UNDER_THE_EDIT.items():
-            with self.subTest(case=case):
+        # record that is no longer the one the candidate was derived over --
+        # naming no field, save for a guard that reads a move, which names the
+        # prerequisites the comment that walk read spells otherwise and
+        # carries that comment.
+        for case, reads in product(_UNDER_THE_EDIT, (False, True)):
+            with self.subTest(case=case, reads_a_move=reads):
                 world = support.seeded()
+                world.guard = world.guard.reading_moves(reads)
                 world.settle()
-                with world.interfering(move):
+                with world.interfering(_UNDER_THE_EDIT[case]):
                     outcome = world.commit()
 
-                self.assertEqual((outcome.status, outcome.refusal), (_STATUS.REFUSED, refusal))
+                refused = (outcome.status, outcome.refusal, outcome.fields, outcome.seen is not None)
+                self.assertEqual(refused, (_STATUS.REFUSED, *_REFUSED_UNDER_THE_EDIT[case, reads]))
                 self.assertEqual(world.record()[support.SETTLED], _SETTLED_READ)
                 self.assertEqual(world.state.data, support.recorded(settled=True))
 
@@ -389,7 +421,11 @@ class CommitBoundaryTest(unittest.TestCase):
 
 
 class CommitCaptureTest(unittest.TestCase):
-    """What a capture holds a commit, or a reading taken alone, to is fixed when it is taken."""
+    """What a capture holds a commit, or a reading taken alone, to is fixed when it is taken.
+
+    And a capture that reads a move keeps the comment a refusal read its
+    prerequisites moved on.
+    """
 
     def test_a_capture_is_not_moved_by_its_caller(self) -> None:
         # The caller's state is mutable and mutated in place; what the
@@ -456,6 +492,26 @@ class CommitCaptureTest(unittest.TestCase):
                     (fresh.data, world.guard.moved(fresh.data), world.snapshot()),
                     (world.record(), () if case == "nothing moved" else (support.PR,), before),
                 )
+
+    def test_a_guard_reading_a_move_keeps_what_moved(self) -> None:
+        # Its refusal of a moved prerequisite -- the commit's and the
+        # preparation's alike -- carries the fresh reading the prerequisite
+        # was read moving on, for its caller to say what it moved to however
+        # soon it is put back; any other guard's carries none.
+        for reads in (False, True):
+            with self.subTest(reads_a_move=reads):
+                world = support.seeded()
+                world.guard = world.guard.reading_moves(reads)
+                world.settle()
+                world.another_road(**_MOVED_PR)
+
+                committed = world.commit()
+                prepared = _commit.prepare(world.github, world.issue, world.guard, world.state.data)
+
+                expected = world.record() if reads else None
+                self.assertEqual({committed.refusal, prepared.refusal}, {_REFUSAL.PREREQUISITE_CHANGED})
+                self.assertEqual(getattr(committed.seen, "data", None), expected)
+                self.assertEqual(getattr(prepared.seen, "data", None), expected)
 
     def moved_under(self, read: Any, moved: Any) -> support.CommitWorld:
         """A caller's reading of `pr_number` spelled `read`, and the comment since rewritten to spell it `moved`."""

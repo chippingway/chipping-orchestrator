@@ -155,20 +155,23 @@ class RealGitFinishCase(_RefreshBaseRealGitFixture):
         _report.settles_report(self, 2, _report.LATER_REPORT_TEXT, head=head)
         self.gh.write_pinned_state(self.issue, self.state)
 
-    def finishes(self, head: str, road: FinishRoad = FinishRoad.PUBLICATION) -> FinishOutcome:
+    def finishes(self, head: str, road: FinishRoad = FinishRoad.PUBLICATION, asks=None) -> FinishOutcome | None:
         """Finish the landing onto `head` that `road` reached, its candidate read out of the checkout by git.
 
         The publication pins the attempt it made first -- the base tip its
         replay was made onto read off the ref the rebase used -- and saw its
         push accepted; a recovery finds that attempt pinned and observes the
         push standing. Either way the remote is the reading the candidate carries.
+        The finish, over the comment read afresh, is handed to `asks` -- one
+        step of it a case asks directly -- or else to the finalizer; what that
+        answers.
         """
         if road is FinishRoad.PUBLICATION:
             pins_the_attempt(self, head)
         attempt = _RewriteAttempt(anchor=self.anchor, pr_number=PR_NUMBER, stage=REVIEWING)
         candidate = _rewrite_facts._prepares_the_candidate(self._spec, self._wt, attempt, BRANCH)
         outcome = _PushOutcome.ACCEPTED if road is FinishRoad.PUBLICATION else _PushOutcome.OBSERVED
-        return _finish.finalizes(LandedFinish(
+        return (asks or _finish.finalizes)(LandedFinish(
             gh=self.gh,
             spec=self._spec,
             issue=self.issue,

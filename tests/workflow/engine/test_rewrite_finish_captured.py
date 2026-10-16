@@ -7,10 +7,13 @@ never routed. A run that proves goes on as it was recorded; anything that moved
 under it -- the landing, the base, the configuration, the requirements, or the
 review -- abandons it into history, a reading nobody could take beside the
 movement included, and nothing put back revives it. A reading nobody could
-take alone holds it for a later proof. The abandonment keeps what another road
-wrote, falls back to the tick's own reading where the comment would not read
-again, refuses the run for good where the comment has no room for it, and is
-held rather than written over an attempt another road put in its place.
+take alone holds it for a later proof. The last word reads the pinned records
+alone, so a settled report rewritten at its location moves the run only under
+a word asked whole, which proves it again first. The abandonment keeps what
+another road wrote, falls back to the tick's own reading where the comment
+would not read again, refuses the run for good where the comment has no room
+for it, and is held rather than written over an attempt another road put in
+its place.
 Nothing is ever run again, no developer is launched, and nothing is routed.
 """
 from __future__ import annotations
@@ -23,7 +26,11 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding
 from orchestrator.git.publication.probes import _BranchDivergence
-from orchestrator.workflow.engine import rewrite_evidence_proof as _proof, rewrite_finish_captured as _captured
+from orchestrator.workflow.engine import (
+    rewrite_evidence_proof as _proof,
+    rewrite_finish_captured as _captured,
+    verification_settlement_state as _settlement,
+)
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
     rewrite_captured_test_support as captured_support,
@@ -118,6 +125,13 @@ _BESIDE = (
     (_unreads_the_report, moves.later_review, None),
 )
 
+# Whether the last word is asked whole over a settled report rewritten at its
+# location, and the records it leaves: the run kept, or abandoned.
+_WHOLE = (
+    (False, captured_support.CapturedEvidenceCase.kept),
+    (True, captured_support.CapturedEvidenceCase.abandoned),
+)
+
 # A write the route already stopped at, over a run nothing moved under and one
 # the checkout left, and the records each leaves.
 _STOPS = (
@@ -126,11 +140,8 @@ _STOPS = (
 )
 
 
-class CapturedRouteTest(unittest.TestCase, captured_support.CapturedEvidenceCase):
+class CapturedRouteTest(captured_support.CapturedEvidenceCase, unittest.TestCase):
     """A captured run is routed as recorded, held, or abandoned -- never run again."""
-
-    def setUp(self) -> None:
-        captured_support.CapturedEvidenceCase.setUp(self)
 
     def test_a_run_that_proves_goes_on_as_recorded(self) -> None:
         finish = self.landed()
@@ -197,6 +208,25 @@ class CapturedRouteTest(unittest.TestCase, captured_support.CapturedEvidenceCase
 
                 self.assertEqual(stopped, refused)
                 self.assert_dormant(records(self))
+
+    def test_a_whole_word_proves_the_run_again(self) -> None:
+        # The settled report is rewritten by hand at its location on the pull
+        # request, every pinned record left as it was: the last word alone
+        # reads those records and keeps the run, as it always has, while one
+        # asked whole proves the run again first, reads the report moved
+        # under it, and abandons it into history, its binding kept whole.
+        for whole, records in _WHOLE:
+            with self.subTest(whole=whole):
+                self.setUp()
+                self.edits_the_report()
+
+                self.assertIsNone(self.asks(_captured.stands_before_the_route, self.landed(), whole=whole))
+
+                self.assert_dormant(records(self))
+                if whole:
+                    recorded = self.captured
+                    entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
+                    self.assertEqual((entry.revision, entry.binding), (recorded.revision, recorded.binding))
 
     def _last_word(self, meanwhile=moves.unmoved) -> FinishOutcome | None:
         """The route once the captured run is proved again and held to the last word, `meanwhile` behind the read."""

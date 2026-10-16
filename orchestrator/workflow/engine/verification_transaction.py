@@ -164,7 +164,9 @@ def answers(reading: _proof.ProofReading, pending: _records.PendingEvidence) -> 
     made onto before the post and again before the settlement, and on which any
     refusal short of a reading nobody could take abandons the transaction
     (`verification_carries.abandons_on_refusal`). Whatever answer lands becomes
-    `reading.state`.
+    `reading.state`. The ENDED reading is kept for a reading that classifies a
+    move (`verification_proof.ProofReading.keeps`), which the dormant
+    settled-evidence finish policy alone builds.
     """
     gh, issue, state = reading.gh, reading.issue, reading.state
     if _already_recorded(state, pending):
@@ -186,6 +188,7 @@ def answers(reading: _proof.ProofReading, pending: _records.PendingEvidence) -> 
             "issue=#%d owes verification evidence to a pull request that is "
             "over; abandoning revision %d", issue.number, pending.revision,
         )
+        reading.keeps(found)
         return _retires(reading, pending)
     evidence = _proof.rest_verdict(reading, pending.binding, found)
     if evidence.proved:
@@ -273,16 +276,20 @@ def _retires(
     nobody confirmed holds: the next tick finds the record gone, or retires
     it again, with no second history entry. The write is this owner's, since
     a record left standing would be answered again on every poll. Every one is
-    decided on the records the reading rests on too (`ProofReading.rests_on`).
+    decided on the records the reading rests on too (`ProofReading.rests_on`),
+    and what its own reading of the comment, or its commit's, refused and
+    records is kept for a reading that classifies a move
+    (`ProofReading.reads_afresh`, `verification_durable.lands_observing`).
     """
     gh, issue = reading.gh, reading.issue
     if not indexed:
-        return abandons_afresh(gh, issue, reading.state, pending, reading.rests_on)
+        return abandons_afresh(reading, pending)
     durable, refused = _durable.durable_comment(gh, issue, reading.state, reading.rests_on)
+    reading.reads_afresh(durable, refused)
     if refused is None:
         guard = _durable.guarded(durable, (_records.PENDING_EVIDENCE,), reading.rests_on)
         durable.set(_records.PENDING_EVIDENCE, None)
-        refused = _durable.lands(gh, issue, reading.state, guard, durable)
+        refused = _durable.lands_observing(reading, guard, durable)
     if refused is None:
         return False
     log.info(

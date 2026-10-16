@@ -121,16 +121,24 @@ class ReportWrite:
     `owned` is every field it changes, besides those the tick changed;
     `decided_on` is the records its decision was taken over, which have to read
     exactly as the tick read them; `admits` is the check the fresh comment has
-    to pass first, where the write has one.
+    to pass first, where the write has one. `reads_a_move` has a comment that
+    moved under the strict edit refused as the records that edit read moved,
+    the comment it read them on kept (`pinned_commit_models.PinnedCommit.reads_a_move`),
+    for a caller that says what moved under its write however soon it is put back.
     """
 
     owned: frozenset[str]
     decided_on: frozenset[str] = REPORT_RECORDS
     admits: _models.Admits | None = None
+    reads_a_move: bool = False
 
     def admitting(self, admits: _models.Admits) -> ReportWrite:
         """The same write, held to `admits` over the fresh comment."""
         return replace(self, admits=admits)
+
+    def reading_moves(self, reads: bool) -> ReportWrite:
+        """The same write, reading the move under its strict edit (`reads_a_move`) where `reads`."""
+        return replace(self, reads_a_move=reads)
 
     def owning(self, *fields: str) -> ReportWrite:
         """The same write, owning `fields` as well."""
@@ -304,7 +312,7 @@ class ReportCommit:
             owned={*write.owned, *ticked, *kept},
             admits=write.admits,
         )
-        return guard, kept
+        return guard.reading_moves(write.reads_a_move), kept
 
     def _kept(self, moved: set[str], *, notice: bool = False) -> dict[str, _models.Transform]:
         """The transformation keeping both moves of each field in `moved` that has one.

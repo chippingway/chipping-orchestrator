@@ -48,13 +48,14 @@ recorded as made onto too, which an abandonment with no room for its history
 entry blanks.
 `INVALIDATION` invalidates settled evidence a reading established movement
 under where the write staged on the comment read afresh would not land
-(`rewrite_finish_readiness.invalidates`, dormant: no road asks it yet):
-staged on the tick's own copy and decided only on the evidence records and
-the attempt -- landed without the publication's pinned fields among them
-(`lands`, `publication` False), so a pull request or branch another road
-repointed meanwhile is kept as it wrote it rather than refusing the write --
-so a failed reading of the comment does not leave a decision standing that a
-later reading, once the movement is put back, would take as current. It owns
+(`rewrite_finish_readiness.invalidates`, asked only by the dormant
+settled-evidence policy and the recovery's dormant answers): staged on the
+tick's own copy and decided only on the evidence records and the attempt --
+landed without the publication's pinned fields among them (`lands`,
+`publication` False), so a pull request or branch another road repointed
+meanwhile is kept as it wrote it rather than refusing the write -- so a failed
+reading of the comment does not leave a decision standing that a later
+reading, once the movement is put back, would take as current. It owns
 the base tip the replay was recorded as made onto too, which an invalidation
 with no room for its history entry blanks -- decided on the current record
 as well, so a successor another road settled in that evidence's place is
@@ -104,6 +105,7 @@ from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, 
 from orchestrator.workflow.engine.rewrite_finish_failures import FAILED_VERIFICATION
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_carries import ABANDONS
+from orchestrator.workflow.engine.verification_proof import ProofReading
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -262,7 +264,7 @@ def prepares(
     finish: LandedFinish,
     staged: PinnedState,
     write: _commits.ReportWrite,
-    observed: list[ReportEvidence] | None = None,
+    observed: ProofReading | None = None,
     **reserves: bool,
 ) -> FinishOutcome | None:
     """None where `staged` would land as `write` now, measured over the fresh comment; REFUSED otherwise.
@@ -284,7 +286,7 @@ def lands(
     finish: LandedFinish,
     staged: PinnedState,
     write: _commits.ReportWrite,
-    observed: list[ReportEvidence] | None = None,
+    observed: ProofReading | None = None,
     *,
     publication: bool = True,
 ) -> FinishOutcome | None:
@@ -292,13 +294,16 @@ def lands(
 
     REFUSED where it was refused with nothing written, and UNCONFIRMED where it
     went out and nothing confirmed it. `observed` collects the movement a
-    refusal read (`_stopped`). `publication` False decides it on what `write`
-    declares alone, the publication's pinned fields kept as the fresh comment
-    carries them -- for `INVALIDATION`, which only ever makes evidence the
-    tick read count for less.
+    refusal read (`_stopped`) -- for a finish held to the dormant
+    settled-evidence policy, what the comment its strict edit read records
+    too, however soon it is put back (`report_commits.ReportWrite.reads_a_move`).
+    `publication` False decides it on what `write` declares alone, the
+    publication's pinned fields kept as the fresh comment carries them -- for
+    `INVALIDATION`, which only ever makes evidence the tick read count for less.
     """
     commit = _commits.ReportCommit(finish.gh, finish.issue, finish.state)
     decided = write.on_the_publication() if publication else write
+    decided = decided.reading_moves(observed is not None and finish.proves_settled)
     return _stopped(finish, commit.lands(staged, decided), observed)
 
 
@@ -337,14 +342,24 @@ def parks(finish: LandedFinish) -> FinishOutcome:
 def _stopped(
     finish: LandedFinish,
     outcome: _commit_models.CommitOutcome,
-    observed: list[ReportEvidence] | None = None,
+    observed: ProofReading | None = None,
 ) -> FinishOutcome | None:
     """None where `outcome` prepared or landed; what the finish stops at otherwise, logged.
 
     A refusal that names a record the evidence is bound through read that
     record moved, and that reading is appended to `observed` as the movement
     it is (`_BOUND_MOVED`): the guard read it once, and whatever reads the
-    comment after may find it put back.
+    comment after may find it put back. For a finish held to the dormant
+    settled-evidence policy only the records a binding rests on beyond the
+    evidence records count (`BINDING_RECORDS`): another road recording,
+    settling, or retiring a transaction moves none of them, so a settlement
+    another finish made under the write is no movement under that
+    transaction (`verification_durable.moves_only_the_evidence`) -- but a
+    review or report record that edit read moved beside it is, named off the
+    comment the strict edit read (`lands`), and so is any movement that very
+    comment records under the transaction, asked of it as it was read
+    (`verification_proof.ProofReading.reads`): a mark in the evidence's handoff
+    place, a revision spent past it, or a blank of the attempt's base tip.
     """
     stopped = _UNLANDED.get(outcome.status)
     if stopped is not None:
@@ -354,6 +369,9 @@ def _stopped(
             "posting, relabeling, and clearing nothing behind it",
             finish.issue.number, finish.head, why.value,
         )
-        if observed is not None and _BOUND.intersection(outcome.fields):
-            observed.append(_BOUND_MOVED)
+        bound = BINDING_RECORDS if finish.proves_settled else _BOUND
+        if observed is not None and bound.intersection(outcome.fields):
+            observed.observes(_BOUND_MOVED)
+        if observed is not None and outcome.seen is not None:
+            observed.reads(outcome.seen)
     return stopped

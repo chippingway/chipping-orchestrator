@@ -6,7 +6,9 @@ A newer transaction recorded beside settled evidence and then abandoned or
 dropped spent a revision past it for good: no reader is ever handed the
 evidence it outranks. The readiness proof of that evidence
 (`rewrite_finish_readiness`) asks `outranks` of every reading of the comment,
-and reads a revision past the evidence as movement under it. The revisions
+and reads a revision past the evidence as movement under it; the dormant
+evidence phase asks `outranks_the_owed` of every comment its answer to a
+transaction still owed reads (`rewrite_finish_settled.reads_moving`), alike. The revisions
 the comment shows spent are the handoff's and those of every history entry
 that reads on its own -- so neither a floor nobody can read nor another entry
 that will not read hides a newer one the history still shows -- and the
@@ -45,13 +47,7 @@ from orchestrator.workflow.engine.verification_history_fields import historical_
 
 def outranks(state: PinnedState, current: _records.CurrentEvidence, *, settled: bool) -> bool:
     """Whether `state` shows a revision spent past `current`, as the dormant policy reads it where `settled`."""
-    history = state.get(_records.EVIDENCE_HISTORY)
-    if not isinstance(history, list):
-        history = []
-    readable = max((
-        getattr(_settlement.read_evidence_handoff(state), "revision", 0),
-        *(entry.revision for entry in map(historical_from, history) if entry),
-    ))
+    readable = _readable(state)
     spent = _record_state._latest_revision(state) or 0
     beside = _record_state.carries_pending_evidence(state)
     if not settled:
@@ -61,6 +57,28 @@ def outranks(state: PinnedState, current: _records.CurrentEvidence, *, settled: 
         spent -= 1
     spent = max(spent, getattr(pending, "revision", 1) - 1)
     return max(spent, readable) > current.revision
+
+
+def outranks_the_owed(state: PinnedState, pending: _records.PendingEvidence) -> bool:
+    """Whether `state` shows a revision spent past `pending`, the transaction it records still owed.
+
+    The floor where somebody can read it, and the revisions the handoff and
+    every history entry that reads on its own show -- so a floor nobody can
+    read, which holds rather than moves, hides none of them.
+    """
+    spent = _record_state._latest_revision(state) or 0
+    return max(spent, _readable(state)) > pending.revision
+
+
+def _readable(state: PinnedState) -> int:
+    """The highest revision the handoff and every history entry that reads on its own show `state` spent; or 0."""
+    history = state.get(_records.EVIDENCE_HISTORY)
+    if not isinstance(history, list):
+        history = []
+    return max((
+        getattr(_settlement.read_evidence_handoff(state), "revision", 0),
+        *(entry.revision for entry in map(historical_from, history) if entry),
+    ))
 
 
 def spends_past(state: PinnedState, current: _records.CurrentEvidence) -> bool:
