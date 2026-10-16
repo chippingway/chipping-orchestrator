@@ -509,6 +509,21 @@ _SPACED_UNCOLLECTED_LEAD = (
     "Failure: collection of `tests/test file.py`, before any test in it ran\n"
     "Error: `ImportError: cannot import name 'b' from 'a::c'`\n"
 )
+_SPACED_MODULE = "test spaced_module_with_a_long_name_to_fill_the_terminal.py"
+_SECOND_MODULE = "test_second_module_with_a_long_name_to_fill_the_terminal.py"
+_SPACED_LINES = (
+    "=================================== FAILURES ===================================\n"
+    "E   RuntimeError: failure 0\n"
+    f"/tmp/run/{_SPACED_MODULE}:2: RuntimeError: failure 0\n"
+    "E   RuntimeError: failure 1\n"
+    f"/tmp/run/{_SECOND_MODULE}:2: RuntimeError: failure 1\n"
+    "=========================== short test summary info ============================\n"
+    f"FAILED {_SPACED_MODULE}::test_check\nFAILED {_SECOND_MODULE}::test_check"
+)
+_SPACED_LINES_LEAD = (
+    f"Failure: `{_SPACED_MODULE}::test_check`\nError: `RuntimeError: failure 0`\n"
+    f"Failure: `{_SECOND_MODULE}::test_check`\nError: `RuntimeError: failure 1`\n"
+)
 _GROUP_MODULE = "test_teardown_failure_with_a_long_module_name_to_fill_the_terminal.py"
 _GROUP_RAISED = 'ExceptionGroup: errors while tearing down fixture "broken" of <Function test_group> (2 sub-exceptions)'
 _GROUPED = (
@@ -958,8 +973,10 @@ class FailureNamesTest(unittest.TestCase):
             # sets, past the exceptions it holds set further in.
             (_GROUPED, "", _GROUPED_LEAD),
             # A path pytest could not collect may hold blanks, and its message
-            # a separator of its own.
+            # a separator of its own; so may the path a line traceback names,
+            # which still goes to its own summary line.
             (_SPACED_UNCOLLECTED, "", _SPACED_UNCOLLECTED_LEAD),
+            (_SPACED_LINES, "", _SPACED_LINES_LEAD),
         )
         for output, written, lead in cases:
             with self.subTest(output=output, written=written):
