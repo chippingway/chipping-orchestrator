@@ -24,7 +24,7 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   *changes*, on every PR (see [Required checks](#required-checks));
   [`../.github/workflows/vulnerability-scan.yml`](../.github/workflows/vulnerability-scan.yml) audits every pin in
   [`../poetry.lock`](../poetry.lock) weekly and on demand
-  ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)). The standing scan is what
+  ([CI reference](configuration/operations.md#continuous-integration)). The standing scan is what
   sees an advisory published against a version nobody is touching — a diff gate never looks at it again after the pin
   lands. It runs on a schedule rather than on a PR, so it cannot be a required check; enabling
   [Dependabot security updates](#dependabot-security-updates) is what turns one of its findings into a patch PR.
@@ -39,7 +39,7 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
 - **Required status checks** — operator-owned. See [Required checks](#required-checks).
 - **Fork PRs cannot read repository secrets** — in repo + operator-owned. Every workflow declares
   `permissions: contents: read` at the top level and references no secrets
-  ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)). See
+  ([CI reference](configuration/operations.md#continuous-integration)). See
   [Fork-PR secret policy](#fork-pr-secret-policy).
 - **No CI publishing / deploys unless run on a protected ref** — in repo + operator-owned. Documentation deploys
   run only on `main` through `github-pages`; restrict that environment's deployment branches to `main`. See
@@ -50,7 +50,7 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
 - **Package-registry hygiene (lockfiles, registry pinning)** — in repo. Runtime deps (`PyGithub`, `psycopg[binary]`)
   are declared in [`../pyproject.toml`](../pyproject.toml); exact versions are pinned in
   [`../poetry.lock`](../poetry.lock); CI installs via `poetry sync`
-  ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)). The wheel and sdist smoke
+  ([CI reference](configuration/operations.md#continuous-integration)). The wheel and sdist smoke
   installs use separate throwaway environments that resolve the distribution's declared runtime dependencies fresh
   from PyPI, run `chipping-orchestrator --help` outside the checkout, and read both packaged `.env` templates back out
   of the installed package. These prove what a package installer receives.
@@ -86,14 +86,14 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   [`../.github/workflows/`](../.github/workflows/) names a full 40-character commit SHA with the release it belongs to
   in a trailing comment, so a retagged release cannot change what a run executes; Dependabot's `github-actions` updates
   rewrite the SHA and that comment together
-  ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)).
+  ([CI reference](configuration/operations.md#continuous-integration)).
   [`../tests/repository/test_workflow_action_pins.py`](../tests/repository/test_workflow_action_pins.py) fails the
   suite on a `uses:` that names a tag instead.
 - **Continuous supply-chain grading (OpenSSF Scorecard)** — in repo.
   [`../.github/workflows/scorecard.yml`](../.github/workflows/scorecard.yml) grades this repo's supply-chain posture
   weekly, on every push to `main`, and on demand, publishing the results the README badge and the public viewer read
   and uploading the SARIF to code scanning, where the findings become the repo's own alerts
-  ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)).
+  ([CI reference](configuration/operations.md#continuous-integration)).
 
 ## Operator-owned controls (GitHub / org settings)
 
@@ -393,7 +393,7 @@ scan belong on neither list, because no pull-request event triggers either one, 
 wait on.
 [`../.github/workflows/scorecard.yml`](../.github/workflows/scorecard.yml) reports what it finds as a code-scanning
 alert rather than as a failing run
-([`configuration.md#continuous-integration`](configuration.md#continuous-integration)), and
+([CI reference](configuration/operations.md#continuous-integration)), and
 [`../.github/workflows/vulnerability-scan.yml`](../.github/workflows/vulnerability-scan.yml), triggered by `schedule`
 / `workflow_dispatch`, is watched on the Actions tab — a red run is triaged there rather than by a blocked merge.
 
@@ -755,18 +755,10 @@ The security posture:
   themselves wrote into `REPOS`. No tokens, no `ORCHESTRATOR_TOKEN_FILE`, no provider keys, no remote URLs — there is
   nothing secret-shaped to redact because nothing secret is included by construction.
 - **Write-containment is unchanged.** The orchestrator pushes only the *current* issue's branch from the current
-  worktree, via an explicit refspec under the hardened git envelope. Wherever the decision to push came from
-  inspecting a commit — the discussion stage's plan publication, and every implementing publication, measured,
-  exempt, or resolved from the checkout when the size gate was switched off — it is that exact validated SHA, and a
-  checkout that cannot name the commit it is on publishes **nothing**: the plan publication reads an unread tip as
-  unpublishable and the implementing publication parks, rather than falling back to a refspec that would send
-  whatever the branch had become. Every push onto a pull request the remote already carries is named by the size
-  gate that measured it — the docs pass, the `validating` and `fixing` pushes, the conflict publications, the squash
-  rewrite, the base-sync rebases — under a lease that refuses a remote which moved. The default
-  `HEAD:refs/heads/<branch>` is left for the one push that could name no commit at all: a gated push on an install
-  running with `DECOMPOSE=off` whose checkout would not prove its own head
-  ([`architecture.md#push-path`](architecture.md#push-path-gitbranch_transport_push_branch)). If a misled
-  agent edits a sibling
+  worktree, via an explicit refspec under the hardened git envelope. The initial plan and implementation publications
+  require an identified commit and refuse an unreadable head. The
+  [push-path reference](architecture.md#push-path-gitbranch_transport_push_branch) owns the existing-PR publication
+  checks and their disabled-gate `HEAD` fallback exception. If an agent edits a sibling
   checkout, nothing the orchestrator does publishes it — it surfaces as a dirty foreign tree, never as a PR. The
   block's framing also states every listed path is read-only.
 - **Prompt-injection blast radius.** Untrusted issue / comment text could now point an agent at a named sibling path,

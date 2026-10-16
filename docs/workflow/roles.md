@@ -1,14 +1,10 @@
 # Agent roles and sessions
 
-The workflow has three agent roles, each spawned by a different set of stage handlers. Roles are independent: each can
-use `codex` or `claude` and each carries its own optional CLI args, parsed from its own env var by the grammar in
+The workflow has three independent agent roles, each spawned by a different set of stage handlers. Each selects
+`codex`, `claude`, or `agy` and accepts optional CLI arguments through its own environment variable; see the grammar in
 [`command-specs.md`](command-specs.md).
 
-Stage and label names are spelled apart here as they are in
-[`../state-machine/labels-and-state.md#workflow-labels`][workflow-labels]: a bare tag names the **stage** — the
-handler, the subpackage under `orchestrator/workflow/stages/` holding it, and the identifier a session's analytics row
-is attributed to — while `workflow:<tag>` is the **wire label** the GitHub issue carries. `in_review`, `question`,
-`discussion`, and the `done` / `rejected` terminals were never namespaced, so those read the same on both sides.
+Stage tags and GitHub labels follow the [workflow label vocabulary][workflow-labels].
 
 ## The three roles
 
@@ -202,34 +198,15 @@ prompts and round contracts are in [`conversations.md`](conversations.md).
 
 ## The lifetime agent-run ledger every role spends from
 
-Every role above reaches an agent through one boundary, and the boundary charges the issue before a process exists
-([`../state-machine/labels-and-state.md#the-agent-run-circuit`][agent-run-circuit]). What it counts is
-**processes**, not ticks and not rounds: a reviewer round that requests changes and resumes the developer inside the
-same tick pays for two, a developer resume that lands on a transcript the backend has lost pays for the fresh spawn
-it buys itself, and a run the shutdown sweep killed or an operator paused mid-flight pays like one that finished —
-each cost the same minutes of somebody's compute, and only the disposition is thrown away.
+Every role pays for each invoked process through the same [agent-run circuit][agent-run-circuit]. The lifetime ledger
+survives review-round resets, daily retry windows, developer-session rotation, and authorized late restarts. A retry
+that starts another process spends another run, including backend recovery within a tick; a shutdown or pause does
+not refund an invoked run.
 
-The ceiling is `MAX_AGENT_RUNS_PER_ISSUE` (default 50, `0` = unlimited), or the issue's own `agent_run_allowance`
-where a human has bought it one. It is a **lifetime** total, so nothing gives a run back — and in particular none of
-the counters a role does reset is this one:
-
-- `review_round` goes back to zero on a pushed base rebase and on a recovered conflict, so `MAX_REVIEW_ROUNDS` can
-  be spent over and over on one issue;
-- the 24h `retry_count` window empties on the clock, so `MAX_RETRIES_PER_DAY` is spendable again tomorrow;
-- `dev_resume_count` reaching `DEV_SESSION_MAX_RESUMES` retires the transcript and the next round spawns fresh;
-- an authorized restart of a cancelled late cycle projects a whole fresh cycle over the pinned comment, dropping
-  every counter it is not told to keep — `conflict_round` among them, which nothing short of a restart resets — and
-  the allowance and the spend are two of the few it keeps.
-
-So an issue can move between `workflow:implementing` and `workflow:decomposing`, be adjudicated once per committed
-candidate, rotate sessions, and answer review round after review round without any of those loops ending — and the
-ledger is the one thing counting them. When it is spent, the issue parks on `agent_run_limit` and the dispatcher
-holds it ahead of every handler above; only a trusted, bounded `/orchestrator add-agent-runs N` widens what it may
-still spend ([`../state-machine.md#per-tick-flow-workflowengineticktick`](../state-machine.md#per-tick-flow-workflowengineticktick)).
-
-The caps each role already had still refuse first — a cap that fired only after the charge would spend a run on work
-nothing ran — so a spent review cap, conflict cap, or daily spawn budget parks its own way with the lifetime count
-untouched.
+Role-specific caps still refuse before that charge. Once the lifetime allowance is spent, the
+[dispatcher hold](../state-machine/delivery-stages.md#the-agent-run-limit-hold-every-dispatch-ahead-of-every-handler)
+waits for a trusted `/orchestrator add-agent-runs N`, while allowing terminal work to finish. The circuit reference owns
+charging and persistence; the hold reference owns grant commands and resumption.
 
 ## The size gate a committed candidate passes
 
@@ -1059,43 +1036,11 @@ follow-up saying so, at most once per episode. The follow-up goes out **before**
 the window a crash can land in loses the write and not the sentence, and "at most once" is answered from the thread
 past `last_action_comment_id` rather than from a receipt — the comment and the clear cannot be made one operation.
 
-**A park is not delivered until its comment is.** Persisting the flag ahead of the notice leaves one gap: GitHub
-refuses the comment, and every later tick reads an `awaiting_human` it cannot tell from one whose comment landed, so
-it takes the human as told and says nothing. For a park a fresh attempt supersedes that costs one tick; for a
-question, a content-drift hold, a stalled revision, or a spent spawn budget it is unbounded, since those parks *are*
-what the issue is waiting on. So the sentence is written down beside the flag (`late_park_notice`) and dropped only by
-the post that discharges it: a park whose sentence is still owed never counts as a repeat, is re-said at the top of
-the next eligible tick — ahead of every gate a parked issue routes past — and, on the guard's own park, rides out on
-whichever answer the owed read gets. A notice too long for the pinned comment is refused whole and loudly, since a
-record that broke the write would take the park it explains down with it. Which is why a sentence explaining a
-**recorded** outcome names that record rather than copying it: the explanation a `single` gave is already in this
-comment, so a notice repeating it would put the same agent prose there twice and an explanation an outcome could be
-recorded with would be one its own obligation could not be written beside. The obligation holds a marker where the
-explanation goes — sized by this orchestrator's wording rather than by anything an agent wrote — and what reaches
-the thread has it put back in a fenced block at the end of the sentence, identically on the first post and on every
-redelivery, which is what lets the already-posted reconciliation recognize its own comment. Fenced because a thread
-is markdown: an explanation opening an HTML comment would swallow the rest of the sentence, and a human would read as
-far as the quote and be told neither what the agent said nor what to do about it. Only a LINE that is a run of the
-fence character and nothing else can close a block, and a line of backticks cannot close a tilde fence — so the fence
-is built out of whichever character the quote's own lines leave cheap, and an explanation that is itself a long run of
-fences reaches the thread whole at three characters an end. The quote carrying a long line of EACH is blocked off in
-**pieces**: a fence is two characters per character of width and a further block is a fixed handful, so the long lines
-land in blocks of their own and every HTML-comment opener between them stays inside a block, where it is shown rather
-than obeyed. How wide to let a fence grow before paying for a block instead is answered by trying every width from the
-shortest up to the widest line, doubling, and taking the smallest rendering.
-
-What ends a line is markdown's answer rather than this orchestrator's: a newline, a carriage return, or the pair. The
-quote is split on all three and rejoined by the terminators it arrived with, so an explanation written on a machine
-that ends its lines with a carriage return reaches the thread exactly as its author wrote it — and its fence lines are
-recognized as fence lines, rather than blocked off at three characters they could close.
-
-Past what any pieces can hold the quote goes in unblocked, with its openers escaped a backslash apiece — unblocked is
-exactly where an opener is obeyed again, and GitHub renders nothing from it onwards. Past what that holds it is cut
-and said to be cut, which nothing this orchestrator records can reach and which exists because the alternative has no
-recovery: a comment GitHub refuses is rebuilt identically on every poll, so the park would stand with its sentence
-owed and the human told nothing at all. No verdict is refused for how its explanation renders, and no `single` is
-charged for the sentence it owes — that refusal is superseded, so it would buy another decomposer run against a
-candidate already adjudicated and leave the `single` short of its own park.
+**A park is not delivered until its comment is.** `late_park_notice` records the sentence owed beside the park flag
+and retries delivery before treating a thread reply as its answer. Recorded outcomes are referenced rather than
+copied into that obligation; rendering restores the explanation safely when posting. The
+[pinned-state reference](../state-machine/labels-and-state.md#pinned-state) owns notice storage, bounded rendering,
+already-posted reconciliation, and redelivery.
 
 ## What a verdict the read cleared earns
 
@@ -2556,36 +2501,13 @@ remote is still owed.
 
 ## Local verify gate (not an agent)
 
-After the reviewer emits `VERDICT: APPROVED` — the whole subject it was handed still stands, and the approval relies
-on settled verification evidence that passed and covers every configured command: its own declared run on the reviewed
-head, published as reviewer-reported evidence, or the exact current evidence it reused, proved current again; an
-approval without either parks under `reviewer_unverified` and never reaches this gate — `_handle_validating` runs the
-configured `VERIFY_COMMANDS` directly in the per-issue worktree — these are plain shell commands, not an agent role, so
-no `*_AGENT` env var applies. The gate runs before the approval record, the approval
-comment, the squash, the watermark seeding, and the `workflow:documenting` (final-docs) label flip. A clean run
-advances the issue, and so does an empty `VERIFY_COMMANDS`, whose `not_run` result is not evidence that anything
-passed; any failure parks on `workflow:validating` with a typed `park_reason` (`verify_failed` / `verify_timeout` /
-`verify_dirty` / `verify_head_changed` / `verify_tree_changed`) -- only where the subject the reviewer approved still
-stands behind the gate and behind the park's own notice, since a failure over work nobody reviewed is a fresh
-reviewer's to answer. See
-[`../configuration.md#local-verification-gate`](../configuration.md#local-verification-gate) for the env-var
-reference.
+After a reviewer approves with settled, passing evidence, validating runs `VERIFY_COMMANDS` directly in the issue
+worktree before recording approval, squashing, and handing off to documenting. These are shell commands, so no agent
+role or `*_AGENT` setting applies. Failure parks only while the approved subject still stands. The
+[verification-gate reference](../configuration.md#local-verification-gate) owns settings, execution, and park reasons.
 
-The same commands also run outside this gate, through the same runner, on a head an automatic base rebase published,
-where no current evidence carries onto it and a reviewer was already handed a report of that head. That run gates
-nothing: a pass is recorded as orchestrator-executed evidence of the rebased head, and its artifact posted and
-settled, before it is routed to `workflow:validating`, and a failure parks nothing -- its notice is posted on the pull
-request and the fresh reviewer verifies the head itself (see
-[base-rewrite evidence](../state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
-A tick that dies around that run leaves its recovery to run the commands again only where no run was recorded; a
-recorded run is never run twice, but settled and routed as recorded -- its artifact found under its receipt where an
-earlier post landed -- or, where anything it was bound to moved, set aside for the fresh reviewer. Evidence a finish
-already settled for that head is taken as it stands, behind the last word over the landing and the base; a dormant
-policy that proves it ready again first -- in its evidence phase and around every hold, park, relabel, and stop of the
-finish's own writes -- takes in a settlement another finish made while it answered, and retires it whole into history
-where anything it rests on moved -- one historical execution, never run, posted, or charged again, its evidence then
-the fresh reviewer's to owe, and a newer transaction another road recorded beside it left owed as that road wrote it
--- is built and its whole finish callable directly, but no road selects it (see the same section).
+The same runner can collect evidence for a published automatic base rewrite without gating that publication or
+parking a failed check. The [evidence transaction][base-rewrite-evidence] owns that lifecycle and crash recovery.
 
 [workflow-labels]: ../state-machine/labels-and-state.md#workflow-labels
 [review-subject]: ../state-machine/labels-and-state.md#pinned-state
@@ -2594,3 +2516,4 @@ the fresh reviewer's to owe, and a newer transaction another road recorded besid
 [retry-budget]: ../state-machine/labels-and-state.md#the-retry-budget
 [agent-run-circuit]: ../state-machine/labels-and-state.md#the-agent-run-circuit
 [size-gate]: ../state-machine/delivery-stages.md#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr
+[base-rewrite-evidence]: ../state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch

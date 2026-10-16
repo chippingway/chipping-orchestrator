@@ -5,186 +5,74 @@ description: >-
 ---
 # Observability
 
-The orchestrator emits three independent JSONL sinks plus an optional Postgres aggregation target. Workflow correctness
-keys off the pinned `<!--orchestrator-state ...-->` JSON comment on the issue (and the workflow label), never off
-these. The one read-back is the audit log's: before a base-rewrite finish files its `base_rebased`, it asks the log and
-its rotated copies whether that event is already there, so a lost finish files it once, and a log it cannot read holds
-that finish until it reads. Every other surface here is observation-only and safe to truncate, rotate, or delete at
-any time. The audit log is safe to rotate too, but deleting a rotated copy, or truncating the log with no copy kept,
-while a lost finish is still to retry can let that retry file its `base_rebased` again
-([below](#audit-event-log-event_log_path)).
+Three independent JSONL sinks and an optional Postgres aggregation target record what the orchestrator did and what
+its agent runs cost. GitHub workflow labels and pinned state remain the source of workflow progress; the audit log's
+recovery read-back is described in its section below.
 
-This page is the map over those surfaces. Each one has a reference page of its own, and the section for it below is a
-summary that names that page — so a link written against this page still lands beside the material it pointed at:
-
-- **[Event streams](observability/event-streams.md)** — the **audit event log** (`EVENT_LOG_PATH`), an opt-in JSONL
-  audit of workflow events written through `GitHubClient.emit_event`, and the **analytics sink**
-  (`ANALYTICS_LOG_PATH`), the project-local JSONL of raw metric records the database and dashboard aggregate. Both
-  record envelopes, every event kind, the `agent_exit` fields, and the by-age retention prune are documented there.
-- **[Agent trajectories](observability/trajectories.md)** — the opt-in, default-off **trajectory sink**
-  (`TRAJECTORY_LOG_PATH`) of per-run agent reasoning, the operator workflow that mirrors and prunes that file, and the
-  file-backed **trajectory viewer** (`orchestrator/apps/trajectory_dashboard.py`) that renders it as its own Streamlit
-  page.
-- **[Analytics database](observability/analytics-database.md)** (`analytics-db/`) — the operator-deployed Postgres
-  service the analytics sink is replayed into: the compose layout, the endpoint knob, the schema, the sync CLI, and
-  the cron shape an unattended replay runs under.
-- **[Read model and dashboard](observability/analytics-dashboard.md)** — the connection-injectable read layer over
-  those tables (`orchestrator/observability/analytics/query/`) and the Streamlit page composed on top of it
-  (`orchestrator/apps/analytics_dashboard.py`), down to the banner every empty or misconfigured case surfaces as.
-- **[Usage parser](observability/usage.md)** (`orchestrator/observability/usage/`) — decoder for the agent CLI JSONL
-  stdout. It runs once the audit `agent_exit` event has already fired, and `record_agent_exit` writes what it returns
-  as the token / cost detail on the analytics `agent_exit` record and the `run_usage` summary on the trajectory
-  record.
-
-Which package owns what across these four surfaces — the responsibility each holds and the boundaries between
-them — is mapped in
-[`architecture/observability-modules.md`](architecture/observability-modules.md); the packages they observe are
-mapped on [`architecture/platform-modules.md`](architecture/platform-modules.md) and
-[`architecture/workflow-modules.md`](architecture/workflow-modules.md) beside it. The pages above name an owner only
-where the behavior under discussion turns on which module a caller reaches. Neither Streamlit page
-is one of those owners: both sit beside the tree, at `orchestrator/apps/analytics_dashboard.py` and
-`orchestrator/apps/trajectory_dashboard.py`.
+The sections below connect each surface to its reference. Package responsibilities and import boundaries live in
+[observability modules](architecture/observability-modules.md); sink paths, retention windows, and database settings
+live in [observability settings](configuration/observability.md).
 
 ## Audit event log (`EVENT_LOG_PATH`)
 
-Summarized here; the reference is
-[`observability/event-streams.md`](observability/event-streams.md#audit-event-log-event_log_path).
-
-Opt-in JSONL audit of workflow events, appended through the single `GitHubClient.emit_event` chokepoint and a no-op
-when the knob is unset (the default). Every record carries the `ts` / `repo` / `issue` / `event` envelope with
-`sort_keys=True` ordering, and `stage` carries the **bare stage tag** (`implementing`, `fixing`, …) rather than the
-`workflow:`-prefixed GitHub label — so a grep or a dashboard filter matches on the tag. There is no built-in rotation
-and an append failure is downgraded to a warning; pinned GitHub state is what every dispatch decision reads, and the
-file -- with the rotated copies logrotate leaves beside it -- is read back only before a base-rewrite finish files its
-`base_rebased`, so a lost finish files that event once.
-That page lists every emitted kind and its extras, the `agent_spawn` / `agent_exit` fields, and the opt-in
-`skill_triggered` event.
+The opt-in audit log records workflow events through `GitHubClient.emit_event`; an unset path disables it. It also
+supports once-only filing of a recovered base rewrite's `base_rebased` event by reading the log and rotated copies.
+The [audit-log reference](observability/event-streams.md#audit-event-log-event_log_path) owns the envelope, event
+inventory, read-back behavior, and rotation contract.
 
 ## Analytics sink (`ANALYTICS_LOG_PATH`)
 
-Summarized here; the reference is
-[`observability/event-streams.md`](observability/event-streams.md#analytics-sink-analytics_log_path).
-
-Project-local JSONL of raw metric records — the raw foundation layer the Postgres aggregation below replays — opting
-in and out independently of the audit log via `ANALYTICS_LOG_PATH` / `ANALYTICS_RETENTION_DAYS`. It shares the audit
-sink's envelope and bare-stage-tag spelling, so `WHERE stage = 'validating'` is the form that matches both here and in
-the Postgres column the sync loads it into. Five kinds are written today — `stage_enter`, `stage_evaluation`,
-[`agent_exit`](observability/event-streams.md#agent_exit-records),
-[`repo_skill_catalog`](observability/event-streams.md#repo_skill_catalog-records), and the one record each candidate
-of the daily terminal-artifact maintenance pass earns,
-[`terminal_artifact_cleanup`](observability/event-streams.md#terminal_artifact_cleanup-records) (analytics only: that
-pass writes no workflow state, so it has no audit twin) — beside three families written to
-this sink and the audit log alike, so the JSONL copy answers offline what the database answers: human-wait
-transitions (`park_awaiting_human`), the per-issue lifetime ledger's
-[`agent_run_budget`](observability/event-streams.md#agent-run-budget-records-both-sinks) transitions, and the late
-size gate's eight [late-split families](observability/event-streams.md#late-split-records-both-sinks). That page
-carries each one's fields, the opt-in `TRACK_SKILL_TRIGGERS` skill evidence on `agent_exit`, the
-[session-aware adoption model](observability/event-streams.md#session-aware-skill-adoption) built over it, and the
-once-per-tick retention prune that bounds the file.
+The independent analytics JSONL sink records stage, agent, budget, and cleanup metrics for offline analysis and
+Postgres replay. Its [reference](observability/event-streams.md#analytics-sink-analytics_log_path) owns record fields,
+skill-adoption semantics, and the once-per-tick retention prune.
 
 ## Trajectory sink (`TRAJECTORY_LOG_PATH`)
 
-Summarized here; the reference is
-[`observability/trajectories.md`](observability/trajectories.md#trajectory-sink-trajectory_log_path).
-
-Opt-in, **default-off** sibling sink holding one `agent_trajectory` record per tracked run: the ordered timeline of
-tool calls / results interleaved with the assistant / user text turns, the offered tools and skills, a denormalized
-`run_usage` summary, a codex run's per-item accounting, and the final output. It is deliberately kept out of the
-analytics sink, its Postgres sync, and
-the analytics dashboard, because the free-text bodies do not belong in the numeric rollup. `record_agent_exit`
-produces it from the same stdout the usage parser reads, behind its own fail-open guard, so a trajectory failure can
-never cost the baseline `agent_exit` record. Every free-text field is redacted and head/tail truncated and the whole
-record is budget-bounded — but **redaction is not anonymization**: issue content, quoted source, diffs, and the
-agent's own text turns survive in cleartext (a run's hidden reasoning payloads never enter the record), so scope the
-file like the repositories it describes. That page carries the record shape, the join keys back to the numeric sinks,
-the caps, the privacy contract, and the file-backed trajectory viewer that reads it.
+The opt-in, default-off trajectory sink records each run's tool calls, visible text, usage, and final output. It stays
+separate from numeric analytics and is never synced to Postgres. Redaction and truncation bound records but leave
+repository content in cleartext. The
+[trajectory reference](observability/trajectories.md#trajectory-sink-trajectory_log_path)
+owns the schema, privacy contract, budgets, and file-backed viewer.
 
 ### Trajectory operator workflow
 
-Summarized here; the reference is
-[`observability/trajectories.md`](observability/trajectories.md#trajectory-operator-workflow).
-
-Trajectories are file-backed only — there is no trajectory equivalent of the analytics sync CLI, and the Postgres
-schema never ingests their bodies. To browse them on another host, mirror the JSONL file (a locked, key-restricted
-`rsync` over SSH) and point the viewer at the copy; to bound it, drive `prune_trajectory_records` yourself, since the
-polling loop does not call it. The prune helper runs in the installed pipx environment and reads the installed
-configuration. That page carries the receiver setup, the `authorized_keys` restriction, the sync and
-prune cron entries, and the mirror-versus-archive decision retention forces.
+Operators mirror trajectory JSONL for off-host viewing and schedule pruning themselves; the polling loop does not
+prune this sink. The [trajectory runbook](observability/trajectories.md#trajectory-operator-workflow) owns receiver
+setup, restricted SSH access, cron commands, and mirror-versus-archive retention.
 
 ## Analytics database (`analytics-db/`)
 
-Summarized here; the reference is
-[`observability/analytics-database.md`](observability/analytics-database.md).
-
-Operator-deployed local Postgres service that is the aggregation target for the analytics sink, reached through one
-libpq URL (`ANALYTICS_DB_URL`) so moving it off-host later is a one-line repoint. The compose service pins its port to
-`127.0.0.1` and keeps its data on a gitignored host bind; the schema is an `analytics_events` table with an `extras
-JSONB` catch-all that ingests a new record field with no DDL, a `content_hash` unique index that makes a repeated
-replay idempotent, the `analytics_daily_rollup` materialized view the window-bounded dashboard widgets read, and the
-`analytics_agent_runs` view over `agent_exit` rows. The JSONL→Postgres replay and the CLI an operator drives it
-through are owned by `orchestrator/observability/analytics/sync/` and are NOT wired into the polling tick, so
-orchestrator correctness never depends on database availability. That page carries the compose commands, the full
-column and index inventory, the batching / dedup / malformed-line contract, and the credential-stripped operator
-feedback.
+An operator-deployed Postgres service aggregates analytics JSONL through an explicitly run replay. `ANALYTICS_DB_URL`
+selects its endpoint; the polling process never depends on its availability. The
+[database reference](observability/analytics-database.md) owns deployment, schema, and replay behavior.
 
 ### Operator workflow
 
-Summarized here; the reference is
-[`analytics-database.md`](observability/analytics-database.md#operator-workflow).
-
-Replay cadence is operator-chosen: the JSONL sink is already the authoritative analytics surface on disk.
-The sync runs directly from the installed pipx environment, including its runtime Postgres driver, and reads
-`~/.config/chipping-orchestrator/.env`. The reference above carries launch commands and an hourly `flock`-guarded
-cron example. `--log-path` and `--db-url` override the settings for one-off replays of archived JSONL files.
+Run the sync CLI from the installed environment or schedule it independently. Replaying a file is idempotent, and
+one-off path and URL overrides support archived logs. The
+[sync runbook](observability/analytics-database.md#operator-workflow) owns commands and the guarded cron example.
 
 ### Read model (`orchestrator/observability/analytics/query/`)
 
-Summarized here; the reference is
-[`analytics-dashboard.md`](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery).
-
-Thin, testable data-access layer over `analytics_events`, the `analytics_agent_runs` view, and the
-`analytics_daily_rollup` materialized view. Window-bounded aggregates read the rollup; per-row drill-downs and widgets
-the rollup cannot reconstruct exactly stay on the base table or the agent-run view. Nothing here imports Streamlit, so
-the read path can be wired into any UI. An unset `ANALYTICS_DB_URL` short-circuits every reader to an empty result
-with no connection attempt, mirroring the sync's no-op contract, and every failure surfaces as one
-`AnalyticsReadError`. That page carries all twenty reads, the owner each is defined on, the typed request and filter
-contract they share, and the thread-local connection cache a caller reuses a socket through.
+The read model serves typed analytics results without importing Streamlit. An unset database URL returns empty data;
+read failures surface as `AnalyticsReadError`. The
+[read-model reference](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery)
+owns queries, filters, connection reuse, and rollup selection.
 
 ### Dashboard (`orchestrator/apps/analytics_dashboard.py`)
 
-Summarized here; the reference is
-[`analytics-dashboard.md`](observability/analytics-dashboard.md#dashboard-orchestratorappsanalytics_dashboardpy).
-
-Streamlit app over that read model, available as a source-checkout developer tool with the optional `dashboard`
-dependency group. pipx installs the polling runtime without these optional dependencies. Setup and launch commands
-are in the [developer guide](development.md#analytics-sync-and-dashboard).
-
-The page is composed entirely from owners under `observability/dashboard/`, stages its 16 widget reads into two cached
-waves around the chrome it draws between them, and never raises at the operator — every missing-data or
-misconfiguration case surfaces as a labeled banner. The dashboard process is independent of the polling tick: it opens
-no GitHub session, writes no Postgres row, and can be deployed off-host by repointing `ANALYTICS_DB_URL`. That page
-carries the module layout, the caching and fan-out contracts, the body layout top to bottom, the chart builders and
-theme owners, and the empty / error banner inventory.
+The independent Streamlit page draws analytics from that read model and reports empty or misconfigured states as
+banners. The [dashboard reference](observability/analytics-dashboard.md#dashboard-orchestratorappsanalytics_dashboardpy)
+owns layout and caching; the [developer guide](development.md#analytics-sync-and-dashboard) owns setup and launch.
 
 ## Usage parser (`orchestrator/observability/usage/`)
 
-Summarized here; the reference is [`observability/usage.md`](observability/usage.md).
-
-Pure-Python, dependency-free decoder for the agent CLI's JSONL stdout, producing a `UsageMetrics` dataclass — backend,
-distinct model(s), turn count, the five token totals, `cost_usd`, and a `cost_source` tag of `reported` / `estimated`
-/ `unknown-price` / `no-usage`. A `total_cost_usd` the CLI reported itself always wins; otherwise the parser estimates
-from the first-party price tables, and an unpriced SKU yields `unknown-price` with `cost_usd=None` rather than a
-guess. Malformed JSONL lines are skipped, so one bad line never invalidates a stream. Two siblings ride the same
-stream under the same contract: the opt-in skill-trigger extractor behind `TRACK_SKILL_TRIGGERS`, and the trajectory
-classifier that reconstructs a run's timeline. That page carries the module layout, the per-backend parsers and their
-dispatcher, the cost-precedence rule, the per-issue verdict line a terminal posts, and the evidence model both
-siblings return.
+The dependency-free parser turns agent CLI JSONL into token and cost metrics, skill evidence, and trajectories. The
+[usage reference](observability/usage.md) owns provider decoding, cost precedence, result types, and historical
+accounting limits.
 
 ## Summary of "what runs when"
 
-- `retention.prune_with_retention_logging` (function call) — trigger: end of each `runtime.ticks.run_tick` after every
-  configured repo drains; cadence: once per tick (process-wide, not per-repo); no-op when the sink is disabled or
-  `ANALYTICS_RETENTION_DAYS <= 0`.
-- `scheduler.reap` (method call) — trigger: end of each `runtime.ticks.run_tick` after every configured repo drains,
-  immediately before the analytics prune; cadence: exactly once per polling pass regardless of repo count; nonblocking
-  drain of any worker completions since the last poll. `_dispatch_via_scheduler` deliberately does NOT call `reap`.
+Recording follows workflow and agent events. Scheduler completion reaping and analytics retention run once after all
+repositories drain; database replay and trajectory pruning are operator-scheduled. The process-wide
+[cadence summary](architecture.md#summary-of-what-runs-when) connects these tasks to the polling loop.

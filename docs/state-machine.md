@@ -13,758 +13,157 @@ are authoritative.
 
 ## The pages in this area
 
-- [`state-machine/labels-and-state.md`](state-machine/labels-and-state.md) — the label set and the control labels, the
-  typed states and the transition guard, the migration off the pre-namespace spellings, what one tick reads and writes
-  per issue, and every pinned-state key a handler depends on.
-- [`state-machine/delivery-stages.md`](state-machine/delivery-stages.md) — pickup, the user-content drift hook,
-  decomposition and the family walks, and the dev / reviewer / docs loop through `in_review`, `workflow:fixing`, and
-  `workflow:resolving_conflict`.
-- [`state-machine/conversation-stages.md`](state-machine/conversation-stages.md) — the two operator-applied
-  conversation stages, `question` and `discussion`, including the plan PR a confirmed design earns.
-- [`state-machine/lifecycle.md`](state-machine/lifecycle.md) — the compact label-lifecycle reference diagram.
+- [Labels and state](state-machine/labels-and-state.md) owns the label vocabulary, per-tick sequence, and pinned schema.
+- [Delivery stages](state-machine/delivery-stages.md) owns pickup, drift, decomposition, publication, and review.
+- [Conversation stages](state-machine/conversation-stages.md) owns the `question` and `discussion` handlers.
+- [Lifecycle](state-machine/lifecycle.md) shows the main routes between labels.
 
-Every section below keeps its heading here as a summary of what moved, so a link written against this page still lands
-on the answer.
-
-For the multi-repo dispatch, module map, and push model, see [`architecture.md`](architecture.md). For agent roles,
-prompt contracts, and command specs, see [`workflow.md`](workflow.md). For env vars and the operator runbooks beside
-them, see [`configuration.md`](configuration.md). For the audit event log and analytics sink, see
-[`observability/event-streams.md`](observability/event-streams.md); for the usage parser over them,
-[`observability/usage.md`](observability/usage.md); and for the map over every observability surface,
-[`observability.md`](observability.md). For the security checklist, see [`security.md`](security.md).
+The summaries below preserve the section addresses used by existing links. Agent prompt contracts belong to
+[workflow](workflow.md); module ownership belongs to [architecture](architecture.md).
 
 ## Workflow labels
 
-An issue carries at most one workflow label at a time, and the orchestrator only ever swaps labels from its own set —
-`bug`, `enhancement`, and a repository's own triage labels are preserved. `workflow:<tag>` is the **wire label**: the
-literal string on the GitHub issue that a label write puts there, the transition guard checks, and the per-tick
-dispatcher partitions on. A bare `<tag>` is the **stage**: the handler, the subpackage under
-`orchestrator/workflow/stages/` holding it, and the identifier analytics rows, audit event payloads, and agent-session
-attribution carry. `in_review`, `question`, `discussion`, `done`, and `rejected` were never namespaced, so those read
-the same either way.
-
-The states, in lifecycle order: no label, `workflow:decomposing`, `workflow:ready`, `workflow:blocked`,
-`workflow:umbrella`, `workflow:implementing`, `workflow:documenting`, `workflow:validating`, `in_review`,
-`workflow:fixing`, `workflow:resolving_conflict`, the operator-applied `question` and `discussion`, and the `done` /
-`rejected` terminals. Three non-workflow **control labels** modify behavior without occupying the workflow slot:
-`backlog` (a "not yet" hard skip on a fresh issue), `paused` (the same hard skip on an in-flight one, honored again
-right after every agent run returns), and `workflow:community_contribution` (applied by the per-tick open-PR sweep,
-never by an operator). What each state means, what a `paused` mid-run withholds, and why the prefix is a collision
-guard rather than the membership test are in
-[`state-machine/labels-and-state.md#workflow-labels`](state-machine/labels-and-state.md#workflow-labels).
+An issue has at most one workflow label; unrelated repository labels are preserved. A `workflow:<tag>` string is the
+GitHub label, while its bare tag names the stage in handlers and analytics. `in_review`, `question`, `discussion`,
+`done`, and `rejected` keep their bare spelling. `backlog`, `paused`, and `workflow:community_contribution` are control
+labels outside that workflow slot. The [label reference](state-machine/labels-and-state.md#workflow-labels) defines
+each label and control.
 
 ### Typed states and the transition guard
 
-`WorkflowLabel` and `ControlLabel` in [`orchestrator/workflow/state.py`](../orchestrator/workflow/state.py) define
-both vocabularies once; because `StrEnum` members *are* their wire strings, a member is the GitHub label verbatim.
-Two guards run at `GitHubClient.set_workflow_label`, the single label-write chokepoint: an always-strict **typo
-guard** that raises on a name outside `WorkflowLabel`, and the **transition guard**
-(`WORKFLOW_TRANSITION_GUARD` = `off` / `warn` / `enforce`, default `warn`) checking `current → new` against
-`ALLOWED_TRANSITIONS`. Operator relabels through the GitHub UI bypass both, so the guard never fights a human — and
-one orchestrator write skips the transition guard for the same reason: the late size gate putting a label back where
-a human moved it from is repairing a move the graph has no edge for. The edge set, that one exemption, the
-`orchestrator.state_machine` logger a rejection is filtered by, and how `create_child_issue` shares the typo guard for
-its direct write are in [`state-machine/labels-and-state.md`][typed-states].
+`WorkflowLabel` and `ControlLabel` define the vocabulary. `GitHubClient.set_workflow_label` rejects unknown workflow
+labels and checks orchestrator transitions under `WORKFLOW_TRANSITION_GUARD`; human relabels bypass that check.
+The [typed-state reference][typed-states] owns the graph, guard modes, and write exceptions.
 
 ### Legacy labels and the migration off them
 
-A repository whose labels predate the namespace is migrated by the startup label bootstrap: a pre-namespace spelling
-that exists alone is **renamed in place**, so every issue holding it moves across in one edit; a namespaced label that
-already exists is left alone, as is any bare label beside it; neither present means the namespaced one is created
-fresh. Wherever that rename could not run, three reads still take either spelling — issue routing, the community
-sweep's dedup marker, and the closed-issue sweep's query — and a namespaced label always outranks a bare one on the
-same issue. What a PAT without `Issues: Read and write` leaves behind, and which bare tags a relabel deliberately does
-not delete, are in [`state-machine/labels-and-state.md`][legacy-labels].
+Startup renames a legacy label in place when its namespaced counterpart does not exist. Routing still accepts either
+spelling where migration could not run, preferring the namespaced label when both are present. The
+[migration reference][legacy-labels] defines bootstrap and compatibility behavior.
 
 <a id="per-tick-flow-workflowtick"></a>
 
 ## Per-tick flow (`workflow.engine.tick.tick`)
 
-One repo's pass runs the base refresh, the community-contribution PR sweep, and the repo skill-catalog emission, then
-dispatches each pollable issue by workflow label. **Family-aware labels** (`workflow:decomposing`,
-`workflow:blocked`, `workflow:umbrella`, unlabeled pickup) read and write cross-issue parent ↔ child state, so they
-fold into one bucket per repo that drains sequentially; every other label fans out concurrently up to
-`MAX_PARALLEL_ISSUES_GLOBAL` / `MAX_PARALLEL_ISSUES_PER_REPO`. An open `workflow:blocked` / `workflow:umbrella` issue
-joins only on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` makes due — the first poll and every Nth after it, default
-`5` — and is dropped before that split in between, which saves the child reads its dependency walk spends at the price
-of up to N ticks before a child is activated, a parent completes, or drift on either is detected; `1` dispatches it
-every tick. Only issue numbers cross the thread boundary — each
-worker mints its own `GitHubClient` and re-fetches the issue, under the issue's host-local writer claim, which a
-second poller on the host holding the issue answers by skipping it that tick, keeping only a close it read; a family
-handler writes a child only under that child's claim, and the base refresh syncs a worktree only under its issue's. The
-cap exemptions, the
-`duplicate_active` gate, the writer claim, and what each step reads and writes are in
-[`state-machine/labels-and-state.md`][per-tick]; the multi-repo dispatch and
-scheduler lifecycle around them are in
-[`architecture.md#per-tick-flow-workflowengineticktick`](architecture.md#per-tick-flow-workflowengineticktick).
-
-Two parks are answered by the dispatcher rather than by a stage. The first is the agent-run limit. An issue
-standing on `agent_run_limit` has spent every
-agent run it is allowed, and every stage below reads `awaiting_human` as the park it was written against —
-a resume on the next trusted reply, a hold waiting on guidance, a classifier that refuses a command carrying none —
-none of which buys back a run. So it is held once, ahead of the handler table and behind only the two guards that
-have to RUN (an authorized restart and a cancelled cycle's cleanup); the hold says the sentence the park still owes,
-since nothing below it would, and it steps aside for work that has ENDED so a terminal arc can finish — a closed
-issue, which the object in hand already shows, and a recorded pull request that has merged or been closed, which it
-cannot: a merge leaves the issue open until a stage terminal reads it, and a close nobody merged leaves it open for
-good, so a spent issue behind either would sit on a park nothing lifts over work a human already decided. That second
-reading is a request per parked poll and fails OPEN, since a remote that would not answer says nothing about whether
-the work is over. The one reading of
-a thread that lifts it is answered in the same place: a trusted `/orchestrator add-agent-runs N`, bounded per
-command, which persists an allowance of exactly `used + N`, puts back the park the refused launch was on, and lets
-that tick go on to the stage its label names — so a resume refused on a reply is resumed on that reply. What it widens
-is what the issue may still spend, since nothing returns a run already taken.
-
-The second is `report_record_damaged`, taken by the developer-report reconciliation for the same kind of reason: the
-record is the dispatcher's to act on, so a record nobody can read is nobody below's to explain. It is announced once
-and then held silently, and the same guard retires it — a record repaired and settled, or the field cleared to
-abandon the report, both take the flags down, because a park nothing takes back leaves every stage behind the guard
-reading the issue as waiting on a reply nobody owes. Where another route's park already stands, this one is **not**
-taken and the tick is **not** held: the pinned flags are single, so writing over that reason would discard an
-obligation a stage is still waiting on — and what answers a foreign park is the handler behind this guard, so
-holding in front of it would leave both parks standing for the life of the issue with neither announced. It stands
-down instead, and takes its own park on the tick after that one clears
-([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch)).
+Each repository pass refreshes base and worktrees, sweeps community pull requests, emits the skill catalog, and
+dispatches pollable issues. Family-aware work runs sequentially within a repository; independent issues share the
+global and per-repository scheduler limits. Host-local writer claims prevent two pollers from acting on the same
+issue concurrently. The [per-tick reference][per-tick] owns ordering, dispatch holds, and dependency-poll cadence.
 
 ### Base refresh
 
-Before any issue is dispatched the tick fetches `<remote>/<base>` once and rebases each existing per-issue worktree
-onto it, so a long-lived worktree does not stay anchored to whatever base looked like when it was added. The refresh
-is the workflow's (`workflow/engine/base_refresh.py`), and so are the order a PR-having worktree's route is taken in
-(`workflow/engine/base_rewrite.py`), the ordinary publication of a clean rebase
-(`workflow/engine/rewrite_publication.py`), and the order an interrupted attempt's recovery is asked in, with the retry
-of a replay its crash kept off the pull request and the finish of a push it finds already landed
-(`workflow/engine/rewrite_recovery.py`, `rewrite_retry.py`, `rewrite_landed.py`); the selection, the rebase, the
-candidate and its exact-candidate push or observation, and the recovery's readings, refusals, and parks are the git
-`base_sync` owners' that route delegates to. A branch is left where it is while a record somebody wrote ahead of
-the thing it describes stands -- a developer report recorded or bound and not yet settled among them, since a
-rebase in that window would hand the report a head it never described, and an Antigravity docs launch whose outcome
-nothing recorded (`docs_launched_sha`), which the documenting handler parks before anything that pass left is rebased
-or pushed -- and that holds for the rebase behind an interrupted attempt's recovery too, which has the selection
-asked again once the anchor is down. Each worktree
-is synced under its issue's writer claim — the one every dispatch path takes, on the same key — held from before the
-issue is read until its route ends, recovery and settlement included, so an issue another poller on the host is
-dispatching or refreshing is left untouched for the tick and synced on a later one. A pre-PR
-worktree rebases locally; a PR-having one in `workflow:validating` / `workflow:documenting` / `in_review` /
-`workflow:fixing` pushes the clean rebase with a pinned `--force-with-lease`, resets `review_round`, records the report
-the landed head is owed (`developer_report_rewrite_debt`) ahead of the write that clears its attempt, and relabels to
-`workflow:validating`, reaching `workflow:resolving_conflict` only when the rebase actually leaves conflicted files.
-That push goes through the size gate before it is made, and the push itself publishes exactly the candidate the
-rebase left, leased to the head it replaced: a checkout, base, or remote that moved since the candidate was read, or a
-lease the remote rejects, pushes nothing and resets the checkout onto that head. Where the branch was standing on the
-commit an authorized settlement accepted the refresh hands the gate the same rewrite evidence a squash does, so a
-replay that contributes what a human already ruled on carries the exemption — and the operator authorization that
-made it a bypass — over instead of being adjudicated again; where the permit refuses, the replay is measured like any
-other candidate. A transfer of an exemption nothing authorizes is refused, since moving one would hand the rewritten
-commit a permission the accepted one never had. A process lost anywhere in that rebase comes back to the record the
-attempt pinned, and the recovery finishes an unchanged contribution on the permit alone — reissuing a push that never
-went out, receipting one that landed through a leased no-op — so that replay is never measured or adjudicated again; a
-replay its record names whose re-derived evidence the permit refuses, with no grant made before the crash, is a
-contribution the base advance changed, and it is measured as the publication would have measured it. Every road that
-finishes a landed head, the recovered ones included, makes that report debt durable before its relabel, and repeated
-advances carry one debt onto the latest head a push landed; a no-op, a refused push, a reset, or a pull request
-somebody else moved records none and leaves a standing debt as it is. A landed head whose debt the pinned comment has
-no room for — measured on the whole announcement write it rides and on the comment as it stands — is neither
-announced nor routed: it parks with the attempt standing until room is made and a human replies. Every landed head --
-one the refresh published itself, one its recovery's retry pushed again, and one its recovery found already standing,
-observed rather than pushed a second time -- is finished by the one workflow-owned finish
-(`workflow/engine/rewrite_finish.py`) over guarded commits, with one post-push evidence decision ahead of its
-announcement and route (`workflow/engine/rewrite_evidence.py`), made durable before the notice, the `base_rebased`
-event, the round reset, and the relabel (`workflow/engine/rewrite_finish_evidence.py`):
-evidence the rewrite moved past is invalidated into history, and a fresh run of the configured commands or a proved
-carry is recorded, then published and settled by the finish itself while its attempt still stands
-(`workflow/engine/rewrite_finish_settlement.py`), or the fresh reviewer owes the evidence -- a failed run's notice
-recorded and put on the pull request once (`auto_base_rebase_failed_verification`). A decision nobody could take, an
-evidence write that did not land or fit, a failure notice nobody could confirm published, or a recorded transaction
-whose post or settlement did not resolve holds the route with nothing announced and the attempt standing, and so
-does a base that moved
-after the head was counted against it (`workflow/engine/rewrite_evidence_proof.py`). The attempt's record also
-carries the base tip its rebase replays onto, frozen before git runs and blank where the base ref moved while git ran
-(`pending_auto_base_rebase_rewrite_base`); a legacy attempt without one still reads whole and simply proves no base,
-so nothing is run or carried for its head. The recovery resumes that decision with no developer launched: the
-commands run again only where no completed run was captured, and a captured one is settled -- over an artifact an
-earlier post landed, found under its receipt -- and routed only once it proves again
-(`workflow/engine/rewrite_finish_captured.py`), one an earlier finish already settled is routed with nothing posted
-or settled again while nothing beside it says otherwise -- a newer transaction for the head is settled over it --
-and while the configuration it was taken under is still the one configured, being invalidated with nothing run
-again where it moved, and
-a captured one is
-abandoned with nothing run -- then or after -- where something it is bound to, the base, or the landing moved since,
-the landing read moving by the recovery's first snapshot -- or reset off by its own abort -- included
-(`workflow/engine/rewrite_landing_moved.py`). Which pending transaction is that captured run is the receipt the
-finish put on the attempt in the write that recorded it (`pending_auto_base_rebase_evidence_receipt`); any other is
-another road's, and kept as it wrote it. Every recovery park or hold that keeps the attempt for a later tick or a
-human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
-anything moved, so putting that input back before the attempt is taken up again revives nothing. Proving settled
-evidence ready again before its route, and invalidating it whole wherever anything it rests on moved, are dormant
-primitives (`workflow/engine/rewrite_finish_readiness.py`) that in a finish only the dormant settled-evidence policy
-asks -- one a caller selects by building a finish with `proves_settled` and handing it directly to the coordinator
-(`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which announces,
-relabels, parks, and retires nothing), as no production road does (`workflow/engine/rewrite_finish_settled.py`). The
-coordinator under it proves the evidence again before every hold, unfinishable landing, continuation, and debt park,
-around the relabel, and behind every stop of the announcement, the park, or the retirement
-(`workflow/engine/rewrite_finish_stops.py`), and announces, relabels, or parks nothing another finish already did; the
-phase adopts a settlement another road made and invalidates
-it over movement read under it, reads the comment afresh behind every invalidation it lands, holding over a newer
-transaction or another attempt written right behind it (`workflow/engine/rewrite_finish_rechecks.py`), abandons a
-continuation's captured transaction before proving the settled evidence
-beside it, and asks the primitives that policy adds -- retiring the same receipt over whatever attempt now stands, an
-announcement of the landing taken in and a refused write retried, and recording movement history has no room for under
-the evidence's own receipt, beside restoring an attempt a retirement nobody confirmed took, which the coordinator asks
-(`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_unconfirmed.py`) -- and so are the guarded
-recovery operations built on them: a reset recorded against captured or settled evidence before git moves the checkout,
-settled evidence retired whole with a landed reset's release or kept whole beside the attempt where history has no room,
-and every recovery park landed over the comment read afresh (`workflow/engine/rewrite_landing_retirement.py`,
-`workflow/engine/rewrite_recovery_parks.py`). A tick lost behind
-the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
-checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
-recovery, which reads what was done off the mark, the pull request, the event stream, and the label
-(`workflow/engine/rewrite_finish_notices.py`, `workflow/engine/rewrite_finish_events.py`): no second notice,
-`base_rebased` or stage-entry event, round reset, relabel, evidence publication, or developer launch. A conversation or
-audit log the finish cannot read holds it with nothing filed.
-A replay the size gate hands to an adjudication instead is handed to the late generation adjudicating it
-(`workflow/engine/rewrite_takeover.py`) by the publication and by the recovery's retry alike, and a park the gate takes
-keeps the attempt for its recovery: where the pinned record proves a whole attempt and a live generation late
-adjudication would itself accept for this issue, describing the same candidate, pull request, anchor, and stage, the
-generation records `late_auto_rebase_replay_sha` in the one guarded write that retires the attempt and any park its own
-road left, and anything less leaves the attempt standing. An operator's reply that only asked for the retry is recorded
-read in the write that spends it -- the anchor's, the retry's gate, or the handoff, or past a handoff whose tick was
-lost the dispatcher's own ahead of the adjudication -- so the adjudication never takes a retry for guidance, while a
-reply that says more stays guidance (`workflow/engine/rewrite_replies.py`). Any other park
-survives the gate's route beside an anchor and the handoff, and the adjudication waits behind it until a human replies
-to it rather than let its verdict take the park over. A handoff a crash interrupted, or a pair an
-earlier build stranded, is handed over by the dispatcher ahead of its anchor hold, so the next tick adjudicates with no
-relabel or pinned-state edit. The retry measures a replay its record names whose permit refuses it -- a changed
-contribution -- as the publication would have, rather than resetting it away. That ownership licenses no push: the
-replay publishes only through an authorized `single`'s settlement, leased to the head the pull request stood on, which
-records the report debt its push leaves and puts the reviewer's spent rounds back, as the rewrite finish does; an
-unchanged contribution still carries the verdict over on the transfer permit. The `question` and `discussion` labels —
-and the parks and in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's
-anchor, of the records and parks that freeze a branch only the late size-gate claims keep the refresh away, so its
-recovery answers the anchor ahead of any stage handler. The failure modes, their durable `park_reason` tokens, and the
-refresh-owned retry are in
-[`state-machine/labels-and-state.md#base-refresh`](state-machine/labels-and-state.md#base-refresh).
+The refresh fetches the remote base once per repository and rebases eligible worktrees under their issue claims.
+A clean rebase of an existing pull request is size-gated, published with a lease, and returned to validation; actual
+conflicts route to `workflow:resolving_conflict`. The
+[base-refresh reference](state-machine/labels-and-state.md#base-refresh)
+owns frozen-state exclusions, rewrite evidence, report debt, and interrupted-attempt recovery.
 
 ### Pollable issues and finalization
 
-`gh.list_pollable_issues()` yields every open non-PR issue plus the closed ones still carrying one of the ten swept
-labels — the eight a terminal arc may still be owed on, and `workflow:decomposing` / `workflow:umbrella`, whose
-closed issues are yielded for snapshot cleanup only and never reach the stage handler their label names — each also
-queried under its pre-namespace spelling where it has one, so an external merge or an operator close finalizes
-cleanly instead of stranding the issue. `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS` batches that sweep to once every N ticks,
-which is the knob for the GitHub primary-rate-limit cost it carries on a multi-repo host. Which labels are swept, why
-the pre-PR labels are not, and how a closed `discussion` is held for its plan PR are in
-[`state-machine/labels-and-state.md`][pollable].
+Polling includes open non-PR issues and a periodic sweep of closed issues whose workflow still owes finalization or
+cleanup. The [polling reference][pollable] lists the swept labels, legacy spellings, and conversation exceptions.
 
 ### Pinned state
 
-Per-issue durable state is a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`),
-trusted as state only when the orchestrator's own account authored it and its whole body is the marker. Its keys group
-into agent identity, decomposition, PR / branch, the drift baseline, the HITL park, the in-review watermarks, the
-final-docs handoff, fix routing, the crash-recovery anchors, counters and timestamps, the per-issue usage meter, the
-lifetime agent-run ledger beside it — what the issue is allowed, what it has spent, and the launch holding a charge,
-charged at the one boundary every agent process is invoked from —
-the `agent_run_limit` park a spent one leaves and the sentence that park owes the thread,
-the additive `late_*` group a late generation is adjudicated under, the one commit an accepted candidate publishes
-under with the semantic identity of the change it was accepted for and the bounded authorization a workflow rewrite
-carries that exemption over with, the `decomposing` stage's own record of the run that adjudicates one, and the
-additive `developer_report_*` group one report publication is recorded as — the report a completed run delivered
-before its code went out, the transaction that report is bound into once a pull request carries the code, the report
-the pull request carries, and the receipt one finished transaction leaves. Its owners read and write those records
-fail-closed; the initial implementation delivery produces and settles one on the tick it publishes, and the
-dispatcher reconciles an outstanding transaction ahead of every handler
-([the developer-report transaction](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch)).
-Beside it sits the additive `verification_evidence_*` group -- the pending evidence transaction, the evidence the
-pull request carries now, a bounded history of retired evidence, the receipt of the last one settled, and the highest
-revision spent -- which the dispatcher reconciles directly behind the report, publishing an artifact only once the
-pull request, trees, review subject, configuration, and requirements are proved, and carrying evidence to another
-head only on an equal full tree under the same context. Its live producers are three: the returned-verdict
-disposition records the transaction a reviewer's declared commands were minted as in the write that persists the
-verdict, and neither verdict is acted on until it settles; the approval's squash records a carry onto the head it
-published -- of the passing run its own verify gate made on the approved head, or else of the evidence that approval
-rests on -- the tested commit unchanged, the new head an equivalent-tree target, holding the move to
-`workflow:documenting` until it settles; and a landed automatic base rewrite records a fresh run of its rewritten head,
-or a carry onto it, bound to the settled report and the review of that head, and settles it through that same
-reconciliation's answer before its route, while its auto-rebase anchor still holds every handler
-([evidence transaction](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
-The additive `developer_report_rewrite_debt` claim is the report a rewrite of the pull request's head leaves owed --
-the pull request, its branch, the head the rewrite replaced, and the exact head it published. While any claim stands,
-readable or not, the dispatcher holds `workflow:documenting` and `in_review`; the validating report hold keeps the
-reviewer off while it resumes the developer, on the branch the issue pins, for a fresh report of that head, with no
-human reply, and drops the claim once a published report of it, still intact where it settled and written against the
-current requirements, pays it.
-`workflow:resolving_conflict` records one for every head its own push rewrites, off the code-publication receipt that
-push left, and the base refresh one for each clean auto rebase whose push lands, its crash recovery included, before
-the attempt is cleared or the issue routed to `workflow:validating`. The authorized settlement of a replay a late
-generation took over records one for the push it makes, before its label routes the head to `workflow:validating` as
-the refresh routes every rebase it publishes
-([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
-A settled report of the approved commit an approval's squash replaced is of neither head a claim names, so it pays
-nothing, and the hold refreshes it only once a proof (`workflow/engine/report_squash_lineage.py`) links it to the head
-the claim replaced -- from the squash's own recorded evidence carry, held exactly to the settled report and the claim,
-and from both trees read again in the checkout -- and the report, written against the current requirements, re-reads
-intact where it settled. The proof writes nothing and the report keeps its `source_sha`; a lineage nothing proves is
-left to the reviewer road's refusal, and a tree or location nobody could read holds with no developer run.
-Most owners write the record whole from the state they read. A guarded commit -- adopted so far by the
-verification-evidence publication and settlement, the evidence reconciliation's retirements, `validating`'s invalidation
-of an unanswered carry, the developer report's recording, its binding, its settlement (prepared before the report is
-posted), the reconciliation's drop and damage-park retirement, the park a refused recording or binding takes, the
-fixing recovery's release, a reviewer round's launch, return, verdict, drop, and park writes, a change request's
-handoff (prepared before its feedback is posted), the drop, retirement, and park of a handed one, the recovery's
-writes over a verdict left waiting, every write of an approval's tail, its squash's own and a failed squash's park
-included, and the retirement of a failed developer conversation -- lays only the fields its caller owns over a fresh
-reading instead, refusing with nothing written where the
-comment, a record the decision rests on, or a field the caller is changing moved, or where the whole candidate would
-not fit one comment.
-The additive `dev_session_retirement` record names the developer conversations retired as failed and whether the fresh
-conversation replacing the last is still owed. Nothing that clears the session pin or zeroes `silent_park_count` and
-`dev_resume_count` -- a publication, a rotation, a late restart's projection -- erases it, so a retired id is never
-resumed, and every resume stays a fresh conversation under the pinned `dev_agent` command until one with an id of its
-own is pinned.
-Every key, what writes it, what spends it, the guarded commit, and the legacy `codex_session_id` still honored on read
-are in
-[`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
+One authenticated pinned comment (`<!--orchestrator-state {...json...}-->`) stores an issue's durable workflow state:
+sessions, family relationships, publication and review subjects, recovery records, watermarks, parks, and budgets.
+Some writers replace the record whole; guarded writers merge their owned fields over a fresh reading and refuse
+changed or unconfirmed state. The [pinned-state reference](state-machine/labels-and-state.md#pinned-state) owns every
+field, its consumers, and the write contract.
 
 ## Stage handlers
 
-Each workflow label dispatches to one `_handle_<label>` function under `orchestrator/workflow/stages/`, with two
-exceptions that belong to no label of their own: one read of the issue's own pinned comment runs ahead of every
-handler and can stop the tick outright, and a CLOSED issue on `workflow:decomposing`, `workflow:umbrella`,
-`workflow:ready`, or `workflow:blocked` goes to the cleanup sweep instead of the stage its label names — the first
-two because a late adjudication runs there, the other two because a decomposition outcome that landed after its
-owner was observed closed can leave that adjudication's ending under one of them. Both are on the delivery-stages
-page below. The delivery stages — pickup through the PR loop — are in
-[`state-machine/delivery-stages.md`](state-machine/delivery-stages.md); the two operator-applied conversation stages
-are in [`state-machine/conversation-stages.md`](state-machine/conversation-stages.md). Which module owns each handler
-is in [`architecture/workflow-modules.md`](architecture/workflow-modules.md), and the dispatch that reaches one in
-[`architecture.md#stage-handlers`](architecture.md#stage-handlers); what the agent each one spawns is allowed to
-do is in [`workflow.md`](workflow.md).
+The workflow label selects a handler after shared dispatch guards and transaction reconciliation. Closed family
+owners take the cleanup route instead. The following summaries link to each handler's authoritative flow.
 
 ### `_handle_pickup` (no label → `workflow:decomposing` or `workflow:implementing`)
 
-An open issue with no workflow label: an issue from outside `ALLOWED_ISSUE_AUTHORS` is silently skipped; otherwise
-the handler posts the pickup comment, anchors `pickup_comment_id` and `last_action_comment_id` on
-it (the floor the park ending the first agent run walks from), snapshots `user_content_hash`, and routes to
-`workflow:decomposing` (`DECOMPOSE=on`) or `workflow:implementing` (off), running that stage's handler in the same
-tick. Full flow: [`state-machine/delivery-stages.md`][pickup].
-
-No unlabeled issue that already carries a pinned comment reaches it. Greeting one a second time writes a second
-pinned comment that every later read shadows, so an issue whose workflow label a human removed is left where they
-left it and driven back in by applying a label by hand. The one exception is the restart: taking `rejected` off an
-issue whose pinned comment records a late cancellation with nothing left owed authorizes a fresh late-split cycle,
-which reaches the same two labels by projecting the comment the issue already has —
-[`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#late-generation-state).
+A trusted, unlabeled new issue gets its pickup comment and initial state, then enters decomposition or implementation
+according to `DECOMPOSE`. An issue with existing pinned state is screened by the reuse guard first.
+The [pickup handler][pickup] owns initialization and same-tick routing.
 
 ### User-content drift detection
 
-The drift-sensitive handlers hash the issue title, body, and every human-authored issue-thread comment, and react
-once to a change: `workflow:decomposing` re-spawns inline, `workflow:ready` / `workflow:blocked` /
-`workflow:umbrella` route back to `workflow:decomposing`, the dev stages resume the locked dev session, and
-`workflow:documenting` unwinds to `workflow:validating`. A reply to a parked `workflow:implementing` or
-`workflow:validating` issue is not such a change: those stages measure a parked tick by what the park had already
-read, and the frozen reply batch delivers the reply. On `workflow:validating` that reply can still be the drift
-road's CONTINUATION rather than an ordinary fix: a park left standing over an edit its own resume never answered, or
-over a report the issue owes, makes the next reply read the way the resume's own answer reads — held to the developer
-report contract before the size gate, with a report and no commit published onto the unchanged head. Either way the
-report is stamped with the requirements revision that session was actually handed — on `workflow:validating` the
-fingerprint of the read its own prompt was built from, whether that prompt is the drift resume's frozen excerpt or
-the frozen batch of the reply continuing it — and no reviewer
-runs until the pull request carries it. `in_review` runs the same contract on its own drift resume, recording the
-report under its own route ahead of the size gate and publishing a report with no commit onto the head the pull
-request carries; the issue then goes back to `workflow:validating`, which is where that reviewer waits. So does
-`workflow:resolving_conflict`: the report its body-edit resume returns — over a rebase that session ran, or with no
-commit at all — is recorded under that route before the push, bound to the head the push left once the round is
-counted, and settled before `workflow:validating` spawns a reviewer, and a reply to a park that left the report owed
-is answered on the same road rather than as a conflict resolution. A late
-adjudication on `workflow:decomposing` runs no check of its own, but every reply it acts on records the baseline off
-the one reading it acted on — short of an edit in that reading nobody has answered yet, or guidance a park's notice
-withheld that nothing the answer runs has read — so the umbrella a late split hands the issue to meets guidance a
-developer revision or a continued budget already spent as the baseline rather than as a change, and a comment or edit
-written after that reading as one. An issue with no baseline recorded at all keeps the reading the adjudication carried
-on over as `observed_user_content_hash` instead, which that first check compares against in its place, so an edit
-made while the adjudicator ran is a change there too rather than the baseline it takes.
-`_handle_fixing`, `_handle_question`, and
-`_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
-and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and
-`/orchestrator authorize-oversized <commit>`), the
-legacy-hash normalization, and the per-stage result routing are in
-[`state-machine/delivery-stages.md#user-content-drift-detection`][drift].
+Drift-sensitive stages compare trusted issue content with the recorded baseline. An edit can restart decomposition,
+resume the developer, or return final documentation to validation; fixing and conversation handlers skip this hook.
+The [drift reference][drift] defines filtering, reply delivery, and stage-specific routing.
 
 ### `_handle_decomposing` (label `workflow:decomposing`)
 
-Two questions wear this label, and the tick asks which one it is first. An issue whose record carries a live late
-generation is not waiting to be decomposed — its implementation is committed and measured past the ceiling — so the
-whole tick belongs to the late coordinator and nothing below runs for it. Everything else is the initial
-decomposition: the decomposer runs read-only in a scratch worktree and its fenced `orchestrator-manifest` block is
-parsed, where `single` posts the collected-context comment and flips to `workflow:ready`, and `split` creates children
-labeled `workflow:blocked`, posts a summary listing them beside the decomposer's rationale as the parent recorded it,
-and leaves the parent on `workflow:blocked` or `workflow:umbrella`. Whatever supersedes that split — a later `single`,
-an edit's reset or reroute, a restart — clears the recorded rationale, while a parent handed back to its own work once
-every child is done keeps it as the scope that work was left, which that work's first developer spawn and any fresh
-session replacing it quote off the record rather than out of the bounded thread. Every child of a fresh
-`split` states its `depends_on` list, `[]` for none; one missing or `null` parks the reply as an invalid manifest
-naming the child and the field, before any child or split marker is written. A split of an issue
-inside a late lineage seeds each child one level below it under the same root, pointed only at a snapshot the
-parent's own split still holds and records it on, and parks before creating anything where that lineage cannot be
-proved. Half-finished splits recover rather than re-spawn — adopting a child created and never recorded by the
-receipt in its body, and posting the split's summary, its rationale read back off the parent's record, only where
-its own receipt is not already on the thread — a
-`DECOMPOSE` kill switch falls through to `workflow:implementing`, and commits or a dirty tree
-park with the worktree kept. An issue standing on a `retry_cap` park is held ahead of all of that — the
-drift reset, the kill switch, and the human-reply resume each answer a park that is not this one — so it keeps
-everything it carries until a trusted `/orchestrator continue` buys it one more attempt. The late coordinator holds
-the same park one step earlier on its own road, so an issue whose adjudication ran the budget out keeps its frozen
-candidate, the pull request that candidate stands under, and its recorded run until the same command buys it one
-more adjudication. Full flow:
-[`state-machine/delivery-stages.md`][decomposing].
+Initial decomposition runs the decomposer read-only and consumes its manifest: `single` advances to `workflow:ready`,
+while `split` creates a dependency family. A live late generation uses the same label for adjudicating a committed,
+oversized candidate. The [decomposing handler][decomposing] owns both routes and their recovery.
 
 ### `_handle_ready` (label `workflow:ready` → `workflow:implementing`)
 
-A pass-through: post the pickup comment if needed, ratchet `last_action_comment_id` past everything posted while the
-issue sat in `workflow:decomposing` / `workflow:blocked`, flip to `workflow:implementing`, and fall into that handler
-on the same tick. Full flow: [`state-machine/delivery-stages.md`][ready].
+The [ready handler][ready] records the pickup and comment floor, then advances to implementation in the same tick.
 
 ### `_handle_blocked` (label `workflow:blocked`)
 
-The parent reads each child's current label: every child `done` flips the parent to `workflow:ready`, a `rejected` or
-manually-closed child parks it, and the dep-graph walk relabels any `workflow:blocked` child whose recorded
-dependencies are all `done` to `workflow:ready`, once every child it would release passes its split's lineage check
-(one refusal releases none). A child with no children of its own and a recorded `parent_number` is a no-op. A
-parent a late split's umbrella became once an edit re-decomposed it with work of its own settles that
-split's ledger the way the umbrella's terminal does before the flip, stays `blocked` while anything is still owed,
-and retires the split's cycle in a write of its own first, so its implementation starts a cycle of its own. Full
-flow: [`state-machine/delivery-stages.md`][blocked].
+The [blocked handler][blocked] releases children whose dependencies are done and advances a parent to `workflow:ready`
+once all its children finish. A rejected or manually closed child parks the parent; a blocked leaf waits.
 
 ### `_handle_umbrella` (label `workflow:umbrella`)
 
-Mirrors `_handle_blocked` for the rejected / manually-closed checks and the dep-graph walk; the difference is the
-terminal — every child `done` reconciles whatever the issue still owes a remote, then posts a checkmark comment,
-stamps `umbrella_resolved_at`, sets `done`, and closes the issue, since an umbrella has no implementation of its own.
-An umbrella a late split made owes the superseded branch and the snapshot ref its children were cut from, and this is
-the last tick that could settle either — so the park a `rejected` or hand-closed child earns settles the same ledger
-on its way out, since nothing revisits an open umbrella either. The ref is proved against the consumers the split
-recorded rather than the children the umbrella tracks, so after a drift reroute has replaced the manifest the
-originals it orphaned — read afresh, never re-tracked — still decide it, beside the replacements the new split
-recorded there. Something still owed keeps the label, which is the retry. Full flow:
-[`state-machine/delivery-stages.md`][umbrella].
+An umbrella has no implementation of its own. The [umbrella handler][umbrella] walks dependencies and settles any late
+split cleanup before closing the issue as `done` after its children finish.
 
 ### `_handle_implementing` (label `workflow:implementing`)
 
-Spawns (or resumes) the locked dev session in the per-issue worktree at
-`<WORKTREES_DIR>/<owner>__<name>/issue-<n>` on branch `orchestrator/<owner>__<name>/issue-<n>`. Only a fresh spawn is
-gated by the 24h retry budget (`MAX_RETRIES_PER_DAY`, shared with decomposing) — an awaiting-human resume and a
-recovered worktree, which skips the agent entirely, are carry-over work rather than retries. An exhausted budget
-parks the issue as `retry_cap`, says so once, and stands until a human answers it — and that park is answered ahead
-of the drift and resume roads below it, so the only thing that lifts it is a trusted `/orchestrator continue` buying
-one more attempt, exactly as on `workflow:decomposing`. New commits on a clean
-tree are measured by the late size gate and then push the branch, open or reuse a PR, and set `workflow:validating`;
-a candidate strictly past `MAX_ADDED_LINES` is held unpublished and routed to `workflow:decomposing` instead —
-unless an exemption nothing authorized names it, which is a change already ruled one change, so it parks
-`late_unauthorized_exemption` for the operator rather than paying for a second adjudicator — and one
-that could not be measured parks rather than publishing — except a base the TRANSPORT could not reach, which is
-counted quietly for three consecutive misses on the same pair, saying nothing and spawning nothing, before the fourth
-takes that park. The park keeps the frozen pair, names the step the reading stopped at once per step, and is answered
-here by a trusted bare `/orchestrator continue`, which re-measures that exact pair and spawns no agent. So does a
-checkout that cannot name the commit it is on:
-where the gate proved none — a new candidate while `DECOMPOSE=off` — the checkout is what names the commit the push
-carries, the receipt records, and both proofs around the push compare against, so one that can name none publishes
-nothing. A dirty tree, a tree `git status` could not report on, or a no-commit reply parks; a tree that stops being
-provably clean between the measurement and the handoff refuses the publication or the handoff the same way a moved
-checkout does. Every park that gate takes is routed by one owner (`implementing/late_recovery.py`) ahead of every
-spawn and back through the same committed-work seam, because on all of them the work is committed already: the
-measurement park above, the handoff's own moved-checkout park, and a standing `late_unauthorized_exemption` — the
-park an oversized candidate takes when the exemption naming it has no operator authorization behind it, ended by a
-trusted whole-comment `/orchestrator authorize-oversized <commit>`. A
-`timed_out` run disposes on whether the run left a commit — HEAD moved past `pre_implement_sha` AND the branch is
-ahead of `<remote>/<base>`, since a head that moved onto the base was written by nobody. The park it leaves freezes
-the branch out of the pre-tick base refresh, and the next tick's silent recovery asks that same pair, so a base a
-rebase fast-forwarded the checkout to is never published as a late-landing commit. `interrupted` or a mid-run
-`paused` returns without writing pinned state. The external-merge short-circuit, the `/orchestrator continue` retry,
-and the plan-PR question the merge terminal is reached past are in
-[`state-machine/delivery-stages.md`][implementing].
-
-A no-commit run an account quota stopped is a session limit rather than a question, on whichever channel the stop
-arrived: a Claude limit notice as the final message, or an Antigravity failure record whose quota verdict its terminal
-error or CLI diagnostics settled, read without the final message and ahead of any unfinished tool step beside it.
-That holds past the run's timeout on every delivery stage -- implementing, the docs pass, a fix round, a drift resume,
-a report refresh, and the rebase stage, where it also outranks a rebase left mid-flight, as it outranks a dirty tree in
-the docs pass and a moved or dirty checkout in a report refresh, the work left where it was -- and nowhere is an
-Antigravity cancellation the quota caused read as a shutdown-sweep kill, so it is parked rather than dropped. A commit a
-quota stop left publishes only where it needs no report and stands over a tree provably clean -- implementing's own,
-timed out or not, as any incomplete run's commit there is, and a fix or a resolution on the roads that ask for none.
-Over any other tree, and on the review roads that hold a reportless commit for the report it is missing, it takes the
-session limit instead, recording the same report debt and undescribed work the missing-report park would; the docs
-pass publishes no commit a failed Antigravity run left, a quota's included (see below). Every
-stage that parks through the shared question park takes it the same way: retryable under the pinned `agent_silent`,
-reported as `agent_session_limit`, and on implementing routes keeping the failed run's `pre_implement_sha` floor, so a
-continue retry can still publish what that run committed. An Antigravity notice explains the exhausted
-account, names the reset interval the failure gave (a countdown from when the run stopped), and quotes the redacted,
-bounded diagnostics with the subprocess's exit code told apart from the orchestrator's normalized failure code -- or
-named not captured, where the timeout killed the run; either notice tells the operator to reply
-`/orchestrator continue` once the quota resets.
-
-An Antigravity quota stop also retires the developer conversation it stopped, on every stage and whether or not the run
-committed, at the one boundary every developer launch returns through: the coordinator on `implementing/execution.py`,
-deciding through `implementing/quota_retirement.py`. Each attempt -- a first spawn, an ordinary resume, a rotated or
-poisoned-session fresh spawn, and the AGY command continuation -- is asked as it returns, and the conversation its
-failure names, or the one it was launched to resume where it names none, is recorded in `dev_session_retirement` and
-unpinned through that record's guarded commit before the result is handed back. So the retirement is durable whether the
-tick's own write follows, a live pause discards it, or a commit the run left carries the issue through publication;
-neither post-run persistence pins the retired id again, and the next permitted developer run on any stage is a fresh
-conversation over the same worktree and issue context under the pinned `dev_agent` command, re-grounded on a
-conversation the bare `/orchestrator continue` that bought it is not quoted in. The quota refuses the one immediate
-continuation an unfinished AGY command earns too, whatever unfinished steps sit beside it, while an unrelated unfinished
-command keeps its continuation and a Claude stale or overflowing session its fresh retry. A Claude quota notice retires
-nothing, its conversation resuming past the reset, and neither does a shutdown-sweep kill. The retirement zeroes
-`silent_park_count` and `dev_resume_count` as every rotation does -- the quota park then counts its stop on the fresh
-streak -- and nothing else: it launches nothing, schedules no retry, spends neither the retry budget nor the lifetime
-run ledger, and leaves the human continue, pause, close, and daily retry gates where they stand in front of the next
-run. A retirement that commit will not land -- refused over a comment another writer moved, unreadable, or sent and
-never answered -- holds the tick as a live pause does: its state is withheld from the whole-state writer, so nothing is
-disposed and nothing goes out over the other writer's move, and every developer launch on the issue after it is refused
-with the run circuit's own answer, uncharged, until a later reading lands the retirement -- ahead of a resume's plan, so
-the resume it lands under opens a fresh conversation. A tick whose own attempt could not land it launches nothing for
-the rest of it, even once a later attempt in that tick lands it, since its withheld state could record nothing a launch
-led to. The owed retirement is kept on the host (`implementing/quota_record.py`), in a record beside the issue's writer
-claim, from before the launch that could owe it: every Antigravity launch arms it first, refused as an owed retirement
-refuses one where the host will not take that write, and the attempt's return settles it where no quota stopped it,
-while a quota stop resolves it to the conversation that must be retired. Each change is flushed to the host's disk, with
-the directory entries that reach it, before anything a later launch rests on goes on. So the obligation is on the host
-before the stop is known; no write that fails after it can lose it, and every other poller on that host, a restarted one
-or one after a host crash included, keeps it. An arming nothing resolved -- its poller killed mid-run, the resolution
-refused by the record before a restart, or a return no quota stopped whose settle the record refused -- says a launch
-went out and not which conversation a quota stopped, a fresh spawn's id being unknown until it returns, so it is never
-landed: like a record that will not read, it holds every later developer launch on the issue, refused uncharged, until
-the poller holding its resolution writes it, or an operator writes the retirement it owes or settles it, and a tick
-whose resume was planned over either launches nothing, whatever the record says by the launch. It never holds the
-attempt that left it: a return no quota stopped goes on to its disposition, its commit publishing, whether or not the
-record settles. A retirement that lands is settled by writing the record over in place as owing nothing, never by
-removing it, and every launch waits while it cannot be; a poller's memory of a resolution the record would not take
-gives way to whatever another poller or an operator has since resolved or settled there. So a landed record is never
-landed again over a conversation pinned after it. And once whatever was owed has landed, a launch still naming a
-conversation the tick's state records as retired is refused too. Another host sees none of it
-([operations](configuration/operations.md#running-more-than-one-poller)). The quota park the held tick owed is not
-recorded either: like any discarded tick, the next one re-derives what to do from the comment, which can be another
-fresh attempt, charged to both budgets, before a human's continue.
+The [implementing handler][implementing] runs or resumes the pinned developer in the issue worktree. Clean committed
+work passes report recording and the size gate before publication and handoff to `workflow:validating`; oversized
+work returns to decomposition. Its reference owns retry parks, quota retirement, and stranded-work recovery.
 
 ### `_handle_documenting` (label `workflow:documenting`)
 
-The single docs pass on the existing PR worktree, reached only via the final-docs handoff in `_handle_validating`'s
-approval branch. It reuses the locked dev session — there is no `documenting_agent` and no separate retry budget —
-and advances to `in_review` on either a pushed docs commit or an explicit `DOCS: NO_CHANGE` verdict, from a run that
-succeeded. A run that fell short — an unfinished tool step, an Antigravity error, interrupted, or missing terminal
-result, or an Antigravity process that exited nonzero behind a terminal that said it succeeded — parks through the
-shared question park, handed no final message, whatever it committed, whatever tool calls it completed, and whatever
-`DOCS: NO_CHANGE` it wrote: a quota as the session limit, an unfinished step as an execution failure, the rest as a
-silent exit, with no `docs_verdict` stamped and its commit left on the branch unpublished. The
-`/orchestrator continue` that answers it reruns the full docs prompt over that worktree and the issue's thread, in a
-fresh conversation where the quota retired the old one, under the pinned `dev_agent` command and the issue's one
-lifetime run ledger, and only a pass that succeeds publishes the commit and advances. An Antigravity `CANCELED` or
-`INTERRUPTED` terminal is such a failure here unless an OS signal killed the process. Every Antigravity docs launch
-first lands `docs_launched_sha`, alone, and is not made without it; it stands until the outcome is recorded or proved
-not to need it, so a pass that fell short under a live pause, a tick a refused quota retirement withheld, or a poller
-that died mid-run leaves it, and the next tick takes that park rather than publish or rerun anything unasked — the
-pre-tick base refresh holding the branch still while it stands, so nothing is rebased or pushed ahead of it. Under
-`PR_REF_IN_SUBJECT` that docs commit goes out with its subject ending in exactly one ` (#N)`, naming the pull request:
-before the size gate it is replaced by a commit bound to the one the pass made — same author, tree, and body — so the
-gate, a hold, the push, and the recorded SHAs all name the replacement. Both this issue's number and the request's are
-handed to the shared normalization, so a subject the agent left carrying the issue's own reference — alone, or beside
-one an earlier publication appended — sheds it, while a subject that already reads as the normalization would write it
-is published as it is. Drift
-during the hop unwinds the worktree and relabels back to `workflow:validating` without spawning. Past the terminal
-checks -- a merged or closed pull request finalizes first -- and ahead of drift and the docs pass, the tick hands the
-issue back to `workflow:validating`, writing nothing, where the comment still carries a squash handoff
-record or a waiting reviewer verdict: the approval that moved the label retires both of its own, so one standing here
-is that approval's cleanup write having failed or another road's written during the relabel, and only `validating`
-answers either -- its recovery re-checks the approval over the head a handoff names, and a verdict holds the label
-there. So does an approval that no longer covers the current developer report -- as recorded, or as it reads at
-its location -- or whose evidence no longer stands, since no record stands over what moves once its handoff record is
-ended, and an edit in place moves no record at all. Full flow:
-[`state-machine/delivery-stages.md`][documenting].
+The [documenting handler][documenting] resumes the developer for the final documentation pass after approval. It
+publishes eligible docs work, records the head-specific completion, and hands the pull request to `in_review`;
+changed requirements or a rewritten head can require validation again.
 
 ### `_handle_validating` (label `workflow:validating`)
 
-Spawns a **fresh** reviewer every round (so a `REVIEW_AGENT` flip takes effect on the next tick) with a read-only
-prompt that must end in `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`. An approval runs the local verify gate,
-then `SQUASH_ON_APPROVAL`, then hands off to `workflow:documenting`; `CHANGES_REQUESTED` flips to `workflow:fixing`
-**before** the dev spawn, and flips back before the round's report is bound; a flip back that never lands is
-finished by `workflow:fixing`'s recovery on the settled-round mark the round's record carries. `MAX_REVIEW_ROUNDS`
-parks with the `/orchestrator add-review-rounds N` escape hatch. No reviewer spawns while a developer report this
-issue recorded is still owed to the pull request. A reviewer that times out or crashes parks for the next quiet tick
-to retry. A Codex reviewer whose last turn failed on the account's usage limit is recognized ahead of any VERDICT
-parse and parks `reviewer_usage_limit` with the round, pull request, and worktree kept; its notice names the limit and
-the reset the provider gave, and only a trusted `/orchestrator continue` buys the fresh reviewer that answers it.
-
-Each reviewer is handed the developer report the pull request carries, re-read where it settled and quoted whole in its
-prompt. A report that is missing, moved, edited, cut short, untrusted, out of step with its settlement, or stale against
-the head or the requirements parks `report_undeliverable` for the developer instead, and one nobody could read holds the
-tick. What the reviewer was handed — pull request, head, requirements, and report — is committed to `review_subject`
-before the spawn (no reviewer spawns where that commit does not land) and again to `review_returned_subject` once that
-reviewer returns (a launch the run budget refuses leaves only the first), and an approval's subject to
-`review_approved_subject` once the verify gate has passed and the approval comment is posted, retiring the head-keyed
-docs verdict and ready ping an earlier approval left. That approval is acted on only while its subject still stands:
-rechecked as the reviewer returns, after verification, behind the approval comment, and before the squash tail or a
-settled squash handoff moves the label, so a new report on an unchanged head always reaches a fresh reviewer. A failed
-verify gate or squash on that road parks only over that subject still standing (both filed in
-`stages/validating/review_parks.py`); a failure over work nobody reviewed parks nobody, and the next tick answers the
-subject as it stands. Every write that road makes is a guarded commit (`stages/validating/squash_writes.py`), and the
-handoff ahead of the relabel records the commit the move is owed over for every approval, so a relabel that fails, or
-that write landing with its response lost, is the next tick's to move with no second reviewer.
-
-A squash this issue began and did not finish is answered ahead of all of that, behind only the terminals and ahead of
-every route that could point an agent at the branch: a branch mid-rewrite is not one a reviewer or a body-edit resume
-may be run over, and a collapse the remote already carries would otherwise never get the notice, the watermarks, and
-the relabel its handoff owes. An issue with nothing recorded costs one lookup on the pinned comment. Full
-flow: [`state-machine/delivery-stages.md`][validating].
+The [validating handler][validating] obtains a current developer report and spawns a fresh reviewer over that subject.
+Approval with passing verification proceeds through the optional squash to documenting; a change request enters
+fixing. The handler reference owns review budgets, evidence settlement, and approval recovery.
 
 ### The size gate on a published pull request (every push onto an open PR)
 
-Ten pushes reach a pull request the remote already carries — the shared dev-fix publication, the fixing handler's
-no-feedback bounce, the two validating recoveries, the three conflict publications (agent-resolved, clean rebase, and
-recovered commits), the base sync's own auto-rebase and crash recovery, the final docs pass, and the squash on
-approval — and the same late size gate stands in front of every one of them, through one call that measures, pushes,
-and spends the debt the push pays. What it measures is what the pull request would **come to** — three-dot from the
-base the remote names to the candidate, so the whole pull request rather than the diff this one push adds — and a
-candidate strictly past `MAX_ADDED_LINES` is held off the branch and routed to `workflow:decomposing` from whichever
-of `workflow:validating` / `workflow:documenting` / `in_review` / `workflow:fixing` / `workflow:resolving_conflict`
-that push was reached under. The commit an adjudication accepted skips the reading only where an operator's
-`late_override_*` authorization names it too and the contribution between the pair that record names still
-fingerprints to what it says: an exemption is an agent's verdict, so on its own it is half a bypass, and a commit
-only it names is measured like any other. The one thing such a commit still buys is the bookkeeping behind a
-publication that has already happened — a pull request this call froze and found standing on that exact commit
-finishes its relabel, receipt and debt, since the push would move nothing and holding it back would strand published
-work under a stage no later tick advances. The stage, the pull request, and the head it stands on are frozen into
-the record before any effect — and that pull request has to be open on the branch this publication will push, and
-have its head in this repository, since the number and the branch are two fields on one pinned comment whose two can
-disagree and a fork carries this repository's ref names over its commits; the push it allows is named against the
-measured commit and
-leased against that frozen head; a tree that is not provably clean, an unreadable or closed pull request, and a head
-that moved off the frozen one each park rather than push. A pair frozen and never counted is measured ahead of the
-handler on the next tick, by the dispatcher, on the stage the record names — and one whose checkout is not on this
-host stops the tick instead of letting the stage run over a candidate nobody read. An auto-rebase anchor still
-standing — a failed base fetch or a pull request that would not read returns before its recovery runs — holds the
-handler back the same way, on every label and on the live adjudication's own road too, unless a hard-skip stands --
-save that an anchor beside a live adjudication is first offered to it, and a pair describing one replay is handed
-over with its attempt's park, so the adjudication runs on that tick -- unless a park neither the attempt's nor the late
-domain's stands beside it, which holds the adjudication until a human replies to it. On
-a label the refresh does not drive — read-only stages and a generation still under adjudication included — nothing
-is waited on: the dispatcher answers the anchor itself on the refresh's ineligible road, a clear or the stranded
-park -- which, beside a live adjudication, asks for the record to be reconciled rather than for a label its guard
-restores -- and holds the handler until the record ends. On one it drives, a late claim the reconciliation answers — a
-frozen pair, an approved push — releases the hold, since it keeps the refresh away and nothing but the reconciliation
-ends it, and the hold is asked again once the reconciliation has run, so a claim it spends leaves the anchor holding
-the tick. Every other record and park the refresh freezes on holds: a stage's handler takes its park down on a reply
-and runs on into the agent it was holding back, and a timeout, a reading nobody could take, or a collapse mid-rewrite
-is likewise ended by a handler the hold keeps back, as is a developer report recorded and not yet settled by the
-report reconciliation behind it. So beside an anchor none of them keeps the refresh away, and the
-refresh answers the anchor under them with the recovery alone, no reply spent, leaving each for its owner. A recovery
-that takes the anchor down and lets the tick go on — an attempt that never started cleared, or a landed head the base
-advanced past again retired unrouted — has the refresh's whole selection asked again before the rebase behind it
-(`workflow/engine/base_rewrite.py`), so each of them holds that rebase as it holds an unanchored branch: a report
-recorded and not yet settled is settled on the head it is about first, and a reply the recovery did not spend is left
-for the rebase that follows. A pull
-request that merged or closed is asked for first under any park, the refresh's own included, and ends the attempt's
-whole handoff there, so the hold never outlives it. A checkout
-whose HEAD names a commit nothing can read stays held until the refresh has reset and parked it, and one that is not
-on disk is restored, so the next refresh walks it.
-Both roads that reconciliation takes end in a push, so an issue that is closed and a pull request that has merged or
-been closed are each handed back to the stage terminal ahead of it, with the generation, the receipt and the debt left
-exactly as they stand. Work that
-ends *after* the gate has read it — a close a poll latched, or a pull request somebody merged or closed in the window
-behind the entry freeze, whose branch is still at the head this tick froze so the lease would succeed — is refused
-immediately before the push itself; the initial publication and the push a settled adjudication makes from
-`workflow:decomposing` each carry the same barrier, and the second needs it most, since it reaches the transport
-directly and its pull request was last read several steps back. That same reading is what a measurement park here is
-retried by: it retakes the parked pair once a poll and asks nobody first, so a transport that comes back settles the
-park without the human it mentioned ever replying, and each of those readings is held silently while it goes on
-stopping at the step the standing notice named. Full flow: [`state-machine/delivery-stages.md`][published-gate].
-
-Three of those pushes are REWRITES of the commit an adjudication accepted, and each may carry that exemption onto the
-commit it produced instead of being measured: the squash on approval, the base refresh's clean rebase, and the clean
-replay `workflow:resolving_conflict` runs — each only by the owner that ran it, over two canonical fingerprints that
-agree. `late_exempt_sha` stays the exact commit a publication is matched against, the semantic identity beside it is
-what a rewrite is proved against, and the rotation between them is a permission written before the push and settled
-by the receipt of the landed push in one write, reported by one `late_transfer` record and no second verdict. A
-descendant, a fix, the docs pass, a conflict resolution, and a heuristic match earn nothing and are measured afresh:
-[`state-machine/labels-and-state.md#exemption-identity-and-rotation`](state-machine/labels-and-state.md#exemption-identity-and-rotation).
+Every publication onto an existing pull request gates the cumulative candidate against the remote base before a
+named, leased push. Oversized work is held for adjudication; only proven, authorized rewrites may carry an existing
+exemption. The [published-candidate gate][published-gate] owns the publication paths, barriers, and recovery.
 
 ### `_handle_in_review` (label `in_review`)
 
-A PR is open and humans drive the merge — the orchestrator never merges from here, so any `merged` state it observes
-was produced externally. Behind the terminals, an issue whose approval no longer covers its work goes straight back
-to `workflow:validating`, since only that stage binds the report and re-reviews: one a requirements edit made stale —
-still owing a developer report one of its fix rounds recorded, carrying the marker a hand-back whose relabel did not
-land leaves, or approved against requirements other than the drift baseline holds — and one whose developer report
-changed on the same head, since the docs verdict and the ready ping are keyed on the head alone: a later revision
-recorded as current, the approved one edited or removed at its location, or a current report its settlement handoff
-no longer describes. The handler scans four feedback surfaces over three id namespaces — the issue thread and the PR
-conversation share one, so each is read against its own cursors before the two merge — and routes to
-`workflow:fixing` without advancing the watermarks, falls back to the drift check, and otherwise posts the one-shot
-`:bell:` HITL ping when the head is mergeable, docs-complete or GitHub-approved, and carries no standing human
-CHANGES_REQUESTED — and only while the approval, read again at the ping itself, still covers the report, the
-requirements, and the head standing then. Full flow: [`state-machine/delivery-stages.md`][in-review].
+The [in-review handler][in-review] observes external merge or close decisions, routes unread human feedback to fixing,
+and returns stale approvals to validation. A ready, currently approved head gets a one-time human ping; the
+orchestrator does not merge it.
 
 ### `_handle_fixing` (label `workflow:fixing`)
 
-The dev fix loop, entered from `in_review` on unread feedback or from `workflow:validating` on a `CHANGES_REQUESTED`
-verdict — `pending_fix_at` is the route discriminator that decides whether a pushed fix resets `review_round` or bumps
-it. It owns the `IN_REVIEW_DEBOUNCE_SECONDS` quiet window, the `/orchestrator continue` batch replay, the stranded-fix
-publish — held, rather than bounced past, where nothing could place the branch against its pull request, which is the
-one park on this stage waiting on a reading a later poll may simply get — the in_review-route ACK fast path, the
-recovery that finishes a round whose report is recorded and whose process died before it was handed on — the relabel of
-a hand-back whose write landed included, taken again while no reviewer has returned over that round's report — and the
-worktree-drift dead-lock breaker that hands a stuck validating-route park to `workflow:resolving_conflict`, which a
-reading that refused never reaches. It also settles what each round delivered, per surface and against the reader that
-owns it, which is why this stage writes `last_action_comment_id` for its issue-thread half as well as the in_review
-watermarks for the pull request's three — a round that finished on a report settles them from the record of that report
-instead, when it lands. Its resume answers the same developer report contract the `CHANGES_REQUESTED` round ahead of it
-answers: a commit publishes under the report of it, a report needing no commit reaches the pull request on the head the
-branch and its publication receipt are proved to agree on, and either handover spends the route's one fix round and
-hands the issue back to `workflow:validating`, where the reviewer waits for the report — the round a report alone buys
-being the settlement's to write, since a handover nothing confirmed has bought none. Full flow:
-[`state-machine/delivery-stages.md`][fixing].
+The [fixing handler][fixing] resumes the developer for reviewer or human feedback, honoring the human-feedback quiet
+window and delivery watermarks. Published fixes and report-only rounds return to validation; its reference owns
+round accounting, recovery, and conflict routing.
 
 ### `_handle_resolving_conflict` (label `workflow:resolving_conflict`)
 
-Rebases the PR branch onto `<remote>/<base>` under a hardened git envelope and force-with-lease pushes the result,
-flipping back to `workflow:validating` with `review_round=0` and `conflict_round` bumped — reached from an operator
-relabel, from the base refresh when a rebase actually conflicts, or from `_handle_fixing`'s dead-lock breaker. A
-conflicted rebase resumes the dev; a diverged branch parks unless the worktree is a recognizably orchestrator-produced
-unpushed rebase, or one this stage's own replay record accounts for. Every push that rewrites the head — a clean
-rebase, a resolution, a recovered push — records `developer_report_rewrite_debt` off the code-publication receipt
-before the relabel, so `workflow:validating` obtains a report of the new head before any reviewer runs; a no-op rebase
-records none. A body edit mid-rebase resumes the dev on the edited issue and is held to the developer report
-contract: the report that session returns is recorded before its push, published once for the head it leaves — or
-for the head the pull request already carries, where it committed nothing — and settled before review. The
-publication goes down beside that report, so a developer's own rebase a crash cut short, or a reply finishing it,
-is force-published without a final-docs pass vouching for the head; a report still unsettled is settled before
-any rebase rewrites the head it is about; and a pushed round is counted ahead of its relabel, so a move that never
-landed is made by the next tick without counting the round twice.
-`MAX_CONFLICT_ROUNDS` caps it. Full flow: [`state-machine/delivery-stages.md`][resolving-conflict].
+The [conflict handler][resolving-conflict] rebases the pull request branch, resumes the developer where conflicts need
+resolution, and publishes with a lease before returning to validation. Rewritten heads owe a fresh developer report;
+the handler reference defines replay evidence, recovery, and conflict-round limits.
 
 ### `_handle_question` (label `question`)
 
-The operator-applied read-only Q&A label: the decomposer's backend answers in the per-issue worktree under its own
-`question_agent` / `question_session_id` pin, posts the answer pinging `HITL_HANDLE`, and parks. No PR is opened and
-no branch is pushed. Commits, a dirty tree, or a timeout park with the worktree **kept** for inspection; closing the
-issue flips it to `done`. Per-`park_reason` semantics and the relabel guard are in
-[`state-machine/conversation-stages.md`][question].
+The [question handler][question] runs read-only Q&A with a separately pinned decomposer session, posts each answer,
+and waits for a trusted reply. It opens no pull request; closing the issue ends the conversation as `done`.
 
 ### `_handle_discussion` (label `discussion`)
 
-The operator-applied architecture discussion: the decomposer explores the design as a tree and closes each round with
-a numbered frontier, parking until a trusted human reply resumes the same session. Once a human confirms the shared
-understanding the agent may commit `plans/issue-<number>.md` alone, and the stage publishes that one file as a plan
-PR whose verdict ends the issue — merged is `done`, closed unmerged is `rejected`. The `issue-N` checkout is
-preserved on every round exit. The publication checks, the crash-recovery records, every `discussion_*` park, and the
-read-only guard screening a relabel to `workflow:implementing` are in
-[`state-machine/conversation-stages.md`][discussion].
+The [discussion handler][discussion] explores a design with humans. After confirmation it may publish only
+`plans/issue-<number>.md` as a plan pull request; merging or closing that pull request determines the terminal label.
 
 ## State transition (label lifecycle)
 
-The compact reference diagram for every arc above — the forward spine, the decompose branch, the validating fix loop,
-the `in_review` and `workflow:fixing` terminals, the conflict rounds, the family walks, both conversation stages, and
-the shared awaiting-human park — is in [`state-machine/lifecycle.md`](state-machine/lifecycle.md).
+The [lifecycle diagram](state-machine/lifecycle.md) shows the forward route, family branches, review loop, conflicts,
+conversation endings, and human-wait behavior.
 
 [typed-states]: state-machine/labels-and-state.md#typed-states-and-the-transition-guard
 [legacy-labels]: state-machine/labels-and-state.md#legacy-labels-and-the-migration-off-them

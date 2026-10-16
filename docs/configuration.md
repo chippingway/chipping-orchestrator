@@ -12,8 +12,8 @@ first run needs, for one repository or several ([basic setup](#basic-setup)).
 illustrative examples for opt-in settings, then the orchestrator-developer settings in a section of their own. Both
 ship inside the package, under `orchestrator/service/`, so every installation carries the pair written for its own
 version; [`../tests/repository/test_env_templates.py`](../tests/repository/test_env_templates.py) holds that split and
-parses every `REPOS` value the basic template writes. This page and the two beside it are the source of truth — every
-setting and every default lives on one of them, and both `.env.example*` files keep their inline comments terse and
+parses every `REPOS` value the basic template writes. This page and its companion references are the source of truth —
+every setting and default lives on one of them, and both `.env.example*` files keep their inline comments terse and
 link back for the full rationale.
 
 The orchestrator keeps no configuration state of its own: every setting here selects backends and budgets at startup,
@@ -21,7 +21,7 @@ or names files/paths outside the repo. Per-issue state lives in the issue's pinn
 one host-local quota retirement record an Antigravity developer launch arms
 ([operations](configuration/operations.md#running-more-than-one-poller)).
 
-Two companion pages carry what is read on its own rather than scanned for a value:
+Companion pages carry focused settings and operational procedures:
 
 - [`configuration/observability.md`](configuration/observability.md) — the sink paths and retention windows, the
   analytics database URL, skill-trigger tracking, the dashboard read mode, and the dashboard quickstart.
@@ -197,24 +197,13 @@ error.
 
 ## Package installation, upgrades, and rollback
 
-Install the published PyPI package with `pipx install chipping-orchestrator`. For unconstrained, unpinned installs,
-upgrade with `pipx upgrade chipping-orchestrator` after stopping the poller and reviewing release notes. Confirm the
-installed version matches the reviewed release before restarting. Constrained installs upgrade by repeating the
-[pinned procedure](configuration/operations.md#pin-a-release-and-runtime-dependencies) with the new release's
-constraints. The [operator instructions](configuration/operations.md#package-installation-upgrades-and-rollback) cover
-saving the templates the installed version carries, checks, backups, upgrades, rollback, optional runtime constraints,
-and migration from v0.13.0's dedicated venv. Installed packages use `~/.config/chipping-orchestrator/.env` and the
-explicit `REPOS` targets above. Review release notes and compare both versions' templates before changing settings:
-local overrides, changed defaults, and validation rules can affect both the upgrade and a later rollback. Package
-changes are initiated by the operator.
+Install the published package with pipx. The [package runbook][package-operations] owns installation, version checks,
+templates, constraints, upgrades, and rollback. Installed packages read `~/.config/chipping-orchestrator/.env` and
+require explicit `REPOS` targets.
 
-Upgrading past v0.13.0 moves the poller from the bare `chipping-orchestrator` command to `chipping-orchestrator run`:
-the bare command prints help and exits 0, so a launch line, script, or hand-written unit's `ExecStart` that runs it
-needs `run` appended before the upgraded package starts. The
-[upgrade warning](configuration/operations.md#upgrade-a-package) covers the unit and a rollback.
-
-The [v0.13.0 upgrade notes](release-timeline.md#v0130) cover the required author allowlist, installed targets,
-Poetry migration, worktree paths, and the report and verification contracts when upgrading from v0.12.0.
+When upgrading past v0.13.0, change poller launch lines to `chipping-orchestrator run`: the bare command prints help
+and exits. The [upgrade procedure](configuration/operations.md#upgrade-a-package) covers service migration; the
+[v0.13.0 notes](release-timeline.md#v0130) cover changes from v0.12.0.
 
 ## Required
 
@@ -1127,39 +1116,15 @@ and optional dashboard dependencies; setup and launch commands are in the
 
 ## Continuous integration
 
-[`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs `ruff check orchestrator tests`,
-`flake8 orchestrator tests --select=WPS`, pytest with an informational missing-line coverage report, `poetry build`,
-and, from the wheel and sdist in fresh environments with their declared runtime dependencies, a launch of
-`chipping-orchestrator --help` and a read of both packaged `.env` templates, as separate mandatory steps for every
-push to `main` and every pull request. The whole set
-runs on Python 3.12, 3.13, and 3.14 — the versions a run proves, out of the
-open-ended range `requires-python = ">=3.12"` admits — under a 20-minute job timeout. A second push to a pull request
-cancels the run its earlier push started, while a run on `main` is cancelled by nothing, queued or started. Dependabot
-opens weekly `workflow:dependencies` update PRs. The coverage report has no minimum threshold.
-[`../.github/workflows/vulnerability-scan.yml`](../.github/workflows/vulnerability-scan.yml) adds the standing half of
-dependency scanning: on a weekly `schedule` and on `workflow_dispatch` it audits every version pinned in
-[`../poetry.lock`](../poetry.lock) — not what a PR changes — and fails when a published advisory names one.
-[`../.github/workflows/scorecard.yml`](../.github/workflows/scorecard.yml) grades the repo's supply-chain posture with
-OpenSSF Scorecard weekly, on every push to `main`, and on demand, publishing the results the README badge and the
-public viewer read and uploading the SARIF to code scanning.
-[`../.github/workflows/codeql.yml`](../.github/workflows/codeql.yml) analyzes the Python source on pushes to `main`,
-pull requests targeting `main`, and a weekly schedule, then uploads the results to code scanning. Every `uses:` in
-every workflow names a full commit SHA with its release in a trailing comment, and Dependabot's `github-actions`
-updates rewrite that pair. The lint contract the Ruff run enforces — its own defaults plus `E501`, with no baseline
-of this repo's own — the per-file lint scopes, the repository-wide 120-column target, workflow token permissions, the
-rules an inline `# noqa` may name, the order imports are sorted into, the commit-SHA pins, the job timeouts, the
-run-cancellation rule, the three interpreters, the packaging smoke checks, the dependency review, and how the scheduled
-scans work are in
-[`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration).
+CI checks lint, tests, packaging, and installation on Python 3.12, 3.13, and 3.14. Separate workflows review
+dependencies, scan vulnerabilities and source, and publish supply-chain results. The
+[CI reference](configuration/operations.md#continuous-integration) owns triggers, required jobs, permissions, pins,
+and tooling policy; [required checks](security.md#required-checks) owns branch-protection setup.
 
 ## Publishing the documentation
 
-[`../mkdocs.yml`](../mkdocs.yml) builds this reference set into a static site at
-<https://chippingway.github.io/chipping-orchestrator/>. The optional `docs` dependency group provides MkDocs, and
-[`../.github/workflows/docs.yml`](../.github/workflows/docs.yml) checks every pull request and deploys updates from
-`main` to GitHub Pages. Local preview commands, the link and anchor rules, the `description` front matter a page
-summarizes itself with, and the one-time repository settings are in
-[`configuration/operations.md#publishing-the-documentation`](configuration/operations.md#publishing-the-documentation).
+The [publishing runbook](configuration/operations.md#publishing-the-documentation) owns the MkDocs site, local preview
+and strict build commands, navigation, page descriptions, and GitHub Pages setup.
 
 ## Run modes
 
@@ -1179,41 +1144,10 @@ optional groups, and environment isolation requirements are in the
 
 ## Running under systemd (user service)
 
-For persistent operation, run the installed package as a systemd **user** service. With `.env` and the token files
-written, `chipping-orchestrator init` runs the full [`check`](#checking-a-setup), writes
-`~/.config/systemd/user/chipping-orchestrator.service` for the interpreter it runs under and the absolute entries of
-its shell's `PATH`, and runs `systemctl --user daemon-reload` and `enable` without starting the service. It enables
-linger where `loginctl` does not report it, which boot-time start requires, and where logind refuses names the
-`sudo loginctl enable-linger <user>` that does it. Running `init` again rewrites only the unit, leaving `.env` and the
-tokens as they are, and says to restart a running service. Where no `.env` exists, at a terminal it first asks for the
-setup and writes it once the last answer confirms it
-([onboarding](configuration/operations.md#onboarding-with-init)); without a terminal it refuses, naming `set-token`
-and `configure`. It also refuses a source checkout, a host whose user manager cannot be reached, and the hand-written
-`~/.config/systemd/user/orchestrator.service` that releases up to v0.13.0 documented, which has to be stopped,
-disabled, and deleted first.
-
-From then on the service is managed by command, none of which loads the configuration in its own process:
-
-- `chipping-orchestrator start` and `restart` run the local [`check`](#checking-a-setup) in the environment and the
-  working directory the service would get -- what the unit and its drop-ins set over what the user manager's
-  `ManagerEnvironment=`, `DefaultEnvironment=`, and `environment.d` hand every service, a `HOME` among them -- read
-  off the files as systemd assembles them, and
-  while it finds a problem print it and ask systemd nothing, so a running service keeps running and no GitHub outage
-  can block them. A drop-in whose environment only systemd could resolve, such as an `EnvironmentFile=`, is refused
-  the same way. Unlike `check` and `init`, they accept a `GITHUB_TOKEN` an `Environment=` line sets, since the
-  service takes it. Then they have the user manager reload its units, so it launches the definition just checked, and
-  start or restart the service, watch it for 5 seconds, ending within 7 whatever the manager's answers take, and
-  report it active, or print what it is now with the last lines of its journal and exit 1.
-- `chipping-orchestrator stop` stops it, leaving it enabled for the next time the user manager starts.
-- `chipping-orchestrator status` prints the package version, the `.env`, and the unit before
-  `systemctl --user status --no-pager`, and exits with that command's status.
-- `chipping-orchestrator remove` stops and disables the service, deletes its unit, reloads the manager, and clears
-  a remembered failure. It keeps `.env`, the token files, the logs, the worktrees, and linger, and with no unit
-  installed does nothing.
-
-The unit, each refusal, linger, the migration from the hand-written unit, what each command prints and refuses, and the
-journal are in
-[`configuration/operations.md#running-under-systemd-user-service`](configuration/operations.md#running-under-systemd-user-service).
+`chipping-orchestrator init` checks an installed setup, writes the systemd user unit, and enables it without starting
+it. `start`, `stop`, `restart`, `status`, and `remove` manage that service. At a terminal, `init` can collect a missing
+setup first. The [service runbook](configuration/operations.md#running-under-systemd-user-service) owns onboarding,
+unit contents, launch checks, linger, migration, command results, and removal.
 
 ## Applying `.env` changes
 
@@ -1232,29 +1166,11 @@ launch whose poller dies before its record is settled, and the agent spec pinned
 
 ## Control labels
 
-- `backlog` — Apply to an issue (typically at creation) to keep the orchestrator from picking it up. The dispatcher
-  skips the issue entirely while the label is present; remove the label to release the issue for processing.
-- `paused` — Same hard skip as `backlog`, but intended for an already in-flight issue: apply it to freeze processing
-  (no handler runs, no worktree is rebased, no PR-stage relabel) without discarding the issue's state, and remove it
-  to resume where it left off. Removing the label is the whole resume action, honored on the next poll; there is no
-  un-pause command, and `/orchestrator continue` is unrelated — it retries a specific `awaiting_human` session-failure
-  park (`agent_silent` / `agent_timeout` / `agent_execution_failed`) across the dev stages (`implementing`,
-  `documenting`, `validating`, `fixing`, `resolving_conflict`), and renews a spent spawn budget on a
-  `retry_cap`-parked `workflow:decomposing` or `workflow:implementing` issue, but never a `paused` hold. Applying
-  `paused` while a developer agent is mid-run also takes effect: every stage that resumes a dev agent (`implementing`,
-  `validating`, `documenting`, `in_review`, `fixing`, `resolving_conflict`) re-reads the label after the run returns,
-  before any post-agent side effect, and discards the result rather than pushing, opening a PR, relabeling,
-  advancing watermarks, or posting comments, so the committed work stays on the branch and republishes once the label
-  is removed. The two conversation stages honor it on the same terms: a `paused` that lands while a `question` or
-  `discussion` round is running suppresses every disposition below it, so nothing is posted, parked, folded into the
-  usage counters, or written to pinned state. A discussion round that had just committed the confirmed plan keeps that
-  commit on its branch and has it published by the tick after the label comes off, classified against the round anchor
-  the stage wrote before the spawn.
-- `workflow:community_contribution` — Applied automatically (not by an operator) by the per-tick open-PR sweep: any
-  open PR whose author is outside `ALLOWED_ISSUE_AUTHORS` is labeled and `HITL_HANDLE` is @-mentioned once per PR so a
-  human reviews the community-submitted work. Bot authors (Dependabot, Renovate, CI bots) are skipped. It carries the
-  `workflow:` prefix — unlike the two controls above — because the orchestrator writes it itself; a PR still carrying
-  the pre-namespace spelling counts as already labeled, so the migration cannot cost it a second HITL ping.
+`backlog` defers pickup and `paused` freezes in-flight processing; removing either releases that hold on the next poll.
+The automatic `workflow:community_contribution` label marks external pull requests for human review. The
+[label reference](state-machine/labels-and-state.md#workflow-labels) owns their behavior, including mid-run pauses and
+the distinction between removing `paused` and answering a park with `/orchestrator continue`.
 
 [pollable-issues]: state-machine/labels-and-state.md#pollable-issues-and-finalization
 [transition-guard]: state-machine/labels-and-state.md#typed-states-and-the-transition-guard
+[package-operations]: configuration/operations.md#package-installation-upgrades-and-rollback

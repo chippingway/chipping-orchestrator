@@ -898,16 +898,21 @@ because there it is the claim that this stage has already rerouted rather than a
   post or an unreadable thread left owed would otherwise stay owed for good), logs the hold once per dispatch,
   records a `standing` phase on the `agent_run_limit` event stream, and returns before the label's handler is
   reached. A park already explained says nothing more, however many dispatches meet it.
-- **Work that has ENDED steps past it**, on the grounds the hold is a question rather than a filter: what an ending
-  reaches below is a terminal that finishes the issue rather than a road that spends anything on it, and the park is
-  permanent — a lifetime total buys no clock — so an ending this hold refuses is one nothing else reaches. Two facts
-  say so and the free one is asked first. A closed ISSUE the object in hand already shows (the poll's own reading
-  counts beside it). The PULL REQUEST the record names is the half it cannot: a merge leaves the issue open until a
-  stage terminal reads it, and a close nobody merged leaves it open for good, so `implementing`, `validating` and
-  `documenting` — which drain both endings at handler entry — would never get to. That reading costs a request per
-  parked issue per dispatch and fails *open*: a remote that would not answer leaves the hold where it was.
-  Nothing it lets through can spend a run either: the circuit every launch goes through reads the same ledger and
-  refuses on it, so what a lifted hold buys is the terminal and nothing else.
+- **The one exemption is work that has ENDED**, and it covers two facts rather than one. What an ending reaches
+  below is a terminal — the merged, rejected, and human-closed finalizers, and the cleanup sweep that settles a
+  generation ledger — and each of those ENDS the issue rather than spending anything on it, so refusing them would
+  leave a spent issue permanently mid-ending: a pull request nothing finalizes, a receipt nobody posts, a ledger no
+  sweep settles. A closed ISSUE is the free half, and the poll's own closed reading counts beside the object's, since
+  an issue closed when it was enumerated is one the tick was routed on the strength of. The recorded PULL REQUEST
+  having merged or closed is the half the issue's flag cannot show — read fail-*open*, and asked
+  **ahead of** the command below, since reading that command mutates and nothing a human has already decided should
+  buy runs it will never spend. What it means turns on the **label** the tick was routed on: a settled `discussion`
+  plan is carved out on `workflow:implementing`, where merging one is the agreement that licensed the build, and
+  nowhere else — `discussion` itself drains that same pull request through its own terminal.
+  That pull-request read costs one request per parked dispatch; a failed read leaves the hold standing. The run
+  circuit still refuses any attempted launch against the spent ledger, so passing the hold licenses terminal work
+  only.
+
 - **The one thing that lifts it** is a trusted `/orchestrator add-agent-runs N` (`workflow/engine/run_grant.py`, over
   the request `workflow/engine/run_grant_request.py` reads out of the thread for it), read off the unread thread of an
   OPEN issue once the park's own sentence has been said, and nowhere else — the ended-work exemption above is asked
@@ -925,18 +930,6 @@ because there it is the claim that this stage has already rerouted rather than a
   request earns one marker-scoped receipt and a `refused` phase under a park that still stands, and an untrusted one
   is answered with nothing at all. The fields, the markers, and the ordering are in
   [`labels-and-state.md`](labels-and-state.md#pinned-state).
-- **The one exemption is work that has ENDED**, and it covers two facts rather than one. What an ending reaches
-  below is a terminal — the merged, rejected, and human-closed finalizers, and the cleanup sweep that settles a
-  generation ledger — and each of those ENDS the issue rather than spending anything on it, so refusing them would
-  leave a spent issue permanently mid-ending: a pull request nothing finalizes, a receipt nobody posts, a ledger no
-  sweep settles. A closed ISSUE is the free half, and the poll's own closed reading counts beside the object's, since
-  an issue closed when it was enumerated is one the tick was routed on the strength of. The recorded PULL REQUEST
-  having merged or closed is the half the issue's flag cannot show — described above, read fail-*open*, and asked
-  **ahead of** the command below, since reading that command mutates and nothing a human has already decided should
-  buy runs it will never spend. What it means turns on the **label** the tick was routed on: a settled `discussion`
-  plan is carved out on `workflow:implementing`, where merging one is the agreement that licensed the build, and
-  nowhere else — `discussion` itself drains that same pull request through its own terminal.
-
 ## The developer-report transaction (every dispatch)
 - **Where it sits in a report's life**: the stations every road's report passes — who writes and who publishes it,
   its identity and location, ready versus verified, the evidence, this recovery, review-subject freshness, and the
@@ -2570,7 +2563,7 @@ because there it is the claim that this stage has already rerouted rather than a
      and refuses every developer launch on the issue after it -- uncharged, as the run circuit refuses one -- until a
      later reading lands it. The spawn is refused the same way, before it runs, where the host will not arm the quota
      retirement record it would owe a stop from, or where that record names no retirement a poller can land
-     ([the record](../state-machine.md#_handle_implementing-label-workflowimplementing)); the attempt that leaves an
+     ([the retirement record](labels-and-state.md#pinned-state)); the attempt that leaves an
      arming unsettled is never held by it, its disposition and publication going on.
   6. Branch on result:
      - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing

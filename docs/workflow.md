@@ -12,41 +12,18 @@ behavior belong to [`state-machine.md`](state-machine.md).
 
 ## The pages in this area
 
-- [`workflow/roles.md`](workflow/roles.md) — the three roles and the stages that spawn each one, where a handler and
-  its spawn live, the session-reuse rules per role, the lifetime agent-run ledger every role spends from and the
-  counters that reset without returning a run, the size gate every clean committed candidate passes before it is
-  published and what its number earns — the exact commit an authorized settlement exempts included, and the proven
-  workflow rewrites that exemption may rotate onto — what the late adjudication of an oversized committed candidate is
-  asked and may answer, the owner read a finished run passes before anything acts on it and what each verdict earns
-  past it, the order a cleared `split` runs its snapshot, children, supersession, and cleanup in, what a human's edit
-  or answer changes while that candidate is frozen, and the local verify gate that is a stage step rather than a
-  role.
-- [`workflow/conversations.md`](workflow/conversations.md) — the two operator-applied conversation labels: what the
-  `question` and `discussion` prompts grant and forbid, what a round may leave behind, the plan PR a confirmed design
-  earns, the tracked-repository awareness block the working-agent prompts carry, the report contract every
-  developer prompt teaches with the reader of its outcomes, the verification contract every reviewer prompt teaches
-  with what its declaration earns and the entry each failure it reports takes, and the shared foreground execution
-  guidance for asynchronous commands.
-- [`workflow/command-specs.md`](workflow/command-specs.md) — the spec grammar, backend selection and `CODEX_BIN` /
-  `CLAUDE_BIN` / `AGY_BIN`, worked examples, and what pinning a spec buys.
+- [Agent roles and sessions](workflow/roles.md) defines role permissions, session lifecycles, size-gate adjudication,
+  and late-split decisions.
+- [Conversations and prompt contracts](workflow/conversations.md) defines question and discussion prompts, repository
+  awareness, commit subjects, developer reports, reviewer evidence, and foreground execution.
+- [Command specs](workflow/command-specs.md) defines backend selection, CLI arguments, examples, and session pins.
 
-For the higher-level design (multi-repo dispatch, push hardening, agent subprocess shape), see
-[`architecture.md`](architecture.md). For the audit event log and analytics sink, see
-[`observability/event-streams.md`](observability/event-streams.md); for the usage parser over them, see
-[`observability/usage.md`](observability/usage.md), and for the map over every observability surface,
-[`observability.md`](observability.md). For env vars and the operator runbooks beside them, see
-[`configuration.md`](configuration.md). For the user-facing summary, see [`../README.md`](../README.md).
-
-Stage and label names are spelled apart across this area as they are in
-[`state-machine/labels-and-state.md`][workflow-labels]: a bare tag names the **stage** — the handler, the subpackage
-under `orchestrator/workflow/stages/` holding it, and the identifier a session's analytics row is attributed to —
-while `workflow:<tag>` is the **wire label** the GitHub issue carries. `in_review`, `question`, `discussion`, and the
-`done` / `rejected` terminals were never namespaced, so those read the same on both sides.
+The summaries below retain the section addresses used by existing links.
 
 ## Roles at a glance
 
-- **Decomposer** — `DECOMPOSE_AGENT` (default `claude`), spawned by the decomposing, question, and discussion stages,
-  each of which pins its own session per issue.
+- **Decomposer** — `DECOMPOSE_AGENT` (default `claude`), used for initial decomposition, late adjudication, question,
+  and discussion, each with its own session pin per issue.
 - **Implementer / dev** — `DEV_AGENT` (default `claude`), spawned by implementing and resumed by documenting,
   validating, fixing, and conflicts; locked per issue after the first spawn.
 - **Reviewer** — `REVIEW_AGENT` (default `codex`), spawned fresh by validating every round, so the current config
@@ -58,168 +35,65 @@ authenticated on the host before the orchestrator starts. Per-role detail:
 
 ## Question stage — read-only Q&A on the `question` label
 
-The `question` workflow label is operator-applied: there are no automatic transitions in or out. `_handle_question`
-runs the configured `DECOMPOSE_AGENT` backend in the issue's per-issue worktree with a read-only prompt that forbids
-modifying, committing, or pushing files, posts the answer as a comment pinging `HITL_HANDLE`, opens no PR, and resumes
-the session pinned to `question_agent` / `question_session_id` on every human reply. A read-only violation parks
-awaiting human and preserves the worktree; closing the issue flips it to `done`. Full contract:
-[`workflow/conversations.md#question-stage`](workflow/conversations.md#question-stage). Per-`park_reason` semantics:
-[`state-machine/conversation-stages.md#_handle_question-label-question`][question-handler].
+The operator-applied `question` label runs the decomposer as a read-only Q&A agent with its own pinned conversation.
+Answers go to the issue thread; it creates no pull request. The
+[question prompt](workflow/conversations.md#question-stage)
+defines the conversation contract, and the [question handler][question-handler] defines parks and cleanup.
 
 ## Discussion stage — architecture discussion on the `discussion` label
 
-The `discussion` label is operator-applied like `question` and reuses the decomposer's backend to explore a design as
-a tree, closing each round with numbered questions a human can answer or overrule by number. It is read-only in the
-same way up to one point: once a human confirms on the thread that they and the agent understand the design the same
-way, the agent may commit `plans/issue-<number>.md` alone, and the stage publishes that file as a plan pull request
-whose verdict is the issue's ending — merged is `done`, closed unmerged is `rejected`. Full contract:
-[`workflow/conversations.md#discussion-stage`](workflow/conversations.md#discussion-stage). Publication, recovery, and
-park semantics:
-[`state-machine/conversation-stages.md#_handle_discussion-label-discussion`][discussion-handler].
+The operator-applied `discussion` label explores a design through numbered questions. Human confirmation permits a
+commit of the plan file alone, which the orchestrator publishes for human review. The
+[discussion prompt](workflow/conversations.md#discussion-stage) defines that permission; the
+[discussion handler][discussion-handler] owns publication and terminal behavior.
 
 ## Tracked-repos awareness in working-agent prompts
 
-When the orchestrator drives more than one repo (`REPOS`) and `EXPOSE_TRACKED_REPOS` is on (the default), the
-reasoning-prompt builders prepend a compact, read-only awareness block naming the *other* repos this process tracks
-and where their durable checkouts are. The framing is stage-neutral, so it never widens what the surrounding prompt
-granted, and a single-repo host gets an empty string and zero added tokens. Which builders embed it and what the block
-contains:
-[`workflow/conversations.md#tracked-repository-awareness-in-working-agent-prompts`][tracked-repos]. Disclosure
-analysis: [`security.md#cross-repo-awareness-disclosure-expose_tracked_repos`][disclosure].
+With multiple repositories and `EXPOSE_TRACKED_REPOS` enabled, working-agent prompts name the other tracked checkouts
+without widening the stage's permissions. The [awareness contract][tracked-repos] defines the block and its consumers;
+the [disclosure analysis][disclosure] explains what it reveals.
 
 ## Commit-subject contract in commit-producing prompts
 
-Every prompt whose agent may author a commit subject — the initial implementation, an automated-review fix, the final
-docs pass, a requirements-drift resume, PR feedback, both discussion rounds, a late revision, the human-reply resume,
-and the bare-continue retry — teaches one subject contract: read `git log --oneline -20` and mirror whatever style
-that repository's own recent history uses, as a single short imperative line with no body and no trailer. The
-` (#N)` suffixes in that history are publication metadata rather than style, so the agent writes the descriptive
-subject alone, never copies the tracked issue's number into one, and leaves the pull request reference to the
-orchestrator, which under `PR_REF_IN_SUBJECT` (default on) ends every subject it publishes in that reference and
-takes the tracked issue's own back off the line. The conflict-resolution prompt and the
-conflict stage's bare continue carry no subject contract at all: that agent finishes an in-progress rebase and
-authors no subject. Where each prompt carries it, and why the bare developer resumes restate it:
-[`workflow/conversations.md#the-commit-subject-contract-in-commit-producing-prompts`][commit-subject].
+Commit-producing prompts ask agents to follow the target repository's recent style with one short imperative subject
+and no body or trailer. The orchestrator owns the published pull request suffix. The
+[commit-subject contract][commit-subject] defines prompt coverage and conflict-resolution exceptions.
 
 ## Developer report contract in developer prompts
 
-Every prompt a developer can finish work on — the initial implementation, an automated-review fix, a requirements-drift
-resume, PR feedback, a human-reply resume, a late revision against a human's guidance, a rewritten head's report
-refresh, the bare-continue retry, and the AGY command recovery — teaches one report contract: the developer writes the
-complete, current report, the orchestrator publishes it as routine work that needs no permission, and the prompt asks
-the developer to keep the report at or below 4,000 characters by describing the final branch state rather than repeating
-the issue, prior review rounds, every file, or every test. The report covers the final change, its rationale, and
-unresolved risks, and leaves out verification sections, command inventories, and run-result summaries; that narrows what
-the report says, not the checks the developer still runs, and a check still failing is named as a risk. The parser and
-publication path enforce neither that writing budget nor that scope: the report is published as the developer wrote it.
-A report that needs no repository change needs no commit, and finished work ends on exactly one outcome — either the
-report between `REPORT: READY` and `REPORT: END` lines or a `REPORT: VERIFIED <location> <revision>` line naming a
-report already on the pull request. The report may not contain this orchestrator's receipt prefix anywhere — not even in
-a code span, a fence, or a quotation, since receipts are found by raw text — so a receipt is described in prose. A
-report the orchestrator refuses to record publishes nothing and parks with a notice naming which refusal it was — a
-quoted receipt, the report's own length, the pinned comment's room, or another invalid record — and the reply's resume
-brings the corrected report with no new commit ([the report contract][report-contract]). A record or binding the pinned
-comment refuses instead — a comment that will not read, was replaced, or moved under what the write was decided on, or
-an edit never confirmed — stops the tick with nothing published, parked, or written and no notice, and the next tick
-decides afresh over the comment as it then stands. A fresh respawn's preamble
-restates the ownership, the report's scope, and that restriction and defers the outcome to the task below it.
-`workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and the
-initial implementation delivery is the road that acts on one: `workflow/engine/report_delivery.py` records what the
-run wrote before the size gate and the push, and `workflow/engine/report_binding.py` binds it to the repository, pull
-request, branch and commit the code reaches and publishes it there before the issue may move to
-`workflow:validating`. Every road of the fix loop on an open pull request acts on one as well -- a
-requirements-drift resume, a reviewer-requested round on either side of the park it may end on, and the
-human-feedback round `in_review` routes to `workflow:fixing`: the report is recorded before the size gate, stamped
-with the requirements revision the run was handed, bound once the code is out (or at once, for a report alone, which
-spends the round a pushed fix spends because the next reviewer reads it), and the reviewer waits until the pull
-request carries it. So does the report refresh `workflow:validating` runs for a head this orchestrator's own push
-rewrote -- a rebase, a conflict resolution, or commits an earlier tick left unpushed, and an auto-rebase replay a late
-adjudication took over, once its authorized settlement publishes it (a claimed
-`developer_report_rewrite_debt`): before any reviewer, the claim is cleared at once where a published report of that
-exact head, still intact and written against the current requirements, has already settled, and otherwise the
-developer is asked with no human reply for a fresh `REPORT: READY` report of that head, recorded and settled the same
-way, which clears it once it has -- a verification of the report the rewrite left behind pays nothing. A report of the
-approved commit this orchestrator's approval squash collapsed into the head a later rebase replaced is refreshed the
-same way, but only once the squash's own recorded lineage proves it and the report re-reads intact; it keeps naming
-the commit it was written about. Each reviewer
-is then handed the report re-read where it settled, and what it approves is
-recorded as `review_approved_subject` — pull request, head, requirements, and report — so a report that changes on
-an unchanged head goes back to a fresh reviewer rather than riding an earlier approval
-([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)).
-The additive `developer_report_*` pinned records (`workflow/engine/report_record*`,
-`report_delivery_state.py` and `report_settlement_state.py`) carry that report and the publication transaction it is
-bound into across a process that dies mid-way; `workflow/engine/report_transaction.py` reconciles an outstanding
-transaction ahead of every stage handler — proving the world it was recorded against, publishing or re-reading the
-report, and settling the record in a single guarded commit (`workflow/engine/report_settling.py`) once the issue's
-requirements read unchanged after that request, on this road and the binding's alike. The pull-request body leaves
-the run's closing message out wherever a report is owed or settled, and a reused pull request's description is never
-rewritten. Full contract:
-[`workflow/conversations.md#the-developer-report-contract-in-developer-prompts`](workflow/conversations.md#the-developer-report-contract-in-developer-prompts);
-the whole lifecycle in one place — ownership, identity and location, ready versus verified, the evidence, recovery,
-review-subject freshness, and the round each road spends:
-[`workflow/conversations.md#the-developer-report-lifecycle`](workflow/conversations.md#the-developer-report-lifecycle).
+Developers finish with a complete report of the final branch state, or verify a report already on the pull request.
+The orchestrator records and publishes it before review, binding it to the code and requirements it describes. The
+[report contract][report-contract] owns the output syntax and writing scope; the
+[report lifecycle](workflow/conversations.md#the-developer-report-lifecycle) connects delivery, recovery, and freshness.
 
 ## Reviewer verification contract in reviewer prompts
 
-Every reviewer is handed, beside the complete current developer report, the workflow verification evidence current for
-exactly its subject — quoted whole under the revision a reuse names, and never evidence about another head, report, or
-requirements revision — with the configured `VERIFY_COMMANDS` or the plain statement that none are configured. It
-closes on a declaration above its verdict: the commands it ran on the reviewed head, or the exact evidence revision it
-reused. The orchestrator publishes that evidence itself, so a reviewer with valid evidence for the current tree does not
-ask for a SHA, count, or command to be copied into the pull request; failed checks, missing verification, inaccurate
-claims, and evidence about another subject stay actionable. The verdict is persisted before its evidence is published
-or the verdict acted on, so a retry reruns no reviewer, and an approval without settled, passing evidence covering
-every configured command parks under `reviewer_unverified` rather than reaching the approval arc. Every failure a
-change request rests on gets an entry of its own under the finding it supports, opening on its name — the exact test
-ID, a descriptive scenario name for a probe, or the check that failed where no test ID names it, never an invented
-one — then the error, expected and observed behavior where the error does not explain it, a reproduction that is a
-self-contained snippet for a probe, since a stdin command such as `.venv/bin/python -` reproduces nothing alone, and
-any diagnostic the reviewer could not obtain. The entries stay in the findings, outside the declaration, which still
-names each command exactly as it ran. Full contract:
-[`workflow/conversations.md#the-reviewer-verification-contract`][reviewer-verification].
+A reviewer receives the current developer report and verification evidence for its exact subject, then declares the
+commands it ran or the evidence revision it reused. Approval needs settled, passing evidence; change requests carry
+reproducible findings. The [reviewer contract][reviewer-verification] defines both declarations and finding entries.
 
 ## Foreground execution and asynchronous command guidance
 
-Every developer and commit-producing prompt carries one shared foreground-execution note (`_FOREGROUND_ONLY_NOTE` in
-`workflow/engine/prompt_notes.py`); read-only prompts (reviewer, question, decomposition) do not carry it. Under the
-orchestrator's stateless, one-shot process execution model, an agent session terminates immediately upon responding, so
-background jobs die with the session and are never observed. For agent backends that support asynchronous tool execution
-such as Antigravity (`agy`), the note instructs the agent to use supported wait/status tools such as `manage_task` to
-wait within the current response, treat a `RUNNING` status as requiring continued polling or waiting, and avoid ending
-the response to await a notification, which terminates AGY and cancels the command. Contract details:
-[`workflow/conversations.md#foreground-execution-and-asynchronous-command-guidance`][foreground-guidance].
+Commit-producing prompts require commands to finish within the current agent response. Background jobs end with the
+agent process, so asynchronous tools must be waited on before returning. The
+[foreground-execution contract][foreground-guidance] defines prompt coverage and supported wait/status behavior.
 
 ## Examples
 
-Any of the lines below is a valid value for any of the three role env vars; the full set, including the codex quoting
-rules, is in [`workflow/command-specs.md#examples`](workflow/command-specs.md#examples).
-
-```dotenv
-DEV_AGENT=claude --model claude-opus-4-7 --effort high
-REVIEW_AGENT=codex -m gpt-5.5-codex -c 'model_reasoning_effort="high"'
-DECOMPOSE_AGENT=claude
-```
+Role values combine a backend with optional CLI arguments. The same grammar applies to all three role variables;
+[command-spec examples](workflow/command-specs.md#examples) cover model selection, effort, and quoting.
 
 ## In-flight session lock — pinned full spec until the session ends
 
-The parsed spec is persisted to pinned state as the durable identity of a **session**, and the pin is the full spec —
-backend AND args — so a mid-flight resume cannot lose the model / reasoning-effort the session was started with. The
-lock is per pin, not per issue: `dev_agent` is written on the first implementing spawn and read by every dev-side
-resume for the life of the issue, while `decomposer_agent`, `question_agent`, and `discussion_agent` are each seeded
-from `DECOMPOSE_AGENT` on their own first spawn. So a flip reaches any spawn that has no pin to read yet — including
-the first question or discussion round on an issue whose decomposing session is already locked — and never a session
-that has already pinned one. A dev conversation retired as failed (`dev_session_retirement`) keeps that pin too: the
-fresh conversation replacing it runs the same `dev_agent` command, and the retired id is never resumed again
-([session lifecycles](workflow/roles.md#session-lifecycles)).
-The reviewer is spawned fresh every round, so `REVIEW_AGENT` takes effect on the next
-validating tick. Per-role keys, the resume path, and the legacy values still honored on read:
-[`workflow/command-specs.md#in-flight-session-lock`][session-lock].
+Each conversation pins its full backend and arguments when it starts, so configuration edits do not change a resumed
+session. Developer, decomposer, question, discussion, and late-adjudication pins are independent; reviewers start fresh
+with current configuration every round. The [session-lock reference][session-lock] owns the keys and legacy reads;
+[session lifecycles](workflow/roles.md#session-lifecycles) covers replacement of retired developer conversations.
 
 [commit-subject]: workflow/conversations.md#the-commit-subject-contract-in-commit-producing-prompts
 [tracked-repos]: workflow/conversations.md#tracked-repository-awareness-in-working-agent-prompts
 [disclosure]: security.md#cross-repo-awareness-disclosure-expose_tracked_repos
 [session-lock]: workflow/command-specs.md#in-flight-session-lock
-[workflow-labels]: state-machine/labels-and-state.md#workflow-labels
 [question-handler]: state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: state-machine/conversation-stages.md#_handle_discussion-label-discussion
 [foreground-guidance]: workflow/conversations.md#foreground-execution-and-asynchronous-command-guidance

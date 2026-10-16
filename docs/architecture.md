@@ -13,17 +13,8 @@ state. The orchestrator process can restart at any time. Beside GitHub it keeps 
 Antigravity launch's quota retirement record, and -- while that record will not take a write -- the resolution its
 poller holds in memory until it does; both are covered under [Design constraints](#design-constraints).
 
-This page is the system overview: the design constraints, the top-level module map, the process model, the agent
-subprocess and the environment boundary around it, the hardened git and push path, and the schema diagram. Every
-other area keeps its heading here as a summary that names the page owning it, so a link written against this file
-still lands beside the material it pointed at. The per-package inventory under the map is in
-[`architecture/platform-modules.md`](architecture/platform-modules.md),
-[`architecture/workflow-modules.md`](architecture/workflow-modules.md), and
-[`architecture/observability-modules.md`](architecture/observability-modules.md); the label set, per-stage internals,
-what one tick reads and writes per issue, and the pinned-state schema in [`state-machine.md`](state-machine.md) and
-the pages under it; agent roles, conversation contracts, and command-spec semantics in [`workflow.md`](workflow.md)
-and the pages under it; and the observation-only sinks and the two pages over them in
-[`observability.md`](observability.md).
+This page owns the design constraints, process and agent boundaries, hardened git and push model, and system diagram.
+The sections below connect those concepts to the focused module, state-machine, agent, and observability references.
 
 ## Design constraints
 
@@ -63,204 +54,47 @@ designed around that assumption.
 
 ## Top-level layout
 
-A responsibility answers on the owner module that defines it and nowhere else — the workflow package, the whole
-analytics tree, and both Streamlit pages included — so a patch targets that module and there is no second site a mock
-could be left on. Where a leaf does resolve a name at call time it is to read a knob rather than to borrow a helper,
-off the one holder every owner that reads it resolves through. Each of those boundaries is named where its owner is
-described, on the pages named below.
+The per-package inventories own the module-level map:
 
-A bare tag — `implementing`, `fixing`, `validating` — names the *stage*: the handler and the subpackage holding it,
-mapped in [`architecture/workflow-modules.md`](architecture/workflow-modules.md). For a stage the orchestrator labels
-itself, the GitHub label an issue carries is a different string, spelled `workflow:<tag>` here and everywhere else in
-these docs. `in_review`, `question`, `discussion`, and
-the `done` / `rejected` terminals were never namespaced, so for those the two coincide; see
-[Workflow labels](#workflow-labels).
-
-The map is split by area, and each page below is where the owners of the packages it names are described:
-
-- [`architecture/platform-modules.md`](architecture/platform-modules.md) — the package root and both launch forms,
-  `runtime/`, `service/`, `config/`, `github/`, `agents/`, `scheduler/`, `git/`, and `skills/`.
-- [`architecture/workflow-modules.md`](architecture/workflow-modules.md) — `workflow/`: the state and transition
-  owners, the `engine/` owners one tick is composed of, the `late_split/` domain the late size gate is
-  defined by, and the nine stage subpackages the label dispatch routes into.
-- [`architecture/observability-modules.md`](architecture/observability-modules.md) — `observability/`: the analytics
-  sink and everything downstream of it, the usage parser, the Streamlit analytics page, and the file-backed
-  trajectory viewer, together with the two `streamlit run` targets under `apps/` that compose the pages.
-
-The rules under the map hold for the whole tree, the packages on those pages included.
+- [Platform modules](architecture/platform-modules.md): launch forms, `runtime/`, `service/`, `config/`, `github/`,
+  `agents/`, `scheduler/`, `git/`, and `skills/`.
+- [Workflow modules](architecture/workflow-modules.md): state vocabulary, dispatch, late splitting, and stage handlers.
+- [Observability modules](architecture/observability-modules.md): analytics, usage parsing, dashboards, and app targets.
 
 ```
 orchestrator/
-  __init__.py           the distribution version, published as `__version__`, without loading runtime owners
-  cli.py                `chipping-orchestrator` console-script entry point: the
-                        command line, `--version`, the `run` command that is
-                        the polling process's composition point, and the
-                        setup commands `service/` puts on it
-  __main__.py           `python -m orchestrator` launch form over `cli.main`;
-                        `run.sh` launches its `run` command
-  runtime/              the polling process's own owners: the state one run
-                        carries, the `run` command's flags, the log
-                        destinations, startup, one pass over
-                        the configured repos, the polling loop, when the
-                        finished issues' artifacts may be reclaimed, which
-                        process on the host may reclaim them and the one
-                        bounded record each candidate is reported as, the
-                        self-restart probes, and shutdown
-  service/              what an installed orchestrator carries for setting
-                        itself up and managing its service: the basic and
-                        advanced `.env` templates, shipped as package data so
-                        every install holds the pair for its own version, and
-                        their reader; the git-checkout check, the
-                        source-checkout versus installed layout with the
-                        installed paths and the refusal a source checkout
-                        gets, one validator per setup field, and the
-                        repository, remote, and branch a clone implies,
-                        written as a `REPOS` entry; the `.env` lines a setup
-                        reads and sets and the private files it writes, the
-                        `configure` command that writes an installed package's
-                        `.env` from them, the `add-repo` command that adds a
-                        further repository to its `REPOS` line in place, and
-                        the `set-token` command that keeps a repository's
-                        token, proved by a read-only GitHub call;
-                        the `check` command that judges a setup in the
-                        environment the systemd user service runs with,
-                        reading the settings in an interpreter of its own; the
-                        `init` command that installs that service's unit and
-                        enables it without starting it, through bounded
-                        `systemctl` and `loginctl` calls, after asking for a
-                        missing setup at a terminal -- the onboarding that
-                        holds each answer to its field's validator and writes
-                        nothing until the last one confirms it, then writes
-                        through the setup commands' own code; and the `start`,
-                        `stop`, `restart`, `status`, and `remove` commands
-                        that manage it, the launches checking the setup
-                        locally first in the environment and directory the
-                        service would get, read off the unit, its drop-ins,
-                        and the user manager's configuration as systemd
-                        assembles them, and showing the journal
-                        when the service does not stay up -- all of it loading
-                        no configuration in the process that runs it
-  config/               the bottom layer: the non-secret `.env` loader, the
-                        env parsers and resolver behind the settings surface,
-                        target selection holding every target to the
-                        service's git-checkout check, the worktree root's
-                        default, credential resolution and secret redaction,
-                        and the repository-config types
-  github/               the composed `GitHubClient` and the pinned durable-
-                        state model over one owner per GitHub surface: issue
-                        operations and the one walk over them a tick is served
-                        from, labels, comments, pull requests, reviews,
-                        checks, audit events, and which repository the client
-                        speaks for
-  agents/               the agent-CLI subprocess layer: shared dispatch and its
-                        result models, credential filtering, the
-                        backend-agnostic session-id walk and the Claude
-                        final-message and Codex terminal-turn parsing beside
-                        it, the provider verdicts read off that output, the
-                        process registry and the group operations every
-                        teardown spends, and one module per backend
-  scheduler/            the `IssueScheduler` every tick shares, the typed
-                        submissions it takes, the host-local writer claim
-                        one issue is dispatched under, and what a hold of it
-                        tells the pollers sharing it
-  workflow/             the state machine: the label vocabularies and the
-                        transition guard, the `engine/` owners one tick is
-                        composed of, the `late_split/` domain a late generation
-                        is recorded and reported by, and nine stage subpackages
-                        holding the twelve labelled handlers the dispatch
-                        routes into
-  git/                  local git: execution, locks, and authenticated
-                        transport, under the worktree lifecycle, the read-only
-                        inventory of the checkouts and branches it leaves --
-                        both layouts of each, widened by what the remote still
-                        carries, so an issue this host holds nothing for is
-                        still found -- the classification that says which of
-                        them a finished issue may have reclaimed and the
-                        bounded pass that spends one, re-reading every proven
-                        tip immediately before the mutation it gates and
-                        leaving whatever it did not reach for the next
-                        discovery to find, the per-tick base sync, branch
-                        publication, verify runs, the added-line measurement
-                        of a committed candidate and the digest naming which
-                        contribution it carries, and the immutable ref namespace
-                        one is preserved under when a split supersedes it
-  observability/        the four surfaces that watch a run without steering
-                        it: the analytics sink and everything downstream of
-                        it, the parser that meters one finished agent run, the
-                        Streamlit page over the operator's Postgres target,
-                        and the file-backed trajectory viewer beside it
-  apps/                 the two Streamlit pages a `streamlit run` names; the
-                        polling loop is launched at cli.py instead
-  skills/               the two skill-enumeration owners: the per-tick repo
-                        catalog and the per-run local discovery it reads its
-                        marker back off
+  __init__.py       distribution version
+  cli.py            console-script entry point and command composition
+  __main__.py       python -m orchestrator launch form
+  runtime/          polling process, shutdown, self-restart, artifact maintenance
+  service/          installed setup, packaged templates, systemd service management
+  config/           settings, target selection, credentials, and redaction
+  github/           GitHub API surfaces and pinned-state model
+  agents/           CLI backends, subprocess lifecycle, and result parsing
+  scheduler/        shared issue scheduler and host-local writer claims
+  workflow/         label state machine, tick engine, late splitting, stage handlers
+  git/              hardened transport, worktrees, base sync, publication, snapshots
+  skills/           repository skill catalog
+  observability/    recording, usage parsing, database reads, and page composition
+  apps/             Streamlit launch targets
 ```
 
-Five rules hold for the tree as a whole, each with a check under `tests/repository/` that finds its subjects on disk so
-a module added anywhere is covered the day it lands. The root is the four files above plus the eleven packages under
-them, held to that exact inventory: a module parked beside them would be importable next to the package that owns the
-responsibility, and both would answer. No module wears one of the retired domain families as a prefix. Every family is
-forbidden in the private spelling its compatibility leaves carried (`_dashboard_read_core.py`), and the families whose
-word names a domain package and nothing else — `dashboard_`, `workflow_`, `git_`, `state_machine` — in the public
-spelling as well, so `workflow_state.py` fails one level down exactly as it would at the root. A word that also names a
-responsibility *inside* a package keeps its public spelling: `charts/usage_axis.py` and `usage/trajectory_models.py`
-are owners under the family's own package rather than that family flattened out of it. Nothing is named for an
-inventory of names either — `exports.py`, `manifest.py`, `compatibility.py`, whole or as the tail of a prefixed one,
-the decomposer's output manifest excepted — and nothing carries a `.pyi` stub or a module-level `__getattr__` /
-`__dir__`: a re-export is the owner's own object bound at import, so a lookup lands on the module that defines the name
-rather than on something answering for it.
+Other repository roots hold `tests/`, `docs/`, operator-owned `analytics-db/`, and human working notes under `plans/`.
+Tests mirror the package layout. The development wrapper is `run.sh`; metadata and locked dependencies live in
+`pyproject.toml` and `poetry.lock`.
 
-Imports run one way through four layers — `config/` at the bottom, the domains that do the work above it, `workflow/`
-deciding with them, and `cli.py` / `__main__.py` / `runtime/` / `apps/` composing the lot, with `service/` beside them
-at the top. The direction is read twice, because deferring an import weakens where it lands but not whether it belongs.
-At module scope, where an import decides what a package costs to load and whether it can be loaded at all, only
-`github/` and `git/` may reach the workflow vocabulary: `state.py`, `label_reading.py`, `transitions.py`, and
-`transition_guard.py`, each named exactly. Only `config/` may reach the service's install facts, at any scope:
-`service/checkouts.py` and `service/paths.py`, the git-checkout check every target passes and the source-checkout
-versus installed layout that picks the `.env`, which a setup asks before any configuration exists and which import
-nothing beyond each other.
-Over every scope, the only other reaches
-left are declared one by one in `tests/repository/test_layering.py`: three base-sync owners posting a notice or a park
-through the workflow's comment and guard owners, deferred to a call because at module scope they would be a cycle. An
-undeclared hop fails wherever it is written, and a declared one fails if it is bound at module scope after all. The
-launch forms compose each other and are reached from nothing below them at any scope but those two install facts,
-and no import anywhere is relative, because a relative target names its module by position and no layer can be read
-off it. Most package initializers are markers that import and bind nothing. The declared public packages retain
-their explicit `__all__` surfaces, including the root's version, reloadable `config` bindings, and the lazy
-`workflow.tick` entry point. Other operations are imported from their defining modules. The source and namespace
-checks distinguish these deliberate publishers from marker packages; the policy is described under
-[`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration).
-
-
-The test tree mirrors this one, and two more checks hold it there: every package above has a mirrored tests package,
-and every directory the suite collects from carries an initializer of its own, with nothing at the tests root but the
-suite-wide fixtures. The mirror is why the same short module name recurs once per domain — one `test_imports.py` per
-package — and those initializers are what keep the recurrences distinct at collection.
+Imports run from configuration through domain packages to workflow decisions and finally application composition.
+Callers name defining owners; most initializers are markers, with explicit public surfaces on declared publishers.
+Repository checks enforce package inventories, mirrored tests, absolute imports, and the absence of compatibility
+facades, resolver hooks, and export manifests. The per-package pages above own their boundary exceptions; the
+[CI reference](configuration/operations.md#continuous-integration) owns repository-wide checks and naming rules.
 
 ## Workflow labels
 
-An issue should have at most one workflow label at a time; where a pre-namespace spelling survives beside the
-namespaced one, the namespaced label is the state and the bare one is outranked rather than counting as a second. The
-names are part of the public contract because live GitHub issues already carry them. The `workflow:` prefix marks the
-states the orchestrator writes itself, so a repository's own vocabulary cannot collide with them; the five a human
-also applies or reads — `in_review`, `question`, `discussion`, and the `done` / `rejected` terminals — keep the bare
-spelling, as do the `backlog` and `paused` control labels an operator types. Membership in `WorkflowLabel` /
-`ControlLabel` is what closes both sets rather than the prefix, so a `workflow:`-prefixed name outside them —
-Dependabot's service labels on its own update PRs — is not a state, routes nowhere, and survives a label write
-untouched.
-
-The namespace is a GitHub label spelling and stops at that boundary, which is the distinction the stage map in
-[`architecture/workflow-modules.md`](architecture/workflow-modules.md) reads by: a bare tag there names the *stage* —
-the handler, the subpackage under `orchestrator/workflow/stages/` holding it, and the identifier analytics rows,
-audit event payloads, and agent-session attribution have always carried — while the wire label an issue carries is
-spelled `workflow:<tag>`. `workflow/state.py` defines `stage_name`, which strips the prefix for those sinks;
-`workflow/label_reading.py` defines `label_for_name`, which resolves either spelling back to its member.
-
-The whole set, what each state means, and the control-label semantics are in
-[`state-machine/labels-and-state.md#workflow-labels`](state-machine/labels-and-state.md#workflow-labels). The startup
-bootstrap that migrates a repository off the pre-namespace spellings, and the three reads that still take a bare
-label wherever that rename could not run, are in
-[`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#legacy-labels-and-the-migration-off-them).
+Workflow labels expose an issue's current stage. `workflow:<tag>` is the GitHub spelling for orchestrator-owned states;
+bare tags identify handlers and analytics stages. Conversation and terminal labels retain their bare spelling.
+The [label reference](state-machine/labels-and-state.md#workflow-labels) owns the vocabulary and control labels,
+including [migration from legacy spellings](state-machine/labels-and-state.md#legacy-labels-and-the-migration-off-them).
 
 ## Process model
 
@@ -436,150 +270,27 @@ The coding agent runs as a **transient child subprocess**, not a daemon — spaw
 
 ## Per-tick flow (`workflow.engine.tick.tick`)
 
-Each tick the polling loop fans `workflow.engine.tick.tick(gh, spec, scheduler=...)` out across
-**every configured repo** via
-`runtime.ticks.run_tick`: single-repo deployments stay in-thread, multi-repo deployments use a `ThreadPoolExecutor`
-sized to the repo count. A single long-lived `IssueScheduler` (global cap `MAX_PARALLEL_ISSUES_GLOBAL`, per-repo cap
-`MAX_PARALLEL_ISSUES_PER_REPO`) is shared across all `tick` calls, so those caps bound the whole deployment rather
-than one repo's thread.
+`runtime.ticks.run_tick` calls the workflow tick for each configured repository: one runs in-thread, while several
+fan out through a `ThreadPoolExecutor`. All share one long-lived `IssueScheduler`, so global and per-repository caps
+bound the deployment as a whole.
 
-One repo's pass is owned by `workflow/engine/tick.py` — the base refresh (`workflow/engine/base_refresh.py`), the
-community-contribution PR sweep (`workflow/engine/community.py`), the skill-catalog emission, and then either the
-scheduler handoff or the in-tick execution, in that order. That last step is the sequential loop on `tick.py` itself
-at `parallel_limit=1`, and the bounded thread pool on `workflow/engine/parallel.py` beside it at any higher limit. The
-refresh runs first because every step after it reads what that fetch left behind, and the sweep and the catalog
-emission both precede the scheduler / in-tick split so each fires exactly once per tick on either path. The refresh
-decides which worktree is synced, under whose claim, and by which route; a PR-having worktree's route is ordered by
-the base-rewrite coordinator beside it (`workflow/engine/base_rewrite.py`), whose ordinary publication of a clean
-rebase is the workflow's own (`workflow/engine/rewrite_publication.py`), and so is the order an interrupted attempt's
-recovery is asked in, the retry of a replay that crash kept off the pull request, and the finish of a push it finds
-already landed (`workflow/engine/rewrite_recovery.py`, `rewrite_retry.py`, `rewrite_landed.py`). The git `base_sync`
-owners under them supply the selection, the rebase, the candidate, its exact-candidate push or the observation of a
-landing, and the recovery's readings, refusals, and parks; every finish of what landed is the workflow's. The
-coordinator asks that selection again behind a recovery that took an anchor down and let the tick go on, so the
-rebase behind it waits for every record the anchor set aside -- a developer report not yet settled on the head it is
-about among them -- as an unanchored rebase does.
-The dispatch behind that split first drops each open `workflow:blocked` / `workflow:umbrella` issue on the ticks
-`DEPENDENCY_POLL_EVERY_N_TICKS` skips — a classification filter taken before any partition, so a skipped dependency
-walk is neither submitted nor handed a worker client — and then folds every remaining family-aware issue
-(`workflow:decomposing` / `workflow:blocked` / `workflow:umbrella` / unlabeled — the labels that write cross-issue
-parent ↔ child state) into ONE bucket submit per repo that drains sequentially on a single worker, so a stale child
-cannot starve the parent umbrella issue, and submits everything else one callable per issue. Whichever way an issue
-is executed, its pass runs under the issue's [writer claim](#process-model), and an issue another poller on the host
-holds is skipped that tick, keeping only a close the poll read for it. A family handler writes its children under
-each child's own claim.
-
-Per-issue durable state lives in a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`).
-The label and the pinned JSON are the dispatch input, beside the one host-local record every developer launch reads
-first, the quota retirement record an Antigravity launch arms, and the resolution of it a poller holds in memory while
-the record will not take it ([design constraints](#design-constraints)).
-
-Most writers rewrite the whole record from the state they read. The guarded commit on `workflow/engine/pinned_commit.py`
-is the contract for writers that share it, and the verification-evidence publication and settlement, the evidence
-reconciliation's retirements -- abandonment, a replay or damage dropped, a refused carry abandoned -- the invalidation
-of an unanswered carry on arrival in `validating`, and the developer report's recording, binding, refusal parks,
-publication preflight and settlement, the reconciliation's drops and the retirement of its damage park, the fixing
-recovery's release (`workflow/engine/report_commits.py`), and a reviewer round's launch, its no-verdict parks, the
-returned verdict persisted with its evidence transaction, the verdict's drops, and the parks a verdict takes
-(`workflow/stages/validating/review_writes.py`), a change request's handoff -- prepared before its feedback is
-posted -- the drop, retirement, and park of a handed one, and the recovery's anchor write-back, drops, and settlement
-of a round a reply bought (`review_handoffs.py`, `review_launch_park.py`, `review_resume.py` beside it), and every
-write of an approval's tail -- its verdict's retirement, the squash's own records, the handoff with the evidence it
-carries or invalidates, a failed squash's park, and the handoff's end behind the label (`squash_writes.py` beside
-them) -- are the roads that commit through it so far, and so is the finish of every base rewrite that landed,
-whichever road reached it (`workflow/engine/rewrite_finish_writes.py`). It derives a candidate
-over a fresh reading of the comment its caller captured, refuses with nothing written where that comment or a record
-the decision rests on moved, or where another writer moved a field the caller is changing, measures the whole rendered
-candidate against the comment limit before any dependent effect, and lands through the strict in-place edit on
-`github/pinned_state.py`, reporting an edit nobody confirmed as neither answer. It narrows the window between a reading
-and the write over it; it does not serialize two pollers, since GitHub's comment edit takes no condition. The contract
-is on [`state-machine/labels-and-state.md`][pinned-state].
-
-For the full per-tick sequence — eligible-issue enumeration, the cap exemption a no-agent bucket earns, what the base
-refresh rebases and pushes, the read-only skip the `question` and `discussion` labels take, the per-tick
-external-merge sweeps, and the complete pinned-state JSON schema — see
-[`state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick`](state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick).
+Within a repository, the tick refreshes base and worktrees, sweeps community pull requests, emits the skill catalog,
+and dispatches issues. Family-aware work drains sequentially in one bucket; independent work can run concurrently.
+Each issue executes under its host-local writer claim, including family writes to children and base refreshes.
+The [per-tick reference](state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick) owns the sequence,
+[pinned-state reference][pinned-state] owns durable writes, and
+[base-refresh reference](state-machine/labels-and-state.md#base-refresh) owns rebase and publication recovery.
 
 ## Stage handlers
 
-Twelve workflow labels dispatch to a `_handle_<label>` function under `orchestrator/workflow/stages/`, spread over
-nine stage subpackages: `decomposition/` answers for `workflow:decomposing`, `workflow:ready`, `workflow:blocked`,
-and `workflow:umbrella`, while `implementing`, `documenting`, `validating`, `in_review`, `fixing`, `conflicts`,
-`question`, and `discussion` answer for one label each. The thirteenth dispatch target is the unlabeled entry, which
-`workflow/engine/pickup.py` answers rather than a stage package; the `done` / `rejected` terminals are no-ops the
-dispatch leaves alone. Each subpackage is a set of responsibility-named owners with nothing flat beside them,
-and the dispatcher reaches a handler by importing the module its label is paired with in `_STAGE_HANDLER_TARGETS` and
-reading the handler off it — as `pickup.py` does for the stage it starts an issue on — so a patch that has to
-intercept a dispatched handler targets that module. A stage-to-stage call is named the same way: the decomposition
-disabled-rollout and `ready` paths name `stages/implementing/handler.py` for `_handle_implementing`.
+The dispatcher resolves handlers on their defining modules at call time. Twelve active workflow labels map to nine
+stage packages; unlabeled pickup is an engine entry, while `done` and `rejected` have no ordinary handler. The
+[workflow module map](architecture/workflow-modules.md) owns those locations and import boundaries.
 
-Two things sit ahead of that table, and both can end a tick before any handler runs. One is the only route where the
-label does **not** choose the handler: a CLOSED issue on `workflow:decomposing`, `workflow:umbrella`,
-`workflow:ready`, or `workflow:blocked` goes to the cleanup sweep (`stages/decomposition/late_sweep.py`) instead of
-the stage its label names, because that stage would spawn the decomposer, activate children, or hand the issue to a
-developer on an issue a human ended — so the close is read first, off the issue as every dispatch path reads it
-again under its writer claim, and never off the poll alone. The two recovery labels are routed there only while
-closed, so an open `workflow:ready` issue goes to its own handler as ever. It is also the one route the `backlog` /
-`paused` hard skip steps aside for: discarding a closed owner there discards the close itself, so the route is taken
-and the control label defers only the external work behind it. The other is one
-read of the issue's own pinned comment, which answers nine questions that stop a dispatch outright: a live late
-adjudication the label was moved out from under, a child of a split whose snapshot has since been reclaimed, an
-owner whose cancelled cycle has not reached its ending — which settles the cycle and writes its `rejected`
-terminal from wherever the owner has been left, so a reopen can neither resume the cycle nor slip past the ending
-it owes — the restart an operator authorizes by taking that `rejected` back off, asked one step ahead of that one,
-which projects a fresh cycle onto the same pinned comment and puts the issue back on the label `DECOMPOSE` chooses,
-an issue standing on `agent_run_limit` because it has spent every agent run its lifetime ceiling allows — held
-behind that pair and ahead of everything else, since each stage below reads `awaiting_human` as the park it was
-written against and none of those buys back a run, lifted only by the bounded operator command the same hold reads
-off the thread, and stepping aside for work that has ENDED — a closed issue, and a recorded pull request that has
-merged or been closed, which the issue's own flag cannot show — so a terminal arc can still finish
-([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-agent-run-limit-hold-every-dispatch-ahead-of-every-handler))
-— an auto-rebase anchor no recovery has ended, since the base refresh answers one ahead of every handler only on a
-tick that reaches it: the handler is held while the anchor stands, under a stage's own park and on the live
-adjudication's road too, and asked again once the late reconciliation has run -- save that an anchor beside a live
-adjudication is first offered to it, and a pair describing one replay is handed over
-(`workflow/engine/rewrite_takeover.py`) so the adjudication runs, held only behind a park that handoff leaves and
-nothing on its road answers until a human replies to it (`workflow/engine/rewrite_takeover_parks.py`); a label the
-refresh does not drive is answered on its ineligible road by the dispatcher itself, and a missing checkout on one it
-drives is restored for the refresh to walk
-([`state-machine/labels-and-state.md`][pinned-state])
-— a developer report the issue recorded and never finished publishing, which is answered last of the
-reconciliations and ahead of the reuse guard below: the record is durable and the publication that follows it is
-not, so a tick that died in between leaves a pull request without the report the next reviewer is meant to read,
-and no stage would go back for it. It proves the world the record froze, publishes or re-reads the report, and
-settles the whole obligation in one guarded commit; short of that it holds a read nobody could take or a write that
-did not land over the comment it read — another road wrote it while the report was out, or GitHub never confirmed the
-edit — stands down on anything a route behind it would fix, retires a transaction whose pull request is over, and
-parks once on a record it may not act on
-([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch))
-— a report debt a rewritten pull-request head left, which holds the roads past an approval (`workflow:documenting`,
-`in_review`) while any claim stands, readable or not, and leaves `workflow:validating` to pay it
-([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch))
-— an ordinary split's child whose pinned seed is not the one the receipt in its body owes it, held under every label
-but a terminal, pickup included, directly behind the agent-run-limit hold and ahead of a live adjudication's step
-aside, so no stage or adjudication runs a child on a lineage nothing proved
-([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-seed-hold-every-dispatch-ahead-of-the-reuse-guard))
-— and, last, an unlabeled issue that already carries a pinned comment, which is one this orchestrator has met
-before: the pickup handler behind it *greets* an issue and mints its pinned comment, so a second greeting writes a
-second comment that every later read shadows
-([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-reuse-guard-every-dispatch-ahead-of-every-handler)).
-
-Most stage handlers run the user-content drift hook (`_compute_user_content_hash` → `_detect_user_content_change`) so
-an out-of-band human edit re-routes the issue back to `workflow:decomposing` (when no dev session exists yet), resumes
-the locked dev session with the updated body (implementing, validating, in_review, resolving_conflict), or unwinds
-back to `workflow:validating` without resuming dev (documenting). Both halves of that hook sit on the
-`workflow/engine/drift.py` owner the stage leaves import directly, so a patch aimed at the hook targets that owner.
-`_handle_fixing`, `_handle_question`, and `_handle_discussion` skip the drift hook.
-
-Which owner holds each decision inside a stage, which helpers it borrows from a sibling stage or from `git/`, and the
-checks that keep a stage answering on one module are in
-[`architecture/workflow-modules.md`](architecture/workflow-modules.md). For per-stage internal flow — pickup, drift
-handling, decomposing, ready, blocked, umbrella, implementing, documenting, validating, in_review, fixing, and
-resolving_conflict — see [`state-machine/delivery-stages.md`](state-machine/delivery-stages.md), with the two
-operator-applied conversation stages in
-[`state-machine/conversation-stages.md`](state-machine/conversation-stages.md) and the drift hook's filters and
-per-handler routing in
-[`state-machine/delivery-stages.md#user-content-drift-detection`](state-machine/delivery-stages.md#user-content-drift-detection).
+Shared guards reconcile unfinished transactions before a handler runs. Closed family owners take a cleanup route;
+other issues dispatch by label. The [delivery-stage reference](state-machine/delivery-stages.md) owns these guards,
+drift routing, and the implementation/review loop. The
+[conversation-stage reference](state-machine/conversation-stages.md) owns `question` and `discussion`.
 
 <a id="agent-subprocess-agentsrun_agent"></a>
 
@@ -932,13 +643,17 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   around it with no commit to compare against. Implementing additionally refuses the handoff when the checkout has
   left that commit — before the push and again once the pull request is open, since every stage past it works from
   the checkout rather than from the refspec.
-- Every push onto a pull request the remote ALREADY carries names its commit too, and the size gate is what names
-  it: the gate measures before each of them and hands back the commit it measured, which is what the push publishes,
-  what the receipt records, and what the proof behind it compares against. Those are the docs pass, the `validating`
-  dev-fix and both its transient-park recoveries, the `fixing` bounce, the three `conflicts` publications, the squash
-  rewrite, and the base-sync auto rebase and its crash recovery. Each of them refuses a moved REMOTE as well — the
-  rewrite, the conflict publications, and the base-sync rebases pin `force_with_lease` to the SHA they observed
-  before the rewrite, and the rest are pinned to the head the gate's own entry froze.
+- Every push onto a pull request the remote ALREADY carries uses the gated publication path. It names the candidate
+  for the push, receipt, and post-push proof, subject to the disabled-gate fallback below. These are the docs pass,
+  the `validating` dev-fix and both its transient-park recoveries, the `fixing` bounce, the three `conflicts`
+  publications, the squash rewrite, and the base-sync auto rebase and its crash recovery. A caller-supplied lease
+  is retained; otherwise a frozen entry supplies the lease. A moved remote refuses that lease. With neither a frozen
+  entry nor a caller-supplied lease, the transport reads the remote itself.
+- **HEAD fallback with the gate disabled.** When `DECOMPOSE=off` keeps a fresh existing-PR candidate out of measurement,
+  `stages/implementing/late_publication.py`'s `_unentered` uses the checkout head if the gate supplied no candidate.
+  If that read also fails, the revision stays empty and `late_push.py`'s `_pushed` calls `_push_branch(revision=None)`,
+  publishing `HEAD:refs/heads/<branch>`. The publication receipt and post-push checkout proof are skipped because
+  neither has an identified commit to describe or compare against.
 - A typed boundary carries the base-sync auto rebase's push. The workflow's ordinary publication of a clean rebase
   (`workflow/engine/rewrite_publication.py`) reads the candidate through it, has the size gate and the transfer permit
   rule on that candidate before any push, and hands the git owner exactly that candidate to publish through the gate's
@@ -1067,82 +782,30 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from
   before its replay record existed the push a retry made is that retry's own. Nothing in `git/base_sync` announces,
   routes, stages report debt, or enters the size gate for a landing any more.
-- The bare `HEAD` form is left for the one push that could name no commit at all: a gated push on an install running
-  with `DECOMPOSE=off` whose checkout would not prove its own head. The switch keeps candidates out of the
-  MEASUREMENT and not out of a push that knows what it is publishing, so the commit is named off the checkout there
-  too — only a reading that failed outright falls through, publishing whatever the worktree currently is with the
-  receipt and the post-push proof skipped, since neither has a commit to be about.
-
 ## Observability
 
-Three independent JSONL sinks plus an optional Postgres aggregation target watch a run without steering it: an opt-in
-audit event log, a project-local analytics sink, an opt-in (default-off) trajectory sink that `record_agent_exit`
-fills with redacted, head/tail-truncated per-run reasoning trajectories, and the operator-deployed database the
-analytics sink is replayed into. Two Streamlit pages read them: the analytics dashboard over that database, and the
-file-backed trajectory viewer, which reads its JSONL directly (usage and cost included) and needs no database at all.
-None of them feed back into dispatch — workflow correctness keys off the pinned state JSON and the workflow label —
-save one read of the audit log: a base-rewrite finish asks it, and the rotated copies beside it, whether its
-`base_rebased` is already filed before filing one, and holds while they will not read
-([`observability/event-streams.md`](observability/event-streams.md#audit-event-log-event_log_path)). So every surface
-is observation-only and safe to truncate, rotate, or delete, short of that one event's once-only filing.
-
-They are not all owned in one place. The audit sink belongs to `github/events.py`, since `GitHubClient.emit_event` is
-the single chokepoint it is appended from, and so does its one read-back (`events.filed`, over the reader of the log
-and its rotated copies, `github/event_log.py`); the Postgres service is the operator's own `analytics-db/` deployment.
-Everything else — the analytics sink and what is downstream of it, the trajectory writers, the usage parser, and both
-read models — lives under `orchestrator/observability/`, whose own four owner areas are mapped together with the two
-`apps/` pages composed over them in
-[`architecture/observability-modules.md`](architecture/observability-modules.md).
-
-[`observability.md`](observability.md) is the map over the surfaces themselves, and each has a reference page behind
-it: the two JSONL sinks in [`observability/event-streams.md`](observability/event-streams.md), the trajectory sink
-and its viewer in [`observability/trajectories.md`](observability/trajectories.md), the compose layout and sync CLI
-in [`observability/analytics-database.md`](observability/analytics-database.md), the read model and dashboard wiring
-in [`observability/analytics-dashboard.md`](observability/analytics-dashboard.md), and the usage parser's
-cost-precedence rules in [`observability/usage.md`](observability/usage.md).
+Independent audit, analytics, and trajectory logs observe the workflow; an operator-run replay feeds analytics into
+Postgres. Two Streamlit pages read the database and trajectory file respectively. The
+[observability reference](observability.md) owns these surfaces and the audit log's once-only event read-back;
+the [observability module map](architecture/observability-modules.md) owns their package boundaries.
 
 ## Summary of "what runs when"
 
-- **`cli.main` polling loop** — long-lived Python process. Trigger: manual start (or wrapper). Cadence: every
-  `POLL_INTERVAL`s.
-- **target checks (`service.checkouts`)** — read-only `git rev-parse` subprocesses. Trigger: the configuration import
-  every launch makes once its options are read, before any GitHub client. Cadence: once per start — up to two per
-  selected target, and the same for the package root when proving a source checkout
-  ([`configuration.md#developer-fallback-and-target-checks`](configuration.md#developer-fallback-and-target-checks)).
-- **`workflow.engine.tick.tick(gh, spec)`** — function call. Trigger: each loop iteration. Cadence: once per tick per
-  configured `RepoSpec`; multi-repo fans out across a `ThreadPoolExecutor`, single-repo stays in-thread.
-- **`_refresh_base_and_worktrees(gh, spec)`** (`workflow/engine/base_refresh.py`) — function call. Trigger: start of
-  each `workflow.engine.tick.tick`. Cadence: once
-  per tick per repo: one `git fetch <spec.remote_name> <spec.base_branch>`, then per-worktree dispatch — a pre-PR
-  worktree rebases locally, and a PR-having one behind base is rebased and pushed in the refresh itself, each under the
-  issue's writer claim.
-- **`_handle_*` per issue** — function call. Trigger: the issue's workflow label. Cadence: once per tick per pollable
-  issue, except an open `workflow:blocked` / `workflow:umbrella` issue, which is dispatched only on the ticks
-  `DEPENDENCY_POLL_EVERY_N_TICKS` makes due (default every fifth, the first included); concurrent up to
-  `spec.parallel_limit` per repo and `MAX_PARALLEL_ISSUES_GLOBAL` across all repos. No-agent family buckets
-  (`workflow:blocked` / `workflow:umbrella`) are cap-exempt.
-- **decomposer agent (`DECOMPOSE_AGENT`)** — subprocess (fresh or resumed). Trigger: `_handle_decomposing` (retry
-  budget OK) or HITL resume. Cadence: one shot per tick when needed. The same role spec also backs both conversation
-  stages, which pin their own agent and session keys rather than a decomposing one.
-- **implementer agent (`DEV_AGENT`)** — subprocess. Trigger: `_handle_implementing` (no commits yet, retry budget OK)
-  or HITL resume. Cadence: one shot per tick when needed.
-- **reviewer agent (`REVIEW_AGENT`)** — subprocess (fresh session). Trigger: `_handle_validating`, round < max, over
-  a developer report the pull request carries, which the prompt quotes whole. Cadence: one shot per tick.
-- **dev-fix agent** — subprocess (resumed dev session). Trigger: a reviewer `CHANGES_REQUESTED` verdict (dispatched
-  from `_handle_validating` after the relabel to `workflow:fixing`) or fresh in_review PR feedback (dispatched from
-  `_handle_fixing` after the quiet window) — both run with `stage="fixing"` and bounce back to `workflow:validating`
-  for re-review. Cadence: one shot per tick.
-- **dev-conflict agent** — subprocess (resumed dev session). Trigger: `_handle_resolving_conflict` and `git rebase`
-  left conflicts. Cadence: one shot per tick.
-- **question / discussion agent (`DECOMPOSE_AGENT` backend)** — subprocess. Trigger: `_handle_question` or
-  `_handle_discussion` on the conversation's opening round or on a trusted human reply to a parked one. Cadence: one
-  shot per tick when needed. `question` is read-only for the whole conversation; `discussion` is read-only until a
-  human confirms the design on the thread, and from there is allowed exactly one commit of
-  `plans/issue-<number>.md` for the stage to publish. Neither ever spawns a developer or reviewer.
-- **`git push`** — subprocess. Trigger: after dev produces clean commits, or after a discussion round commits the
-  confirmed plan and the branch reads as exactly that one file. Cadence: per fix; per discussion, once the humans
-  have confirmed the design.
-- **self-restart check** — git fetch + diff, source checkout only. Trigger: start of each tick. Cadence: every tick.
+| Work | Trigger and cadence |
+|---|---|
+| Polling process | `run`, supervised manually or by systemd; repeats every `POLL_INTERVAL` |
+| Target checks | Once at startup, before GitHub clients |
+| Repository tick | Once per polling pass per configured repository |
+| Base refresh, community sweep, skill catalog | Once per repository tick, before issue dispatch |
+| Issue handler | Each eligible poll, under shared scheduler caps and an issue writer claim |
+| Blocked/umbrella dependency walk | First poll and every `DEPENDENCY_POLL_EVERY_N_TICKS` thereafter |
+| Agent subprocess | When a stage needs a new run or an allowed resume; transient, never a daemon |
+| Branch publication | After the candidate passes its stage's report, size, and verification gates |
+| Scheduler reap and analytics prune | Once per process-wide pass, after repositories drain |
+| Self-restart probe | At each tick boundary in a source checkout |
+
+[Agent roles](workflow/roles.md) defines which stages launch each role;
+[operations](configuration/operations.md#run-modes) defines launch modes and maintenance-only runs.
 
 ## Architecture schema
 

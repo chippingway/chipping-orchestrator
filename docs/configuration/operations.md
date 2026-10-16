@@ -814,7 +814,7 @@ releases. Use the [manual security-fix procedure](../security.md#dependabot-secu
 younger than 14 days.
 
 [dependabot-labels]:
-  https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#labels
+  https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#labels--
 [poetry-release-age]: https://python-poetry.org/docs/configuration/#solvermin-release-age
 
 ## Publishing the documentation
@@ -1009,6 +1009,28 @@ verification commands, and development service units. Published-package users in
 Dependency refresh by the source wrapper is developer tooling. Its fingerprints, timeout behavior, and optional
 groups are in the [developer guide](../development.md#launcher-dependency-refresh). Stop all processes using a pipx
 environment before upgrading or reinstalling the package.
+
+### Scheduled maintenance environment
+
+Analytics replay and trajectory pruning run from the installed poller's pipx environment, independently of systemd.
+Use the service user, run `pipx environment --value PIPX_HOME`, and substitute its result for `/absolute/pipx-home` in
+the cron examples. Replace `<user>` with that user's name and adjust log paths to match the installation. Create the
+output directory before installing a job:
+
+```sh
+mkdir -p "$HOME/.local/state/chipping-orchestrator/logs"
+```
+
+Cron does not inherit the poller's systemd `Environment=` or `EnvironmentFile=` settings. Put service-only settings in
+the installed `.env`, or uncomment the relevant assignments in each example. Both commands load the full orchestrator
+configuration, so `REPOS` must name valid local clones. Match `LOG_DIR` and the job's sink, database, or retention
+settings to the poller. Crontab assignments override `.env` and need literal values and absolute paths; they do not
+expand `$HOME` or other variables.
+
+Rotate job logs and stop maintenance jobs as well as the poller before upgrading or replacing their shared pipx
+environment. The [analytics runbook](../observability/analytics-database.md#operator-workflow) owns replay commands;
+the [trajectory runbook](../observability/trajectories.md#trajectory-operator-workflow) owns prune scheduling and its
+requirement to avoid concurrent trajectory appends.
 
 ## Running more than one poller
 

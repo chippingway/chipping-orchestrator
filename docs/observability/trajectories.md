@@ -333,19 +333,9 @@ For a one-off 30-day retention window, put `env TRAJECTORY_RETENTION_DAYS=30` im
 the process environment overrides `.env` for that run. Apply the poller's process/service overrides too if they
 select a different trajectory path or retention window.
 
-For scheduled pruning during a window without trajectory appends, replace `/absolute/pipx-home` below with
-`pipx environment --value PIPX_HOME`'s output and `<user>` with the service user. Adjust the external log path if needed
-and create its directory before installing the cron entry:
-
-```sh
-mkdir -p "$HOME/.local/state/chipping-orchestrator/logs"
-```
-
-Cron does not inherit the poller's systemd `Environment=` or `EnvironmentFile=` settings. Copy any service-only
-settings, including `REPOS`, `LOG_DIR`, `TRAJECTORY_LOG_PATH`, and `TRAJECTORY_RETENTION_DAYS`, into the installed
-`.env`, or uncomment and edit the matching assignments below. The command loads the full orchestrator configuration
-at startup, so `REPOS` must name valid local clones even for trajectory pruning. Crontab assignments override `.env`;
-use literal values and absolute paths because they do not expand `$HOME` or other variables.
+For scheduled pruning, apply the [scheduled maintenance setup][maintenance-environment] and choose a window without
+trajectory appends. Match `TRAJECTORY_LOG_PATH` and `TRAJECTORY_RETENTION_DAYS` to the poller in `.env` or the optional
+overrides below.
 
 ```cron
 # Optional overrides: uncomment and match the poller's service environment.
@@ -355,8 +345,6 @@ use literal values and absolute paths because they do not expand `$HOME` or othe
 # TRAJECTORY_RETENTION_DAYS=30
 25 0 * * * cd / && /usr/bin/flock -n -E 75 /tmp/chipping-orchestrator-trajectory.lock /absolute/pipx-home/venvs/chipping-orchestrator/bin/python -c 'from orchestrator.observability.analytics import retention; print(f"trajectory prune removed {retention.prune_trajectory_records()} record(s)")' >> /home/<user>/.local/state/chipping-orchestrator/logs/trajectory-prune.cron.log 2>&1
 ```
-
-Rotate the cron log, and stop maintenance jobs as well as the poller before replacing their shared pipx environment.
 
 Only run the prune command while the orchestrator is stopped or guaranteed not to append trajectories. The
 shared `/tmp/chipping-orchestrator-trajectory.lock` serializes operator cron jobs with each other, but not with the live
@@ -452,3 +440,5 @@ rather than a blank page. That app file is the only launch path the viewer has. 
 owners beneath it take Streamlit in as an argument rather than importing it, so none of them puts the `dashboard`
 group behind an import, and the one that reads the trajectory knob reads it off the analytics settings holder the app
 hands down — a caller's world is bound for the page the same way it is for the read.
+
+[maintenance-environment]: ../configuration/operations.md#scheduled-maintenance-environment

@@ -235,19 +235,8 @@ is acceptable: that credential is scoped to the analytics database and never gra
 The default cadence is operator-chosen because the JSONL sink is already the authoritative analytics surface on disk
 — the database is for aggregation and reporting, not durability.
 
-For hourly unattended replay, run `pipx environment --value PIPX_HOME` as the service user and replace
-`/absolute/pipx-home` below with that result. Replace `<user>` and adjust the output path if your external log
-directory differs from the package setup example. Create the output directory before installing the cron entry:
-
-```sh
-mkdir -p "$HOME/.local/state/chipping-orchestrator/logs"
-```
-
-Cron does not inherit the poller's systemd `Environment=` or `EnvironmentFile=` settings. Copy any service-only
-settings, including `REPOS`, `LOG_DIR`, `ANALYTICS_LOG_PATH`, and `ANALYTICS_DB_URL`, into the installed `.env`, or
-uncomment and edit the matching assignments below. The command loads the full orchestrator configuration at startup,
-so `REPOS` must name valid local clones even for analytics sync. Crontab assignments override `.env`; use literal
-values and absolute paths because they do not expand `$HOME` or other variables.
+For hourly unattended replay, apply the [scheduled maintenance setup][maintenance-environment], then install the
+entry below. Match `ANALYTICS_LOG_PATH` and `ANALYTICS_DB_URL` to the poller in `.env` or the optional overrides.
 
 ```cron
 # Optional overrides: uncomment and match the poller's service environment.
@@ -258,7 +247,6 @@ values and absolute paths because they do not expand `$HOME` or other variables.
 00 * * * * cd / && /usr/bin/flock -n /tmp/chipping-orchestrator-analytics-sync.lock /absolute/pipx-home/venvs/chipping-orchestrator/bin/python -m orchestrator.observability.analytics.sync.cli >> /home/<user>/.local/state/chipping-orchestrator/logs/analytics-sync.cron.log 2>&1
 ```
 
-The installed `.env` supplies settings not overridden in the cron environment; the cron command needs no tool checkout.
-Rotate the cron log, and stop maintenance jobs as well as the poller before upgrading or replacing their shared pipx
-environment.
 Source-checkout commands for development are in the [developer guide](../development.md#analytics-sync-and-dashboard).
+
+[maintenance-environment]: ../configuration/operations.md#scheduled-maintenance-environment
