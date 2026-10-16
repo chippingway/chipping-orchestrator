@@ -8,43 +8,61 @@ diagnostic a developer acts on, and leads it with the lines written here
 and how it ended, which follow as supporting details over the output quoted.
 
 A check's output names its failures where pytest's short summary reports them:
-a `FAILED` line names a test by its exact node ID, parameters included -- even
-a parameter holding the very dash and bracket that part an ID from its
-message, the ID ending where a message of the shape pytest gives begins
-(`_SummaryLine`) -- and an `ERROR` line either a test that errored outside its
-own body, or, with no test in its ID, the path whose collection failed before
-any test in it ran -- the check that failed, not a test. Each leads with that
-name and the error the line gives; for a collection error, which pytest's
-summary gives none for, the last exception line of the traceback pytest
-printed collecting that path; or else the error of the reviewer's entry naming
-it. Where none is found the lead says so. No name is ever made up: a check
-pytest's summary names nothing in is led by the failure entries
-(`FailureEntry`) the reviewer wrote for it in the findings, each named as the
-reviewer named it, or by a line saying nothing names it. An entry is a check's
-where the check's output shows the entry's error -- never because the two name
-one command, since one stdin command, such as `.venv/bin/python -`, may run
-several scenarios, each a check of its own. A lead says too where the check
-quoted no output to show an error by, and where its command reads its code
-from stdin and no entry it backs gives the snippet it read, as a code block
-below its `Reproduce:` line: such a command reproduces nothing alone, however
-an entry names it. A check naming more failures than a lead lists leaves the
-rest to its output, which is quoted whole below it.
+a `FAILED` line names a test by its exact node ID, parameters included, and an
+`ERROR` line either a test that errored outside its own body, or, with no test
+in its ID, the path whose collection failed before any test in it ran -- the
+check that failed, not a test. A parameter may hold the very dash and bracket
+that part an ID from its message (`_SummaryLine`), so the ID ends where a
+message of the shape pytest gives begins: a rewritten assertion's `assert`,
+or the name of the exception, a colon after it unless it says nothing more.
+Where no split leaves such a message, the ID ends at the first. Each failure
+leads with its name and the error the line gives; for a collection error,
+which pytest's summary gives none for, the last exception line of the
+traceback pytest printed collecting that path; or else the error of the
+reviewer's entry naming it. Where none is found the lead says so. No name is
+ever made up: a check pytest's summary names nothing in is led by the failure
+entries (`review_findings_entries`) the reviewer wrote for it in the findings,
+each named as the reviewer named it, or by a line saying nothing names it. An
+entry is a check's where the check's output shows the entry's error -- never
+because the two name one command, since one stdin command, such as
+`.venv/bin/python -`, may run several scenarios, each a check of its own. A
+lead says too where the check quoted no output to show an error by, and where
+its command reads its code from stdin and no entry it backs gives the snippet
+it read, as a code block below its `Reproduce:` line: such a command
+reproduces nothing alone, however an entry names it. A check naming more
+failures than a lead lists leaves the rest to its output, which is quoted
+whole below it.
+
+The reviewer's own text is shown through here too (`said`): each entry with
+what it leaves out said, and each check the concise layout before leads
+showed (`_Unled`) led as a check read off a declaration is. That layout's
+feedback, persisted or posted before leads, holds no declaration to read its
+checks from again, so each is read off the paragraph it stands as, frozen as
+that layout spelled it: a sentence naming its command -- a code span -- or
+saying it named none, then how it ended, opening a paragraph at the margin
+outside any code block, and closing it on a period where the check quoted no
+output, or otherwise on a colon over a bare backtick fence holding the output,
+one blank line between. The lead goes right above the sentence, so the
+paragraph no longer opens on it and showing it again leads nothing twice.
 
 Every line of a lead opens on a label of the reviewer's entry layout --
 `Failure:`, `Error:`, `Reproduce:` -- and never on a declaration keyword, so
 what is shown still declares nothing; the names and errors it takes from
 output stand in code spans their own backticks cannot close, so Markdown
 shows them as the output spelled them. Reading entries decides nothing
-either: the findings are shown as written, and only the leads cite them.
+either: what is shown is read from the text alone.
 """
 from __future__ import annotations
 
 import re
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from itertools import chain, dropwhile, islice, takewhile
 
-from orchestrator.workflow.engine import review_findings_fences as _markdown
+from orchestrator.workflow.engine import (
+    review_findings_entries as _entries,
+    review_findings_fences as _markdown,
+)
 
 # What may make up a blank line, a CRLF line's carriage return included.
 _BLANKS = " \t\r"
@@ -62,24 +80,20 @@ _NAME = "Failure"
 _ERROR = "Error"
 _REPRODUCTION = "Reproduce"
 
-# A line of the findings opening on one of those labels, bulleted or not, and
-# such a line beside its number.
-_LABEL_RE = re.compile(rf"[ \t]*(?:[-+*][ \t]+)?(?P<label>{_NAME}|{_ERROR}|{_REPRODUCTION}):(?P<given>.*)")
-_Labeled = tuple[int, re.Match[str]]
-
 # A failure pytest's short summary reports: the outcome, then the node ID or
 # the path whose collection failed, and the message after a dash where pytest
 # gives one. A node ID's path runs to its first blank or bracket; parameters,
 # which may hold blanks, dashes, and brackets, end on a closing bracket that
-# the dash or the line's end follows. A message pytest gives opens on the name
-# of the exception it reports, a colon after it unless it says nothing more.
+# the dash or the line's end follows. A message pytest gives opens on a
+# rewritten assertion's `assert`, or on the name of the exception it reports,
+# a colon after it unless it says nothing more.
 _SUMMARY_RE = re.compile(r"[ \t]*(?P<outcome>FAILED|ERROR) (?P<reported>\S.*?)[ \t\r]*")
 _NODE_PATH_RE = re.compile(r"[^\s\[]+")
 _NODE_END_RE = re.compile(r"(?= - |\Z)")
 _PARAMETERS_END_RE = re.compile(r"\](?= - |\Z)")
 _OPENING_BRACKET = "["
 _DELIMITER = " - "
-_MESSAGE_RE = re.compile(r"[A-Za-z_][\w.]*(?::|\Z)")
+_MESSAGE_RE = re.compile(r"assert\b|[A-Za-z_][\w.]*(?::|\Z)")
 
 _FAILED = "FAILED"
 
@@ -89,16 +103,18 @@ _FAILED = "FAILED"
 _NODE_SEPARATOR = "::"
 _PATH_RE = re.compile(r".*(?:/.*|\.py)")
 
-# A node ID standing whole in an entry's name, as a word or a code span: a
-# longer ID holding it, or one its path alone opens, is another failure's.
-_WHOLE_NODE = r"(?<![^\s`(]){node}(?![^\s`),;])"
-
 # The header of the section pytest prints the traceback of an error collecting
 # `path` in, what opens the section after it, and the lines it marks as the
 # exception.
 _COLLECTING = r"[ \t]*_{{3,}} ERROR collecting {path} _{{3,}}[ \t\r]*"
 _SECTION_RE = re.compile(r"[ \t]*(?:_{3,}|={3,})")
 _EXCEPTION_RE = re.compile(r"[ \t]*E[ \t]+(?P<error>\S.*?)[ \t\r]*")
+
+# The bare fence the layout before leads quoted a check's output in, below its
+# sentence (`review_findings_entries.CHECK_SENTENCE_RE`), which closes on a
+# period where the check quoted no output.
+_BARE_FENCE_RE = re.compile(f"{_BACKTICK}{{3,}}")
+_NO_OUTPUT_CLOSE = "."
 
 # The argument a command reads the code it runs from stdin by.
 _STDIN = "-"
@@ -120,40 +136,13 @@ _ERRED = "{node}, which errored outside the test itself"
 
 _MORE = f"{_NAME}: {{count}} more, named in the output below"
 
+_Entries = Sequence[_entries.FailureEntry]
 
-@dataclass(frozen=True)
-class FailureEntry:
-    """One failure the reviewer entered in the findings, under a line opening on `Failure:`.
-
-    `name` is what that line names it; `error` what its `Error:` line gives,
-    code-span backticks aside, or, where that line gives nothing, the last
-    line of the code block below it; `snippet` whether a code block stands
-    below its `Reproduce:` line -- the code a stdin command would read, which
-    the command alone, however it is written there, does not give.
-    """
-
-    name: str
-    error: str = ""
-    snippet: bool = False
-
-    @classmethod
-    def read(cls, findings: str) -> tuple[FailureEntry, ...]:
-        """Every entry `findings` hold, in order; a line a code block holds is the block's, never a label."""
-        return tuple(_EntryReading(findings.split("\n")).entries())
-
-    def backs(self, output: str) -> bool:
-        """Whether the check that quoted `output` is this failure's: that output shows its error."""
-        return bool(self.error) and self.error in output
-
-    @classmethod
-    def error_naming(cls, entries: Sequence[FailureEntry], node: str) -> str:
-        """The error of the first of `entries` whose name holds `node`, an ID pytest reported, whole; "" for none."""
-        whole = re.compile(_WHOLE_NODE.format(node=re.escape(node)))
-        errors = (entry.error for entry in entries if whole.search(entry.name))
-        return next(filter(None, errors), "")
+# A lead, by the number of the line it goes above.
+_Lead = tuple[int, tuple[str, ...]]
 
 
-def lead(command: str, output: str, entries: Sequence[FailureEntry]) -> tuple[str, ...]:
+def lead(command: str, output: str, entries: _Entries) -> tuple[str, ...]:
     """The lines leading the failing check that ran `command` and quoted `output`, given the findings' `entries`."""
     reported = tuple(dict.fromkeys(_Reported.of(output, entries)))
     if reported:
@@ -167,6 +156,16 @@ def lead(command: str, output: str, entries: Sequence[FailureEntry]) -> tuple[st
     if not snippet and _STDIN in command.split():
         said.append(_UNREPRODUCED.format(command=span(command)))
     return tuple(said)
+
+
+def said(text: str, entries: _Entries) -> str:
+    """The reviewer's `text` as shown: what each entry leaves out said, and each check left unled, led.
+
+    `entries` are those of the findings `text` stands among, read before
+    anything is said of them.
+    """
+    annotated = _entries.FailureEntry.annotated(text)
+    return _Unled(annotated.split("\n")).led(entries)
 
 
 def span(text: str) -> str:
@@ -191,7 +190,7 @@ class _Reported:
     error: str
 
     @classmethod
-    def of(cls, output: str, entries: Sequence[FailureEntry]) -> Iterator[_Reported]:
+    def of(cls, output: str, entries: _Entries) -> Iterator[_Reported]:
         """Each failure a summary line of `output` reports, the findings' `entries` giving an error it lacks."""
         lines = output.split("\n")
         for summary in filter(None, map(_SummaryLine.read, lines)):
@@ -215,7 +214,7 @@ class _Reported:
 
     @classmethod
     def _summarised(
-        cls, summary: _SummaryLine, lines: Sequence[str], entries: Sequence[FailureEntry],
+        cls, summary: _SummaryLine, lines: Sequence[str], entries: _Entries,
     ) -> _Reported | None:
         """The failure the `summary` line of the output `lines` reports, if it is pytest's; None where not.
 
@@ -224,7 +223,7 @@ class _Reported:
         else the entry naming the failure.
         """
         node = summary.node
-        named = FailureEntry.error_naming(entries, node)
+        named = _entries.FailureEntry.error_naming(entries, node)
         if _NODE_SEPARATOR in node:
             erred = summary.outcome != _FAILED
             name = _ERRED.format(node=span(node)) if erred else span(node)
@@ -274,7 +273,8 @@ class _SummaryLine:
         A parameter may hold the very dash that parts a node ID from its
         message, so of the closing brackets that dash or the line's end
         follows, the ID ends on the first that leaves a message pytest would
-        give, or none -- and only where none does, on the first.
+        give -- and only where none does, on the first, since a message of
+        another shape is likelier than a parameter holding that dash.
         """
         ends = cls._ends(reported)
         given = [end for end in ends if cls._gives(reported[end:])]
@@ -292,58 +292,71 @@ class _SummaryLine:
 
     @classmethod
     def _gives(cls, rest: str) -> bool:
-        """Whether `rest`, what follows a node ID, is no message or one pytest would give."""
-        message = rest.removeprefix(_DELIMITER)
-        return not message or _MESSAGE_RE.match(message) is not None
+        """Whether `rest`, what follows a node ID, opens a message pytest would give."""
+        return _MESSAGE_RE.match(rest.removeprefix(_DELIMITER)) is not None
 
 
-class _EntryReading:
-    """The lines of the findings, read for the failure entries they hold."""
+class _Unled:
+    """Findings text read for the checks the concise layout before leads showed with nothing leading them."""
 
     def __init__(self, lines: Sequence[str]) -> None:
         self._lines = lines
         self._blocks = {block.start: block for block in _markdown.markdown_code_blocks(lines)}
-
-    def entries(self) -> Iterator[FailureEntry]:
-        """Each entry, from the line naming it to the next such line: the labels between are its own."""
-        entry: FailureEntry | None = None
-        for number, labeled in self._labeled():
-            given = labeled.group("given").strip(_BLANKS)
-            if labeled.group("label") == _NAME:
-                if entry is not None:
-                    yield entry
-                entry = FailureEntry(given)
-            elif entry is not None:
-                entry = self._given(entry, labeled.group("label"), given, number)
-        if entry is not None:
-            yield entry
-
-    def _labeled(self) -> Iterator[_Labeled]:
-        """Each line no code block holds that opens on a label, by its number."""
         spans = (range(block.start, block.end) for block in self._blocks.values())
-        held = frozenset(chain.from_iterable(spans))
+        self._held = frozenset(chain.from_iterable(spans))
+
+    def led(self, entries: _Entries) -> str:
+        """The text, each unled check's lead right above its sentence."""
+        leads = dict(self._leads(entries))
+        shown: list[str] = []
         for number, line in enumerate(self._lines):
-            labeled = None if number in held else _LABEL_RE.fullmatch(line)
-            if labeled is not None:
-                yield number, labeled
+            shown.extend(leads.get(number, ()))
+            shown.append(line)
+        return "\n".join(shown)
 
-    def _given(self, entry: FailureEntry, label: str, given: str, number: int) -> FailureEntry:
-        """`entry` once the line `number`, giving `given` under `label`, is read into it."""
-        below = self._block_below(number)
-        if label == _REPRODUCTION:
-            return replace(entry, snippet=below is not None)
-        error = given.strip(_BACKTICK).strip(_BLANKS)
-        if not error and below is not None:
-            quoted = self._lines[below.held_start:below.held_end]
-            held = [line.strip(_BLANKS) for line in quoted]
-            error = next(filter(None, reversed(held)), "")
-        return replace(entry, error=error)
+    def _leads(self, entries: _Entries) -> Iterator[_Lead]:
+        """Each unled check's lead, by the number of the line its sentence stands on."""
+        for number, line in enumerate(self._lines):
+            sentence = self._sentence(number, line)
+            if sentence is None:
+                continue
+            output = self._output(number, sentence.group("close"))
+            if output is not None:
+                yield number, lead(self._command(sentence), output, entries)
 
-    def _block_below(self, number: int) -> _markdown.CodeBlock | None:
-        """The code block opening on the first non-blank line below line `number`, if one does."""
-        below = number + 1
-        for line in self._lines[below:]:
-            if line.strip(_BLANKS):
-                break
-            below += 1
-        return self._blocks.get(below)
+    def _sentence(self, number: int, line: str) -> re.Match[str] | None:
+        """`line`, line `number`, read as an unled check's sentence: opening a paragraph, outside any code block."""
+        opens = number not in self._held and self._blank(number - 1)
+        return _entries.CHECK_SENTENCE_RE.fullmatch(line) if opens else None
+
+    def _output(self, number: int, close: str) -> str | None:
+        """The output the check whose sentence, closing on `close`, stands on line `number` quoted; None for no check.
+
+        A period closes a paragraph of its own; a colon stands over a bare
+        fence, a blank line between, that closes the paragraph too.
+        """
+        after = number + 1
+        if close == _NO_OUTPUT_CLOSE:
+            return "" if self._blank(after) else None
+        block = self._blocks.get(after + 1)
+        if block is None or not block.closing:
+            return None
+        fence = self._lines[block.start]
+        closing = self._lines[block.end - 1]
+        bare = closing == fence and _BARE_FENCE_RE.fullmatch(fence)
+        if not (bare and self._blank(after) and self._blank(block.end)):
+            return None
+        return "\n".join(self._lines[block.held_start:block.held_end])
+
+    def _blank(self, number: int) -> bool:
+        """Whether line `number` is blank, or stands outside the text."""
+        inside = 0 <= number < len(self._lines)
+        return not inside or not self._lines[number].strip(_BLANKS)
+
+    @classmethod
+    def _command(cls, sentence: re.Match[str]) -> str:
+        """The command `sentence` names, its code span's padding aside; "" where it names none."""
+        command = sentence.group("command") or ""
+        edges = command[:1] + command[-1:]
+        padded = edges == "  " and bool(command.strip(" "))
+        return command[1:-1] if padded else command

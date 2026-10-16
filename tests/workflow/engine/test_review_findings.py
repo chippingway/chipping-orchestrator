@@ -13,6 +13,9 @@ not collect by that collection, never by a made-up test ID; or the failure
 entry of the reviewer's whose error its output shows -- so two runs of one
 stdin command each lead with their own scenario -- and otherwise a line saying
 nothing names it, beside any error or reproduction the check leaves missing.
+An entry leaving out its name, error, or reproduction says so where it
+stands, and a check the concise layout before leads showed is led as if read
+off the declaration it came from.
 A declaration out of shape, or about something else, goes all the same,
 without taking the findings written below a block cut short or below a fence
 Markdown ends, and what is shown declares nothing the verification reader
@@ -204,9 +207,10 @@ _INVENTORY = f"{_LINT}\nCOMMAND: uv run pytest tests"
 # The failures pytest's short summary reports, as pytest 9 prints them: a
 # test's node ID whole, parameters with spaces, dashes, and the very dash and
 # bracket that part an ID from its message included, then the message after a
-# dash, however pytest cut it short, a dash and brackets of its own included,
-# or the bare name of an exception saying nothing more -- and a test that
-# errored in its fixture.
+# dash -- a rewritten assertion, brackets of its own included, an exception
+# and what it says, however pytest cut it short, a dash and brackets of its
+# own included, or the bare name of an exception saying nothing more -- and a
+# test that errored in its fixture.
 _SUITE = "COMMAND: uv run pytest tests"
 _SUMMARY = (
     "FAILED tests/test_a.py::test_fail - AssertionError: values differ - badly\n"
@@ -214,11 +218,12 @@ _SUMMARY = (
     "FAILED tests/test_a.py::test_param[lost-response] - AssertionError: assert 'lost-re...\n"
     "FAILED tests/test_a.py::test_param[x - y] - AssertionError: assert 'x - y' == 'nope'\n"
     "FAILED tests/test_a.py::TestK::test_m - KeyError: 'VERIFY_COMMANDS'\n"
-    "FAILED tests/test_a.py::test_value[left] - right] - AssertionError: values differ\n"
+    "FAILED tests/test_a.py::test_value[left] - right] - assert 1 == 2\n"
+    "FAILED tests/test_a.py::test_items[case] - assert [1] == [2]\n"
     "FAILED tests/test_a.py::test_list[x] - AssertionError: lists [1] - [2] differ\n"
     "FAILED tests/test_a.py::test_raise[p] - ValueError\n"
     "ERROR tests/test_a.py::test_setup - RuntimeError: fixture exploded\n"
-    "8 failed, 1 passed, 1 error in 0.02s"
+    "9 failed, 1 passed, 1 error in 0.02s"
 )
 _SUMMARY_LEAD = (
     "Failure: `tests/test_a.py::test_fail`\n"
@@ -232,7 +237,9 @@ _SUMMARY_LEAD = (
     "Failure: `tests/test_a.py::TestK::test_m`\n"
     "Error: `KeyError: 'VERIFY_COMMANDS'`\n"
     "Failure: `tests/test_a.py::test_value[left] - right]`\n"
-    "Error: `AssertionError: values differ`\n"
+    "Error: `assert 1 == 2`\n"
+    "Failure: `tests/test_a.py::test_items[case]`\n"
+    "Error: `assert [1] == [2]`\n"
     "Failure: `tests/test_a.py::test_list[x]`\n"
     "Error: `AssertionError: lists [1] - [2] differ`\n"
     "Failure: `tests/test_a.py::test_raise[p]`\n"
@@ -295,11 +302,21 @@ _STDIN_UNREPRODUCED = (
 # snippet, and how the run printing its error is shown.
 _QUOTED_ENTRY = f"```text\nFailure: A probe\nError: {_RELABEL_ERROR}\n```\n\n"
 _UNREPRODUCED_ENTRY = f"Failure: A probe\nError: {_RELABEL_ERROR}\n\n"
+_UNREPRODUCED_SHOWN = _UNREPRODUCED_ENTRY.replace(
+    "\n\n", "\nReproduce: not recorded; the entry gives no reproduction\n\n",
+)
 _COMMAND_ONLY_ENTRY = f"Failure: A probe\nError: {_RELABEL_ERROR}\nReproduce: `.venv/bin/python -`\n\n"
 _PROBE_FAILED = f"`.venv/bin/python -` exited with status 1:\n\n```\n{_RELABEL_ERROR}\n```"
 # Entries for the module pytest could not collect, and for a test in it, which is another failure.
-_COLLECTION_ENTRY = "Failure: pytest collection of tests/test_b.py\nError: ImportError: cannot import name 'thing'\n\n"
-_TEST_ENTRY = "Failure: tests/test_b.py::test_x\nError: ImportError: cannot import name 'thing'\n\n"
+_COLLECTED_ERROR = (
+    "Error: ImportError: cannot import name 'thing'\nReproduce: .venv/bin/python -m pytest tests/test_b.py"
+)
+_COLLECTION_ENTRY = f"Failure: pytest collection of tests/test_b.py\n{_COLLECTED_ERROR}\n\n"
+_TEST_ENTRY = f"Failure: tests/test_b.py::test_x\n{_COLLECTED_ERROR}\n\n"
+# What an entry leaving out its name, error, or reproduction is shown saying.
+_UNNAMED_ENTRY = "not named; the entry gives no test ID or scenario name"
+_NO_ENTRY_ERROR = "not recorded; the entry gives no error"
+_NO_ENTRY_REPRODUCTION = "not recorded; the entry gives no reproduction"
 # More tests failing than a lead names, and as many as it does.
 _FAILED_TESTS = 12
 _NAMED_TESTS = 10
@@ -682,24 +699,99 @@ class FailureNamesTest(unittest.TestCase):
         # quoted in a code block, or backing another check, names nothing.
         cases = (
             ("", _RELABEL_ERROR, f"{_UNNAMED}{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
-            (_QUOTED_ENTRY, _RELABEL_ERROR, f"{_UNNAMED}{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
-            (_UNREPRODUCED_ENTRY, _RELABEL_ERROR, f"Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
-            (_COMMAND_ONLY_ENTRY, _RELABEL_ERROR, f"Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
+            (_QUOTED_ENTRY, _RELABEL_ERROR, f"{_QUOTED_ENTRY}{_UNNAMED}{_STDIN_UNREPRODUCED}{_PROBE_FAILED}"),
+            (
+                _UNREPRODUCED_ENTRY,
+                _RELABEL_ERROR,
+                f"{_UNREPRODUCED_SHOWN}Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}",
+            ),
+            (
+                _COMMAND_ONLY_ENTRY,
+                _RELABEL_ERROR,
+                f"{_COMMAND_ONLY_ENTRY}Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}",
+            ),
             (
                 _UNREPRODUCED_ENTRY,
                 _ANNOUNCE_ERROR,
-                f"{_UNNAMED}{_STDIN_UNREPRODUCED}{_PROBE_FAILED.replace(_RELABEL_ERROR, _ANNOUNCE_ERROR)}",
+                (
+                    f"{_UNREPRODUCED_SHOWN}{_UNNAMED}{_STDIN_UNREPRODUCED}"
+                    f"{_PROBE_FAILED.replace(_RELABEL_ERROR, _ANNOUNCE_ERROR)}"
+                ),
             ),
             (
                 f"{_PROBE_ENTRIES}\n\n",
                 "",
-                f"{_UNNAMED}{_NO_OUTPUT}{_STDIN_UNREPRODUCED}`.venv/bin/python -` exited with status 1.",
+                (
+                    f"{_PROBE_ENTRIES}\n\n{_UNNAMED}{_NO_OUTPUT}{_STDIN_UNREPRODUCED}"
+                    "`.venv/bin/python -` exited with status 1."
+                ),
             ),
         )
         for written, output, shown in cases:
             with self.subTest(written=written, output=output):
                 step = f"{_PROBE}\nEXIT: 1\n{output}".rstrip("\n")
-                _assert_shown(self, f"{written}{_RUN_LINE}\n{step}\n{_END_LINE}", f"{written}{shown}")
+                _assert_shown(self, f"{written}{_RUN_LINE}\n{step}\n{_END_LINE}", shown)
+
+    def test_incomplete_entries_say_what_is_missing(self) -> None:
+        # An entry naming nothing, or giving no error or reproduction -- its
+        # label blank, or missing -- says so where it stands, in its own
+        # indentation: a blank label in place, an error added below its name,
+        # a reproduction below all its last label gives, a code block
+        # included. The rest stays as written, and a complete entry as it is.
+        blank = "Failure:\nError:\nReproduce:"
+        unlabeled = (
+            "1. Reprove the evidence.\n\n"
+            "   Failure: A probe\n"
+            "   Expected: the evidence is reproved\n"
+            "   Observed: the attempt is released\n\n"
+            "   ```text\n"
+            "   attempt released\n"
+            "   ```"
+        )
+        cases = (
+            (
+                blank,
+                f"Failure: {_UNNAMED_ENTRY}\nError: {_NO_ENTRY_ERROR}\nReproduce: {_NO_ENTRY_REPRODUCTION}",
+            ),
+            (
+                unlabeled,
+                unlabeled.replace(
+                    "   Failure: A probe\n", f"   Failure: A probe\n   Error: {_NO_ENTRY_ERROR}\n",
+                )
+                + f"\n   Reproduce: {_NO_ENTRY_REPRODUCTION}",
+            ),
+            (f"{_PROBE_ENTRIES}", f"{_PROBE_ENTRIES}"),
+        )
+        for written, shown in cases:
+            with self.subTest(written=written):
+                _assert_shown(self, written, shown)
+        _assert_shown(
+            self,
+            f"Failure: A probe\nError:\nReproduce:\n\n{_RUN_LINE}\n{_PROBE}\nEXIT: 1\nprobe started\n{_END_LINE}",
+            f"Failure: A probe\nError: {_NO_ENTRY_ERROR}\nReproduce: {_NO_ENTRY_REPRODUCTION}\n\n"
+            f"{_UNNAMED}{_STDIN_UNREPRODUCED}"
+            "`.venv/bin/python -` exited with status 1:\n\n```\nprobe started\n```",
+        )
+
+    def test_previous_layout_is_led(self) -> None:
+        # Feedback a tick before leads formatted holds no declaration, so each
+        # check is read off the paragraph its sentence opens -- over its fenced
+        # output, or alone -- and led as a live round's is. A sentence that
+        # opens no paragraph, goes on with one, or a code block holds is the
+        # reviewer's own text.
+        previous = f"{_FINDINGS}\n\n`uv run pytest tests` exited with status 1:\n\n```\n{_SUMMARY}\n```"
+        bare = "`make lint` exited with status 2."
+        kept = (
+            f"{_FINDINGS}\n{bare}",
+            f"{bare}\nThe linter crashed before reporting.",
+            f"```text\n{bare}\n```",
+            f"{_FINDINGS}\n\n`uv run pytest tests` exited with status 1:\n\n```text\n{_SUMMARY}\n```",
+        )
+        _assert_shown(self, previous, previous.replace("\n\n`uv", f"\n\n{_SUMMARY_LEAD}`uv", 1))
+        _assert_shown(self, bare, f"{_UNNAMED}{_NO_OUTPUT}{bare}")
+        for written in kept:
+            with self.subTest(written=written):
+                _assert_shown(self, written, written)
 
 
 def _assert_malformed_shown(case: unittest.TestCase, *cases: tuple[str, str]) -> None:
@@ -714,9 +806,16 @@ def _assert_malformed_shown(case: unittest.TestCase, *cases: tuple[str, str]) ->
 
 
 def _assert_shown(case: unittest.TestCase, findings: str, shown: str) -> None:
-    """`findings` are shown as `shown`, which formats to itself and declares nothing."""
+    """`findings` are shown as `shown`, which formats to itself and declares nothing.
+
+    The layout before leads showed `findings` as is shown as `shown` too, so
+    feedback a tick of that layout persisted or posted is shown as a live
+    round's is.
+    """
+    previous = review_findings._unled_findings(findings)
     case.assertEqual(review_findings._concise_findings(findings), shown)
     case.assertEqual(review_findings._concise_findings(shown), shown)
+    case.assertEqual(review_findings._concise_findings(previous), shown)
     case.assertIsNone(_PROTOCOL_LINE_RE.search(shown))
     case.assertIs(
         review_verification._parse_verification_outcome(shown, _SUBJECT),

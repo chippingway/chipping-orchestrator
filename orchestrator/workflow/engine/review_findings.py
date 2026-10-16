@@ -25,7 +25,9 @@ output shows and never by its command, so runs of one stdin command each lead
 with their own scenario; or else a line saying nothing names it. The lead says
 too where the check quoted no output, and where its command reads its code
 from stdin with no snippet given to reproduce it. The findings are read whole
-for those entries before any check is shown, and stay as written.
+for those entries before any check is shown, and stay as written, save what
+an entry leaves out -- its name, its error, or its reproduction -- which is
+said where the entry stands (`review_findings_entries`).
 The disposition of a verdict a live reviewer round returns
 (`stages/validating/review_disposition.py`) formats its feedback here once the
 declaration is read, and that is the feedback a change request is persisted
@@ -33,13 +35,16 @@ with, posted as, and handed to its developer as. A later tick's handoff of a
 persisted request (`stages/validating/review_handoffs.py`) formats the
 record's feedback here again where it posts it and resumes the developer on
 it: a record persisted before that formatting still carries its declaration
-raw, and one persisted concise goes out as it was. The post a
-`/orchestrator continue` replays has its findings formatted here too, as the
-replay quotes it (`stages/validating/feedback_posts.py`). A tick before checks
-were led by what failed may have posted a record persisted raw in that tick's
-own concise layout, which `_unled_findings` keeps showing -- each check its
-sentence over its output, nothing leading it -- so a later tick still finds
-that post by its words.
+raw, and one persisted concise goes out as it was, save what the layout
+before leads left out. The post a `/orchestrator continue` replays has its
+findings formatted here too, as the replay quotes it
+(`stages/validating/feedback_posts.py`). That layout -- each check its
+sentence over its output, nothing leading it, kept here as `_unled_findings`
+-- holds no declaration to read its checks from again, so each is read off
+the paragraph it stands as and led as a live round's check is
+(`review_findings_failures`); and a tick of that layout may have posted a
+record persisted raw in it, so a later tick still finds that post by its
+words.
 
 Display is read apart from validation, and more loosely, since nothing here is
 accepted -- there is only text to show. A line opening on a marker or step
@@ -88,7 +93,9 @@ would take as evidence; what a run earned is read from its own message alone,
 and formatting makes nothing acceptable. Findings with nothing left -- none at
 all, or a declaration whose checks all passed or wrote nothing -- read as a
 sentence saying so, never as the raw message. Findings with no protocol line
-come back as written, leads and all, so formatting twice changes nothing.
+come back as written, leads and all, but for a check the layout before leads
+left unled and an entry leaving something out, which are led and said once;
+so formatting twice changes nothing.
 """
 from __future__ import annotations
 
@@ -101,6 +108,7 @@ from operator import ne
 from types import MappingProxyType
 
 from orchestrator.workflow.engine import (
+    review_findings_entries as _entries,
     review_findings_failures as _failures,
     review_findings_fences as _markdown,
     review_verification_models as _models,
@@ -244,9 +252,9 @@ def _concise_findings(findings: str) -> str:
     """
     chunks = tuple(_chunks(findings))
     said = "\n\n".join(chunk for chunk in chunks if isinstance(chunk, str))
-    entries = _failures.FailureEntry.read(said)
+    entries = _entries.FailureEntry.read(said)
     shown = (
-        chunk if isinstance(chunk, str) else chunk.shown(entries)
+        _failures.said(chunk, entries) if isinstance(chunk, str) else chunk.shown(entries)
         for chunk in chunks
     )
     concise = "\n\n".join(chunk for chunk in shown if chunk)
@@ -469,7 +477,7 @@ class _Check:
             return
         yield self
 
-    def shown(self, entries: Sequence[_failures.FailureEntry] | None) -> str:
+    def shown(self, entries: Sequence[_entries.FailureEntry] | None) -> str:
         """The check as a developer needs it: the failures it records by name,
         then its command and how it ended, over the output it quoted. The
         findings' failure `entries` name those its output does not

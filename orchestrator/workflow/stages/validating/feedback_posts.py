@@ -53,9 +53,11 @@ and settles exactly as over the comment itself -- whose body has the findings
 formatted (`review_findings`), each check not shown passing kept as its
 diagnostic, between the line naming the review and the receipt and marker,
 all kept as posted. Findings formatting leaves nothing of read as the
-sentence saying so, as a live round's would. A post made since quotes its
-findings concise already, and formatting them again changes nothing; a body
-of any other shape is read as findings whole.
+sentence saying so, as a live round's would. A post made in the concise
+layout before failing checks were led by what failed has each check led and
+what an entry leaves out said, as a live round's are; one made since quotes
+its findings as shown already, and formatting them again changes nothing; a
+body of any other shape is read as findings whole.
 """
 from __future__ import annotations
 

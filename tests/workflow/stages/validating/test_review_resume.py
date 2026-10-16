@@ -174,6 +174,8 @@ _REFUSES_THE_POST_RAW = partial(_raw.leaves_raw, leaves=_resumed.refuses_the_pos
 
 _REFUSES_THE_PROBES_POST_RAW = partial(_REFUSES_THE_POST_RAW, reply=_world.PROBED_REQUEST)
 
+_REFUSES_THE_POST_PREVIOUS = partial(_raw.leaves_previous, leaves=_resumed.refuses_the_post)
+
 _REFUSES_THE_RELABEL_RAW = partial(_raw.leaves_raw, leaves=_resumed.refuses_the_relabel)
 
 # The tick handing over a request beside a passing run, persisted raw and
@@ -247,13 +249,15 @@ class ValidatingResumeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
         # raw, and launches and charges the one developer -- never a reviewer
         # -- on the concise findings, with the reviewer's usage still folded
         # once and a raw post already made left as it was posted. Two probes
-        # one stdin command ran go out each led by its own scenario.
+        # one stdin command ran go out each led by its own scenario, and a
+        # request persisted before leads goes out led.
         for name, stops, handed in (
             ("its feedback post refused", _resumed.refuses_the_post, _AS_PERSISTED),
             ("its relabel refused", _resumed.refuses_the_relabel, _AS_PERSISTED),
             ("raw, its evidence owed", _OWES_ITS_EVIDENCE_RAW, _POSTED_CONCISE),
             ("raw, its feedback post refused", _REFUSES_THE_POST_RAW, _POSTED_CONCISE),
             ("raw named probes, their feedback post refused", _REFUSES_THE_PROBES_POST_RAW, _PROBES_POSTED_CONCISE),
+            ("before leads, its feedback post refused", _REFUSES_THE_POST_PREVIOUS, _POSTED_CONCISE),
             ("raw, its relabel refused", _REFUSES_THE_RELABEL_RAW, _POSTED_RAW),
         ):
             with self.subTest(name):
