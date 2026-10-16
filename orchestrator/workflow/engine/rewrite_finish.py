@@ -98,7 +98,9 @@ refuses stops the finish there with nothing behind it made:
   (`pending_auto_base_rebase_relabelled`, `rewrite_finish_announced`), and an
   issue on `workflow:validating` beside that record is not relabelled again --
   one already on `workflow:validating` before its rebase, with no record, is,
-  as an uninterrupted route would relabel it.
+  as an uninterrupted route would relabel it, save where the event stream
+  carries the stage-entry event that relabel names the head on, a finish lost
+  between it and its record.
 
 A tick lost anywhere in that tail -- behind the evidence it settled, retired,
 or left to the fresh reviewer and before the announcement, between the
@@ -157,7 +159,7 @@ wherever anything it is bound to moved since it settled
 
 A finish announces nothing for a head another finish of the landing marked
 meanwhile, relabels nothing another one relabelled for
-that head, holds where the label would not read again or another attempt
+that head, holds where the label or the event stream would not read again or another attempt
 stands behind the proof ahead of its relabel, reuses a debt park standing
 that no reply handed in answers, parks over a notice said behind a reply it
 is handed again, leaves a transaction another road recorded behind its

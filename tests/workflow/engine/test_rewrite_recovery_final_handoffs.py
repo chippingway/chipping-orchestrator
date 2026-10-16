@@ -98,10 +98,11 @@ _VALIDATING = "validating"
 
 # Every resolution and boundary from the stage that asked for the rebase, and
 # from `workflow:validating` behind the checkpoint, whose relabel is owed onto
-# the label the issue already wears.
+# the label the issue already wears -- a tail lost right behind that relabel,
+# at its record, among them.
 _JOURNEYS = (
     *product((False,), _RESOLUTIONS, handoff.BOUNDARIES),
-    *product((True,), _RESOLUTIONS, (handoff.BEFORE_THE_RELABEL, handoff.BEFORE_THE_RETIREMENT)),
+    *product((True,), _RESOLUTIONS, handoff.BOUNDARIES[4:]),
 )
 
 _REREAD = "reread_report_location"

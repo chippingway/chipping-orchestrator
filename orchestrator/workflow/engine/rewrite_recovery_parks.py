@@ -160,14 +160,17 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     handed to the proof as its answer, so a record put back between the
     park's commit and the proof revives nothing. A notice whose post raised --
     refused, or posted with its answer lost -- records nothing, and the proof
-    is taken before the error goes on, so a report moved while it was posted
-    is read moving all the same.
+    is taken before the error goes on, over the evidence the comment carries
+    by then (`rewrite_landing_retirement.reconciles`), so a report moved while
+    it was posted is read moving all the same -- under a successor another
+    road settled meanwhile too, proved on its own binding.
     """
     state = context.state
     try:
         _guards._park_awaiting_human(context.gh, context.issue, state, message, reason=reason)
     except Exception:
         if context.worktree.is_dir():
+            _retirement.reconciles(context)
             _retirement.retires_unproved(context)
         raise
     state.set(_base_sync_state._PARK_REASON, reason)

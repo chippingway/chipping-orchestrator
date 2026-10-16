@@ -1373,8 +1373,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             attempt a finish captured -- unmoved, advanced by its own announcement alone, or, where
                             asked, with its base tip read blank, which records movement rather than another attempt
                             (`stands_as_read`); whether the comment read afresh behind the proof ahead of a relabel
-                            still carries the attempt captured ahead of that proof, its base tip aside where blank
-                            (`stands_afresh`); and the fields of a fresh reading laid over the tick's state, each
+                            still carries the attempt captured ahead of that proof, its base tip aside where blank,
+                            settled evidence that very reading records moving invalidated first however soon it is put
+                            back (`stands_afresh`); and the fields of a fresh reading laid over the tick's state, each
                             taken in as read (`lays`)
     rewrite_finish_announced.py
                             a finish's announcement on the attempt, read again wherever the tick's reading may be
@@ -2218,7 +2219,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             other field as the fresh comment carries it, so a report another road settled or a
                             transaction it recorded while the notice went out is kept rather than put back. A park
                             refused or never confirmed records nothing and withholds the tick's state; a state
-                            nothing was read into is written whole. Behind the notice -- landed, refused, or raised --
+                            nothing was read into is written whole. Behind the notice -- landed, refused, or raised, the
+                            comment's evidence laid over the tick's state first where it raised --
                             what the park keeps is proved once more (`rewrite_landing_retirement.retires_unproved`),
                             a binding record its own commit carried spelled otherwise than the tick read it, landed,
                             sent with its answer lost, or in the comment its strict edit was refused over, handed to

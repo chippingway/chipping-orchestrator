@@ -1533,9 +1533,9 @@ because there it is the claim that this stage has already rerouted rather than a
   park included, on every poll -- and each park landed through the guarded commit over the comment read afresh,
   proving what it keeps once more behind its notice, raised or not, and behind its record, a movement that record
   carried -- or that the comment its strict edit was refused over carried -- kept as read under whichever evidence
-  it was read under (`rewrite_recovery_parks.lands_a_park`); behind a record refused or sent with its answer lost,
-  the evidence the comment carries now is laid over the tick's state first, so a successor another road settled
-  meanwhile is proved on its own binding rather than left unread
+  it was read under (`rewrite_recovery_parks.lands_a_park`); behind a notice that raised, or a record refused or sent
+  with its answer lost, the evidence the comment carries now is laid over the tick's state first, so a successor
+  another road settled meanwhile is proved on its own binding rather than left unread
   (`rewrite_landing_retirement.reconciles`). A publication gate's hold of the landed road's
   leased no-op is recorded the same way, as `HOLD`, its proof taken first (`rewrite_recovery_parks.lands_a_hold`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the

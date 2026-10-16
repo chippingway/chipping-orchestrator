@@ -147,8 +147,9 @@ def relabels(finish: LandedFinish, observed: ProofReading) -> FinishOutcome | No
     makes requests of its own, and another finish of the landing may relabel
     while they are answered, or another road put an attempt of its own in
     place, so behind them the comment is read afresh -- this landing's own
-    bookkeeping taken in, the route held with nothing relabelled where it no
-    longer carries the attempt this finish holds
+    bookkeeping taken in, settled evidence that reading records moving
+    invalidated over `observed`'s classifier, and the route held with nothing
+    relabelled where it no longer carries the attempt this finish holds
     (`rewrite_finish_rechecks.stands_afresh`) or would not read -- and the
     label once more, so the relabel, and its stage-entry event, is not made
     twice. The relabel lands with its record around it
@@ -162,7 +163,7 @@ def relabels(finish: LandedFinish, observed: ProofReading) -> FinishOutcome | No
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     stopped = _settled.stands_ready_if_settled(finish)
     goes_on = stopped is None and made is not None
-    if goes_on and not _rechecks.stands_afresh(finish, attempt):
+    if goes_on and not _rechecks.stands_afresh(finish, attempt, observed):
         return FinishOutcome.HELD
     if goes_on:
         made = relabelled(finish)

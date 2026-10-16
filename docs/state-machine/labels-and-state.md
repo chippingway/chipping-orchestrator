@@ -3282,9 +3282,13 @@ The keys that matter for the state machine fall into a few groups:
   right behind it where the issue already wore `workflow:validating`, which a relabel onto it leaves as it was. A
   finish reads the relabel made only where this member names the head and the issue wears `workflow:validating`
   (`workflow/engine/rewrite_finish_announced.relabelled`), so a finish lost before the retirement -- or another
-  finish of the landing -- makes neither the relabel nor its stage-entry event twice, with no event log needed; a
-  finish lost between a relabel onto `workflow:validating` and the record right behind it makes both once more,
-  the one window the member cannot close. Blanked with the rest of the attempt by every write that ends it.
+  finish of the landing -- makes neither the relabel nor its stage-entry event twice, with no event log needed.
+  A finish lost between a relabel onto `workflow:validating` and the record right behind it leaves the issue on
+  that label with no record: the relabel named the head on its `stage_enter` event (`sha`), so the next finish
+  asks the event stream for it (`github/events.filed`) and relabels only where the stream does not carry it,
+  holding where the stream will not read. Behind a restart with no audit log configured that event is gone, and
+  the relabel and its stage-entry event are made once more -- the one window neither the member nor the stream
+  closes. Blanked with the rest of the attempt by every write that ends it.
   Additive: an attempt from before this member existed carries none, and is relabelled once more where a finish
   of it was lost behind its relabel.
   `pending_auto_base_rebase_announced_event` — the head whose `base_rebased` event a finish of the attempt is

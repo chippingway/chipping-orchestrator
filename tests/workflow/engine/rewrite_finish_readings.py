@@ -53,6 +53,9 @@ ROUTED = (WorkflowLabel.VALIDATING,)
 # Why settled evidence a rewrite moved past retired, as history spells it.
 INVALIDATED = "invalidated"
 
+# Why settled evidence a newer settlement replaced retired, as history spells it.
+SUPERSEDED = "superseded"
+
 # Why a recorded transaction that will never settle retired, as history spells it.
 ABANDONED = "abandoned"
 

@@ -113,10 +113,28 @@ def _settles_a_later_report(case, head: str, replaced: list, *, respelled: bool 
     return settled.records_a_newer_run(case, settles=True, binding=bound)
 
 
-def _raises_behind(case, head: str, replaced: list, *_posted, **_options):
-    """The issue-thread post of a park's notice, answered by report 3 of `head` settled and then a raise."""
-    _settles_a_later_report(case, head, replaced)
-    raise RuntimeError("GitHub did not answer the notice's post")
+class _RaisesBehind:
+    """The issue-thread post of a park's notice, answered by report 3 of `head` settled and then a raise.
+
+    `successor` settles a newer run bound to report 3 beside it, kept as
+    `successor`, and puts report 2 back before the raise; what report 3 moved
+    is kept in `replaced`.
+    """
+
+    def __init__(self, case, head: str, *, successor: bool = False) -> None:
+        self._case = case
+        self._head = head
+        self._with_successor = successor
+        self.replaced: list = []
+        self.successor = None
+
+    def __call__(self, *_posted, **_options):
+        """Settle report 3 -- and the successor, putting report 2 back -- then raise as GitHub not answering."""
+        case = self._case
+        self.successor = _settles_a_later_report(case, self._head, self.replaced, successor=self._with_successor)
+        if self._with_successor:
+            _puts_back(case, self.replaced)
+        raise RuntimeError("GitHub did not answer the notice's post")
 
 
 def _puts_back(case, replaced: list) -> None:
@@ -184,19 +202,27 @@ class KeptParkProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_a_raised_notice_proves_behind_it(self) -> None:
         # The dispatcher's hold strands the attempt under a label the refresh
-        # does not drive, and its notice's post raises behind report 3: the
-        # run is proved again before the error goes on, and invalidated whole,
-        # with nothing parked.
-        head, settled = self.settles_then_dies()
-        self.issue.labels = [FakeLabel(_UNDRIVEN)]
-        replaced: list = []
-        with patch.object(self.gh, "comment", partial(_raises_behind, self, head, replaced)):
-            self.assertRaises(RuntimeError, guarded.answers_a_held_anchor, self)
-        self.issue.labels = [FakeLabel(git_support.REVIEWING)]
-        _puts_back(self, replaced)
+        # does not drive, and its notice's post raises behind report 3 -- or
+        # behind a newer run another road settled bound to report 3, report 2
+        # put back: the evidence the comment carries is proved again before
+        # the error goes on, the run or that successor on its own binding, and
+        # invalidated whole, its revision and binding kept, with nothing parked.
+        for successor in (False, True):
+            with self.subTest(successor=successor):
+                self.setUp()
+                head, settled = self.settles_then_dies()
+                self.issue.labels = [FakeLabel(_UNDRIVEN)]
+                raises = _RaisesBehind(self, head, successor=successor)
+                with patch.object(self.gh, "comment", raises):
+                    self.assertRaises(RuntimeError, guarded.answers_a_held_anchor, self)
+                self.issue.labels = [FakeLabel(git_support.REVIEWING)]
+                _puts_back(self, raises.replaced)
 
-        self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
-        self.assert_invalidated(settled)
+                self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
+                if successor:
+                    self.assert_invalidated(raises.successor, over=settled)
+                else:
+                    self.assert_invalidated(settled)
 
     def test_a_move_under_the_parks_edit_is_read(self) -> None:
         # The dispatcher's hold strands the attempt under a label the refresh

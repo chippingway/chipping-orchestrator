@@ -140,15 +140,19 @@ class GuardedRecoveryCase(support.CapturedRunCase):
         handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
         return head, readings.pinned_records(self)[1]
 
-    def assert_invalidated(self, settled, pending: str | None = None) -> None:
+    def assert_invalidated(self, settled, pending: str | None = None, *, over=None) -> None:
         """`settled` invalidated whole behind the anchor's evidence, its revision and binding kept, `pending` beside it.
 
         `pending` is the receipt of a transaction another road recorded, None
-        where nothing is pending. Nothing is announced or relabelled, and the
-        run was made once, with nothing pushed or launched.
+        where nothing is pending; `over` is the run `settled` superseded where
+        another road settled it in that run's place. Nothing is announced or
+        relabelled, and the run was made once, with nothing pushed or launched.
         """
         records = readings.pinned_records(self)
-        retired = (*git_support.invalidated(self), (settled.receipt, readings.INVALIDATED))
+        retired = [*git_support.invalidated(self), (settled.receipt, readings.INVALIDATED)]
+        if over is not None:
+            retired.insert(-1, (over.receipt, readings.SUPERSEDED))
+        retired = tuple(retired)
         self.assertEqual(records[1:], (None, retired))
         self.assertEqual(getattr(records[0], "receipt", None), pending)
         entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
