@@ -2382,7 +2382,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             over the comment the tick read (`keeps_the_staging`) -- a field no strict edit of the
                             proof's carried, landed or unconfirmed, an equal total another road wrote proving nothing --
                             so the record behind lands it as the tick's own move or refuses it as a conflict, a field
-                            the proof itself left staged keeping the proof's staging
+                            the proof itself left staged keeping the proof's staging; behind a record that did not land,
+                            that staging is taken off the state for the proof, put back only where no proof edit
+                            landed or may have
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written
                             only once it saw the push land: whether any record -- pending, current, retired, or a

@@ -3360,7 +3360,8 @@ The keys that matter for the state machine fall into a few groups:
   the attempt included -- lay the evidence the comment carries over the tick's state behind a record that did not
   land, so a successor another road settled is proved on its own binding, record the reset against the evidence
   behind a record or notice the checkout went from disk under, and take in a park notice already said past the
-  watermark rather than posting it twice (`workflow/engine/rewrite_recovery_notices.py`).
+  watermark rather than posting it twice (`workflow/engine/rewrite_recovery_notices.py`); a refused record's flags
+  ride no write of the proof behind it, and stay on the tick's state only where none of that proof's edits landed.
   **The post-publication route is live too.** The recovery hands every head the pull request already carries, beside
   how far the transfer got, to the workflow's landed road (`workflow/engine/rewrite_landed.py`), which asks
   `landed_recovery` why it may not finish one, and eligibility's open-PR gate hands `terminal_handoff` every
