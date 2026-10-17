@@ -23,7 +23,8 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.workflow.engine import report_record_values as _record_values
+from orchestrator.git.base_sync import attempts as _attempts
+from orchestrator.workflow.engine import report_record_values as _record_values, rewrite_finish_debt as _debt
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
     rewrite_finish_effects_support as effects,
@@ -273,6 +274,85 @@ class RoomMovedMeanwhileTest(unittest.TestCase):
         """How many notices PR #42 was given and `base_rebased` events filed, and every label written."""
         notices, events = world.said()
         return len(notices), len(events), world.relabels()
+
+
+# Every member of an attempt, which an attempt's clear blanks: one the comment
+# lacks is put there blank first, so the clear grows nothing.
+_ATTEMPT_MEMBERS = frozenset(_attempts._ATTEMPT_KEYS)
+
+# A recovery that finds its push standing on a head the base advanced past again.
+_CONTINUED = replace(support.FOUND, behind=1)
+
+# Whether a finish is held to the dormant settled-evidence policy, and what it
+# comes to over a comment filled after the tick read it, with room for the
+# announcement and its debt and none for the relabel's record, and how many
+# notices and `base_rebased` events it says together: one of each, or none.
+_FRESH_FILL = (
+    (False, FinishOutcome.ROUTED, 2),
+    (True, FinishOutcome.REFUSED, 0),
+)
+
+
+def _fills_short_of_the_relabel(world: support.FinishWorld, finish) -> None:
+    """Fill the comment `finish` read until it has room for the announcement and its debt, and one character more."""
+    announced = {**_debt.announcement(finish.state, support.LANDED).data}
+    announced[support.KEY_REWRITE_DEBT] = support.owed()
+    effects.leaves(world, effects.room_for(world, **announced) + 1)
+
+
+class RelabelRecordRoomTest(unittest.TestCase):
+    """The room an announced landing's debt needs beside the record of the relabel a dormant finish lands."""
+
+    def test_the_relabel_record_needs_room(self) -> None:
+        # The comment has room for the debt of a landing already announced
+        # and no more. Every finish measures that debt on the comment as it
+        # stands, and it fits; one held to the dormant settled-evidence policy
+        # also lands the record of its relabel before the retirement clears
+        # it, so it measures beside that record, finds no room, and parks
+        # with nothing recorded or relabelled.
+        for proves_settled in (False, True):
+            with self.subTest(proves_settled=proves_settled):
+                world = support.FinishWorld.seeded(**{support.KEY_ANNOUNCED: support.LANDED})
+                effects.leaves(world, effects.room_for(world) + 1)
+                finish = replace(world.finish(support.FOUND), proves_settled=proves_settled)
+
+                self.assertEqual(_debt.fits(finish, announced=True), not proves_settled)
+
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.PARKED)
+        self.assertEqual(world.relabels(), ())
+        self.assertEqual(world.pinned().get(support.KEY_RELABELLED), None)
+
+    def test_a_continuation_reserves_no_relabel(self) -> None:
+        # A landing already announced whose head the base advanced past again
+        # is continued to another rebase and relabels nothing, so the comment
+        # having room for its debt and no more continues it under either
+        # policy: no room is reserved for a relabel record it never makes.
+        for proves_settled in (False, True):
+            with self.subTest(proves_settled=proves_settled):
+                world = support.FinishWorld.seeded(**{support.KEY_ANNOUNCED: support.LANDED})
+                world.another_road(**dict.fromkeys(_ATTEMPT_MEMBERS.difference(world.pinned())))
+                effects.leaves(world, effects.room_for(world) + 1)
+                finish = replace(world.finish(_CONTINUED), proves_settled=proves_settled)
+
+                self.assertEqual(world.finalizes(finish=finish), FinishOutcome.CONTINUED)
+                self.assertEqual(world.relabels(), ())
+
+    def test_a_fresh_fill_spares_the_notice(self) -> None:
+        # Another road fills the comment after the tick read it, leaving room
+        # for the announcement and its debt and none for the relabel's record
+        # behind them. Every other finish announces and routes there; one held
+        # to the dormant settled-evidence policy reserves that record on the
+        # fresh checkpoint it prepares, so it posts and files nothing and stops
+        # with the attempt standing, rather than announcing a head whose
+        # relabel's record could not follow.
+        for proves_settled, outcome, said in _FRESH_FILL:
+            with self.subTest(proves_settled=proves_settled):
+                world = support.FinishWorld.seeded()
+                finish = replace(world.finish(), proves_settled=proves_settled)
+                _fills_short_of_the_relabel(world, finish)
+
+                self.assertEqual(world.finalizes(finish=finish), outcome)
+                self.assertEqual(sum(map(len, world.said())), said)
 
 
 class SettledDebtRoomTest(DebtRoomTest):

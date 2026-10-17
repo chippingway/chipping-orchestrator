@@ -101,6 +101,7 @@ def _replacement(case: support.VerificationRecoveryCase) -> dict:
         readings.KEY_ANNOUNCED: None,
         readings.KEY_EVIDENCE_RECEIPT: None,
         readings.KEY_ANNOUNCED_EVENT: None,
+        readings.KEY_RELABELLED: None,
     }
 
 

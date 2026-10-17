@@ -45,8 +45,13 @@ never routed past -- and the checkout, the local base ref, and the
 configuration behind every request. Every reading is asked for movement and
 for a hold side by side, so a record that holds never hides movement the
 same reading established, and what the first reading heard stands whatever
-the last word's own reading of the comment comes to. Nothing is run or
-decided again: the evidence goes on as it settled, or into history as it was.
+the last word's own reading of the comment comes to. A successor another road
+settled in the evidence's place after the caller read it is asked of its own
+binding in each of those readings of the comment -- its records, and its
+requirements beside the issue read with that comment -- and retired whole as
+the comment stands, or marked, where it moved there (`_heard`), so the
+caller's cached evidence never answers for it. Nothing is run or decided again: the
+evidence goes on as it settled, or into history as it was.
 
 - Ready: the route goes on with the evidence current exactly as it settled.
 - Moved: any reading that establishes movement invalidates the evidence into
@@ -110,7 +115,9 @@ revision spent past it, a blank of the attempt's base tip
 however soon the record is put back; any other stop behind the proof -- a
 refusal reading neither, a write nobody confirmed, a hold -- leaves the
 evidence standing behind requests made since it was proved, and has it proved
-ready once more. A head the base has
+ready once more. Movement the record a write that was prepared, landed, or
+went out unconfirmed made of the comment reads invalidates it even where the
+finish goes on. A head the base has
 advanced past again is continued rather than routed, and keeps its evidence
 for the rebase behind it: the base reading that made that continuation is
 excused from the last word (`rewrite_evidence_proof.ADVANCED`), so it neither
@@ -144,7 +151,12 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_evidence_proof import Refusals, Word, _reads_again, last_word
-from orchestrator.workflow.engine.rewrite_finish_marks import carries_the_mark, marks, retires_over_the_attempt
+from orchestrator.workflow.engine.rewrite_finish_marks import (
+    carries_the_mark,
+    marks,
+    retires_as_it_stands,
+    retires_over_the_attempt,
+)
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.rewrite_finish_outranking import outranks
 from orchestrator.workflow.engine.verification_current import _handoff_describes
@@ -246,16 +258,21 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Wor
     movement and every reading's hold are kept side by side, so none is
     hidden behind another. What `stands_ready` routes over, and what the
     recovery's dormant proof asks before a park keeps the attempt over
-    `current` (`rewrite_landing_retirement.retires_unproved`).
+    `current` (`rewrite_landing_retirement.retires_unproved`). Both
+    readings of the comment ask a successor another road settled in
+    `current`'s place after the caller read it of its own binding there too
+    (`_heard`), so its movement is never read against `current`'s alone.
     """
     read = _reads_again(finish) or (None, None)
-    first = _records_heard(current, read[1], read[0], settled=finish.proves_settled)
+    first = _heard(finish, current, read[1], read[0])
     proved = None
     if read[1] is not None and not any(first):
         proved = _proof.current_evidence_verdict(_proof.ProofReading(finish.gh, finish.spec, *read))
     moved, held = last_word(
-        finish, current.binding, earlier=proved,
-        records=lambda state: _records_heard(current, state, settled=finish.proves_settled),
+        finish,
+        current.binding,
+        earlier=proved,
+        records=lambda state, issue: _heard(finish, current, state, issue),
     )
     return (
         next((refused for refused in first if refused and not refused.holds), moved),
@@ -297,16 +314,61 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence, *, as_i
     announcement another finish of the landing put on it taken in first, and a
     refused write read, reconciled, and retried once
     (`rewrite_finish_marks.retires_over_the_attempt`). Where neither reading
-    took it, it is made over the tick's own copy (`_invalidates_on_the_tick`),
-    so movement already read is never left for a later poll to find put back.
-    False where the comment carries another evidence or another attempt --
-    over which a dormant finish still retires or marks the same receipt as the
-    comment stands, unless `as_it_stands` is False for a caller that puts its
-    own attempt back first (`rewrite_finish_unconfirmed.stands_back`) -- and
-    where nothing took it, the movement then recorded against `current`.
+    took it, it is made over the tick's own copy instead, landed as
+    `rewrite_finish_writes.INVALIDATION`, so movement already read is never
+    left for a later poll to find put back. False where the comment carries
+    another evidence or another attempt -- over which a dormant finish still
+    retires or marks the same receipt as the comment stands, unless
+    `as_it_stands` is False for a caller that puts its own attempt back first
+    (`rewrite_finish_unconfirmed.stands_back`) -- and where nothing took it,
+    the movement then recorded against `current`.
+
+    That copy's write is decided only on the evidence records and the attempt,
+    never on the publication's pinned fields, so a review, report, or
+    publication record another road moved -- often the very movement read --
+    is no refusal, and is kept as that road wrote it. Where it did not land --
+    no room for the history entry on the tick's copy or on the comment another
+    road filled since, or a write refused or never confirmed -- the movement
+    is recorded against `current` instead, which stays current: the base tip
+    the attempt recorded its replay as made onto is blanked, and with no tip
+    nothing proves which base the head was replayed onto, so every later proof
+    of `current` defers (`rewrite_evidence_proof.standing_refusal`) and
+    invalidates it once room is made, whatever moved put back meanwhile or
+    not. The blank only shrinks the comment, so it lands where the entry would
+    not, guarded as the invalidation is
+    (`rewrite_finish_writes.INVALIDATION`): a successor another road settled
+    in `current`'s place refuses it, even where the bounded history dropped
+    `current`'s entry and reads as it did, so no tip is blanked under evidence
+    that never moved. A tip already blank is left as it is. Neither write is
+    decided on the comment as it reads now, so a record another road wrote
+    since the tick read it -- a pending record among them -- refuses both; a
+    finish held to the dormant policy then records the movement under
+    `current`'s own receipt over the comment read afresh
+    (`rewrite_finish_marks.marks`), which every later proof under that policy
+    reads as the movement it is.
     """
     retired = retires_over_the_attempt(finish, current, as_it_stands=as_it_stands)
-    return _invalidates_on_the_tick(finish, current) if retired is None else retired
+    if retired is not None:
+        return retired
+    staged = _writes.staging(finish)
+    if _settlement.read_current_evidence(staged) != current:
+        return False
+    landed = _settlement.retire_current_evidence(staged)
+    if landed and _writes.lands(finish, staged, _writes.INVALIDATION, publication=False) is None:
+        return True
+    stopped = None
+    if _attempt_records._recorded_onto(finish.state):
+        marked = _writes.staging(finish)
+        marked.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+        stopped = _writes.lands(finish, marked, _writes.INVALIDATION, publication=False)
+        log.error(
+            "issue=#%d verification evidence revision %d settled for %.8s could not be invalidated; keeping it "
+            "current, the movement read under it recorded by blanking its base tip (%s)",
+            finish.issue.number, current.revision, finish.head, "landed" if stopped is None else stopped.value,
+        )
+    if stopped is not None and finish.proves_settled:
+        marks(finish, current, "neither its invalidation nor its base tip's blank landed over the tick's own copy")
+    return False
 
 
 def invalidates_behind(
@@ -324,21 +386,35 @@ def invalidates_behind(
     evidence -- any refusal in `observed` that does not hold -- is movement
     read under it, so it is invalidated now (`invalidates`), the attempt and
     the newer records kept as the comment carries them, and putting the
-    record back before the next poll revives nothing. Any other stop -- a
+    record back before the next poll revives nothing. A record named moved is
+    named off the records the tick's state carries, so it is movement under
+    the evidence only where those records bind it
+    (`verification_proof.recorded_verdict`): a successor another road settled
+    bound to newer records, laid over the tick's state from a fresh reading
+    without them, is asked only what a refusal's comment records moving off
+    its own binding (`rewrite_finish_stops.observing`). Any other stop -- a
     refusal that read neither, a write nobody confirmed, a request behind a
     notice already posted that would not answer -- leaves the evidence
     standing behind requests made since it was proved, so it is proved ready
     once more right away (`stands_ready`), which invalidates it where a
-    reading then establishes movement. A finish that went on passes through
-    with nothing read.
+    reading then establishes movement. A finish that went on is proved
+    nothing more, save that movement its writes read -- a record that was
+    prepared, landed, or went out reading a successor off its own binding
+    among it (`rewrite_finish_writes.prepares`, `lands`) -- invalidates the
+    evidence all the same, before anything goes on over it.
     """
     current = _settlement.read_current_evidence(finish.state)
-    if stopped is None or current is None:
+    if current is None:
         return stopped
     if current.binding.target.target_head != finish.head:
         return stopped
-    if all(refused.holds for refused in observed):
-        stands_ready(finish, current)
+    moving = [refused for refused in observed if not refused.holds]
+    unbound = _writes.BINDING_MOVED in moving and _proof.recorded_verdict(finish.state, current.binding)
+    if unbound and not unbound.holds:
+        moving = [refused for refused in moving if refused != _writes.BINDING_MOVED]
+    if not moving:
+        if stopped is not None:
+            stands_ready(finish, current)
         return stopped
     if invalidates(finish, current):
         return stopped
@@ -405,48 +481,29 @@ def _records_heard(
     )
 
 
-def _invalidates_on_the_tick(finish: LandedFinish, current: _records.CurrentEvidence) -> bool:
-    """Invalidate `current` over the tick's own copy, landed as `rewrite_finish_writes.INVALIDATION`; whether it did.
+def _heard(
+    finish: LandedFinish, current: _records.CurrentEvidence, state: PinnedState | None, issue: Issue | None = None,
+) -> Refusals:
+    """`_records_heard` of `current` over `state`, a comment `settled_word` read afresh, as `finish`'s policy reads it.
 
-    Decided only on the evidence records and the attempt, never on the
-    publication's pinned fields, so a review, report, or publication record
-    another road moved -- often the very movement read -- is no refusal, and
-    is kept as that road wrote it. Where it did not land -- no room for the history entry on the
-    tick's copy or on the comment another road filled since, or a write
-    refused or never confirmed -- the movement is recorded against `current`
-    instead, which stays current: the base tip the attempt recorded its replay
-    as made onto is blanked, and with no tip nothing proves which base the
-    head was replayed onto, so every later proof of `current` defers
-    (`rewrite_evidence_proof.standing_refusal`) and invalidates it once room is
-    made, whatever moved put back meanwhile or not. The blank only shrinks
-    the comment, so it lands where the entry would not, guarded as the
-    invalidation is (`rewrite_finish_writes.INVALIDATION`): a successor
-    another road settled in `current`'s place refuses it, even where the
-    bounded history dropped `current`'s entry and reads as it did, so no tip
-    is blanked under evidence that never moved. A tip already blank is left
-    as it is. Neither write is decided on the comment as it reads now, so a
-    record another road wrote since the tick read it -- a pending record
-    among them -- refuses both; a finish held to the dormant policy then
-    records the movement under `current`'s own receipt over the comment read
-    afresh (`rewrite_finish_marks.marks`), which every later proof under that
-    policy reads as the movement it is.
+    `issue` is the issue read with `state` -- `settled_word`'s first reading
+    of the two, or the last word's own -- whose requirements that reading is
+    asked beside. Under the dormant
+    settled-evidence policy a successor `state` carries current for the landed
+    head in `current`'s place -- one another road settled after the caller
+    read the evidence it hands in -- is asked of its own binding in that very
+    reading first (`_records_heard`): its requirements beside that issue, and
+    its review, report, and evidence records. Where any of them refuses it
+    there, it is retired whole as the comment then stands, or its movement
+    marked under its own receipt (`rewrite_finish_marks.retires_as_it_stands`),
+    so putting what moved back before a later reading revives nothing; one
+    nothing refuses is left as its road settled it. `current` is answered over
+    `state` either way.
     """
-    staged = _writes.staging(finish)
-    if _settlement.read_current_evidence(staged) != current:
-        return False
-    retired = _settlement.retire_current_evidence(staged)
-    if retired and _writes.lands(finish, staged, _writes.INVALIDATION, publication=False) is None:
-        return True
-    stopped = None
-    if _attempt_records._recorded_onto(finish.state):
-        marked = _writes.staging(finish)
-        marked.set(_base_sync_state._PENDING_REWRITE_BASE, None)
-        stopped = _writes.lands(finish, marked, _writes.INVALIDATION, publication=False)
-        log.error(
-            "issue=#%d verification evidence revision %d settled for %.8s could not be invalidated; keeping it "
-            "current, the movement read under it recorded by blanking its base tip (%s)",
-            finish.issue.number, current.revision, finish.head, "landed" if stopped is None else stopped.value,
-        )
-    if stopped is not None and finish.proves_settled:
-        marks(finish, current, "neither its invalidation nor its base tip's blank landed over the tick's own copy")
-    return False
+    carried = None if state is None else _settlement.read_current_evidence(state)
+    later = finish.proves_settled and carried is not None and carried.receipt != current.receipt
+    if later and carried.binding.target.target_head == finish.head:
+        heard = _records_heard(carried, state, issue, settled=True)
+        if any(refused and not refused.holds for refused in heard):
+            retires_as_it_stands(finish, carried.receipt)
+    return _records_heard(current, state, issue, settled=finish.proves_settled)

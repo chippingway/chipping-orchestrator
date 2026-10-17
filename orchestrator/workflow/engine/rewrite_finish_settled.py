@@ -25,7 +25,9 @@ and of the relabel, and takes its other proofs around its writes, through
   ready, where any is -- reading the comment afresh behind an invalidation
   that proof lands (`rewrite_finish_rechecks.rechecks_behind`) -- and, asked
   for the base, holds a head with none to the base its replay was made onto,
-  or the base the tick counted it against.
+  or the base the tick counted it against; asked `afresh` behind a relabel
+  that raised, it proves the evidence the comment then carries, so a
+  successor another road settled meanwhile is proved on its own binding.
 - `out_of_step` says why the records beside settled evidence hold the route,
   and `moves_the_binding` which of the refusals an answer read moved what a
   binding rests on rather than the evidence records or the attempt's own
@@ -80,17 +82,17 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.rewrite_evidence_proof import standing_refusal
-from orchestrator.workflow.engine.rewrite_finish_marks import retires_as_it_stands
+from orchestrator.workflow.engine.rewrite_finish_marks import read_afresh, retires_as_it_stands
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.rewrite_finish_outranking import outranks_the_owed
-from orchestrator.workflow.engine.rewrite_finish_rechecks import rechecks_behind, stands_as_read
+from orchestrator.workflow.engine.rewrite_finish_rechecks import lays, rechecks_behind, stands_as_read
 from orchestrator.workflow.engine.verification_proof import recorded_verdict
 
 log = logging.getLogger("orchestrator.workflow")
 
 # The base tip the attempt recorded its replay as made onto, which a proof
 # blanks to record movement read under the evidence where nothing else has
-# room (`rewrite_finish_readiness._invalidates_on_the_tick`).
+# room (`rewrite_finish_readiness.invalidates`).
 _TIP = _base_sync_state._PENDING_REWRITE_BASE
 
 # That blank read by an answer (`reads_moving`): the movement it records,
@@ -109,7 +111,9 @@ _SPENT_PAST = ReportEvidence(
 )
 
 
-def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) -> FinishOutcome | None:
+def stands_ready_if_settled(
+    finish: LandedFinish, *, or_the_base: bool = False, afresh: bool = False,
+) -> FinishOutcome | None:
     """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None to go on.
 
     Asked only of a finish held to the dormant settled-evidence policy: any
@@ -125,18 +129,26 @@ def stands_ready_if_settled(finish: LandedFinish, *, or_the_base: bool = False) 
     legacy attempt -- proves no base, so its head is held to the base this
     tick counted it against (`rewrite_evidence_proof.standing_refusal`): one
     advanced, rewound or repointed under the local ref, or unreadable holds
-    the route for the next tick's fetch to count the head again.
+    the route for the next tick's fetch to count the head again. `afresh`
+    lays the evidence records the comment read afresh carries over the
+    finish's state first, for a caller behind a request that raised, whose
+    state may predate a successor another road settled meanwhile: that
+    successor is the evidence proved, on its own binding -- asked first of
+    that very reading, so movement it records under the evidence is kept
+    however soon it is put back before the proof reads the comment again.
     """
     if not finish.proves_settled:
         return None
+    durable = read_afresh(finish) if afresh else None
+    if durable is not None:
+        lays(finish.state, durable, _durable._EVIDENCE_RECORDS)
     current = _settlement.read_current_evidence(finish.state)
     stopped = None
     if current is not None and current.binding.target.target_head == finish.head:
-        stopped = _proves_ready(finish, current)
+        stopped = _proves_ready(finish, current, durable)
     elif or_the_base:
         stopped = _captured.stands_before_the_route(finish, landing=False)
-    unproven = not _attempt_records._recorded_onto(finish.state)
-    if stopped is not None or not (or_the_base and unproven):
+    if stopped is not None or not or_the_base or _attempt_records._recorded_onto(finish.state):
         return stopped
     counted = finish.landed.candidate.checkout
     moved = standing_refusal(finish, onto=counted.base.tip)
@@ -340,16 +352,35 @@ def reads_moving(
     return next((refused for refused in heard if refused and not refused.holds), None)
 
 
-def _proves_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> FinishOutcome | None:
+def _proves_ready(
+    finish: LandedFinish, current: _records.CurrentEvidence, durable: PinnedState | None = None,
+) -> FinishOutcome | None:
     """`current` proved ready again (`rewrite_finish_readiness.stands_ready`), read afresh behind its invalidation.
 
-    Gone from the tick's state, `current` was invalidated -- over the comment
+    `durable` is a comment the caller read afresh and laid `current` off,
+    where it has one: the records it carries are asked first what they refuse
+    `current` over (`rewrite_finish_readiness._records_heard`) -- and the base
+    tip the attempt recorded its replay as made onto, read blank there beside
+    every other member as the tick holds it (`_BLANKED`) -- and movement
+    there invalidates `current` outright (`rewrite_finish_readiness.invalidates`),
+    the route going on with nothing current where that lands, so a record
+    another road put back behind that reading revives nothing. Gone from the
+    tick's state, `current` was invalidated -- over the comment
     or the tick's own copy -- so the comment is read afresh behind that write
     (`rewrite_finish_rechecks.rechecks_behind`): a newer transaction recorded,
     or another attempt put in place, right behind it holds the route, laid
     over the tick's state, rather than being routed past.
     """
-    stopped = _readiness.stands_ready(finish, current)
+    heard = () if durable is None else _readiness._records_heard(current, durable, settled=True)
+    if durable is not None and not _attempt_records._recorded_onto(durable):
+        attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
+        blanked = _TIP in attempt.moved(durable.data)
+        blanked = blanked and stands_as_read(finish, attempt, durable, blank_aside=True)
+        heard = (*heard, _BLANKED if blanked else None)
+    if any(refused and not refused.holds for refused in heard):
+        stopped = None if _readiness.invalidates(finish, current) else FinishOutcome.HELD
+    else:
+        stopped = _readiness.stands_ready(finish, current)
     if _settlement.read_current_evidence(finish.state) == current or rechecks_behind(finish, current.receipt):
         return stopped
     return FinishOutcome.HELD

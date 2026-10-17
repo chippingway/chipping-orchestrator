@@ -84,10 +84,10 @@ class DurableAtTheRelabel:
         self._relabel = github.set_workflow_label
         self.seen: list[dict] = []
 
-    def __call__(self, issue, label) -> None:
+    def __call__(self, issue, label, **correlation) -> None:
         """Read the durable record, then apply the label."""
         self.seen.append(self._github.pinned_data(issue.number))
-        self._relabel(issue, label)
+        self._relabel(issue, label, **correlation)
 
 
 class PushedOverFirst:

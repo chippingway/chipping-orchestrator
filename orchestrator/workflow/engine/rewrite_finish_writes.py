@@ -14,7 +14,7 @@ the pinned fields the publication is resolved from
 (`ReportWrite.on_the_publication`), and keeping every other field -- unknown
 ones included -- as the fresh reading carries it.
 
-Seven writes, and each lists what it has to land exactly among the records it
+Eight writes, and each lists what it has to land exactly among the records it
 is decided on as well as among its own, since a field staged as it was read is
 no move of the write's and would otherwise be left to whatever another road
 did with it. `CHECKPOINT` makes the report debt durable and, on a finish that
@@ -63,6 +63,10 @@ never marked moved, however the bounded history reads.
 `ANNOUNCED_EVENT` records the `base_rebased` event a finish is filing for
 the landed head, on its own and right ahead of it, decided on the attempt
 alone, so the event goes out only behind a write proving the attempt stands.
+`RELABEL` records the relabel the route makes to `workflow:validating`, on its
+own and right ahead of it, decided on the attempt and every bound record, so
+a later finish reads that relabel made rather than making it twice -- written
+only by a finish held to the dormant settled-evidence policy.
 `FINISH` retires the attempt, resets the round, spends a human's retry, and
 clears a failure notice the route no longer owes, decided on the attempt, the
 park's flags, the round, the claim the checkpoint made durable, and every
@@ -87,8 +91,10 @@ edit found moved under any of its writes among them, named even where it is
 put back before the comment is read again -- has the comment any refusal of
 moved records was read over, its preparation's or its strict edit's, asked
 what it records moving under the evidence however soon it is put back
-(`verification_proof.ProofReading.reads`), and reuses a debt park the tick
-reads standing, or lands one over its notice already said, rather than
+(`verification_proof.ProofReading.reads`) -- the fresh reading a refused edit
+was derived over, and the record a write that was prepared, landed, or went
+out unconfirmed made of the comment, among them -- and reuses a debt park the
+tick reads standing, or lands one over its notice already said, rather than
 posting it again (`parks`). Every other finish
 decides those writes as above, reads any refusal over a bound record as
 `_BOUND_MOVED`, and parks anew.
@@ -225,6 +231,15 @@ PARK = _commits.ReportWrite(
 # The records a transaction recorded for the landed head is bound through.
 _BOUND = frozenset(_durable._BOUND_RECORDS)
 
+# The record of the relabel a finish held to the dormant settled-evidence
+# policy is making, landed on its own right ahead of that relabel
+# (`rewrite_finish_announced.relabels_once`), decided on the attempt and every
+# bound record, so one another road moved refuses it.
+RELABEL = _commits.ReportWrite(
+    owned=frozenset((_base_sync_state._PENDING_RELABELLED,)),
+    decided_on=_ATTEMPT | _BOUND,
+)
+
 # Those of them settled evidence's binding rests on beyond the evidence records
 # themselves -- the pull request, a report or its debt, a review subject: a
 # write that reads one of them moved has read movement under the evidence.
@@ -234,9 +249,12 @@ BINDING_RECORDS = _BOUND - _EVIDENCE_RECORDS
 # dormant settled-evidence policy prepares and lands them: decided on every
 # bound record besides, so one another road moved while the notice was posted
 # refuses each rather than riding into it unread, and the comment that
-# refusal read is asked what it records moving under the evidence.
+# refusal read is asked what it records moving under the evidence. The
+# checkpoint owns the record of the relabel its route lands behind it too, so
+# its preparation measures that record where the coordinator stages it
+# (`rewrite_finish._checkpoints`); staged as the tick read it, it is no move.
 _SETTLED = MappingProxyType({
-    CHECKPOINT: CHECKPOINT.deciding_on(*_BOUND),
+    CHECKPOINT: CHECKPOINT.deciding_on(*_BOUND).owning(_base_sync_state._PENDING_RELABELLED),
     ANNOUNCED_EVENT: ANNOUNCED_EVENT.deciding_on(*_BOUND),
     PARK: PARK.deciding_on(*_BOUND),
 })
@@ -312,7 +330,10 @@ def prepares(
     held to the settled-evidence policy prepares the write as that policy
     decides it (`_SETTLED`), its refusal of moved records carrying the fresh
     reading it read them on, so what that comment records is asked of it
-    however soon it is put back.
+    however soon it is put back -- and so is the record a preparation that
+    would land measured over it, which a successor the tick took in beside
+    older records rides unrefused: that movement is the caller's to answer
+    even where the write goes on.
     """
     commit = _commits.ReportCommit(finish.gh, finish.issue, finish.state)
     held = _SETTLED.get(write, write) if finish.proves_settled else write
@@ -419,21 +440,35 @@ def _stopped(
     very comment records under the transaction, asked of it as it was read
     (`verification_proof.ProofReading.reads`): a mark in the evidence's handoff
     place, a revision spent past it, or a blank of the attempt's base tip.
+    A refused edit is asked of the fresh reading its candidate was derived
+    over too (`pinned_commit_models.CommitOutcome.fresh`), ahead of the
+    comment the edit found: the tick may hold a successor it took in beside
+    records older than its binding, so that fresh reading -- matching the
+    tick's own on every record the write is decided on -- can still read the
+    successor off its own binding, however soon the edit finds it put back.
+    For the same reason a write that was prepared, landed, or went out with its
+    answer lost is asked of the record it made of the comment
+    (`CommitOutcome.reading`): the fresh comment with the write laid over it,
+    measured, landed, or sent, which such a successor rides beside unrefused;
+    what it reads moving is the caller's to answer even where the finish goes
+    on (`rewrite_finish_readiness.invalidates_behind`), however soon the
+    successor's records are put back before the write the preparation
+    licensed reads the comment again.
     """
     stopped = _UNLANDED.get(outcome.status)
-    if stopped is None:
-        return None
-    why = outcome.refusal or outcome.status
-    log.warning(
-        "issue=#%d a write finishing its landed base rewrite of %.8s did not land (%s); "
-        "posting, relabeling, and clearing nothing behind it",
-        finish.issue.number, finish.head, why.value,
-    )
+    if stopped is not None:
+        log.warning(
+            "issue=#%d a write finishing its landed base rewrite of %.8s did not land (%s); "
+            "posting, relabeling, and clearing nothing behind it",
+            finish.issue.number, finish.head, (outcome.refusal or outcome.status).value,
+        )
     moved = _BOUND.intersection(outcome.fields)
     if finish.proves_settled:
         moved = BINDING_RECORDS.intersection(moved)
-    if observed is not None and moved:
+    if observed is None:
+        return stopped
+    if moved:
         observed.observes(BINDING_MOVED if finish.proves_settled else _BOUND_MOVED)
-    if observed is not None and outcome.seen is not None:
-        observed.reads(outcome.seen)
+    for comment in filter(None, (outcome.reading, outcome.fresh, outcome.seen)):
+        observed.reads(comment)
     return stopped

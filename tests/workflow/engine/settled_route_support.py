@@ -3,8 +3,10 @@
 """What a landed rewrite's direct finish held to the dormant settled-evidence policy left behind its route.
 
 The real-git case whose finishes a test hands the coordinator directly
-(`settled_finish_support.SettledRunCase.finalizes`), reading back what they
-made together: a run invalidated whole with its provenance kept
+(`settled_finish_support.SettledRunCase.finalizes`) -- the first, where a case
+asks, settling the reviewed rebase's run and dying before its announcement
+(`dies_unannounced`) -- reading back what they made together: a run
+invalidated whole with its provenance kept
 (`assert_retired_whole`), a head said and routed once with its attempt
 retired (`assert_routed_once`), how often anything was run, pushed, or
 launched (`assert_made`), and the pinned fields a case reads side by side
@@ -12,7 +14,10 @@ launched (`assert_made`), and the pinned fields a case reads side by side
 """
 from __future__ import annotations
 
+from functools import partial
+
 from orchestrator.workflow.engine import verification_settlement_state as _settlement
+from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad
 from tests.workflow.engine import (
     rewrite_finish_git_support as _git_support,
     rewrite_finish_readings as _readings,
@@ -24,6 +29,13 @@ from tests.workflow.engine import (
 
 class SettledRouteCase(_settled.SettledRunCase):
     """`SettledRunCase`, read back for what its direct finishes routed, retired, said, and made."""
+
+    def dies_unannounced(self) -> tuple:
+        """Land a reviewed rebase, settle its run, and kill its finish before its announcement; the head and the run."""
+        head = self.lands_a_reviewed_rebase()
+        published = partial(self.finalizes, head, FinishRoad.PUBLICATION)
+        _handoff.dies_at(self.gh, _handoff.BEFORE_THE_ANNOUNCEMENT, published)
+        return head, _readings.pinned_records(self)[1]
 
     def assert_retired_whole(self, run, pending=None) -> None:
         """`run` invalidated whole behind the evidence the rewrite moved past, nothing current, `pending` beside it.

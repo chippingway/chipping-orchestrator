@@ -61,9 +61,10 @@ KEY_REWRITE_PR = "pending_auto_base_rebase_rewrite_pr"
 KEY_REWRITE_STAGE = "pending_auto_base_rebase_rewrite_stage"
 KEY_REWRITE_SHA = "pending_auto_base_rebase_rewrite_sha"
 KEY_ANNOUNCED = "pending_auto_base_rebase_announced_sha"
+KEY_RELABELLED = "pending_auto_base_rebase_relabelled"
 
 # Every field one attempt puts on the comment, which a finish retires as one.
-ATTEMPT_KEYS = (KEY_PENDING_PUSH, KEY_REWRITE_PR, KEY_REWRITE_STAGE, KEY_REWRITE_SHA, KEY_ANNOUNCED)
+ATTEMPT_KEYS = (KEY_PENDING_PUSH, KEY_REWRITE_PR, KEY_REWRITE_STAGE, KEY_REWRITE_SHA, KEY_ANNOUNCED, KEY_RELABELLED)
 
 PARK_UNRECORDED_DEBT = "auto_base_rebase_unrecorded_debt"
 

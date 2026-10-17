@@ -14,8 +14,9 @@ asks `takes_in_the_announcement` and `takes_in_the_attempt`
 `reconciles_the_abandonment` (`rewrite_finish_captured`); its coordinator's
 stops (`rewrite_finish_stops`) ask `takes_in_the_announcement` behind an
 announcement nobody confirmed, `stands_back` behind a retirement nobody
-confirmed, and `retires_the_marked` where the attempt is retired or replaced.
-No recovery road asks any of them:
+confirmed, `retires_the_marked` where the attempt is retired or replaced,
+and `behind_a_raise` behind a relabel that raised. No recovery road asks any
+of them:
 
 - `takes_in_the_announcement` takes in that bookkeeping, naming the landed
   head (`rewrite_finish_announced.takes_in_the_announcement`), and hands back
@@ -36,6 +37,9 @@ No recovery road asks any of them:
   `reconciles_the_abandonment` asks it of an abandonment that landed
   nowhere, and of one that did land -- whose strict edit another finish's
   settlement may land right behind -- rechecking that comment otherwise.
+- `behind_a_raise` proves settled evidence once more behind a relabel that
+  raised, over whatever movement the writes around it read -- the refusal of
+  the relabel record's rollback among them -- before the error goes on.
 """
 from __future__ import annotations
 
@@ -54,7 +58,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_finish_marks import carries_the_mark, marks, read_afresh
-from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -213,3 +217,18 @@ def reconciles_the_abandonment(
     if retired is None:
         retired = _rechecks.rechecks_behind(finish, pending.receipt, seen[0] if seen else None)
     return retired and landed
+
+
+def behind_a_raise(finish: LandedFinish, observed: list) -> None:
+    """Prove settled evidence again behind a write of `finish`'s route that raised, over the movement `observed` read.
+
+    The relabel's answer may have been lost, and the rollback of its record
+    behind it is a write of its own (`rewrite_finish_announced.relabels_once`)
+    whose refusal reads what moved under it, however soon that is put back:
+    the evidence is invalidated over any such movement, or proved ready once
+    more where none holds (`rewrite_finish_readiness.invalidates_behind`),
+    before the error goes on. Nothing is read for a finish not held to the
+    dormant settled-evidence policy.
+    """
+    if finish.proves_settled:
+        _readiness.invalidates_behind(finish, FinishOutcome.UNCONFIRMED, observed)
