@@ -91,9 +91,11 @@ edit found moved under any of its writes among them, named even where it is
 put back before the comment is read again -- has the comment any refusal of
 moved records was read over, its preparation's or its strict edit's, asked
 what it records moving under the evidence however soon it is put back
-(`verification_proof.ProofReading.reads`), and reuses a debt park the tick
-reads standing, or lands one over its notice already said, rather than
-posting it again (`parks`). Every other finish
+(`verification_proof.ProofReading.reads`) -- the fresh reading a refused edit
+was derived over, and the record a write that landed or went out unconfirmed
+made of the comment, among them -- and reuses a debt park the tick reads
+standing, or lands one over its notice already said, rather than posting it
+again (`parks`). Every other finish
 decides those writes as above, reads any refusal over a bound record as
 `_BOUND_MOVED`, and parks anew.
 
@@ -274,6 +276,10 @@ BINDING_MOVED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "a record the evidence's binding rests on moved under a write finishing the landing",
 )
 
+# The answers whose record of the comment went out -- landed, or sent with its
+# answer lost -- rather than only being measured.
+_WRITTEN = frozenset((_commit_models.CommitStatus.COMMITTED, _commit_models.CommitStatus.UNCONFIRMED))
+
 # What a write that did not land is answered as.
 _UNLANDED = MappingProxyType({
     _commit_models.CommitStatus.UNCONFIRMED: FinishOutcome.UNCONFIRMED,
@@ -441,16 +447,20 @@ def _stopped(
     records older than its binding, so that fresh reading -- matching the
     tick's own on every record the write is decided on -- can still read the
     successor off its own binding, however soon the edit finds it put back.
+    For the same reason a write that landed, or went out with its answer lost,
+    is asked of the record it made of the comment (`CommitOutcome.reading`):
+    the fresh comment with the write laid over it, which such a successor
+    lands beside unrefused; what it reads moving is the caller's to answer
+    even where the finish goes on
+    (`rewrite_finish_readiness.invalidates_behind`).
     """
     stopped = _UNLANDED.get(outcome.status)
-    if stopped is None:
-        return None
-    why = outcome.refusal or outcome.status
-    log.warning(
-        "issue=#%d a write finishing its landed base rewrite of %.8s did not land (%s); "
-        "posting, relabeling, and clearing nothing behind it",
-        finish.issue.number, finish.head, why.value,
-    )
+    if stopped is not None:
+        log.warning(
+            "issue=#%d a write finishing its landed base rewrite of %.8s did not land (%s); "
+            "posting, relabeling, and clearing nothing behind it",
+            finish.issue.number, finish.head, (outcome.refusal or outcome.status).value,
+        )
     moved = _BOUND.intersection(outcome.fields)
     if finish.proves_settled:
         moved = BINDING_RECORDS.intersection(moved)
@@ -458,6 +468,7 @@ def _stopped(
         return stopped
     if moved:
         observed.observes(BINDING_MOVED if finish.proves_settled else _BOUND_MOVED)
-    for comment in filter(None, (outcome.fresh, outcome.seen)):
+    written = outcome.reading if outcome.status in _WRITTEN else None
+    for comment in filter(None, (written, outcome.fresh, outcome.seen)):
         observed.reads(comment)
     return stopped

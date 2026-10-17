@@ -47,9 +47,10 @@ for a hold side by side, so a record that holds never hides movement the
 same reading established, and what the first reading heard stands whatever
 the last word's own reading of the comment comes to. A successor another road
 settled in the evidence's place after the caller read it is asked of its own
-binding in each of those readings of the comment, and retired whole as the
-comment stands, or marked, where it moved there (`_heard`), so the caller's
-cached evidence never answers for it. Nothing is run or decided again: the
+binding in each of those readings of the comment -- its records, and its
+requirements beside the issue the first reading read -- and retired whole as
+the comment stands, or marked, where it moved there (`_heard`), so the
+caller's cached evidence never answers for it. Nothing is run or decided again: the
 evidence goes on as it settled, or into history as it was.
 
 - Ready: the route goes on with the evidence current exactly as it settled.
@@ -114,7 +115,9 @@ revision spent past it, a blank of the attempt's base tip
 however soon the record is put back; any other stop behind the proof -- a
 refusal reading neither, a write nobody confirmed, a hold -- leaves the
 evidence standing behind requests made since it was proved, and has it proved
-ready once more. A head the base has
+ready once more. Movement the record a write that landed or went out
+unconfirmed made of the comment reads invalidates it even where the finish
+goes on. A head the base has
 advanced past again is continued rather than routed, and keeps its evidence
 for the rebase behind it: the base reading that made that continuation is
 excused from the last word (`rewrite_evidence_proof.ADVANCED`), so it neither
@@ -266,7 +269,10 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Wor
     if read[1] is not None and not any(first):
         proved = _proof.current_evidence_verdict(_proof.ProofReading(finish.gh, finish.spec, *read))
     moved, held = last_word(
-        finish, current.binding, earlier=proved, records=lambda state: _heard(finish, current, state),
+        finish,
+        current.binding,
+        earlier=proved,
+        records=lambda state: _heard(finish, current, state, read[0]),
     )
     return (
         next((refused for refused in first if refused and not refused.holds), moved),
@@ -391,11 +397,14 @@ def invalidates_behind(
     notice already posted that would not answer -- leaves the evidence
     standing behind requests made since it was proved, so it is proved ready
     once more right away (`stands_ready`), which invalidates it where a
-    reading then establishes movement. A finish that went on passes through
-    with nothing read.
+    reading then establishes movement. A finish that went on is proved
+    nothing more, save that movement its writes read -- a record that landed
+    or went out reading a successor off its own binding among it
+    (`rewrite_finish_writes.lands`) -- invalidates the evidence all the same,
+    before anything goes on over it.
     """
     current = _settlement.read_current_evidence(finish.state)
-    if stopped is None or current is None:
+    if current is None:
         return stopped
     if current.binding.target.target_head != finish.head:
         return stopped
@@ -404,7 +413,8 @@ def invalidates_behind(
     if unbound and not unbound.holds:
         moving = [refused for refused in moving if refused != _writes.BINDING_MOVED]
     if not moving:
-        stands_ready(finish, current)
+        if stopped is not None:
+            stands_ready(finish, current)
         return stopped
     if invalidates(finish, current):
         return stopped
@@ -476,20 +486,23 @@ def _heard(
 ) -> Refusals:
     """`_records_heard` of `current` over `state`, a comment `settled_word` read afresh, as `finish`'s policy reads it.
 
-    Under the dormant settled-evidence policy a successor `state` carries
-    current for the landed head in `current`'s place -- one another road
-    settled after the caller read the evidence it hands in -- is asked of its
-    own binding in that very reading first (`_records_heard`). Where its own
-    records refuse it there, it is retired whole as the comment then stands,
-    or its movement marked under its own receipt
-    (`rewrite_finish_marks.retires_as_it_stands`), so putting what moved back
-    before a later reading revives nothing; one they do not refuse is left
-    as its road settled it. `current` is answered over `state` either way.
+    `issue` is the issue `settled_word` read with its first reading, whose
+    requirements both readings are asked beside. Under the dormant
+    settled-evidence policy a successor `state` carries current for the landed
+    head in `current`'s place -- one another road settled after the caller
+    read the evidence it hands in -- is asked of its own binding in that very
+    reading first (`_records_heard`): its requirements beside that issue, and
+    its review, report, and evidence records. Where any of them refuses it
+    there, it is retired whole as the comment then stands, or its movement
+    marked under its own receipt (`rewrite_finish_marks.retires_as_it_stands`),
+    so putting what moved back before a later reading revives nothing; one
+    nothing refuses is left as its road settled it. `current` is answered over
+    `state` either way.
     """
     carried = None if state is None else _settlement.read_current_evidence(state)
     later = finish.proves_settled and carried is not None and carried.receipt != current.receipt
     if later and carried.binding.target.target_head == finish.head:
-        heard = _records_heard(carried, state, settled=True)
+        heard = _records_heard(carried, state, issue, settled=True)
         if any(refused and not refused.holds for refused in heard):
             retires_as_it_stands(finish, carried.receipt)
     return _records_heard(current, state, issue, settled=finish.proves_settled)

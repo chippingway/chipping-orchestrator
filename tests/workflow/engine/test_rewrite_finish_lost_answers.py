@@ -15,7 +15,8 @@ run whole as the comment stands -- a pinned-comment read lost once losing
 nothing. The next finish, room made, retires the run whole and routes the
 head with everything said once; with nothing edited the run stays current,
 and a successor or a replacement attempt another road wrote meanwhile is
-kept as it wrote it, the run retired over the comment as it stands. A mark
+kept as it wrote it, the run retired over the comment as it stands -- a
+successor proving on its own binding, settled over the issue put back. A mark
 another road writes right behind a lost checkpoint, read by the reconciliation
 that takes the announcement in and put back before the next proof, retires the
 run whole all the same.
@@ -140,6 +141,12 @@ def _pins_a_replacement(case: route.SettledRouteCase, head: str) -> None:
     case.gh.write_pinned_state(case.issue, state)
 
 
+def _settles_over_the_issue(case: route.SettledRouteCase, written: str) -> None:
+    """Put the issue back as `written`, then settle a newer run of the head over the run, as another road would."""
+    case.issue.body = written
+    settled.records_a_newer_run(case, settles=True)
+
+
 def _assert_superseded(case: route.SettledRouteCase, run) -> None:
     """A successor another road settled current, and `run` superseded into history under it as that road left it."""
     current, retired = readings.pinned_records(case)[1:]
@@ -173,13 +180,14 @@ class LostAnswerTest(route.SettledRouteCase, unittest.TestCase):
                 self._assert_routed_once(head, lost.settled, loss.edited)
 
     def test_a_successor_is_kept(self) -> None:
-        # Another road settles a newer run of the head right behind the
-        # retirement, and the issue was edited while it was sent: the run
-        # read moving is no longer the comment's current evidence, so nothing
-        # is put back or invalidated, and the finish handed over again finds
-        # no attempt and leaves the comment exactly as it is.
+        # The issue was edited while the retirement was sent, and another
+        # road puts it back and settles a newer run of the head right behind
+        # that retirement: the run read moving is no longer the comment's
+        # current evidence, so nothing is put back or invalidated, the newer
+        # run proving on its own binding, and the finish handed over again
+        # finds no attempt and leaves the comment exactly as it is.
         head = self.lands_a_reviewed_rebase()
-        newer = partial(settled.records_a_newer_run, self, settles=True)
+        newer = partial(_settles_over_the_issue, self, self.issue.body)
         lost = self._finishes_losing(head, _LOSSES[1], then=newer)
         pinned = readings.pinned(self)
 

@@ -240,6 +240,10 @@ def behind_the_announcement(
 ) -> FinishOutcome | None:
     """`stopped`, where the announcement or the debt's park stopped the route, behind the last word; None to route.
 
+    A finish held to the settled-evidence policy that goes on has settled
+    evidence invalidated over movement the records its writes landed or sent
+    read (`rewrite_finish_readiness.invalidates_behind`), and nothing more read.
+
     The last word is taken over a transaction still recorded for the head
     behind any stop (`rewrite_finish_captured.stands_before_the_route`). A
     finish held to the settled-evidence policy -- which asks this behind a
@@ -259,6 +263,8 @@ def behind_the_announcement(
     there in its place, one another road recorded behind those writes, is left
     owed as written, with no last word taken over it.
     """
+    if stopped is None and finish.proves_settled:
+        return _readiness.invalidates_behind(finish, None, observed.observed)
     if stopped is None:
         return None
     if not finish.proves_settled:
@@ -278,8 +284,14 @@ def behind_the_announcement(
     return _captured.stands_before_the_route(finish, proof=moved, behind=stopped, whole=True)
 
 
-def behind_the_write(finish: LandedFinish, stopped: FinishOutcome, observed: ProofReading) -> FinishOutcome:
-    """`stopped`, where the route's retirement did not land, behind proving settled evidence once more.
+def behind_the_write(
+    finish: LandedFinish, stopped: FinishOutcome | None, observed: ProofReading,
+) -> FinishOutcome | None:
+    """`stopped`, where the route's retirement did not land, behind proving settled evidence once more; or None.
+
+    None, where the retirement landed, has the evidence invalidated all the
+    same over movement the record it made of the comment read
+    (`rewrite_finish_readiness.invalidates_behind`), and nothing more read.
 
     A finish held to the settled-evidence policy invalidates settled evidence
     a refusal read a binding record moving under, or proves it ready once

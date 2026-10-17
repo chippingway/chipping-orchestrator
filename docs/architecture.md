@@ -1049,7 +1049,9 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   evidence's binding rests on, or one whose comment, its preparation's fresh reading, the strict edit's own, or the
   fresh reading a refused edit was derived over, was read
   recording movement under the evidence, a mark, a revision spent past it, or a blank of the attempt's base tip,
-  invalidating it however soon that comment is put back -- decides the checkpoint, the event's record, and the park on
+  invalidating it however soon that comment is put back, as does such movement in the record a write that landed or
+  went out unconfirmed made of the comment, even where the finish goes on -- decides the checkpoint, the event's
+  record, and the park on
   every record the evidence is bound through, puts back an attempt a
   retirement nobody confirmed took before invalidating over it, and announces, relabels, or parks nothing another
   finish of the landing already did (`workflow/engine/rewrite_finish_stops.py`,

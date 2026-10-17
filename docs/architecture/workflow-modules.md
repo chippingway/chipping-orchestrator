@@ -1491,7 +1491,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded and abandoned there moves under it; what the first reading heard stands whatever
                             that last reading of the comment comes to. Under the dormant policy each of those readings
                             asks a successor another road settled in the evidence's place after the caller read it of
-                            its own binding there, retiring it whole as the comment stands, or marking it, where it
+                            its own binding there -- its records, and its requirements beside the issue the first of
+                            them read -- retiring it whole as the comment stands, or marking it, where it
                             moved, so it is never read against the superseded binding alone. Movement -- an issue
                             edited, a report or review
                             record replaced, the artifact edited or deleted, a command configured otherwise, the landing
@@ -1591,7 +1592,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is collected as `BINDING_MOVED`, beside what the comment any refusal of moved records
                             was read over -- its preparation's fresh reading or its strict edit's, and beside a
                             refused edit's the fresh reading it was derived over, since a successor the tick took in
-                            beside older records reads moved there however soon the edit finds it put back -- records
+                            beside older records reads moved there however soon the edit finds it put back, and the
+                            record a write that landed or went out unconfirmed made of the comment, which such a
+                            successor lands beside unrefused, read even where the finish goes on -- records
                             under the evidence (`rewrite_finish_stops.observing`); such a finish also decides the
                             checkpoint,
                             the event's record, and the park on every bound record (`_SETTLED`), and reuses a debt

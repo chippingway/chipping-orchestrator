@@ -482,8 +482,9 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
         return stopped
     observed = _stops.observing(finish)
     stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH, observed)
+    stopped = _stops.behind_the_write(finish, stopped, observed)
     if stopped is not None:
-        return _stops.behind_the_write(finish, stopped, observed)
+        return stopped
     log.info(
         "issue=#%d finished the base rewrite PR #%d landed on %.8s: %s",
         finish.issue.number, finish.pr_number, finish.head, headed.value,

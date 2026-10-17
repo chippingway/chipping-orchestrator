@@ -19,7 +19,8 @@ that very reading recorded is kept for that proof, so the run, or that
 successor on its own binding, is invalidated whole all the same. So is a
 successor another road settles only right behind that reading, report 3 put
 back right behind the proof's own next reading, which asks it of its own
-binding rather than the run's alone. A field
+binding rather than the run's alone -- or bound to requirements an edit of the
+issue gave it and put back, which the issue that reading takes disproves. A field
 nobody's binding rests on, written right under the park's strict edit, refuses
 that edit and is no movement: the run stays current.
 """
@@ -50,6 +51,9 @@ _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "revie
 _NOTICE = "The auto rebase needs a human."
 _REASON = "auto_base_rebase_push_failed"
 
+# A requirement another road adds to the issue, and takes back off, around a newer run it settles.
+_ADDED_REQUIREMENT = "\nAlso cover a base that moved twice."
+
 # A field nobody's binding rests on, and what another road writes into it.
 _NOTE = "operator_note"
 _NOTED = "independent update"
@@ -75,11 +79,6 @@ def _notes_under(case, live, issue, state, **options):
     if not noted and guarded.parking(issue, state, **options):
         _writes(case, {_NOTE: _NOTED})
     return live(issue, state, **options)
-
-
-def _reads_through(moves):
-    """The comment read afresh through `moves`, which puts back what that reading read moving right behind it."""
-    return patch.object(_durable, "durable_comment", moves.reads)
 
 
 class _MovesBehindThePark:
@@ -144,6 +143,10 @@ class _MovesBehindThePark:
             _writes(self._case, self._restores)
         return durable
 
+    def patching(self):
+        """The comment read afresh through `reads`, which puts back what that reading read moving right behind it."""
+        return patch.object(_durable, "durable_comment", self.reads)
+
     def reads_late(self, issue):
         """The client's reading of the comment, `late`: the move right behind the first behind the raise, as above."""
         durable = self._comment(issue)
@@ -178,6 +181,35 @@ class _MovesBehindThePark:
         _writes(case, earlier)
 
 
+class _RequiresBehindThePark(_MovesBehindThePark):
+    """`_MovesBehindThePark`, `late`, its newer run settled over an edit of the issue that is put back right behind.
+
+    Right behind the reconciliation's reading another road edits the issue,
+    settles report 3 and a newer run bound to the requirements that edit gave
+    the issue, and puts the issue back: the newer run's own records hold, and
+    only the issue every later reading takes beside them disproves it, with
+    nothing to put back behind the proof's own reading.
+    """
+
+    def __init__(self, case, head: str) -> None:
+        super().__init__(case, head, successor=True, late=True)
+
+    def _settles(self) -> None:
+        """Edit the issue, settle report 3 and the newer run bound to its requirements, and put the issue back."""
+        case = self._case
+        case.issue.body += _ADDED_REQUIREMENT
+        case.state = case.gh.read_pinned_state(case.issue)
+        subject = _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
+        case.gh.write_pinned_state(case.issue, case.state)
+        binding = readings.pinned_records(case)[1].binding
+        publication = replace(binding.target.publication, requirements_revision=subject.requirements_revision)
+        target = replace(binding.target, publication=publication, subject=subject.recorded())
+        binding = replace(binding, target=target)
+        self.run = settled_support.records_a_newer_run(case, settles=True, binding=binding)
+        self._restores = {}
+        case.issue.body = case.issue.body.removesuffix(_ADDED_REQUIREMENT)
+
+
 class _FailsReadingFirst(_MovesBehindThePark):
     """`_MovesBehindThePark`, the reconciliation's first reading behind report 3 failing as a request GitHub refused.
 
@@ -200,12 +232,14 @@ class _FailsReadingFirst(_MovesBehindThePark):
 
 # Each race behind a park's notice that raises: report 3 settled, a newer run
 # settled bound to it, that run again where the reconciliation's first reading
-# of the comment fails, or that run settled only right behind that reading.
+# of the comment fails, or that run settled only right behind that reading --
+# beside report 2, or bound to requirements an edit of the issue put back gave it.
 _RAISED_NOTICES = (
     partial(_MovesBehindThePark),
     partial(_MovesBehindThePark, successor=True),
     partial(_FailsReadingFirst, successor=True),
     partial(_MovesBehindThePark, successor=True, late=True),
+    partial(_RequiresBehindThePark),
 )
 
 
@@ -220,7 +254,9 @@ class ReconciledMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # -- also where the reconciliation's first reading fails, the one
         # behind it reading the successor on its own binding, and where the
         # successor is settled only right behind the reconciliation's reading,
-        # report 3 put back right behind the proof's own.
+        # report 3 put back right behind the proof's own -- or bound to the
+        # requirements an edit of the issue gave it, the edit put back, which
+        # the issue every later reading takes beside it disproves.
         for mover in _RAISED_NOTICES:
             with self.subTest(moves=mover.func.__name__, **mover.keywords):
                 self.setUp()
@@ -230,7 +266,7 @@ class ReconciledMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 with (
                     patch.object(self.gh, "comment", moves.raises),
                     patch.object(self.gh, "read_pinned_state", moves.reads_late),
-                    _reads_through(moves),
+                    moves.patching(),
                 ):
                     self.assertRaises(RuntimeError, _parks.lands_a_park, context, _NOTICE, _REASON)
 
@@ -249,7 +285,7 @@ class ReconciledMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         head, run = self.settles_then_dies()
         moves = _MovesBehindThePark(self, head, marks=run.receipt)
         context = guarded.recovery_context(self)
-        with patch.object(self.gh, "comment", moves.raises), _reads_through(moves):
+        with patch.object(self.gh, "comment", moves.raises), moves.patching():
             self.assertRaises(RuntimeError, _parks.lands_a_park, context, _NOTICE, _REASON)
 
         self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
@@ -262,7 +298,7 @@ class ReconciledMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         head, run = self.settles_then_dies()
         moves = _MovesBehindThePark(self, head)
         context = guarded.recovery_context(self)
-        with patch.object(self.gh, "edit_pinned_state", moves.loses), _reads_through(moves):
+        with patch.object(self.gh, "edit_pinned_state", moves.loses), moves.patching():
             _parks.lands_a_park(context, _NOTICE, _REASON)
 
         self.assertTrue(self.pinned_fields(guarded.AWAITING)[0])

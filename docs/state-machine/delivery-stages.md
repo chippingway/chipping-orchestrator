@@ -1542,7 +1542,7 @@ because there it is the claim that this stage has already rerouted rather than a
   answer lost, the evidence the comment carries now laid over the tick's state first, so a successor another road
   settled meanwhile is proved on its own binding, movement that very reading records kept for the proof however soon
   it is put back (`rewrite_landing_retirement.reconciles`) -- and one settled only after that reading asked of its own
-  binding in the proof's readings, retired whole or marked where it moved; and a park made again over
+  binding and requirements in the proof's readings, retired whole or marked where it moved; and a park made again over
   a record that never landed taking in the notice the conversation already carries past the watermark, its
   `park_awaiting_human` event filed only where the stream lacks the one naming that notice
   (`rewrite_recovery_notices.parks_awaiting_human`). So is the hold a publication gate's hold of a recovery's push
@@ -1694,8 +1694,9 @@ because there it is the claim that this stage has already rerouted rather than a
     held, or raising stop of the checkpoint, the event's record, the park and its notice, the relabel, and the
     retirement. The checkpoint, the event's record, and the park are decided on every bound record
     (`workflow/engine/rewrite_finish_writes.py`), and a refusal over a record the evidence's binding rests on, or one
-    whose comment -- the preparation's fresh reading, the strict edit's own, or the fresh reading a refused edit was
-    derived over -- was read recording movement under
+    whose comment -- the preparation's fresh reading, the strict edit's own, the fresh reading a refused edit was
+    derived over, or the record a write that landed or went out unconfirmed made, even where the finish goes on --
+    was read recording movement under
     the evidence, a mark in its handoff's place, a revision spent past it, or a blank of the attempt's base tip,
     invalidates the evidence however soon that comment is put back, where a newer transaction recorded beside it or
     a successor settled under another receipt moves nothing under it -- save a successor that very comment disproves
@@ -1715,8 +1716,8 @@ because there it is the claim that this stage has already rerouted rather than a
     held while it will not read; with no log it is read made, once at most -- and a relabel onto that label that
     raises before the stream carries its stage-entry event takes its record back off; behind a relabel that raised
     the evidence the comment then carries is proved, a successor another road settled meanwhile on its own binding --
-    one settled only after that reading asked of its own binding in each reading the readiness proof takes, retired
-    whole or marked where it moved --
+    one settled only after that reading asked of its own binding and requirements in each reading the readiness
+    proof takes, retired whole or marked where it moved --
     movement that very reading records invalidating it however soon it is put back, and a record a later refusal
     names moved off the records the tick read counting under it only where those records bind it; a debt park
     standing is reused unless a reply the watermark has not passed is handed in, and a park whose write never landed

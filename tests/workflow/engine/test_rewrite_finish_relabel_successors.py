@@ -34,7 +34,10 @@ their own:
   put back right under the strict edit of the relabel's record refuses that
   edit, and the fresh reading the record was derived over -- the newer run
   beside report 2 -- read it off its own binding: it is invalidated whole,
-  and the next finish routes the head once with nothing current.
+  and the next finish routes the head once with nothing current. So it is
+  where report 3 is put back right behind that edit instead, which lands --
+  its answer lost or not -- the record it made of the comment reading the
+  newer run off its own binding.
 """
 from __future__ import annotations
 
@@ -45,6 +48,7 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import (
     rewrite_finish_rechecks as _rechecks,
     verification_settlement_state as _settlement,
@@ -135,7 +139,7 @@ class _AdoptsBehindTheRecheck:
         self._readings = 0
         self._later: dict = {}
         self.successor = None
-        self.refused = None
+        self.answered = None
 
     def reads(self, finish):
         """Read the comment afresh, racing the first two readings as above."""
@@ -150,11 +154,11 @@ class _AdoptsBehindTheRecheck:
         """Answer the edit, the first one making the record raced -- the relabel's, or the retirement -- raced."""
         raced = readings.KEY_RELABELLED if self._beside else readings.KEY_PENDING_PUSH
         unset = state.get(raced) is None
-        if unset == (over.get(raced) is None) or self.refused is not None:
+        if unset == (over.get(raced) is None) or self.answered is not None:
             return self._edit(issue, state, over=over, **options)
         _writes(self._case, self._later if self._beside else _NOTED)
-        self.refused = self._edit(issue, state, over=over, **options)
-        return self.refused
+        self.answered = self._edit(issue, state, over=over, **options)
+        return self.answered
 
     def _reads_report_three(self, finish):
         """Read the comment afresh over report 3, settled right ahead of it, and put report 2 back behind it.
@@ -174,6 +178,38 @@ class _AdoptsBehindTheRecheck:
         durable = self._read(finish)
         self._later = _writes(case, earlier)
         return durable
+
+
+class _LandsBesideTheAdopted(_AdoptsBehindTheRecheck):
+    """`_AdoptsBehindTheRecheck` beside report 3, report 3 put back right behind the relabel record's edit instead.
+
+    That edit lands over the newer run beside report 2 -- its answer lost
+    where `lost` -- so the record it made of the comment is the reading that
+    disproves the newer run.
+    """
+
+    def __init__(self, case, run, *, lost: bool = False) -> None:
+        super().__init__(case, run, beside_report_three=True)
+        self._lost = lost
+
+    def edits(self, issue, state, *, over: dict, **options):
+        """Answer the edit, the relabel's record the first time landing, report 3 put back right behind it."""
+        records = state.get(readings.KEY_RELABELLED) != over.get(readings.KEY_RELABELLED)
+        if not records or self.answered is not None:
+            return self._edit(issue, state, over=over, **options)
+        self.answered = self._edit(issue, state, over=over, **options)
+        _writes(self._case, self._later)
+        return PinnedEdit.UNCONFIRMED if self._lost else self.answered
+
+
+# How the strict edit of the relabel's record meets report 3 put back around
+# it, beside a newer run the recheck took in: right under it, refusing it; or
+# right behind it, landed or with its answer lost -- and what the finish comes to.
+_AROUND_THE_RECORD = (
+    (partial(_AdoptsBehindTheRecheck, beside_report_three=True), FinishOutcome.REFUSED),
+    (partial(_LandsBesideTheAdopted), FinishOutcome.ROUTED),
+    (partial(_LandsBesideTheAdopted, lost=True), FinishOutcome.UNCONFIRMED),
+)
 
 
 def _succeeds_then_raises(case, run, settled: list, *_labelled, **_correlation) -> None:
@@ -244,7 +280,7 @@ class RelabelSuccessorTest(route.SettledRouteCase, unittest.TestCase):
         ):
             self.assertEqual(self.finalizes(head), FinishOutcome.REFUSED)
 
-        self.assertIsNotNone(races.refused)
+        self.assertIsNotNone(races.answered)
         current, retired = readings.pinned_records(self)[1:]
         self.assertEqual(current.receipt, races.successor.receipt)
         self.assertEqual(retired[-1], (run.receipt, readings.INVALIDATED))
@@ -253,21 +289,26 @@ class RelabelSuccessorTest(route.SettledRouteCase, unittest.TestCase):
         # The fresh reading behind the run's invalidation takes in a newer
         # run bound to report 3, report 2 put back right behind it, and report
         # 3 is put back right under the strict edit of the relabel's record,
-        # which is refused over it: the fresh reading that record was derived
-        # over read the newer run off its own binding, so it is invalidated
-        # whole, and the next finish routes the head once with nothing current.
-        head, run = self.dies_unannounced()
-        races = _AdoptsBehindTheRecheck(self, run, beside_report_three=True)
-        with (
-            patch.object(_rechecks, "read_afresh", races.reads),
-            patch.object(self.gh, "edit_pinned_state", races.edits),
-        ):
-            self.assertEqual(self.finalizes(head), FinishOutcome.REFUSED)
+        # which is refused over it -- or right behind that edit, which lands,
+        # its answer lost or not: the fresh reading that record was derived
+        # over, or the record it made of the comment, read the newer run off
+        # its own binding, so it is invalidated whole, and the head is routed
+        # once with nothing current.
+        for racer, outcome in _AROUND_THE_RECORD:
+            with self.subTest(racer=racer.func.__name__, **racer.keywords):
+                self.setUp()
+                head, run = self.dies_unannounced()
+                races = racer(self, run)
+                with (
+                    patch.object(_rechecks, "read_afresh", races.reads),
+                    patch.object(self.gh, "edit_pinned_state", races.edits),
+                ):
+                    self.assertEqual(self.finalizes(head), outcome)
 
-        self.assertIsNotNone(races.refused)
-        self.assertIsNone(readings.pinned_records(self)[1])
-        self.assertEqual(self.finalizes(head), FinishOutcome.ROUTED)
-        self._assert_disproved(head, run, races.successor)
+                self.assertIsNotNone(races.answered)
+                self.assertIsNone(readings.pinned_records(self)[1])
+                self.finalizes(head)
+                self._assert_disproved(head, run, races.successor)
 
     def _races_a_lone_successor(self, owner, name: str, racer: type) -> tuple:
         """Retire the run and finish its head, `owner`'s `name` raced by `racer`; the head, outcome, and newer run."""

@@ -230,7 +230,8 @@ _STOPS = (
     _Stop(FinishOutcome.UNCONFIRMED, (_writes.BINDING_MOVED,), edited=False, invalidated=True),
     _Stop(FinishOutcome.HELD, (), edited=True, invalidated=True),
     _Stop(FinishOutcome.HELD, (), edited=False, invalidated=False),
-    _Stop(None, (_writes.BINDING_MOVED,), edited=True, invalidated=False),
+    _Stop(None, (), edited=True, invalidated=False),
+    _Stop(None, (_writes.BINDING_MOVED,), edited=False, invalidated=True),
 )
 
 
@@ -596,7 +597,11 @@ class InvalidationTest(settled_support.SettledEvidenceCase, unittest.TestCase):
 
 
 class InvalidationBehindTest(settled_support.SettledEvidenceCase, unittest.TestCase):
-    """A stop that read a binding record moved invalidates, any other proves again, and a finish going on passes."""
+    """A stop that read a binding record moved invalidates, any other proves again; a finish going on reads no more.
+
+    Save that movement its writes read -- a record that landed reading it --
+    invalidates the evidence all the same.
+    """
 
     def test_each_stop_comes_to_its_reading(self) -> None:
         for stop in _STOPS:
