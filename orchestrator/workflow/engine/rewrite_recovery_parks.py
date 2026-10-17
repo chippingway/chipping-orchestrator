@@ -71,8 +71,9 @@ behind the notice (`lands_a_park`) -- landed, refused, or raised -- and a
 report moved meanwhile is movement read under it, invalidated or recorded
 against it before the tick ends; one the park's own commit carried, landed or
 sent with its answer lost -- or one its strict edit found moved under it and
-was refused over, a base tip blanked there beside the rest of the attempt as
-the tick read it among them (`rewrite_landing_retirement.moved_under`) -- is
+was refused over, or the fresh reading behind that edit carried before it was
+put back, a base tip blanked there beside the rest of the attempt as the tick
+read it among them (`rewrite_landing_retirement.moved_under`) -- is
 handed to that proof as read (`_moved`), so putting the earlier report or the
 tip back before the reply revives nothing. Behind a record
 refused or sent with its answer lost, the evidence the comment carries now is
@@ -81,9 +82,9 @@ so a successor another road settled while the notice was posted is proved on
 its own binding rather than left unread behind the tick's older reading, and
 what that very reading records moving under it is handed to the proof as
 read, however soon it is put back. A record the commit sent or landed is held
-to the tick's own staging, and the comment a refused edit found to the comment
-as the tick last read it (`_as_read`), so neither the park's own reason nor a
-field no binding rests on reads as movement. A checkout
+to the tick's own staging, and every comment a refused record read to the
+comment as the tick last read it (`_as_read`), so neither the park's own
+reason nor a field no binding rests on reads as movement. A checkout
 gone from disk has nothing to prove the landing over, so its evidence is
 retired on the state the park writes -- and the reset recorded against it
 first, in a write of its own, so a park write that fails or never lands
@@ -163,7 +164,8 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     (`rewrite_finish_writes.BINDING_RECORDS`) spelled otherwise than the tick
     read it, in the record that landed, in the one sent with its answer lost,
     which is never laid over the tick's state, or in the comment its strict
-    edit found moved under it and was refused over -- that is movement read,
+    edit found moved under it and was refused over, or the fresh reading
+    behind that edit -- that is movement read,
     handed to the proof as its answer, so a record put back between the
     park's commit and the proof revives nothing. A notice whose post raised --
     refused, or posted with its answer lost -- records nothing, and the proof
@@ -264,8 +266,8 @@ def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.Repo
     """Land the tick's state as `write` over the comment read afresh, then prove once more what it keeps.
 
     Whether the record landed or not, the proof behind it -- taken only over a
-    checkout on disk -- is handed the move the record carried or its strict
-    edit was refused over (`_moved`), under whichever evidence still stands
+    checkout on disk -- is handed the move the record carried or its refusal
+    read (`_moved`), under whichever evidence still stands
     behind it (`rewrite_landing_retirement.receipts`). A record that did not
     land has the evidence the comment carries now laid over the tick's state
     first (`rewrite_landing_retirement.reconciles`), so a successor another
@@ -322,13 +324,17 @@ def _moved(
     was read over: the one its strict edit found moved under it, a report
     another road settled right at that edit among what it carries, or the
     fresh one a record too long for the comment was measured over
-    (`pinned_commit_models.CommitOutcome.seen`); nothing where the refusal
-    read no comment. `read` is the binding records as the tick staged them
-    and as the comment it last read spelled them, and the receipts the tick's
-    state carried before the record (`_as_read`) -- the record is held to the
-    first, which carries the tick's own staging, and a refusal's comment to
-    the second, which carries none of it, so a park's own reason or a field
-    nobody's binding rests on moved there is no movement. A binding
+    (`pinned_commit_models.CommitOutcome.seen`) -- and, beside the comment a
+    refused edit found, the fresh reading the record was derived over
+    (`CommitOutcome.fresh`), a report another road settled there and put back
+    before that edit read the comment among what it carries; nothing where the
+    refusal read no comment. Each reading is asked on its own, and what any of
+    them reads moving under a receipt stands. `read` is the binding records as
+    the tick staged them and as the comment it last read spelled them, and the
+    receipts the tick's state carried before the record (`_as_read`) -- the
+    record is held to the first, which carries the tick's own staging, and a
+    refusal's comments to the second, which carry none of it, so a park's own
+    reason or a field nobody's binding rests on moved there is no movement. A binding
     record `reading` spells otherwise than its baseline is movement under the
     evidence the tick held (`_MOVED_UNDER_THE_NOTICE`); a review or report
     record it spells off the binding of any evidence it records for the head
@@ -343,12 +349,12 @@ def _moved(
     -- a successor, or a transaction beside evidence that moved -- is proved
     on its own readings.
     """
-    reading = landed.reading or landed.seen
     baseline = read[1] if landed.reading is None else read[0]
-    moves = _retirement.moved_under(reading, attempt)
-    if reading is not None:
+    moves = {}
+    for reading in filter(None, (landed.reading, landed.fresh, landed.seen)):
         carried = {key: _commit_models.spelled(reading.data, key) for key in baseline}
         if carried != baseline:
             moves = {**dict.fromkeys(read[2], _MOVED_UNDER_THE_NOTICE), **moves}
+        moves = {**moves, **_retirement.moved_under(reading, attempt)}
     standing = _retirement.receipts(context.state)
     return {receipt: moves[receipt] for receipt in moves if receipt in standing}

@@ -1533,7 +1533,8 @@ because there it is the claim that this stage has already rerouted rather than a
   put on the attempt is taken in before the invalidation lands -- and the park landed through the guarded commit over
   the comment read afresh and proving what it keeps once more behind its notice
   (`rewrite_recovery_parks.lands_a_park`) -- a movement its record carried, or that the comment its refusal was read
-  over carried, the fresh one a record too long for the comment was measured over among them, a report or review
+  over carried, the fresh one a record too long for the comment was measured over, and the fresh one a refused edit
+  was derived over beside the comment that edit found among them, a report or review
   record moved, a mark of movement under settled evidence's receipt, or the
   attempt's base tip blanked beside the rest of the attempt as read -- this landing's announcement bookkeeping set
   aside -- kept as read under whichever evidence it was read under

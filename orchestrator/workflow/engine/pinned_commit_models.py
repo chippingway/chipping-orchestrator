@@ -106,7 +106,11 @@ class CommitOutcome:
     on, the fresh reading an OVERFLOW or INADMISSIBLE candidate was laid
     over, or the one a MOVED edit found in place of the fresh reading
     (`PinnedCommit.keeps_the_move`), so the caller can say what moved and to
-    what however soon it is put back.
+    what however soon it is put back. `fresh` is, for such a guard's refusal
+    of the strict edit alone, the fresh reading the candidate was derived
+    over, kept beside the comment the edit found in its place: a record
+    moved there and put back before the edit read the comment moved under
+    the write all the same.
     """
 
     status: CommitStatus
@@ -116,6 +120,7 @@ class CommitOutcome:
     length: int | None = None
     inadmissible: Any = None
     seen: PinnedState | None = None
+    fresh: PinnedState | None = None
 
 
 # The refusals a guard that `reads_a_move` keeps the comment it read for:
@@ -212,7 +217,9 @@ class PinnedCommit:
         moved = self.moved(seen[0].data) if seen else ()
         return (CommitRefusal.PREREQUISITE_CHANGED if moved else refusal), moved
 
-    def keeps_the_move(self, outcome: CommitOutcome, reading: PinnedState | None) -> CommitOutcome:
+    def keeps_the_move(
+        self, outcome: CommitOutcome, reading: PinnedState | None, fresh: PinnedState | None = None,
+    ) -> CommitOutcome:
         """`outcome`, carrying `reading` as `seen` where this guard `reads_a_move` and it refuses over a comment.
 
         `reading` is the comment that refusal was read over: the fresh reading
@@ -221,11 +228,14 @@ class PinnedCommit:
         -- or the one the strict edit read under it (`under_the_edit`) -- which,
         where it moved no prerequisite, is the comment a MOVED refusal found
         moved under the edit, a record the caller keeps as the fresh comment
-        carries it among what may have moved.
+        carries it among what may have moved. `fresh` is the fresh reading an
+        edit's refusal was prepared over, carried beside it as `fresh`
+        (`CommitOutcome.fresh`), so what moved there and back before the edit
+        read the comment is not lost.
         """
         if not self.reads_a_move or outcome.refusal not in _READ_MOVES:
             return outcome
-        return replace(outcome, seen=reading)
+        return replace(outcome, seen=reading, fresh=fresh)
 
 
 def spelling(field_value: Any) -> str | None:

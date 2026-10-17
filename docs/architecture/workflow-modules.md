@@ -454,7 +454,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             carry the comment it read them moving on (`seen`) -- an owned-field conflict's fresh
                             reading among them, and so the fresh reading a candidate past the limit or refused by the
                             caller's own check was laid over -- a MOVED one the comment its edit found in place of the
-                            fresh reading. A refusal writes nothing and moves
+                            fresh reading, and every refusal of that edit the fresh reading it was derived over beside
+                            it (`fresh`), so a record moved there and put back before the edit is still read. A refusal
+                            writes nothing and moves
                             nothing the caller holds, and an edit that went out unconfirmed is reported as neither
                             answer, for the domain's own receipts to settle. `reread` is that fresh reading alone -- the
                             captured comment, still parsing -- for a caller with requests of its own to make over it
@@ -2287,7 +2289,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`rewrite_landing_retirement.retires_unproved`), a binding record its own commit carried
                             spelled otherwise than the tick read it -- the record it landed or sent held to the
                             tick's staging, the comment its refusal was read over, the fresh one a record too long for
-                            the comment was measured over among them, to the comment as the tick last read it, so the
+                            the comment was measured over, and the fresh one a refused edit was derived over beside the
+                            comment that edit found among them, to the comment as the tick last read it, so the
                             park's own reason or a field no binding rests on is no movement --
                             or the attempt's base tip read blank or
                             repointed there beside the rest of the attempt as read

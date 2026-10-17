@@ -135,6 +135,10 @@ _REFUSED_UNDER_THE_EDIT = MappingProxyType({
     (_UNREADABLE, True): (_REFUSAL.UNREADABLE, (), False),
 })
 
+# The fresh reading a refusal under the edit keeps beside the comment that edit
+# read: the record as seeded, ahead of the move -- or none, where it keeps neither.
+_FRESH_UNDER_THE_EDIT = (None, support.recorded())
+
 # A filler of one unit -- empty for plain characters -- bringing the candidate to
 # the limit plus an excess; what the commit comes to, what it measured, and the
 # settled record the comment is left carrying.
@@ -345,7 +349,8 @@ class CommitRefusalTest(unittest.TestCase):
         # record that is no longer the one the candidate was derived over --
         # naming no field, save for a guard that reads a move, which names the
         # prerequisites the comment that walk read spells otherwise, and
-        # carries that comment whether or not any prerequisite moved there.
+        # carries that comment whether or not any prerequisite moved there,
+        # beside the fresh reading the candidate was derived over.
         for case, reads in product(_UNDER_THE_EDIT, (False, True)):
             with self.subTest(case=case, reads_a_move=reads):
                 world = support.seeded()
@@ -356,6 +361,8 @@ class CommitRefusalTest(unittest.TestCase):
 
                 refused = (outcome.status, outcome.refusal, outcome.fields, outcome.seen is not None)
                 self.assertEqual(refused, (_STATUS.REFUSED, *_REFUSED_UNDER_THE_EDIT[case, reads]))
+                self.assertEqual(outcome.fresh is not None, refused[-1])
+                self.assertIn(outcome.fresh and outcome.fresh.data, _FRESH_UNDER_THE_EDIT)
                 self.assertEqual(world.record()[support.SETTLED], _SETTLED_READ)
                 self.assertEqual(world.state.data, support.recorded(settled=True))
 

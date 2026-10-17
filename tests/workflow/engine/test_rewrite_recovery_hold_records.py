@@ -18,7 +18,10 @@ record -- landed, answer lost, or refused, for room among the rest -- is
 read moving even where report 2 is put back, and so is the base tip the attempt recorded its replay as made
 onto, blanked right under the record's strict edit -- beside the record of the
 event another finish of the landing is filing for the head, which advances this
-very attempt, or not -- and put back behind it.
+very attempt, or not -- and put back behind it. So is report 3 settled ahead of
+the fresh reading a hold's record -- or a park's, handed the dormant guarded
+park the same way -- is derived over, report 2 put back right ahead of its
+strict edit, which is refused over the comment moved back.
 Where nothing moved the run is kept current. The attempt stands behind every
 hold, the run is made once with nothing pushed or launched, and the poll a
 later tick makes routes the head over whatever the hold left current.
@@ -67,6 +70,10 @@ _UNDER_THE_EDIT = "under the edit"
 # reset is recorded, and put back right behind the edit's refusal.
 _TIP_UNDER_THE_EDIT = "the tip under the edit"
 
+# Report 3 settled ahead of the record's fresh reading, and report 2 put back
+# right ahead of its strict edit, which is refused over the comment moved back.
+_AHEAD_OF_THE_EDIT = "ahead of the edit"
+
 # The tip blanked under that edit beside the record of the `base_rebased`
 # event another finish of the landing is filing for the head, which advances
 # this very attempt rather than replacing it; the tip alone is put back.
@@ -87,6 +94,18 @@ _CONFLICTS_WITH_THE_GATE = "a conflict with the gate's record"
 # reading that carries report 3; that field is taken off with report 3.
 _FILLS_THE_COMMENT = "the comment filled at the record"
 _FILLER = "another_road_filler"
+
+# The modes whose movement races the record's strict edit itself.
+_AT_THE_EDIT = frozenset((_UNDER_THE_EDIT, _TIP_UNDER_THE_EDIT, _TIP_BESIDE_THE_EVENT, _AHEAD_OF_THE_EDIT))
+
+# The dormant guarded records a case races -- the hold's, and the park's -- and how a recovery context lands each.
+_RECORDS = frozenset((_parks.HOLD, _parks.PARK))
+_LANDED_BY = (
+    ("hold", _parks.lands_a_hold),
+    ("park", partial(
+        _parks.lands_a_park, message="The auto rebase needs a human.", reason="auto_base_rebase_push_failed",
+    )),
+)
 
 _AT_THE_RECORD = (
     ("", True),
@@ -113,7 +132,9 @@ def _settles_a_successor(case, subject):
 
 
 class _AroundTheHold:
-    """The guarded commit, report 3 of `head` settled ahead of a hold's record, which meets `failing` ("" lands).
+    """The guarded commit, report 3 of `head` settled ahead of a hold's or park's record, which meets `failing`.
+
+    "" lands it.
 
     `restores` puts report 2 back right behind the record; `successor` settles
     a newer run bound to report 3 beside it, kept as `successor`.
@@ -128,12 +149,14 @@ class _AroundTheHold:
         self.successor = successor
 
     def __call__(self, commit, staged, write):
-        if write is not _parks.HOLD or self._replaced:
+        if write not in _RECORDS or self._replaced:
             return _LANDS(commit, staged, write)
         case = self._case
         if self._failing:
             staged.set(_STAGED_BY_THE_GATE, self._head)
-        if self._failing in {_UNDER_THE_EDIT, _TIP_UNDER_THE_EDIT, _TIP_BESIDE_THE_EVENT}:
+        if self._failing == _AHEAD_OF_THE_EDIT:
+            self._settles()
+        if self._failing in _AT_THE_EDIT:
             with patch.object(case.gh, "edit_pinned_state", partial(self._moves_under, case.gh.edit_pinned_state)):
                 return _LANDS(commit, staged, write)
         self._settles()
@@ -181,7 +204,14 @@ class _AroundTheHold:
         case.gh.write_pinned_state(case.issue, durable)
 
     def _moves_under(self, live, issue, state, *, over: dict, **options):
-        """`live`, the strict edit, with report 3 settled -- or the tip blanked -- under it and put back behind it."""
+        """`live`, the strict edit, with report 3 settled -- or the tip blanked -- under it and put back behind it.
+
+        Report 3 settled ahead of the record's fresh reading is put back right
+        ahead of the edit instead.
+        """
+        if self._failing == _AHEAD_OF_THE_EDIT:
+            self.puts_back()
+            return live(issue, state, over=over, **options)
         if self._failing in {_TIP_UNDER_THE_EDIT, _TIP_BESIDE_THE_EVENT}:
             self._blanks()
         else:
@@ -262,6 +292,25 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assert_invalidated(settled)
                 self._assert_held()
                 around.puts_back()
+                self.recovers()
+                _assert_routed(self, head)
+
+    def test_a_move_put_back_ahead_is_read(self) -> None:
+        # Report 3 settles ahead of the fresh reading a hold's or a park's
+        # record is derived over, and report 2 is put back right ahead of its
+        # strict edit, which is refused over the comment moved back: what that
+        # fresh reading read still invalidates the run whole, the attempt
+        # kept unparked, and the next poll routes the head with nothing current.
+        for name, lands in _LANDED_BY:
+            with self.subTest(record=name):
+                self.setUp()
+                head, settled = self.settles_then_dies()
+                around = _AroundTheHold(self, head, _AHEAD_OF_THE_EDIT)
+                with patch.object(_commits.ReportCommit, _LANDING, side_effect=around, autospec=True):
+                    lands(guarded.recovery_context(self))
+
+                self.assert_invalidated(settled)
+                self._assert_held()
                 self.recovers()
                 _assert_routed(self, head)
 
