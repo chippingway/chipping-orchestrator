@@ -1046,7 +1046,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   `workflow/engine/rewrite_finish_unconfirmed.py`). The coordinator held to the policy proves the evidence again
   before every out-of-step hold, unfinishable landing beside a standing attempt, and debt park, ahead of and behind
   the relabel, and behind every stop of the announcement, the park, or the retirement -- a refusal over a record the
-  evidence's binding rests on, or one whose comment, its preparation's fresh reading or the strict edit's own, was read
+  evidence's binding rests on, or one whose comment, its preparation's fresh reading, the strict edit's own, or the
+  fresh reading a refused edit was derived over, was read
   recording movement under the evidence, a mark, a revision spent past it, or a blank of the attempt's base tip,
   invalidating it however soon that comment is put back -- decides the checkpoint, the event's record, and the park on
   every record the evidence is bound through, puts back an attempt a

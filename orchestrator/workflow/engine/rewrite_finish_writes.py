@@ -435,6 +435,12 @@ def _stopped(
     very comment records under the transaction, asked of it as it was read
     (`verification_proof.ProofReading.reads`): a mark in the evidence's handoff
     place, a revision spent past it, or a blank of the attempt's base tip.
+    A refused edit is asked of the fresh reading its candidate was derived
+    over too (`pinned_commit_models.CommitOutcome.fresh`), ahead of the
+    comment the edit found: the tick may hold a successor it took in beside
+    records older than its binding, so that fresh reading -- matching the
+    tick's own on every record the write is decided on -- can still read the
+    successor off its own binding, however soon the edit finds it put back.
     """
     stopped = _UNLANDED.get(outcome.status)
     if stopped is None:
@@ -448,8 +454,10 @@ def _stopped(
     moved = _BOUND.intersection(outcome.fields)
     if finish.proves_settled:
         moved = BINDING_RECORDS.intersection(moved)
-    if observed is not None and moved:
+    if observed is None:
+        return stopped
+    if moved:
         observed.observes(BINDING_MOVED if finish.proves_settled else _BOUND_MOVED)
-    if observed is not None and outcome.seen is not None:
-        observed.reads(outcome.seen)
+    for comment in filter(None, (outcome.fresh, outcome.seen)):
+        observed.reads(comment)
     return stopped

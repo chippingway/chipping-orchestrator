@@ -5,7 +5,7 @@
 Direct finishes held to the dormant settled-evidence policy
 (`settled_route_support`): issue #7's reviewed rebase, its run settled under
 the anchor and its finish killed before its announcement, so the next finish
-routes the head. Three successors another road settles bound to records of
+routes the head. Four successors another road settles bound to records of
 their own:
 
 - With the run taken off the comment, so nothing is current for the head, a
@@ -28,13 +28,20 @@ their own:
   run bound to the run's own records settles right ahead of the fresh reading
   behind that invalidation, which takes it in. An operator's note left under
   the retirement then refuses it: the movement read under the run is none of
-  the newer run's, and it stays current.
+  the newer run's, and it stays current. Where that newer run settles beside
+  report 3 once more and bound to it instead, report 2 put back right behind
+  that fresh reading, the tick holds it beside report 2's records; report 3
+  put back right under the strict edit of the relabel's record refuses that
+  edit, and the fresh reading the record was derived over -- the newer run
+  beside report 2 -- read it off its own binding: it is invalidated whole,
+  and the next finish routes the head once with nothing current.
 """
 from __future__ import annotations
 
 import unittest
 from dataclasses import replace
 from functools import partial
+from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import config
@@ -42,11 +49,10 @@ from orchestrator.workflow.engine import (
     rewrite_finish_rechecks as _rechecks,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import (
     rewrite_finish_readings as readings,
-    rewrite_handoff_test_support as handoff,
     settled_finish_support as settled_support,
     settled_route_support as route,
     verification_report_fixture as _report,
@@ -57,6 +63,9 @@ _REPORT_RECORDS = ("developer_report_current", "developer_report_handoff", "revi
 
 # What report 3 says.
 _REPORT_THREE = "Covered a base that moved twice as well."
+
+# A field no binding rests on, as an operator's note under the retirement leaves it.
+_NOTED = MappingProxyType({"operator_note": "Checked the rebase by hand."})
 
 
 def _writes(case, records: dict) -> dict:
@@ -105,51 +114,65 @@ class _RefusesBesideASuccessor(_BlanksBesideASuccessor):
 
 
 class _AdoptsBehindTheRecheck:
-    """A newer run bound to `run`'s records taken in behind the run's invalidation, then the retirement raced.
+    """A newer run taken in behind the run's invalidation, then a write of the route raced.
 
     The recheck's first reading is over report 3, report 2 put back right
-    behind it, and the newer run settles right ahead of the second -- the
-    fresh reading behind the run's invalidation; the attempt's first
-    retirement is then raced by an operator's note no binding rests on.
+    behind it, and the second -- the fresh reading behind the run's
+    invalidation -- takes in a newer run: bound to `run`'s own records and
+    settled right ahead of it, the attempt's first retirement then raced by an
+    operator's note no binding rests on; or, `beside_report_three`, settled
+    beside report 3 once more and bound to it, report 2 put back right behind
+    that reading too, and report 3 right under the strict edit of the
+    relabel's record.
     """
 
-    def __init__(self, case, run) -> None:
+    def __init__(self, case, run, *, beside_report_three: bool = False) -> None:
         self._case = case
         self._run = run
+        self._beside = beside_report_three
         self._read = _rechecks.read_afresh
         self._edit = case.gh.edit_pinned_state
         self._readings = 0
+        self._later: dict = {}
         self.successor = None
         self.refused = None
 
     def reads(self, finish):
         """Read the comment afresh, racing the first two readings as above."""
         self._readings += 1
-        if self._readings == 1:
+        if self._readings == 1 or (self._readings == 2 and self._beside):
             return self._reads_report_three(finish)
         if self._readings == 2:
             self.successor = settled_support.records_a_newer_run(self._case, settles=True, binding=self._run.binding)
         return self._read(finish)
 
     def edits(self, issue, state, *, over: dict, **options):
-        """Answer the edit, the attempt's first retirement under an operator's note left meanwhile."""
-        retires = state.get(readings.KEY_PENDING_PUSH) is None
-        retires = retires and over.get(readings.KEY_PENDING_PUSH) is not None
-        if not retires or self.refused is not None:
+        """Answer the edit, the first one making the record raced -- the relabel's, or the retirement -- raced."""
+        raced = readings.KEY_RELABELLED if self._beside else readings.KEY_PENDING_PUSH
+        unset = state.get(raced) is None
+        if unset == (over.get(raced) is None) or self.refused is not None:
             return self._edit(issue, state, over=over, **options)
-        _writes(self._case, {"operator_note": "Checked the rebase by hand."})
+        _writes(self._case, self._later if self._beside else _NOTED)
         self.refused = self._edit(issue, state, over=over, **options)
         return self.refused
 
     def _reads_report_three(self, finish):
-        """Read the comment afresh over report 3, settled right ahead of it, and put report 2 back behind it."""
+        """Read the comment afresh over report 3, settled right ahead of it, and put report 2 back behind it.
+
+        The second reading, beside report 3, settles the newer run bound to it there too.
+        """
         case = self._case
         case.state = case.gh.read_pinned_state(case.issue)
         earlier = {key: case.state.get(key) for key in _REPORT_RECORDS}
-        _report.settles_report(case, 3, _REPORT_THREE, head=self._run.binding.target.target_head)
+        subject = _report.settles_report(case, 3, _REPORT_THREE, head=self._run.binding.target.target_head)
         case.gh.write_pinned_state(case.issue, case.state)
+        if self._readings == 2:
+            target = replace(self._run.binding.target, subject=subject.recorded())
+            self.successor = settled_support.records_a_newer_run(
+                case, settles=True, binding=replace(self._run.binding, target=target),
+            )
         durable = self._read(finish)
-        _writes(case, earlier)
+        self._later = _writes(case, earlier)
         return durable
 
 
@@ -197,7 +220,7 @@ class RelabelSuccessorTest(route.SettledRouteCase, unittest.TestCase):
         # current.
         self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
         self.gh.set_workflow_label(self.issue, WorkflowLabel.VALIDATING)
-        head, run = self._settles_then_dies()
+        head, run = self.dies_unannounced()
         settled: list = []
         raises = partial(_succeeds_then_raises, self, run, settled)
         with patch.object(self.gh, "set_workflow_label", raises):
@@ -213,7 +236,7 @@ class RelabelSuccessorTest(route.SettledRouteCase, unittest.TestCase):
         # takes in a newer run bound to report 2; an operator's note then
         # refuses the retirement. The movement read under the run is the
         # run's alone, so the newer run stays current.
-        head, run = self._settles_then_dies()
+        head, run = self.dies_unannounced()
         races = _AdoptsBehindTheRecheck(self, run)
         with (
             patch.object(_rechecks, "read_afresh", races.reads),
@@ -226,9 +249,29 @@ class RelabelSuccessorTest(route.SettledRouteCase, unittest.TestCase):
         self.assertEqual(current.receipt, races.successor.receipt)
         self.assertEqual(retired[-1], (run.receipt, readings.INVALIDATED))
 
+    def test_a_fresh_reading_disproves_an_adopted_one(self) -> None:
+        # The fresh reading behind the run's invalidation takes in a newer
+        # run bound to report 3, report 2 put back right behind it, and report
+        # 3 is put back right under the strict edit of the relabel's record,
+        # which is refused over it: the fresh reading that record was derived
+        # over read the newer run off its own binding, so it is invalidated
+        # whole, and the next finish routes the head once with nothing current.
+        head, run = self.dies_unannounced()
+        races = _AdoptsBehindTheRecheck(self, run, beside_report_three=True)
+        with (
+            patch.object(_rechecks, "read_afresh", races.reads),
+            patch.object(self.gh, "edit_pinned_state", races.edits),
+        ):
+            self.assertEqual(self.finalizes(head), FinishOutcome.REFUSED)
+
+        self.assertIsNotNone(races.refused)
+        self.assertIsNone(readings.pinned_records(self)[1])
+        self.assertEqual(self.finalizes(head), FinishOutcome.ROUTED)
+        self._assert_disproved(head, run, races.successor)
+
     def _races_a_lone_successor(self, owner, name: str, racer: type) -> tuple:
         """Retire the run and finish its head, `owner`'s `name` raced by `racer`; the head, outcome, and newer run."""
-        head, run = self._settles_then_dies()
+        head, run = self.dies_unannounced()
         state = self.gh.read_pinned_state(self.issue)
         self.assertTrue(_settlement.retire_current_evidence(state))
         self.gh.write_pinned_state(self.issue, state)
@@ -237,19 +280,13 @@ class RelabelSuccessorTest(route.SettledRouteCase, unittest.TestCase):
             outcome = self.finalizes(head)
         return head, outcome, races.successor
 
-    def _assert_disproved(self, head: str, successor) -> None:
-        """`successor` ends invalidated, nothing is current, and `head` was routed once."""
+    def _assert_disproved(self, head: str, *runs) -> None:
+        """`runs` the last invalidated, in order, with nothing current, and `head` routed once."""
         history = readings.pinned_records(self)[2]
-        self.assertEqual(history[-1], (successor.receipt, readings.INVALIDATED))
+        retired = [(run.receipt, readings.INVALIDATED) for run in runs]
+        self.assertEqual(list(history[-len(runs):]), retired)
         self.assertIsNone(readings.pinned_records(self)[1])
         self.assert_routed_once(head)
-
-    def _settles_then_dies(self) -> tuple:
-        """Land a reviewed rebase, settle its run, and kill its finish before its announcement; the head and the run."""
-        head = self.lands_a_reviewed_rebase()
-        published = partial(self.finalizes, head, FinishRoad.PUBLICATION)
-        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, published)
-        return head, readings.pinned_records(self)[1]
 
 
 if __name__ == "__main__":

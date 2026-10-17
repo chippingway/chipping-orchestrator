@@ -1585,8 +1585,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             For a dormant finish only those records make a refusal of its own writes movement by
                             the fields it names, so another road settling a transaction is none, and such a refusal
                             is collected as `BINDING_MOVED`, beside what the comment any refusal of moved records
-                            was read over -- its preparation's fresh reading or its strict edit's -- records under the
-                            evidence (`rewrite_finish_stops.observing`); such a finish also decides the checkpoint,
+                            was read over -- its preparation's fresh reading or its strict edit's, and beside a
+                            refused edit's the fresh reading it was derived over, since a successor the tick took in
+                            beside older records reads moved there however soon the edit finds it put back -- records
+                            under the evidence (`rewrite_finish_stops.observing`); such a finish also decides the
+                            checkpoint,
                             the event's record, and the park on every bound record (`_SETTLED`), and reuses a debt
                             park the tick reads standing where no reply it was handed answers it, and lands one over
                             its notice already said -- behind a replayed reply too -- ahead of a park write that

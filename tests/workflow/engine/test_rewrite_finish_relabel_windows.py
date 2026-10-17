@@ -40,7 +40,6 @@ from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, Fi
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import (
     rewrite_finish_readings as readings,
-    rewrite_handoff_test_support as handoff,
     settled_finish_support as settled_support,
     settled_route_support as route,
     verification_report_fixture as _report,
@@ -191,7 +190,7 @@ class RelabelWindowTest(route.SettledRouteCase, unittest.TestCase):
         # to report 2 as the relabel is made, which then raises. That run
         # proves on its own readings: the movement read under the run ahead of
         # the relabel is the run's alone, so the newer run stays current.
-        head, run = self._settles_then_dies()
+        head, run = self.dies_unannounced()
         settled: list = []
         with (
             patch.object(_rechecks, "read_afresh", _SucceedsBehindTheRecheck(self, head, run, successor=False)),
@@ -205,7 +204,7 @@ class RelabelWindowTest(route.SettledRouteCase, unittest.TestCase):
 
     def _invalidates_the_successor(self, **reading) -> None:
         """Race the recheck with a newer run as `reading` says; both runs end invalidated and the head routed once."""
-        head, run = self._settles_then_dies()
+        head, run = self.dies_unannounced()
         reads = _SucceedsBehindTheRecheck(self, head, run, **reading)
         with patch.object(_rechecks, "read_afresh", reads):
             self.finalizes(head)
@@ -216,13 +215,6 @@ class RelabelWindowTest(route.SettledRouteCase, unittest.TestCase):
         self.assertEqual(history[-1], (reads.successor.receipt, readings.INVALIDATED))
         self.assertIsNone(readings.pinned_records(self)[1])
         self.assert_routed_once(head)
-
-    def _settles_then_dies(self) -> tuple:
-        """Land a reviewed rebase, settle its run, and kill its finish before its announcement; the head and the run."""
-        head = self.lands_a_reviewed_rebase()
-        published = partial(self.finalizes, head, FinishRoad.PUBLICATION)
-        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, published)
-        return head, readings.pinned_records(self)[1]
 
 
 if __name__ == "__main__":

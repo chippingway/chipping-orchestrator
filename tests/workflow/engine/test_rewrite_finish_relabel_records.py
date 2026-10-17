@@ -302,7 +302,7 @@ class RelabelReadsTest(route.SettledRouteCase, unittest.TestCase):
         for reader, outcome in _RELABEL_READS:
             with self.subTest(reading=reader.func.__name__, **reader.keywords):
                 self.setUp()
-                head, run = self._settles_then_dies()
+                head, run = self.dies_unannounced()
                 reads = reader(self, head)
                 with reads.patching():
                     self.assertEqual(self.finalizes(head), outcome)
@@ -324,7 +324,7 @@ class RelabelReadsTest(route.SettledRouteCase, unittest.TestCase):
         for blanks, restores in _RAISED_RELABELS:
             with self.subTest(blanks=blanks, restores=restores):
                 self.setUp()
-                head, run = self._settles_then_dies()
+                head, run = self.dies_unannounced()
                 raises = _RaisesUnderTheRelabel(self, head, blanks=blanks)
                 with (
                     patch.object(self.gh, "set_workflow_label", raises),
@@ -406,13 +406,6 @@ class RelabelReadsTest(route.SettledRouteCase, unittest.TestCase):
                 entered = handoff.stage_entries(self.gh, self.issue.number)
                 self.assertEqual(tuple(entered), _ENTERED_TWICE)
                 self.assertEqual(support.announced(self), [head])
-
-    def _settles_then_dies(self) -> tuple:
-        """Land a reviewed rebase, settle its run, and kill its finish before its announcement; the head and the run."""
-        head = self.lands_a_reviewed_rebase()
-        published = partial(self.finalizes, head, FinishRoad.PUBLICATION)
-        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, published)
-        return head, readings.pinned_records(self)[1]
 
     def _validates_then_dies(self, boundary: handoff.Boundary) -> str:
         """Put the issue on `workflow:validating`, land a reviewed rebase, and kill its finish at `boundary`; head."""

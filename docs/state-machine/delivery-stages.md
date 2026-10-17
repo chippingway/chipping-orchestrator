@@ -1693,7 +1693,8 @@ because there it is the claim that this stage has already rerouted rather than a
     held, or raising stop of the checkpoint, the event's record, the park and its notice, the relabel, and the
     retirement. The checkpoint, the event's record, and the park are decided on every bound record
     (`workflow/engine/rewrite_finish_writes.py`), and a refusal over a record the evidence's binding rests on, or one
-    whose comment -- the preparation's fresh reading or the strict edit's own -- was read recording movement under
+    whose comment -- the preparation's fresh reading, the strict edit's own, or the fresh reading a refused edit was
+    derived over -- was read recording movement under
     the evidence, a mark in its handoff's place, a revision spent past it, or a blank of the attempt's base tip,
     invalidates the evidence however soon that comment is put back, where a newer transaction recorded beside it or
     a successor settled under another receipt moves nothing under it -- save a successor that very comment disproves
