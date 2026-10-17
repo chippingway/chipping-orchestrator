@@ -415,9 +415,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`held_to`) -- and the caller's own domain check of the complete candidate, where it has
                             one; the refusals, the four statuses (PREPARED, COMMITTED, UNCONFIRMED, REFUSED), and
                             the outcome carrying the candidate reading, the fields that earned a refusal, the rendered
-                            length an overflow measured, and what the domain check answered where it refused the
-                            candidate (INADMISSIBLE); and `CONFLICT`, what a domain transformation answers where it
-                            cannot keep both roads' moves of its field, refused as an owned conflict
+                            length an overflow measured, what the domain check answered where it refused the
+                            candidate (INADMISSIBLE), and, for a guard that `reads_a_move`, the comment a refusal was
+                            read over (`seen`) and the fresh reading a refused strict edit was derived over (`fresh`),
+                            kept by `PinnedCommit.keeps_the_move`; and `CONFLICT`, what a domain transformation
+                            answers where it cannot keep both roads' moves of its field, refused as an owned conflict
     pinned_commit.py        the guarded commit itself, through which the verification-evidence publication and
                             settlement, the evidence reconciliation's retirements, `validating`'s invalidation of an
                             unanswered carry, the developer report's recording, binding, publication preflight
@@ -1641,8 +1643,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             one the caller hands in (`standing_refusal`, over `git/base_sync/rewrite_facts.py`) -- a
                             base moved or unread holds, rewound under the head or never recorded defers; and the last
                             word behind every request (`last_word`), every reading taken -- the remote branch, the base,
-                            the requirements and records, and any verdict a caller asks of the comment read there
-                            (`records`: the dormant readiness's evidence records), then the checkout, its local base,
+                            the requirements and records, and any verdict a caller asks of the comment read there and
+                            the issue read with it (`records`: the dormant readiness's evidence records, a successor's
+                            requirements among them), then the checkout, its local base,
                             and the configuration -- and the first movement and first hold answered side by side, a
                             local base nobody could count against holding; where `records` is asked over a head the
                             base advanced past again, the base readings that made its continuation (`ADVANCED`) are
