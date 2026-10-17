@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A checkout gone from disk under a dormant guarded park, its settled run's movement recorded before the park.
+"""A checkout gone from disk under a dormant guarded park or hold, its settled run's movement recorded around it.
 
 The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 rebased head reviewed, its run settled under the anchor, and the finish killed
@@ -17,7 +17,15 @@ its replay as made onto. A park record that lands keeps the attempt and
 retires the run whole; one GitHub refuses, or a process killed before it,
 leaves the run current, but read moving once the checkout and the label are
 put back, so the proof a park that keeps the attempt asks invalidates it whole.
-Nothing is run again, announced, relabelled, pushed, or launched.
+
+The dormant guarded hold a publication gate's hold of a recovery's push would
+be recorded through takes that proof too, so with the checkout gone the reset
+is recorded ahead of the hold's record, and a hold record GitHub refuses
+leaves the run read moving once the checkout is back. A checkout that goes
+from disk only as a hold's or a park's record lands, or as a park's notice
+raises, leaves nothing behind it to prove the run over, so the reset is
+recorded against the run there instead, with the same effect. Nothing is run
+again, announced, relabelled, pushed, or launched.
 """
 from __future__ import annotations
 
@@ -25,6 +33,7 @@ import unittest
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator.workflow.engine import rewrite_recovery_parks as _parks
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
@@ -38,14 +47,54 @@ _UNDRIVEN = "workflow:resolving_conflict"
 
 _AWAY = "checkout-away"
 
+# The client step a pinned-comment edit is.
+_EDITS = "edit_pinned_state"
 
-def _refuses_the_park(refused: set, live, issue, state, *, over: dict):
+# How a record never lands: GitHub refuses it, or the process is killed before it.
+_KILLED = "killed"
+_NEVER_LANDS = ("refused", _KILLED)
+
+# The park a case hands the dormant guarded park, and why.
+_NOTICE = "The auto rebase needs a human."
+_REASON = "auto_base_rebase_push_failed"
+
+# A record a publication gate staged for the hold to land, as one holding over a reading of its own does.
+_GATE = "late_gate_hold"
+
+
+def _refuses_the_park(refused: set, live, issue, state, **options):
     """`live`, the client's pinned-comment edit, refused by GitHub where it is a park's record."""
-    if guarded.parking(issue, state, over=over):
+    if guarded.parking(issue, state, **options):
         refused.add(issue.number)
-    answered = live(issue, state, over=over)
+    answered = live(issue, state, **options)
     refused.discard(issue.number)
     return answered
+
+
+def _records(_issue, state, **options) -> bool:
+    """Whether a pinned-comment edit is a hold's or a park's record, rather than the blank of the attempt's base tip."""
+    tip = readings.KEY_REWRITE_BASE
+    read = options["over"].get(tip)
+    return read is None or state.get(tip) is not None
+
+
+def _refuses_the_record(refused: set, live, issue, state, **options):
+    """`live`, the client's pinned-comment edit, refused by GitHub where it is a hold's or a park's record."""
+    if _records(issue, state, **options):
+        refused.add(issue.number)
+    answered = live(issue, state, **options)
+    refused.discard(issue.number)
+    return answered
+
+
+# A hold's or a park's record: the process killed before it, or the checkout going from disk right behind it.
+_AT_THE_RECORD = handoff.Boundary("at the record", _EDITS, _records)
+
+
+def _raises_behind(move, *_posted, **_options):
+    """The issue-thread post of a park's notice, `move` made and then a raise as GitHub not answering."""
+    move()
+    raise RuntimeError("GitHub did not answer the notice's post")
 
 
 class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
@@ -67,7 +116,7 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # ahead of it: the movement was recorded against the run first, so
         # with the checkout and the label put back the run reads moved, and
         # the proof invalidates it whole.
-        for failing in ("refused", "killed"):
+        for failing in _NEVER_LANDS:
             with self.subTest(record=failing):
                 self.setUp()
                 settled = self._settles_then_strands()
@@ -88,17 +137,85 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def _strands_unrecorded(self, failing: str) -> None:
         """Have the dispatcher's hold answer the issue, its park's record refused or the process killed before it."""
-        if failing == "killed":
+        if failing == _KILLED:
             handoff.dies_at(self.gh, guarded.BEFORE_THE_RECORD, partial(guarded.answers_a_held_anchor, self))
             return
         refusing = partial(_refuses_the_park, self.gh.pinned_failures.refused, self.gh.edit_pinned_state)
-        with patch.object(self.gh, "edit_pinned_state", refusing):
+        with patch.object(self.gh, _EDITS, refusing):
             guarded.answers_a_held_anchor(self)
 
     def _returns(self) -> None:
         """Put the checkout and the issue's label back where they stood."""
         (self._wt.parent / _AWAY).rename(self._wt)
         self.issue.labels = [FakeLabel(git_support.REVIEWING)]
+
+
+class MissingCheckoutRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """A checkout gone from disk around a dormant hold's or park's own record has the reset recorded against the run."""
+
+    def test_a_hold_that_never_lands(self) -> None:
+        # The checkout is gone before the hold: the reset is recorded against
+        # the run first, in a write of its own, and the hold's record, which
+        # would retire the run, is refused, or the process is killed ahead of
+        # it. With the checkout back the run reads moved, and the proof
+        # invalidates it whole.
+        for failing in _NEVER_LANDS:
+            with self.subTest(record=failing):
+                self.setUp()
+                settled = self.settles_then_dies()[1]
+                context = guarded.recovery_context(self)
+                self._wt.rename(self._wt.parent / _AWAY)
+                self._holds_unrecorded(context, failing)
+                (self._wt.parent / _AWAY).rename(self._wt)
+
+                self.assertEqual(readings.pinned_records(self)[1], settled)
+                self._assert_read_moving(settled)
+
+    def test_a_checkout_gone_behind_a_record(self) -> None:
+        # The checkout goes from disk right as a hold's or a park's record
+        # lands, or as a park's notice raises: nothing is left to prove the
+        # run over behind it, so the reset is recorded against the run there,
+        # and with the checkout back the proof invalidates it whole.
+        for record in ("hold", "park", "notice"):
+            with self.subTest(record=record):
+                self.setUp()
+                settled = self.settles_then_dies()[1]
+                self._loses_the_checkout_behind(record)
+                (self._wt.parent / _AWAY).rename(self._wt)
+
+                self._assert_read_moving(settled)
+
+    def _holds_unrecorded(self, context, failing: str) -> None:
+        """Hand the dormant hold `context`, its record refused or the process killed before it."""
+        if failing == _KILLED:
+            handoff.dies_at(self.gh, _AT_THE_RECORD, partial(_parks.lands_a_hold, context))
+            return
+        refusing = partial(_refuses_the_record, self.gh.pinned_failures.refused, self.gh.edit_pinned_state)
+        with patch.object(self.gh, _EDITS, refusing):
+            _parks.lands_a_hold(context)
+
+    def _loses_the_checkout_behind(self, record: str) -> None:
+        """Hand the dormant hold or park a context read off the comment, the checkout going behind `record`."""
+        context = guarded.recovery_context(self)
+        context.state.set(_GATE, self.anchor)
+        away = partial(self._wt.rename, self._wt.parent / _AWAY)
+        if record == "notice":
+            with patch.object(self.gh, "comment", partial(_raises_behind, away)):
+                self.assertRaises(RuntimeError, _parks.lands_a_park, context, _NOTICE, _REASON)
+            return
+        lands = partial(_parks.lands_a_park, message=_NOTICE, reason=_REASON)
+        if record == "hold":
+            lands = _parks.lands_a_hold
+        edits = _AT_THE_RECORD.moving(self.gh.edit_pinned_state, away)
+        with patch.object(self.gh, _EDITS, edits):
+            lands(context)
+
+    def _assert_read_moving(self, settled) -> None:
+        """The attempt's base tip blanked against `settled`, which the proof then reads moved and invalidates whole."""
+        standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
+        self.assertEqual(standing, (self.anchor, None))
+        self.assertTrue(self.proves())
+        self.assert_invalidated(settled)
 
 
 if __name__ == "__main__":

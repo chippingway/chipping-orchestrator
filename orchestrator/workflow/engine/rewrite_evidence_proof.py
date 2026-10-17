@@ -27,7 +27,9 @@ issue or a pinned comment nobody could read again HOLDS. The proof reads the
 pull request first and stops at a reading nobody could take, so a proof that
 holds is answered beside the review and report records the comment it read
 carries (`verification_proof.recorded_verdict`): a subject or settled report
-that moved is movement, whatever went unanswered.
+that moved is movement, whatever went unanswered. A caller may hand it a
+verdict of its own to ask of that comment first (`Asks`, the recovery's
+dormant proof's), which every production caller leaves out.
 
 That proof makes requests of its own -- the pull request, the branch fetch,
 the settled report re-read -- and so would the finish behind it: the evidence
@@ -145,6 +147,11 @@ LEFT_THE_LANDING = _evidence_models.ReportEvidence(
 # What one reading refuses, None for each check it passed.
 Refusals = tuple[_evidence_models.ReportEvidence | None, ...]
 
+# What a caller reads moving in a comment a proof read under the evidence of a
+# receipt, None for nothing: the recovery's dormant proofs hand one in so a
+# base tip read blank or repointed there moves that evidence.
+Asks = Callable[[PinnedState, str], _evidence_models.ReportEvidence | None]
+
 # What the last word's requests heard: the remote branch's head, then the
 # base's refusal and what the issue and its pinned comment, read again, refuse.
 _Heard = tuple[str | None, Refusals]
@@ -186,7 +193,11 @@ _REFUSALS = MappingProxyType({
 ADVANCED = (BASE_MOVED, _REFUSALS[_BaseStanding.DROPPED])
 
 
-def proves_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _evidence_models.ReportEvidence:
+def proves_again(
+    finish: LandedFinish,
+    binding: _records.EvidenceBinding,
+    asks: Callable[[PinnedState], _evidence_models.ReportEvidence | None] | None = None,
+) -> _evidence_models.ReportEvidence:
     """The whole proof of `binding` over the issue and pinned comment read afresh, or the HOLD nobody could read.
 
     A proof that holds on a reading nobody could take stopped there, so the
@@ -194,17 +205,20 @@ def proves_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _ev
     (`verification_proof.recorded_verdict`), and a refusal of theirs -- a
     review subject or settled report that moved -- is the answer instead:
     movement those records establish is never hidden behind a request that
-    went unanswered.
+    went unanswered. `asks`, where a caller hands one, is asked of that very
+    comment first, and movement it reads there is the answer.
     """
     read = _reads_again(finish)
     if read is None:
         return _UNREAD
-    issue, state = read
-    reading = _proof.ProofReading(finish.gh, finish.spec, issue, state)
+    asked = None if asks is None else asks(read[1])
+    if asked is not None and not asked.holds:
+        return asked
+    reading = _proof.ProofReading(finish.gh, finish.spec, *read)
     found = _proof.binding_verdict(reading, binding)
     if not found.holds:
         return found
-    return _proof.recorded_verdict(state, binding) or found
+    return _proof.recorded_verdict(read[1], binding) or found
 
 
 def standing_refusal(finish: LandedFinish, onto: str | None = None) -> _evidence_models.ReportEvidence | None:

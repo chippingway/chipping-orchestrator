@@ -80,7 +80,7 @@ def _issue() -> PinnedState:
 
 
 class StoredRecordTest(unittest.TestCase):
-    """Only the transaction the comment records is abandoned."""
+    """Only the transaction the comment records is abandoned, and a record retired again is indexed once."""
 
     def test_an_unrecorded_mint_is_not_abandoned(self) -> None:
         # Indexed, its revision would sit in history above a floor that never
@@ -117,6 +117,23 @@ class StoredRecordTest(unittest.TestCase):
                 (standing.receipt, _records.Retirement.ABANDONED),
             ],
         )
+
+
+    def test_a_record_retired_again_is_indexed_once(self) -> None:
+        # Another road put the settled record back current beside the entry
+        # its invalidation left: retired again, it keeps that one entry, so
+        # the index stays readable and names the transaction once.
+        state = _issue()
+        support.settles(state)
+        current = state.get(_records.CURRENT_EVIDENCE)
+        self.assertTrue(_settlement.retire_current_evidence(state))
+        indexed = copy.deepcopy(state.get(_records.EVIDENCE_HISTORY))
+        state.set(_records.CURRENT_EVIDENCE, current)
+
+        self.assertTrue(_settlement.retire_current_evidence(state))
+        self.assertIsNone(_settlement.read_current_evidence(state))
+        self.assertEqual(state.get(_records.EVIDENCE_HISTORY), indexed)
+        self.assertEqual(len(_settlement.read_evidence_history(state)), len(indexed))
 
 
 class CommentLimitTest(unittest.TestCase):

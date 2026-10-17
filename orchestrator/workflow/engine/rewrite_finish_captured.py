@@ -91,7 +91,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
-from orchestrator.workflow.engine.rewrite_evidence_proof import last_word, proves_again
+from orchestrator.workflow.engine.rewrite_evidence_proof import Asks, last_word, proves_again
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.rewrite_finish_unconfirmed import reconciles_the_abandonment
 
@@ -157,15 +157,18 @@ def retired(finish: LandedFinish) -> bool:
     return True
 
 
-def proved_again(finish: LandedFinish, pending: _records.PendingEvidence) -> ReportEvidence:
+def proved_again(finish: LandedFinish, pending: _records.PendingEvidence, asks: Asks | None = None) -> ReportEvidence:
     """The proof of `pending` again over what `finish` reads, logged where it refuses; nothing is staged.
 
     The binding is proved over the issue and pinned comment read afresh
     (`rewrite_evidence_proof.proves_again`), and the verdict is for the last
     word (`stands_before_the_route`, as `proof`), asked behind whatever the
     route writes first, which reads it beside everything else that moves.
+    `asks`, where a caller hands one, is asked of that comment under
+    `pending`'s receipt as well.
     """
-    found = proves_again(finish, pending.binding)
+    asked = None if asks is None else partial(asks, receipt=pending.receipt)
+    found = proves_again(finish, pending.binding, asked)
     if not found.proved:
         log.warning(
             "issue=#%d verification evidence revision %d recorded for %.8s does not prove again: %s",
