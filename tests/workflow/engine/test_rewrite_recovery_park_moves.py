@@ -1,17 +1,16 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The dormant guarded recovery park behind a reset, landed while another road writes the comment, or dying there.
+"""The guarded recovery park behind a reset, landed while another road writes the comment, or dying there.
 
 The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 rebased head reviewed, its run settled under the anchor, and the finish killed
-before its announcement. The next tick's recovery cannot fetch the branch, so
-it takes the git owner's fail-closed abort, handed the workflow's dormant
-guarded operations (`guarded_recovery_support`), which no production road
-hands it yet: the checkout goes back onto the anchor, and the park behind that
-reset releases the attempt and invalidates the settled run in one write. While
-the park's notice is posted, another road writes the comment: it settles and
-reviews report 3 of the head, or records a newer transaction for it beside the
-run.
+before its announcement. The next tick cannot fetch the branch, or count the
+checkout's lag against base, and takes the fail-closed abort with the
+workflow's guarded operations (`guarded_recovery_support`): the reset is
+recorded first by blanking the base tip, and the park behind it releases the
+attempt and invalidates the run in one write. While the park's notice is
+posted, another road settles report 3, or records a newer transaction beside
+the run.
 
 The park's record lands over the comment as it then stands, never over the
 tick's whole reading -- a run the finish only captured is abandoned in it
@@ -34,10 +33,8 @@ from itertools import product
 from typing import NamedTuple
 from unittest.mock import patch
 
-from orchestrator import config
 from orchestrator.git import branch_transport
-from orchestrator.github.verification_evidence import VerifiedCommand
-from orchestrator.workflow.engine import verification_record_state as _record_state
+from orchestrator.workflow.engine import base_refresh
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_git_support as git_support,
@@ -60,18 +57,8 @@ def _settles_a_later_report(case, head: str) -> None:
 
 
 def _records_a_newer_run(case, _head: str) -> str:
-    """Record a newer transaction beside the settled run, carrying its binding, as another road would; its receipt.
-
-    Its transcript is the configured command passing, as the settled run's own reads.
-    """
-    state = case.gh.read_pinned_state(case.issue)
-    binding = readings.pinned_records(case)[1].binding
-    command = config.VERIFY_COMMANDS[0]
-    passed = (VerifiedCommand(command=command, exit_status=0, output=git_support.CHECKED),)
-    newer = _record_state.mint_pending_evidence(state, git_support.ISSUE, binding, passed)
-    case.assertTrue(_record_state.record_pending_evidence(state, newer))
-    case.gh.write_pinned_state(case.issue, state)
-    return newer.receipt
+    """Record a newer transaction beside the settled run, as another road would; its receipt."""
+    return guarded.records_a_newer_run(case).receipt
 
 
 def _kept(answers: list, writes, *args) -> None:
@@ -97,27 +84,60 @@ _WRITES = (
     _Write("a newer transaction recorded beside the run", _records_a_newer_run, 2, refuses=True),
 )
 
+class _Abort(NamedTuple):
+    """What sends every poll into the git owner's abort: the step that fails, on its owner, and its answer."""
+
+    name: str
+    owner: object
+    step: str
+    answered: object
+
+
+# The fetch of the pull request's branch, which the recovery answers with the
+# abort, and the count of the checkout's lag against base, which the refresh
+# answers with it ahead of any recovery road.
+_ABORTS = (
+    _Abort("the branch's fetch failed", branch_transport, _FETCHES, guarded.unfetched),
+    _Abort("the base lag was not counted", base_refresh, "_worktree_behind_base", lambda *_args: None),
+)
+
+
+class _Case(NamedTuple):
+    """An abort and a write, with the first poll running through or killed at `boundary` before the park's record."""
+
+    abort: _Abort
+    write: _Write
+    boundary: handoff.Boundary | None
+
+    def named(self) -> dict:
+        """The case as a subtest names it."""
+        boundary = getattr(self.boundary, "name", None)
+        return {"aborted": self.abort.name, "write": self.write.name, "boundary": boundary}
+
+
+_BOUNDARIES = (None, guarded.BEFORE_THE_RECORD)
+
 # The event every park files.
 _PARKED = "park_awaiting_human"
 
-# Each write, with the first poll running through or killed before the park's record.
-_CASES = tuple(product(_WRITES, (None, guarded.BEFORE_THE_RECORD)))
+_CASES = tuple(map(_Case._make, product(_ABORTS, _WRITES, _BOUNDARIES)))
 
 
 class ResetParkMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A reset park's record keeps what another road wrote under its notice, whether or not the process lived."""
 
     def test_the_park_keeps_what_moved_under_it(self) -> None:
-        # Report 3 lands beside the park, or the newer transaction refuses
+        # Whichever road takes the abort, its reset is recorded ahead of it,
+        # and report 3 lands beside the park, or the newer transaction refuses
         # it and the next tick parks around it; a death before the record is
         # answered alike, and every poll behind the park changes nothing.
-        for write, boundary in _CASES:
-            with self.subTest(write=write.name, boundary=getattr(boundary, "name", None)):
+        for case in _CASES:
+            with self.subTest(**case.named()):
                 self.setUp()
                 head, settled = self.settles_then_dies()
-                written = self._recovers(head, write, boundary)
+                written = self._recovers(head, case)
 
-                self._assert_parked(settled, written, write.revision)
+                self._assert_parked(settled, written, case.write.revision)
 
     def test_an_unconfirmed_park_is_answered_again(self) -> None:
         # The park's record is refused, or lands with its answer lost: the
@@ -144,22 +164,25 @@ class ResetParkMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_abandoned(captured)
         self.assertEqual((self.pushes.call_count, self.developer.call_count), (0, 0))
 
-    def _recovers(self, head: str, write: _Write, boundary: handoff.Boundary | None) -> str | None:
-        """Poll three times over an unfetched branch, `write` made behind the first park's notice; what it answered.
+    def _recovers(self, head: str, case: _Case) -> str | None:
+        """Poll three times into `case`'s abort, its write made behind the first park's notice; what that answered.
 
-        The first poll is killed at `boundary`, and records the park only
-        where it ran through and `write` refuses nothing.
+        The first poll is killed at `case`'s boundary, and records the park
+        only where it ran through and the write refuses nothing; whatever it
+        came to, the reset was recorded ahead of it, the attempt's base tip
+        blank.
         """
         written: list = []
-        writes = partial(_kept, written, write.writes, self, head)
+        writes = partial(_kept, written, case.write.writes, self, head)
         races = _RacesPastTheCall(self.gh.comment, 1, writes)
-        with patch.object(branch_transport, _FETCHES, guarded.unfetched):
+        with patch.object(case.abort.owner, case.abort.step, case.abort.answered):
             with patch.object(self.gh, "comment", races):
-                handoff.dies_at(self.gh, boundary, self.recovers)
+                handoff.dies_at(self.gh, case.boundary, self.recovers)
             parked = readings.pinned(self).get(guarded.AWAITING) is True
+            self.assertIsNone(self.pinned_fields(readings.KEY_REWRITE_BASE)[0])
             self.recovers()
             self.recovers()
-        self.assertEqual(parked, boundary is None and not write.refuses)
+        self.assertEqual(parked, case.boundary is None and not case.write.refuses)
         return written[0]
 
     def _parks_unconfirmed(self, failing: str) -> bool:

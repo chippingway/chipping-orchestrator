@@ -1,23 +1,20 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a finish of a landed rewrite announced on the attempt, as the dormant settled-evidence policy reads it.
+"""What a finish of a landed rewrite announced on the attempt, read again wherever the tick's reading may be stale.
 
 A finish's announcement puts the record of its `base_rebased` event and the
-mark on the attempt, and -- under the dormant policy -- its relabel follows
-behind a record of its own; another finish of the landing may put them down
-meanwhile, or a write of this finish's own may land them with its answer lost
--- the attempt advanced, not replaced. Only a finish held to the dormant
-policy reads it: `advanced_by_the_announcement` tells it from another attempt,
-and `takes_in_the_announcement` lays it over the tick's state, so movement
-read under settled evidence is retired over the attempt as it stands rather
-than refused as another road's. The coordinator (`rewrite_finish.finalizes`)
-asks `marked` and `relabelled`, so a finish under that policy neither
-announces a head another finish marked meanwhile nor relabels -- and files
-the stage-entry event of -- an issue another finish already relabelled for
-that head, which the relabel's own record on the attempt, landed ahead of
-every relabel such a finish makes (`relabels_once`), says beside the label;
-every other finish answers both off the mark and the label the tick read, and
-relabels with no record.
+mark on the attempt, and its relabel follows behind a record of its own;
+another finish of the landing may put them down meanwhile, or a write of this
+finish's own may land them with its answer lost -- the attempt advanced, not
+replaced. `advanced_by_the_announcement` tells that from another attempt, and
+`takes_in_the_announcement` lays it over the tick's state, so movement read
+under settled evidence is retired over the attempt as it stands rather than
+refused as another road's. The coordinator (`rewrite_finish.finalizes`) asks
+`marked` and `relabelled`, so a finish neither announces a head another
+finish marked meanwhile nor relabels -- and files the stage-entry event of --
+an issue another finish already relabelled for that head, which the
+relabel's own record on the attempt, landed ahead of every relabel
+(`relabels_once`), says beside the label.
 """
 from __future__ import annotations
 
@@ -79,13 +76,10 @@ def advanced_by_the_announcement(
 def takes_in_the_announcement(finish: LandedFinish, durable: PinnedState) -> None:
     """Lay the announcement's bookkeeping `durable`, read afresh, carries for `finish`'s attempt over the tick's state.
 
-    Only for a finish held to the settled-evidence policy, and only where that
-    bookkeeping alone moved the attempt (`advanced_by_the_announcement`):
-    taken in as read, so a write decided on the attempt counts none of it as
-    the tick's own move.
+    Only where that bookkeeping alone moved the attempt
+    (`advanced_by_the_announcement`): taken in as read, so a write decided on
+    the attempt counts none of it as the tick's own move.
     """
-    if not finish.proves_settled:
-        return
     read = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     moved = advanced_by_the_announcement(finish, read, durable.data)
     if not moved:
@@ -98,42 +92,38 @@ def takes_in_the_announcement(finish: LandedFinish, durable: PinnedState) -> Non
 def marked(finish: LandedFinish, *, already: bool) -> bool:
     """Whether the mark is down for `finish`'s landed head: `already`, as the tick read it, or put down since.
 
-    Only a finish held to the settled-evidence policy reads it again, off the
-    tick's state as its evidence phase left it -- which takes in an
-    announcement another finish of the landing made meanwhile -- so that
-    announcement is not made twice.
+    Read again off the tick's state as the evidence phase left it -- which
+    takes in an announcement another finish of the landing made meanwhile --
+    so that announcement is not made twice.
     """
-    return already or (finish.proves_settled and _attempts._already_announced(finish.state, finish.head))
+    return already or _attempts._already_announced(finish.state, finish.head)
 
 
-def relabelled(finish: LandedFinish, *, announced: bool) -> bool | None:
+def relabelled(finish: LandedFinish) -> bool | None:
     """Whether this head's relabel to `workflow:validating` is already made, so the route relabels nothing.
 
-    `announced` and the tick's label answer for every finish but one held to
-    the settled-evidence policy. Such a finish reads the mark as the attempt
-    now carries it (`marked`), the record of the relabel beside it, and the
-    label off the issue fetched afresh. The record lands ahead of every
-    relabel it makes (`relabels_once`), so with none naming the head no
-    finish of the landing relabelled for it, and the route relabels -- an
-    issue that wore `workflow:validating` before the rebase among them, as an
-    uninterrupted route would; beside a label other than `workflow:validating`
-    it is a relabel that never landed, and the route relabels too. Made where
-    the record names the head and the issue wears `workflow:validating`: a
-    relabel another finish of the landing made meanwhile, or one a finish
-    lost before the retirement made, so neither it nor its stage-entry event
-    is made twice, with no event log needed. On an issue that already wore
-    that label the label says nothing of whether the relabel behind the
-    record was made, so where the audit log is configured the relabel's
-    stage-entry event naming the head is asked for (`github/events.filed`),
-    and the route relabels where the stream does not carry it; with no log
-    nothing durable can say, and the relabel is taken as made -- once at most:
-    a finish lost between the record and the relabel files no stage-entry
-    event for the head, on an issue already wearing the label the route puts
-    it on. None where the label or that stream could not be read: nobody can
-    say whether the relabel is made, so the route holds rather than risk it.
+    Read off the mark as the attempt now carries it (`marked`), the record of
+    the relabel beside it, and the label off the issue fetched afresh. The
+    record lands ahead of every relabel (`relabels_once`), so with none naming
+    the head no finish of the landing relabelled for it, and the route
+    relabels -- an issue that wore `workflow:validating` before the rebase
+    among them, as an uninterrupted route would; beside a label other than
+    `workflow:validating` it is a relabel that never landed, and the route
+    relabels too. Made where the record names the head and the issue wears
+    `workflow:validating`: a relabel another finish of the landing made
+    meanwhile, or one a finish lost before the retirement made, so neither it
+    nor its stage-entry event is made twice, with no event log needed. On an
+    issue that already wore that label the label says nothing of whether the
+    relabel behind the record was made, so where the audit log is configured
+    the relabel's stage-entry event naming the head is asked for
+    (`github/events.filed`), and the route relabels where the stream does not
+    carry it; with no log nothing durable can say, and the relabel is taken as
+    made -- once at most: a finish lost between the record and the relabel
+    files no stage-entry event for the head, on an issue already wearing the
+    label the route puts it on. None where the label or that stream could not
+    be read: nobody can say whether the relabel is made, so the route holds
+    rather than risk it.
     """
-    if not finish.proves_settled:
-        return announced and finish.label == WorkflowLabel.VALIDATING
     wears = marked(finish, already=False) and _wears_validating(finish)
     if not wears:
         return wears
@@ -157,15 +147,14 @@ def relabels_once(
 ) -> FinishOutcome | None:
     """Relabel `finish`'s issue to `workflow:validating`, its record landed ahead of it; None where both landed.
 
-    Any other finish relabels with no record and nothing read, as it always
-    has. For a finish held to the dormant settled-evidence policy, the record
-    (`_records_the_relabel`) lands first whatever label the issue wears, so no
-    relabel is made that nothing durable records: read back beside the label
-    (`relabelled`), it keeps every later finish from relabelling -- and filing
-    the stage-entry event -- a second time, with or without an event log, the
-    relabel naming the head on that event for a log to answer. HELD where the
-    label would not read; a record that did not land is where the route
-    stops, nothing relabelled, its refusal collected on `observed`. A relabel
+    The record (`_records_the_relabel`) lands first whatever label the issue
+    wears, so no relabel is made that nothing durable records: read back
+    beside the label (`relabelled`), it keeps every later finish from
+    relabelling -- and filing the stage-entry event -- a second time, with or
+    without an event log, the relabel naming the head on that event for a log
+    to answer. HELD where the label would not read; a record that did not land
+    is where the route stops, nothing relabelled, its refusal collected on
+    `observed`. A relabel
     that raised has `proves`, the caller's proof of the evidence, asked before
     the error goes on. On an issue that wears another label the label read
     back says whether a relabel whose answer was lost landed, so the record
@@ -178,9 +167,6 @@ def relabels_once(
     carries, or that could not be read, or a record that could not be taken
     back, leaves the relabel read as made: once at most, never twice.
     """
-    if not finish.proves_settled:
-        finish.gh.set_workflow_label(finish.issue, WorkflowLabel.VALIDATING)
-        return None
     wears = _wears_validating(finish)
     if wears is None:
         return FinishOutcome.HELD

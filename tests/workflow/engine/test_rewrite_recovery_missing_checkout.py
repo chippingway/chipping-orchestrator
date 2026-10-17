@@ -1,14 +1,14 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A checkout gone from disk under a dormant guarded park or hold, its settled run's movement recorded around it.
+"""A checkout gone from disk under a guarded park or hold, its settled run's movement recorded around it.
 
 The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 rebased head reviewed, its run settled under the anchor, and the finish killed
 before its announcement. Then the checkout goes from disk and the issue is
 relabelled to a stage the refresh does not drive, so the dispatcher's anchor
 hold answers it with the stranded park that keeps the attempt -- handed the
-workflow's dormant proof and park (`guarded_recovery_support`), which no
-production road hands it yet.
+workflow's proof and park by the dispatcher's own answer
+(`guarded_recovery_support`).
 
 With no checkout there is nothing to prove the landing over, so the run is
 retired on the state the park writes, and the movement is recorded against it
@@ -16,16 +16,18 @@ first, in a write of its own, by blanking the base tip the attempt recorded
 its replay as made onto. A park record that lands keeps the attempt and
 retires the run whole; one GitHub refuses, or a process killed before it,
 leaves the run current, but read moving once the checkout and the label are
-put back, so the proof a park that keeps the attempt asks invalidates it whole.
+put back, so the proof a park that keeps the attempt asks invalidates it whole,
+and the recovery behind it routes the head with nothing current.
 
-The dormant guarded hold a publication gate's hold of a recovery's push would
-be recorded through takes that proof too, so with the checkout gone the reset
+The guarded hold a publication gate's hold of a recovery's push is recorded
+through takes that proof too, so with the checkout gone the reset
 is recorded ahead of the hold's record, and a hold record GitHub refuses
 leaves the run read moving once the checkout is back. A checkout that goes
 from disk only as a hold's or a park's record lands, or as a park's notice
 raises, leaves nothing behind it to prove the run over, so the reset is
 recorded against the run there instead, with the same effect. Nothing is run
-again, announced, relabelled, pushed, or launched.
+again or pushed, nothing is announced or relabelled ahead of a route, and no
+developer is launched.
 """
 from __future__ import annotations
 
@@ -54,7 +56,7 @@ _EDITS = "edit_pinned_state"
 _KILLED = "killed"
 _NEVER_LANDS = ("refused", _KILLED)
 
-# The park a case hands the dormant guarded park, and why.
+# The park a case hands the guarded park directly, and why.
 _NOTICE = "The auto rebase needs a human."
 _REASON = "auto_base_rebase_push_failed"
 
@@ -103,7 +105,7 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def test_a_landed_park_retires_the_run(self) -> None:
         # The stranded park keeps the attempt and lands the run's
         # invalidation in its own record, over the tip already blanked.
-        settled = self._settles_then_strands()
+        settled = self._settles_then_strands()[1]
         guarded.answers_a_held_anchor(self)
         self._returns()
 
@@ -115,11 +117,12 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # The stranded park's record is refused, or the process is killed
         # ahead of it: the movement was recorded against the run first, so
         # with the checkout and the label put back the run reads moved, and
-        # the proof invalidates it whole.
+        # the proof invalidates it whole; the recovery behind it routes the
+        # head with nothing current.
         for failing in _NEVER_LANDS:
             with self.subTest(record=failing):
                 self.setUp()
-                settled = self._settles_then_strands()
+                head, settled = self._settles_then_strands()
                 self._strands_unrecorded(failing)
                 self._returns()
 
@@ -127,10 +130,12 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assertEqual(self.pinned_fields(readings.KEY_REWRITE_BASE), (None,))
                 self.assertTrue(self.proves())
                 self.assert_invalidated(settled)
+                self.recovers()
+                self.assert_routed(head)
 
-    def _settles_then_strands(self):
-        """Settle a reviewed rebase's run, kill its finish, move the checkout away, and relabel; the settled run."""
-        settled = self.settles_then_dies()[1]
+    def _settles_then_strands(self) -> tuple:
+        """Settle a reviewed rebase's run, kill its finish, move the checkout away, and relabel; the head, the run."""
+        settled = self.settles_then_dies()
         self._wt.rename(self._wt.parent / _AWAY)
         self.issue.labels = [FakeLabel(_UNDRIVEN)]
         return settled
@@ -151,7 +156,7 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
 
 class MissingCheckoutRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
-    """A checkout gone from disk around a dormant hold's or park's own record has the reset recorded against the run."""
+    """A checkout gone from disk around a hold's or park's own record has the reset recorded against the run."""
 
     def test_a_hold_that_never_lands(self) -> None:
         # The checkout is gone before the hold: the reset is recorded against
@@ -186,7 +191,7 @@ class MissingCheckoutRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._assert_read_moving(settled)
 
     def _holds_unrecorded(self, context, failing: str) -> None:
-        """Hand the dormant hold `context`, its record refused or the process killed before it."""
+        """Hand the guarded hold `context`, its record refused or the process killed before it."""
         if failing == _KILLED:
             handoff.dies_at(self.gh, _AT_THE_RECORD, partial(_parks.lands_a_hold, context))
             return
@@ -195,7 +200,7 @@ class MissingCheckoutRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             _parks.lands_a_hold(context)
 
     def _loses_the_checkout_behind(self, record: str) -> None:
-        """Hand the dormant hold or park a context read off the comment, the checkout going behind `record`."""
+        """Hand the guarded hold or park a context read off the comment, the checkout going behind `record`."""
         context = guarded.recovery_context(self)
         context.state.set(_GATE, self.anchor)
         away = partial(self._wt.rename, self._wt.parent / _AWAY)

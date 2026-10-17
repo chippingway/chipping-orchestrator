@@ -1,13 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A dormant recovery hold or park whose evidence another road puts back late, or replaces behind its readings.
+"""A recovery hold or park whose evidence another road puts back late, or replaces behind its readings.
 
 The guarded recovery case (`guarded_recovery_support`): issue #7's rebased
 head reviewed and its run settled -- or only captured -- under the anchor, and
 the finish killed short of its route, so the attempt stands. The recovery
-context read off the comment is handed straight to the dormant guarded hold or
-park (`rewrite_recovery_parks.lands_a_hold`, `lands_a_park`), as a recovery
-road would.
+context read off the comment is handed straight to the guarded hold or park
+(`rewrite_recovery_parks.lands_a_hold`, `lands_a_park`), as a recovery road
+does.
 
 - The settled run, taken off beside a blank of the base tip under the
   record's strict edit, is put back in two steps -- the tip behind that edit,
@@ -57,7 +57,7 @@ _READS = "durable_comment"
 # hold's record has an edit to send; staged for a park too, it picks out that park's record the same way.
 _GATE = "late_gate_hold"
 
-# The dormant guarded records a case races, and how a recovery context lands each.
+# The guarded records a case races, and how a recovery context lands each.
 _PARKS = partial(_parks.lands_a_park, message="The auto rebase needs a human.", reason="auto_base_rebase_push_failed")
 _LANDED_BY = (("hold", _parks.lands_a_hold), ("park", _PARKS))
 
@@ -238,7 +238,7 @@ class _RevivesTheRun:
 
 
 class LateRestorationTest(guarded.GuardedRecoveryCase, unittest.TestCase):
-    """Evidence put back late, or replaced behind a reading, revives nothing a dormant record read moving."""
+    """Evidence put back late, or replaced behind a reading, revives nothing a guarded record read moving."""
 
     def test_a_split_restoration_keeps_the_move(self) -> None:
         # The run and the tip go under a hold's or a park's record, refused
@@ -334,7 +334,7 @@ class LateRestorationTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
 
     def _holds_over_a_revival(self, revives: _RevivesTheRun, head: str) -> None:
-        """Hand the dormant hold a context read off the comment, `revives` answering its edits; nothing left current."""
+        """Hand the hold a context read off the comment, `revives` answering its edits; nothing left current."""
         context = guarded.recovery_context(self)
         context.state.set(_GATE, head)
         with (

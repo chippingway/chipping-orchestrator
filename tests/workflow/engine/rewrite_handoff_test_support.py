@@ -14,15 +14,13 @@ recorded or filed; behind that record and before the event, so the retry
 finds the event recorded and asks the stream, which does not carry it; behind
 the event and before the checkpoint, so the retry finds the notice and the
 event with no mark beside them; behind the checkpoint and before the relabel,
-so the retry reads the head as already announced; and behind the relabel and
-before the retirement, so the retry reads the issue as already relabelled
-too. A finish held to the dormant settled-evidence policy lands a record of
-its relabel right ahead of it, so its own boundaries (`DORMANT_BOUNDARIES`)
-add a death at that record, behind the checkpoint and before the relabel,
-where the retry has to tell whether that relabel landed. A boundary can also
-stand for another road's move behind the call it picks rather than a death
-(`Boundary.moving`), or for one made right before that call and put back
-right behind it (`Boundary.racing`).
+so the retry reads the head as already announced; at the relabel's own
+record, ahead of the relabel whatever label the issue wears, so the retry has
+to tell whether that relabel landed; and behind the relabel and before the
+retirement, so the retry reads the issue as already relabelled too. A
+boundary can also stand for another road's move behind the call it picks
+rather than a death (`Boundary.moving`), or for one made right before that
+call and put back right behind it (`Boundary.racing`).
 
 The death is the process exiting (`sys.exit`): the handler around the
 notice's post catches whatever an `Exception` would raise, to read the
@@ -152,27 +150,22 @@ BEFORE_THE_CHECKPOINT = Boundary("said, before the checkpoint", _EDITS, _PICKS.c
 
 BEFORE_THE_RELABEL = Boundary("announced, before the relabel", "set_workflow_label", _PICKS.relabelling)
 
-# The record of the relabel a finish held to the dormant settled-evidence
-# policy lands ahead of the relabel, whatever label the issue wears: on the
-# route's own clock it comes before `BEFORE_THE_RELABEL`. No production road
-# writes that record, so it stays out of `BOUNDARIES`, which every road's
-# matrix walks.
+# The record of the relabel lands ahead of the relabel, whatever label the
+# issue wears: on the route's own clock it comes before `BEFORE_THE_RELABEL`.
 BEFORE_THE_RELABEL_RECORD = Boundary("at the relabel's record", _EDITS, _PICKS.recording_the_relabel)
 
 BEFORE_THE_RETIREMENT = Boundary("relabelled, before the retirement", _EDITS, _PICKS.retiring)
 
+# Every boundary a finish can be killed at, in the order its route reaches them.
 BOUNDARIES = (
     BEFORE_THE_ANNOUNCEMENT,
     BEFORE_THE_EVENT_RECORD,
     BEFORE_THE_EVENT,
     BEFORE_THE_CHECKPOINT,
+    BEFORE_THE_RELABEL_RECORD,
     BEFORE_THE_RELABEL,
     BEFORE_THE_RETIREMENT,
 )
-
-# Every boundary a direct finish held to the dormant settled-evidence policy
-# can be killed at, in the order its route reaches them.
-DORMANT_BOUNDARIES = (*BOUNDARIES[:4], BEFORE_THE_RELABEL_RECORD, *BOUNDARIES[4:])
 
 
 def dies_at(client, boundary: Boundary | None, finishing: Callable[[], object]) -> None:

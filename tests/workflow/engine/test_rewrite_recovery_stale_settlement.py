@@ -14,7 +14,7 @@ raised, and the head is routed once to the fresh reviewer, who owes the
 evidence. Nothing is announced again, nothing runs again, nothing is pushed,
 and no developer is launched, however often the recovery polls.
 
-The evidence phase of a finish held to the dormant settled-evidence policy,
+The evidence phase,
 asked directly (`settled_finish_support`), invalidates the run the same way
 before the head is decided afresh; where that invalidation cannot land -- the
 comment full -- it holds instead, the movement recorded by blanking the
@@ -141,7 +141,7 @@ class StaleSettlementRecoveryTest(support.CapturedRunCase, unittest.TestCase):
 
 
 class SettledStaleSettlementTest(settled.SettledRunCase, unittest.TestCase):
-    """The dormant evidence phase invalidates a run the configuration moved past, or holds where that cannot land."""
+    """The evidence phase invalidates a run the configuration moved past, or holds where that cannot land."""
 
     def test_a_reconfigured_run_is_invalidated(self) -> None:
         # A recovery settled and announced the run and died at its relabel,
@@ -183,7 +183,7 @@ class SettledStaleSettlementTest(settled.SettledRunCase, unittest.TestCase):
         """The phase over `head`'s finish, HELD over a successor recorded right behind its invalidation; the finish."""
         arrives = _RacesPastTheStep(_readiness.invalidates, partial(_records_newer, self, captured))
         with patch.object(_readiness, "invalidates", arrives):
-            finish, answer = self.asks_dormant(_with_its_answer, head)
+            finish, answer = self.asks_directly(_with_its_answer, head)
         self.assertEqual(answer, FinishOutcome.HELD)
         return finish
 

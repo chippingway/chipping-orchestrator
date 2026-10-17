@@ -1,25 +1,24 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A dormant finish's relabel, held to the evidence it routes and made once whatever label the issue already wore.
+"""A finish's relabel, held to the evidence it routes and made once whatever label the issue already wore.
 
-Direct finishes held to the dormant settled-evidence policy
-(`settled_route_support`): issue #7's reviewed rebase, its run settled under
-the anchor and its finish killed before its announcement, so the next finish
-routes the head. Report 3 settled just as the relabel's recheck reads the
-comment afresh, report 2 put back right behind that reading, is movement read
-under the run: the run is invalidated whole before the relabel and the head
-routed once with nothing current, putting report 2 back reviving nothing. A
-successor another road settled bound to report 3 in the run's place, read by
-that recheck with report 2 put back and report 3 put back behind it, is
-invalidated on its own binding the same way. A relabel that raises, behind
-another road settling report 3 and a newer run bound to it and then putting
-report 2 back, is proved again over the comment
-as it then stands: that newer run is invalidated on its own binding before
-the error goes on, so putting report 3 back revives nothing and the next
-finish routes the head once. So it is where that road settles them only right
-behind the reading the proof starts from, and puts report 3 back right behind
-the proof's own next reading: that reading asks the newer run of its own
-binding rather than the run's alone.
+Direct finishes of the landing (`settled_route_support`): issue #7's reviewed
+rebase, its run settled under the anchor and its finish killed before its
+announcement, so the next finish routes the head. Report 3 settled just as the
+relabel's recheck reads the comment afresh, report 2 put back right behind
+that reading, is movement read under the run: the run is invalidated whole
+before the relabel and the head routed once with nothing current, putting
+report 2 back reviving nothing. A successor another road settled bound to
+report 3 in the run's place, read by that recheck with report 2 put back and
+report 3 put back behind it, is invalidated on its own binding the same way. A
+relabel that raises, behind another road settling report 3 and a newer run
+bound to it and then putting report 2 back, is proved again over the comment
+as it then stands: that newer run is invalidated on its own binding before the
+error goes on, so putting report 3 back revives nothing and the next finish
+routes the head once. So it is where that road settles them only right behind
+the reading the proof starts from, and puts report 3 back right behind the
+proof's own next reading: that reading asks the newer run of its own binding
+rather than the run's alone.
 
 On an issue already on `workflow:validating` the relabel's own record lands
 ahead of it, and a finish lost anywhere around the two comes back behind a
@@ -312,7 +311,7 @@ def _writes(case, records: dict, *, keeping: dict) -> None:
 
 
 class RelabelReadsTest(route.SettledRouteCase, unittest.TestCase):
-    """What a dormant finish's relabel reads, around the evidence it routes, decides that relabel once."""
+    """What a finish's relabel reads, around the evidence it routes, decides that relabel once."""
 
     def test_a_move_read_by_the_recheck_counts(self) -> None:
         # Report 3 settles as the relabel's recheck reads the comment, and

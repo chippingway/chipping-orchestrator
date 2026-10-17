@@ -37,13 +37,22 @@ class LandedCheckout:
         _gate_reads(case)
 
     def walked(self):
-        """The refresh's git for one tick: a base fetch that lands, and the checkout and branch the push left."""
+        """The refresh's git for one tick: a base fetch that lands, and the checkout and branch the push left.
+
+        The remote stands the pull request's branch on the landed head, and
+        the base on the tip the checkout was counted against.
+        """
         return _patch_base_sync(
             target_fetch=MagicMock(return_value=_git_result()),
             worktrees_root=MagicMock(return_value=self._root),
-            remote_read=MagicMock(return_value=_RefRead(sha=support.REBASED_SHA)),
+            remote_read=MagicMock(side_effect=_landed_remote),
             **_landed_recovery_scenario(support.REBASED_SHA).patches,
         )
+
+
+def _landed_remote(spec, _worktree, branch: str) -> _RefRead:
+    """The remote a landed push left: the base where the checkout was counted against it, every branch on the push."""
+    return _RefRead(sha=support.GATE_BASE_SHA if branch == spec.base_branch else support.REBASED_SHA)
 
 
 def seed_anchored(github: FakeGitHubClient, label: str) -> None:

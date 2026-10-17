@@ -195,32 +195,35 @@ the landing read moving by the recovery's first snapshot -- or reset off by its 
 finish put on the attempt in the write that recorded it (`pending_auto_base_rebase_evidence_receipt`); any other is
 another road's, and kept as it wrote it. Every recovery park or hold that keeps the attempt for a later tick or a
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
-anything moved, so putting that input back before the attempt is taken up again revives nothing. Proving settled
-evidence ready again before its route, and invalidating it whole wherever anything it rests on moved, are dormant
-primitives (`workflow/engine/rewrite_finish_readiness.py`) that in a finish only the dormant settled-evidence policy
-asks -- one a caller selects by building a finish with `proves_settled` and handing it directly to the coordinator
-(`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which announces,
-relabels, parks, and retires nothing), as no production road does (`workflow/engine/rewrite_finish_settled.py`). The
-coordinator under it proves the evidence again before every hold, unfinishable landing, continuation, and debt park,
-around the relabel, and behind every stop of the announcement, the park, or the retirement
+anything moved, so putting that input back before the attempt is taken up again revives nothing -- and proves
+settled evidence the finish left current the same way, invalidating it whole where anything it rests on moved. Every
+finish, on whichever road reached the landing, proves settled evidence ready again before its route
+(`workflow/engine/rewrite_finish_readiness.py`, `workflow/engine/rewrite_finish_settled.py`), its evidence phase
+(`rewrite_finish_settlement.resolves`) announcing, relabelling, parking, and retiring nothing. The coordinator
+(`rewrite_finish.finalizes`) proves the evidence again before every hold, unfinishable landing, continuation, and
+debt park, around the relabel, and behind every stop of the announcement, the park, or the retirement
 (`workflow/engine/rewrite_finish_stops.py`), and announces, relabels, or parks nothing another finish already did --
 its relabel landing behind a record of its own on the attempt (`pending_auto_base_rebase_relabelled`); the
 phase adopts a settlement another road made and invalidates
 it over movement read under it, reads the comment afresh behind every invalidation it lands, holding over a newer
 transaction or another attempt written right behind it (`workflow/engine/rewrite_finish_rechecks.py`), abandons a
 continuation's captured transaction before proving the settled evidence
-beside it, and asks the primitives that policy adds -- retiring the same receipt over whatever attempt now stands, an
-announcement of the landing taken in and a refused write retried, and recording movement history has no room for under
-the evidence's own receipt, beside restoring an attempt a retirement nobody confirmed took, which the coordinator asks
-(`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_unconfirmed.py`) -- and so are the guarded
-recovery operations built on them: a reset recorded against captured or settled evidence before git moves the checkout,
-settled evidence retired whole with a landed reset's release or kept whole beside the attempt where history has no room,
-and every recovery park, and a publication gate's hold of a recovery's push, landed over the comment read afresh,
-a park made again over a notice already said taking it in (`workflow/engine/rewrite_landing_retirement.py`,
+beside it, and asks the primitives settled evidence adds -- retiring the same receipt over whatever attempt now
+stands, an announcement of the landing taken in and a refused write retried, and recording movement history has no
+room for under the evidence's own receipt, beside restoring an attempt a retirement nobody confirmed took, which the
+coordinator asks (`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_unconfirmed.py`). Every
+recovery road (`workflow/engine/rewrite_recovery.py`) -- the eligibility gate's park of a label the refresh does not
+drive (`workflow/engine/base_rewrite.py`) and the dispatcher's anchor hold (`workflow/engine/dispatch_guards.py`)
+among them -- asks the guarded recovery operations built on them: a reset recorded against captured or settled
+evidence before git moves the checkout, settled evidence retired whole with a landed reset's release or kept whole
+beside the attempt where history has no room, and every recovery park, and a publication gate's hold of a recovery's
+push, landed over the comment read afresh, a park made again over a notice already said taking it in
+(`workflow/engine/rewrite_landing_retirement.py`,
 `workflow/engine/rewrite_recovery_parks.py`, `workflow/engine/rewrite_recovery_notices.py`). A tick lost behind
 the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
 checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
-recovery, which reads what was done off the mark, the pull request, the event stream, and the label
+recovery, which reads what was done off the mark, the relabel's own record, the pull request, the event stream, and
+the label
 (`workflow/engine/rewrite_finish_notices.py`, `workflow/engine/rewrite_finish_events.py`): no second notice,
 `base_rebased` or stage-entry event, round reset, relabel, evidence publication, or developer launch. A conversation or
 audit log the finish cannot read holds it with nothing filed.

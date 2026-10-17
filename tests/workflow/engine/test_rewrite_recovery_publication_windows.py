@@ -20,10 +20,9 @@ or cleared. An artifact a human edited out of its format under the receipt is
 the one answer that never settles: the run is abandoned, and the head goes to
 the fresh reviewer. Settled evidence an interrupted recovery left is routed as
 it stands only while nothing beside it says otherwise: a newer transaction
-recorded for the head is settled over it, and a revision spent past it holds
-the route; the evidence phase of the dormant settled-evidence policy reads
-that revision as outranking the run for good instead
-(`test_rewrite_recovery_outranked_evidence`).
+recorded for the head is settled over it, and a revision spent past it
+outranks the run for good, which is invalidated whole and the head routed to
+the fresh reviewer (`test_rewrite_recovery_outranked_evidence`).
 """
 from __future__ import annotations
 
@@ -95,9 +94,23 @@ _POSTED_UNSETTLED = (
 # A settlement that did not land behind its post -- every pinned edit landing
 # with its answer lost, the settlement's commit first, or the comment refusing
 # every read -- and what lets the next one.
+# How a settlement fails, what puts it right, and how many notices the poll
+# that failed says: a commit sent with its answer lost landed all the same, so
+# the settlement is read afresh and adopted, and the announcement behind it
+# goes on until its own writes lose their answers too.
 _FAILED_SETTLEMENTS = (
-    ("its commit went out unconfirmed", moves.loses_answers, lambda case: case.gh.pinned_failures.lost.clear()),
-    ("the comment would not read again", moves.unreadable, lambda case: case.gh.pinned_failures.unreadable.clear()),
+    (
+        "its commit went out unconfirmed",
+        moves.loses_answers,
+        lambda case: case.gh.pinned_failures.lost.clear(),
+        1,
+    ),
+    (
+        "the comment would not read again",
+        moves.unreadable,
+        lambda case: case.gh.pinned_failures.unreadable.clear(),
+        0,
+    ),
 )
 
 
@@ -142,10 +155,10 @@ class PublicationWindowTest(support.CapturedRunCase, unittest.TestCase):
         self.assert_recovered(head)
 
     def test_a_failed_settlement_leaves_the_attempt(self) -> None:
-        # The recovery posts the artifact and its settlement does not land:
-        # nothing is relabelled and the attempt stands. The poll after it
-        # finds the artifact -- or the settlement that did land -- and routes
-        # the run settled once, with no second post.
+        # The recovery posts the artifact and its settlement is not seen to
+        # land: nothing is filed or relabelled and the attempt stands. The
+        # poll after it finds the artifact -- or the settlement that did land
+        # -- and routes the run settled once, with no second post or notice.
         for failed in _FAILED_SETTLEMENTS:
             with self.subTest(failure=failed[0]):
                 self.setUp()
@@ -154,7 +167,7 @@ class PublicationWindowTest(support.CapturedRunCase, unittest.TestCase):
 
                 self.recovers()
 
-                self.assert_unannounced()
+                self.assert_unannounced(failed[3])
                 standing = readings.pinned(self)[readings.KEY_PENDING_PUSH]
                 posted = self.posted(captured)
                 self.assertEqual((standing, posted), (self.anchor, [captured.commands]))
@@ -200,24 +213,23 @@ class PublicationWindowTest(support.CapturedRunCase, unittest.TestCase):
         self.assertEqual(self.posted(newer), [newer.commands])
         self.assert_recovered(head)
 
-    def test_a_floor_past_the_settled_run_holds(self) -> None:
+    def test_a_floor_past_the_settled_run_outranks_it(self) -> None:
         # The recovery settles the run and dies at its relabel, and a
-        # revision past it is spent with nothing left recorded beside it.
-        # Nobody can say what was owed, so the next recovery holds the route
-        # with the attempt standing rather than route the run as the last
-        # word on the head.
-        _head, captured = self.captures()
+        # revision past it is spent with nothing left recorded beside it: that
+        # revision outranks the run for good, so the next recovery invalidates
+        # it whole rather than route it as the last word on the head, and the
+        # head goes on to the fresh reviewer.
+        head, captured = self.captures()
         self.dies_at(support.RELABEL, self.recovers)
         _writes(self, readings.KEY_REVISION_FLOOR, captured.revision + 1)
 
         self.recovers()
 
-        pinned = readings.pinned(self)
-        current = readings.records(pinned)[1]
-        self.assertEqual(
-            (pinned[readings.KEY_PENDING_PUSH], readings.relabels(self), current.receipt),
-            (self.anchor, (), captured.receipt),
-        )
+        records = readings.records(readings.pinned(self))
+        self.assertEqual(records[:2], (None, None))
+        retired = records[2][-1]
+        self.assertEqual(retired, (captured.receipt, readings.INVALIDATED))
+        self.assert_recovered(head)
 
     def _leaves_posted(self, leaves_it) -> tuple:
         """A fresh case's reviewed rebase whose finish `leaves_it` posted and unsettled, then a usage fold.

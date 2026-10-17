@@ -1,37 +1,36 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Movement a dormant finish read under settled evidence, recorded however the attempt has moved since.
+"""Movement a finish read under settled evidence, recorded however the attempt has moved since.
 
 The invalidation is decided on the attempt as reconciled -- an announcement
-of this landing taken in, a refused write read and retried once, for a
-finish held to the dormant policy alone (`retires_over_the_attempt`) -- or,
+of this landing taken in, a refused write read and retried once
+(`retires_over_the_attempt`) -- or,
 where another finish's route or another road took the attempt, on the
 comment as it stands (`retires_as_it_stands`), every attempt and successor
 kept. Where history has no room, the attempt cannot be put back, or no write
 over the tick's own copy lands, the mark (`marks`) replaces the evidence's
 handoff with one naming only the receipt that moved: no reader takes it for a
 handoff (`verification_settled_fields.handoff_from`), every later readiness
-proof of that very receipt under the dormant policy reads it as the movement
-it is (`carries_the_mark`, `rewrite_finish_readiness.settled_word`) and
-retires the evidence whole once room is made, and a later finish finding no
+proof of that very receipt reads it as the movement it is (`carries_the_mark`,
+`rewrite_finish_readiness.settled_word`) and retires the evidence whole once
+room is made, and a later finish finding no
 attempt does the same (`rewrite_finish_unconfirmed.retires_the_marked`).
 Where even the mark has no room, the evidence is retired whole at once, its
 current record and the evidence records left null or unreadable removed --
 or, where not even that fits, a revision is spent past it
 (`rewrite_finish_outranking.spends_past`), its record kept current and
-whole, which every reader of either policy reads outranked and every later
-proof under the dormant policy retires whole once room is made. Where the
+whole, which every reader reads outranked and every later readiness proof
+retires whole once room is made. Where the
 floor has no room to gain the digit that takes, the evidence is retired whole
 with the floor taken off to make room (`rewrite_finish_outranking.unfloors`),
 its history entry carrying the revision the floor did.
 
-These are dormant: no production road builds a finish held to that policy,
-whose evidence phase retires a settlement it adopted as the comment stands
-too (`rewrite_finish_settled.retires_the_adopted`), as its coordinator does
-evidence read moving behind a retirement nobody confirmed where another
-attempt stands (`rewrite_finish_stops.behind_the_write`), and a finish not
-held to it reads and writes once, as the invalidation always has
-(`rewrite_finish_readiness.invalidates`).
+Every readiness proof's invalidation asks these
+(`rewrite_finish_readiness.invalidates`), on the finish's roads and the
+recovery's alike; the evidence phase retires a settlement it adopted as the
+comment stands too (`rewrite_finish_settled.retires_the_adopted`), as the
+coordinator does evidence read moving behind a retirement nobody confirmed
+where another attempt stands (`rewrite_finish_stops.behind_the_write`).
 """
 from __future__ import annotations
 
@@ -108,23 +107,22 @@ def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> 
     removing the records left null or unreadable (`_lands`), save beside a
     pending transaction, whose revision already outranks it; that retirement
     too is read and made once more where the comment moved under its edit,
-    keeping whatever another road wrote there. Where not even that fits --
-    the comment full and no evidence record left to remove -- a revision is
-    spent past `current` on the floor instead
+    keeping whatever another road wrote there. Where not even that fits -- the
+    comment full and no evidence record left to remove -- a revision is spent
+    past `current` on the floor instead
     (`rewrite_finish_outranking.spends_past`), read and spent once more
     likewise. `current` stays current with its whole binding, revision, and
-    transcript digest, so no provenance is lost, while every reader of either
-    policy reads it outranked: nothing put back meanwhile makes it evidence
-    anybody relies on again, and every later proof under the dormant policy
-    reads that as movement and retires it whole into history once room is
-    made. Where the floor would gain a digit the comment has no room for, or
-    nobody can say what was spent, `current` is retired whole into history
-    after all, read and made once more likewise, with the floor taken off to
-    make room (`rewrite_finish_outranking.unfloors`) -- only where it shows no
-    revision past `current`, whose entry carries the revision it did -- so
-    the run's provenance and its movement both stand; nobody can then say
-    what was spent, and nothing is minted for the issue until the floor is
-    put back.
+    transcript digest, so no provenance is lost, while every reader reads it
+    outranked: nothing put back meanwhile makes it evidence anybody relies on
+    again, and every later readiness proof reads that as movement and retires
+    it whole into history once room is made. Where the floor would gain a
+    digit the comment has no room for, or nobody can say what was spent,
+    `current` is retired whole into history after all, read and made once more
+    likewise, with the floor taken off to make room
+    (`rewrite_finish_outranking.unfloors`) -- only where it shows no revision
+    past `current`, whose entry carries the revision it did -- so the run's
+    provenance and its movement both stand; nobody can then say what was
+    spent, and nothing is minted for the issue until the floor is put back.
     """
     landed = "not landed"
     for how in _RECORDINGS:
@@ -143,19 +141,17 @@ def retires_over_the_attempt(
 ) -> bool | None:
     """Whether `current`'s invalidation landed over the attempt `finish` read, on the comment read afresh; or None.
 
-    For a finish held to the settled-evidence policy, an announcement another
-    finish of the landing put down on that attempt is taken in first
-    (`rewrite_finish_announced.takes_in_the_announcement`), and a write
-    refused -- an announcement landing under it among the reasons -- is read,
-    reconciled, and made once more; any other finish reads and writes once,
-    as the invalidation always has. False where the comment carries
-    another evidence or another attempt, over which a finish held to the
-    settled-evidence policy retires or marks the same receipt as the comment
-    stands (`retires_as_it_stands`) unless `as_it_stands` is False. None where
+    An announcement another finish of the landing put down on that attempt is
+    taken in first (`rewrite_finish_announced.takes_in_the_announcement`), and
+    a write refused -- an announcement landing under it among the reasons --
+    is read, reconciled, and made once more. False where the comment carries
+    another evidence or another attempt, over which the same receipt is
+    retired or marked as the comment stands (`retires_as_it_stands`) unless
+    `as_it_stands` is False. None where
     neither reading took the invalidation, for the tick's own copy to try.
     """
     first = _over_the_attempt(finish, current, as_it_stands)
-    if first is None and finish.proves_settled:
+    if first is None:
         return _over_the_attempt(finish, current, as_it_stands)
     return first
 
@@ -233,7 +229,7 @@ def _over_the_attempt(finish: LandedFinish, current: _records.CurrentEvidence, a
     takes_in_the_announcement(finish, durable)
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
     if attempt.moved(durable.data):
-        if finish.proves_settled and as_it_stands:
+        if as_it_stands:
             retires_as_it_stands(finish, current.receipt)
         return False
     if _settlement.read_current_evidence(durable) != current:

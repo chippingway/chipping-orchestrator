@@ -150,7 +150,7 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
         ):
             base_refresh._refresh_base_and_worktrees(self.gh, self.spec)
 
-        self.assertEqual(reads.call_args_list, [call(FREE_ISSUE)])
+        self.assertEqual({read.args for read in reads.call_args_list}, {(FREE_ISSUE,)})
         rebase.assert_called_once()
         self.assertEqual(rebase.call_args.args[1], wt_root / f"issue-{FREE_ISSUE}")
 
@@ -209,7 +209,8 @@ class ActiveIssueRefreshTest(unittest.TestCase):
 
     def test_an_active_issue_waits_for_its_worker(self) -> None:
         # While the worker runs #7 the walk neither reads it nor rewrites its
-        # pull request, and publishes #8's all the same; the walk after the
+        # pull request, and publishes #8's all the same -- reading #8 again
+        # only for the label its finish relabels from; the walk after the
         # worker exits publishes #7 and leaves #8, already carried over, alone.
         record = self.gh.pinned_data(ISSUE)
         spied = patch.object(self.gh, "get_issue", wraps=self.gh.get_issue)
@@ -217,7 +218,7 @@ class ActiveIssueRefreshTest(unittest.TestCase):
 
         self._walked()
 
-        self.assertEqual(reads.call_args_list, [call(FREE_ISSUE)])
+        self.assertEqual({read.args for read in reads.call_args_list}, {(FREE_ISSUE,)})
         self.assertEqual(self.gh.pinned_data(ISSUE), record)
         self.assertEqual(observed(self.gh, self.checkouts), Walked(
             rebased=[FREE_ISSUE],

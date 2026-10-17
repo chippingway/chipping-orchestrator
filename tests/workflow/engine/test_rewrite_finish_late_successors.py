@@ -1,10 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A successor settled behind a dormant finish's readings, proved on the issue and records each of them pairs.
+"""A successor settled behind a finish's readings, proved on the issue and records each of them pairs.
 
-Direct finishes held to the dormant settled-evidence policy
-(`settled_route_support`): issue #7's reviewed rebase, its run settled under
-the anchor and its finish killed before its announcement.
+Direct finishes of the landing (`settled_route_support`): issue #7's reviewed
+rebase, its run settled under the anchor and its finish killed before its
+announcement.
 
 - The readiness proof of the run reads the issue and the comment twice, and
   another road settles a newer run of the head right as the issue is read the
@@ -209,7 +209,7 @@ def _proves(case, reads: _SettlesAtTheSecondIssue, run, finish):
 
 
 class LateSuccessorTest(route.SettledRouteCase, unittest.TestCase):
-    """A successor settled behind a dormant finish's readings answers for the issue and records they read with it."""
+    """A successor settled behind a finish's readings answers for the issue and records they read with it."""
 
     def test_each_reading_pairs_its_issue(self) -> None:
         # The newer run settled at the proof's second issue reading is asked
@@ -221,7 +221,7 @@ class LateSuccessorTest(route.SettledRouteCase, unittest.TestCase):
                 self.setUp()
                 head, run = self.dies_unannounced()
                 reads = _SettlesAtTheSecondIssue(self, run, head, gains=gains)
-                self.asks_dormant(partial(_proves, self, reads, run), head)
+                self.asks_directly(partial(_proves, self, reads, run), head)
 
                 current = readings.pinned_records(self)[1]
                 if gains:

@@ -350,7 +350,7 @@ class ResetAnswerTest(unittest.TestCase):
                 standing = (published.get(fixtures.KEY_PENDING_PUSH_SHA), published.get(KEY_REWRITE_BASE))
                 self.assertEqual((ordered, standing), ([_RECORDED, _RESETTING, WRITE_STATE], kept))
 
-    def _takes(self, road, exit_code: int, *, releases: bool | None = None) -> tuple:
+    def _takes(self, road, exit_code: int, *, releases: bool = True) -> tuple:
         """Take `road` over a reset git answers with `exit_code`, owed an answer of `releases`, and read it back."""
         owed = _Owed(releases)
         context, takes = road(owed)
@@ -378,21 +378,20 @@ class ResetAnswerTest(unittest.TestCase):
 class _Owed:
     """A recovery's answers over its reset: a record staged on `state` once it landed, and one made ahead of it.
 
-    `releases` is what the answer to a landed reset says: None as the
-    captured-only answer does, which releases the attempt as True does, or
-    False to keep it. `recorded` is whether the record made ahead of the reset
-    (`records`) lands, blanking the base tip on the tick's state; each one is
-    noted in `ordered`.
+    `releases` is what the answer to a landed reset says: True to release the
+    attempt, or False to keep it. `recorded` is whether the record made ahead
+    of the reset (`records`) lands, blanking the base tip on the tick's state;
+    each one is noted in `ordered`.
     """
 
-    def __init__(self, releases: bool | None = None, *, recorded: bool = True) -> None:
+    def __init__(self, releases: bool = True, *, recorded: bool = True) -> None:
         self.state = None
         self.asked: list[str | None] = []
         self.ordered: list[str] = []
         self._releases = releases
         self._recorded = recorded
 
-    def __call__(self) -> bool | None:
+    def __call__(self) -> bool:
         self.asked.append(self.state.get(fixtures.KEY_PENDING_PUSH_SHA))
         self.state.set(KEY_SETTLED, SETTLED)
         return self._releases

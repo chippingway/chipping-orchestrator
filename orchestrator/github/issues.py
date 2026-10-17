@@ -198,10 +198,10 @@ def set_workflow_label(
     the cached labels or the stage-enter event move.
 
     `correlation` rides the stage-enter event as extra fields, for a caller
-    that has to find its own relabel on the event stream again: the route of
-    a landed rewrite held to the dormant settled-evidence policy names the
-    head it relabels for as `sha`, since a relabel onto the label the issue
-    already wore leaves the label itself saying nothing.
+    that has to find its own relabel on the event stream again: a landed
+    rewrite's route names the head it relabels for as `sha`, since a relabel
+    onto the label the issue already wore leaves the label itself saying
+    nothing.
 
     `guarded=False` is for the one write that is not a transition: putting a
     label back where a human moved it from. The graph describes the moves this

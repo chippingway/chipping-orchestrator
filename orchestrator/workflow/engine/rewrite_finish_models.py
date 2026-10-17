@@ -18,19 +18,17 @@ of a replay an interrupted tick never published (`rewrite_retry`) and a push
 it found already landed (`rewrite_landed`), through
 `rewrite_finish.finishes_the_recovery`.
 
-A finish also says which of two policies it is held to
-(`LandedFinish.proves_settled`). Every road above hands over the one that
-proves again only a transaction an earlier finish captured for the head. The
-other -- settled evidence proved ready again before the evidence phase lets
-the route go on and around every hold, park, relabel, and stop of the
-finish's own writes, a settlement adopted from another road invalidated over
-movement read under it (`rewrite_finish_settled`, `rewrite_finish_stops`), and
-that movement retired under its own receipt or recorded however the attempt
-or the comment moved since (`rewrite_finish_marks`,
-`rewrite_finish_unconfirmed`) -- is dormant: only a caller that builds a
-finish selecting it explicitly and hands it to the coordinator
-(`rewrite_finish.finalizes`), its evidence phase
-(`rewrite_finish_settlement.resolves`), or those primitives directly reaches it.
+Every finish is held to the one settled-evidence policy: evidence an earlier
+finish captured or settled for the head proved ready again before the
+evidence phase lets the route go on and around every hold, park, relabel, and
+stop of the finish's own writes, a settlement adopted from another road
+invalidated over movement read under it (`rewrite_finish_settled`,
+`rewrite_finish_stops`), and that movement retired under its own receipt or
+recorded however the attempt or the comment moved since
+(`rewrite_finish_marks`, `rewrite_finish_unconfirmed`). The recovery builds
+one too wherever it reads a landing moving or keeps the attempt for a reply
+(`rewrite_landing_moved`, `rewrite_landing_retirement`), so what it retires is
+proved by the same policy the finish routes by.
 """
 from __future__ import annotations
 
@@ -105,14 +103,7 @@ class LandedFinish:
     and the audit event are attributed to. `lag` is how many commits the head
     the publication replaced was behind its base, which only the publication's
     notice reports. `retry` is the human reply a recovery re-entered on, which
-    the finish spends; None where there is none. `proves_settled` selects the
-    dormant settled-evidence policy for the coordinator
-    (`rewrite_finish.finalizes`) and its evidence phase
-    (`rewrite_finish_settlement.resolves`), which no production road hands
-    over: every shared helper the finish calls -- readiness, adoption,
-    retirement, and its guarded writes among them -- reads it before taking
-    any of that policy's proofs, write profiles, adoptions, retries, marks, or
-    retirements, and answers as it always has where it is False.
+    the finish spends; None where there is none.
     """
 
     gh: GitHubClient
@@ -124,7 +115,6 @@ class LandedFinish:
     road: FinishRoad = FinishRoad.PUBLICATION
     lag: int = 0
     retry: int | None = None
-    proves_settled: bool = False
 
     @property
     def head(self) -> str:
@@ -182,10 +172,10 @@ class LandedFinish:
 
 
 def routes_a_relabel(finish: LandedFinish) -> bool:
-    """Whether `finish`'s route lands a record of its own relabel: one held to the dormant policy routing its head.
+    """Whether `finish`'s route lands a record of its own relabel: one routing its head.
 
     A head the base has advanced past again is continued to another rebase
     rather than routed, and relabels nothing, so it has no record to make
     room for (`rewrite_finish_debt.announcement`).
     """
-    return finish.proves_settled and not finish.behind
+    return not finish.behind

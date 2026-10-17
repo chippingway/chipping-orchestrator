@@ -15,17 +15,23 @@ retire that evidence and put back the report it was superseded by beside it.
 
 These are the answers a recovery context carries for that
 (`_AutoRebaseRecoveryContext.lands_a_park`, `records_before_a_reset`,
-`proves_before_a_park`), and they are dormant: no recovery road, eligibility
-gate, or dispatcher hold the workflow builds a context for is handed them
-yet, so every recovery park is still written whole and every reset made with
-nothing recorded ahead of it. So is the hold behind a publication gate that
-held a recovery's push (`lands_a_hold`): its proof taken first, as before a
-park that keeps the attempt, what the tick staged before that proof kept
-across every write it lands (`rewrite_recovery_staging`), and only what the
-tick staged since its reading landed, as `HOLD`, over the comment read
-afresh; no recovery road records its hold through it yet. A park made again
-over a record that never landed takes in the notice the conversation already
-carries rather than saying it twice (`rewrite_recovery_notices`).
+`proves_before_a_park`), and the workflow hands them in on every recovery
+context it builds: each recovery road's (`rewrite_recovery.recovers`) -- a
+reset's tail, both replay parks, and a label the refresh does not drive among
+them --, the abort over a checkout whose lag could not be counted
+(`rewrite_recovery.answers_an_unreadable_checkout`), the eligibility gate's
+park of an ineligible label (`base_rewrite`), and the dispatcher's stranded
+park of an anchor it holds a handler back for (`answers_a_held_anchor`),
+whose holds that post nothing ask the same proof. The holds behind a
+publication gate that held the landed road's leased no-op or the retry's
+reissued push are recorded here too (`lands_a_hold`): their proof taken
+first, as before a park that keeps the attempt, what the tick staged before
+that proof kept across every write it lands (`rewrite_recovery_staging`), and
+only what the tick staged since its reading landed, as `HOLD`, over the
+comment read afresh -- the write the ordinary publication's gate hold lands
+as too (`rewrite_publication`). A park made again over a record that never
+landed takes in the notice the conversation already carries rather than
+saying it twice (`rewrite_recovery_notices`).
 
 The park (`lands_a_park`) lands through the guarded commit
 (`report_commits.ReportCommit`) as `PARK`: owning every field the tick staged
@@ -90,6 +96,7 @@ import logging
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
     attempts as _attempts,
+    recovery_holds as _recovery_holds,
     state as _base_sync_state,
 )
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
@@ -179,22 +186,23 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
     """Prove what a recovery hold keeps, then record the hold over the comment read afresh, as `HOLD`.
 
     A publication gate that held a recovery's push -- the landed road's leased
-    no-op, or the retry's reissued push -- keeps the attempt, so its evidence
-    is proved first, as before every park that keeps it
-    (`proves_before_a_park`): over a checkout gone from disk the reset is
-    recorded against it in a write of its own before the hold's record
-    retires it, so a record refused or never confirmed leaves every later
-    proof reading it moved. Where that proof does not land -- the reset not
-    recorded among it -- nothing is recorded, for a later tick to answer. The
-    gate's own record, staged on the tick's state before this is asked, is
-    kept across every write that proof lands, so the hold's record still
-    carries it. The gate's answer is long enough for another road to record a newer
-    transaction, so only what the tick staged since its reading lands, every
-    other field kept as the fresh comment carries it, and a record refused or
-    never confirmed withholds the tick's state. Behind the record the evidence
-    is proved once more, over the move the record itself carried, as behind
-    every park (`lands_a_park`) -- or the reset recorded, over a checkout gone
-    from disk by then. A state nothing was read into is written whole.
+    no-op (`rewrite_landed`), or the retry's reissued push (`rewrite_retry`)
+    -- keeps the attempt, so its evidence is proved first, as before every
+    park that keeps it (`proves_before_a_park`): over a checkout gone from
+    disk the reset is recorded against it in a write of its own before the
+    hold's record retires it, so a record refused or never confirmed leaves
+    every later proof reading it moved. Where that proof does not land -- the
+    reset not recorded among it -- nothing is recorded, for a later tick to
+    answer. The gate's own record, staged on the tick's state before this is
+    asked, is kept across every write that proof lands, so the hold's record
+    still carries it. The gate's answer is long enough for another road to
+    record a newer transaction, so only what the tick staged since its reading
+    lands, every other field kept as the fresh comment carries it, and a
+    record refused or never confirmed withholds the tick's state. Behind the
+    record the evidence is proved once more, over the move the record itself
+    carried, as behind every park (`lands_a_park`) -- or the reset recorded,
+    over a checkout gone from disk by then. A state nothing was read into is
+    written whole.
     """
     if not proves_before_a_park(context):
         return
@@ -202,6 +210,18 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
         context.gh.write_pinned_state(context.issue, context.state)
         return
     _lands_then_proves(context, HOLD, "hold")
+
+
+def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
+    """Answer an anchor the dispatcher holds a handler back for, handed the workflow's proof and park.
+
+    The git owner's answer (`git/base_sync/recovery_holds._answers_a_held_anchor`)
+    restores a checkout, clears the attempt, or parks it stranded; that park
+    keeps the attempt, so it asks the proof first (`proves_before_a_park`) and
+    is recorded as every recovery park is (`lands_a_park`) -- and so does a
+    hold that keeps it with nothing posted, on every poll that holds.
+    """
+    _recovery_holds._answers_a_held_anchor(held, proves_before_a_park, lands_a_park)
 
 
 def proves_before_a_park(context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence] | None = None) -> bool:

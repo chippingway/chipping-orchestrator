@@ -7,17 +7,19 @@ short of its route leaves it pending beside the attempt
 (`rewrite_landing_records.captured`), and one that settled it and then died
 in the tail of its route -- before the announcement, the relabel, or the
 retirement -- leaves it current beside the attempt
-(`rewrite_landing_records.settled`). The recovery's captured-only helpers
-(`rewrite_landing_moved`) abandon the transaction wherever the recovery reads
-the landing moved. These hold settled evidence to the same readings on the two
-roads that end a recovery without that landing's route -- a reset that
-releases the attempt, and a park that keeps it -- and they are dormant: no
-recovery road, park, eligibility gate, or dispatcher hold is handed them yet,
-so every recovery context still carries the captured-only answers alone.
+(`rewrite_landing_records.settled`). The recovery's helpers
+(`rewrite_landing_moved`) retire both wherever a snapshot reads the landing
+moved. These hold both to the same readings on the two roads that end a
+recovery without that landing's route -- a reset that releases the attempt,
+and a park that keeps it -- and every recovery context the workflow builds
+carries them: each recovery road's (`rewrite_recovery.recovers`), the abort
+over an unreadable checkout's, the eligibility gate's park of a label the
+refresh does not drive (`base_rewrite`), and the dispatcher's held anchor
+(`rewrite_recovery_parks.answers_a_held_anchor`).
 
 - Over a reset that landed (`retires_over_the_reset`, the answer a recovery
-  context's `settles_over_a_reset` would carry): the transaction is abandoned
-  on the state the park lands, as the captured-only answer stages it
+  context's `settles_over_a_reset` carries): the transaction is abandoned
+  on the state the park lands, as its own half stages it
   (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
   invalidated into history whole on that same state, its revision, binding,
   and provenance kept, so it goes with the attempt's release or neither goes.
@@ -35,26 +37,27 @@ so every recovery context still carries the captured-only answers alone.
   (`rewrite_landing_moved.proves_captured`), and settled evidence is proved
   ready (`rewrite_finish_readiness.settled_word`) and invalidated whole where
   it moved (`rewrite_finish_readiness.invalidates`), both by a finish of the
-  landed head held to the dormant settled-evidence policy -- the mark of
-  movement an earlier finish left under its receipt read as movement, a
-  settlement another finish made of the transaction while its abandonment
-  was asked invalidated over the same movement, and an announcement another
-  finish put on the attempt meanwhile taken in -- over the checkout as it
-  reads now and the branch the comment names, none of it needing the fetch an
-  abort could not take. Movement the caller already read -- a record a park's
-  own commit adopted while its notice was posted -- stands as that proof of
-  the evidence under the receipt it was read under, and of none other, so no
-  reading taken now hides it by finding it put back; and every comment the
-  proof's finishes read -- their abandonment's, invalidation's, and rechecks'
-  own readings among them -- is read through a client that hands it to the
-  proof's classifier first (`rewrite_recovery_readings`), so movement any of
-  them read stands for every step behind. With no checkout on
-  disk there is nothing to prove the landing over, so both are retired as
-  over a reset, on the state the park lands; the movement is recorded against
-  them first, in a write of its own, by the proof that hands this one in
-  (`rewrite_recovery_parks.proves_before_a_park`).
+  landed head built for the proof -- the mark of movement an earlier finish
+  left under its receipt read as movement, a settlement another finish made of
+  the transaction while its abandonment was asked invalidated over the same
+  movement, and an announcement another finish put on the attempt meanwhile
+  taken in -- over the checkout as it reads now and the branch the comment
+  names, none of it needing the fetch an abort could not take. Movement the
+  caller already read -- a record a park's own commit adopted while its notice
+  was posted -- stands as that proof of the evidence under the receipt it was
+  read under, and of none other, so no reading taken now hides it by finding
+  it put back; and every comment the proof's finishes read -- their
+  abandonment's, invalidation's, and rechecks' own readings among them -- is
+  read through a client that hands it to the proof's classifier first
+  (`rewrite_recovery_readings`), so movement any of them read stands for every
+  step behind. With no checkout on disk there is nothing to prove the landing
+  over, so both are retired as over a reset, on the state the park lands; the
+  movement is recorded against them first, in a write of its own, by the proof
+  every recovery context carries
+  (`rewrite_recovery_parks.proves_before_a_park`). The landed road's own holds
+  ask it too (`rewrite_landed`), ahead of a hold's write.
 
-The dormant guarded records a recovery park or hold lands behind that proof
+The guarded records a recovery park or hold lands behind that proof
 (`rewrite_recovery_parks`) read three more things here. The receipts of what
 stands (`receipts`) name the evidence movement a caller read before a write
 is keyed under, the proof asking it only of evidence standing under that
@@ -90,6 +93,7 @@ from orchestrator.git.base_sync import (
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    pinned_commit as _commit,
     report_commits as _commits,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_writes as _writes,
@@ -98,7 +102,7 @@ from orchestrator.workflow.engine import (
     verification_durable as _durable,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit
+from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit, spelled
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_rechecks import invalidates_rechecked, lays
 from orchestrator.workflow.engine.rewrite_recovery_readings import asks_every_reading, owed_moves, tip_moves
@@ -139,8 +143,8 @@ def retires_over_the_reset(
     A recovery's answer to a reset that landed, asked by the git owner before
     the attempt is dropped from `context.state`: the reset took the checkout
     off the landed head, which is movement under both. The transaction is
-    abandoned as the captured-only answer abandons it
-    (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
+    abandoned (`rewrite_landing_moved.abandons_over_the_reset`), and settled
+    evidence is
     invalidated on the same state, into history whole, its revision and
     binding kept, so both land with the attempt's release or neither does.
     With no room for its history entry the settled evidence is not dropped:
@@ -188,42 +192,42 @@ def retires_unproved(
     Whether the park may go on. The transaction is proved first
     (`rewrite_landing_moved.proves_captured`), and settled evidence then
     proved ready again and invalidated whole where it moved; nothing is read
-    or written where neither stands and no movement was read, and what
-    nothing moved under is kept. Movement read under a receipt the tick holds
-    nothing under -- a successor a record's refusal read, put back only after
-    the reconciliation read none -- is proved all the same.
-    `moved` is movement the caller already read under that evidence, by the
-    receipt it was read under (`moved_under`), which is the proof the
-    transaction under that receipt is abandoned with, or that invalidates the
-    settled evidence under it outright -- movement read under one receipt
-    proving nothing about evidence standing under another, which is proved on
-    its own readings. Both are proved by a finish of the landed head held to
-    the dormant settled-evidence policy, built here for the proof alone: the
-    mark of movement an earlier finish left under its receipt is read as the
-    movement it is; a transaction another finish settled while its
+    or written where neither stands and no movement was read, and what nothing
+    moved under is kept. Movement read under a receipt the tick holds nothing
+    under -- a successor a record's refusal read, put back only after the
+    reconciliation read none -- is proved all the same. `moved` is movement
+    the caller already read under that evidence, by the receipt it was read
+    under (`moved_under`), which is the proof the transaction under that
+    receipt is abandoned with, or that invalidates the settled evidence under
+    it outright -- movement read under one receipt proving nothing about
+    evidence standing under another, which is proved on its own readings. Both
+    are proved by a finish of the landed head built here for the proof alone:
+    the mark of movement an earlier finish left under its receipt is read as
+    the movement it is; a transaction another finish settled while its
     abandonment was asked has that settlement invalidated over the same
-    movement in its place (`rewrite_finish_unconfirmed.reconciles_the_abandonment`);
-    and an announcement another finish of the landing put on the attempt
-    meanwhile is taken in before the invalidation lands over it, rather than
-    refusing it and leaving the evidence current for a later poll to route.
-    Each is proved whatever the other's proof answered, so a captured run
-    whose abandonment could not land -- one another road took off the comment
-    meanwhile among them -- leaves no settled successor unproved beside it.
-    Every comment either proof reads is asked what it records moving under
-    any receipt there (`moved_under`, over what the tick holds), into the
-    movement both share, so a successor read moving while the captured run
-    was proved -- beside a blank of the base tip, say -- is retired by the
-    settled proof however soon what moved is put back -- every comment their
-    finishes read of their own accord included, through a client that asks
-    each first (`rewrite_recovery_readings.AsksEveryReading`). Where both may
-    go on while evidence still standing carries movement read only behind its
-    own proof, both are asked again with it; a proof that reads movement
-    retires what moved or answers False, so the asking stops there.
-    With no checkout on disk both are retired on the state
-    the park lands (`retires_over_the_reset`). False only where evidence still
-    stands once its retirement was asked -- settled evidence with no room for
-    its history entry among it, its movement recorded instead -- for the git
-    owner to hold the tick with nothing parked.
+    movement in its place
+    (`rewrite_finish_unconfirmed.reconciles_the_abandonment`); and an
+    announcement another finish of the landing put on the attempt meanwhile is
+    taken in before the invalidation lands over it, rather than refusing it
+    and leaving the evidence current for a later poll to route. Each is proved
+    whatever the other's proof answered, so a captured run whose abandonment
+    could not land -- one another road took off the comment meanwhile among
+    them -- leaves no settled successor unproved beside it. Every comment
+    either proof reads is asked what it records moving under any receipt there
+    (`moved_under`, over what the tick holds), into the movement both share,
+    so a successor read moving while the captured run was proved -- beside a
+    blank of the base tip, say -- is retired by the settled proof however soon
+    what moved is put back -- every comment their finishes read of their own
+    accord included, through a client that asks each first
+    (`rewrite_recovery_readings.AsksEveryReading`). Where both may go on while
+    evidence still standing carries movement read only behind its own proof,
+    both are asked again with it; a proof that reads movement retires what
+    moved or answers False, so the asking stops there. With no checkout on
+    disk both are retired on the state the park lands
+    (`retires_over_the_reset`). False only where evidence still stands once
+    its retirement was asked -- settled evidence with no room for its history
+    entry among it, its movement recorded instead -- for the git owner to hold
+    the tick with nothing parked.
     """
     moved = dict(moved or {})
     if not (moved or receipts(context.state)):
@@ -240,7 +244,6 @@ def retires_unproved(
             asked,
             unread,
             moved.get(getattr(_landing_records.captured(context.state), "receipt", None)),
-            settled=True,
             asks=lambda reading, receipt: (
                 moved_under(reading, tick=context.state, into=moved).get(receipt)
             ),
@@ -292,11 +295,15 @@ def reconciles(
     tip blank there beside that evidence taken off among it -- which keeps
     that record's slot just as movement this reading reads does, however
     soon what moved was put back before this reading, and is answered beside
-    it. A comment that would not read is read
-    once more, so one failed request does not leave the proof behind it
-    classifying the tick's older evidence while its own reading carries a
-    successor. Empty where nothing moved; `moved` alone, laying nothing,
-    where the comment would not read either time.
+    it. A comment that would not read is read once more, so one failed
+    request does not leave the proof behind it classifying the tick's older
+    evidence while its own reading carries a successor. Each member of the
+    attempt the comment carries as `context.state` staged it -- a record sent
+    with its answer lost that landed the tick's own staging, a base tip staged
+    back behind a reset git refused among it -- is taken in as read too, so
+    the proof behind takes that attempt for this tick's own rather than one
+    another road put in its place. Empty where nothing moved; `moved` alone,
+    laying nothing, where the comment would not read either time.
     """
     moved = dict(moved or {})
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
@@ -311,6 +318,10 @@ def reconciles(
             getattr(reads(context.state), "receipt", None) in moved
         )
     })
+    _commit.takes_in(context.state, durable.data, [
+        member for member in _attempts._ATTEMPT_KEYS
+        if spelled(durable.data, member) == spelled(context.state.data, member)
+    ])
     return moved
 
 
@@ -350,8 +361,8 @@ def moved_under(
     (`verification_proof.recorded_verdict`) -- under a transaction captured for
     the head, a revision spent past it as well (`rewrite_recovery_readings.owed_moves`)
     -- and, under evidence settled for
-    the head, whatever else the records alone refuse it over as the dormant
-    settled-evidence policy reads them (`rewrite_finish_readiness._records_heard`):
+    the head, whatever else the records alone refuse it over
+    (`rewrite_finish_readiness._records_heard`):
     the mark of movement an earlier finish left under its receipt in the
     handoff's place among them, and a revision spent past it. Each is asked
     of that very reading, so it stands however soon the record is put back.
@@ -392,7 +403,7 @@ def moved_under(
     )):
         heard = owed_moves(comment, record)
         if isinstance(record, CurrentEvidence):
-            heard = _readiness._records_heard(record, comment, settled=True)
+            heard = _readiness._records_heard(record, comment)
         heard = (tipped if record in held else unbased, *heard)
         refused = [verdict for verdict in heard if verdict and not verdict.holds]
         if refused:
@@ -407,10 +418,10 @@ def _proves_settled(
 ) -> bool:
     """Prove evidence a finish settled for the landed head ready again, invalidated whole where it moved; may it go.
 
-    By a finish of the landed head held to the dormant settled-evidence policy,
-    built for the proof alone, over the landing as `unread` reads it. Movement
-    `moved` holds under that evidence's own receipt stands as the proof;
-    movement under any other receipt says nothing about it. A successor
+    By a finish of the landed head built for the proof alone, over the
+    landing as `unread` reads it. Movement `moved` holds under that
+    evidence's own receipt stands as the proof; movement under any other
+    receipt says nothing about it. A successor
     another road settled in its place only after `context.state` was read is
     asked of its own binding in the proof's own readings of the comment
     (`rewrite_finish_readiness.settled_word`), and retired whole or marked
@@ -427,8 +438,8 @@ def _proves_settled(
     `rewrite_finish_readiness.settled_word` to ask) under whichever receipt
     that reading carries -- the evidence, or a successor in its place -- so a
     base tip it reads blank or repointed beside the attempt as the tick last
-    read it moves that evidence however soon it is put back. The invalidation is read behind as
-    the dormant policy's evidence phase reads it
+    read it moves that evidence however soon it is put back. The invalidation
+    is read behind as the finish's evidence phase reads it
     (`rewrite_finish_rechecks.invalidates_rechecked`); where that reading
     cannot say the route is free -- unread, or the evidence put back -- it is
     asked once more, its own fresh reading retiring the receipt again over the
@@ -450,7 +461,7 @@ def _proves_settled(
         settled = _landing_records.settled(context.state)
     if settled is None:
         return True
-    finish = _landing_moved._finish(context, settled.binding.target.target_head, unread, None, settled=True)
+    finish = _landing_moved._finish(context, settled.binding.target.target_head, unread, None)
     word = moved.get(settled.receipt) or _readiness.settled_word(
         finish,
         settled,

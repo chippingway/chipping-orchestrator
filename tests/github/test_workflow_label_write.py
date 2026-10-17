@@ -135,8 +135,8 @@ class SetWorkflowLabelTest(unittest.TestCase):
         self.assertEqual(client.recorded_events, [])
 
     def test_correlation_rides_the_audit_event_alone(self) -> None:
-        # The dormant finish of a landed rewrite names the head it relabels for,
-        # to find that relabel on the audit stream again; the analytics row keeps
+        # The finish of a landed rewrite names the head it relabels for, to
+        # find that relabel on the audit stream again; the analytics row keeps
         # the shape every reader of the sink already knows.
         api = _GitHubApi()
         client = self._client()

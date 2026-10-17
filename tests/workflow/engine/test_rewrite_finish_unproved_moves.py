@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """A landed rewrite routed with no evidence current for its head, and the base advancing under its final steps.
 
-Direct finishes held to the dormant settled-evidence policy
+Direct finishes through the coordinator every road hands its landing to
 (`settled_route_support`): issue #7's head rebased with nothing run for it,
 then the base advances while the notice is posted or the relabel made. Behind
 the relabel the head is held to the base tip its replay was made onto, so the

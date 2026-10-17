@@ -21,9 +21,9 @@ from tests.git.base_sync.refresh_scenarios import (
 )
 from tests.git.base_sync.refresh_test_support import (
     AFTER_SHA,
+    GATE_BASE_SHA,
     NEW_REBASED_SHA,
     REBASED_SHA,
-    _diverged,
     _git_result,
     _pending_attempt,
     _RemoteHeadGit,
@@ -39,6 +39,7 @@ from tests.git.base_sync.report_debt_test_support import (
     settles_a_report_of,
     stands_on,
 )
+from tests.git.base_sync.sync_test_support import _diverged
 from tests.support.fakes import FakeGitHubClient, FakePRRef
 
 ISSUE = 7
@@ -81,7 +82,7 @@ class CrashRecoverySuccessUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCa
             dirty=MagicMock(return_value=[]),
             rebase=MagicMock(),
             head_sha=MagicMock(return_value=REBASED_SHA),
-            ahead_behind=MagicMock(return_value=_diverged(1, 0)),
+            ahead_behind=MagicMock(return_value=_diverged(1, 0, tip=GATE_BASE_SHA)),
             fetch=MagicMock(return_value=_git_result()),
             push=MagicMock(return_value=True),
             git=MagicMock(
@@ -113,7 +114,7 @@ class CrashRecoverySuccessUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCa
             dirty=MagicMock(return_value=[]),
             rebase=MagicMock(),
             head_sha=MagicMock(return_value=REBASED_SHA),
-            ahead_behind=MagicMock(return_value=_diverged(0, 0)),
+            ahead_behind=MagicMock(return_value=_diverged(0, 0, tip=GATE_BASE_SHA)),
             fetch=MagicMock(return_value=_git_result()),
             push=MagicMock(),
             git=MagicMock(

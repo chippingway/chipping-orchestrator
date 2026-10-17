@@ -1,11 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What the tick staged before the proof a dormant recovery hold or park asks first, kept across that proof's writes.
+"""What the tick staged before the proof a recovery hold or park asks first, kept across that proof's writes.
 
 The guarded recovery case (`guarded_recovery_support`): issue #7's run
 settled and its finish killed before its announcement, the recovery context
-read off the comment handed straight to the dormant guarded hold or park
-(`rewrite_recovery_parks`), as a recovery road would.
+read off the comment handed straight to the guarded hold or park
+(`rewrite_recovery_parks`), as a recovery road does.
 
 - A gate's record of the hold, staged before the proof invalidates the run,
   still lands with the hold -- or is refused as a conflict where another road
@@ -61,7 +61,7 @@ _REPORTED = ("developer_report_current", "developer_report_handoff", "review_sub
 _FILLER = "another_road_filler"
 _REASON = "auto_base_rebase_push_failed"
 
-# The park a case hands the dormant guarded park.
+# The park a case hands the guarded park directly.
 _PARKS = partial(_parks.lands_a_park, message="The auto rebase needs a human.", reason=_REASON)
 
 

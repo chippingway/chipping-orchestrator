@@ -13,9 +13,10 @@ label, the pinned record, the notices and events, and what the next tick does.
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from orchestrator.workflow.engine import base_refresh as _base_refresh
+from orchestrator.workflow.stages.implementing import late_push as _late_push
 from tests.git.base_sync import refresh_test_support as base
 from tests.git.base_sync.report_debt_test_support import owed
 from tests.git.base_sync.sync_test_support import _patch_base_sync
@@ -380,14 +381,18 @@ class RefusedBeforeThePushTest(_PublicationCase):
         # tick, so no anchor is left to hold that adjudication behind. A count
         # nobody can pin parks instead and leaves no adjudication to take the
         # replay over, so the attempt stays pinned for the recovery the park's
-        # reply brings back.
+        # reply brings back. Another road records a revision floor while the
+        # gate answers either way, and the hold's own record lands over the
+        # comment read afresh, keeping the floor as that road wrote it.
         for count, relabelled, left, parked in holds.HOLDS:
             with self.subTest(count.__name__):
                 self._fresh()
+                behind = world.WritesBehindTheGate(self)
 
-                with count():
+                with count(), patch.object(_late_push, "_publishes", behind):
                     self._ticks()
 
+                self.assertEqual(behind.floor(), world.ANOTHER_ROADS_FLOOR)
                 self.assertEqual(self.world.pushes, [])
                 self.assertEqual(_head(self.gh), world.ANCHOR)
                 self.assertEqual(self.gh.label_history, list(relabelled))

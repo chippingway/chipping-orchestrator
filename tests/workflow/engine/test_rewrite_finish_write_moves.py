@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """What moves under a landed rewrite's final steps -- its announcement, relabel, and retirement -- and the run over it.
 
-Direct finishes held to the dormant settled-evidence policy
+Direct finishes through the coordinator every road hands its landing to
 (`settled_route_support`): issue #7's run settled and proved ready before the
 announcement, then another road settles report 3 while the notice is posted,
 the relabel made, or the retirement sent, or the issue is edited under the

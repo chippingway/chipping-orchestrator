@@ -1,17 +1,12 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Where a landed rewrite's finish stops short of its route, and what the dormant policy proves around each stop.
+"""Where a landed rewrite's finish stops short of its route, and what it proves around each stop.
 
 The coordinator (`rewrite_finish.finalizes`) stops short of a route at a
 landing the pinned record does not account for, at the park a debt with no
 room takes, and wherever a write of its announcement or its retirement does
 not land -- refused, unconfirmed, or raising. Each of those stops is taken
-here, and it answers for both policies a finish can be held to: a finish not
-held to the dormant settled-evidence policy
-(`rewrite_finish_models.LandedFinish.proves_settled`) stops exactly as the
-policy every road selects has it, the last word over a transaction still
-recorded for the head asked behind it and nothing more read. One held to it
-proves evidence settled for the head ready around the stop, so movement read
+here, evidence settled for the head proved ready around it, so movement read
 under that evidence -- however soon what moved is put back -- invalidates it
 whole before anything keeps it standing for a later finish:
 
@@ -105,12 +100,11 @@ def unfinishable(finish: LandedFinish) -> FinishOutcome:
     A transaction a finish of this landing captured for its head is proved
     again whole and abandoned where anything it rests on moved
     (`rewrite_finish_captured.stands_before_the_route`), so putting what moved
-    back before a later finish revives nothing. A finish held to the
-    settled-evidence policy proves settled evidence ready first
-    (`rewrite_finish_settled.stands_ready_if_settled`) while its attempt
-    stands; one finding it retired or replaced reads nothing more, save
-    evidence carrying the mark of movement an earlier finish recorded under
-    that receipt, which is retired whole where room allows
+    back before a later finish revives nothing. Settled evidence is proved
+    ready first (`rewrite_finish_settled.stands_ready_if_settled`) while the
+    attempt stands; a finish finding it retired or replaced reads nothing
+    more, save evidence carrying the mark of movement an earlier finish
+    recorded under that receipt, which is retired whole where room allows
     (`rewrite_finish_unconfirmed.retires_the_marked`). Where that proof holds
     over a transaction its fresh reading behind an invalidation laid over the
     tick's state (`rewrite_finish_rechecks.rechecks_behind`) -- one another road
@@ -119,7 +113,7 @@ def unfinishable(finish: LandedFinish) -> FinishOutcome:
     is taken over it.
     """
     standing = finish.anchor and finish.state.get(_base_sync_state._PENDING_PUSH_SHA) == finish.anchor
-    if finish.proves_settled and not standing:
+    if not standing:
         _unconfirmed.retires_the_marked(finish)
         return FinishOutcome.UNFINISHABLE
     captured = _captured.recorded(finish, logged=False)
@@ -136,30 +130,24 @@ def unfinishable(finish: LandedFinish) -> FinishOutcome:
 def ahead_of_the_park(finish: LandedFinish) -> FinishOutcome | None:
     """Prove what an earlier finish made for the head ahead of the park a debt with no room takes; None to park.
 
-    Nothing is read for a finish not held to the settled-evidence policy. For
-    one that is, settled evidence is proved ready
+    Settled evidence is proved ready
     (`rewrite_finish_settled.stands_ready_if_settled`), since the park keeps it
     for the reply, a proof that holds holding the park too; and a captured
     transaction is proved again whole and abandoned where anything moved
     (`rewrite_finish_captured.stands_before_the_route`).
     """
-    if not finish.proves_settled:
-        return None
     stopped = _settled.stands_ready_if_settled(finish)
     if stopped is not None or _captured.recorded(finish, logged=False) is None:
         return stopped
     return _captured.stands_before_the_route(finish, whole=True)
 
 
-def relabels(finish: LandedFinish, observed: ProofReading, *, announced: bool) -> FinishOutcome | None:
+def relabels(finish: LandedFinish, observed: ProofReading) -> FinishOutcome | None:
     """Relabel `finish`'s issue to `workflow:validating` where nobody has for the head; None to go on.
 
-    `announced` is whether the tick read the mark down for the landed head.
-    Every finish but one held to the settled-evidence policy relabels unless
-    that mark and the tick's label say the issue is already there, and
-    records nothing of it. Such a finish reads the mark, the relabel's own
-    record, and the label afresh (`rewrite_finish_announced.relabelled`),
-    proves settled evidence ready ahead of a relabel it makes
+    The mark, the relabel's own record, and the label are read afresh
+    (`rewrite_finish_announced.relabelled`), settled evidence is proved ready
+    ahead of a relabel the route makes
     (`rewrite_finish_settled.stands_ready_if_settled`) -- a proof that holds
     holding the relabel too -- and once more behind one that raised, over the
     evidence records the comment carries by then, so a successor another road
@@ -184,7 +172,7 @@ def relabels(finish: LandedFinish, observed: ProofReading, *, announced: bool) -
     recheck ahead of them read was answered under the evidence it was read
     under, so a successor proved since on its own readings is kept.
     """
-    made = relabelled(finish, announced=announced)
+    made = relabelled(finish)
     if made:
         return None
     attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
@@ -193,7 +181,7 @@ def relabels(finish: LandedFinish, observed: ProofReading, *, announced: bool) -
     if goes_on and not _rechecks.stands_afresh(finish, attempt, observed):
         return FinishOutcome.HELD
     if goes_on:
-        made = relabelled(finish, announced=announced)
+        made = relabelled(finish)
     if made:
         return None
     if stopped is not None or made is None:
@@ -211,9 +199,8 @@ def observing(finish: LandedFinish) -> ProofReading:
     """A reading the guarded writes of `finish`'s announcement, park, or retirement collect refusals on.
 
     Each refusal over a bound record lands on its `observed` list
-    (`rewrite_finish_writes.lands`) -- as movement under settled evidence,
-    for a finish held to the settled-evidence policy, where a binding record
-    moved (`rewrite_finish_writes.BINDING_MOVED`). Such a finish also has the
+    (`rewrite_finish_writes.lands`) -- as movement under settled evidence
+    where a binding record moved (`rewrite_finish_writes.BINDING_MOVED`). The
     comment any refusal of moved records was read over -- its preparation's
     fresh reading, or the one its strict edit found moved -- asked what it
     records moving behind the attempt as captured here, before those writes:
@@ -225,16 +212,14 @@ def observing(finish: LandedFinish) -> ProofReading:
     that carries none current for the head. The reading answers for the
     evidence current from here on alone: a caller whose writes go on behind
     evidence its own proofs invalidated and replaced takes a reading of its
-    own for them (`rewrite_finish._routes`). Any other finish reads nothing.
+    own for them (`rewrite_finish._routes`).
     """
-    classifies = None
-    if finish.proves_settled:
-        attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
-        pending = _captured.recorded(finish, logged=False)
-        current = _settlement.read_current_evidence(finish.state)
-        classifies = partial(_reads_moving, finish, current, attempt)
-        if pending is not None:
-            classifies = partial(_settled.reads_moving, finish, pending, attempt)
+    attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
+    pending = _captured.recorded(finish, logged=False)
+    current = _settlement.read_current_evidence(finish.state)
+    classifies = partial(_reads_moving, finish, current, attempt)
+    if pending is not None:
+        classifies = partial(_settled.reads_moving, finish, pending, attempt)
     reading = ProofReading(finish.gh, finish.spec, finish.issue, finish.state, observed=[])
     return replace(reading, classifies_a_move=classifies)
 
@@ -244,15 +229,14 @@ def behind_the_announcement(
 ) -> FinishOutcome | None:
     """`stopped`, where the announcement or the debt's park stopped the route, behind the last word; None to route.
 
-    A finish held to the settled-evidence policy that goes on has settled
-    evidence invalidated over movement the records its writes measured,
-    landed, or sent read (`rewrite_finish_readiness.invalidates_behind`), and
-    nothing more read.
+    A finish that goes on has settled evidence invalidated over movement the
+    records its writes measured, landed, or sent read
+    (`rewrite_finish_readiness.invalidates_behind`), and nothing more read.
 
     The last word is taken over a transaction still recorded for the head
-    behind any stop (`rewrite_finish_captured.stands_before_the_route`). A
-    finish held to the settled-evidence policy -- which asks this behind a
-    request that raised too, as UNCONFIRMED -- first takes in the bookkeeping
+    behind any stop (`rewrite_finish_captured.stands_before_the_route`). The
+    finish -- which asks this behind a request that raised too, as
+    UNCONFIRMED -- first takes in the bookkeeping
     an unconfirmed record or checkpoint may have landed
     (`rewrite_finish_unconfirmed.takes_in_the_announcement`), the comment that
     reconciliation read asked what it records moving under the evidence too
@@ -268,12 +252,8 @@ def behind_the_announcement(
     there in its place, one another road recorded behind those writes, is left
     owed as written, with no last word taken over it.
     """
-    if stopped is None and finish.proves_settled:
-        return _readiness.invalidates_behind(finish, None, observed.observed)
     if stopped is None:
-        return None
-    if not finish.proves_settled:
-        return _captured.stands_before_the_route(finish, behind=stopped)
+        return _readiness.invalidates_behind(finish, None, observed.observed)
     captured = _captured.recorded(finish, logged=False)
     reconciled = _unconfirmed.takes_in_the_announcement(finish) if stopped is FinishOutcome.UNCONFIRMED else None
     if reconciled is not None:
@@ -299,11 +279,10 @@ def behind_the_write(
     the comment read (`rewrite_finish_readiness.invalidates_behind`), and
     nothing more read.
 
-    A finish held to the settled-evidence policy invalidates settled evidence
-    a refusal read a binding record moving under, or proves it ready once
-    more where the refusal read none (`rewrite_finish_readiness.invalidates_behind`),
-    so putting that record back first revives nothing; any other finish stops
-    with nothing read.
+    Settled evidence a refusal read a binding record moving under is
+    invalidated, or proved ready once more where the refusal read none
+    (`rewrite_finish_readiness.invalidates_behind`), so putting that record
+    back first revives nothing.
 
     A retirement nobody confirmed may have landed all the same, taking the
     attempt with it. Settled evidence is proved over the attempt as this
@@ -320,8 +299,6 @@ def behind_the_write(
     comment as it stands, or marked (`rewrite_finish_marks.retires_as_it_stands`),
     that attempt and a successor under another receipt kept.
     """
-    if not finish.proves_settled:
-        return stopped
     current = _settlement.read_current_evidence(finish.state)
     unconfirmed = stopped is FinishOutcome.UNCONFIRMED and current is not None
     if not unconfirmed or current.binding.target.target_head != finish.head:
@@ -393,7 +370,7 @@ def _reads_moving(
     )
     if carried is None:
         return blank
-    heard = (blank, *_readiness._records_heard(carried, state, settled=True))
+    heard = (blank, *_readiness._records_heard(carried, state))
     moving = next((refused for refused in heard if refused and not refused.holds), None)
     if moving is not None and (held is None or carried.receipt != held.receipt):
         _rechecks.lays(finish.state, state)

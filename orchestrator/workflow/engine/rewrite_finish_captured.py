@@ -57,15 +57,13 @@ tip its replay was recorded as made onto blanked with it, in a write that only
 shrinks the comment: every later reading of the base proves nothing
 (`rewrite_evidence_proof.standing_refusal`), so nothing could run or carry
 the landing's evidence again or route over it. Every other record on the
-comment stays as it reads. Under the dormant settled-evidence policy
-(`rewrite_finish_models.LandedFinish.proves_settled`), an abandonment another
-finish refused by settling that very transaction meanwhile retires the
-settlement instead, and so does one whose own write landed with that
-settlement right behind it, the comment read afresh behind every abandonment
-that lands (`rewrite_finish_unconfirmed.reconciles_the_abandonment`) -- a
-successor under another receipt kept, and one recorded beside that settlement
-holding the route. Every other finish holds the route where its abandonment
-was refused, the settlement left standing.
+comment stays as it reads. An abandonment another finish refused by settling
+that very transaction meanwhile retires the settlement instead, and so does
+one whose own write landed with that settlement right behind it, the comment
+read afresh behind every abandonment that lands
+(`rewrite_finish_unconfirmed.reconciles_the_abandonment`) -- a successor
+under another receipt kept, and one recorded beside that settlement holding
+the route.
 
 Only a record about the landed head is read here: while the attempt stands the
 anchor holds every other road, so nothing but a finish of this landing records
@@ -215,10 +213,9 @@ def stands_before_the_route(
     binding, a landing off its head, a base read elsewhere -- abandons the
     transaction the route would carry, in its own write (`_abandoned`): a
     decision something moved under is no decision any later route may take,
-    even one finding everything back where it was -- nor, under the
-    settled-evidence policy, is a settlement another finish made of it while
-    that abandonment was asked, which is invalidated over the same movement
-    instead. Any reading nobody could
+    even one finding everything back where it was -- nor is a settlement
+    another finish made of it while that abandonment was asked, which is
+    invalidated over the same movement instead. Any reading nobody could
     take, a landing that moved, or a base gone elsewhere holds the route with
     the attempt standing, so the next tick classifies the branch and counts
     the head again; a transaction nothing established movement under is kept
@@ -254,11 +251,10 @@ def sets_aside(finish: LandedFinish) -> FinishOutcome | None:
     (`_abandoned`), staged on the comment read afresh, so an approval or a
     review another road wrote meanwhile neither refuses it nor is written
     over; one that does not land, or that has no room and only refuses the
-    record for good, holds the continuation with the attempt standing. Under
-    the settled-evidence policy, a settlement another finish made of the
-    record while that was asked is invalidated in its place, so the
-    continuation carries none of the run, as it would carry none of a record
-    abandoned.
+    record for good, holds the continuation with the attempt standing. A
+    settlement another finish made of the record while that was asked is
+    invalidated in its place, so the continuation carries none of the run,
+    as it would carry none of a record abandoned.
     """
     pending = recorded(finish)
     return None if pending is None else _abandoned(finish, pending, _ADVANCED)
@@ -285,16 +281,16 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     the transaction standing for a later route to take once the landing is
     put back. Another finish that settled `pending` while this was asked
     refuses both, yet what this abandons it over was read under it all the
-    same: a finish held to the settled-evidence policy takes that settlement
-    in and invalidates it whole over that reading
+    same: the finish takes that settlement in and invalidates it whole over
+    that reading
     (`rewrite_finish_unconfirmed.retires_the_settled`), its announcement taken
     in and the route going on as a landed abandonment does -- or held, the
     movement recorded, where there is no room or that finish's route took the
     attempt, and held too where a newer transaction another road recorded
     came in beside that settlement, which stands owed for the next finish.
     Such a settlement may also land right behind an abandonment that did
-    land, made over a reading taken before it: under that policy the comment
-    is read afresh behind every abandonment that lands
+    land, made over a reading taken before it: the comment is read afresh
+    behind every abandonment that lands
     (`rewrite_finish_unconfirmed.reconciles_the_abandonment`), so that
     settlement is invalidated the same way and a successor or another attempt
     written there holds the route.
@@ -302,7 +298,7 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     with the transaction kept, logged: the comment taking no write at all,
     carrying another attempt -- which every write here is decided on -- or
     no longer recording `pending` with no settlement of it current that the
-    policy takes in, a successor settled under another receipt kept as its
+    finish takes in, a successor settled under another receipt kept as its
     road wrote it.
 
     A comment with no room for the abandonment's history entry still takes a
@@ -331,8 +327,7 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
             fits = None
     if fits is None and recorded(finish, logged=False) == pending:
         fits = _writes.abandons(finish, partial(_abandons, finish, pending=pending, why=why))
-    if finish.proves_settled:
-        fits = reconciles_the_abandonment(finish, pending, why, fits)
+    fits = reconciles_the_abandonment(finish, pending, why, fits)
     if fits is None:
         log.warning(
             "issue=#%d holding the route of %.8s: verification evidence revision %d could not be abandoned over "

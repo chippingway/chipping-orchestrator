@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a tick staged ahead of a base rewrite's dormant recovery proof, kept across the writes that proof lands.
+"""What a tick staged ahead of a base rewrite's recovery proof, kept across the writes that proof lands.
 
 The proof a recovery hold or park asks first
 (`rewrite_recovery_parks.proves_before_a_park`) may run over a state the tick
@@ -13,9 +13,6 @@ tick read it before -- an equal total another road wrote proves nothing: the
 record behind lands it as the tick's own move, refuses it as a conflict where
 the comment moved it, and never adds a carried counter twice. A field the
 proof itself left staged keeps the proof's staging.
-
-It is dormant, as that proof is: no recovery context the workflow builds
-reaches it.
 """
 from __future__ import annotations
 

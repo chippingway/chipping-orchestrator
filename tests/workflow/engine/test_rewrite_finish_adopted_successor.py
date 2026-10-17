@@ -1,10 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A newer transaction another road records beside a settlement the dormant evidence phase adopts, kept owed.
+"""A newer transaction another road records beside a settlement the evidence phase adopts, kept owed.
 
 The captured case (`rewrite_captured_test_support.CapturedEvidenceCase`):
 issue #7's run captured for the landed head, and the evidence phase asked
-directly over a finish held to the dormant settled-evidence policy. Another
+directly over the finish a later recovery holds. Another
 finish settles the run while this one's answer reads the pull request, and a
 later review is handed over under it, so the run's binding moved; as this
 finish adopts that settlement -- as it invalidates the settlement it
@@ -56,7 +56,6 @@ from tests.workflow.engine import (
     rewrite_finish_evidence_test_support as finish_support,
     rewrite_finish_readings as readings,
     rewrite_settled_moves as settled_moves,
-    settled_finish_support as settled,
     verification_evidence_test_support as support,
     verification_report_fixture as report,
 )
@@ -187,7 +186,7 @@ class AdoptedSuccessorTest(_SuccessorCase, unittest.TestCase):
         for arrival in _ARRIVALS:
             with self.subTest(arrives=arrival):
                 self.setUp()
-                finish = settled.dormant(self.landed())
+                finish = self.landed()
 
                 with (
                     settled_moves.raced_past(self, "get_pr", type(self)._settles_and_reviews, nth=2),
@@ -212,7 +211,7 @@ class AdoptedSuccessorTest(_SuccessorCase, unittest.TestCase):
         for readable in (True, False):
             with self.subTest(readable=readable):
                 self.setUp()
-                finish = _fallen_behind(settled.dormant(self.landed()))
+                finish = _fallen_behind(self.landed())
                 self._settles_elsewhere()
                 self._records_beside(readable=readable)
 
@@ -230,7 +229,7 @@ class AdoptedSuccessorTest(_SuccessorCase, unittest.TestCase):
         for readable in (True, False):
             with self.subTest(readable=readable):
                 self.setUp()
-                finish = _fallen_behind(settled.dormant(self.landed()))
+                finish = _fallen_behind(self.landed())
                 self._settles_elsewhere()
 
                 with self._arrives(_BEHIND_THE_INVALIDATION, partial(self._records_beside, readable=readable)):
@@ -250,7 +249,7 @@ class AdoptedSuccessorTest(_SuccessorCase, unittest.TestCase):
         for continued in (False, True):
             with self.subTest(continuation=continued):
                 self.setUp()
-                finish = settled.dormant(self.landed())
+                finish = self.landed()
                 if continued:
                     finish = _fallen_behind(finish)
                     self._settles_elsewhere()
@@ -395,7 +394,7 @@ class RetiredUnderTheAnswerTest(_SuccessorCase, unittest.TestCase):
                     patch.object(_proof._publication, "subject_verdict", races.ends),
                     patch.object(self.gh, _EDIT, races.edits),
                 ):
-                    resolved = self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+                    resolved = self.asks(_settlement_step.resolves, self.landed())
 
                 self.assertEqual(resolved, answer)
                 self._assert_invalidated()
@@ -413,7 +412,7 @@ class RetiredUnderTheAnswerTest(_SuccessorCase, unittest.TestCase):
         for successor, answer in ((False, None), (True, FinishOutcome.HELD)):
             with self.subTest(successor=successor):
                 self.setUp()
-                finish = _fallen_behind(settled.dormant(self.landed()))
+                finish = _fallen_behind(self.landed())
                 races = _SettlesOverTheAbandonment(self, successor=successor, armed=True)
 
                 with patch.object(self.gh, _EDIT, races.edits):
@@ -451,7 +450,7 @@ class RetiredUnderTheAnswerTest(_SuccessorCase, unittest.TestCase):
         owner, step, under_the_edit = _RETIREMENT_READS[read]
         moves = _MovesUnderTheRetirement(self, getattr(owner, step), kept, under_the_edit=under_the_edit)
         with patch.object(owner, step, moves):
-            self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+            self.asks(_settlement_step.resolves, self.landed())
 
     def _puts_back_and_settles(self, kept: dict) -> None:
         """Put `kept` back over the comment as it stands, then settle the run as another finish would."""
