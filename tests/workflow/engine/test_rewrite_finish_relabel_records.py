@@ -16,7 +16,10 @@ another road settling report 3 and a newer run bound to it and then putting
 report 2 back, is proved again over the comment
 as it then stands: that newer run is invalidated on its own binding before
 the error goes on, so putting report 3 back revives nothing and the next
-finish routes the head once.
+finish routes the head once. So it is where that road settles them only right
+behind the reading the proof starts from, and puts report 3 back right behind
+the proof's own next reading: that reading asks the newer run of its own
+binding rather than the run's alone.
 
 On an issue already on `workflow:validating` the relabel's own record lands
 ahead of it, and a finish lost anywhere around the two comes back behind a
@@ -38,7 +41,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.workflow.engine import rewrite_finish_rechecks as _rechecks, rewrite_finish_settled as _settled
+from orchestrator.workflow.engine import rewrite_finish_rechecks as _rechecks
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import (
@@ -75,10 +78,17 @@ _ANOTHER_ANCHOR = "e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0"
 # What `_MovesUnderTheRecheck` moves for its one reading, put back behind it.
 _RACED_RECORDS = (*_MOVED_RECORDS, readings.KEY_PENDING_PUSH)
 
-# Each relabel that raises behind another road's move: whether that road
-# blanked the attempt's base tip rather than settling a successor, and whether
-# what it moved is put back right behind the reading the proof starts from.
-_RAISED_RELABELS = ((False, False), (False, True), (True, True))
+# Each relabel that raises behind another road's move -- the base tip blanked
+# rather than a successor settled, or, `late`, the successor settled only right
+# behind the first reading of the comment behind the raise -- and which reading
+# behind the raise what it moved is put back right behind: none, the one the
+# proof starts from, or the proof's own next one.
+_RAISED_RELABELS = (
+    ({}, 0),
+    ({}, 1),
+    ({"blanks": True}, 1),
+    ({"late": True}, 2),
+)
 
 
 class _MovesUnderTheRecheck:
@@ -126,27 +136,36 @@ class _RaisesUnderTheRelabel:
     That road settles report 3 and a run bound to it, kept as `successor`,
     keeps the records report 3 moved in `settled`, and puts report 2 back --
     or, `blanks`, blanks the base tip the attempt recorded its replay as made
-    onto instead, as a reset is recorded, keeping that tip in `settled`.
+    onto instead, as a reset is recorded, keeping that tip in `settled`. A
+    `late` road moves nothing as the relabel raises, for a reading behind the
+    raise to move it (`moves`).
     """
 
-    def __init__(self, case, head: str, *, blanks: bool = False) -> None:
+    def __init__(self, case, head: str, *, blanks: bool = False, late: bool = False) -> None:
         self._case = case
         self._head = head
         self._blanks = blanks
         self._live = case.gh.set_workflow_label
+        self.late = late
         self.raised = False
         self.settled: dict = {}
         self.successor = None
 
     def __call__(self, *labelled, **correlation):
-        """Settle the newer run and put report 2 back, or blank the tip, then raise; relabel after that."""
+        """Move as another road does -- unless `late` -- then raise; relabel after that."""
         if self.raised:
             return self._live(*labelled, **correlation)
         self.raised = True
+        if not self.late:
+            self.moves()
+        raise RuntimeError(_UNANSWERED)
+
+    def moves(self) -> None:
+        """Settle the newer run and put report 2 back, or blank the tip."""
         case = self._case
         if self._blanks:
             _writes(case, {readings.KEY_REWRITE_BASE: None}, keeping=self.settled)
-            raise RuntimeError(_UNANSWERED)
+            return
         case.state = case.gh.read_pinned_state(case.issue)
         replaced = {key: case.state.get(key) for key in _MOVED_RECORDS}
         subject = _report.settles_report(case, 3, "Covered a base that moved twice as well.", head=self._head)
@@ -155,7 +174,6 @@ class _RaisesUnderTheRelabel:
         bound = replace(earlier, target=replace(earlier.target, subject=subject.recorded()))
         self.successor = settled_support.records_a_newer_run(case, settles=True, binding=bound)
         _writes(case, replaced, keeping=self.settled)
-        raise RuntimeError(_UNANSWERED)
 
     def assert_retired(self, run) -> None:
         """History ending with `run` superseded by the successor and that invalidated whole -- or `run` itself."""
@@ -169,26 +187,35 @@ class _RaisesUnderTheRelabel:
 
 
 class _RestoresBehindTheProof:
-    """The proof's fresh reading behind a raised relabel, what `raises` moved put back right behind it where `restores`.
+    """The client's readings of the comment behind a raised relabel, what `raises` moved put back behind one of them.
 
-    That reading carries the successor `raises` settled beside report 2,
-    which disproves its binding, or the base tip it blanked; report 3, or the
-    tip, put back behind it would prove the evidence again to any reading
-    taken after.
+    `restores` numbers that reading -- 1 the one the proof starts from, 2 the
+    proof's own next one, 0 none. Where `raises` is `late`, it moves right
+    behind the first, so the second is the first to carry what it moved. That
+    reading carries the successor `raises` settled beside report 2, which
+    disproves its binding, or the base tip it blanked; report 3, or the tip,
+    put back behind it would prove the evidence again to any reading taken
+    after.
     """
 
-    def __init__(self, case, raises: _RaisesUnderTheRelabel, *, restores: bool) -> None:
+    def __init__(self, case, raises: _RaisesUnderTheRelabel, *, restores: int) -> None:
         self._case = case
         self._raises = raises
-        self._live = _settled.read_afresh
-        self._restored = not restores
+        self._live = case.gh.read_pinned_state
+        self._restores = restores
+        self._readings = 0
 
-    def __call__(self, finish):
-        """Read the comment afresh, the first time behind the raise with what it moved put back right behind it."""
-        durable = self._live(finish)
-        if self._raises.raised and not self._restored:
-            self._restored = True
-            _writes(self._case, self._raises.settled, keeping={})
+    def __call__(self, issue):
+        """Read the comment, moving behind the first reading behind the raise or putting back as above."""
+        durable = self._live(issue)
+        if not self._raises.raised:
+            return durable
+        self._readings += 1
+        with patch.object(self._case.gh, "read_pinned_state", self._live):
+            if self._readings == 1 and self._raises.late:
+                self._raises.moves()
+            if self._readings == self._restores:
+                _writes(self._case, self._raises.settled, keeping={})
         return durable
 
 
@@ -320,15 +347,20 @@ class RelabelReadsTest(route.SettledRouteCase, unittest.TestCase):
         # that proof starts from -- so putting report 3 back revives nothing,
         # and the next finish routes the head once with nothing current. So is
         # the run itself where another road blanked the attempt's base tip
-        # instead, and put it back right behind that reading.
-        for blanks, restores in _RAISED_RELABELS:
-            with self.subTest(blanks=blanks, restores=restores):
+        # instead, and put it back right behind that reading -- and the newer
+        # run where that road settles it only right behind the reading the
+        # proof starts from, report 3 put back right behind the proof's own
+        # next reading, which asks it of its own binding.
+        for raised, restores in _RAISED_RELABELS:
+            with self.subTest(restores=restores, **raised):
                 self.setUp()
                 head, run = self.dies_unannounced()
-                raises = _RaisesUnderTheRelabel(self, head, blanks=blanks)
+                raises = _RaisesUnderTheRelabel(self, head, **raised)
                 with (
                     patch.object(self.gh, "set_workflow_label", raises),
-                    patch.object(_settled, "read_afresh", _RestoresBehindTheProof(self, raises, restores=restores)),
+                    patch.object(
+                        self.gh, "read_pinned_state", _RestoresBehindTheProof(self, raises, restores=restores),
+                    ),
                 ):
                     self.assertRaises(RuntimeError, self.finalizes, head)
 

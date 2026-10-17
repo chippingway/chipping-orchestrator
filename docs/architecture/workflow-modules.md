@@ -1489,7 +1489,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading of the comment, ahead of the checkout, local base, and configuration it reads behind
                             every request, so a transaction recorded beside it while those were answered holds and one
                             recorded and abandoned there moves under it; what the first reading heard stands whatever
-                            that last reading of the comment comes to. Movement -- an issue edited, a report or review
+                            that last reading of the comment comes to. Under the dormant policy each of those readings
+                            asks a successor another road settled in the evidence's place after the caller read it of
+                            its own binding there, retiring it whole as the comment stands, or marking it, where it
+                            moved, so it is never read against the superseded binding alone. Movement -- an issue
+                            edited, a report or review
                             record replaced, the artifact edited or deleted, a command configured otherwise, the landing
                             or the base moved, a revision spent past it as the finish's policy reads one
                             (`rewrite_finish_outranking.py`), for a dormant finish the mark of movement left in its

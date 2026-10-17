@@ -16,7 +16,10 @@ place. The reconciliation behind that notice or record reads the comment, and
 the records it read moving under the evidence there are put back right behind
 that reading, before the proof behind it reads the comment again: the movement
 that very reading recorded is kept for that proof, so the run, or that
-successor on its own binding, is invalidated whole all the same. A field
+successor on its own binding, is invalidated whole all the same. So is a
+successor another road settles only right behind that reading, report 3 put
+back right behind the proof's own next reading, which asks it of its own
+binding rather than the run's alone. A field
 nobody's binding rests on, written right under the park's strict edit, refuses
 that edit and is no movement: the run stays current.
 """
@@ -90,23 +93,39 @@ class _MovesBehindThePark:
     handoff's place instead of any report. The reconciliation's reading of
     the comment (`reads`) has what it read moving written back right behind
     it -- report 2, report 3 under the successor, or the handoff the mark took
-    the place of.
+    the place of. A `late` road moves nothing as the notice's post raises:
+    the client's first reading of the comment behind it (`reads_late`) -- the
+    reconciliation's -- has it settle right behind, and the second, the
+    proof's own, has report 3 put back right behind it instead.
     """
 
-    def __init__(self, case, head: str, *, successor: bool = False, marks: str | None = None) -> None:
+    def __init__(
+        self,
+        case,
+        head: str,
+        *,
+        successor: bool = False,
+        marks: str | None = None,
+        late: bool = False,
+    ) -> None:
         self._case = case
         self._head = head
         self._successor = successor
         self._marks = marks
         self._edit = case.gh.edit_pinned_state
         self._read = _durable.durable_comment
+        self._comment = case.gh.read_pinned_state
         self._restores: dict | None = None
-        self._restored = False
+        self._restored = late
+        self._late = late
+        self._behind: int | None = None
         self.run = None
 
     def raises(self, *_posted, **_options):
-        """The notice's post: report 3 settled, then a raise as GitHub not answering."""
-        self._settles()
+        """The notice's post: report 3 settled -- or, `late`, nothing yet -- then a raise as GitHub not answering."""
+        self._behind = 0
+        if not self._late:
+            self._settles()
         raise RuntimeError("GitHub did not answer the notice's post")
 
     def loses(self, issue, state, **options):
@@ -123,6 +142,19 @@ class _MovesBehindThePark:
         if self._restores is not None and not self._restored:
             self._restored = True
             _writes(self._case, self._restores)
+        return durable
+
+    def reads_late(self, issue):
+        """The client's reading of the comment, `late`: the move right behind the first behind the raise, as above."""
+        durable = self._comment(issue)
+        if not self._late or self._behind is None or self._behind > 1:
+            return durable
+        self._behind += 1
+        with patch.object(self._case.gh, "read_pinned_state", self._comment):
+            if self._behind == 1:
+                self._settles()
+            else:
+                _writes(self._case, self._restores)
         return durable
 
     def _settles(self) -> None:
@@ -167,12 +199,13 @@ class _FailsReadingFirst(_MovesBehindThePark):
 
 
 # Each race behind a park's notice that raises: report 3 settled, a newer run
-# settled bound to it, or that run again where the reconciliation's first
-# reading of the comment fails.
+# settled bound to it, that run again where the reconciliation's first reading
+# of the comment fails, or that run settled only right behind that reading.
 _RAISED_NOTICES = (
     partial(_MovesBehindThePark),
     partial(_MovesBehindThePark, successor=True),
     partial(_FailsReadingFirst, successor=True),
+    partial(_MovesBehindThePark, successor=True, late=True),
 )
 
 
@@ -185,14 +218,20 @@ class ReconciledMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # reconciliation's reading read moving is put back right behind it:
         # the run, or that successor, is invalidated whole with nothing parked
         # -- also where the reconciliation's first reading fails, the one
-        # behind it reading the successor on its own binding.
+        # behind it reading the successor on its own binding, and where the
+        # successor is settled only right behind the reconciliation's reading,
+        # report 3 put back right behind the proof's own.
         for mover in _RAISED_NOTICES:
             with self.subTest(moves=mover.func.__name__, **mover.keywords):
                 self.setUp()
                 head, run = self.settles_then_dies()
                 moves = mover(self, head)
                 context = guarded.recovery_context(self)
-                with patch.object(self.gh, "comment", moves.raises), _reads_through(moves):
+                with (
+                    patch.object(self.gh, "comment", moves.raises),
+                    patch.object(self.gh, "read_pinned_state", moves.reads_late),
+                    _reads_through(moves),
+                ):
                     self.assertRaises(RuntimeError, _parks.lands_a_park, context, _NOTICE, _REASON)
 
                 self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])

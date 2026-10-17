@@ -73,7 +73,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 # Every member of the attempt but the base tip its replay was recorded as made
 # onto, which a proof blanks to record movement read under the evidence where
-# nothing else has room (`rewrite_finish_readiness._invalidates_on_the_tick`):
+# nothing else has room (`rewrite_finish_readiness.invalidates`):
 # a comment carrying these as the attempt captured them, its tip blank, still
 # carries that attempt (`stands_as_read`).
 _UNMARKED = frozenset(

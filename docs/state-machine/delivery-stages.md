@@ -1541,7 +1541,8 @@ because there it is the claim that this stage has already rerouted rather than a
   (`rewrite_landing_retirement.moved_under`); behind a notice that raised, or a record refused or sent with its
   answer lost, the evidence the comment carries now laid over the tick's state first, so a successor another road
   settled meanwhile is proved on its own binding, movement that very reading records kept for the proof however soon
-  it is put back (`rewrite_landing_retirement.reconciles`); and a park made again over
+  it is put back (`rewrite_landing_retirement.reconciles`) -- and one settled only after that reading asked of its own
+  binding in the proof's readings, retired whole or marked where it moved; and a park made again over
   a record that never landed taking in the notice the conversation already carries past the watermark, its
   `park_awaiting_human` event filed only where the stream lacks the one naming that notice
   (`rewrite_recovery_notices.parks_awaiting_human`). So is the hold a publication gate's hold of a recovery's push
@@ -1713,7 +1714,9 @@ because there it is the claim that this stage has already rerouted rather than a
     is configured, only once the log carries the stage-entry event the relabel names the head on (`sha`), the route
     held while it will not read; with no log it is read made, once at most -- and a relabel onto that label that
     raises before the stream carries its stage-entry event takes its record back off; behind a relabel that raised
-    the evidence the comment then carries is proved, a successor another road settled meanwhile on its own binding,
+    the evidence the comment then carries is proved, a successor another road settled meanwhile on its own binding --
+    one settled only after that reading asked of its own binding in each reading the readiness proof takes, retired
+    whole or marked where it moved --
     movement that very reading records invalidating it however soon it is put back, and a record a later refusal
     names moved off the records the tick read counting under it only where those records bind it; a debt park
     standing is reused unless a reply the watermark has not passed is handed in, and a park whose write never landed

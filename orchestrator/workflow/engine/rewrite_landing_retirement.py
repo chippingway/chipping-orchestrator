@@ -311,8 +311,12 @@ def _proves_settled(
     By a finish of the landed head held to the dormant settled-evidence policy,
     built for the proof alone, over the landing as `unread` reads it. Movement
     `moved` holds under that evidence's own receipt stands as the proof;
-    movement under any other receipt says nothing about it. True where none
-    stands, or where nothing moved; otherwise whether its invalidation landed.
+    movement under any other receipt says nothing about it. A successor
+    another road settled in its place only after `context.state` was read is
+    asked of its own binding in the proof's own readings of the comment
+    (`rewrite_finish_readiness.settled_word`), and retired whole or marked
+    where it moved there. True where none stands, or where nothing moved;
+    otherwise whether its invalidation landed.
     """
     settled = _landing_records.settled(context.state)
     if settled is None:

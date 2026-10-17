@@ -84,7 +84,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 # The base tip the attempt recorded its replay as made onto, which a proof
 # blanks to record movement read under the evidence where nothing else has
-# room (`rewrite_finish_readiness._invalidates_on_the_tick`).
+# room (`rewrite_finish_readiness.invalidates`).
 _TIP = _base_sync_state._PENDING_REWRITE_BASE
 
 # That blank, read by a refusal of one of the coordinator's own writes: the
