@@ -2580,13 +2580,14 @@ request and the fresh reviewer verifies the head itself (see
 A tick that dies around that run leaves its recovery to run the commands again only where no run was recorded; a
 recorded run is never run twice, but settled and routed as recorded -- its artifact found under its receipt where an
 earlier post landed -- or, where anything it was bound to moved, set aside for the fresh reviewer. Evidence a finish
-already settled for that head is taken as it stands, behind the last word over the landing and the base; a dormant
-policy that proves it ready again first -- in its evidence phase and around every hold, park, relabel, and stop of the
-finish's own writes, that relabel made once behind a record of its own on the attempt -- takes in a settlement another
-finish made while it answered, and retires it whole into history
-where anything it rests on moved -- one historical execution, never run, posted, or charged again, its evidence then
-the fresh reviewer's to owe, and a newer transaction another road recorded beside it left owed as that road wrote it
--- is built and its whole finish callable directly, but no road selects it (see the same section).
+already settled for that head is proved ready again before it is taken -- in the evidence phase and around every
+hold, park, relabel, and stop of the finish's own writes, on whichever road finishes the landing, that relabel made
+once behind a record of its own on the attempt -- a settlement another finish made while it answered taken in, and
+retired whole into history where anything it rests on moved: one historical execution, never run, posted, or charged
+again, its evidence then the fresh reviewer's to owe, and a newer transaction another road recorded beside it left
+owed as that road wrote it. The recovery retires it the same way where its snapshot reads the landing on another head
+or its reset takes the checkout off it, and proves it again before every park or hold that keeps the attempt (see the
+same section).
 
 [workflow-labels]: ../state-machine/labels-and-state.md#workflow-labels
 [review-subject]: ../state-machine/labels-and-state.md#pinned-state

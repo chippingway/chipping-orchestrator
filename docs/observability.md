@@ -9,9 +9,11 @@ The orchestrator emits three independent JSONL sinks plus an optional Postgres a
 keys off the pinned `<!--orchestrator-state ...-->` JSON comment on the issue (and the workflow label), never off
 these. The one read-back is the audit log's: before a base-rewrite finish files its `base_rebased`, it asks the log and
 its rotated copies whether that event is already there, so a lost finish files it once, and a log it cannot read holds
-that finish until it reads. Every other surface here is observation-only and safe to truncate, rotate, or delete at
-any time. The audit log is safe to rotate too, but deleting a rotated copy, or truncating the log with no copy kept,
-while a lost finish is still to retry can let that retry file its `base_rebased` again
+that finish until it reads. The same rewrite asks it before its relabel's `stage_enter`, or the `park_awaiting_human`
+of a debt or recovery park whose notice is already said, is filed again. Every other surface here is
+observation-only and safe to truncate, rotate, or delete at any time. The audit log is safe to rotate too, but
+deleting a rotated copy, or truncating the log with no copy kept, while a lost finish is still to retry can let that
+retry file its `base_rebased` again
 ([below](#audit-event-log-event_log_path)).
 
 This page is the map over those surfaces. Each one has a reference page of its own, and the section for it below is a
@@ -55,8 +57,9 @@ when the knob is unset (the default). Every record carries the `ts` / `repo` / `
 `sort_keys=True` ordering, and `stage` carries the **bare stage tag** (`implementing`, `fixing`, …) rather than the
 `workflow:`-prefixed GitHub label — so a grep or a dashboard filter matches on the tag. There is no built-in rotation
 and an append failure is downgraded to a warning; pinned GitHub state is what every dispatch decision reads, and the
-file -- with the rotated copies logrotate leaves beside it -- is read back only before a base-rewrite finish files its
-`base_rebased`, so a lost finish files that event once.
+file -- with the rotated copies logrotate leaves beside it -- is read back only by an automatic base rewrite: before
+its finish files its `base_rebased`, so a lost finish files that event once, and before its relabel or a park of it
+whose notice is already said files its event again.
 That page lists every emitted kind and its extras, the `agent_spawn` / `agent_exit` fields, and the opt-in
 `skill_triggered` event.
 
