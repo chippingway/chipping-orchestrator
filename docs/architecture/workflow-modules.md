@@ -1184,7 +1184,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             policy, whose steps around the stops, the relabel, and the writes are answered by
                             `rewrite_finish_stops.py`, `rewrite_finish_announced.py`, and `rewrite_finish_writes.py`;
                             under it the relabel lands behind a record of its own on the attempt
-                            (`pending_auto_base_rebase_relabelled`), which is what says it was made
+                            (`pending_auto_base_rebase_relabelled`), which is what says it was made, and the
+                            retirement behind it collects its refusal under a reading of its own, so movement the
+                            relabel's recheck read under evidence it invalidated never counts against a successor
+                            adopted in its place
     rewrite_finish_models.py
                             the finish's input -- the typed landing, the issue, its pinned state and label, the road
                             (`FinishRoad`), the lag the publication's notice reports, and the human reply a recovery
@@ -1370,8 +1373,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             hears moving in the records alone, a mark, a revision spent past it, a review or report
                             record moved, where a newer transaction recorded beside it or a successor under another
                             receipt reads none -- save a successor that very comment disproves on its own binding,
-                            or carries beside a blank of the base tip, laid over the tick's state for the
-                            invalidation behind the stop to take (`observing`);
+                            or carries beside a blank of the base tip, whatever evidence the tick held, none
+                            included, laid over the tick's state for the invalidation behind the stop to take
+                            (`observing`), the retirement taking a reading of its own behind the relabel;
                             and behind a stop of the announcement or the park --
                             refused, unconfirmed, held, or raising -- an unconfirmed record or checkpoint's
                             bookkeeping taken in, the comment that reconciliation read asked what it records moving,

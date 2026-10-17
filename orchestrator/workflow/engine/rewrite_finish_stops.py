@@ -35,9 +35,11 @@ whole before anything keeps it standing for a later finish:
   refusals read (`rewrite_finish_writes.lands`) -- a binding record named
   moved, and what the comment a refusal was read over records under the
   evidence, asked of it the moment it is read: the prerequisite's own reading
-  of a captured transaction (`rewrite_finish_settled.reads_moving`), or, over
-  settled evidence, a blank of the attempt's base tip and what the readiness
-  proof hears moving in the records alone (`_reads_moving`).
+  of a captured transaction (`rewrite_finish_settled.reads_moving`), or
+  otherwise a blank of the attempt's base tip and what the readiness proof
+  hears moving in the records alone of the evidence that comment carries
+  settled for the head (`_reads_moving`) -- whatever evidence the tick held,
+  none included.
 - `behind_the_announcement` and `behind_the_write` answer a stop of the
   announcement, the park, or the retirement with that evidence proved ready
   once more and invalidated over any movement a refusal read
@@ -76,6 +78,7 @@ from orchestrator.workflow.engine.rewrite_finish_announced import relabelled, re
 from orchestrator.workflow.engine.rewrite_finish_marks import retires_as_it_stands
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_proof import ProofReading
+from orchestrator.workflow.engine.verification_records import CurrentEvidence
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -213,18 +216,21 @@ def observing(finish: LandedFinish) -> ProofReading:
     records moving behind the attempt as captured here, before those writes:
     under a transaction captured for the head, the prerequisite's own reading
     of it (`rewrite_finish_settled.reads_moving`), and otherwise under evidence
-    settled for the head (`_reads_moving`) -- a successor settled in its place
-    asked of its own binding there. Any other finish reads nothing.
+    settled for the head (`_reads_moving`) -- a successor settled in place of
+    the evidence the tick holds current here, or where it holds none, asked of
+    its own binding there. The reading answers for the evidence current from
+    here on alone: a caller whose writes go on behind evidence its own proofs
+    invalidated and replaced takes a reading of its own for them
+    (`rewrite_finish._routes`). Any other finish reads nothing.
     """
     classifies = None
     if finish.proves_settled:
         attempt = _commit_models.PinnedCommit.capture(finish.state, prerequisites=_attempts._ATTEMPT_KEYS)
         pending = _captured.recorded(finish, logged=False)
         current = _settlement.read_current_evidence(finish.state)
+        classifies = partial(_reads_moving, finish, current, attempt)
         if pending is not None:
             classifies = partial(_settled.reads_moving, finish, pending, attempt)
-        elif current is not None and current.binding.target.target_head == finish.head:
-            classifies = partial(_reads_moving, finish, current.receipt, attempt)
     reading = ProofReading(finish.gh, finish.spec, finish.issue, finish.state, observed=[])
     return replace(reading, classifies_a_move=classifies)
 
@@ -317,15 +323,18 @@ def behind_the_write(finish: LandedFinish, stopped: FinishOutcome, observed: Pro
 
 
 def _reads_moving(
-    finish: LandedFinish, receipt: str, attempt: _commit_models.PinnedCommit, state: PinnedState,
+    finish: LandedFinish,
+    held: CurrentEvidence | None,
+    attempt: _commit_models.PinnedCommit,
+    state: PinnedState,
 ) -> _evidence_models.ReportEvidence | None:
-    """The movement `state`, a comment a refusal of `finish`'s own write read, records under `receipt`; or None.
+    """The movement `state`, a comment a refusal of `finish`'s own write read, records under its evidence; or None.
 
     A blank of the base tip of `attempt`, the one captured before the writes,
     beside every other member as captured or advanced by this landing's own
     announcement (`rewrite_finish_rechecks.stands_as_read`): the blank a proof
     records movement under the evidence with (`_BLANKED`). And, where `state`
-    carries evidence current under `receipt`, what the readiness proof hears
+    carries evidence current for the head, what the readiness proof hears
     moving in the records alone (`rewrite_finish_readiness._records_heard`):
     the mark of movement in its handoff's place, a readable revision spent
     past it, a review or report record moved, or a handoff naming it that
@@ -333,13 +342,15 @@ def _reads_moving(
     newer transaction recorded beside it, discounted the one revision it may
     own, or a successor settled under another receipt -- reads none, and
     nothing that holds is kept: the stop is proved ready again behind it
-    instead. A successor settled for the head under another receipt is asked
-    of its own binding in that very reading, though: where the reading
-    disproves it, the evidence records it carries are laid over the tick's
-    state (`rewrite_finish_rechecks.lays`), so the invalidation behind the
-    stop (`rewrite_finish_readiness.invalidates_behind`) takes that successor,
-    and the movement is answered, however soon its records are put back --
-    the blank of the base tip among it, which is movement under whichever
+    instead. A successor settled for the head under a receipt other than
+    `held`'s -- the evidence the tick held current when the reading was
+    captured -- or beside none, is asked of its own binding in that very
+    reading, though: where the reading disproves it, the evidence records it
+    carries are laid over the tick's state (`rewrite_finish_rechecks.lays`),
+    so the invalidation behind the stop
+    (`rewrite_finish_readiness.invalidates_behind`) takes that successor, and
+    the movement is answered, however soon its records are put back -- the
+    blank of the base tip among it, which is movement under whichever
     evidence that reading carries.
     """
     blanked = _TIP in attempt.moved(state.data)
@@ -352,6 +363,6 @@ def _reads_moving(
     if blanked:
         heard = (_BLANKED, *heard)
     moving = next((refused for refused in heard if refused and not refused.holds), None)
-    if moving is not None and carried.receipt != receipt:
+    if moving is not None and (held is None or carried.receipt != held.receipt):
         _rechecks.lays(finish.state, state)
     return moving

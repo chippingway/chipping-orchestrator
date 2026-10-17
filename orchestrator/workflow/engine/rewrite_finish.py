@@ -465,7 +465,11 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     proof that carries another attempt or will not read, holds the route, the
     evidence proved ready once more. Its record lands ahead of it as a guarded
     write of its own (`rewrite_finish_writes.RELABEL`), whose refusal the
-    evidence is proved behind as behind any other write.
+    evidence is proved behind as behind any other write. The retirement then
+    lands under a reading of its own (`rewrite_finish_stops.observing`),
+    captured behind the relabel over the evidence the tick holds by then, so
+    movement the relabel's recheck read under evidence it invalidated --
+    answered there -- is never charged to a successor adopted in its place.
     """
     observed = _stops.observing(finish)
     stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)
@@ -476,6 +480,7 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     stopped = stopped or _settled.stands_ready_if_settled(finish, or_the_base=routed)
     if stopped is not None:
         return stopped
+    observed = _stops.observing(finish)
     stopped = _writes.lands(finish, _writes.retirement(finish), _writes.FINISH, observed)
     if stopped is not None:
         return _stops.behind_the_write(finish, stopped, observed)
