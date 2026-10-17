@@ -59,10 +59,10 @@ _EARLIER = ReportEvidence(_DEFER, "proved again and refused")
 # where those records are asked.
 _CONTINUED = (
     (_BaseStanding.MOVED, None, (_proof.BASE_MOVED, _proof.BASE_MOVED)),
-    (_BaseStanding.MOVED, lambda _state: (), (None, None)),
-    (_BaseStanding.DROPPED, lambda _state: (), (None, None)),
-    (_BaseStanding.UNPROVEN, lambda _state: (), (_proof._REFUSALS[_BaseStanding.UNPROVEN], None)),
-    (_BaseStanding.MOVED, lambda _state: (_EARLIER,), (_EARLIER, None)),
+    (_BaseStanding.MOVED, lambda _state, _issue: (), (None, None)),
+    (_BaseStanding.DROPPED, lambda _state, _issue: (), (None, None)),
+    (_BaseStanding.UNPROVEN, lambda _state, _issue: (), (_proof._REFUSALS[_BaseStanding.UNPROVEN], None)),
+    (_BaseStanding.MOVED, lambda _state, _issue: (_EARLIER,), (_EARLIER, None)),
 )
 
 

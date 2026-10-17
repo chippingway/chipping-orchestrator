@@ -228,7 +228,7 @@ def last_word(
     *,
     landing: bool = True,
     earlier: _evidence_models.ReportEvidence | None = None,
-    records: Callable[[PinnedState], Refusals] | None = None,
+    records: Callable[[PinnedState, Issue], Refusals] | None = None,
 ) -> Word:
     """What everything that moves under `finish`'s route reads as now, behind every request: `(moved, held)`.
 
@@ -240,7 +240,8 @@ def last_word(
     `earlier` is a verdict the caller already read the transaction with -- a
     proof of it again -- which is sorted first, beside the rest. `records` is
     a caller's own reading of the pinned comment the last word reads afresh,
-    asked beside the requirements and the review and report records, and
+    handed that comment and the issue read with it, asked beside the
+    requirements and the review and report records, and
     answering with refusals of its own that are sorted beside every other --
     the evidence records settled evidence is held to
     (`rewrite_finish_readiness`). The network is read first and the local
@@ -276,7 +277,7 @@ def _hears(
     finish: LandedFinish,
     binding: _records.EvidenceBinding | None,
     landing: bool,
-    records: Callable[[PinnedState], Refusals] | None,
+    records: Callable[[PinnedState, Issue], Refusals] | None,
 ) -> _Heard:
     """Every request the last word makes, in its order: the remote branch, the base, and the issue and its comment.
 
@@ -305,7 +306,7 @@ def _hears(
         base,
         _subject.requirements_verdict(issue, state, binding.target.publication.requirements_revision),
         _proof.recorded_verdict(state, binding),
-        *(() if records is None else records(state)),
+        *(() if records is None else records(state, issue)),
     )
 
 

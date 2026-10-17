@@ -188,6 +188,7 @@ def set_workflow_label(
     new_label: str | None,
     *,
     guarded: bool = True,
+    **correlation: Any,
 ) -> None:
     """Replace only the workflow label and emit its stage-enter event.
 
@@ -195,6 +196,12 @@ def set_workflow_label(
     second relabel through the same object in one tick is guarded against
     the state the first one left. A write GitHub refuses raises before either
     the cached labels or the stage-enter event move.
+
+    `correlation` rides the stage-enter event as extra fields, for a caller
+    that has to find its own relabel on the event stream again: the route of
+    a landed rewrite held to the dormant settled-evidence policy names the
+    head it relabels for as `sha`, since a relabel onto the label the issue
+    already wore leaves the label itself saying nothing.
 
     `guarded=False` is for the one write that is not a transition: putting a
     label back where a human moved it from. The graph describes the moves this
@@ -228,7 +235,7 @@ def set_workflow_label(
         # The event and the analytics row name the state by its bare tag: the
         # namespace is a GitHub label spelling, and every reader downstream of
         # here keys on the tag under it.
-        client._emit_stage_enter(issue, _workflow_state.stage_name(new_workflow_label))
+        client._emit_stage_enter(issue, _workflow_state.stage_name(new_workflow_label), **correlation)
 
 
 # The event kind GitHub records when a label is put ON an issue. A removal is

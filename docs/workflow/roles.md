@@ -2582,7 +2582,8 @@ recorded run is never run twice, but settled and routed as recorded -- its artif
 earlier post landed -- or, where anything it was bound to moved, set aside for the fresh reviewer. Evidence a finish
 already settled for that head is taken as it stands, behind the last word over the landing and the base; a dormant
 policy that proves it ready again first -- in its evidence phase and around every hold, park, relabel, and stop of the
-finish's own writes -- takes in a settlement another finish made while it answered, and retires it whole into history
+finish's own writes, that relabel made once behind a record of its own on the attempt -- takes in a settlement another
+finish made while it answered, and retires it whole into history
 where anything it rests on moved -- one historical execution, never run, posted, or charged again, its evidence then
 the fresh reviewer's to owe, and a newer transaction another road recorded beside it left owed as that road wrote it
 -- is built and its whole finish callable directly, but no road selects it (see the same section).

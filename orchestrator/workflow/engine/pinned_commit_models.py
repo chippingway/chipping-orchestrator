@@ -102,9 +102,16 @@ class CommitOutcome:
     `length` is the rendered body an OVERFLOW measured, and `inadmissible` is
     what the guard's own domain check answered where it refused the candidate.
     `seen`, for a guard that `reads_a_move` alone, is the comment a
-    PREREQUISITE_CHANGED refusal read those fields moved on
-    (`PinnedCommit.keeps_the_move`), so the caller can say what they moved to
-    however soon they are put back.
+    PREREQUISITE_CHANGED or OWNED_CONFLICT refusal read those fields moved
+    on, the fresh reading an OVERFLOW or INADMISSIBLE candidate was laid
+    over, or the one a MOVED edit found in place of the fresh reading
+    (`PinnedCommit.keeps_the_move`), so the caller can say what moved and to
+    what however soon it is put back. `fresh` is, for such a guard's refusal
+    of the strict edit alone, the fresh reading the candidate was derived
+    over, kept beside the comment the edit found in its place -- or alone,
+    where the edit would not read the comment or found it replaced: a record
+    moved there and put back before the edit read the comment moved under
+    the write all the same.
     """
 
     status: CommitStatus
@@ -114,6 +121,21 @@ class CommitOutcome:
     length: int | None = None
     inadmissible: Any = None
     seen: PinnedState | None = None
+    fresh: PinnedState | None = None
+
+
+# The refusals a guard that `reads_a_move` keeps the comment it read for:
+# every one read over a comment -- the fresh reading an owned field was found
+# conflicting on, or a candidate measured past what one comment holds, or
+# refused by the caller's own domain, over it among them -- since whatever
+# else moved there moved under the write all the same.
+_READ_MOVES = frozenset((
+    CommitRefusal.PREREQUISITE_CHANGED,
+    CommitRefusal.MOVED,
+    CommitRefusal.OWNED_CONFLICT,
+    CommitRefusal.OVERFLOW,
+    CommitRefusal.INADMISSIBLE,
+))
 
 
 @dataclass(frozen=True)
@@ -196,15 +218,29 @@ class PinnedCommit:
         moved = self.moved(seen[0].data) if seen else ()
         return (CommitRefusal.PREREQUISITE_CHANGED if moved else refusal), moved
 
-    def keeps_the_move(self, outcome: CommitOutcome, reading: PinnedState | None) -> CommitOutcome:
-        """`outcome`, carrying `reading` as `seen` where this guard `reads_a_move` and it refuses moved prerequisites.
+    def keeps_the_move(
+        self, outcome: CommitOutcome, reading: PinnedState | None, fresh: PinnedState | None = None,
+    ) -> CommitOutcome:
+        """`outcome`, carrying `reading` as `seen` where this guard `reads_a_move` and it refuses over a comment.
 
-        `reading` is the comment that refusal was read over: the fresh reading,
-        or the one the strict edit read under it (`under_the_edit`).
+        `reading` is the comment that refusal was read over: the fresh reading
+        -- a move of the prerequisites, an owned field's conflict, or a
+        candidate past the limit or refused by the domain's own check over it
+        -- or the one the strict edit read under it (`under_the_edit`) -- which,
+        where it moved no prerequisite, is the comment a MOVED refusal found
+        moved under the edit, a record the caller keeps as the fresh comment
+        carries it among what may have moved. `fresh` is the fresh reading an
+        edit's refusal was prepared over, carried beside it as `fresh`
+        (`CommitOutcome.fresh`) whatever that refusal is -- an edit that would
+        not read the comment, or found it replaced, among them, since the
+        reading it was prepared over was taken all the same -- so what moved
+        there and back before the edit read the comment is not lost.
         """
-        if not self.reads_a_move or outcome.refusal is not CommitRefusal.PREREQUISITE_CHANGED:
+        if not self.reads_a_move:
             return outcome
-        return replace(outcome, seen=reading)
+        if outcome.refusal not in _READ_MOVES:
+            return replace(outcome, fresh=fresh)
+        return replace(outcome, seen=reading, fresh=fresh)
 
 
 def spelling(field_value: Any) -> str | None:

@@ -1046,13 +1046,18 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   `workflow/engine/rewrite_finish_unconfirmed.py`). The coordinator held to the policy proves the evidence again
   before every out-of-step hold, unfinishable landing beside a standing attempt, and debt park, ahead of and behind
   the relabel, and behind every stop of the announcement, the park, or the retirement -- a refusal over a record the
-  evidence's binding rests on, or one whose comment, its preparation's fresh reading or the strict edit's own, was read
+  evidence's binding rests on, or one whose comment, its preparation's fresh reading, the strict edit's own, or the
+  fresh reading a refused edit was derived over, was read
   recording movement under the evidence, a mark, a revision spent past it, or a blank of the attempt's base tip,
-  invalidating it however soon that comment is put back -- decides the checkpoint, the event's record, and the park on
+  invalidating it however soon that comment is put back, as does such movement in the record a write that was
+  prepared, landed, or went out unconfirmed made of the comment, even where the finish goes on -- decides the
+  checkpoint, the event's record, and the park on
   every record the evidence is bound through, puts back an attempt a
   retirement nobody confirmed took before invalidating over it, and announces, relabels, or parks nothing another
   finish of the landing already did (`workflow/engine/rewrite_finish_stops.py`,
-  `workflow/engine/rewrite_finish_announced.py`, `workflow/engine/rewrite_finish_writes.py`). Dormant guarded
+  `workflow/engine/rewrite_finish_announced.py`, `workflow/engine/rewrite_finish_writes.py`) -- its relabel landed
+  behind a guarded record of its own on the attempt (`pending_auto_base_rebase_relabelled`), read beside the label,
+  and beside a label the issue already wore against the audit log where one is configured. Dormant guarded
   recovery operations are built on the readiness
   primitives,
   and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof

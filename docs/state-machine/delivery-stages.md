@@ -1600,10 +1600,11 @@ because there it is the claim that this stage has already rerouted rather than a
     recorded, not another attempt -- or this landing's own announcement, taken in, does not, and a comment that will
     not read again holds it too; the evidence that write invalidated, put back current there with the records it
     was bound to or not, is retired again over the comment as it stands and holds the route, since the movement read
-    under it stands whatever is put back, where evidence settled under another receipt is kept as written; asked
-    directly for the base (`stands_ready_if_settled`, which the phase
-    never asks so), a head with none current is held to its replay's base tip or -- that tip blank, or missing from
-    a legacy attempt -- to the base the tick counted it against, one moved since holding the route;
+    under it stands whatever is put back, where evidence settled under another receipt is kept as written -- save a
+    successor that very reading disproves on its own binding, or carries beside a blank of the base tip, invalidated
+    whole however soon its records or the tip are put back; asked directly for the base (`stands_ready_if_settled`,
+    which the phase never asks so), a head with none current is held to its replay's base tip or -- that tip blank,
+    or missing from a legacy attempt -- to the base the tick counted it against, one moved since holding the route;
   - a readable revision spent past the evidence outranks it for good, even beside a floor or a pending record nobody
     can read, a pending record discounting only the one revision it may own
     (`workflow/engine/rewrite_finish_outranking.py`), while a pending record, a handoff not naming the evidence, or a
@@ -1676,24 +1677,49 @@ because there it is the claim that this stage has already rerouted rather than a
     held, or raising stop of the checkpoint, the event's record, the park and its notice, the relabel, and the
     retirement. The checkpoint, the event's record, and the park are decided on every bound record
     (`workflow/engine/rewrite_finish_writes.py`), and a refusal over a record the evidence's binding rests on, or one
-    whose comment -- the preparation's fresh reading or the strict edit's own -- was read recording movement under
+    whose comment -- the preparation's fresh reading, the strict edit's own, the fresh reading a refused edit was
+    derived over, or the record a write that was prepared, landed, or went out unconfirmed made, even where the
+    finish goes on -- was read recording movement under
     the evidence, a mark in its handoff's place, a revision spent past it, or a blank of the attempt's base tip,
     invalidates the evidence however soon that comment is put back, where a newer transaction recorded beside it or
-    a successor settled under another receipt moves nothing under it; behind a retirement nobody confirmed the
-    attempt is put back before the evidence is invalidated over it, and movement the comment read to reconcile a lost
-    announcement write records counts as a refusal's does. The mark is read again before the announcement and the
-    label afresh under it before the relabel and once more behind the proof ahead of it
-    (`workflow/engine/rewrite_finish_announced.py`), a label that will not read holding the route; a debt park
+    a successor settled under another receipt moves nothing under it -- save a successor that very comment disproves
+    on its own binding, or carries beside a blank of the base tip, whatever evidence the tick held, none included,
+    which is the evidence invalidated there, and a comment carrying no evidence current for the head asked of the
+    evidence the tick held, a revision spent past it read there however soon that evidence is put back current;
+    movement the retirement's preparation reads is answered right there,
+    ahead of the relabel, and the retirement's refusal is read under a reading of its own, taken behind
+    the relabel, so movement the relabel's recheck read under evidence it invalidated never counts against a successor
+    adopted in its place; behind a
+    retirement nobody confirmed -- over movement the record it sent read, or the proof behind it reads -- the attempt
+    is put back before the evidence is invalidated over it, and movement the
+    comment read to reconcile a lost announcement write records counts as a refusal's does. The mark is read again
+    before the announcement and the label afresh under it before the relabel and once more behind the proof ahead of
+    it (`workflow/engine/rewrite_finish_announced.py`), a label that will not read holding the route; the relabel lands
+    behind a guarded record of its own naming the head (`pending_auto_base_rebase_relabelled`,
+    `rewrite_finish_writes.RELABEL`), the debt measured beside that record too and the checkpoint prepared over the
+    fresh comment with it reserved, so a comment filled since posts no notice, and is read made only where that
+    record names the head beside `workflow:validating` -- on an issue that already wore that label, where the audit log
+    is configured, only once the log carries the stage-entry event the relabel names the head on (`sha`), the route
+    held while it will not read; with no log it is read made, once at most -- and a relabel onto that label that
+    raises before the stream carries its stage-entry event takes its record back off; behind a relabel that raised
+    the evidence the comment then carries is proved, a successor another road settled meanwhile on its own binding --
+    one settled only after that reading asked of its own binding and requirements in each reading the readiness
+    proof takes, retired whole or marked where it moved --
+    movement that very reading records invalidating it however soon it is put back, and a record a later refusal
+    names moved off the records the tick read counting under it only where those records bind it; a debt park
     standing is reused unless a reply the watermark has not passed is handed in, and a park whose write never landed
     -- a first one, or one made again over a reply handed in once more -- lands over the notice the conversation
     carries past the watermark or that reply, its event filed only where the event stream lacks the one naming that
     notice, the finish held where that conversation will not read; and a relabel is held where the comment read again
-    behind its proof carries another attempt, so repeated direct finishes make one notice, `base_rebased` event, park
-    notice and `park_awaiting_human` event, round reset, relabel, stage-entry event, artifact, and settlement, and
-    run, push, or launch nothing again. A newer transaction the proof beside an unfinishable landing finds recorded
-    right behind its invalidation is left owed as written, with no last word taken over it, and so is one another
-    road recorded behind a stopped announcement's writes, which the movement those writes read under the evidence
-    they found -- however that evidence is invalidated over it -- never abandons.
+    behind its proof carries another attempt, settled evidence that reading records moving invalidated first however
+    soon it is put back -- a successor another road settled in its place asked on its own binding in that very
+    reading, and beside a blank of the base tip, whatever was read current before it -- so repeated direct finishes
+    make one notice, `base_rebased` event, park notice and `park_awaiting_human` event, round reset, relabel,
+    stage-entry event, artifact, and settlement, and run, push, or launch nothing again. A newer transaction the
+    proof beside an unfinishable landing finds recorded right behind its invalidation is left owed as written, with
+    no last word taken over it, and so is one another road recorded behind a stopped announcement's writes, which
+    the movement those writes read under the evidence they found -- however that evidence is invalidated over it --
+    never abandons.
 
   The primitives run no command. The phase runs the configured commands only where its evidence step decides a head
   afresh, exactly as the policy every road selects does: a fresh landing whose head no finish of this landing has

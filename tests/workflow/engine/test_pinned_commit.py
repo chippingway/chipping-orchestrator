@@ -126,7 +126,7 @@ _UNDER_THE_EDIT = MappingProxyType({
 # prerequisite that moved, and keeps that comment.
 _REFUSED_UNDER_THE_EDIT = MappingProxyType({
     (_MOVED, False): (_REFUSAL.MOVED, (), False),
-    (_MOVED, True): (_REFUSAL.MOVED, (), False),
+    (_MOVED, True): (_REFUSAL.MOVED, (), True),
     (_MOVED_PREREQUISITE, False): (_REFUSAL.MOVED, (), False),
     (_MOVED_PREREQUISITE, True): (_REFUSAL.PREREQUISITE_CHANGED, (support.PR,), True),
     (_REPLACED, False): (_REFUSAL.REPLACED, (), False),
@@ -134,6 +134,11 @@ _REFUSED_UNDER_THE_EDIT = MappingProxyType({
     (_UNREADABLE, False): (_REFUSAL.UNREADABLE, (), False),
     (_UNREADABLE, True): (_REFUSAL.UNREADABLE, (), False),
 })
+
+# The fresh reading a refusal under the edit keeps, beside the comment that edit
+# read or alone: the record as seeded, ahead of the move -- or none, for a guard
+# that reads no move.
+_FRESH_UNDER_THE_EDIT = (None, support.recorded())
 
 # A filler of one unit -- empty for plain characters -- bringing the candidate to
 # the limit plus an excess; what the commit comes to, what it measured, and the
@@ -151,6 +156,15 @@ def _filler(unit: str, excess: int) -> str:
     room = MAX_PINNED_BODY + excess - len(unfilled)
     units = room // len(unit) if unit else 0
     return unit * units + "x" * (room - len(unit) * units)
+
+
+# Another road's write a candidate is refused over, laid over the fresh
+# reading: a field filling the comment one past the limit, or a total past
+# the domain check's cap.
+_OVER_THE_READING = MappingProxyType({
+    _REFUSAL.OVERFLOW: MappingProxyType({support.UNKNOWN: _filler("", 1)}),
+    _REFUSAL.INADMISSIBLE: MappingProxyType({support.TOTAL: _PAST_THE_CAP}),
+})
 
 
 class CommitLandingTest(unittest.TestCase):
@@ -335,8 +349,10 @@ class CommitRefusalTest(unittest.TestCase):
         # strict edit's walk is the last reading, and it sends nothing over a
         # record that is no longer the one the candidate was derived over --
         # naming no field, save for a guard that reads a move, which names the
-        # prerequisites the comment that walk read spells otherwise and
-        # carries that comment.
+        # prerequisites the comment that walk read spells otherwise, and
+        # carries that comment whether or not any prerequisite moved there --
+        # and, whatever the edit answered, the fresh reading the candidate was
+        # derived over.
         for case, reads in product(_UNDER_THE_EDIT, (False, True)):
             with self.subTest(case=case, reads_a_move=reads):
                 world = support.seeded()
@@ -347,6 +363,8 @@ class CommitRefusalTest(unittest.TestCase):
 
                 refused = (outcome.status, outcome.refusal, outcome.fields, outcome.seen is not None)
                 self.assertEqual(refused, (_STATUS.REFUSED, *_REFUSED_UNDER_THE_EDIT[case, reads]))
+                self.assertEqual(outcome.fresh is not None, reads)
+                self.assertIn(outcome.fresh and outcome.fresh.data, _FRESH_UNDER_THE_EDIT)
                 self.assertEqual(world.record()[support.SETTLED], _SETTLED_READ)
                 self.assertEqual(world.state.data, support.recorded(settled=True))
 
@@ -396,6 +414,24 @@ class CommitBoundaryTest(unittest.TestCase):
                     (outcome.status, outcome.inadmissible, world.record()[support.SETTLED]),
                     landed,
                 )
+
+    def test_a_refused_candidate_keeps_its_reading(self) -> None:
+        # A candidate refused over the fresh reading -- one past the limit,
+        # or by the domain's own check -- carries that reading for a guard
+        # reading a move, as a moved prerequisite's refusal does, so its
+        # caller can say what else moved there; any other guard's carries none.
+        for refusal, reads in product(_OVER_THE_READING, (False, True)):
+            with self.subTest(refusal=refusal, reads_a_move=reads):
+                world = support.seeded()
+                world.guard = replace(world.guard, admits=self._caps_the_total, reads_a_move=reads)
+                world.settle()
+                world.another_road(**_OVER_THE_READING[refusal])
+
+                outcome = world.commit()
+
+                kept = world.record() if reads else None
+                self.assertEqual((outcome.status, outcome.refusal), (_STATUS.REFUSED, refusal))
+                self.assertEqual(getattr(outcome.seen, "data", None), kept)
 
     def test_unanswered_edits_are_unconfirmed(self) -> None:
         # A lost response and a refused edit are one answer to the caller,

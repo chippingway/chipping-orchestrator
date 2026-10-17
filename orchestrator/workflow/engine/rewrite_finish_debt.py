@@ -17,7 +17,13 @@ GitHub accepts. It is measured on the comment as it stands as well, since a
 round wider than everything the announcement adds makes that write the
 narrower of the two, and a debt the comment cannot take now is one the route
 would otherwise go on without. A finish whose announcement is already out
-measures on the comment as it stands alone. A proved debt short of either
+measures on the comment as it stands alone. A finish held to the dormant
+settled-evidence policy that routes its head (`rewrite_finish_models.routes_a_relabel`) --
+a continuation relabels nothing -- measures beside both the record of the relabel its
+route lands behind them (`rewrite_finish_announced.relabels_once`), since that
+record is written too before the retirement clears; the coordinator reserves
+it again on the checkpoint it prepares over the fresh comment
+(`rewrite_finish._checkpoints`). A proved debt short of either
 room stops the finish before it says anything: the caller parks for a human
 to make room (`unrecorded`), with the push kept and the attempt standing. A
 finish held to the dormant settled-evidence policy asks first whether that
@@ -57,7 +63,7 @@ from orchestrator.workflow.engine import (
     report_rewrite_debt as _rewrite_debt,
     report_rewrite_room as _rewrite_room,
 )
-from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish, routes_a_relabel
 from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
@@ -79,21 +85,28 @@ _UNRECORDED = (
 )
 
 
-def announcement(state: PinnedState, head: str) -> PinnedState:
-    """The write that announces `head`, as `state` would make it, taken before anything is announced.
+def announcement(state: PinnedState, head: str, *, announced: bool = False, relabels: bool = False) -> PinnedState:
+    """The writes that announce and route `head`, as `state` would make them, taken before anything is announced.
 
-    Everything that write puts on the comment: the ledger entry of the notice
-    it follows, reserved at the widest id a comment is recorded at, the record
-    of its event -- which the write ahead of the event lands on its own too --
-    the round reset ahead of the mark, and the mark. The writes past it only
-    clear, so none of them carries more.
+    Everything the announcement puts on the comment: the ledger entry of the
+    notice it follows, reserved at the widest id a comment is recorded at, the
+    record of its event -- which the write ahead of the event lands on its own
+    too -- the round reset ahead of the mark, and the mark; none of it where
+    the mark is `announced` already. `relabels`, for a finish held to the
+    dormant settled-evidence policy that routes its head
+    (`rewrite_finish_models.routes_a_relabel`), adds the record of the
+    relabel its route makes behind them (`rewrite_finish_announced.relabels_once`). The
+    retirement past them only clears, so none of them carries more.
     """
-    announced = PinnedState(state_data=copy.deepcopy(state.data))
-    _comments._reserve_comment_slot(announced, _record_values.MAX_RECORDED_NUMBER)
-    announced.set(_base_sync_state._PENDING_ANNOUNCED_EVENT, head)
-    announced.set(_base_sync_state._REVIEW_ROUND, 0)
-    announced.set(_base_sync_state._PENDING_ANNOUNCED_SHA, head)
-    return announced
+    written = PinnedState(state_data=copy.deepcopy(state.data))
+    if not announced:
+        _comments._reserve_comment_slot(written, _record_values.MAX_RECORDED_NUMBER)
+        written.set(_base_sync_state._PENDING_ANNOUNCED_EVENT, head)
+        written.set(_base_sync_state._REVIEW_ROUND, 0)
+        written.set(_base_sync_state._PENDING_ANNOUNCED_SHA, head)
+    if relabels:
+        written.set(_base_sync_state._PENDING_RELABELLED, head)
+    return written
 
 
 def fits(finish: LandedFinish, *, announced: bool) -> bool:
@@ -105,9 +118,7 @@ def fits(finish: LandedFinish, *, announced: bool) -> bool:
     that leaves it.
     """
     staged = PinnedState(state_data=copy.deepcopy(finish.state.data))
-    measured = PinnedState(state_data=copy.deepcopy(finish.state.data))
-    if not announced:
-        measured = announcement(staged, finish.head)
+    measured = announcement(staged, finish.head, announced=announced, relabels=routes_a_relabel(finish))
     return stages(finish, staged, measured)
 
 

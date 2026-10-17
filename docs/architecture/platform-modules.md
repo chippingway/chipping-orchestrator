@@ -446,7 +446,8 @@ orchestrator/
                         only a source checkout is offered, and the refusal of every selected target that is not a
                         checkout, as `service/checkouts.py` reads one
   github/               publishes `GitHubClient` and `PinnedState` from their defining owners
-    client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records, and canonical
+    client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records -- a
+                        caller's correlation on a relabel riding the audit one alone -- and canonical
                         repository identity; a clone reuses the parent's token and bot login on a requester of its
                         own and fetches its repository only on the first read of repository metadata, while
                         number, label, and commit operations stay eager at the call; ownership checks complete that
@@ -486,7 +487,8 @@ orchestrator/
     events.py           audit event record construction and the optional JSONL sink, and whether an event a
                         caller may already have filed is on the stream -- the client's in-memory tail, then the
                         whole sink and its rotated copies (`event_log.py`) -- with a sink that would not read
-                        answered as no answer rather than as an absence (`filed`)
+                        answered as no answer rather than as an absence (`filed`), and whether a sink is
+                        configured at all, so an absence outlives the process (`durable`)
     issue_polling.py    the one walk over a repository's issues a tick is served from: the open poll, the
                         cadenced closed sweep beside it, and the shared number set both filter through so an
                         issue two queries return is dispatched once, and which drops the pull requests those
@@ -889,8 +891,9 @@ orchestrator/
                         let the rebase start on, and carries the retry the workflow staged read from it
                         (`workflow/engine/rewrite_replies.py`)
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
-                        that ends an auto-rebase attempt, the recorded base tip and the record of the `base_rebased`
-                        event a finish files (`pending_auto_base_rebase_announced_event`) among its members. The
+                        that ends an auto-rebase attempt, the recorded base tip, the record of the `base_rebased`
+                        event a finish files (`pending_auto_base_rebase_announced_event`), and the record of the
+                        relabel a dormant finish makes (`pending_auto_base_rebase_relabelled`) among its members. The
                         workflow's publication records its replay here, with the base tip frozen before git ran
                         beside it (`pending_auto_base_rebase_rewrite_base`); the
                         workflow's finish of every landing puts the mark down through its own guarded checkpoint,
