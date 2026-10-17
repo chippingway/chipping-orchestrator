@@ -25,6 +25,7 @@ from github.Issue import Issue
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
     frozen as _frozen,
+    persistence as _persistence,
     refresh_selection as _refresh_selection,
     replay_cleanup as _replay_cleanup,
     replay_publication_parks as _replay_publication_parks,
@@ -178,12 +179,11 @@ def _answers_an_unreadable_checkout(
     workflow recovery's, handed on to the abort's recovery context as every
     recovery road's are (`_AutoRebaseRecoveryContext`), by the workflow's
     recovery (`workflow/engine/rewrite_recovery.answers_an_unreadable_checkout`):
-    what it owes over a reset that landed (`settles_over_a_reset`) and what it
-    asks before the park of one that did not (`proves_before_a_park`), and --
-    once the workflow hands them in, which it does not yet -- what it records
-    before the reset (`records_before_a_reset`) and the park it records either
-    park through (`lands_a_park`). An answer not handed in is the context's
-    None.
+    what it records before the reset (`records_before_a_reset`) and owes over
+    one that landed (`settles_over_a_reset`), what it asks before the park of
+    a reset that did not land (`proves_before_a_park`), and the park it
+    records either park through (`lands_a_park`). An answer not handed in is
+    the context's None.
     """
     return snapshot._abort_recovery_unverified(
         _AutoRebaseRecoveryContext(
@@ -234,7 +234,12 @@ def _answers_a_held_anchor(
     the one thing it can be missing is a checkout to walk: only the checkouts
     that exist are walked, so one that is not on disk is brought back and
     nothing else, and the next refresh classifies the anchor over whatever the
-    local branch still names.
+    local branch still names. The hold keeps the attempt for that refresh as
+    a park keeps it for a reply, so what the workflow captured or settled for
+    the landed head is proved first all the same
+    (`persistence._proves_before_the_park`), with nothing posted: a
+    requirement edited while the hold stands and put back before the refresh
+    reaches the anchor is read moving now, rather than routed unread then.
 
     Where it does not, what the refresh would answer is the ineligible road,
     which reads no pull request and fetches nothing -- so it is taken here
@@ -255,12 +260,14 @@ def _answers_a_held_anchor(
     workflow's recovery asks before the stranded park keeps the attempt
     (`_AutoRebaseRecoveryContext.proves_before_a_park`), and `lands_a_park`
     the park it records that one through (`_AutoRebaseRecoveryContext.lands_a_park`),
-    which the dispatcher does not hand in yet, so it writes the state whole.
+    both handed in by the workflow's answer to the dispatcher's hold
+    (`workflow/engine/rewrite_recovery_parks.answers_a_held_anchor`).
     """
     context = replace(context, proves_before_a_park=proves_before_a_park, lands_a_park=lands_a_park)
     if context.label in _PR_REFRESH_DETOUR_LABELS:
         if not context.worktree.is_dir():
             _restores_the_checkout(context.spec, context.issue.number, context.state)
+        _persistence._proves_before_the_park(context)
         return
     if context.worktree.is_dir():
         _replay_cleanup._answers_an_ineligible_label(context)

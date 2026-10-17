@@ -17,7 +17,9 @@ candidate -- for a recovery, past the fetch it classified the branch on -- as
 the git owner reads the candidate again for its push, past the gate's
 measurement, and as the gate asks whether the publication ended, past that
 reading and immediately before the push. The moves themselves are
-`rewrite_publication_moves`.
+`rewrite_publication_moves`. And one moment another road writes the pinned
+comment in (`WritesBehindTheGate`): right behind the gate's own answer, a
+revision floor recorded for the hold's record to keep.
 """
 from __future__ import annotations
 
@@ -31,7 +33,7 @@ from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.ref_transport import _RefRead
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.workflow.stages.implementing import late_publication as _late_publication
+from orchestrator.workflow.stages.implementing import late_publication as _late_publication, late_push as _late_push
 from tests.git.base_sync import refresh_test_support as base
 
 ANCHOR = base.BEFORE_SHA
@@ -41,6 +43,34 @@ REPLAY = base.AFTER_SHA
 # the replay sits over.
 FOREIGN = "f0e1a900" * 5
 REWOUND_BASE = "0bad0bad" * 5
+
+
+# The revision floor another road records behind the gate's answer, and what it records.
+FLOOR = "verification_evidence_revision"
+
+ANOTHER_ROADS_FLOOR = 17
+
+
+class WritesBehindTheGate:
+    """The gate's own answer, another road's revision floor written on issue #7's comment right behind it."""
+
+    def __init__(self, case) -> None:
+        self._case = case
+        self._live = _late_push._publishes
+
+    def __call__(self, *published, **options):
+        """Answer as the gate does, then record the floor as another road would."""
+        answered = self._live(*published, **options)
+        github = self._case.gh
+        issue = github.get_issue(base.ISSUE)
+        durable = github.read_pinned_state(issue)
+        durable.set(FLOOR, ANOTHER_ROADS_FLOOR)
+        github.write_pinned_state(issue, durable)
+        return answered
+
+    def floor(self):
+        """The revision floor issue #7's comment carries now."""
+        return self._case.gh.pinned_data(base.ISSUE).get(FLOOR)
 
 
 class RewriteWorld:

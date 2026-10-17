@@ -5,18 +5,17 @@
 A write whose answer was lost may have landed: the record of the
 `base_rebased` event or the checkpoint putting the announcement's
 bookkeeping on the attempt, or the retirement behind the relabel blanking it
-whole. These answer only a finish held to the dormant settled-evidence policy
-(`rewrite_finish_models.LandedFinish.proves_settled`), so movement a proof
-read behind that write is recorded over the attempt as it stands rather than
-refused as though another road had replaced it. That policy's evidence phase
-asks `takes_in_the_announcement` and `takes_in_the_attempt`
-(`rewrite_finish_settled.adopts_the_answer`), and
-`reconciles_the_abandonment` (`rewrite_finish_captured`); its coordinator's
-stops (`rewrite_finish_stops`) ask `takes_in_the_announcement` behind an
+whole. These read it, so movement a proof read behind that write is recorded
+over the attempt as it stands rather than refused as though another road had
+replaced it. The evidence phase asks `takes_in_the_announcement` and
+`takes_in_the_attempt` (`rewrite_finish_settled.adopts_the_answer`), and
+every abandonment asks `reconciles_the_abandonment`
+(`rewrite_finish_captured`) -- the recovery's own, wherever it reads the
+landing moving (`rewrite_landing_moved`), among them; the coordinator's stops
+(`rewrite_finish_stops`) ask `takes_in_the_announcement` behind an
 announcement nobody confirmed, `stands_back` behind a retirement nobody
 confirmed, `retires_the_marked` where the attempt is retired or replaced,
-and `behind_a_raise` behind a relabel that raised. No recovery road asks any
-of them:
+and `behind_a_raise` behind a relabel that raised:
 
 - `takes_in_the_announcement` takes in that bookkeeping, naming the landed
   head (`rewrite_finish_announced.takes_in_the_announcement`), and hands back
@@ -109,9 +108,8 @@ def stands_back(finish: LandedFinish, current: _records.CurrentEvidence) -> bool
     comment carries it; the tick's state then reads as the comment does.
     Where that write is not seen to land -- no room, a refusal, or an answer
     lost -- the movement is marked (`rewrite_finish_marks.marks`): beside an
-    attempt a lost answer did put back, every later readiness proof under
-    the dormant policy reads that mark as movement and retires the evidence
-    whole over it.
+    attempt a lost answer did put back, every later readiness proof reads
+    that mark as movement and retires the evidence whole over it.
     """
     durable = read_afresh(finish)
     left = _commit_models.PinnedCommit.capture(_writes.retirement(finish), prerequisites=_attempts._ATTEMPT_KEYS)
@@ -227,8 +225,6 @@ def behind_a_raise(finish: LandedFinish, observed: list) -> None:
     whose refusal reads what moved under it, however soon that is put back:
     the evidence is invalidated over any such movement, or proved ready once
     more where none holds (`rewrite_finish_readiness.invalidates_behind`),
-    before the error goes on. Nothing is read for a finish not held to the
-    dormant settled-evidence policy.
+    before the error goes on.
     """
-    if finish.proves_settled:
-        _readiness.invalidates_behind(finish, FinishOutcome.UNCONFIRMED, observed)
+    _readiness.invalidates_behind(finish, FinishOutcome.UNCONFIRMED, observed)

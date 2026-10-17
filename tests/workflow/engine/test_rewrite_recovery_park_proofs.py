@@ -179,20 +179,24 @@ class ParkProofRecoveryTest(support.CapturedRunCase, unittest.TestCase):
                 self._continues_to(head, kept)
 
     def test_an_unrecorded_abandonment_parks_nothing(self) -> None:
-        # The configuration moves behind a failed fetch and reset, and no write
-        # to the comment lands: the run cannot be abandoned, so nothing is
-        # parked and the anchor still holds the run for the next recovery.
-        _head, run = self.captures()
-        self.configures(_MOVED_COMMAND)
-        posted = len(self.gh.posted_comments)
-        with _failing_abort(*_ABORTS[0][1:]), _unwritable(self):
-            self.recovers()
+        # The configuration moves behind a failed fetch or an uncounted lag,
+        # and a failed reset, and no write to the comment lands: the run cannot
+        # be abandoned, so nothing is parked and the anchor still holds the run
+        # for the next recovery.
+        for aborted, *failing in _ABORTS:
+            with self.subTest(aborted=aborted):
+                self.setUp()
+                run = self.captures()[1]
+                self.configures(_MOVED_COMMAND)
+                posted = len(self.gh.posted_comments)
+                with _failing_abort(*failing), _unwritable(self):
+                    self.recovers()
 
-        pinned = readings.pinned(self)
-        self.assertEqual(len(self.gh.posted_comments), posted)
-        self.assertIsNone(pinned.get("awaiting_human"))
-        self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
-        self.assertEqual(readings.records(pinned)[0], run)
+                pinned = readings.pinned(self)
+                self.assertEqual(len(self.gh.posted_comments), posted)
+                self.assertIsNone(pinned.get("awaiting_human"))
+                self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
+                self.assertEqual(readings.records(pinned)[0], run)
 
     def _parks_repointed(self, key: str, recorded_as, command: str | None) -> tuple:
         """A fresh case's captured run, recovered with `key` recording `recorded_as` and `command` configured.

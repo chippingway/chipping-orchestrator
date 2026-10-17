@@ -1,13 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Issue #7's settled run under a dormant finish, and what moves the attempt or the evidence records under it.
+"""Issue #7's settled run under a later finish, and what moves the attempt or the evidence records under it.
 
 The settled case (`rewrite_captured_test_support.SettledEvidenceCase`): the
 landed head's run settled under the anchor and the finish dead before
 announcing it, the run ledger charged by another road's launch
 (`settled_finish_support.charges`). A case asks one retirement primitive
-directly over a finish held to the dormant settled-evidence policy and built
-over the comment as it read (`RetirementCase.dormant`), while another finish
+directly over the finish a later recovery holds, built over the comment as it
+reads (`landed`), while another finish
 of the landing announces the head on the attempt (`announces`) or routes it,
 retiring the attempt (`routes`), or marks movement under the run in its
 handoff's place (`marks_the_run`), or another road pins an attempt of its own
@@ -75,16 +75,12 @@ def drops_the_handoff(case) -> None:
 
 
 class RetirementCase(settled_support.SettledEvidenceCase):
-    """The settled case, its run ledger charged, asked over a finish held to the dormant policy."""
+    """The settled case, its run ledger charged, asked over the finish a later recovery holds."""
 
     def setUp(self) -> None:
         settled_support.SettledEvidenceCase.setUp(self)
         settled.charges(self)
         self.artifacts_before = len(self.artifacts())
-
-    def dormant(self):
-        """The finish a later recovery holds, over the comment as it reads now, held to the policy."""
-        return settled.dormant(self.landed())
 
     def pinned(self) -> dict:
         """The record the pinned comment carries now."""

@@ -1,14 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The comment the dormant evidence phase reads afresh behind an invalidation it landed, and the attempt it reads there.
+"""The comment the evidence phase reads afresh behind an invalidation it landed, and the attempt it reads there.
 
-An invalidation a finish held to the dormant settled-evidence policy
-(`rewrite_finish_models.LandedFinish.proves_settled`) lands leaves the tick's
-state carrying what its write sent -- over the comment read afresh, or over
-the tick's own copy -- so a newer transaction of the head, or an attempt in
-place of the one the finish read, that another road writes right behind that
-write, before the invalidation returns, is one only a fresh reading finds.
-That policy's evidence phase (`rewrite_finish_settlement.resolves`) asks
+An invalidation a finish of a landed rewrite lands leaves the tick's state
+carrying what its write sent -- over the comment read afresh, or over the
+tick's own copy -- so a newer transaction of the head, or an attempt in place
+of the one the finish read, that another road writes right behind that write,
+before the invalidation returns, is one only a fresh reading finds.
+The evidence phase (`rewrite_finish_settlement.resolves`) asks
 `rechecks_behind` behind every invalidation it lands: of settled evidence its
 readiness proof read moving (`rewrite_finish_settled.stands_ready_if_settled`)
 or took under a configuration no longer in place (`invalidates_rechecked`),
@@ -38,9 +37,6 @@ land right behind (`rewrite_finish_unconfirmed.reconciles_the_abandonment`).
   evidence was read current before it.
 - `lays` lays fields of a comment read afresh over the tick's state, each
   taken in as read.
-
-No production road builds such a finish, so no production road asks any of
-these.
 """
 from __future__ import annotations
 
@@ -103,10 +99,10 @@ def stands_as_read(
 ) -> bool:
     """Whether `state` carries the attempt `attempt` captured, so movement read under it is this finish's to retire.
 
-    Unmoved; or -- for a finish held to the settled-evidence policy -- advanced
-    by its own announcement alone, the mark and the record of its event put
-    down for the landed head by a finish of this very landing
-    (`rewrite_finish_announced.advanced_by_the_announcement`), which leaves
+    Unmoved; or advanced by its own announcement alone, the mark and the
+    record of its event put down for the landed head by a finish of this very
+    landing (`rewrite_finish_announced.advanced_by_the_announcement`), which
+    leaves
     the settlement that finish made this finish's to invalidate over what its
     answer read rather than an attempt another road put in its place.
     `blank_aside` sets the base tip aside where `state` reads it blank: the
@@ -117,7 +113,7 @@ def stands_as_read(
         attempt = attempt.held_to(_UNMARKED)
     if not attempt.moved(state.data):
         return True
-    return finish.proves_settled and advanced_by_the_announcement(finish, attempt, state.data) is not None
+    return advanced_by_the_announcement(finish, attempt, state.data) is not None
 
 
 def rechecks_behind(finish: LandedFinish, receipt: str, durable: PinnedState | None = None) -> bool:
@@ -182,8 +178,7 @@ def invalidates_rechecked(finish: LandedFinish, current: _records.CurrentEvidenc
 def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit, observed) -> bool:
     """Whether the comment read afresh still carries the attempt `attempt` captured, its base tip aside where blank.
 
-    Always, with nothing read, for a finish not held to the dormant
-    settled-evidence policy. False, logged, where another attempt stands there or the comment would
+    False, logged, where another attempt stands there or the comment would
     not read, so nothing is made over an attempt not the finish's own. Where
     it stands, the bookkeeping a finish of this landing put on it meanwhile --
     the record of its relabel among it -- is taken in
@@ -203,8 +198,6 @@ def stands_afresh(finish: LandedFinish, attempt: _commit_models.PinnedCommit, ob
     attempt kept, before the route holds, so putting both back revives
     nothing.
     """
-    if not finish.proves_settled:
-        return True
     durable = read_afresh(finish)
     goes_on = durable is not None and _goes_on_over(finish, durable, observed)
     if goes_on and stands_as_read(finish, attempt, durable, blank_aside=True):
@@ -244,7 +237,7 @@ def _goes_on_over(finish: LandedFinish, durable: PinnedState, observed) -> bool:
     successor = carried is not None and carried != held
     successor = successor and carried.binding.target.target_head == finish.head
     if successor:
-        heard = _readiness._records_heard(carried, durable, settled=True)
+        heard = _readiness._records_heard(carried, durable)
         observed.observed.extend(refused for refused in heard if refused and not refused.holds)
     if all(refused.holds for refused in observed.observed[before:]):
         return True
@@ -303,7 +296,7 @@ def _revived(
     revived = current.receipt == receipt
     if current == held and not revived:
         return ""
-    heard = _readiness._records_heard(current, durable, settled=True)
+    heard = _readiness._records_heard(current, durable)
     moved = _TIP in left.moved(durable.data)
     moved = moved and not _attempt_records._recorded_onto(durable)
     moved = moved or any(refused and not refused.holds for refused in heard)

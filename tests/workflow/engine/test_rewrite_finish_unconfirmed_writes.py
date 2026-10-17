@@ -4,7 +4,7 @@
 
 The retirement case (`receipt_retirement_support`) and the captured case
 (`rewrite_captured_test_support.CapturedEvidenceCase`), each primitive asked
-directly over a finish held to the dormant settled-evidence policy. The
+directly over the finish a later recovery holds. The
 attempt a retirement whose answer was lost took off the comment is put back
 exactly as the finish read it, every other field kept, so the movement read
 under the run is still invalidated over it -- or, with no room for it, marked
@@ -14,8 +14,7 @@ beside the attempt it restored is read by the next phase as the movement it
 is, which retires the run whole. The bookkeeping an announcement whose answer was lost left on
 the attempt is taken in for the landed head alone. A settlement another
 finish made of a captured run this finish abandons is taken in and
-invalidated whole in its place, where a finish the policy does not hold
-holds over it -- and a settlement another finish made while this one's answer
+invalidated whole in its place -- and a settlement another finish made while this one's answer
 was asked is kept current where nothing but the evidence records moved, the
 phase holding where another road's attempt then stands in place of its own --
 a readable base tip other than its own among it -- having adopted that
@@ -53,7 +52,6 @@ from tests.workflow.engine import (
     rewrite_finish_moves as moves,
     rewrite_finish_readings as readings,
     rewrite_settled_moves as settled_moves,
-    settled_finish_support as settled,
     verification_evidence_test_support as support,
 )
 from tests.workflow.interleaving import _RacesPastTheStep
@@ -75,16 +73,6 @@ _ANNOUNCED = (
     (support.SQUASHED_SHA, False),
     ({"sha": settled_support.REBASED}, False),
     ([settled_support.REBASED], False),
-)
-
-
-# Whether the finish asking is held to the policy, whether the finish settling
-# the run beside its answer announces the landing too, and what two phases
-# then answer.
-_BESIDE_THE_ANSWER = (
-    (True, False, (None, None)),
-    (True, True, (None, None)),
-    (False, False, (FinishOutcome.HELD, None)),
 )
 
 
@@ -216,7 +204,7 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
         # Another road settled a newer run of the head behind that
         # retirement: nothing is put back beside the successor, and the
         # comment stays exactly as written.
-        finish = self.dormant()
+        finish = self.landed()
         self.gh.write_pinned_state(self.issue, _writes.retirement(finish))
         retirement.supersedes(self)
         written = self.pinned()
@@ -236,7 +224,7 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
         for head, taken in _ANNOUNCED:
             with self.subTest(head=head):
                 self.setUp()
-                finish = self.dormant()
+                finish = self.landed()
                 read = dict(finish.state.data)
                 retirement.announces(self, head)
                 settled_moves.writes_over(self, readings.KEY_REVIEW_ROUND, 0)
@@ -254,7 +242,7 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
         # the edit is then put back. Every later phase reads the mark as the
         # movement it is: the next retires the run whole over the attempt
         # standing as read, and the one behind it goes on with nothing current.
-        finish = self.dormant()
+        finish = self.landed()
         read = _commit_models.PinnedCommit.capture(finish.state, prerequisites=readings.ATTEMPT_KEYS)
         body = self.issue.body
         self.gh.write_pinned_state(self.issue, _writes.retirement(finish))
@@ -264,8 +252,8 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
             self.assertFalse(self.asks(_unconfirmed.stands_back, finish, self.settled))
         self.issue.body = body
         self.assert_marked()
-        retired = self.asks(_settlement_step.resolves, self.dormant())
-        again = self.asks(_settlement_step.resolves, self.dormant())
+        retired = self.asks(_settlement_step.resolves, self.landed())
+        again = self.asks(_settlement_step.resolves, self.landed())
 
         self.assertEqual((retired, again), (FinishOutcome.HELD, None))
         self.assertEqual(read.moved(self.pinned()), ())
@@ -273,8 +261,8 @@ class LostAnswerTest(retirement.RetirementCase, unittest.TestCase):
         self.assert_untouched()
 
     def _loses_the_retirement(self):
-        """A dormant finish whose retirement landed, answer lost, with another road's record and a review behind it."""
-        finish = self.dormant()
+        """A finish whose retirement landed, answer lost, with another road's record and a review behind it."""
+        finish = self.landed()
         self.gh.write_pinned_state(self.issue, _writes.retirement(finish))
         settled_moves.writes_over(self, _UNKNOWN, _UNKNOWN)
         settled_moves.reviews_again(self)
@@ -292,22 +280,18 @@ class AbandonedSettlementTest(settled_support.CapturedEvidenceCase, unittest.Tes
 
     def test_a_settlement_while_abandoning_is_retired(self) -> None:
         # Another finish settled the run after this one read it captured,
-        # and this one abandons it over a base advanced past its head: the
-        # policy takes that settlement in and invalidates it whole, so the
-        # continuation carries none of it; a finish the policy does not hold
-        # cannot abandon it and holds, the settlement left current.
-        for held, answer in ((True, None), (False, FinishOutcome.HELD)):
-            with self.subTest(held=held):
-                self.setUp()
-                finish = settled.dormant(self.landed()) if held else self.landed()
-                self._settles_elsewhere()
-                posted = support.posted_artifacts(self)
+        # and this one abandons it over a base advanced past its head: that
+        # settlement is taken in and invalidated whole, so the continuation
+        # carries none of it.
+        finish = self.landed()
+        self._settles_elsewhere()
+        posted = support.posted_artifacts(self)
 
-                self.assertEqual(self.asks(_evidence.continues, finish), answer)
+        self.assertIsNone(self.asks(_evidence.continues, finish))
 
-                self.assertEqual(support.posted_artifacts(self), posted)
-                self.assertEqual((self.verify.call_count, self.developer.call_count), (0, 0))
-                self._assert_retired(held)
+        self.assertEqual(support.posted_artifacts(self), posted)
+        self.assertEqual((self.verify.call_count, self.developer.call_count), (0, 0))
+        self._assert_retired(held=True)
 
     def test_a_settlement_beside_the_answer_is_kept(self) -> None:
         # Another finish settles the run while this one's answer re-reads the
@@ -315,14 +299,13 @@ class AbandonedSettlementTest(settled_support.CapturedEvidenceCase, unittest.Tes
         # answer is refused over the evidence records and the announcement's
         # own members alone: nothing a binding rests on moved, so the run
         # stays current as that finish settled it, its artifact posted once
-        # and nothing run. The policy takes that settlement and announcement
-        # in and goes on at once; a finish it does not hold holds once over
-        # the answer it could not make, and the next one goes on.
-        for held, announced, answers in _BESIDE_THE_ANSWER:
-            with self.subTest(held=held, announced=announced):
+        # and nothing run. That settlement and announcement are taken in and
+        # the phase goes on at once.
+        for announced in (False, True):
+            with self.subTest(announced=announced):
                 self.setUp()
 
-                self.assertEqual(self._races_the_answer(held, announced), answers)
+                self.assertEqual(self._races_the_answer(announced), (None, None))
 
                 self._assert_retired(held=False)
                 mark = readings.pinned(self).get(readings.KEY_ANNOUNCED)
@@ -345,7 +328,7 @@ class AbandonedSettlementTest(settled_support.CapturedEvidenceCase, unittest.Tes
         for case, (races, replaced, invalidated) in _REPLACED.items():
             with self.subTest(case=case):
                 self.setUp()
-                finish = self._finish(held=True)
+                finish = self.landed()
 
                 with races(self):
                     self.assertEqual(self.asks(_settlement_step.resolves, finish), FinishOutcome.HELD)
@@ -354,16 +337,12 @@ class AbandonedSettlementTest(settled_support.CapturedEvidenceCase, unittest.Tes
                 self.assertLessEqual(replaced.items(), readings.pinned(self).items())
                 self.assertLessEqual(replaced.items(), finish.state.data.items())
 
-    def _races_the_answer(self, held: bool, announced: bool) -> tuple:
+    def _races_the_answer(self, announced: bool) -> tuple:
         """Two phases, another finish settling the run -- and announcing it, where `announced` -- under the first."""
         moves = _settles_and_announces if announced else type(self)._settles_elsewhere
         with settled_moves.raced_past(self, "reread_report_location", moves):
-            first = self.asks(_settlement_step.resolves, self._finish(held))
-        return first, self.asks(_settlement_step.resolves, self._finish(held))
-
-    def _finish(self, held: bool):
-        """The finish a later recovery holds over the comment as it reads now, held to the policy where `held`."""
-        return settled.dormant(self.landed()) if held else self.landed()
+            first = self.asks(_settlement_step.resolves, self.landed())
+        return first, self.asks(_settlement_step.resolves, self.landed())
 
     def _settles_elsewhere(self) -> None:
         """Post the captured run's artifact and settle it, as another finish of the landing would."""

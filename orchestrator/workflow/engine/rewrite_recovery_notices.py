@@ -1,11 +1,9 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The notice a base rewrite's dormant recovery park says, said once however often the park is made again.
+"""The notice a base rewrite's recovery park says, said once however often the park is made again.
 
-The guarded recovery park (`rewrite_recovery_parks.lands_a_park`) posts its
-notice and files its `park_awaiting_human` event before it records the park,
-and it is dormant: no recovery context the workflow builds carries it yet, so
-nothing here is reached in production. A park recorded that way posts first, so
+Every recovery park posts its notice and files its `park_awaiting_human`
+event before it records the park (`rewrite_recovery_parks.lands_a_park`), so
 a tick lost between the two, or a record that did not land, leaves the
 attempt standing for the next tick's recovery to park again -- over a notice
 already said. Posted afresh, that notice and its event would be said twice.
@@ -15,7 +13,7 @@ ours (`parks_awaiting_human`). One found is taken in as a post of it would
 be: the issue marked awaiting a human, the watermark moved to it, and the
 comment entered in the ledger, so the park lands over it with nothing posted
 again. Its event is filed only where the event stream carries none naming
-that notice, which every park recorded this way names (`notice_id`); a stream
+that notice, which every recovery park's event does (`notice_id`); a stream
 that would not read files nothing, so nothing is filed twice. With no audit
 log the stream is this process's tail alone, so a process lost between the
 event and the park's record, and restarted, files that event once more,

@@ -1,9 +1,9 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Settled evidence a direct finish holds, continues, or parks the attempt over, proved ready before it does.
+"""Settled evidence a finish or a recovery holds, continues, or parks the attempt over, proved ready before it does.
 
-Direct finishes of the recovery's road held to the dormant settled-evidence
-policy (`settled_route_support`): issue #7's run settled and its finish
+Direct finishes of the recovery's road (`settled_route_support`), and whole
+recoveries over the same real git: issue #7's run settled and its finish
 killed at a final handoff boundary. Something the run rests on then moves
 beside whatever keeps the next finish from routing, and the finish proves the
 run first, so the movement invalidates it whole -- revision and binding kept,
@@ -15,7 +15,9 @@ unreadable pending record -- the base advance itself excused; a newer
 transaction recorded right behind that proof's invalidation, left owed as
 written beside an unfinishable landing; and the
 finish's own debt park, its notice raising or its record refused over report
-3, which abandons a captured run.
+3, which abandons a captured run. A whole recovery proves the run the same way
+before the landed road holds over a candidate head nobody could take, behind
+a stranded park's notice that raised, and around the finish's debt park.
 """
 from __future__ import annotations
 
@@ -27,38 +29,23 @@ from unittest.mock import patch
 from orchestrator.git.base_sync.rewrite_handoffs import _PushOutcome, _RewriteRefusal
 from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.git.ref_transport import _RefRead
-from orchestrator.workflow.engine import rewrite_finish_writes as _writes, verification_records as _records
-from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad
+from orchestrator.workflow.engine import verification_records as _records
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
+    held_run_support as held,
     rewrite_finish_git_support as git_support,
     rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
     rewrite_verification_recovery_support as support,
     settled_finish_support as settled,
-    settled_route_support as route,
-    verification_report_fixture as _report,
 )
-from tests.workflow.interleaving import _RacesPastTheCall, _RacesPastTheStep
-
-_EDITED_BODY = "Also cover a base that moved twice."
+from tests.workflow.interleaving import _RacesPastTheCall
 
 # A pending record no reader can take a transaction from.
 _UNREADABLE = "unreadable"
 
-# The report and review records report 3's settlement moves, as the pinned comment spells them.
-_MOVED_RECORDS = (
-    "developer_report_current",
-    "developer_report_handoff",
-    "review_subject",
-    "review_returned_subject",
-)
-
-_QUIET = "--quiet"
-
-# Room on the pinned comment for the run's history entry and the park behind
-# it, and short of the landing's report debt and the announcement it rides.
-_SHORT_OF_THE_DEBT = 250
+held.QUIET = "--quiet"
 
 # How a continuing finish goes: whether the issue is edited before it, what is
 # done to the issue while its notice is posted -- edited, or put back between
@@ -79,15 +66,6 @@ _THE_LAST_WORDS_READING = 2
 # between the proof's two readings of it.
 _NEVER = "never"
 _EDITS = (_NEVER, "before the finish", "between the proof's readings")
-
-
-def _settles_a_later_report(case: route.SettledRouteCase, head: str, replaced: list) -> None:
-    """Settle and review report 3 of `head` as another road would, keeping in `replaced` the records it moves."""
-    pinned = readings.pinned(case)
-    replaced.append({key: pinned.get(key) for key in _MOVED_RECORDS})
-    case.state = case.gh.read_pinned_state(case.issue)
-    _report.settles_report(case, 3, "Implemented the change and covered a base that moved twice.", head=head)
-    case.gh.write_pinned_state(case.issue, case.state)
 
 
 def _candidate_with(landed, part: str, **fields):
@@ -117,58 +95,7 @@ _BEHIND_THE_INVALIDATION = handoff.Boundary(
 )
 
 
-def _loses_the_answer(moves) -> None:
-    """Make `moves`, then lose the answer of the request it was made behind."""
-    moves()
-    raise RuntimeError("the answer was lost")
-
-
-class _HoldCase(route.SettledRouteCase):
-    """Issue #7's settled run, its direct finish killed, and what the attempt and the run read back as."""
-
-    def settles_then_dies(self, boundary: handoff.Boundary = handoff.BEFORE_THE_ANNOUNCEMENT) -> str:
-        """Land a reviewed rebase and settle its run, its finish killed at `boundary`; the head, the run kept."""
-        head = self.lands_a_reviewed_rebase()
-        handoff.dies_at(self.gh, boundary, partial(self.finalizes, head, FinishRoad.PUBLICATION))
-        self.settled = readings.pinned_records(self)[1]
-        return head
-
-    def writes_beside(self, key: str, record, body: str) -> tuple:
-        """Write `record` as `key` and `body` as the issue's; the record and body they replaced."""
-        state = self.gh.read_pinned_state(self.issue)
-        replaced = (key, state.get(key), self.issue.body)
-        state.set(key, record)
-        self.gh.write_pinned_state(self.issue, state)
-        self.issue.body = body
-        return replaced
-
-    def advances_without_change(self) -> None:
-        """Move the base past the head by a file added and removed, a rebase onto it changing no tree; fetched."""
-        work = self._work
-        self._git("checkout", _QUIET, "main", cwd=work)
-        (work / "transient.txt").write_text("a file the base keeps for a moment\n")
-        self._git("add", "transient.txt", cwd=work)
-        self._git("commit", _QUIET, "-m", "base adds a transient file", cwd=work, env_extra=self._author_env)
-        self._git("rm", _QUIET, "transient.txt", cwd=work)
-        self._git("commit", _QUIET, "-m", "base removes a transient file", cwd=work, env_extra=self._author_env)
-        self._git("push", _QUIET, "origin", "main", cwd=work)
-        self._git("fetch", _QUIET, "origin", cwd=self._wt)
-
-    def assert_invalidated(self, *, standing: str | None) -> None:
-        """The settled run invalidated whole, the attempt on `standing`, the run made once and nothing pushed."""
-        self.assert_retired_whole(self.settled)
-        self.assertEqual(readings.pinned(self)[readings.KEY_PENDING_PUSH], standing)
-        self.assert_made()
-
-    def assert_continued(self, head: str) -> None:
-        """`head` announced once and continued, its attempt retired and nothing relabelled."""
-        said = (support.announced(self), len(readings.notices(self)))
-        self.assertEqual(said, ([head], 1))
-        self.assertEqual(readings.relabels(self), ())
-        self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
-
-
-class HoldProofTest(_HoldCase, unittest.TestCase):
+class HoldProofTest(held.HoldCase, unittest.TestCase):
     """A finish keeping the attempt over settled evidence proves it first, so restoring what moved revives nothing."""
 
     def test_holds_out_of_step_behind_the_proof(self) -> None:
@@ -179,7 +106,7 @@ class HoldProofTest(_HoldCase, unittest.TestCase):
             with self.subTest(boundary=boundary.name):
                 self.setUp()
                 head = self.settles_then_dies(boundary)
-                kept = self.writes_beside(_records.EVIDENCE_HANDOFF, None, _EDITED_BODY)
+                kept = self.writes_beside(_records.EVIDENCE_HANDOFF, None, held.EDITED_BODY)
 
                 self.assertEqual(self.finalizes(head), FinishOutcome.HELD)
                 self.assert_invalidated(standing=self.anchor)
@@ -199,7 +126,7 @@ class HoldProofTest(_HoldCase, unittest.TestCase):
                 self.setUp()
                 head = self.settles_then_dies()
                 written = self.issue.body
-                self.issue.body = _EDITED_BODY
+                self.issue.body = held.EDITED_BODY
 
                 self.assertEqual(self.finalizes(head, alters=alters), FinishOutcome.UNFINISHABLE)
 
@@ -217,7 +144,7 @@ class HoldProofTest(_HoldCase, unittest.TestCase):
         # stands owed exactly as written beside the run invalidated whole,
         # with nothing proved, abandoned, or posted over it.
         head = self.settles_then_dies()
-        self.issue.body = _EDITED_BODY
+        self.issue.body = held.EDITED_BODY
         newer: list = []
         moving = _BEHIND_THE_INVALIDATION.moving(self.gh.edit_pinned_state, partial(self._records_beside, newer))
         unread = _UNFINISHABLE[1][1]
@@ -233,7 +160,7 @@ class HoldProofTest(_HoldCase, unittest.TestCase):
         newer.append(settled.records_a_newer_run(self, binding=self.settled.binding))
 
 
-class ContinuationProofTest(_HoldCase, unittest.TestCase):
+class ContinuationProofTest(held.HoldCase, unittest.TestCase):
     """A continuation proves the run it keeps for the rebase behind it, the base advance alone excused."""
 
     def test_a_continuation_proves_the_run(self) -> None:
@@ -271,7 +198,7 @@ class ContinuationProofTest(_HoldCase, unittest.TestCase):
                 self.setUp()
                 head = self.settles_then_dies()
                 support.advances_the_base_again(self)
-                self._git("fetch", _QUIET, "origin", cwd=self._wt)
+                self._git("fetch", held.QUIET, "origin", cwd=self._wt)
                 kept = self.writes_beside(_records.PENDING_EVIDENCE, _UNREADABLE, self.issue.body)
                 self._holds_edited(head, edited)
 
@@ -295,7 +222,7 @@ class ContinuationProofTest(_HoldCase, unittest.TestCase):
         The issue is put back as `written` right behind the retirement too,
         ahead of the rebase the caller makes behind the continuation.
         """
-        edits = partial(setattr, self.issue, "body", _EDITED_BODY)
+        edits = partial(setattr, self.issue, "body", held.EDITED_BODY)
         restores = partial(setattr, self.issue, "body", written)
         if before:
             edits()
@@ -311,7 +238,7 @@ class ContinuationProofTest(_HoldCase, unittest.TestCase):
 
     def _holds_edited(self, head: str, edited: str) -> None:
         """Finish `head` once, HELD, with the issue edited as `edited` names, the body left edited behind it."""
-        edits = partial(setattr, self.issue, "body", _EDITED_BODY)
+        edits = partial(setattr, self.issue, "body", held.EDITED_BODY)
         if edited == "before the finish":
             edits()
         reads = self.gh.get_issue
@@ -323,7 +250,7 @@ class ContinuationProofTest(_HoldCase, unittest.TestCase):
         self.issue.body = written if edited == _NEVER else self.issue.body
 
 
-class ParkNoticeProofTest(_HoldCase, unittest.TestCase):
+class ParkNoticeProofTest(held.HoldCase, unittest.TestCase):
     """A park a report moved under while its notice was posted, raised or refused, proves the run before it stops."""
 
     def test_a_debt_park_notice_proves_the_run(self) -> None:
@@ -337,12 +264,12 @@ class ParkNoticeProofTest(_HoldCase, unittest.TestCase):
             with self.subTest(raised=raises):
                 self.setUp()
                 head = self.settles_then_dies()
-                finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
-                replaced = self._settles_under_the_notice(head, raises=raises)
+                finish_moves.fills_the_comment(self, held.SHORT_OF_THE_DEBT)
+                replaced = self.settles_under_the_notice(head, raises=raises)
 
                 self.assert_invalidated(standing=self.anchor)
                 self.assertFalse(readings.pinned(self).get("awaiting_human"))
-                self._puts_back(replaced)
+                self.puts_back_records(replaced)
                 finish_moves.makes_room(self)
                 self.assertEqual(self.finalizes(head), FinishOutcome.ROUTED)
 
@@ -359,44 +286,14 @@ class ParkNoticeProofTest(_HoldCase, unittest.TestCase):
             with self.subTest(raised=raises):
                 self.setUp()
                 head, captured = self.captures()
-                finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
-                self._puts_back(self._settles_under_the_notice(head, raises=raises, restores=not raises))
+                finish_moves.fills_the_comment(self, held.SHORT_OF_THE_DEBT)
+                self.puts_back_records(self.settles_under_the_notice(head, raises=raises, restores=not raises))
 
                 self.assert_abandoned(captured)
                 finish_moves.makes_room(self)
                 self.assertEqual(self.finalizes(head), FinishOutcome.ROUTED)
                 self.assert_abandoned(captured)
                 self.assert_routed_once(head)
-
-    def _settles_under_the_notice(self, head: str, *, raises: bool, restores: bool = False) -> dict:
-        """Finish `head` with report 3 settled as a notice posts, lost where `raises`, put back where `restores`."""
-        replaced: list = []
-        moves = partial(_settles_a_later_report, self, head, replaced)
-        if raises:
-            moves = partial(_loses_the_answer, moves)
-        restored = _RacesPastTheStep(_writes.lands, partial(self._puts_back_once, replaced, restores))
-        with (
-            patch.object(self.gh, "comment", _RacesPastTheCall(self.gh.comment, 1, moves)),
-            patch.object(_writes, "lands", restored),
-        ):
-            if raises:
-                self.assertRaises(RuntimeError, self.finalizes, head)
-            else:
-                self.assertEqual(self.finalizes(head), FinishOutcome.REFUSED)
-        return replaced[0]
-
-    def _puts_back_once(self, replaced: list, restores: bool) -> None:
-        """Write back what report 3 moved, once it moved, where `restores`."""
-        if restores and replaced and replaced[-1] is not None:
-            self._puts_back(replaced[-1])
-            replaced.append(None)
-
-    def _puts_back(self, recorded: dict) -> None:
-        """Write the report and review records back as `recorded` kept them, before report 3 moved them."""
-        state = self.gh.read_pinned_state(self.issue)
-        for key, kept in recorded.items():
-            state.set(key, kept)
-        self.gh.write_pinned_state(self.issue, state)
 
 
 if __name__ == "__main__":

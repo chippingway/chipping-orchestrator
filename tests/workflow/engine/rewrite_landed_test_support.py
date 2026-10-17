@@ -78,11 +78,11 @@ class _LosesTheEdit:
         self._key = key
         self._blank = blank
 
-    def __call__(self, issue, state, *, over):
+    def __call__(self, issue, state, *, over, **options):
         """Lose the write that sends the key as this edit loses it, and send every other."""
         if (state.get(self._key) is None) == self._blank:
             raise RuntimeError(DIED)
-        return self._edit(issue, state, over=over)
+        return self._edit(issue, state, over=over, **options)
 
 
 def _before_the_mark(case):

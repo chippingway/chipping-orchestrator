@@ -1,11 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A successor another road settles right behind a dormant recovery proof's invalidation of the run, proved on its own.
+"""A successor another road settles right behind a recovery proof's invalidation of the run, proved on its own.
 
 The guarded recovery case (`guarded_recovery_support`): issue #7's run
 settled and its finish killed before its announcement, the recovery context
-read off the comment handed straight to the dormant proof before a park or
-the dormant guarded park (`rewrite_recovery_parks`), as a recovery road would.
+read off the comment handed straight to the proof before a park or the
+guarded park (`rewrite_recovery_parks`), as a recovery road does.
 
 - Over a reset already recorded by blanking the base tip, a newer run settled
   right behind the run's invalidation, the tip put back behind the next
@@ -40,7 +40,7 @@ from tests.workflow.engine import (
 # A requirement added to the issue body, which moves every binding taken under the requirements before it.
 _ADDED_REQUIREMENT = "\n\n- Also cover a base the reset recorded."
 
-# The park a case hands the dormant guarded park.
+# The park a case hands the guarded park directly.
 _PARKS = partial(_parks.lands_a_park, message="The auto rebase needs a human.", reason="auto_base_rebase_push_failed")
 
 

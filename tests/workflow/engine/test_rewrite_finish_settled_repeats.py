@@ -1,8 +1,8 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A landed rewrite finished again and again under the dormant settled-evidence policy, saying and making all once.
+"""A landed rewrite finished again and again, saying and making all once.
 
-Direct finishes held to the dormant settled-evidence policy
+Direct finishes through the coordinator every road hands its landing to
 (`settled_route_support`): issue #7's run settled beside another road's
 charged run ledger, its finish killed at each final handoff boundary -- the
 relabel's own record among them -- nothing the run rests on moving. The next
@@ -38,7 +38,7 @@ class RepeatedFinishTest(route.SettledRouteCase, unittest.TestCase):
         # The run stays current whole beside the evidence the rewrite moved
         # past, posted once, and a transaction another road records for the
         # head behind the route is left owed and unposted.
-        for boundary in handoff.DORMANT_BOUNDARIES:
+        for boundary in handoff.BOUNDARIES:
             with self.subTest(boundary=boundary.name):
                 self.setUp()
                 head, run = self._routes_behind(boundary)

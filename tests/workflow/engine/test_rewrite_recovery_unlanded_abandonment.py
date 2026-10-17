@@ -20,11 +20,12 @@ abort's park writes, so it goes in the very write that releases the attempt --
 whatever a comment read of the abandonment's own would have answered, and
 whether or not the attempt's record names its replay yet, since the receipt
 the finish put on the attempt beside the run is what says it is the finish's --
-or, where that write does not land, neither goes and the attempt still guards
-the run. The park's notice goes out ahead of that write, so it says the write
-drops the attempt rather than that it is gone, whether the write is then
-refused or lands with its answer lost. Nothing runs, pushes, or announces
-again, and no developer is launched.
+or, where that write is refused, the attempt still stands while the run,
+proved again behind the refusal over the reset recorded ahead of it, is
+abandoned in a write of its own. The park's notice goes out ahead of that
+write, so it says the write drops the attempt rather than that it is gone,
+whether the write is then refused or lands with its answer lost. Nothing runs,
+pushes, or announces again, and no developer is launched.
 """
 from __future__ import annotations
 
@@ -107,14 +108,24 @@ _REPLAYS = (("named", None), ("not yet named", _unnames_the_replay))
 # first: refused outright, or landed with its answer lost.
 _UNCONFIRMED = (("refused", False), ("landed, its answer lost", True))
 
+_AWAITING = "awaiting_human"
+
 # What the notice says of the attempt a landed reset releases.
 _RELEASED_BY_THE_WRITE = "is dropped by the pinned-state write that records this park, and still stands"
 
 
-def _writes_then_dies(write, *called, **options) -> None:
-    """Land a whole pinned-state write, then die before its answer comes back."""
-    write(*called, **options)
-    support.dies()
+def _answers_the_park(edit, lands: bool, issue, state, **options) -> PinnedEdit:
+    """`edit`, the client's strict edit, answering the park's record as refused -- or, where it `lands`, as lost.
+
+    The park's record is the edit flagging the issue awaiting a human over a
+    comment that does not; every other edit is answered as it always is.
+    """
+    if not state.get(_AWAITING) or options["over"].get(_AWAITING):
+        return edit(issue, state, **options)
+    if not lands:
+        return PinnedEdit.MOVED
+    edit(issue, state, **options)
+    return PinnedEdit.UNCONFIRMED
 
 
 class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
@@ -147,7 +158,7 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
             lambda _case, original: original, edit=PinnedEdit.MOVED,
         )
 
-        self.assertFalse(readings.pinned(self).get("awaiting_human"))
+        self.assertFalse(readings.pinned(self).get(_AWAITING))
         self.assert_held(captured)
         _puts_the_checkout_on(self, head)
         self.reconciles()
@@ -181,10 +192,11 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
         # The fetch fails and the abort's reset lands, and the write recording
         # its park is refused, or lands with its answer lost. The notice posted
         # ahead of that write says the write drops the attempt, never that it
-        # is gone. Refused, neither the abandonment nor the release is
-        # written, so the attempt still guards the run -- the reconciliation
-        # leaves it be even with the checkout put back -- and landed, both
-        # went together.
+        # is gone. Refused, the release is not written, so the attempt still
+        # stands, but the reset recorded ahead of it is movement the proof
+        # behind the refusal reads: the run is abandoned in a write of its
+        # own, and the reconciliation settles nothing even with the checkout
+        # put back. Landed, both went together.
         for unconfirmed, lands in _UNCONFIRMED:
             with self.subTest(write=unconfirmed):
                 head, captured, notice = self._parks_unconfirmed(lands=lands)
@@ -192,11 +204,10 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
                 self.assertIn(_RELEASED_BY_THE_WRITE, notice)
                 if lands:
                     self._assert_released(captured)
-                else:
-                    self.assert_held(captured)
-                    _puts_the_checkout_on(self, head)
-                    self.reconciles()
-                    self.assertEqual(readings.pinned_records(self)[:2], (captured, None))
+                    continue
+                _puts_the_checkout_on(self, head)
+                self.reconciles()
+                self._assert_released(captured, attempt=self.anchor)
 
     def _parks_unconfirmed(self, *, lands: bool) -> tuple:
         """A fresh case's captured run, recovered behind a failed fetch with its park's write going wrong.
@@ -206,10 +217,10 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
         """
         self.setUp()
         head, captured = self.captures()
-        write = partial(_writes_then_dies, self.gh.write_pinned_state) if lands else support.dies
+        edit = partial(_answers_the_park, self.gh.edit_pinned_state, lands)
         with (
             patch.object(branch_transport, "_authed_fetch", return_value=_UNFETCHED),
-            patch.object(self.gh, "write_pinned_state", side_effect=write),
+            patch.object(self.gh, "edit_pinned_state", side_effect=edit),
         ):
             self.recovers()
         return head, captured, self.gh.posted_comments[-1][1]
@@ -232,13 +243,16 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
             self.recovers()
         return head, captured
 
-    def _assert_released(self, captured) -> None:
-        """`captured` abandoned and the attempt cleared, with nothing announced, pushed, launched, or run again."""
+    def _assert_released(self, captured, *, attempt: str | None = None) -> None:
+        """`captured` abandoned and the attempt cleared, or still on `attempt`, with nothing announced or made again.
+
+        Nothing announced, pushed, launched, or run again.
+        """
         recorded = readings.pinned_records(self)
-        attempt = readings.pinned(self)[readings.KEY_PENDING_PUSH]
+        anchored = readings.pinned(self)[readings.KEY_PENDING_PUSH]
         self.assertEqual(
-            (recorded[0], recorded[2][-1], attempt),
-            (None, (captured.receipt, readings.ABANDONED), None),
+            (recorded[0], recorded[2][-1], anchored),
+            (None, (captured.receipt, readings.ABANDONED), attempt),
         )
         said = (support.announced(self), self.pushes.call_count, self.developer.call_count)
         self.assertEqual(said, ([], 0, 0))

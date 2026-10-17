@@ -17,22 +17,21 @@ GitHub accepts. It is measured on the comment as it stands as well, since a
 round wider than everything the announcement adds makes that write the
 narrower of the two, and a debt the comment cannot take now is one the route
 would otherwise go on without. A finish whose announcement is already out
-measures on the comment as it stands alone. A finish held to the dormant
-settled-evidence policy that routes its head (`rewrite_finish_models.routes_a_relabel`) --
-a continuation relabels nothing -- measures beside both the record of the relabel its
-route lands behind them (`rewrite_finish_announced.relabels_once`), since that
-record is written too before the retirement clears; the coordinator reserves
-it again on the checkpoint it prepares over the fresh comment
-(`rewrite_finish._checkpoints`). A proved debt short of either
-room stops the finish before it says anything: the caller parks for a human
-to make room (`unrecorded`), with the push kept and the attempt standing. A
-finish held to the dormant settled-evidence policy asks first whether that
-park already stands -- unless a reply it was handed answers it -- or its
-notice was said, past the watermark or that reply, ahead of a park write that
-did not land (`noticed`) -- holding where the conversation would not read --
-and files the event of a park said that way, naming the landed head and the
-notice, only where the event stream does not carry that park's own
-(`files_the_park`), so it is neither said nor filed twice.
+measures on the comment as it stands alone. A finish that routes its head
+(`rewrite_finish_models.routes_a_relabel`) -- a continuation relabels nothing
+-- measures beside both the record of the relabel its route lands behind them
+(`rewrite_finish_announced.relabels_once`), since that record is written too
+before the retirement clears; the coordinator reserves it again on the
+checkpoint it prepares over the fresh comment (`rewrite_finish._checkpoints`).
+A proved debt short of either room stops the finish before it says anything:
+the caller parks for a human to make room (`unrecorded`), with the push kept
+and the attempt standing. The finish asks first whether that park already
+stands -- unless a reply it was handed answers it -- or its notice was said,
+past the watermark or that reply, ahead of a park write that did not land
+(`noticed`) -- holding where the conversation would not read -- and files
+the event of a park said that way, naming the landed head and the notice,
+only where the event stream does not carry that park's own (`files_the_park`),
+so it is neither said nor filed twice.
 
 A standing claim the rewrite cannot be carried onto -- another pull request or
 branch, a head somebody else pushed in between, a claim nobody can read -- is
@@ -92,11 +91,11 @@ def announcement(state: PinnedState, head: str, *, announced: bool = False, rela
     notice it follows, reserved at the widest id a comment is recorded at, the
     record of its event -- which the write ahead of the event lands on its own
     too -- the round reset ahead of the mark, and the mark; none of it where
-    the mark is `announced` already. `relabels`, for a finish held to the
-    dormant settled-evidence policy that routes its head
-    (`rewrite_finish_models.routes_a_relabel`), adds the record of the
-    relabel its route makes behind them (`rewrite_finish_announced.relabels_once`). The
-    retirement past them only clears, so none of them carries more.
+    the mark is `announced` already. `relabels`, for a finish that routes its
+    head (`rewrite_finish_models.routes_a_relabel`), adds the record of the
+    relabel its route makes behind them
+    (`rewrite_finish_announced.relabels_once`). The retirement past them only
+    clears, so none of them carries more.
     """
     written = PinnedState(state_data=copy.deepcopy(state.data))
     if not announced:
@@ -156,11 +155,11 @@ def unrecorded(finish: LandedFinish) -> str:
 def noticed(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | int | None:
     """Where the park a debt with no room takes stands for `finish` already: what to stop at, a notice said, or None.
 
-    For a finish held to the dormant settled-evidence policy, so a park is
-    neither said nor filed twice. A reply the finish was handed that the
-    watermark has not passed answers the park standing, so only a notice said
-    behind that reply counts: a park made over it before that never landed
-    is found there, and a reply newer than every notice parks anew. With no
+    So a park is neither said nor filed twice. A reply the finish was handed
+    that the watermark has not passed answers the park standing, so only a
+    notice said behind that reply counts: a park made over it before that
+    never landed is found there, and a reply newer than every notice parks
+    anew. With no
     such reply, PARKED where the tick's state carries the park standing:
     nothing is posted, filed, or written again. HELD, logged, where the
     issue's conversation would not read: nobody can say whether its notice

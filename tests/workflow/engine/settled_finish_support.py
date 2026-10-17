@@ -1,18 +1,17 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A finish held to the dormant settled-evidence policy, asked directly, and the run ledger charged.
+"""A landed rewrite's finish asked directly, and the run ledger charged.
 
-No production road selects the policy (`rewrite_finish_models.LandedFinish.proves_settled`),
-so a case builds the finish itself over the pinned comment read afresh
-(`dormant`) and asks one of the policy's primitives directly -- or, over the
+A case builds the finish itself over the pinned comment read afresh and asks
+one of the settled-evidence policy's primitives directly -- or, over the
 candidate git reads out of the checkout too, the evidence phase
 (`rewrite_finish_settlement.resolves`) or another of the policy's steps
-(`SettledRunCase.asks_dormant`), with nothing behind it to announce, relabel,
+(`SettledRunCase.asks_directly`), with nothing behind it to announce, relabel,
 park, or retire the attempt -- or the whole coordinator
 (`SettledRunCase.finalizes`), on either road, which does all of that
-(`settled_route_support`). Every production road the case drives besides --
-a whole refresh, or a finish built without the policy -- keeps the policy
-every road selects. `SettledRunCase` holds the push transport and the agent
+(`settled_route_support`) -- the same policy every production road a case
+drives besides, a whole refresh among them, holds its finish to.
+`SettledRunCase` holds the push transport and the agent
 runner to the case's recorders for the whole test, so a push or a launch a
 direct finish made is counted as one a refresh made would be. Beside it,
 `records_a_newer_run` races a settlement as another road would,
@@ -63,18 +62,13 @@ _CHARGED = MappingProxyType({
 })
 
 
-def dormant(finish: LandedFinish) -> LandedFinish:
-    """`finish` held to the dormant settled-evidence policy."""
-    return replace(finish, proves_settled=True)
-
-
-def _handed_dormant(step, finish: LandedFinish, alters=None, retry: int | None = None):
-    """What `step` answers handed `finish` held to the policy (`dormant`).
+def _handed(step, finish: LandedFinish, alters=None, retry: int | None = None):
+    """What `step` answers handed `finish`.
 
     That finish spends `retry`, and its landing is the one `alters`, where
     given, hands back for the landing git read.
     """
-    held = replace(dormant(finish), retry=retry)
+    held = replace(finish, retry=retry)
     if alters is not None:
         held = replace(held, landed=alters(held.landed))
     return step(held)
@@ -146,21 +140,21 @@ class SettledRunCase(_support.CapturedRunCase):
         self.enterContext(patch.object(_agent_runner, "run_agent", self.developer))
 
     def resolves(self, head: str) -> FinishOutcome | None:
-        """The evidence phase of a recovery's finish of `head` (`asks_dormant`)."""
-        return self.asks_dormant(_settlement_step.resolves, head)
+        """The evidence phase of a recovery's finish of `head` (`asks_directly`)."""
+        return self.asks_directly(_settlement_step.resolves, head)
 
-    def asks_dormant(self, step, head: str):
-        """What `step` answers for a recovery's finish of `head` held to the policy, over the comment read now."""
-        return self.finishes(head, FinishRoad.RECOVERY, asks=partial(_handed_dormant, step))
+    def asks_directly(self, step, head: str):
+        """What `step` answers for a recovery's finish of `head`, over the comment read now."""
+        return self.finishes(head, FinishRoad.RECOVERY, asks=partial(_handed, step))
 
     def finalizes(self, head: str, road: FinishRoad = FinishRoad.RECOVERY, alters=None, retry=None) -> FinishOutcome:
-        """The coordinator's answer for `road`'s finish of `head` held to the policy, over the comment read now.
+        """The coordinator's answer for `road`'s finish of `head`, over the comment read now.
 
         The publication pins its attempt first, as `finishes` has it. `alters`,
         where given, is handed the landing git reads and returns the one the
         finish is handed in its place; `retry` is the reply the finish spends.
         """
-        asks = partial(_handed_dormant, _finish.finalizes, alters=alters, retry=retry)
+        asks = partial(_handed, _finish.finalizes, alters=alters, retry=retry)
         return self.finishes(head, road, asks=asks)
 
     def assert_phase_left(self, *heads: str) -> None:

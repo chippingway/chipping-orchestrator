@@ -1,12 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A successor settled around a dormant finish's relabel, proved on its own binding and no other evidence's.
+"""A successor settled around a finish's relabel, proved on its own binding and no other evidence's.
 
-Direct finishes held to the dormant settled-evidence policy
-(`settled_route_support`): issue #7's reviewed rebase, its run settled under
-the anchor and its finish killed before its announcement, so the next finish
-routes the head. Four successors another road settles bound to records of
-their own:
+Direct finishes of the landing (`settled_route_support`): issue #7's reviewed
+rebase, its run settled under the anchor and its finish killed before its
+announcement, so the next finish routes the head. Four successors another road
+settles bound to records of their own:
 
 - With the run taken off the comment, so nothing is current for the head, a
   newer run bound to the run's own records is settled as the relabel's
@@ -233,7 +232,7 @@ def _succeeds_then_raises(case, run, settled: list, *_labelled, **_correlation) 
 
 
 class RelabelSuccessorTest(route.SettledRouteCase, unittest.TestCase):
-    """A successor settled around a dormant finish's relabel answers for its own binding alone."""
+    """A successor settled around a finish's relabel answers for its own binding alone."""
 
     def test_a_blank_tip_disproves_a_lone_successor(self) -> None:
         # Nothing is current for the head, and the recheck reads a newer run

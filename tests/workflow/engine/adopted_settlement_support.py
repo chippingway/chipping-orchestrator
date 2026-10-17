@@ -9,8 +9,8 @@ artifact: the settlement alone over the artifact just posted
 written with the records beside it out of step -- a newer transaction
 recorded and retired, spending a revision past the run
 (`spends_a_revision_past`), or the handoff that names the run dropped
-(`drops_the_handoff`). The evidence phase and the whole coordinator under the
-dormant settled-evidence policy are both asked over these.
+(`drops_the_handoff`). The evidence phase and the whole coordinator are both
+asked over these.
 """
 from __future__ import annotations
 

@@ -93,9 +93,18 @@ refuses stops the finish there with nothing behind it made:
   tick lost between them back, to the mark this finish left and the evidence
   it settled. The retirement is decided on every record the evidence is
   bound through, so a report or review another road moved after the evidence
-  was decided or settled refuses the route rather than riding it. An issue
-  already on `workflow:validating` under its own mark is not relabelled
-  again.
+  was decided or settled refuses the route rather than riding it. The
+  relabel lands behind a record of its own on the attempt
+  (`pending_auto_base_rebase_relabelled`, `rewrite_finish_announced`), and an
+  issue on `workflow:validating` beside that record is not relabelled again --
+  one already on `workflow:validating` before its rebase, with no record, is,
+  as an uninterrupted route would relabel it. Beside a record on an issue that
+  already wore that label, the audit log, where one is configured, says
+  whether the relabel behind the record was made, by the stage-entry event the
+  relabel names the head on; with none it is read as made, so it is made once
+  at most. A relabel onto that label that raised before filing its
+  stage-entry event takes its record back off, and the debt is measured
+  beside that record too.
 
 A tick lost anywhere in that tail -- behind the evidence it settled, retired,
 or left to the fresh reviewer and before the announcement, between the
@@ -104,11 +113,12 @@ relabel, or behind the relabel and before the retirement -- leaves the
 attempt standing, so the anchor holds every handler until a later finish
 discharges what it still owes. That finish takes the evidence up where the
 records leave it and reads the rest off the mark, the pull request, the event
-stream, and the label: a head the mark already names gets no second notice,
-`base_rebased` event, or round reset, a notice found on the pull request or
-an event found on the stream with no mark beside them is not said again, and
-an issue already relabelled under the mark gets no second relabel or
-stage-entry event.
+stream, the relabel's record, and the label: a head the mark already names
+gets no second notice, `base_rebased` event, or round reset, a notice found
+on the pull request or an event found on the stream with no mark beside them
+is not said again, and an issue whose relabel for the head is recorded beside
+its label gets no second relabel or stage-entry event, with no event log
+needed.
 
 Run under the issue writer claim the caller already holds -- the base refresh
 (`base_refresh`) takes it before the issue is read and keeps it through the
@@ -127,16 +137,13 @@ process that died behind the push, before its commands ran or before their
 result was recorded -- is completed by the recovery of a push already landed,
 from what the pinned record says it made.
 
-That is the policy every one of those roads hands over. Beside it stands a
-dormant one over the same order, which a caller selects only by building the
-finish with `rewrite_finish_models.LandedFinish.proves_settled` and handing it
-to `finalizes` directly; no production road does. Its evidence phase is
-`rewrite_finish_settlement.resolves` held to that policy, and each step of the
-coordinator the two differ in is taken where both are answered
-(`rewrite_finish_settled`, `rewrite_finish_stops`, `rewrite_finish_announced`,
-`rewrite_finish_writes`). It proves settled evidence ready again, and
-invalidates it into history whole wherever anything it is bound to moved
-since it settled (`rewrite_finish_readiness`):
+Every one of those roads holds the finish to the settled-evidence policy,
+whose evidence phase is `rewrite_finish_settlement.resolves` and whose steps
+around the coordinator's writes are taken beside it (`rewrite_finish_settled`,
+`rewrite_finish_stops`, `rewrite_finish_announced`, `rewrite_finish_writes`).
+It proves settled evidence ready again, and invalidates it into history whole
+wherever anything it is bound to moved since it settled
+(`rewrite_finish_readiness`):
 
 - before every route, out-of-step hold, unfinishable landing beside a
   standing attempt, continuation, and debt park, and again behind every stop
@@ -154,31 +161,20 @@ since it settled (`rewrite_finish_readiness`):
   another finish's route or another road took the attempt, over the comment
   as it stands (`rewrite_finish_marks`), the route held.
 
-Its relabel lands behind a record of its own on the attempt
-(`pending_auto_base_rebase_relabelled`, `rewrite_finish_announced`), the
-debt measured beside that record too, and an issue on `workflow:validating`
-beside that record is not relabelled again -- one already on
-`workflow:validating` before its rebase, with no record, is, as an
-uninterrupted route would relabel it. Beside a record on an issue that
-already wore that label, the audit log, where one is configured, says
-whether the relabel behind the record was made, by the stage-entry event the
-relabel names the head on; with none it is read as made, so it is made once
-at most. A relabel onto that label that raised before filing its stage-entry
-event takes its record back off.
-
-A finish under that policy announces nothing for a head another finish of
-the landing marked meanwhile, relabels nothing another one relabelled for
-that head, holds where the label or the event stream would not read again or
-another attempt stands behind the proof ahead of its relabel -- settled
-evidence that proof's fresh reading records moving invalidated first --
-proves the evidence the comment carries behind a relabel that raised, a
-successor another road settled meanwhile on its own binding, reuses a debt
-park standing that no reply handed in answers, parks over a notice said
-behind a reply it is handed again, leaves a transaction another road recorded behind its
+A finish announces nothing for a head another finish of the landing marked
+meanwhile, relabels nothing another one relabelled for that head, holds where
+the label or the event stream would not read again or another attempt stands
+behind the proof ahead of its relabel -- settled evidence that proof's fresh
+reading records moving invalidated first -- proves the evidence the comment
+carries behind a relabel that raised, a successor another road settled
+meanwhile on its own binding, reuses a debt park standing that no reply
+handed in answers, parks over a notice said behind a reply it is handed
+again, leaves a transaction another road recorded behind its
 unfinishable proof or its stopped announcement owed as written, and --
 finding the attempt retired or replaced -- reads nothing more than evidence
 an earlier finish marked moving, which it retires whole once room is made.
-So repeated direct finishes say and make everything once: one notice,
+So repeated finishes say and make everything once, whichever road reaches
+them and wherever a tick between them died: one notice,
 `base_rebased` event, park notice and `park_awaiting_human` event, round
 reset, relabel, stage-entry event, artifact, and settlement, nothing pushed,
 run again, or launched, and the run ledger as another road charged it.
@@ -214,7 +210,6 @@ from orchestrator.workflow.engine.verification_proof import ProofReading
 log = logging.getLogger("orchestrator.workflow")
 
 
-
 def finalizes(finish: LandedFinish) -> FinishOutcome:
     """Finish the route behind `finish`'s landing, at most once; what it came to.
 
@@ -224,11 +219,10 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     beside a transaction an earlier finish captured for its head, so that
     transaction is proved again first and abandoned where anything it rests
     on moved (`rewrite_finish_stops.unfinishable`): putting what moved back
-    before a later finish revives nothing. A finish held to the dormant
-    settled-evidence policy (`LandedFinish.proves_settled`) proves settled
-    evidence ready there first while its attempt stands, and reads nothing
-    more where that attempt is retired or replaced, save evidence carrying
-    the mark of movement an earlier finish recorded under its receipt.
+    before a later finish revives nothing. Settled evidence is proved ready
+    there first while the attempt stands, and nothing more is read where that
+    attempt is retired or replaced, save evidence carrying the mark of
+    movement an earlier finish recorded under its receipt.
     """
     if not _finishable(finish):
         return _stops.unfinishable(finish)
@@ -237,7 +231,7 @@ def finalizes(finish: LandedFinish) -> FinishOutcome:
     if stopped is not None:
         return stopped
     headed = FinishOutcome.CONTINUED if finish.behind else FinishOutcome.ROUTED
-    return _routes(finish, headed, announced=announced)
+    return _routes(finish, headed)
 
 
 def finishes_the_recovery(context: _AutoRebaseRecoveryContext, landing: _LandedRewrite) -> bool:
@@ -328,20 +322,18 @@ def _checkpoints(finish: LandedFinish, observed: ProofReading, *, announced: boo
     Asked once the landed head's evidence is resolved (`_resolves`), so a
     notice, an event, and a round reset are never made for a head whose
     evidence is still owed to its pull request. Measured on the announcement
-    the debt rides, or -- where the mark already
-    names this head -- on the comment as it stands, for a finish held to the
-    dormant settled-evidence policy that routes its head beside the record of
-    the relabel its route makes behind it either way
-    (`rewrite_finish_debt.announcement`), and
-    landed there only where it is a claim the comment does not carry yet. An announcement is
+    the debt rides, or -- where the mark already names this head -- on the
+    comment as it stands, for a finish that routes its head beside the record
+    of the relabel its route makes behind it either way
+    (`rewrite_finish_debt.announcement`), and landed there only where it is a
+    claim the comment does not carry yet. An announcement is
     prepared over the fresh comment before its notice is posted, the entry
     the notice adds to the ledger reserved over the one that comment carries
     rather than over the tick's: an id the tick's ledger lacks may be one
     another road has recorded since, and reserved there it is no room at all.
-    A finish held to the dormant settled-evidence policy that routes its head
-    (`rewrite_finish_models.routes_a_relabel`) reserves the record of the relabel its route
-    lands behind the checkpoint there too -- a continuation, relabelling
-    nothing, reserves none -- so a
+    A finish that routes its head (`rewrite_finish_models.routes_a_relabel`)
+    reserves the record of the relabel its route lands behind the checkpoint
+    there too -- a continuation, relabelling nothing, reserves none -- so a
     comment another road filled since the tick read it, with room for the
     checkpoint and none for that record, posts and files nothing.
     Both of the announcement's writes are prepared before its notice: the
@@ -399,17 +391,18 @@ def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     abandoned before its continuation is announced
     (`rewrite_finish_evidence.continues`), and an abandonment that did not
     land holds it the same way, as does a record another road left unresolved
-    beside the evidence this landing already resolved. A debt the comment has no room for runs and
-    records nothing ahead of the park it takes (`rewrite_finish_debt.fits`).
+    beside the evidence this landing already resolved. A debt the comment has
+    no room for runs and records nothing ahead of the park it takes
+    (`rewrite_finish_debt.fits`).
     A checkpoint that did not land, or the park, stops the route behind the
     last word over a transaction still recorded for the head.
 
-    A finish held to the dormant settled-evidence policy proves evidence an
-    earlier finish settled, or a transaction it captured, ready ahead of that
-    park too (`rewrite_finish_stops.ahead_of_the_park`), announces nothing for
-    a head another finish of the landing marked meanwhile
+    Evidence an earlier finish settled, or a transaction it captured, is
+    proved ready ahead of that park too
+    (`rewrite_finish_stops.ahead_of_the_park`), nothing is announced for a
+    head another finish of the landing marked meanwhile
     (`rewrite_finish_announced.marked`), and behind a checkpoint, an event
-    record, or a park that did not land or raised proves it once more,
+    record, or a park that did not land or raised it is proved once more,
     invalidated over a binding record a refusal read moved, that refusal
     handed to the last word as its proof
     (`rewrite_finish_stops.behind_the_announcement`), so a record put back
@@ -427,13 +420,12 @@ def _resolves(finish: LandedFinish, *, announced: bool) -> FinishOutcome | None:
     try:
         stopped = _checkpoints(finish, observed, announced=marked(finish, already=announced))
     except Exception:
-        if finish.proves_settled:
-            _stops.behind_the_announcement(finish, FinishOutcome.UNCONFIRMED, observed)
+        _stops.behind_the_announcement(finish, FinishOutcome.UNCONFIRMED, observed)
         raise
     return _stops.behind_the_announcement(finish, stopped, observed)
 
 
-def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> FinishOutcome:
+def _routes(finish: LandedFinish, headed: FinishOutcome) -> FinishOutcome:
     """Retire the attempt and take the route `headed` names; `headed`, or where the write behind it stopped.
 
     The retirement is prepared before the relabel and lands behind it, so a
@@ -447,22 +439,22 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     the attempt standing, for the recovery of the push already landed to
     route the head on a later tick over evidence it settles nothing for again.
 
-    A finish held to the dormant settled-evidence policy proves the evidence
-    ready again on the way (`rewrite_finish_settled.stands_ready_if_settled`):
-    ahead of the relabel and behind it, where a routed head with none current
-    is held to its replay's base tip -- or, with none recorded, to the base
-    the tick counted it against -- and a continuation's base advance excused;
-    behind a relabel that raised; and behind a retirement that did not land,
-    invalidated over a binding record its refusal read moved, or over the
-    attempt put back where a retirement nobody confirmed took it
+    The evidence is proved ready again on the way
+    (`rewrite_finish_settled.stands_ready_if_settled`): ahead of the relabel
+    and behind it, where a routed head with none current is held to its
+    replay's base tip -- or, with none recorded, to the base the tick counted
+    it against -- and a continuation's base advance excused; behind a relabel
+    that raised; and behind a retirement that did not land, invalidated over a
+    binding record its refusal read moved, or over the attempt put back where a
+    retirement nobody confirmed took it
     (`rewrite_finish_stops.behind_the_write`). The relabel itself
     (`rewrite_finish_stops.relabels`) is decided on the mark the attempt
     carries now, the relabel's own record, and the label read afresh
     (`rewrite_finish_announced.relabelled`), and once more behind the proof
     ahead of it, so one another finish of the landing made meanwhile -- even
     while that proof was answered -- is not made again, nor its stage-entry
-    event; a label nobody could read, or a comment read again behind that
-    proof that carries another attempt or will not read, holds the route, the
+    event; a label nobody could read, or a comment read again behind that proof
+    that carries another attempt or will not read, holds the route, the
     evidence proved ready once more. Its record lands ahead of it as a guarded
     write of its own (`rewrite_finish_writes.RELABEL`), whose refusal the
     evidence is proved behind as behind any other write. Movement the
@@ -470,11 +462,11 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     successor the tick took in off its own binding among it -- invalidates the
     evidence right there, ahead of the relabel, so the restoration of what
     moved before the relabel's recheck reads the comment revives nothing
-    (`rewrite_finish_stops.behind_the_write`). The retirement then
-    lands under a reading of its own (`rewrite_finish_stops.observing`),
-    captured behind the relabel over the evidence the tick holds by then, so
-    movement the relabel's recheck read under evidence it invalidated --
-    answered there -- is never charged to a successor adopted in its place.
+    (`rewrite_finish_stops.behind_the_write`). The retirement then lands under
+    a reading of its own (`rewrite_finish_stops.observing`), captured behind
+    the relabel over the evidence the tick holds by then, so movement the
+    relabel's recheck read under evidence it invalidated -- answered there --
+    is never charged to a successor adopted in its place.
     """
     observed = _stops.observing(finish)
     stopped = _writes.prepares(finish, _writes.retirement(finish), _writes.FINISH, observed)
@@ -482,7 +474,7 @@ def _routes(finish: LandedFinish, headed: FinishOutcome, *, announced: bool) -> 
     if stopped is not None:
         return stopped
     routed = headed is FinishOutcome.ROUTED
-    stopped = _stops.relabels(finish, observed, announced=announced) if routed else None
+    stopped = _stops.relabels(finish, observed) if routed else None
     stopped = stopped or _settled.stands_ready_if_settled(finish, or_the_base=routed)
     if stopped is not None:
         return stopped

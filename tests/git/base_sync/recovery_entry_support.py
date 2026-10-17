@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from orchestrator.git.base_sync import models as _models
 from orchestrator.workflow.engine import rewrite_recovery as _rewrite_recovery
+from tests.support.fakes import FakeLabel
 
 # The pull request every fixture here pins its issue to, and the field the
 # anchor an attempt pins before git runs is read back from.
@@ -25,8 +26,11 @@ def resumed(fixture, label: str) -> _models._AutoRebaseDecision:
     The anchor is read off the pinned comment as the coordinator reads it, so
     a tick after a finish or a rollback that retired the attempt finds nothing
     to recover. The replay is already on the advanced base, so nothing is
-    behind it, and no human reply brought it back.
+    behind it, and no human reply brought it back. The issue wears `label`
+    too, as the tick read it, since a finish reads the label again before it
+    relabels anything.
     """
+    fixture.issue.labels = [FakeLabel(label)]
     state = fixture.gh.read_pinned_state(fixture.issue)
     return _rewrite_recovery.decides(
         _models._AutoRebaseContext(

@@ -13,7 +13,7 @@ one pull request is always a later revision. What has been spent is read off
 the revision floor every record raises in its own write, and off every
 readable record beside it: a record can be damaged, dropped, or evicted from
 the bounded history after its artifact landed, and the floor outlives it.
-A finish held to the dormant settled-evidence policy raises it too, one past
+A landed rewrite's finish raises it too, one past
 current evidence it read moving where nothing else has room to record that
 movement (`rewrite_finish_outranking.spends_past`), and where even that has no
 room takes off a floor showing nothing past that evidence to retire it whole

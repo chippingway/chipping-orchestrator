@@ -1,15 +1,15 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Another finish's settlement under the dormant evidence phase's own writes, told by what moved beside it.
+"""Another finish's settlement under the evidence phase's own writes, told by what moved beside it.
 
 The retirement case (`receipt_retirement_support`) and the captured case
 (`rewrite_captured_test_support.CapturedEvidenceCase`), the evidence phase
-asked directly over a finish held to the dormant settled-evidence policy.
+asked directly over the finish a later recovery holds.
 A settlement another finish makes of a newer transaction just as the phase
 lands the invalidation the configuration owes the settled run moves the
 evidence records alone: that refusal is no movement under the newer
-transaction, whose settlement stays current under either policy -- unless,
-under the dormant policy, the comment that write's strict edit read beside
+transaction, whose settlement stays current -- unless the comment that
+write's strict edit read beside
 the settlement records movement under it -- a later review, a blank of the
 attempt's base tip, a mark in its handoff place, or a revision spent past it
 -- put back or not, which invalidates it. A
@@ -378,23 +378,20 @@ class EvidenceOnlyRefusalTest(retirement.RetirementCase, unittest.TestCase):
         # transaction of the head is recorded under the configuration in
         # place now. Another finish settles it just as the phase lands the
         # invalidation the run is owed, refusing that write over the evidence
-        # records alone: the newer settlement stays current under either
-        # policy, the run superseded by it, and nothing runs.
-        for held in (True, False):
-            with self.subTest(held=held):
-                self.setUp()
-                settled_moves.reconfigures(self)
-                newer = self._records_under_the_new_configuration()
-                finish = self.dormant() if held else self.landed()
-                lands = _RacesTheStep(_writes.lands, partial(_settles, self, newer))
+        # records alone: the newer settlement stays current, the run
+        # superseded by it, and nothing runs.
+        settled_moves.reconfigures(self)
+        newer = self._records_under_the_new_configuration()
+        finish = self.landed()
+        lands = _RacesTheStep(_writes.lands, partial(_settles, self, newer))
 
-                with patch.object(_writes, "lands", lands):
-                    self.assertEqual(self.asks(_settlement_step.resolves, finish), FinishOutcome.REFUSED)
+        with patch.object(_writes, "lands", lands):
+            self.assertEqual(self.asks(_settlement_step.resolves, finish), FinishOutcome.REFUSED)
 
-                self._assert_current(newer)
+        self._assert_current(newer)
 
     def test_what_the_write_read_is_movement(self) -> None:
-        # As above, under the dormant policy, but beside that settlement
+        # As above, but beside that settlement
         # another road hands a later review over, blanks the attempt's base
         # tip, marks movement in the newer transaction's handoff place, or
         # spends a revision past it, just as the phase's invalidation write
@@ -410,7 +407,7 @@ class EvidenceOnlyRefusalTest(retirement.RetirementCase, unittest.TestCase):
                 edits = _MovesUnderTheEdit(self, move, keys)
 
                 with patch.object(self.gh, _EDIT, edits):
-                    self.asks(_settlement_step.resolves, self.dormant())
+                    self.asks(_settlement_step.resolves, self.landed())
 
                 history = self.records()[2]
                 self.assertEqual(self.records()[:2], (None, None))
@@ -452,7 +449,7 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
                 edits = _MovesUnderTheEdit(self, move, keys)
 
                 with patch.object(self.gh, _EDIT, edits):
-                    self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+                    self.asks(_settlement_step.resolves, self.landed())
 
                 self._assert_retired(edits)
 
@@ -469,7 +466,7 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
         edits = _MovesUnderTheEdit(self, blanks, keys, behind_the_ledger=True)
 
         with patch.object(self.gh, _EDIT, edits):
-            self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+            self.asks(_settlement_step.resolves, self.landed())
 
         self._assert_retired(edits)
 
@@ -491,7 +488,7 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
                     patch.object(self.gh, _EDIT, settles),
                     patch.object(_verification_comments, "records_the_artifact", takes_in),
                 ):
-                    self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+                    self.asks(_settlement_step.resolves, self.landed())
 
                 self._assert_retired(takes_in)
 
@@ -510,7 +507,7 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
                 reads = around(self, getattr(owner, step))
 
                 with patch.object(owner, step, reads):
-                    self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+                    self.asks(_settlement_step.resolves, self.landed())
 
                 self._assert_retired(reads)
 
@@ -533,7 +530,7 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
                     patch.object(self.gh, step, stops(self)),
                     patch.object(_durable, "takes_in_a_settlement", adopts),
                 ):
-                    self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+                    self.asks(_settlement_step.resolves, self.landed())
 
                 self._assert_retired(adopts)
 
@@ -548,7 +545,7 @@ class RestoredUnderTheEditTest(captured_support.CapturedEvidenceCase, unittest.T
         edits = _MovesUnderTheEdit(self, retirement.announces, _ANNOUNCEMENT)
 
         with patch.object(self.gh, _EDIT, edits):
-            self.asks(_settlement_step.resolves, settled.dormant(self.landed()))
+            self.asks(_settlement_step.resolves, self.landed())
 
         pending, current = self.records()[:2]
         self.assertEqual((pending, current.receipt), (None, self.captured.receipt))

@@ -17,21 +17,12 @@ beside it and then abandoned --, a command configured otherwise, or a landing
 or base that moved since leaves evidence that no longer answers for the head
 it would be routed with.
 
-These are the primitives a route that takes settled evidence as it stands
-proves it ready with (`stands_ready`), and they are dormant: only a finish
-held to the dormant settled-evidence policy
-(`rewrite_finish_models.LandedFinish.proves_settled`) -- its evidence phase
+These are the primitives every route that takes settled evidence as it
+stands proves it ready with (`stands_ready`): the finish's evidence phase
 (`rewrite_finish_settlement.resolves`) and its coordinator's stops
-(`rewrite_finish_stops`) -- and the recovery's dormant answers
-(`rewrite_landing_retirement`) ask them, and no production finish, recovery,
-announcement, dispatcher, or park road selects that policy or carries those
-answers, so every route those roads take reads such evidence behind the
-settlement step's own record check and the last word over the landing and
-the base (`rewrite_finish_captured.stands_before_the_route`). Such a finish
-has them read and retire more, as below, and only a caller that builds one
-and hands it to the coordinator (`rewrite_finish.finalizes`) or that phase,
-or asks them, directly reaches that (`rewrite_finish_settled`); every
-production road keeps the policy every road selects. The proof
+(`rewrite_finish_stops`), on whichever road reached the landing, and the
+recovery's answers wherever it reads the landing moving or keeps the attempt
+for a reply (`rewrite_landing_moved`, `rewrite_landing_retirement`). The proof
 (`settled_word`) reads the evidence records over the issue and pinned comment
 read afresh, and the requirements of that issue, then, where they neither
 move nor hold, the readiness proof every reader relying on current evidence
@@ -50,8 +41,8 @@ settled in the evidence's place after the caller read it is asked of its own
 binding in each of those readings of the comment -- its records, and its
 requirements beside the issue read with that comment -- and retired whole as
 the comment stands, or marked, where it moved there (`_heard`), so the
-caller's cached evidence never answers for it. Nothing is run or decided again: the
-evidence goes on as it settled, or into history as it was.
+caller's cached evidence never answers for it. Nothing is run or decided
+again: the evidence goes on as it settled, or into history as it was.
 
 - Ready: the route goes on with the evidence current exactly as it settled.
 - Moved: any reading that establishes movement invalidates the evidence into
@@ -79,10 +70,10 @@ evidence goes on as it settled, or into history as it was.
   comment and that a successor settled in the evidence's place refuses, so
   every later proof of the evidence reads movement
   (`rewrite_evidence_proof.standing_refusal`) and invalidates it once room is
-  made -- putting back what moved first revives nothing. A finish held to the
-  dormant policy takes in an announcement another finish of the landing put
-  on the attempt, retries a refused write once over a fresh reading, retires
-  the same receipt over another attempt as the comment stands, and records
+  made -- putting back what moved first revives nothing. The invalidation
+  takes in an announcement another finish of the landing put on the
+  attempt, retries a refused write once over a fresh reading, retires the
+  same receipt over another attempt as the comment stands, and records
   movement no write took under the evidence's own receipt instead
   (`rewrite_finish_marks`).
 - Held: a reading nobody could take, a record beside the evidence nobody can
@@ -91,24 +82,23 @@ evidence goes on as it settled, or into history as it was.
   the route with the attempt standing, nothing announced, relabelled, or
   retired -- behind the invalidation, where that reading or another
   establishes movement too -- and the next tick classifies the branch and
-  counts the head again. A readable revision spent past the evidence -- on
-  the handoff or any history entry that reads on its own beside a floor or
-  entries that do not, or on the floor -- is no such record: it outranks the
-  evidence for good, so the proof reads it as movement -- whatever the pull
-  request reads, and whatever else holds -- rather than every poll holding.
-  Beside a pending record only a finish held to the dormant policy reads one,
-  past the one revision that record may own (`rewrite_finish_outranking`),
-  and only such a finish reads the mark of movement in the evidence's handoff
-  place as movement too. Nor is a handoff that names the evidence but
-  describes another pull request or head, which the proof refuses the evidence
-  over as movement too.
+  counts the head again. A readable revision spent past the evidence -- on the
+  handoff or any history entry that reads on its own beside a floor or entries
+  that do not, or on the floor -- is no such record: it outranks the evidence
+  for good, so the proof reads it as movement -- whatever the pull request
+  reads, and whatever else holds -- rather than every poll holding. Beside a
+  pending record the proof reads one past the one revision that record may own
+  (`rewrite_finish_outranking`), and it reads the mark of movement in the
+  evidence's handoff place as movement too. Nor is a handoff that names the
+  evidence but describes another pull request or head, which the proof refuses
+  the evidence over as movement too.
 
 A write a finish makes behind the proof -- its announcement checkpoint, the
 record of its event, its debt park, or its retirement -- is refused by a
 report or review record another road moved while the notice was posted or the
 relabel made. Such a refusal, handed in as `rewrite_finish_writes.BINDING_MOVED`
--- which every write of a finish held to the dormant policy collects -- is
-movement read under the evidence too, and so is movement the comment that
+-- which every write of a finish collects -- is movement read under the
+evidence too, and so is movement the comment that
 refusal was read over records under it -- a mark in its handoff's place, a
 revision spent past it, a blank of the attempt's base tip
 (`rewrite_finish_stops.observing`) -- which `invalidates_behind` invalidates
@@ -123,10 +113,10 @@ for the rebase behind it: the base reading that made that continuation is
 excused from the last word (`rewrite_evidence_proof.ADVANCED`), so it neither
 moves nor holds the evidence. `settled_word` and `invalidates` are shaped for
 a recovery as well, over the evidence a finish of the attempt settled
-(`rewrite_landing_records.settled`), wherever it would read the landing
-moving or keep the attempt for a human's reply: the recovery's dormant
-answers to a reset and to a park that keeps the attempt ask them
-(`rewrite_landing_retirement`), and no recovery road is handed those yet.
+(`rewrite_landing_records.settled`), wherever it reads the landing moving or
+keeps the attempt for a human's reply: the recovery's answers to a snapshot
+read off the head (`rewrite_landing_moved`), to a reset, and to a park that
+keeps the attempt (`rewrite_landing_retirement`) ask them on every road.
 That recovery hands `settled_word` a verdict of its own to ask of each
 reading beside the records (`asks`) -- what that very comment records moving
 under the evidence, or under a successor read in its place, a base tip read
@@ -180,7 +170,7 @@ _OUTRANKED = _evidence_models.ReportEvidence(
     "verification evidence newer than the settled record is recorded",
 )
 
-# The mark of movement a dormant finish read under the evidence, in its
+# The mark of movement a finish read under the evidence, in its
 # handoff's place (`rewrite_finish_marks.marks`): that movement, recorded where
 # nothing else could carry it, whatever the comment reads beside it now.
 _MARKED = _evidence_models.ReportEvidence(
@@ -244,7 +234,7 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence, asks: 
 
     The evidence records over the issue and comment read afresh first, beside
     the requirements of that issue (`_records_heard`) -- the mark of movement
-    a dormant finish read under `current` in its handoff's place among them,
+    a finish read under `current` in its handoff's place among them,
     on every reading the last word takes as on this one -- and, where none of
     them refuses anything, the readiness proof over them
     (`verification_proof.current_evidence_verdict`). Then the last word over
@@ -261,15 +251,15 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence, asks: 
     again is never left for a later poll to find put back. Every reading's
     movement and every reading's hold are kept side by side, so none is
     hidden behind another. What `stands_ready` routes over, and what the
-    recovery's dormant proof asks before a park keeps the attempt over
+    recovery's proof asks before a park keeps the attempt over
     `current` (`rewrite_landing_retirement.retires_unproved`). Both
     readings of the comment ask a successor another road settled in
     `current`'s place after the caller read it of its own binding there too
     (`_heard`), so its movement is never read against `current`'s alone.
     `asks`, where a caller hands one, is asked of each of those readings
     beside the records, under the receipt of the evidence asked there --
-    `current`, or a successor in its place -- what the recovery's dormant
-    proof reads moving there that the records alone do not, a base tip
+    `current`, or a successor in its place -- what the recovery's proof reads
+    moving there that the records alone do not, a base tip
     blanked or repointed among it, so movement a reading records stands
     however soon it is put back before the next.
     """
@@ -320,14 +310,14 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence, *, as_i
     """Whether `current`'s invalidation into history landed, in a write of its own; the caller logs it.
 
     Staged on the comment read afresh, guarded by that reading and the attempt
-    as `finish` read it -- for a finish held to the dormant policy, an
-    announcement another finish of the landing put on it taken in first, and a
-    refused write read, reconciled, and retried once
+    as `finish` read it -- an announcement another finish of the landing put
+    on it taken in first, and a refused write read, reconciled, and retried
+    once
     (`rewrite_finish_marks.retires_over_the_attempt`). Where neither reading
     took it, it is made over the tick's own copy instead, landed as
     `rewrite_finish_writes.INVALIDATION`, so movement already read is never
     left for a later poll to find put back. False where the comment carries
-    another evidence or another attempt -- over which a dormant finish still
+    another evidence or another attempt -- over which the finish still
     retires or marks the same receipt as the comment stands, unless
     `as_it_stands` is False for a caller that puts its own attempt back first
     (`rewrite_finish_unconfirmed.stands_back`) -- and where nothing took it,
@@ -351,11 +341,10 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence, *, as_i
     `current`'s entry and reads as it did, so no tip is blanked under evidence
     that never moved. A tip already blank is left as it is. Neither write is
     decided on the comment as it reads now, so a record another road wrote
-    since the tick read it -- a pending record among them -- refuses both; a
-    finish held to the dormant policy then records the movement under
-    `current`'s own receipt over the comment read afresh
-    (`rewrite_finish_marks.marks`), which every later proof under that policy
-    reads as the movement it is.
+    since the tick read it -- a pending record among them -- refuses both; the
+    finish then records the movement under `current`'s own receipt over the
+    comment read afresh (`rewrite_finish_marks.marks`), which every later
+    proof reads as the movement it is.
     """
     retired = retires_over_the_attempt(finish, current, as_it_stands=as_it_stands)
     if retired is not None:
@@ -376,7 +365,7 @@ def invalidates(finish: LandedFinish, current: _records.CurrentEvidence, *, as_i
             "current, the movement read under it recorded by blanking its base tip (%s)",
             finish.issue.number, current.revision, finish.head, "landed" if stopped is None else stopped.value,
         )
-    if stopped is not None and finish.proves_settled:
+    if stopped is not None:
         marks(finish, current, "neither its invalidation nor its base tip's blank landed over the tick's own copy")
     return False
 
@@ -440,8 +429,6 @@ def _records_heard(
     current: _records.CurrentEvidence,
     state: PinnedState | None,
     issue: Issue | None = None,
-    *,
-    settled: bool,
     asks: Asks | None = None,
 ) -> Refusals:
     """What the evidence records `state` carries refuse `current` over, with nothing requested.
@@ -453,14 +440,12 @@ def _records_heard(
     (`verification_subject.requirements_verdict`), the review and report
     records (`verification_proof.recorded_verdict`), a handoff naming
     `current` that describes another pull request or head (`_UNDESCRIBED`),
-    and a revision spent past it (`_OUTRANKED`), as the policy `settled`
-    selects reads one (`rewrite_finish_outranking.outranks`): the one every
-    road selects reads none beside a pending record, and the dormant
-    settled-evidence policy discounts only the one revision that record may
-    own, so a pending record holds beside evidence a readable revision
-    outranks and hides none of it. The last two the proof would hear only
-    behind the pull request, which a reading nobody could take hides them
-    behind. Under that policy, the mark of movement a dormant finish read
+    and a revision spent past it (`_OUTRANKED`,
+    `rewrite_finish_outranking.outranks`), discounting only the one revision
+    a pending record beside it may own, so a pending record holds beside
+    evidence a readable revision outranks and hides none of it. The last two
+    the proof would hear only behind the pull request, which a reading nobody
+    could take hides them behind. And the mark of movement a finish read
     under `current` in its handoff's place (`_MARKED`,
     `rewrite_finish_marks.carries_the_mark`) too: that movement, recorded
     where nothing else could carry it, whatever the comment reads beside it
@@ -481,7 +466,7 @@ def _records_heard(
     handoff = _settlement.read_evidence_handoff(state)
     # The handoff's place: a handoff naming `current` that describes another
     # head, or the mark in its place, which no reader takes for a handoff.
-    in_its_place = _MARKED if settled and carries_the_mark(state, current) else None
+    in_its_place = _MARKED if carries_the_mark(state, current) else None
     names = handoff is not None and handoff.receipt == current.receipt
     if names and not _handoff_describes(state, current):
         in_its_place = _UNDESCRIBED
@@ -491,7 +476,7 @@ def _records_heard(
         ),
         _proof.recorded_verdict(state, current.binding),
         in_its_place,
-        _OUTRANKED if outranks(state, current, settled=settled) else None,
+        _OUTRANKED if outranks(state, current) else None,
         _evidence_models.ReportEvidence(_evidence_models.ReportEvidenceVerdict.HOLD, beside) if beside else None,
     )
     return heard if asks is None else (*heard, asks(state, current.receipt))
@@ -504,15 +489,14 @@ def _heard(
     issue: Issue | None = None,
     asks: Asks | None = None,
 ) -> Refusals:
-    """`_records_heard` of `current` over `state`, a comment `settled_word` read afresh, as `finish`'s policy reads it.
+    """`_records_heard` of `current` over `state`, a comment `settled_word` read afresh, a successor's asked first.
 
     `issue` is the issue read with `state` -- `settled_word`'s first reading
     of the two, or the last word's own -- whose requirements that reading is
-    asked beside. Under the dormant
-    settled-evidence policy a successor `state` carries current for the landed
-    head in `current`'s place -- one another road settled after the caller
-    read the evidence it hands in -- is asked of its own binding in that very
-    reading first (`_records_heard`): its requirements beside that issue, and
+    asked beside. A successor `state` carries current for the landed head in
+    `current`'s place -- one another road settled after the caller read the
+    evidence it hands in -- is asked of its own binding in that very reading
+    first (`_records_heard`): its requirements beside that issue, and
     its review, report, and evidence records. Where any of them refuses it
     there, it is retired whole as the comment then stands, or its movement
     marked under its own receipt (`rewrite_finish_marks.retires_as_it_stands`),
@@ -523,9 +507,9 @@ def _heard(
     there, the successor's included.
     """
     carried = None if state is None else _settlement.read_current_evidence(state)
-    later = finish.proves_settled and carried is not None and carried.receipt != current.receipt
+    later = carried is not None and carried.receipt != current.receipt
     if later and carried.binding.target.target_head == finish.head:
-        heard = _records_heard(carried, state, issue, settled=True, asks=asks)
+        heard = _records_heard(carried, state, issue, asks=asks)
         if any(refused and not refused.holds for refused in heard):
             retires_as_it_stands(finish, carried.receipt)
-    return _records_heard(current, state, issue, settled=finish.proves_settled, asks=asks)
+    return _records_heard(current, state, issue, asks=asks)

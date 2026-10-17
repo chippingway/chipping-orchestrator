@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """A landed rewrite's final writes landing with their answers lost while the requirements its run rests on move.
 
-Direct finishes held to the dormant settled-evidence policy
+Direct finishes through the coordinator every road hands its landing to
 (`settled_route_support`): issue #7's run settled and proved ready,
 and the record of the `base_rebased` event, the checkpoint, or the retirement
 landing with its answer lost while the issue is edited, then put back. The

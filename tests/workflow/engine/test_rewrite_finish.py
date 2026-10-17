@@ -52,11 +52,10 @@ _FOUND_TO_REVIEW = f"{_FOUND}{_TO_REVIEW} so the reviewer re-runs against the re
 
 _ROUTED = (support.LABEL_VALIDATING,)
 
-# For a finish held to the dormant settled-evidence policy: the label an
-# announced issue wears, the head the record of its relabel names (None for
-# none recorded), the relabels its route makes, and the pinned writes the
-# finish makes -- the relabel's record and the retirement, or the retirement
-# alone.
+# The label an announced issue wears, the head the record of its relabel names
+# (None for none recorded), the relabels its route makes, and the pinned writes
+# the finish makes -- the relabel's record and the retirement, or the
+# retirement alone.
 _ANNOUNCED_LABELS = (
     (support.LABEL_FIXING, None, _ROUTED, 2),
     (support.LABEL_VALIDATING, support.LANDED, (), 1),
@@ -208,9 +207,9 @@ class PublishedFinishTest(unittest.TestCase):
             ),
             (_RETIRED, 0, support.owed(), 1),
         )
-        # The record of the event, the announcement, and the retirement, and
-        # no other write.
-        self.assertEqual(world.github.write_state_calls, 3)
+        # The record of the event, the announcement, the record of the
+        # relabel, and the retirement, and no other write.
+        self.assertEqual(world.github.write_state_calls, 4)
 
 
     def test_a_publication_found_standing_says_so(self) -> None:
@@ -273,29 +272,11 @@ class AnnouncedFinishTest(unittest.TestCase):
     """A finish whose mark already names the landed head says nothing again and owes only its route."""
 
     def test_an_announced_finish_says_nothing_again(self) -> None:
-        # A label the issue already wears is not written again.
-        for label, relabelled in ((support.LABEL_FIXING, _ROUTED), (support.LABEL_VALIDATING, ())):
-            with self.subTest(label=label):
-                world = support.FinishWorld.seeded(label=label, **{
-                    support.KEY_ANNOUNCED: support.LANDED,
-                    support.KEY_REWRITE_DEBT: support.owed(),
-                })
-
-                self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
-
-                self.assertEqual(
-                    (world.said(), world.relabels(), support.attempt(world.pinned())),
-                    (([], []), relabelled, _RETIRED),
-                )
-                self.assertEqual(world.github.write_state_calls, 1)
-
-    def test_a_dormant_finish_relabels_once(self) -> None:
-        # Held to the dormant settled-evidence policy, with no audit log: a
-        # validating label beside the relabel's record naming the head is
-        # that relabel made, and is not written again; one the issue wore
-        # before the rebase, with no record, is, as an uninterrupted route's
-        # would be, its record landed right ahead of it.
-        self.enterContext(patch.object(support.FinishWorld, "proves_settled", True))
+        # With no audit log: a validating label this head's relabel already
+        # wrote -- its record on the attempt naming the head -- is not written
+        # again; one the issue wore before the rebase, with no record, is, as
+        # an uninterrupted route's would be, its record landed right ahead of
+        # it.
         self.enterContext(patch("orchestrator.config.EVENT_LOG_PATH", None))
         for label, recorded, relabelled, writes in _ANNOUNCED_LABELS:
             with self.subTest(label=label, recorded=recorded):
@@ -313,26 +294,23 @@ class AnnouncedFinishTest(unittest.TestCase):
                 )
                 self.assertEqual(world.github.write_state_calls, writes)
 
-    def test_a_dormant_relabel_counts_usage_once(self) -> None:
+    def test_a_relabel_counts_usage_once(self) -> None:
         # The tick staged a run and its tokens on the comment before an
         # announced landing's route: the relabel's record lands nothing of
-        # them, and the retirement behind it lands them once, under either
-        # policy.
+        # them, and the retirement behind it lands them once.
         self.enterContext(patch("orchestrator.config.EVENT_LOG_PATH", None))
-        for proves_settled in (False, True):
-            with self.subTest(proves_settled=proves_settled):
-                world = support.FinishWorld.seeded(**{
-                    support.KEY_ANNOUNCED: support.LANDED,
-                    support.KEY_REWRITE_DEBT: support.owed(),
-                    **_USAGE_READ,
-                })
-                finish = replace(world.finish(support.FOUND), proves_settled=proves_settled)
-                finish.state.data.update(_USAGE_STAGED)
+        world = support.FinishWorld.seeded(**{
+            support.KEY_ANNOUNCED: support.LANDED,
+            support.KEY_REWRITE_DEBT: support.owed(),
+            **_USAGE_READ,
+        })
+        finish = world.finish(support.FOUND)
+        finish.state.data.update(_USAGE_STAGED)
 
-                self.assertEqual(world.finalizes(finish=finish), FinishOutcome.ROUTED)
+        self.assertEqual(world.finalizes(finish=finish), FinishOutcome.ROUTED)
 
-                landed = map(world.pinned().get, _USAGE_STAGED)
-                self.assertEqual(tuple(landed), tuple(_USAGE_STAGED.values()))
+        landed = map(world.pinned().get, _USAGE_STAGED)
+        self.assertEqual(tuple(landed), tuple(_USAGE_STAGED.values()))
 
     def test_an_earlier_marks_debt_precedes_its_route(self) -> None:
         # A mark an earlier build wrote with no debt beside it: the claim is

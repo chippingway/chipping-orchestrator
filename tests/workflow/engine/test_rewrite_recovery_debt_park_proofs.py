@@ -4,10 +4,8 @@
 
 Direct finishes of the recovery's road (`settled_route_support`): issue #7's
 run captured and the comment left without room for the landing's report debt,
-so the finish parks for it. The policy every road selects parks over the run
-still recorded, and parks anew when asked again. Held to the dormant
-settled-evidence policy, the finish proves the run's binding whole ahead of
-the park and behind its notice, so the report edited around the notice --
+so the finish parks for it, proving the run's binding whole ahead of the
+park and behind its notice, so the report edited around the notice --
 answered or raising -- abandons the run, and the head is later routed with
 nothing current; asked again with no reply, it finds its park standing and
 posts nothing -- also where its park write went out and never landed, the
@@ -30,7 +28,7 @@ from unittest.mock import patch
 
 from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import report_settlement_state as _report_settlement, verification_records as _records
-from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad
+from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
     rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
@@ -154,70 +152,53 @@ class _DebtParkCase(route.SettledRouteCase):
 
 
 class DebtParkPolicyTest(_DebtParkCase, unittest.TestCase):
-    """Only a finish held to the settled-evidence policy proves a captured run whole around the debt's park."""
+    """A captured run proved whole around the debt's park, and the park said and filed once."""
 
     def test_a_report_put_back_under_the_notice(self) -> None:
         # The report the run answers for is edited before the finish and put
-        # back while the debt park's notice is posted. The policy every road
-        # selects parks over the run still recorded, its last word never
-        # re-reading the report at its location; the settled-evidence policy
-        # proves the run whole ahead of the park and abandons it. Either way
-        # the debt is parked and the run was made once.
-        for proves_settled in (False, True):
-            with self.subTest(proves_settled=proves_settled):
-                self.setUp()
-                head, captured = self.captures()
-                finishing = self.finalizes if proves_settled else partial(self.finishes, road=FinishRoad.RECOVERY)
-                self.parks_over_an_edit(partial(finishing, head), before=True)
+        # back while the debt park's notice is posted: the run is proved whole
+        # ahead of the park and abandoned, the debt parked, and the run made once.
+        head, captured = self.captures()
+        self.parks_over_an_edit(partial(self.finalizes, head), before=True)
 
-                records = readings.pinned_records(self)
-                self.assertEqual(records[0], None if proves_settled else captured)
-                self.assertEqual((captured.receipt, readings.ABANDONED) in records[2], proves_settled)
-                self.assert_made()
+        records = readings.pinned_records(self)
+        self.assertIsNone(records[0])
+        self.assertIn((captured.receipt, readings.ABANDONED), records[2])
+        self.assert_made()
 
     def test_a_repeated_finish_keeps_its_park(self) -> None:
-        # The debt has no room and the landing is finished directly twice,
-        # with no reply between. The settled-evidence policy proves the run
-        # again and finds its park standing, so the second finish posts no
-        # notice and files no park event; the policy every road selects parks
-        # anew. Either way the run stays recorded and was made once.
-        for proves_settled, parks in ((False, 2), (True, 1)):
-            with self.subTest(proves_settled=proves_settled):
-                self.setUp()
-                head, captured = self.captures()
-                settled.charges(self)
-                finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
-                finishing = self.finalizes if proves_settled else partial(self.finishes, road=FinishRoad.RECOVERY)
+        # The debt has no room and the landing is finished twice, with no
+        # reply between: the second finish proves the run again and finds its
+        # park standing, so it posts no notice and files no park event. The
+        # run stays recorded and was made once.
+        head, captured = self.captures()
+        settled.charges(self)
+        finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
 
-                self.assertEqual(finishing(head), FinishOutcome.PARKED)
-                self.assertEqual(finishing(head), FinishOutcome.PARKED)
+        self.assertEqual(self.finalizes(head), FinishOutcome.PARKED)
+        self.assertEqual(self.finalizes(head), FinishOutcome.PARKED)
 
-                self.assertEqual(self._parks(), (parks, parks))
-                self.assertEqual(readings.pinned_records(self)[0], captured)
-                self.assert_made()
-                settled.assert_charged_as_left(self)
+        self.assertEqual(self._parks(), (1, 1))
+        self.assertEqual(readings.pinned_records(self)[0], captured)
+        self.assert_made()
+        settled.assert_charged_as_left(self)
 
     def test_an_unconfirmed_park_is_said_once(self) -> None:
         # The debt park's notice and event go out, and its write is sent and
-        # never lands. Asked again with no reply between, the settled-evidence
-        # policy finds that notice on the conversation and parks over it,
-        # posting and filing nothing more; the policy every road selects says
-        # both again. Either way the debt ends parked and the run made once.
-        for proves_settled, parks in ((False, 2), (True, 1)):
-            with self.subTest(proves_settled=proves_settled):
-                self.setUp()
-                head = self.captures()[0]
-                finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
-                finishing = self.finalizes if proves_settled else partial(self.finishes, road=FinishRoad.RECOVERY)
-                loses = partial(self._loses_the_park, self.gh.edit_pinned_state)
-                with patch.object(self.gh, _PINNED_EDIT, loses):
-                    self.assertEqual(finishing(head), FinishOutcome.UNCONFIRMED)
+        # never lands. Asked again with no reply between, the finish finds
+        # that notice on the conversation and parks over it, posting and
+        # filing nothing more; the debt ends parked and the run made once.
+        head = self.captures()[0]
+        finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
+        loses = partial(self._loses_the_park, self.gh.edit_pinned_state)
+        with patch.object(self.gh, _PINNED_EDIT, loses):
+            self.assertEqual(self.finalizes(head), FinishOutcome.UNCONFIRMED)
 
-                self.assertEqual(finishing(head), FinishOutcome.PARKED)
+        self.assertEqual(self.finalizes(head), FinishOutcome.PARKED)
 
-                self.assertEqual(self._parks(), (parks, parks))
-                self.assertTrue(self.pinned_fields(_AWAITING)[0])
-                self.assert_made()
+        self.assertEqual(self._parks(), (1, 1))
+        self.assertTrue(self.pinned_fields(_AWAITING)[0])
+        self.assert_made()
 
     def test_an_unread_thread_holds_the_park(self) -> None:
         # The park's write behind its notice and event is sent and never

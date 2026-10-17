@@ -16,18 +16,20 @@ decision is made here, in the order the recovery has always kept:
   road keeps the attempt for the human reply that finishes it once the issue
   is put right, so the git owner has a transaction an earlier finish captured
   for the head proved again first and abandoned where anything it rests on
-  moved -- a pull request repointed among the reasons -- and an abandonment no
+  moved -- a pull request repointed among the reasons --, and evidence one
+  settled proved ready and invalidated whole the same way; a retirement no
   write lands holds the tick with nothing parked
-  (`rewrite_landing_moved.abandons_unproved`).
+  (`rewrite_recovery_parks.proves_before_a_park`).
 - The checkout is read as the candidate it stands for, and held to the head
   the recovery's fetch classified: every refusal below, and the voucher the
   finish takes on trust for a replay the attempt never got to name, is about
   that head. A candidate naming any other -- the checkout and the branch both
   moved since, or a head that no longer reads -- makes nothing, and the next
   tick classifies what it then finds; a transaction an earlier finish
-  captured for the fetched head is abandoned first where the checkout reads
-  another head (`rewrite_landing_moved`), since that move is movement under
-  it, and kept for the next proof where its head would not read at all. A
+  captured for the fetched head is abandoned first, and evidence one settled
+  invalidated, where the checkout reads another head
+  (`rewrite_landing_moved`), since that move is movement under it, and kept
+  for the next proof where its head would not read at all. A
   snapshot that read either head off the landing never reaches this road:
   the coordinator (`rewrite_recovery`) abandons the transaction before the
   road it does take.
@@ -53,8 +55,9 @@ decision is made here, in the order the recovery has always kept:
 - Anything else is observed (`git/base_sync/rewrite_transport.py`): the remote
   read as it stands, with no push at all, which is how an accepted push whose
   answer was lost is finished without a second one. A remote read off the
-  landed head abandons a transaction captured for it first, as a checkout
-  that left the head does; one nobody could read keeps it.
+  landed head abandons a transaction captured for it, and invalidates
+  evidence settled for it, first, as a checkout that left the head does; one
+  nobody could read keeps both.
 
 What the proof or the observation found is handed to the one finish every
 landing gets (`rewrite_finish.finishes_the_recovery`): the debt and the room
@@ -65,9 +68,17 @@ that brought the attempt back spent. A tick lost before the checkpoint leaves
 no mark, so the evidence it captured is found by the receipt the finish put on
 the attempt beside it (`rewrite_landing_records.captured`) rather than by any
 announced head. A mark already naming this head says its notice and its event
-are out, so that finish repeats neither and finishes only the route. One that finds
+are out, so that finish repeats neither and finishes only the route; the
+relabel's own record naming the head beside `workflow:validating` is the
+relabel the same finish made -- landed ahead of every relabel
+(`rewrite_finish_announced.relabels_once`), since the mark and that label say
+nothing of a relabel onto a label the issue already wore -- which is not made
+again. Evidence the dead tick settled for the head is
+proved ready again before that route takes it, and invalidated whole where
+anything it is bound to moved since (`rewrite_finish_readiness`). One that finds
 the remote no longer on the head, or a base it cannot count the head against,
-makes nothing, and the next tick classifies whatever it then finds.
+makes nothing but that proof, and the next tick classifies whatever it then
+finds.
 
 The evidence decision resumes where the dead tick left it
 (`rewrite_finish_evidence`). A tick that died before its evidence write
@@ -108,6 +119,7 @@ from orchestrator.workflow.engine import (
     rewrite_finish as _finish,
     rewrite_landing_moved as _landing_moved,
     rewrite_publication as _rewrite_publication,
+    rewrite_recovery_parks as _recovery_parks,
 )
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
@@ -163,12 +175,13 @@ def _left_the_fetched_head(
     voucher it never had. So nothing is made for it -- no park either, since
     a move is no fact about this attempt -- and the next tick's own fetch
     classifies the branch as it then finds it. What an earlier finish
-    captured for the fetched head is the one exception
+    captured or settled for the fetched head is the one exception
     (`rewrite_landing_moved.abandons`): a checkout read on another head is
     movement under it. One whose head could not be proved read nothing
-    move, so the transaction is proved again over everything else that can
-    be read (`rewrite_landing_moved.abandons_unproved`), abandoned where any
-    of that moved and otherwise kept for the next tick to prove again.
+    move, so that evidence is proved again over everything else that can be
+    read, as before a park that keeps the attempt
+    (`rewrite_recovery_parks.proves_before_a_park`), retired where any of
+    that moved and otherwise kept for the next tick to prove again.
     """
     reads = candidate.rewritten_head
     if reads == completed.head:
@@ -186,7 +199,7 @@ def _left_the_fetched_head(
             "on; finishing nothing until a later tick proves it again",
             context.issue.number, completed.head, context.pr_number,
         )
-        _landing_moved.abandons_unproved(context)
+        _recovery_parks.proves_before_a_park(context)
     return True
 
 
@@ -199,11 +212,12 @@ def _finishes_the_observation(
 
     A remote read anywhere but the landed head -- another commit, or no
     branch at all -- is a landing the finish refuses, and movement under a
-    transaction an earlier finish captured for that head, which is abandoned
-    first (`rewrite_landing_moved.abandons`) so that no later route takes it,
-    even one finding the branch back on the head. A remote nobody could read
-    established nothing: the finish refuses the landing all the same, and the
-    transaction waits for the next tick to prove it again.
+    transaction an earlier finish captured for that head, or evidence one
+    settled, which is retired first (`rewrite_landing_moved.abandons`) so
+    that no later route takes it, even one finding the branch back on the
+    head. A remote nobody could read established nothing: the finish refuses
+    the landing all the same, and the evidence waits for the next tick to
+    prove it again.
     """
     landing = _rewrite_transport._observes_the_landing(context.spec, context.worktree, candidate)
     if landing.remote.sha is not None and not landing.landed:
@@ -229,9 +243,12 @@ def _settles(
     count over it would route an adjudicated change into a second adjudication
     with the pull request already carrying the work -- so the gate is held to
     the permit, and the permit decides whether the permission may be spent.
-    A hold the gate takes keeps the attempt for a later tick, so a transaction
-    an earlier finish captured for the head is proved again ahead of the
-    hold's write (`rewrite_landing_moved.abandons_unproved`).
+    A hold the gate takes keeps the attempt for a later tick, so what an
+    earlier finish captured or settled for the head is proved again ahead of
+    the hold's write, and that write lands over the comment read afresh
+    rather than whole (`rewrite_recovery_parks.lands_a_hold`), keeping a
+    newer transaction another road recorded while the gate answered, with the
+    evidence proved once more behind it.
     """
     landed = completed.head
     if not _transfer_permits._permits_the_publication(context, landed):
@@ -248,8 +265,7 @@ def _settles(
         transport=push,
     )
     if published.held and not published.refused:
-        _landing_moved.abandons_unproved(context)
-        context.gh.write_pinned_state(context.issue, context.state)
+        _recovery_parks.lands_a_hold(context)
         return True
     unsettled = _unsettled(context, landed, published, push)
     if unsettled:

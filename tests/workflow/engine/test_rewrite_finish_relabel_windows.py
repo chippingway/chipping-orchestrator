@@ -1,11 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Movement a dormant finish's relabel reads in its later windows, kept however soon what moved is put back.
+"""Movement a finish's relabel reads in its later windows, kept however soon what moved is put back.
 
-Direct finishes held to the dormant settled-evidence policy
-(`settled_route_support`): issue #7's reviewed rebase, its run settled under
-the anchor. Three windows read the comment once more on the way to the relabel,
-and another road moves a record right there and puts it back right behind:
+Direct finishes of the landing (`settled_route_support`): issue #7's reviewed
+rebase, its run settled under the anchor. Three windows read the comment once
+more on the way to the relabel, and another road moves a record right there
+and puts it back right behind:
 
 - On an issue already on `workflow:validating`, a relabel that raises takes
   its own record back off, and report 3 settles right under the strict edit
@@ -156,7 +156,7 @@ def _raises_beside_a_valid_run(case, run, settled: list, *_labelled, **_correlat
 
 
 class RelabelWindowTest(route.SettledRouteCase, unittest.TestCase):
-    """What a dormant finish's relabel reads in its later windows counts, however soon it is put back."""
+    """What a finish's relabel reads in its later windows counts, however soon it is put back."""
 
     def test_a_refused_rollback_keeps_its_move(self) -> None:
         # The issue already wears `workflow:validating`, the relabel raises,

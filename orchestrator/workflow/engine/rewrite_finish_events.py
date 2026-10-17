@@ -21,16 +21,15 @@ read holds every landed rewrite's route until it reads. Once the mark is down,
 no later finish announces the head at all.
 
 The attempt records the event ahead of filing it, in a guarded write of its
-own (`rewrite_finish_writes.ANNOUNCED_EVENT`), decided on the attempt: the
-event goes out only behind a write proving the attempt still stands as the
-finish read it, and the record tells whoever reads the comment that the event
-may be out. It lands over a copy of the tick's state, and the tick takes in
-that one field and nothing else the write read, so the checkpoint behind it
-is still decided on every other record as the tick read it. A finish held to
-the dormant settled-evidence policy decides it on every record the evidence
-is bound through too (`rewrite_finish_writes._SETTLED`), a refusal over one of
-the records its binding rests on, or movement the comment that refusal read
-records under the evidence, collected for the coordinator to invalidate it
+own (`rewrite_finish_writes.ANNOUNCED_EVENT`), decided on the attempt and on
+every record the evidence is bound through: the event goes out only behind a
+write proving the attempt still stands as the finish read it, and the record
+tells whoever reads the comment that the event may be out. It lands over a
+copy of the tick's state, and the tick takes in that one field and nothing
+else the write read, so the checkpoint behind it is still decided on every
+other record as the tick read it. A refusal over one of the records the
+evidence's binding rests on, or movement the comment that refusal read
+records under the evidence, is collected for the coordinator to invalidate it
 over (`rewrite_finish_readiness.invalidates_behind`).
 A record that did not land is where the finish stops, with nothing filed. That write is
 prepared ahead of the notice too (`prepares_the_record`), beside the
@@ -133,9 +132,8 @@ def _records(finish: LandedFinish, staged: PinnedState, observed: ProofReading |
     Landed over a copy of the tick's state, so the tick and `staged` take in
     the record alone: every other field the checkpoint is decided on stays as
     the tick read it, and a move another road made before the record still
-    refuses the checkpoint behind it. For a finish held to the
-    settled-evidence policy, a binding record moved refuses the record itself,
-    the movement collected on `observed`.
+    refuses the checkpoint behind it. A binding record moved refuses the
+    record itself, the movement collected on `observed`.
     """
     held = copy.deepcopy(finish.state)
     recorded = _recording(finish)

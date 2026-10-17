@@ -9,22 +9,22 @@ leaves the records beside it out of step with it: it records a newer
 transaction and retires it, spending a revision past the run, or it drops the
 handoff that names the run. The recovery's own settlement is refused over that
 moved comment, and the ledger entry it then commits alone takes the comment in
-as it stands. Those records are held to the same agreement the finish asks of
-settled evidence before it resolves anything, so the route is held: nothing
-announced, relabelled, or retired, the round as it was spent, and the records
-exactly as that road left them -- poll after poll. Nothing runs again, nothing
-is pushed, and no developer is launched.
+as it stands. A dropped handoff is held to the same agreement the finish asks
+of settled evidence before it resolves anything, so the route is held:
+nothing announced, relabelled, or retired, the round as it was spent, and the
+records exactly as that road left them -- poll after poll. Nothing runs
+again, nothing is pushed, and no developer is launched.
 
-The evidence phase of a finish held to the dormant settled-evidence policy,
-asked directly (`settled_finish_support`), holds over the dropped handoff the
-same way, but reads a revision spent past the run as outranking it, and
+The evidence phase asked directly (`settled_finish_support`) holds over the
+dropped handoff the same way, reads a revision spent past the run as
+outranking it, and
 invalidates a run read moving under report 3 whole however soon report 2 is
 put back -- also where another finish of the landing announced the run
 meanwhile, or routed it, over the comment as it stands: marked in its
 handoff's place where the comment is full, retired whole once room is made,
 and a successor settled under its own receipt kept. A run settled and
 announced with nothing else moving stays current. The whole coordinator asked
-directly under the same policy holds over the dropped handoff with nothing
+directly holds over the dropped handoff with nothing
 announced, and invalidates an outranked or moved settlement ahead of the
 announcement, routing the head once to the fresh reviewer.
 """
@@ -56,11 +56,6 @@ from tests.workflow.interleaving import _RacesPastTheCall
 
 # What another road leaves beside the run it settled, and the revision floor
 # that leaves: one past the run's, or the run's own.
-_OUT_OF_STEP = (
-    ("a revision spent past it", spends_a_revision_past, 1),
-    ("its handoff dropped", drops_the_handoff, 0),
-)
-
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
 
@@ -171,11 +166,11 @@ class _AdoptionCase(support.CapturedRunCase):
         finishing = partial(self.finishes, captured.binding.target.target_head, FinishRoad.RECOVERY)
         handoff.dies_at(self.gh, died, finishing)
 
-    def assert_held_as_settled(self, captured, past: int = 0) -> None:
-        """`captured` current as the other road settled it, the floor `past` it, the attempt standing, nothing made."""
+    def assert_held_as_settled(self, captured) -> None:
+        """`captured` current as the other road settled it, the floor at it, the attempt standing, nothing made."""
         pinned = readings.pinned(self)
         self.assertEqual(readings.records(pinned)[1].receipt, captured.receipt)
-        self.assertEqual(pinned[readings.KEY_REVISION_FLOOR], captured.revision + past)
+        self.assertEqual(pinned[readings.KEY_REVISION_FLOOR], captured.revision)
         self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
         self.assert_unannounced()
         made = (self.runs(), self.pushes.call_count, self.developer.call_count)
@@ -225,18 +220,16 @@ class AdoptedSettlementRecoveryTest(_AdoptionCase, unittest.TestCase):
     """Records another road settled out of step while the run was published hold the route, poll after poll."""
 
     def test_an_adopted_settlement_out_of_step_holds(self) -> None:
-        # The run is current as that road settled it, the records beside it
-        # are left as it wrote them, and the attempt stands with nothing
-        # announced, however often the recovery polls.
-        for beside, settles, past in _OUT_OF_STEP:
-            with self.subTest(beside=beside):
-                captured = self.polls_beside(settles)
+        # The run is current as that road settled it, its handoff dropped and
+        # left so, and the attempt stands with nothing announced, however
+        # often the recovery polls.
+        captured = self.polls_beside(drops_the_handoff)
 
-                self.assert_held_as_settled(captured, past)
+        self.assert_held_as_settled(captured)
 
 
 class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCase):
-    """The dormant evidence phase holds over a dropped handoff, and invalidates an outranked or moved settlement."""
+    """The evidence phase holds over a dropped handoff, and invalidates an outranked or moved settlement."""
 
     def test_an_adopted_settlement_out_of_step_holds(self) -> None:
         # The run is current as that road settled it, its handoff dropped
@@ -335,7 +328,7 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
                 self.assertEqual(entered, (["validating"], 1))
                 if retired is None:
                     finish_moves.makes_room(self)
-                    self.asks_dormant(_unconfirmed.retires_the_marked, self.head)
+                    self.asks_directly(_unconfirmed.retires_the_marked, self.head)
                     self.assert_invalidated(captured)
 
     def _assert_said_once(self, captured, relabels: tuple) -> None:
@@ -350,7 +343,7 @@ class SettledAdoptionTest(_AdoptionCase, settled.SettledRunCase, unittest.TestCa
 
 
 class FinalizedAdoptionTest(_AdoptionCase, route.SettledRouteCase, unittest.TestCase):
-    """The coordinator held to the policy over a settlement another road made while the run was published."""
+    """The coordinator over a settlement another road made while the run was published."""
 
     def test_an_adopted_settlement_out_of_step_holds(self) -> None:
         # The run is current as that road settled it, its handoff dropped:
