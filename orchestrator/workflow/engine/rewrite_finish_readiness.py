@@ -127,6 +127,10 @@ a recovery as well, over the evidence a finish of the attempt settled
 moving or keep the attempt for a human's reply: the recovery's dormant
 answers to a reset and to a park that keeps the attempt ask them
 (`rewrite_landing_retirement`), and no recovery road is handed those yet.
+That recovery hands `settled_word` a verdict of its own to ask of each
+reading beside the records (`asks`) -- what that very comment records moving
+under the evidence, or under a successor read in its place, a base tip read
+blank or repointed among it.
 
 Nothing here runs the configured commands, posts an artifact, launches a
 developer, or announces anything.
@@ -150,7 +154,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.rewrite_evidence_proof import Refusals, Word, _reads_again, last_word
+from orchestrator.workflow.engine.rewrite_evidence_proof import Asks, Refusals, Word, _reads_again, last_word
 from orchestrator.workflow.engine.rewrite_finish_marks import (
     carries_the_mark,
     marks,
@@ -235,7 +239,7 @@ def stands_ready(finish: LandedFinish, current: _records.CurrentEvidence) -> Fin
     return FinishOutcome.HELD
 
 
-def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Word:
+def settled_word(finish: LandedFinish, current: _records.CurrentEvidence, asks: Asks | None = None) -> Word:
     """What `current`, settled for `finish`'s landed head, reads as now: `(moved, held)`.
 
     The evidence records over the issue and comment read afresh first, beside
@@ -262,9 +266,15 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Wor
     readings of the comment ask a successor another road settled in
     `current`'s place after the caller read it of its own binding there too
     (`_heard`), so its movement is never read against `current`'s alone.
+    `asks`, where a caller hands one, is asked of each of those readings
+    beside the records, under the receipt of the evidence asked there --
+    `current`, or a successor in its place -- what the recovery's dormant
+    proof reads moving there that the records alone do not, a base tip
+    blanked or repointed among it, so movement a reading records stands
+    however soon it is put back before the next.
     """
     read = _reads_again(finish) or (None, None)
-    first = _heard(finish, current, read[1], read[0])
+    first = _heard(finish, current, read[1], read[0], asks)
     proved = None
     if read[1] is not None and not any(first):
         proved = _proof.current_evidence_verdict(_proof.ProofReading(finish.gh, finish.spec, *read))
@@ -272,7 +282,7 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence) -> Wor
         finish,
         current.binding,
         earlier=proved,
-        records=lambda state, issue: _heard(finish, current, state, issue),
+        records=lambda state, issue: _heard(finish, current, state, issue, asks),
     )
     return (
         next((refused for refused in first if refused and not refused.holds), moved),
@@ -427,7 +437,12 @@ def invalidates_behind(
 
 
 def _records_heard(
-    current: _records.CurrentEvidence, state: PinnedState | None, issue: Issue | None = None, *, settled: bool,
+    current: _records.CurrentEvidence,
+    state: PinnedState | None,
+    issue: Issue | None = None,
+    *,
+    settled: bool,
+    asks: Asks | None = None,
 ) -> Refusals:
     """What the evidence records `state` carries refuse `current` over, with nothing requested.
 
@@ -470,7 +485,7 @@ def _records_heard(
     names = handoff is not None and handoff.receipt == current.receipt
     if names and not _handoff_describes(state, current):
         in_its_place = _UNDESCRIBED
-    return (
+    heard = (
         None if issue is None else requirements_verdict(
             issue, state, current.binding.target.publication.requirements_revision,
         ),
@@ -479,10 +494,15 @@ def _records_heard(
         _OUTRANKED if outranks(state, current, settled=settled) else None,
         _evidence_models.ReportEvidence(_evidence_models.ReportEvidenceVerdict.HOLD, beside) if beside else None,
     )
+    return heard if asks is None else (*heard, asks(state, current.receipt))
 
 
 def _heard(
-    finish: LandedFinish, current: _records.CurrentEvidence, state: PinnedState | None, issue: Issue | None = None,
+    finish: LandedFinish,
+    current: _records.CurrentEvidence,
+    state: PinnedState | None,
+    issue: Issue | None = None,
+    asks: Asks | None = None,
 ) -> Refusals:
     """`_records_heard` of `current` over `state`, a comment `settled_word` read afresh, as `finish`'s policy reads it.
 
@@ -498,12 +518,14 @@ def _heard(
     marked under its own receipt (`rewrite_finish_marks.retires_as_it_stands`),
     so putting what moved back before a later reading revives nothing; one
     nothing refuses is left as its road settled it. `current` is answered over
-    `state` either way.
+    `state` either way. What `asks` answers of `state`, where a caller hands
+    it (`settled_word`), is heard beside the records under each receipt asked
+    there, the successor's included.
     """
     carried = None if state is None else _settlement.read_current_evidence(state)
     later = finish.proves_settled and carried is not None and carried.receipt != current.receipt
     if later and carried.binding.target.target_head == finish.head:
-        heard = _records_heard(carried, state, issue, settled=True)
+        heard = _records_heard(carried, state, issue, settled=True, asks=asks)
         if any(refused and not refused.holds for refused in heard):
             retires_as_it_stands(finish, carried.receipt)
-    return _records_heard(current, state, issue, settled=finish.proves_settled)
+    return _records_heard(current, state, issue, settled=finish.proves_settled, asks=asks)

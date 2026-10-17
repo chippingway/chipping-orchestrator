@@ -215,8 +215,9 @@ the evidence's own receipt, beside restoring an attempt a retirement nobody conf
 (`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_unconfirmed.py`) -- and so are the guarded
 recovery operations built on them: a reset recorded against captured or settled evidence before git moves the checkout,
 settled evidence retired whole with a landed reset's release or kept whole beside the attempt where history has no room,
-and every recovery park landed over the comment read afresh (`workflow/engine/rewrite_landing_retirement.py`,
-`workflow/engine/rewrite_recovery_parks.py`). A tick lost behind
+and every recovery park, and a publication gate's hold of a recovery's push, landed over the comment read afresh,
+a park made again over a notice already said taking it in (`workflow/engine/rewrite_landing_retirement.py`,
+`workflow/engine/rewrite_recovery_parks.py`, `workflow/engine/rewrite_recovery_notices.py`). A tick lost behind
 the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
 checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
 recovery, which reads what was done off the mark, the pull request, the event stream, and the label

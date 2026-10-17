@@ -2896,8 +2896,10 @@ The keys that matter for the state machine fall into a few groups:
   An issue without any of the keys owes, holds, and has spent nothing, and every reader is fail-closed: a record short
   of any member, or holding a value its writer never spells (a receipt naming another revision than its own included),
   reads as none, a history that is `null`, longer than five, or whose revisions do not strictly rise reads as none, and
-  an unreadable history is replaced by the next write that indexes a retired record. What an issue has spent is the
-  floor raised to any readable record's revision; over a comment that did not parse, a floor present and unreadable
+  an unreadable history is replaced by the next write that indexes a retired record; a record retired again, put back
+  current beside the entry its retirement left, keeps that one entry rather than being indexed twice. What an issue
+  has spent is the floor raised to any readable record's revision; over a comment that did not parse, a floor present
+  and unreadable
   (`null` included), or a floor missing beside any record (`null` ones included), nobody can say, and nothing is minted
   or recorded. Recording under the receipt already recorded is a retry, accepted as it stands only where it is identical
   and the floor can be read, since its artifact may already be on the thread under that receipt. Any other record is
@@ -3352,7 +3354,13 @@ The keys that matter for the state machine fall into a few groups:
   has proved again first and abandoned where anything it rests on moved (`proves_before_a_park`). Each park still
   writes the tick's state whole: the guarded park that records it over the comment read afresh, and the record of a
   reset made ahead of it, are dormant answers no recovery context carries yet (`lands_a_park`,
-  `records_before_a_reset`, `workflow/engine/rewrite_recovery_parks.py`).
+  `records_before_a_reset`, `workflow/engine/rewrite_recovery_parks.py`), and so is the guarded hold a publication
+  gate's hold of a recovery's push would be recorded through (`lands_a_hold`, `HOLD`). Their records keep what moved
+  under them as read -- the comment a refused strict edit found among it, a base tip blanked there beside the rest of
+  the attempt included -- lay the evidence the comment carries over the tick's state behind a record that did not
+  land, so a successor another road settled is proved on its own binding, record the reset against the evidence
+  behind a record or notice the checkout went from disk under, and take in a park notice already said past the
+  watermark rather than posting it twice (`workflow/engine/rewrite_recovery_notices.py`).
   **The post-publication route is live too.** The recovery hands every head the pull request already carries, beside
   how far the transfer got, to the workflow's landed road (`workflow/engine/rewrite_landed.py`), which asks
   `landed_recovery` why it may not finish one, and eligibility's open-PR gate hands `terminal_handoff` every

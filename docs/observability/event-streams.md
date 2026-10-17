@@ -79,7 +79,9 @@ file is the durable record.
   question- and discussion-stage
   `_park_question` / `_park_discussion` funnels, and the debt park of a landed rewrite finished directly under the
   dormant settled-evidence policy whose notice was said with no event behind it
-  (`workflow/engine/rewrite_finish_debt.py`, `files_the_park`), which no production road selects;
+  (`workflow/engine/rewrite_finish_debt.py`, `files_the_park`), which no production road selects, and the dormant
+  guarded recovery park of an automatic base rewrite made again over a notice it finds already said
+  (`workflow/engine/rewrite_recovery_notices.py`), which no recovery context carries yet;
   fanned out to `ANALYTICS_LOG_PATH` alongside this audit log through the shared `GitHubClient.emit_event` chokepoint;
   extras: `stage` (read from the current
   workflow label, not passed in), `reason` (e.g. `agent_timeout`, `push_failed`, `failed_checks`, `agent_question`,
@@ -358,7 +360,13 @@ the `reason`, the landed head such a park names as `sha`, and the id of that not
 park asks the funnel to name (`names_the_notice=True`) -- and holds while it will not read. The same finish asks for the
 `stage_enter` its relabel filed where the relabel's record stands beside a label the issue already wore
 (`rewrite_finish_announced.relabelled`); there `github/events.durable` tells it whether a log is configured at all, and
-with none the record alone answers.
+with none the record alone answers. The dormant guarded recovery park (`workflow/engine/rewrite_recovery_parks.py`,
+`lands_a_park`) names its notice the same way, and, made again over a notice of its own it finds said past the
+watermark, asks for its event matched on the issue, the `reason`, and that `notice_id`
+(`workflow/engine/rewrite_recovery_notices.py`), filing it only where the stream lacks it and nothing while the log
+will not read. With no log configured it asks only the process's in-memory tail, so a restart between that event and
+the park's record files the event once more, though never the notice; a conversation that will not read raises
+before anything is filed or parked.
 
 ## Analytics sink (`ANALYTICS_LOG_PATH`)
 

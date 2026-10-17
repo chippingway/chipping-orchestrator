@@ -242,8 +242,17 @@ def retire_pending_evidence(
 
 
 def _appends_history(state: PinnedState, entry: _records.HistoricalEvidence) -> None:
-    """Index one more retired record, keeping the highest revisions in revision order."""
-    indexed = (*(read_evidence_history(state) or ()), entry)
+    """Index one more retired record, keeping the highest revisions in revision order.
+
+    A record the index already carries under the same receipt and revision --
+    retired again after another road put it back current beside its own
+    entry -- keeps the entry it has, so the index never names one transaction
+    twice and stays readable (`read_evidence_history`).
+    """
+    indexed = read_evidence_history(state) or ()
+    named = {(held.receipt, held.revision) for held in indexed}
+    if (entry.receipt, entry.revision) not in named:
+        indexed = (*indexed, entry)
     kept = sorted(indexed, key=_BY_REVISION)[-_HISTORY_KEPT:]
     state.set(
         _records.EVIDENCE_HISTORY,

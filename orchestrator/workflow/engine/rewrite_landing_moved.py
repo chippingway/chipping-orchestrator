@@ -81,8 +81,10 @@ cut short (`rewrite_landing_records.settled`) is none of these helpers' to
 read. The answers that hold it to the same readings -- over a landed reset and
 before a park that keeps the attempt -- are dormant beside them
 (`rewrite_landing_retirement`), built over the captured proof here
-(`proves_captured`) and the finish of a head's landing (`_finish`), and no
-recovery road is handed them yet.
+(`proves_captured`, which they ask held to the dormant settled-evidence
+policy and to what each comment it reads records moving under the
+transaction, every production caller keeping the default) and the finish of
+a head's landing (`_finish`), and no recovery road is handed them yet.
 """
 from __future__ import annotations
 
@@ -109,7 +111,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
-from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING, last_word
+from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING, Asks, last_word
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, LandedFinish
 
 log = logging.getLogger("orchestrator.workflow")
@@ -233,6 +235,9 @@ def proves_captured(
     context: _AutoRebaseRecoveryContext,
     snapshot: _AutoRebaseRecoverySnapshot,
     moved: ReportEvidence | None = None,
+    *,
+    settled: bool = False,
+    asks: Asks | None = None,
 ) -> bool:
     """Prove the transaction a finish captured for the landed head, abandoning it where it moved; whether none stands.
 
@@ -246,14 +251,31 @@ def proves_captured(
     `moved` is movement the caller already read under the transaction -- a
     record a park's own commit adopted while its notice was posted -- which
     stands as that proof in place of the proof read again, so no reading taken
-    now hides it by finding it put back.
+    now hides it by finding it put back. `settled` holds the finish proving it
+    to the dormant settled-evidence policy (`LandedFinish.proves_settled`),
+    for the dormant recovery proof alone
+    (`rewrite_landing_retirement.retires_unproved`): a settlement another
+    finish made of the transaction while its abandonment was asked is then
+    invalidated over the same movement in its place, an announcement put on
+    the attempt beside it taken in. `asks`, which that dormant proof hands in
+    too, is asked of every comment the proof and the last word read, under
+    the transaction's receipt, so a base tip read blank or repointed there
+    moves it however soon it is put back. Every production caller proves it
+    as the default does.
     """
     pending = _landing_records.captured(context.state)
     if pending is None:
         return True
-    finish = _finish(context, pending.binding.target.target_head, snapshot, None)
-    proof = moved or _captured.proved_again(finish, pending)
-    moved = last_word(finish, pending.binding, earlier=proof)[0]
+    finish = _finish(context, pending.binding.target.target_head, snapshot, None, settled=settled)
+    proof = moved or _captured.proved_again(finish, pending, asks)
+    moved = last_word(
+        finish,
+        pending.binding,
+        earlier=proof,
+        records=None if asks is None else (
+            lambda state, _issue: (asks(state, pending.receipt),)
+        ),
+    )[0]
     if moved is None:
         return True
     _captured.stands_before_the_route(finish, proof=moved)
@@ -265,8 +287,13 @@ def _finish(
     head: str,
     snapshot: _AutoRebaseRecoverySnapshot,
     candidate: _RewriteCandidate | None,
+    *,
+    settled: bool = False,
 ) -> LandedFinish:
-    """The finish of `head`'s landing as `snapshot` read it, over `candidate` or the checkout read now."""
+    """The finish of `head`'s landing as `snapshot` read it, over `candidate` or the checkout read now.
+
+    `settled` holds it to the dormant settled-evidence policy (`LandedFinish.proves_settled`), for dormant proofs.
+    """
     read = candidate or _recovery_push._recovered_candidate(context, snapshot)
     return LandedFinish(
         gh=context.gh,
@@ -280,4 +307,5 @@ def _finish(
         ),
         label=_replay_evidence._recovered_stage(context.label),
         road=FinishRoad.RECOVERY,
+        proves_settled=settled,
     )
