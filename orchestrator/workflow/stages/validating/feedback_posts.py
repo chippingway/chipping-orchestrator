@@ -30,7 +30,11 @@ taken.
 
 A tick before receipts posted a verdict with none: its findings concise, or,
 for a verdict persisted before findings were formatted, raw. Such a post is
-found in those words too -- and a raw post receipted -- but a post with no
+found in those words too -- and a raw post receipted. So is the post a tick
+before each failing check was led by what failed made of a verdict persisted
+raw, receipted or not, in the concise layout of its own
+(`review_findings._unled_findings`), which the formatting no longer shows
+and the record never held. But a post with no
 receipt names no verdict, so only its place in the thread ties it to the one
 handed over: it has to be newer than the developer report that verdict's
 subject records and the evidence artifact its claim names, and none of the
@@ -49,9 +53,11 @@ and settles exactly as over the comment itself -- whose body has the findings
 formatted (`review_findings`), each check not shown passing kept as its
 diagnostic, between the line naming the review and the receipt and marker,
 all kept as posted. Findings formatting leaves nothing of read as the
-sentence saying so, as a live round's would. A post made since quotes its
-findings concise already, and formatting them again changes nothing; a body
-of any other shape is read as findings whole.
+sentence saying so, as a live round's would. A post made in the concise
+layout before failing checks were led by what failed has each check led and
+what an entry leaves out said, as a live round's are; one made since quotes
+its findings as shown already, and formatting them again changes nothing; a
+body of any other shape is read as findings whole.
 """
 from __future__ import annotations
 
@@ -169,11 +175,14 @@ def _recognised(words: str, held: _verdicts.ReturnedVerdict, state: PinnedState)
     accounted)`: the id the post has to be newer than, and the ids it may not
     be. A receipted body names `held` itself, in the findings `words` post or
     -- a verdict persisted before findings were formatted -- in its raw
-    findings, and stands anywhere. A body with no receipt is how a tick
-    before receipts posted it, in either, and names no request: it stands
-    only where a post for `held` does (`_unreceipted`).
+    findings, or in those raw findings as a tick before each failing check
+    was led by what failed formatted them (`review_findings._unled_findings`),
+    and stands anywhere. A body with no receipt is how a tick before receipts
+    posted it, in any of these, and names no request: it stands only where a
+    post for `held` does (`_unreceipted`).
     """
     shown = {_HEAD_RE.sub("", words, count=1), held.feedback}
+    shown.add(_findings._unled_findings(held.feedback))
     accepted = dict.fromkeys((receipted(said, held) for said in shown), _ANYWHERE)
     unreceipted = _unreceipted(state, held)
     if unreceipted is not None:

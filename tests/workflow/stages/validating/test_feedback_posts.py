@@ -38,12 +38,30 @@ def _as_receipted(findings: str) -> str:
 
 # Each body a post reads back as, and that post as a replay shows it: one made
 # before findings were formatted, its declaration raw -- a failed run's kept
-# as its diagnostic, a passing run declared and nothing else read as no
-# findings -- the first receipted as well, one made since, concise already,
-# and a body of no shape this route posts, read as findings whole.
+# as its diagnostic led by the test that failed, two probes one stdin command
+# ran each led by its own scenario, a passing run declared and nothing else
+# read as no findings -- the first receipted as well; one made in the concise
+# layout before failing checks were led by what failed, receipted or not, led
+# now; one made since, concise already; and a body of no shape this route
+# posts, read as findings whole.
 _SHOWN = (
     ("a failed run posted raw", _as_posted(_raw.RAW_FAILURE), _as_posted(_world.CONCISE_FAILURE)),
     ("a failed run posted raw and receipted", _as_receipted(_raw.RAW_FAILURE), _as_receipted(_world.CONCISE_FAILURE)),
+    (
+        "named probes posted raw",
+        _as_posted(_raw.as_persisted(_world.PROBED_REQUEST)),
+        _as_posted(_world.CONCISE_PROBES),
+    ),
+    (
+        "a failed run posted before leads",
+        _as_posted(_world.PREVIOUS_CONCISE_FAILURE),
+        _as_posted(_world.CONCISE_FAILURE),
+    ),
+    (
+        "a failed run posted before leads and receipted",
+        _as_receipted(_world.PREVIOUS_CONCISE_FAILURE),
+        _as_receipted(_world.CONCISE_FAILURE),
+    ),
     (
         "a declaration posted raw alone",
         _as_posted(_raw.as_persisted(_world.DECLARED_ALONE)),

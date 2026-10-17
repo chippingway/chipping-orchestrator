@@ -16,6 +16,18 @@ command inventory gives a developer nothing to act on. Any other check not
 shown to pass -- an exit line missing, blank, repeated, or reading anything
 else -- is what a developer has to act on, so it stays as a sentence naming its
 command and how it ended, over the output the reviewer quoted as a code block.
+That sentence is the supporting detail of a lead naming what failed
+(`review_findings_failures`): each test pytest's summary reports in the
+output, by its exact node ID, with its error; a path pytest could not collect,
+by that collection, never by a test ID nobody reported; otherwise each failure
+entry the reviewer wrote for it in the findings, matched by the error its
+output shows and never by its command, so runs of one stdin command each lead
+with their own scenario; or else a line saying nothing names it. The lead says
+too where the check quoted no output, and where its command reads its code
+from stdin with no snippet given to reproduce it. The findings are read whole
+for those entries before any check is shown, and stay as written, save what
+an entry leaves out -- its name, its error, or its reproduction -- which is
+said where the entry stands (`review_findings_entries`).
 The disposition of a verdict a live reviewer round returns
 (`stages/validating/review_disposition.py`) formats its feedback here once the
 declaration is read, and that is the feedback a change request is persisted
@@ -23,9 +35,16 @@ with, posted as, and handed to its developer as. A later tick's handoff of a
 persisted request (`stages/validating/review_handoffs.py`) formats the
 record's feedback here again where it posts it and resumes the developer on
 it: a record persisted before that formatting still carries its declaration
-raw, and one persisted concise goes out as it was. The post a
-`/orchestrator continue` replays has its findings formatted here too, as the
-replay quotes it (`stages/validating/feedback_posts.py`).
+raw, and one persisted concise goes out as it was, save what the layout
+before leads left out. The post a `/orchestrator continue` replays has its
+findings formatted here too, as the replay quotes it
+(`stages/validating/feedback_posts.py`). That layout -- each check its
+sentence over its output, nothing leading it, kept here as `_unled_findings`
+-- holds no declaration to read its checks from again, so each is read off
+the paragraph it stands as and led as a live round's check is
+(`review_findings_failures`); and a tick of that layout may have posted a
+record persisted raw in it, so a later tick still finds that post by its
+words.
 
 Display is read apart from validation, and more loosely, since nothing here is
 accepted -- there is only text to show. A line opening on a marker or step
@@ -68,13 +87,15 @@ finding, it may as well be a fixture quoting the protocol, and the doubt goes
 to the text it holds. A wrapping fence's fence lines go and what it held is
 read as if they were not there.
 
-Whatever the shape, the text shown holds no protocol line, so it declares
-nothing a reader of declarations would take as evidence; what a run earned is
-read from its own message alone, and formatting makes nothing acceptable.
-Findings with nothing left -- none at all, or a declaration whose checks all
-passed or wrote nothing -- read as a sentence saying so, never as the raw
-message. Findings with no protocol line come back as written, so formatting
-twice changes nothing.
+Whatever the shape, the text shown holds no protocol line -- a lead's lines
+open on its own labels -- so it declares nothing a reader of declarations
+would take as evidence; what a run earned is read from its own message alone,
+and formatting makes nothing acceptable. Findings with nothing left -- none at
+all, or a declaration whose checks all passed or wrote nothing -- read as a
+sentence saying so, never as the raw message. Findings with no protocol line
+come back as written, leads and all, but for a check the layout before leads
+left unled and an entry leaving something out, which are led and said once;
+so formatting twice changes nothing.
 """
 from __future__ import annotations
 
@@ -87,6 +108,8 @@ from operator import ne
 from types import MappingProxyType
 
 from orchestrator.workflow.engine import (
+    review_findings_entries as _entries,
+    review_findings_failures as _failures,
     review_findings_fences as _markdown,
     review_verification_models as _models,
 )
@@ -105,10 +128,7 @@ _BLANKS = " \t\r"
 
 _LEADING_BLANK_LINES_RE = re.compile(r"\A(?:[ \t\r]*\n)+")
 
-_BACKTICK_RUNS_RE = re.compile("`+")
-
-# A code span needs a run its content never repeats; a fence needs three.
-_SPAN_RUN = 1
+# A fence needs a backtick run of three at least, and longer than any its content holds.
 _FENCE_RUN = 3
 
 # Each line reads as one letter, so a declaration's shape is a pattern over
@@ -226,13 +246,41 @@ def _concise_findings(findings: str) -> str:
     """`findings` with no line of their declaration, or a sentence saying there are none.
 
     What is left is the reviewer's text around the declaration and each check
-    the declaration does not show passing, one paragraph apart.
+    the declaration does not show passing, one paragraph apart, each check led
+    by the failures it records -- the failure entries that text holds among
+    them -- so the text is read whole before any check is shown, and each
+    entry is shown with what it leaves out said as the whole text reads it.
     """
-    concise = "\n\n".join(chunk for chunk in _chunks(findings) if chunk)
-    return concise or _NO_FINDINGS
+    chunks = tuple(_chunks(findings))
+    said = [chunk for chunk in chunks if isinstance(chunk, str)]
+    entries = _entries.FailureEntry.read(said)
+    annotated = iter(_entries.FailureEntry.annotated(said))
+    shown = (
+        _failures.said(next(annotated), entries)
+        if isinstance(chunk, str)
+        else chunk.shown(entries)
+        for chunk in chunks
+    )
+    return "\n\n".join(chunk for chunk in shown if chunk) or _NO_FINDINGS
 
 
-def _chunks(findings: str) -> Iterator[str]:
+def _unled_findings(findings: str) -> str:
+    """`findings` as formatting showed them before each check was led by what failed.
+
+    Each check not shown passing is its sentence over its output alone. A tick
+    of that layout posted a request persisted raw in these words, so a later
+    tick finding that post reads them (`feedback_posts`), and they stay as
+    that tick wrote them.
+    """
+    shown = (
+        chunk if isinstance(chunk, str) else chunk.shown(None)
+        for chunk in _chunks(findings)
+    )
+    unled = "\n\n".join(chunk for chunk in shown if chunk)
+    return unled or _NO_FINDINGS
+
+
+def _chunks(findings: str) -> Iterator[str | _Check]:
     """The text around each declaration in `findings`, and the checks failing inside it.
 
     A protocol line a quoted fence holds is hidden before anything is read, so
@@ -400,10 +448,10 @@ class _Check:
     quoted_kinds: str
 
     @classmethod
-    def failures(cls, lines: Sequence[str], kinds: str) -> Iterator[str]:
-        """What each check the `lines` of a block list leaves to show, read by their letters `kinds`."""
+    def failures(cls, lines: Sequence[str], kinds: str) -> Iterator[_Check]:
+        """Each check the `lines` of a block list, read by their letters `kinds`, that is left to show."""
         for step in _STEP_RE.finditer(kinds):
-            yield from cls.read(lines, step).shown()
+            yield from cls.read(lines, step).failing()
 
     @classmethod
     def read(cls, lines: Sequence[str], step: re.Match[str]) -> _Check:
@@ -419,33 +467,38 @@ class _Check:
             step.group()[start:].translate(_UNQUOTED_LETTERS),
         )
 
-    def shown(self) -> Iterator[str]:
-        """The check as a developer needs it: its command, how it ended, and
-        the output it quoted. Once it passed, or wrote neither an exit status
-        nor output -- a command inventory says nothing to act on -- it shows
-        nothing of its own, and its output goes; but a fence in that output
-        may list the block's next checks rather than quote this one's
+    def failing(self) -> Iterator[_Check]:
+        """This check, unless it passed or wrote neither an exit status nor
+        output -- a command inventory says nothing to act on. Then nothing of
+        its own is left to show, and its output goes; but a fence in that
+        output may list the block's next checks rather than quote this one's
         output, so each step it quotes is read as a check, and one not shown
         passing is shown."""
         said = any(self.statuses) or bool(self.output)
         if self.statuses == (_PASSED,) or not said:
             yield from self.failures(self.quoted, self.quoted_kinds)
             return
+        yield self
+
+    def shown(self, entries: Sequence[_entries.FailureEntry] | None) -> str:
+        """The check as a developer needs it: the failures it records by name,
+        then its command and how it ended, over the output it quoted. The
+        findings' failure `entries` name those its output does not
+        (`review_findings_failures`); with None for them, nothing leads, as
+        the layout before leads showed it (`_unled_findings`)."""
         sentence = f"{self._subject()} {self._ending()}"
+        lead: tuple[str, ...] = ()
+        if entries is not None:
+            lead = _failures.lead(self.command, self.output, entries)
+        said = "\n".join((*lead, sentence))
         if not self.output:
-            yield f"{sentence}."
-            return
-        fence = self._backticks(self.output, _FENCE_RUN)
-        yield f"{sentence}:\n\n{fence}\n{self.output}\n{fence}"
+            return f"{said}."
+        fence = _failures.backticks(self.output, _FENCE_RUN)
+        return f"{said}:\n\n{fence}\n{self.output}\n{fence}"
 
     def _subject(self) -> str:
         """The command as a code span its own backticks cannot close."""
-        if not self.command:
-            return _NO_COMMAND
-        run = self._backticks(self.command, _SPAN_RUN)
-        touching = self.command.startswith("`") or self.command.endswith("`")
-        padding = " " if touching else ""
-        return f"{run}{padding}{self.command}{padding}{run}"
+        return _failures.span(self.command) if self.command else _NO_COMMAND
 
     def _ending(self) -> str:
         if not self.statuses:
@@ -463,9 +516,3 @@ class _Check:
         for line, letter in listed:
             if letter == kind:
                 yield _PROTOCOL_LINE_RE.sub("", line, count=1).strip(_BLANKS)
-
-    @classmethod
-    def _backticks(cls, text: str, shortest: int) -> str:
-        """A backtick run at least `shortest` long that is longer than any in `text`."""
-        longest = max(map(len, _BACKTICK_RUNS_RE.findall(text)), default=0)
-        return "`" * max(shortest, longest + 1)

@@ -182,7 +182,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             check that wrote neither an exit status nor output, a bare command inventory. Any other
                             check, its exit line missing, blank, repeated, or reading anything else, stays as a
                             sentence naming its command and how it ended, over the output the reviewer quoted as a
-                            code block. Read apart from the declaration reader and more loosely, since it accepts
+                            code block, below a lead naming what failed (`review_findings_failures`); the findings are
+                            read whole for the reviewer's failure entries before any check is shown, and stay as
+                            written save what an entry leaves out, said where it stands (`review_findings_entries`).
+                            Read apart from the declaration reader and more loosely, since it accepts
                             nothing: a step line outside any block opens one, and a block its RUN line did not open,
                             or that no closing line ends, holds only the unbroken lines below each step line and the
                             code fences below them, so the findings written below it stay. A fence is read whole, from
@@ -208,9 +211,114 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             change request is persisted with, posted as, and handed to its developer as;
                             `stages/validating/review_handoffs.py` formats a persisted request's feedback here again
                             where a later tick posts it and resumes its developer on it, so a record persisted before
-                            that formatting, its declaration raw, goes out concise, and one already concise goes out as
-                            persisted; `stages/validating/feedback_posts.py` formats here the findings an anchored
-                            feedback post quotes where a `/orchestrator continue` replays it
+                            that formatting, its declaration raw, goes out concise, one concise in the layout before
+                            leads goes out led, and one formatted since goes out as persisted;
+                            `stages/validating/feedback_posts.py` formats here the findings an anchored feedback post
+                            quotes where a `/orchestrator continue` replays it, a post in the layout before leads
+                            replayed led, and reads here (`_unled_findings`) that layout -- each check its sentence
+                            over its output, nothing leading it -- a tick of it posted a raw record in, to find that
+                            post by its words
+    review_findings_failures.py
+                            the lead above each check `review_findings` shows failing, in the labels of the reviewer's
+                            failure entries: each failure pytest's short summary reports in the check's output, read as
+                            `review_findings_summary` reads its line -- a `FAILED` test by its exact node ID, a
+                            `SUBFAILED` subtest by its test's node ID and pytest's description of it, its section titled
+                            by both, the ID ending where an entry or section names it, else where the line's message may
+                            first begin, a further line saying where the ID ends is unavailable where a later split
+                            could end it too, a section naming a test by its classes dotted and its parameters as they
+                            are -- an `ERROR` node ID as the setup or teardown whose section raised its error, or the
+                            only one a section says failed, as a collection where a section of its own run says pytest
+                            failed collecting it or its path -- spelled relative to pytest's root there and to where it
+                            ran on the line, either ending on the other at a directory -- or its run says collection was
+                            interrupted, and otherwise as an error in any of the three, and an `ERROR` path as its
+                            collection, never a test ID -- one of any shape, a doctest's text file too, its path holding
+                            blanks or not, where pytest says it failed collecting it or the run was interrupted
+                            collecting -- by its section alone where no summary line reports it, as with `-rN` -- words
+                            naming no Python file being no collection without that -- each with the error its line
+                            gives, else -- a line too long for the terminal carries none -- the exception of the section
+                            pytest printed for it (`review_findings_pytest`), else the error of the entry naming it,
+                            else a line saying the summary gave none; every one of them, however many. A check pytest's
+                            summary names nothing in is led by every `Failure:` entry of the findings, however many,
+                            whose `Error:` -- or the code block's last line below an empty one -- its output shows,
+                            matched by that error and never by command, so two runs of one stdin command each lead with
+                            their own scenario; else by a line saying no test ID or scenario name was recorded. A lead
+                            says too where the check quoted no output, and, whatever names its failures, where its
+                            command reads its code from stdin -- a `-` argument, split as a shell splits it, after no
+                            program given inline (`-c`, `-e`), by module (`-m`), or as a script -- and no entry it backs
+                            gives the snippet as a code block holding code below its `Reproduce:` line, however the line
+                            names the command. No lead line opens on a declaration keyword, and the names and errors it
+                            takes from output stand in code spans. The reviewer's own text is shown through here too
+                            (`said`): its entries with what each leaves out said, and each check the concise layout
+                            before leads showed -- a sentence opening a paragraph at the margin, outside any code block,
+                            closing it on a period or on a colon over a bare backtick fence holding the output -- led as
+                            a check read off a declaration is, since that layout's feedback holds no declaration to read
+                            its checks from again
+    review_findings_summary.py
+                            a line of pytest's short summary, read for the failure it reports, for
+                            `review_findings_failures` (`SummaryLine`): its outcome -- `FAILED`, `ERROR`, or `SUBFAILED`
+                            and the subtest's description, its message in brackets and its parameters in parentheses,
+                            read up to the first closing one a node ID free of blanks follows, else to the last of its
+                            message and the first of its parameters that a node ID holding blanks follows -- the node
+                            ID, whatever file it names -- its path may hold blanks and brackets, its test's name blanks,
+                            and only a bracket past that name opens parameters -- or the path whose collection failed,
+                            and the message after a dash. A parameter may hold the dash that parts an ID from its
+                            message and text of a message's shape after it, and a message a bracket and a dash of its
+                            own, so the ID is the longest whose section of the line's run -- or `--tb=line` line
+                            traceback -- shows the exception the message after it opens, as where two tests' IDs
+                            overlap, else the longest an entry of the findings names whole or pytest titled a section
+                            by; else it ends on the first split leaving a message of pytest's shape -- a rewritten
+                            assertion's `assert` or an exception's name -- so the message is never cut short, the line
+                            marked unsure where a later split leaves one too; else on the first split
+    review_findings_pytest.py
+                            what pytest's output says beside its short summary, for `review_findings_failures`: each
+                            section it printed, titled between underscores -- one each side at least -- by a failed
+                            test's name, its node ID past the path with classes dotted and parameters as written, by
+                            `ERROR at setup of` or `ERROR at teardown of` and that name, or by `ERROR collecting` and
+                            what it collected, a line of spaced underscores parting frames and titling nothing. A
+                            section's exception is the first line set out least in its last run of lines marked `E`, not
+                            an explanation, diff hint, or source line set out further, nor an exception another was
+                            raised handling, nor the line `--showlocals` prints for a local named `E`; one marking no
+                            line holds Python's own traceback -- as `--tb=native` prints it, and as pytest prints an
+                            exception group in any mode -- its exception the first line at the margin below the last
+                            header, for a group the margin its rail sets, the exceptions it holds standing further in.
+                            With `--tb=line` a failure has no section: each line under the failures heading giving a
+                            `path:line:` -- its path holding blanks or not -- and the exception is a section titled by
+                            nothing, which a summary line naming a test takes in turn. Each summary line takes a section
+                            of its own run alone -- a run printed with `--tb=no` borrows none of the next run's -- the
+                            first it may be that no line before it took, the one whose exception the line's error opens
+                            where it gives one, since pytest prints both in one order and tests of two modules may share
+                            a title. A rule of dashes ends a section's traceback: below it stands what pytest captured
+                            from the test, or a plugin added, up to the next title, rule, or heading as wide as the last
+                            heading pytest printed -- it pads each to its terminal's width, so a narrower one is a
+                            test's -- and nothing there is read as pytest's own -- no marked line, line traceback, or
+                            summary line, the summary lines read below the short summary's heading where the output
+                            holds one -- save the `--tb=line` line closing it, which gives the exception the failure's
+                            last marked line showed. A run's opening there -- the session's heading, or a `-q` progress
+                            line -- opens a whole run a test printed, captured up to the line of statistics closing it
+                            -- each count naming its outcome in a word or more, as `1 subtests passed` does -- unless
+                            only the output's last such line, or none, closes it, the test having cut it short; and only
+                            the last short summary of a run is read, any above it in the run being one a test printed.
+                            Outside anything captured a run opens on the session's heading or a `-q` progress line, or
+                            -- a `-q` run failing collection alone reports no progress -- on the errors or failures
+                            heading standing in the summary of the run before it or below the line of statistics closing
+                            that run, so each of several runs leads with its own failures
+    review_findings_entries.py
+                            the failure entries a reviewer writes in its findings, for `review_findings_failures` and
+                            `review_findings`: an entry runs from one `Failure:` line to the next, or to the next
+                            finding before it -- a list item or a heading set out no further than its `Failure:` line,
+                            or a paragraph set out less -- read across the findings' parts around their declarations,
+                            each of the taught labels on a line of its own outside any code block, a blank label giving
+                            the code block below it; a paragraph of label lines opening on `Failure:` right above a
+                            check's sentence (`CHECK_SENTENCE_RE`), each written as a lead writes it -- a label giving
+                            nothing never -- is the lead the formatting wrote, never an entry, a label going on over no
+                            such sentence, while a label said of an entry right above a sentence of the reviewer's stays
+                            the entry's. Each entry is read for its name, its error, and whether a code block holding
+                            code stands below its `Reproduce:` line (`FailureEntry`) -- a block holding none, empty or
+                            blank, gives nothing -- and shown with what it leaves out said: a `Failure:` line naming
+                            nothing, an error or a reproduction no label of the entry gives -- said in place on a blank
+                            label, else added in the entry's own indentation, an error below its name and a reproduction
+                            below all its last label gives, a code block there that nothing closes closed first -- each
+                            said once, since what is said gives the label a value
     review_findings_fences.py
                             where the code of a reviewer's findings -- fences and indented code -- opens and ends as
                             Markdown renders it, for `review_findings`: a fence opens on a run at most three spaces
@@ -5005,10 +5113,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             author copied, since the anchor is replayed as this orchestrator's own words, and never
                             another request's receipted post in the same findings; a request is found too in the words
                             a tick before receipts, or before formatting, posted it in -- concise or raw with no
-                            receipt, raw with one -- but a post with no receipt only where it stands behind the
-                            developer report and the evidence artifact the request was reviewed over and is no comment
-                            the ledger of the orchestrator's own accounts for, so another request's post, above a later
-                            report or fresh evidence or anchored by its own landed handoff, is never taken.
+                            receipt, raw with one -- and a request persisted raw in the concise layout of a tick before
+                            each failing check was led by what failed (`engine/review_findings.py`'s
+                            `_unled_findings`), receipted or not, but a post with no receipt only where it stands
+                            behind the developer report and the evidence artifact the request was reviewed over and is
+                            no comment the ledger of the orchestrator's own accounts for, so another request's post,
+                            above a later report or fresh evidence or anchored by its own landed handoff, is never
+                            taken.
                             The thread is read whole (`pr_conversation_thread`) so findings quoting the pinned state's
                             marker are found too. And the post as a `/orchestrator continue` replay quotes it
                             (`ShownPost`, asked by `fixing/continue_command.py`): the same comment, its id, author, and
