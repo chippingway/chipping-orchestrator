@@ -186,6 +186,8 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     for the landed head before it moves the checkout
     (`rewrite_recovery_parks.records_the_reset`), in a write decided on the
     evidence records as the tick read them, so evidence settled since holds it.
+    A clear under a label the refresh does not drive lands over the comment
+    read afresh too (`rewrite_recovery_parks.lands_a_clear`).
     """
     owing = replace(
         context,
@@ -193,6 +195,7 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
         records_before_a_reset=_recovery_parks.records_the_reset,
         proves_before_a_park=_recovery_parks.proves_before_a_park,
         lands_a_park=_recovery_parks.lands_a_park,
+        lands_a_clear=_recovery_parks.lands_a_clear,
     )
     if owing.label not in _PR_REFRESH_DETOUR_LABELS:
         return _replay_cleanup._answers_an_ineligible_label(owing)

@@ -52,6 +52,7 @@ def _auto_rebase_label_is_eligible(
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
     lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None,
     settles_over_a_release: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
+    lands_a_clear: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
 ) -> bool:
     """Clear stale recovery state and reject labels refresh does not drive.
 
@@ -63,14 +64,18 @@ def _auto_rebase_label_is_eligible(
     and `lands_a_park` the park it records it through
     (`_AutoRebaseRecoveryContext.lands_a_park`), and `settles_over_a_release`
     what it owes over a clear that releases the attempt, bound to the
-    recovery context as its `settles_over_a_reset`, all handed in by the
-    workflow's coordinator (`workflow/engine/base_rewrite.py`).
+    recovery context as its `settles_over_a_reset`, and `lands_a_clear` the
+    record that clear lands through (`_AutoRebaseRecoveryContext.lands_a_clear`),
+    all handed in by the workflow's coordinator (`workflow/engine/base_rewrite.py`).
     """
     if context.label in _PR_REFRESH_DETOUR_LABELS:
         return True
     if context.pending_pre_rebase_sha:
         recovering = replace(
-            recovery._recovery_context(context), proves_before_a_park=proves_before_a_park, lands_a_park=lands_a_park,
+            recovery._recovery_context(context),
+            proves_before_a_park=proves_before_a_park,
+            lands_a_park=lands_a_park,
+            lands_a_clear=lands_a_clear,
         )
         if settles_over_a_release is not None:
             recovering = replace(recovering, settles_over_a_reset=partial(settles_over_a_release, recovering))

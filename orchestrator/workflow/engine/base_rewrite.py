@@ -126,12 +126,18 @@ def _is_eligible(context: _AutoRebaseContext) -> bool:
 
     An anchor under a label the refresh does not drive is answered there, the
     recovery's answers handed in: the proof before the park that keeps the
-    attempt, that park, and what a clear that releases it over a checkout back
-    on the anchor owes the evidence a finish captured or settled for the
-    landed head (`rewrite_landing_retirement.retires_over_the_reset`).
+    attempt, that park, what a clear that releases it over a checkout back on
+    the anchor owes the evidence a finish captured or settled for the landed
+    head (`rewrite_landing_retirement.retires_over_the_reset`), and the record
+    that clear lands through over the comment read afresh
+    (`rewrite_recovery_parks.lands_a_clear`).
     """
     return eligibility._auto_rebase_label_is_eligible(
-        context, _recovery_parks.proves_before_a_park, _recovery_parks.lands_a_park, _retirement.retires_over_the_reset,
+        context,
+        _recovery_parks.proves_before_a_park,
+        _recovery_parks.lands_a_park,
+        _retirement.retires_over_the_reset,
+        _recovery_parks.lands_a_clear,
     )
 
 

@@ -129,6 +129,19 @@ HOLD = _commits.ReportWrite(
     owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS),
 ).reading_moves(True)
 
+# A clear's record under a label the refresh does not drive: the attempt it
+# drops and the evidence retired beside it, decided on the attempt and the
+# evidence records as the tick read them, so a successor another road settled
+# meanwhile refuses it rather than being written over.
+CLEAR = _commits.ReportWrite(
+    owned=frozenset(),
+    decided_on=frozenset(_attempts._ATTEMPT_KEYS) | {
+        _evidence_records.PENDING_EVIDENCE,
+        _evidence_records.CURRENT_EVIDENCE,
+        _evidence_records.EVIDENCE_HISTORY,
+    },
+)
+
 # A park's record, decided on the attempt it keeps or drops, the park's own
 # flags, and the evidence records a landed reset retires beside the attempt,
 # its strict edit keeping the comment a refusal read as the hold's does.
@@ -214,6 +227,35 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
     _lands_then_proves(context, HOLD, "hold")
 
 
+def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
+    """Record a clear the tick staged on `context.state` over the comment read afresh, as `CLEAR`; whether it landed.
+
+    The answer every context that may clear an attempt under a label the
+    refresh does not drive carries (`_AutoRebaseRecoveryContext.lands_a_clear`):
+    only what the tick staged since its reading lands -- the attempt dropped
+    and the evidence retired beside it -- every other field kept as the fresh
+    comment carries it, and a record another road moved among the attempt or
+    the evidence records -- a successor settled while the checkout was read,
+    with the revision floor it raised -- refuses it. A clear refused or never
+    confirmed withholds the tick's state (`report_commits.ReportCommit.withholds`),
+    and the next tick answers the attempt again over the comment as it then
+    stands. A state nothing was read into is written whole.
+    """
+    if context.state.synced is None:
+        context.gh.write_pinned_state(context.issue, context.state)
+        return True
+    commit = _commits.ReportCommit(context.gh, context.issue, context.state)
+    landed = commit.lands(context.state, CLEAR)
+    if landed.status is _commit_models.CommitStatus.COMMITTED:
+        return True
+    log.warning(
+        "issue=#%d the clear of its auto-rebase attempt did not land (%s); nothing is cleared, and the next "
+        "tick answers the comment as it then stands",
+        context.issue.number, (landed.refusal or landed.status).value,
+    )
+    return False
+
+
 def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
     """Answer an anchor the dispatcher holds a handler back for, handed the workflow's proof and park.
 
@@ -225,9 +267,11 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
     releases the attempt over a checkout back on the anchor, so what a finish
     captured or settled for the landed head is retired on the state it writes
     first, or the attempt kept where it cannot be
-    (`rewrite_landing_retirement.retires_over_the_reset`).
+    (`rewrite_landing_retirement.retires_over_the_reset`), and the clear lands
+    over the comment read afresh (`lands_a_clear`).
     """
-    owing = replace(held, settles_over_a_reset=partial(_retirement.retires_over_the_reset, held))
+    settles = partial(_retirement.retires_over_the_reset, held)
+    owing = replace(held, settles_over_a_reset=settles, lands_a_clear=lands_a_clear)
     _recovery_holds._answers_a_held_anchor(owing, proves_before_a_park, lands_a_park)
 
 

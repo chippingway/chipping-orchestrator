@@ -3185,7 +3185,10 @@ The keys that matter for the state machine fall into a few groups:
   no reading of where the branch stands can be taken. The clear's checkout stands back on the anchor, off the landed
   head, so evidence a finish captured or settled for that head is retired in the write that clears the attempt -- or,
   where settled evidence has no room for its history entry, the attempt is kept, the movement recorded by blanking
-  its base tip -- on this road and the refresh's eligibility gate alike. The stranded park asks for the label back and
+  its base tip -- on this road and the refresh's eligibility gate alike. That write lands over the comment read
+  afresh, decided on the attempt and the evidence records as the tick read them, so a successor another road settled
+  meanwhile refuses it, its revision floor kept, and the attempt stands for the next tick
+  (`workflow/engine/rewrite_recovery_parks.lands_a_clear`). The stranded park asks for the label back and
   a reply both, since that park is the refresh's own and a relabel alone never releases it -- save beside a live
   adjudication, whose
   guard restores its label: there it asks for the `pending_auto_base_rebase_*` and `late_rewrite_*` fields, and the

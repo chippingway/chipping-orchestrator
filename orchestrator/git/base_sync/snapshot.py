@@ -65,6 +65,10 @@ def _clear_ineligible_recovery(
     the attempt or neither goes. Where it answers False -- settled evidence
     with no room for its history entry, its movement recorded instead --
     nothing is cleared, and the attempt keeps guarding it for a later tick.
+    The clear lands through the record the context carries
+    (`_AutoRebaseRecoveryContext.lands_a_clear`), over the comment read
+    afresh, so a successor another road settled meanwhile refuses it and the
+    attempt stands for the next tick to answer again.
     """
     settles = context.settles_over_a_reset
     if settles is not None and not settles():
@@ -76,7 +80,11 @@ def _clear_ineligible_recovery(
         )
         return True
     attempts._clears_the_attempt(context.state)
-    context.gh.write_pinned_state(context.issue, context.state)
+    lands = context.lands_a_clear
+    if lands is None:
+        context.gh.write_pinned_state(context.issue, context.state)
+    elif not lands(context):
+        return True
     log.info(
         "issue=#%d auto-rebase recovery: label %r is no longer in "
         "the refresh-driven set; clearing pending flag",

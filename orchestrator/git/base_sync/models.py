@@ -228,6 +228,16 @@ class _AutoRebaseRecoveryContext:
     # hands its park in on every recovery context it builds or has built
     # (`workflow/engine/rewrite_recovery_parks.lands_a_park`).
     lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None
+    # How a clear of the attempt under a label the refresh does not drive is
+    # recorded (`snapshot._clear_ineligible_recovery`): over the comment read
+    # afresh, decided on the attempt and the evidence records as the tick read
+    # them, so a successor another road settled while the checkout was read --
+    # its revision floor among it -- refuses the clear rather than being
+    # written over. True where it landed; False, holding with nothing cleared.
+    # None writes the tick's state whole; the workflow hands its answer in on
+    # every recovery context that may clear
+    # (`workflow/engine/rewrite_recovery_parks.lands_a_clear`).
+    lands_a_clear: Callable[[_AutoRebaseRecoveryContext], bool] | None = None
 
 
 @dataclass(frozen=True)

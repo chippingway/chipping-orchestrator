@@ -28,7 +28,9 @@ the refresh's eligibility gate. The checkout is off the landed head, so the
 run is retired whole in the very write that clears the attempt, and restoring
 the checkout revives nothing; where the comment has no room for the run's
 history entry, the attempt is kept instead, the run current and its base tip
-blanked.
+blanked. That write lands over the comment read afresh, so a newer run another
+road settles while the checkout is read refuses it, kept current with its
+revision floor, and the next answer clears the attempt beside it.
 The run is made once, and nothing is pushed or launched.
 """
 from __future__ import annotations
@@ -40,6 +42,7 @@ from itertools import product
 from typing import NamedTuple
 from unittest.mock import patch
 
+from orchestrator.git.verification import probes as _probes
 from orchestrator.workflow.engine import verification_durable as _durable
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
@@ -51,6 +54,9 @@ from tests.workflow.engine import (
 from tests.workflow.interleaving import _RacesTheStep
 
 _EDITED_BODY = "Also cover a base that moved twice."
+
+# The checkout's head reading, read before any case stands in for it.
+_HEAD_SHA = _probes._head_sha
 
 # A label the refresh does not drive, under which the dispatcher's hold strands the attempt.
 _UNDRIVEN = "workflow:resolving_conflict"
@@ -67,15 +73,6 @@ def _puts_the_label_back(case) -> None:
     """Put `case`'s issue back on the stage it was reviewed in and reply to the park."""
     case.issue.labels = [FakeLabel(git_support.REVIEWING)]
     case.continues()
-
-
-def _unnamed_on_the_anchor(case) -> None:
-    """Blank the replay the attempt names, put the checkout back on the anchor, and relabel out of the refresh."""
-    state = case.gh.read_pinned_state(case.issue)
-    state.set(readings.KEY_REWRITE_SHA, None)
-    case.gh.write_pinned_state(case.issue, state)
-    case._git("reset", "--quiet", "--hard", case.anchor, cwd=case._wt)
-    case.issue.labels = [FakeLabel(_UNDRIVEN)]
 
 
 # What answers an anchor under a label the refresh does not drive: the
@@ -205,7 +202,7 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             with self.subTest(cleared_by=name, captured=captures):
                 self.setUp()
                 head, run = self.captures() if captures else self.settles_then_dies()
-                _unnamed_on_the_anchor(self)
+                self._unnamed_on_the_anchor()
                 clears(self)
                 self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
                 self.reconciles()
@@ -216,6 +213,25 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 else:
                     self.assert_invalidated(run)
 
+    def test_a_successor_refuses_the_clear(self) -> None:
+        # Another road settles a newer run over the run while the checkout's
+        # head is read: the clear, decided on the evidence records as the tick
+        # read them, is refused, so the newer run stays current with its
+        # revision floor and the attempt stands; the next answer clears the
+        # attempt beside that run, kept as its road wrote it.
+        for name, clears in _CLEARS:
+            with self.subTest(cleared_by=name):
+                self.setUp()
+                self.settles_then_dies()
+                self._unnamed_on_the_anchor()
+                newer: list = []
+                with patch.object(_probes, "_head_sha", partial(self._settles_on_the_anchor, newer)):
+                    clears(self)
+
+                self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (self.anchor,))
+                clears(self)
+                self._assert_kept_beside_a_clear(newer[0])
+
     def test_a_full_comment_keeps_the_attempt(self) -> None:
         # No room for the run's history entry: nothing is cleared, the run
         # stays current with its base tip blanked, so every later proof reads
@@ -224,13 +240,34 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             with self.subTest(cleared_by=name):
                 self.setUp()
                 run = self.settles_then_dies()[1]
-                _unnamed_on_the_anchor(self)
+                self._unnamed_on_the_anchor()
                 finish_moves.fills_the_comment(self)
                 clears(self)
 
                 standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
                 self.assertEqual(standing, (self.anchor, None))
                 self.assertEqual(readings.pinned_records(self)[1], run)
+
+    def _unnamed_on_the_anchor(self) -> None:
+        """Blank the replay the attempt names, put the checkout back on the anchor, and relabel out of the refresh."""
+        state = self.gh.read_pinned_state(self.issue)
+        state.set(readings.KEY_REWRITE_SHA, None)
+        self.gh.write_pinned_state(self.issue, state)
+        self._git("reset", "--quiet", "--hard", self.anchor, cwd=self._wt)
+        self.issue.labels = [FakeLabel(_UNDRIVEN)]
+
+    def _assert_kept_beside_a_clear(self, newer) -> None:
+        """`newer` current with the revision floor it raised, the attempt cleared beside it."""
+        current = readings.pinned_records(self)[1].receipt
+        floor, anchored = self.pinned_fields(readings.KEY_REVISION_FLOOR, readings.KEY_PENDING_PUSH)
+        self.assertEqual((current, floor, anchored), (newer.receipt, newer.revision, None))
+
+    def _settles_on_the_anchor(self, newer: list, *called, **options):
+        """The checkout's head read, a newer run settled over the run into `newer` the first time it is the anchor."""
+        head = _HEAD_SHA(*called, **options)
+        if head == self.anchor and not newer:
+            newer.append(guarded.records_a_newer_run(self, settles=True))
+        return head
 
 
 if __name__ == "__main__":

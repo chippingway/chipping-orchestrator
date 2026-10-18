@@ -995,8 +995,10 @@ orchestrator/
       replay_cleanup.py the clear-or-park decision for an ineligible label or a checkout back on the anchor. Records
                         that describe a replay, announcement, or unspent transfer prevent a silent clear, and the
                         clear retires what a finish captured or settled for the landed head on the state it writes
-                        first, or keeps the attempt where that cannot land (`snapshot._clear_ineligible_recovery`,
-                        over the context's `settles_over_a_reset`)
+                        first, or keeps the attempt where that cannot land, and lands over the comment read afresh,
+                        holding where a successor another road settled meanwhile refuses it
+                        (`snapshot._clear_ineligible_recovery`, over the context's `settles_over_a_reset` and
+                        `lands_a_clear`)
       replay_evidence.py
                         pure readings tying the checkout and recorded publication to this attempt, including the
                         grant-vouched window before a replay head was recorded and the finish's own relabel
@@ -1067,8 +1069,9 @@ orchestrator/
       models.py         the frozen contexts, requests, snapshots, and decisions -- a recovery context carrying the
                         optional answers the workflow hands it: what it records before a reset
                         (`records_before_a_reset`), what its reset is owed (`settles_over_a_reset`), the proof
-                        before a park that keeps the attempt (`proves_before_a_park`), and the park its every park
-                        is recorded through (`lands_a_park`)
+                        before a park that keeps the attempt (`proves_before_a_park`), the park its every park
+                        is recorded through (`lands_a_park`), and the record a clear under a label the refresh
+                        does not drive lands through (`lands_a_clear`)
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
       commits.py        the commits the orchestrator creates on a branch itself -- the squash, and the documenting
