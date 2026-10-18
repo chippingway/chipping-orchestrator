@@ -21,7 +21,10 @@ the run whole with the attempt's release.
 A base tip the tick read blank is held to the comment read afresh too: put
 back by another road while the fetch fails, it refuses the record, so no
 reset is made that nothing records, and the next tick records the reset and
-makes it.
+makes it. Over a checkout gone from disk, a record whose answer is lost after
+it read the report moved leaves no park behind to retire the run on, so the run
+is retired whole in a write of its own, and the checkout and the label put back
+route the head with nothing current.
 """
 from __future__ import annotations
 
@@ -31,18 +34,29 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
+from orchestrator.github.pinned_state import PinnedEdit
+from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
 )
 
-# The report record the run is bound to, and the seams a case stands in for.
+# The report record the run is bound to, the revision another road moves it
+# to, and the seams a case stands in for.
 _REPORT = "developer_report_current"
+
+_REVISION = "revision"
 
 _FETCHES = "_authed_fetch"
 
 _GIT = "_git_hardened"
+
+# Where the checkout goes from disk, and a label the refresh does not drive,
+# under which the dispatcher's hold strands the attempt.
+_AWAY = "checkout-away"
+
+_UNDRIVEN = "workflow:resolving_conflict"
 
 
 def _refuses_the_reset(live, asked: list, verb: str, *args, **options) -> subprocess.CompletedProcess:
@@ -119,7 +133,7 @@ class RecordedMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         if "issue-7" in ref and not self._taken:
             self._taken = True
             report = self._held[0]
-            self._writes_the_report({**report, "revision": report["revision"] + 1})
+            self._writes_the_report({**report, _REVISION: report[_REVISION] + 1})
         return fetched
 
     def _puts_the_report_back(self, live, issue, staged, **options):
@@ -177,6 +191,56 @@ class BlankTipTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         state = self.gh.read_pinned_state(self.issue)
         state.set(readings.KEY_REWRITE_BASE, tip)
         self.gh.write_pinned_state(self.issue, state)
+
+
+
+class GoneCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """A reset's record that did not land over a checkout gone from disk still retires what it read moving."""
+
+    def test_an_unlanded_record_retires_the_run(self) -> None:
+        # The report moves, the checkout goes from disk, and the dispatcher's
+        # hold strands the attempt: its reset's record reads the report moved
+        # and goes out with its answer lost, the report put back. The run,
+        # settled or only captured, is retired whole in a write of its own, so
+        # the checkout and the label put back route the head with nothing current.
+        for captures in (False, True):
+            with self.subTest(captured=captures):
+                self.setUp()
+                head, run = self.captures() if captures else self.settles_then_dies()
+                away = self._strands_over_a_moved_report()
+
+                if captures:
+                    self.assert_abandoned(run)
+                else:
+                    self.assert_invalidated(run)
+                away.rename(self._wt)
+                self.issue.labels = [FakeLabel(git_support.REVIEWING)]
+                self.recovers()
+                self.assert_routed(head)
+
+    def _strands_over_a_moved_report(self):
+        """Move the report and the checkout away, and hold the anchor, the first record's answer lost; where it went."""
+        report = self.pinned_fields(_REPORT)[0]
+        self._held = [report]
+        state = self.gh.read_pinned_state(self.issue)
+        state.set(_REPORT, {**report, _REVISION: report[_REVISION] + 1})
+        self.gh.write_pinned_state(self.issue, state)
+        away = self._wt.parent / _AWAY
+        self._wt.rename(away)
+        self.issue.labels = [FakeLabel(_UNDRIVEN)]
+        with patch.object(self.gh, "edit_pinned_state", partial(self._answers_lost_once, self.gh.edit_pinned_state)):
+            guarded.answers_a_held_anchor(self)
+        self.assertEqual(self._held, [])
+        return away
+
+    def _answers_lost_once(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, its first answer lost unsent behind the report held written back."""
+        if not self._held:
+            return live(issue, staged, **options)
+        state = self.gh.read_pinned_state(issue)
+        state.set(_REPORT, self._held.pop())
+        self.gh.write_pinned_state(issue, state)
+        return PinnedEdit.UNCONFIRMED
 
 
 if __name__ == "__main__":

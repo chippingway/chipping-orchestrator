@@ -127,6 +127,10 @@ log = logging.getLogger("orchestrator.workflow")
 
 _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PARK_REASON))
 
+# The write a retirement rides where the reset's record did not land over a
+# checkout gone from disk, logged.
+_UNRECORDED = "in a write of its own, the reset's record not landed and the checkout gone"
+
 # What a recovery hold records: whatever the tick staged since its reading --
 # a publication gate's own record of the no-op it held -- decided on the
 # attempt it keeps, so every evidence record stays as the comment carries it.
@@ -340,7 +344,11 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     revives nothing: behind a blank that landed, the evidence it moved under
     is retired before the reset is let go on, since a reset git then refuses
     stages the tip back, and where that retirement does not land the answer
-    is False, the blank left standing as the record of that movement.
+    is False, the blank left standing as the record of that movement. A
+    checkout gone from disk leaves no landing to prove that evidence over, and
+    a record that did not land leaves no park behind to carry its retirement,
+    so it is retired as over a reset and landed over the comment read afresh
+    in a write of its own (`HOLD`), only what that retirement staged among it.
     """
     moved: dict[str, ReportEvidence] = {}
     commit = _commits.ReportCommit(
@@ -362,6 +370,11 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
         )
     if moved and context.worktree.is_dir():
         recorded = _retirement.retires_unproved(context, _retirement.reconciles(context, moved)) and recorded
+    elif moved and not recorded:
+        _retirement.reconciles(context, moved)
+        _retirement.retires_over_the_reset(context, _UNRECORDED)
+        commit = _commits.ReportCommit(context.gh, context.issue, context.state)
+        commit.lands(context.state, HOLD)
     return recorded
 
 

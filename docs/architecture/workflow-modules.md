@@ -2425,7 +2425,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             state withheld so its stale tip is never written back over a blank that landed unconfirmed,
                             and what its commit read moving under the evidence proved as read, so putting that back
                             revives nothing -- behind a blank that landed too, before the reset goes on, since a reset
-                            git refuses stages the tip back, the reset held where that retirement does not land;
+                            git refuses stages the tip back, the reset held where that retirement does not land, and
+                            over a checkout gone from disk, where no landing proves it and a record that did not land
+                            leaves no park to carry it, retired as over a reset in a `HOLD` write of its own;
                             and the proof before a park
                             that keeps the attempt (`proves_before_a_park`) records the same blank first over a
                             checkout gone from disk
