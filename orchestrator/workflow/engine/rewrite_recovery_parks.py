@@ -127,8 +127,9 @@ from orchestrator.workflow.engine import (
     rewrite_recovery_notices as _notices,
     verification_records as _evidence_records,
 )
-from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
+    LEFT_THE_CHECKOUT,
     AsksEveryReading,
     RecordsALostCheckout,
     asks_every_reading,
@@ -147,11 +148,6 @@ _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PAR
 HOLD = _commits.ReportWrite(
     owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS),
 ).reading_moves(True)
-
-# What a clear, or a reset record asked over a checkout gone from disk, read
-# under every evidence the tick held, as the landed road's move off the landing
-# is (`rewrite_evidence_proof.LEFT_THE_LANDING`).
-_OFF_THE_LANDING = ReportEvidence(ReportEvidenceVerdict.HOLD, "the checkout left the landing: on the anchor, or gone")
 
 # A clear's record under a label the refresh does not drive, decided on the
 # attempt and the evidence records, so a successor settled meanwhile refuses it
@@ -280,7 +276,7 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
         comment_id=context.state.comment_id, state_data=json.loads(context.state.synced),
     )
     read.synced = context.state.synced
-    held = dict.fromkeys(_retirement.receipts(read), _OFF_THE_LANDING)
+    held = dict.fromkeys(_retirement.receipts(read), LEFT_THE_CHECKOUT)
     moving = replace(context, state=read)
     records_the_reset(moving)
     proves_before_a_park(moving, _retirement.reconciles(moving, held))
@@ -381,7 +377,7 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     """
     moved: dict[str, ReportEvidence] = {}
     if not context.worktree.is_dir():
-        moved.update(dict.fromkeys(_retirement.receipts(context.state), _OFF_THE_LANDING))
+        moved.update(dict.fromkeys(_retirement.receipts(context.state), LEFT_THE_CHECKOUT))
     commit = _commits.ReportCommit(
         asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved)).gh,
         context.issue,

@@ -21,13 +21,16 @@ from orchestrator.git.base_sync.models import _AutoRebaseRecoverySnapshot
 from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import (
     rewrite_landing_moved as _landing_moved,
+    rewrite_publication as _publication,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.stages.implementing import late_publication, late_push
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
+    rewrite_landed_hold_support as landed_hold,
     rewrite_verification_recovery_support as support,
 )
 
@@ -53,6 +56,14 @@ def _puts_the_remote_on(case: support.CapturedRunCase, head: str) -> None:
     """Point `case`'s remote branch, and the pull request reading it, at `head`."""
     case._git("update-ref", f"refs/heads/{git_support.BRANCH}", head, cwd=case._remote)
     case.pull_request.head.sha = head
+
+
+def _rolls_back_under(case, head: str, live, *read):
+    """`live`, the leased no-op's reading of the landing, taken over the remote rolled back to the anchor, put back."""
+    _puts_the_remote_on(case, case.anchor)
+    ready = live(*read)
+    _puts_the_remote_on(case, head)
+    return ready
 
 
 class _Move(NamedTuple):
@@ -136,6 +147,21 @@ class PutBackMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         with patch.object(self.gh, _EDITS, partial(self._answers_lost_once, self.gh.edit_pinned_state)):
             self.assertFalse(context.records_before_a_reset(context))
 
+        self._assert_routed_past(head, settled)
+
+    def test_a_rollback_the_no_op_read(self) -> None:
+        # The landed road's leased no-op reads the remote rolled back to the anchor, put back on the head right behind:
+        # that movement invalidates the run whole before the park, so the reply routes nothing current.
+        head, settled = self.settles_then_dies()
+        allowed = late_publication._PublishedCandidate(held=False, revision=head, lease=head, standing=head)
+        reads = partial(_rolls_back_under, self, head, _publication.CandidatePush.reads)
+        with (
+            landed_hold.holding(late_push._publishes),
+            patch.object(late_publication, "_holds_published_work", return_value=allowed),
+            patch.object(_publication.CandidatePush, "reads", autospec=True, side_effect=reads),
+        ):
+            self.recovers()
+        self.continues()
         self._assert_routed_past(head, settled)
 
     def _puts_back_behind(self, live, issue, staged, **options):

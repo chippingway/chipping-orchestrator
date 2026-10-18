@@ -68,6 +68,10 @@ _SETTLED_UNBASED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "evidence was read beside an attempt that records no base tip its head was made onto",
 )
 
+# A checkout read off the landing -- back on the anchor, or gone from disk --
+# under every evidence the tick held, however soon it is put back.
+LEFT_THE_CHECKOUT = ReportEvidence(ReportEvidenceVerdict.DEFER, "the checkout left the landing: on the anchor, or gone")
+
 # A readable revision read spent past a transaction captured for the head: it
 # outranks that transaction for good, however soon the floor is put back.
 _SPENT_PAST_THE_OWED = ReportEvidence(

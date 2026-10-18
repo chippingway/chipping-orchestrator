@@ -20,13 +20,14 @@ from typing import NamedTuple
 from unittest.mock import patch
 
 from orchestrator.git.verification import probes as _probes
-from orchestrator.workflow.engine import verification_durable as _durable
+from orchestrator.workflow.engine import rewrite_recovery_readings as _readings, verification_durable as _durable
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_git_support as git_support,
     rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
+    rewrite_handoff_test_support as handoff,
     settled_finish_support as settled,
 )
 from tests.workflow.interleaving import _RacesTheStep
@@ -35,6 +36,14 @@ _EDITED_BODY = "Also cover a base that moved twice."
 
 # The checkout's head reading, read before any case stands in for it.
 _HEAD_SHA = _probes._head_sha
+
+# Where a case moves the checkout to take it off disk.
+_AWAY = "checkout-away"
+
+# The proof's issue read the checkout goes from disk behind, and the reading of that loss it comes back at.
+_BEHIND_A_READ = handoff.Boundary("behind an issue read", "get_issue", lambda *_called: True)
+
+_AT_ITS_LOSS = handoff.Boundary("at its loss", "__exit__", lambda _held, kind, *_rest: kind is FileNotFoundError)
 
 # How a case puts the checkout on a commit of its own.
 _PUTS_BACK = ("reset", "--quiet", "--hard")
@@ -149,6 +158,36 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.recovers()
         self.assert_routed(head)
 
+    def test_a_checkout_back_under_a_refused_record(self) -> None:
+        # The checkout comes back on its head as the hold's reset record goes out refused: the loss that record was
+        # asked over still abandons the captured run whole, and the head is then routed once.
+        head, run = self.captures()
+        away = self._wt.parent / _AWAY
+        self._wt.rename(away)
+        self._live_edit = self.gh.edit_pinned_state
+        with patch.object(self.gh, "edit_pinned_state", partial(self._returns_under_the_blank, away)):
+            guarded.answers_a_held_anchor(self)
+        self._assert_retired(run, captured=True)
+        self.recovers()
+        self.assert_routed(head)
+
+    def test_a_loss_the_proof_read_retires_the_run(self) -> None:
+        # The checkout goes behind one of the proof's issue reads and comes back the moment the proof reads that
+        # loss: the loss still invalidates the run whole, and the head is then routed once.
+        head, run = self.settles_then_dies()
+        away = self._wt.parent / _AWAY
+        vanishes = _BEHIND_A_READ.moving(self.gh.get_issue, partial(self._wt.rename, away))
+        exits = _AT_ITS_LOSS.moving(_readings.LosesTheCheckout.__exit__, partial(away.rename, self._wt))
+        with (
+            patch.object(self.gh, "get_issue", vanishes),
+            patch.object(_readings.LosesTheCheckout, "__exit__", autospec=True, side_effect=exits),
+        ):
+            guarded.answers_a_held_anchor(self)
+        self.assertTrue(self._wt.is_dir())
+        self._assert_retired(run, captured=False)
+        self.recovers()
+        self.assert_routed(head)
+
     def _holds_over_an_edit(self, road: _Road) -> None:
         """Bring the hold to `road`; the dispatcher holds its anchor over any edit it makes, put back, posting none."""
         road.stands(self)
@@ -158,6 +197,17 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         guarded.answers_a_held_anchor(self)
         self.issue.body = written
         self.assertEqual(len(self.gh.posted_comments), noticed)
+
+    def _returns_under_the_blank(self, away, issue, staged, **options):
+        """The pinned-comment edit, the base tip's first blank refused with the checkout back from `away` under it."""
+        tip = readings.KEY_REWRITE_BASE
+        read = options["over"].get(tip)
+        if read and staged.get(tip) is None and away.exists():
+            away.rename(self._wt)
+            self.gh.pinned_failures.refused.add(issue.number)
+        answered = self._live_edit(issue, staged, **options)
+        self.gh.pinned_failures.refused.discard(issue.number)
+        return answered
 
     def _assert_retired(self, run, *, captured: bool) -> None:
         """`run` abandoned whole where it was only `captured`, else invalidated whole, the attempt on its anchor."""

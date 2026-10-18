@@ -108,6 +108,7 @@ from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit, spel
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_rechecks import invalidates_rechecked, lays
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
+    LEFT_THE_CHECKOUT,
     LosesTheCheckout,
     asks_every_reading,
     owed_moves,
@@ -244,7 +245,8 @@ def retires_unproved(
     `rewrite_recovery_parks.records_the_reset`, which hands it every proof it
     and the proof before a park ask), its answer the proof's; a context with
     no recorder has both retired on the state the park lands
-    (`retires_over_the_reset`). False only where evidence still
+    (`retires_over_the_reset`); one back on disk by then has that loss asked
+    again as movement under each receipt held. False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
     its history entry among it, its movement recorded instead -- or where the
     comment the proof read carries another attempt in place of the one
@@ -261,7 +263,7 @@ def retires_unproved(
     asked = asks_every_reading(
         context, lambda reading: moved_under(reading, tick=context.state, into=moved),
     )
-    proved = False
+    proved = None
     with LosesTheCheckout(context):
         proved = context.worktree.is_dir() and all((
             _landing_captured.proves_captured(
@@ -280,7 +282,10 @@ def retires_unproved(
             retires_over_the_reset(context, _landing_captured._CHECKOUT_GONE)
             if records is None else records(context)
         )
-    if proved and moved.keys() & receipts(context.state):
+    moved.update({
+        receipt: LEFT_THE_CHECKOUT for receipt in receipts(context.state) if proved is None
+    })
+    if proved is not False and moved.keys() & receipts(context.state):
         return retires_unproved(context, moved)
     if proved and not stands_as_recovered(context):
         log.warning(
@@ -289,7 +294,7 @@ def retires_unproved(
             context.issue.number,
         )
         return False
-    return proved
+    return bool(proved)
 
 
 def receipts(state) -> frozenset[str]:

@@ -240,7 +240,8 @@ def _settles(
     the hold's write, and that write lands over the comment read afresh
     rather than whole (`rewrite_recovery_parks.lands_a_hold`), keeping a
     newer transaction another road recorded while the gate answered, with the
-    evidence proved once more behind it.
+    evidence proved once more behind it. A landing the no-op read moving
+    retires that evidence first (`rewrite_landing_moved.abandons`).
     """
     landed = completed.head
     if not _transfer_permits._permits_the_publication(context, landed):
@@ -256,6 +257,9 @@ def _settles(
         ),
         transport=push,
     )
+    landing = push.landing
+    if landing is not None and landing.remote.sha is not None and not landing.landed:
+        _landing_moved.abandons(context)
     if published.held and not published.refused:
         _recovery_parks.lands_a_hold(context)
         return True
