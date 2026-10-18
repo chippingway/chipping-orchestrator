@@ -369,9 +369,10 @@ at all, and with none the record alone answers. Every recovery park the workflow
 notice of its own it finds said past the watermark, asks for its event matched on the issue, the `reason`, and that
 `notice_id` (`workflow/engine/rewrite_recovery_notices.py`), filing it only where the stream lacks it and nothing while
 the log will not read. With no log configured either park takes its notice already said as its event filed unless this
-process noted that event owing ahead of the notice and never filed it (`workflow/engine/owed_events.py`), so a restart
-between a park's notice and its record files the event at most once, never twice; a recovery park whose conversation
-will not read raises before anything is filed or parked.
+process noted that event owing ahead of a notice saying the same and never filed it (`workflow/engine/owed_events.py`),
+so a restart between a park's notice and its record files the event at most once, never twice, and a failed post of
+another notice files no earlier one's event again; a recovery park whose conversation will not read raises before
+anything is filed or parked.
 
 ## Analytics sink (`ANALYTICS_LOG_PATH`)
 

@@ -339,15 +339,19 @@ def _park_awaiting_human(
     and the recovery parks of an automatic base rewrite
     (`rewrite_recovery_notices`) ask for it, so every other record goes out
     without the field. Its event is noted owed ahead of the post until it is
-    filed (`owed_events`), so with no audit log that caller files it for a
-    notice this process said, and takes one an earlier process said as filed.
+    filed (`owed_events`), under the text the notice says, so with no audit
+    log that caller files it for a notice this process said, and takes one an
+    earlier process said as filed.
     """
     reason = correlation.pop("reason", None)
     bounded = correlation.pop("bounded", False)
     names_the_notice = correlation.pop("names_the_notice", False)
     _screened_correlation(correlation)
     if names_the_notice:
-        _owed_events.owes(gh, _PARKED, issue_number=issue.number, reason=reason, **correlation)
+        _owed_events.owes(
+            gh, _PARKED, issue_number=issue.number, said=message,
+            reason=reason, **correlation,
+        )
     said_before = _comments._orchestrator_ids(state) if bounded else None
     posted = _comments._post_issue_comment(gh, issue, state, message)
     state.set("awaiting_human", True)
@@ -370,4 +374,7 @@ def _park_awaiting_human(
         **correlation,
     )
     if names_the_notice:
-        _owed_events.pays(gh, _PARKED, issue_number=issue.number, reason=reason, **correlation)
+        _owed_events.pays(
+            gh, _PARKED, issue_number=issue.number, said=message,
+            reason=reason, **correlation,
+        )

@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import logging
 
+from orchestrator.git.base_sync import attempt_records as _attempt_records
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext, _AutoRebaseRecoverySnapshot
 from orchestrator.workflow.engine import (
     rewrite_landing_records as _landing_records,
@@ -74,15 +75,22 @@ def abandons_off_the_landing(context: _AutoRebaseRecoveryContext, snapshot: _Aut
     reads them again itself. A head the snapshot holds as "" is one nobody
     read, which establishes no movement, so the evidence is kept for a reset
     that lands to retire (`rewrite_landing_retirement.retires_over_the_reset`).
-    False only where evidence still stands that the abandonment or
-    invalidation could not retire, logged: the coordinator holds the tick
-    then rather than take a road that would leave it behind.
+    Heads both on the landing say nothing of movement already recorded: an
+    attempt recording no base tip beside that evidence -- the blank a reset
+    recorded ahead of a park that never landed among it -- proves no base the
+    head was replayed onto, so the recovery's proof is asked first, reading
+    that blank as the movement it is (`abandons`, `read` False), and the
+    landed road finishes over nothing it retired, whichever policy that
+    finish selects. False only where evidence still stands that the
+    abandonment or invalidation could not retire, logged: the coordinator
+    holds the tick then rather than take a road that would leave it behind.
     """
     recorded = (_landing_records.captured(context.state), _landing_records.settled(context.state))
     heads = [record.binding.target.target_head for record in recorded if record is not None]
     read = {snapshot.local_head, snapshot.remote_head}
     moved = any(read - {"", head} for head in heads)
-    if not moved or abandons(context):
+    unbased = bool(heads) and not _attempt_records._recorded_onto(context.state)
+    if not (moved or unbased) or abandons(context, read=moved):
         return True
     log.warning(
         "issue=#%d holding the recovery of %.8s: the verification evidence captured or settled for it could not "
@@ -92,7 +100,7 @@ def abandons_off_the_landing(context: _AutoRebaseRecoveryContext, snapshot: _Aut
     return False
 
 
-def abandons(context: _AutoRebaseRecoveryContext) -> bool:
+def abandons(context: _AutoRebaseRecoveryContext, *, read: bool = True) -> bool:
     """Retire what an earlier finish recorded or settled for the head the landing was read leaving; whether none stands.
 
     The recovery's proof (`rewrite_landing_retirement.retires_unproved`),
@@ -106,7 +114,9 @@ def abandons(context: _AutoRebaseRecoveryContext) -> bool:
     invalidated only where they, or a comment the proof's writes read, record
     it moving. Nothing is routed either way, and nothing is read or written
     where neither stands. False where either still stands once its
-    retirement was asked, or where a successor's proof holds.
+    retirement was asked, or where a successor's proof holds. `read` False
+    hands the proof no landing movement, for a caller that read none: the
+    proof then reads what the comment and the checkout record moving itself.
 
     A checkout gone from disk since the landing was read has nothing to prove
     over, and the proof stages its retirement for a park's write
@@ -116,7 +126,7 @@ def abandons(context: _AutoRebaseRecoveryContext) -> bool:
     reset recorded first by blanking the base tip, then the retirement landed
     over the comment read afresh.
     """
-    left = {receipt: LEFT_THE_LANDING for receipt in _retirement.receipts(context.state)}
-    if left and not context.worktree.is_dir():
+    held = _retirement.receipts(context.state)
+    if held and not context.worktree.is_dir():
         return _recovery_parks.lands_a_hold(context)
-    return _retirement.retires_unproved(context, left)
+    return _retirement.retires_unproved(context, dict.fromkeys(held, LEFT_THE_LANDING) if read else None)

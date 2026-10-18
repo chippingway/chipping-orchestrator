@@ -3241,7 +3241,9 @@ The keys that matter for the state machine fall into a few groups:
   and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`). The readiness
   primitives blank it too where an invalidation of settled evidence cannot land
   (`workflow/engine/rewrite_finish_readiness.py`), and so does the recovery's record ahead of every reset
-  (`workflow/engine/rewrite_recovery_parks.py`, `records_the_reset`); the dormant settled-evidence policy's readiness
+  (`workflow/engine/rewrite_recovery_parks.py`, `records_the_reset`), and the recovery reads it blank or missing beside
+  evidence a finish captured or settled as movement, retiring that evidence before the landed road finishes over heads
+  both on the landing (`workflow/engine/rewrite_landing_moved.py`); the dormant settled-evidence policy's readiness
   step, which its coordinator asks behind the relabel, holds a head with no evidence current to the base the tick
   counted it against where this member is blank or missing (`workflow/engine/rewrite_finish_settled.py`).
   `pending_auto_base_rebase_announced_sha` is the member written last and covers the last window a finish has:

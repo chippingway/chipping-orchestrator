@@ -16,7 +16,10 @@ repository's client, which shares it with every worker client it mints
 issue up behind one lost mid-filing files what that one still owed, and one
 repository's debt never answers for another's. A notice the event names
 (`notice_id`) is no part of what is owed: the event is owed before its notice
-is posted.
+is posted. What that notice says (`said`) is: a park posts a notice only where
+none saying the same stands past the watermark, so one found saying it later is
+that post's own, and a debt a failed post of one notice left never files the
+event of another notice found said.
 """
 from __future__ import annotations
 
@@ -31,25 +34,29 @@ _NOTED = "owed_events"
 _NOTICE = "notice_id"
 
 
-def owes(client: Any, event: str, *, issue_number: int, **identity: Any) -> None:
-    """Note that `client`'s process is about to file `event` for `issue_number`, as `identity` names it."""
-    owing = _owing(event, issue_number, identity)
+def owes(client: Any, event: str, *, issue_number: int, said: str = "", **identity: Any) -> None:
+    """Note that `client`'s process is about to file `event` for `issue_number`, as `identity` names it.
+
+    `said` is the text of the notice the event rides, where it rides one.
+    """
+    owing = _owing(event, issue_number, said, identity)
     _noted(client).add(owing)
 
 
-def pays(client: Any, event: str, *, issue_number: int, **identity: Any) -> None:
+def pays(client: Any, event: str, *, issue_number: int, said: str = "", **identity: Any) -> None:
     """Drop the note `owes` made: the event is filed."""
-    owing = _owing(event, issue_number, identity)
+    owing = _owing(event, issue_number, said, identity)
     _noted(client).discard(owing)
 
 
-def unfiled(client: Any, event: str, *, issue_number: int, **identity: Any) -> bool:
+def unfiled(client: Any, event: str, *, issue_number: int, said: str = "", **identity: Any) -> bool:
     """Whether an event the stream does not carry, a durable word saying it may be out, is still to be filed.
 
     Always where the audit log is configured, which vouches for the absence;
-    with none, only an event `client`'s process noted owing and never paid.
+    with none, only an event `client`'s process noted owing and never paid,
+    over a notice saying `said`.
     """
-    owing = _owing(event, issue_number, identity)
+    owing = _owing(event, issue_number, said, identity)
     return _events.durable() or owing in _noted(client)
 
 
@@ -60,7 +67,7 @@ def _noted(client: Any) -> set:
     return getattr(client, _NOTED)
 
 
-def _owing(event: str, issue_number: int, identity: dict[str, Any]) -> tuple:
-    """The event `owes` notes, its notice left out."""
+def _owing(event: str, issue_number: int, said: str, identity: dict[str, Any]) -> tuple:
+    """The event `owes` notes, the text its notice says kept and the notice's id left out."""
     named = {field: field_value for field, field_value in identity.items() if field != _NOTICE}
-    return (event, int(issue_number), tuple(sorted(named.items())))
+    return (event, int(issue_number), said, tuple(sorted(named.items())))

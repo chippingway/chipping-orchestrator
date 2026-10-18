@@ -16,8 +16,9 @@ first, in a write of its own, by blanking the base tip the attempt recorded
 its replay as made onto. A park record that lands keeps the attempt and
 retires the run whole; one GitHub refuses, or a process killed before it,
 leaves the run current, but read moving once the checkout and the label are
-put back, so the proof a park that keeps the attempt asks invalidates it whole,
-and the recovery behind it routes the head with nothing current.
+put back: the recovery asks the proof a park that keeps the attempt asks
+before the landed road finishes over heads both on the landing, so the run is
+invalidated whole and the head routed with nothing current.
 
 The guarded hold a publication gate's hold of a recovery's push is recorded
 through takes that proof too, so with the checkout gone the reset
@@ -38,7 +39,10 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git.base_sync import rewrite_facts
-from orchestrator.workflow.engine import rewrite_recovery_parks as _parks
+from orchestrator.workflow.engine import (
+    rewrite_recovery_parks as _parks,
+    verification_settlement_state as _settlement,
+)
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
@@ -120,9 +124,10 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def test_a_park_that_never_lands(self) -> None:
         # The stranded park's record is refused, or the process is killed
         # ahead of it: the movement was recorded against the run first, so
-        # with the checkout and the label put back the run reads moved, and
-        # the proof invalidates it whole; the recovery behind it routes the
-        # head with nothing current.
+        # with the checkout and the label put back the recovery reads that
+        # blank as movement, though both heads stand on the landing, and
+        # invalidates the run whole before the landed road routes the head
+        # with nothing current.
         for failing in _NEVER_LANDS:
             with self.subTest(record=failing):
                 self.setUp()
@@ -132,10 +137,16 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
                 self.assertEqual(readings.pinned_records(self)[1], settled)
                 self.assertEqual(self.pinned_fields(readings.KEY_REWRITE_BASE), (None,))
-                self.assertTrue(self.proves())
-                self.assert_invalidated(settled)
                 self.recovers()
-                self.assert_routed(head)
+                self._assert_routed_past(head, settled)
+
+    def _assert_routed_past(self, head: str, settled) -> None:
+        """`settled` invalidated whole into history, its revision and binding kept, and `head` routed past it."""
+        retired = readings.pinned_records(self)[2]
+        self.assertIn((settled.receipt, readings.INVALIDATED), retired)
+        entry = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))[-1]
+        self.assertEqual((entry.revision, entry.binding), (settled.revision, settled.binding))
+        self.assert_routed(head)
 
     def _settles_then_strands(self) -> tuple:
         """Settle a reviewed rebase's run, kill its finish, move the checkout away, and relabel; the head, the run."""

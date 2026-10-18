@@ -62,7 +62,7 @@ def parks_awaiting_human(context: _AutoRebaseRecoveryContext, message: str, reas
     state.set(_base_sync_state._PARK_REASON, None)
     state.set(_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, said)
     _comments._track_orchestrator_comment(state, said)
-    _files_the_event(context, said, reason)
+    _files_the_event(context, said, reason, message)
 
 
 def _said(context: _AutoRebaseRecoveryContext, message: str) -> int | None:
@@ -75,11 +75,12 @@ def _said(context: _AutoRebaseRecoveryContext, message: str) -> int | None:
     return said[-1] if said else None
 
 
-def _files_the_event(context: _AutoRebaseRecoveryContext, notice: int, reason: str) -> None:
+def _files_the_event(context: _AutoRebaseRecoveryContext, notice: int, reason: str, message: str) -> None:
     """File the `park_awaiting_human` event of the park whose notice `notice` was said, where the stream lacks it.
 
     With no audit log the notice said is taken as its event filed, save one
-    this process owes (`owed_events.unfiled`): once at most, never twice.
+    this process owes over a notice saying `message` (`owed_events.unfiled`):
+    once at most, never twice.
     """
     issue_number = context.issue.number
     named = {"reason": reason, "notice_id": notice}
@@ -91,7 +92,8 @@ def _files_the_event(context: _AutoRebaseRecoveryContext, notice: int, reason: s
             issue_number, notice,
         )
         return
-    if found or not _owed_events.unfiled(context.gh, _PARKED, issue_number=issue_number, **named):
+    owing = {**named, "said": message}
+    if found or not _owed_events.unfiled(context.gh, _PARKED, issue_number=issue_number, **owing):
         log.info(
             "issue=#%d recovery park notice %d already said, its event filed or, with no audit log, taken as filed; "
             "posting nothing", issue_number, notice,
@@ -99,4 +101,4 @@ def _files_the_event(context: _AutoRebaseRecoveryContext, notice: int, reason: s
         return
     stage = stage_name(context.gh.workflow_label(context.issue))
     context.gh.emit_event(_PARKED, issue_number=issue_number, stage=stage, **named)
-    _owed_events.pays(context.gh, _PARKED, issue_number=issue_number, **named)
+    _owed_events.pays(context.gh, _PARKED, issue_number=issue_number, **owing)

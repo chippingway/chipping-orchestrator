@@ -393,7 +393,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             rewrite's `base_rebased` record, a park's notice -- noted owed until filed, so with no
                             audit log such a word is taken as its event filed, once at most, save one this process
                             still owes -- noted on the repository's client, which shares it with every worker client
-                            it mints (`github/client.py`)
+                            it mints (`github/client.py`), under the text its notice says, so a failed post of one
+                            notice never files the event of another found said
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked
@@ -2281,7 +2282,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             -- a snapshot reading its checkout or remote on another head (`abandons_off_the_landing`)
                             -- through the recovery's proof before a park
                             (`rewrite_landing_retirement.retires_unproved`) handed that movement as already read under
-                            every receipt the tick holds, a successor under
+                            every receipt the tick holds -- and that proof asked unhanded where both heads stand on the
+                            landing but the attempt records no base tip beside the evidence, a blank it reads as the
+                            movement it is, so the landed road finishes over nothing it retired -- a successor under
                             another receipt proved on its own readings and on any comment the proof's writes read,
                             answering False where no write could retire either so the road holds, and keeping both
                             where a head went unread, which moves nothing, for a reset that lands to retire; the same

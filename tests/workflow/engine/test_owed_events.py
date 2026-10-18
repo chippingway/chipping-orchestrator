@@ -4,22 +4,29 @@
 
 With an audit log configured every absence the stream reads is the log's to
 vouch for, so the event is filed; with none, only one this process noted
-owing and never paid is, whatever notice the event names -- noted by any
-worker client the repository's client minted, and by none of another
-repository's.
+owing and never paid is, whatever id the notice it names has -- noted by
+any worker client the repository's client minted, and by none of another
+repository's -- and only for a notice saying what the post that owed it said,
+so an earlier process's notice found said is never filed again over the
+debt another notice's failed post left.
 """
 from __future__ import annotations
 
 import unittest
+from functools import partial
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
-from orchestrator.workflow.engine import owed_events
+from orchestrator.workflow.engine import owed_events, rewrite_recovery_notices as _notices
+from tests.support.fakes import FakeGitHubClient, FakeIssue, FakeLabel
 
 _PARKED = "park_awaiting_human"
+
+# The audit log's setting, unset where no log vouches for an absence.
+_LOG = "EVENT_LOG_PATH"
 
 _NAMED = MappingProxyType({"issue_number": 7, "reason": "auto_base_rebase_push_failed"})
 
@@ -29,6 +36,11 @@ _SLUGS = ("owner/repo", "owner/other")
 _TOKEN = "tok"
 
 _BOT = "bot"
+
+# Two recovery park notices of one issue, parked for the same reason.
+_SAID = "Reset failed; inspect the checkout."
+
+_OTHER = "Reset succeeded; continue after repair."
 
 
 def _minted(workers: int) -> tuple:
@@ -40,12 +52,18 @@ def _minted(workers: int) -> tuple:
     return (*minted, other)
 
 
+def _parks(gh: FakeGitHubClient, issue: FakeIssue, message: str) -> None:
+    """A recovery park of `issue` over `message`, posted or taken in where it is already said."""
+    context = SimpleNamespace(gh=gh, issue=issue, state=gh.read_pinned_state(issue))
+    _notices.parks_awaiting_human(context, message, _NAMED["reason"])
+
+
 class OwedEventTest(unittest.TestCase):
     """An event is still to be filed with no log only while this process owes it."""
 
     def test_no_log_files_only_an_owed_event(self) -> None:
         client = SimpleNamespace()
-        self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
+        self.enterContext(patch.object(config, _LOG, None))
         self.assertFalse(owed_events.unfiled(client, _PARKED, **_NAMED))
 
         owed_events.owes(client, _PARKED, **_NAMED)
@@ -55,14 +73,14 @@ class OwedEventTest(unittest.TestCase):
         self.assertFalse(owed_events.unfiled(client, _PARKED, **_NAMED))
 
     def test_a_log_vouches_for_every_absence(self) -> None:
-        self.enterContext(patch.object(config, "EVENT_LOG_PATH", Path("events.jsonl")))
+        self.enterContext(patch.object(config, _LOG, Path("events.jsonl")))
         self.assertTrue(owed_events.unfiled(SimpleNamespace(), _PARKED, **_NAMED))
 
     def test_workers_share_their_repository_debt(self) -> None:
         # A scheduled handler's worker client is lost behind its notice, and
         # the next one minted for the issue still owes the event; paid there,
         # it is paid for every worker, and another repository's owes nothing.
-        self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
+        self.enterContext(patch.object(config, _LOG, None))
         lost, replacing, later, other = _minted(3)
         owed_events.owes(lost, _PARKED, **_NAMED)
         owing = [owed_events.unfiled(client, _PARKED, **_NAMED) for client in (replacing, other)]
@@ -70,6 +88,24 @@ class OwedEventTest(unittest.TestCase):
 
         owed_events.pays(replacing, _PARKED, **_NAMED)
         self.assertFalse(owed_events.unfiled(later, _PARKED, **_NAMED))
+
+
+    def test_another_notices_debt_files_nothing(self) -> None:
+        # A restarted process owes the event of a notice whose post failed
+        # unsent; a park that then finds the earlier process's notice said,
+        # saying something else, takes its event as filed: once in all.
+        self.enterContext(patch.object(config, _LOG, None))
+        issue = FakeIssue(_NAMED["issue_number"], labels=[FakeLabel("workflow:fixing")])
+        gh = FakeGitHubClient([issue])
+        parks = partial(_parks, gh, issue)
+        parks(_SAID)
+        gh.recorded_events.clear()
+        gh.owed_events.clear()
+        with patch.object(gh, "comment", side_effect=RuntimeError("post failed before sending")):
+            self.assertRaises(RuntimeError, parks, _OTHER)
+        parks(_SAID)
+
+        self.assertEqual(gh.recorded_events, [])
 
 
 if __name__ == "__main__":

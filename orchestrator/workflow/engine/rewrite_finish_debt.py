@@ -210,8 +210,8 @@ def files_the_park(finish: LandedFinish, notice: int) -> FinishOutcome | None:
     this very park: one naming that notice, which no earlier park of the
     issue, of this head or another, does. HELD, logged, where the stream
     would not read, so nothing is filed twice. With no audit log the notice
-    said is taken as its event filed, save one this process owes
-    (`owed_events.unfiled`): once at most, never twice.
+    said is taken as its event filed, save one this process owes over this
+    park's notice text (`owed_events.unfiled`): once at most, never twice.
     """
     issue_number = finish.issue.number
     named = {"reason": _PARKED_FOR_THE_DEBT, "sha": finish.head, "notice_id": notice}
@@ -219,10 +219,11 @@ def files_the_park(finish: LandedFinish, notice: int) -> FinishOutcome | None:
     if found is None:
         log.warning("issue=#%d could not read the event stream back for its debt park; holding", issue_number)
         return FinishOutcome.HELD
-    if not found and _owed_events.unfiled(finish.gh, _PARKED, issue_number=issue_number, **named):
+    named_and_said = {**named, "said": unrecorded(finish)}
+    if not found and _owed_events.unfiled(finish.gh, _PARKED, issue_number=issue_number, **named_and_said):
         stage = stage_name(finish.gh.workflow_label(finish.issue))
         finish.gh.emit_event(_PARKED, issue_number=issue_number, stage=stage, **named)
-        _owed_events.pays(finish.gh, _PARKED, issue_number=issue_number, **named)
+        _owed_events.pays(finish.gh, _PARKED, issue_number=issue_number, **named_and_said)
     return None
 
 
