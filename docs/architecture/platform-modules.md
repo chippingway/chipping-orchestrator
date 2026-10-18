@@ -1018,15 +1018,15 @@ orchestrator/
                         is (`persistence._parks_the_recovery`)
       recovery_holds.py
                         what no recovery road reaches: the reset and park over a checkout whose base lag cannot
-                        be counted, handed on the answers the workflow's recovery hands in for that reset and its
-                        parks (`records_before_a_reset`, `settles_over_a_reset`, `proves_before_a_park`,
-                        `lands_a_park`), and the dispatch hold -- whether a standing anchor keeps a stage handler
-                        back, which every label the refresh does not drive does, and one it drives does unless a
-                        late claim the reconciliation answers freezes the refresh out -- with a missing checkout
-                        restored where the refresh drives the label, and the evidence the anchor keeps proved
-                        there with nothing posted, and the ineligible answer taken where it does not, over a
-                        context built apart (`_held_anchor_context`) so the dispatcher can hand it the workflow's
-                        answer before a park keeps the attempt and the park that one is recorded through
+                        be counted, handed on the answers the workflow's recovery hands in for that reset and its parks
+                        (`records_before_a_reset`, `settles_over_a_reset`, `proves_before_a_park`, `lands_a_park`), and
+                        the dispatch hold -- whether a standing anchor keeps a stage handler back,
+                        which every label the refresh does not drive does, and one it drives does unless a late
+                        claim the reconciliation answers freezes the refresh out -- with a missing checkout
+                        restored where the refresh drives the label, and the evidence the anchor keeps proved there with
+                        nothing posted, and the ineligible answer taken where it does not, over a context built apart
+                        (`_held_anchor_context`) so the dispatcher can hand it the workflow's answer before a park keeps
+                        the attempt and the park that one is recorded through
                         (`workflow/engine/rewrite_recovery_parks.answers_a_held_anchor`). An anchor beside a live
                         adjudication reaches it only once the dispatcher's handoff
                         (`workflow/engine/rewrite_takeover.py`) has refused the pair

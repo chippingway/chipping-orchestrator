@@ -2,30 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """An anchor the dispatcher holds with nothing parked or posted, proving the run it keeps first.
 
-The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
-rebased head reviewed, its run captured by a finish that died posting its
-artifact, or settled under the anchor by one that died before its
-announcement. The dispatcher then holds a handler back for the anchor, and its
-answer posts nothing: under a label the refresh drives it leaves the anchor to
-the refresh, and under one the refresh does not drive it finds its own
-stranded park already standing. Either hold keeps the attempt, so the run is
-proved first all the same (`git/base_sync/persistence._proves_before_the_park`):
-the issue edited before the hold and put back right behind it has the run
-abandoned or invalidated whole, nothing posted beside the one stranded park,
-and the recovery that takes the anchor up next -- the label put back and a
-reply given, where the park stands -- routes the head with nothing current.
-
-A run another finish settles, the edit put back, while the stranded park's
-proof abandons it is invalidated over that edit all the same -- or, the comment
-full, has it recorded by its base tip blanked first, which frees the room the
-invalidation then takes -- and a newer run settled over it under its own
-receipt is left as it stands.
-
-An anchor cleared under such a label over a checkout back on the anchor --
-by the dispatcher's hold or the refresh's eligibility gate -- retires the run
-whole in the guarded write that clears the attempt, keeps the attempt where
-history has no room, and is refused by a newer run settled meanwhile.
-The run is made once, and nothing is pushed or launched.
+The real-git finish case, its run captured or settled and the finish killed.
+A dispatcher hold that posts nothing -- under a label the refresh drives, or
+beside its own stranded park already standing -- proves the run first
+(`git/base_sync/persistence._proves_before_the_park`): an issue edited and put
+back has it retired whole, and the next recovery routes the head with nothing
+current. A run another finish settles during that proof is invalidated too,
+or recorded by its base tip where the comment is full; a newer run settled
+over it is kept. An anchor cleared under a label the refresh does not drive,
+over a checkout back on the anchor, retires the run in the guarded write that
+clears the attempt, keeps the attempt where history has no room, and is
+refused by a newer run settled meanwhile. Nothing is run again or pushed.
 """
 from __future__ import annotations
 

@@ -2,14 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The publication gate holding the leased no-op a recovery's landed road receipts a transfer through.
 
-The recovery of a push already landed, with a transfer permission still
-outstanding beside it, receipts the landing through the permit-only leased
-no-op (`workflow/engine/rewrite_landed.py`), and the gate may hold that no-op:
-the attempt is kept for a later tick, and the hold is recorded through the
-guarded `HOLD` (`rewrite_recovery_parks.lands_a_hold`). The transfer's own
-machinery -- how far it got, its permit, and the gate's answer -- is stood in
-for (`holding`), so a case reads back only the run, the attempt, and what the
-issue was told.
+The transfer's machinery -- how far it got, its permit, and the gate's
+answer -- is stood in for (`holding`); the hold is recorded through the
+guarded `HOLD` (`workflow/engine/rewrite_recovery_parks.lands_a_hold`).
 """
 from __future__ import annotations
 

@@ -2,30 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Evidence settled for a landed head, invalidated wherever a later tick reads what it rests on moving.
 
-The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
-rebased head reviewed, its run settled under the anchor, and the finish killed
-at a final handoff boundary (`rewrite_handoff_test_support`) before it routed
-the head. The next tick's recovery reads what the run rests on moving before
-any finish takes it up again -- the checkout committed past the head, or the
-remote rolled back onto the anchor -- and takes the road that reading chooses,
-a reset or a park, without the route; the settled run is invalidated into
-history whole on the way, its revision and binding kept, so putting the
-landing back and replying revives nothing it decided. And a finish that reads
-the requirements moving under the run invalidates it even where the pinned
-comment will not read again for that write: the invalidation lands over the
-tick's own reading instead, so putting the requirements back revives nothing
-either. So does a finish the comment has no room to record the landing's
-report debt on: the run is proved ready before the park that debt takes, and
-the requirements edited under it invalidate it there, so making room, putting
-the requirements back, and replying routes the head with nothing current. A
-comment with no room for the run's history entry at all -- filled ahead of the
-recovery, or by another road while the recovery proves the run -- keeps the
-run current and records the movement against it instead, by blanking the base
-tip its replay was made onto, so putting the requirements back before room is
-made still finds it moved. So does another command configured once the landing
-is announced, which the evidence step would otherwise invalidate the run over
-with no room to: putting the configuration back before room is made revives
-nothing either. The run is never made again, and no developer is launched.
+The real-git finish case (`rewrite_verification_recovery_support`), the run
+settled and the finish killed at a final handoff boundary. The landing read
+moving -- the checkout committed past the head, or the remote rolled back --
+invalidates the run whole on whichever road that reading takes; so do the
+requirements read moving with the comment unreadable for that write, or ahead
+of a debt park. With no room for the run's history entry, the movement is
+recorded by blanking its base tip instead, so putting the requirements or the
+configuration back before room is made revives nothing. The run is never made
+again, and no developer is launched.
 """
 from __future__ import annotations
 

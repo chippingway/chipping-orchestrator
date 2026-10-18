@@ -3,13 +3,8 @@
 """Issue #7's settled run, its finish killed at a final handoff, and the moves a hold, park, or continuation proves.
 
 The real-git settled route case (`settled_route_support`) the hold-proof
-modules share: a reviewed rebase whose run settles under the anchor and whose
-finish dies at a handoff boundary (`HoldCase.settles_then_dies`), a record or
-the issue written beside it, a base advanced without changing a tree, and
-report 3 of the head settled while a notice is posted
-(`HoldCase.settles_under_the_notice`) -- a direct finish, or a whole recovery
--- with what it moved put back after. A case reads back the run invalidated
-whole (`HoldCase.assert_invalidated`) or the head continued once.
+modules share, with the records it moves put back after and the run read
+back invalidated whole or the head continued once.
 """
 from __future__ import annotations
 

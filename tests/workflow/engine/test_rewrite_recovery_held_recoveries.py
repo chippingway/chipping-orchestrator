@@ -2,17 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """Settled evidence a whole recovery keeps the attempt over, proved ready before it holds, parks, or stops.
 
-The held-run case (`held_run_support`): issue #7's run settled and its finish
-killed before its announcement, then the next tick's whole recovery -- not a
-direct finish -- reaches a road that keeps the attempt: the landed road over a
-candidate head nobody could prove, the stranded park of an issue relabelled
-out from under the attempt whose notice raised, and the finish's own debt
-park for a report debt with no room, refused or raising over report 3 settled
-while its notice was posted. Each proves the run first, so the movement
-invalidates it whole -- or abandons a run only captured -- and putting what
-moved back routes the head once with nothing current, the run made once. A
-newer run settled right behind the landed road's abandonment of a captured run
-is proved on its own readings.
+The held-run case (`held_run_support`), its run settled -- or only captured --
+and its finish killed: a whole recovery that keeps the attempt over a candidate
+head nobody could prove, a stranded park whose notice raised, or a debt park
+with no room proves the run first, so movement retires it whole and putting
+what moved back routes the head once with nothing current. A newer run
+settled right behind -- or, refusing it, ahead of -- the landed road's
+abandonment of a captured run is proved on its own readings.
 """
 from __future__ import annotations
 
@@ -34,6 +30,9 @@ from tests.workflow.engine import (
     settled_finish_support as settled,
 )
 
+# The evidence handoff's place on the pinned comment.
+_HANDOFF = "verification_evidence_handoff"
+
 
 def _unproved_first(original, calls: list, *args):
     """Answer `original`, its first reading proving no head, as a failed head proof reads."""
@@ -45,27 +44,33 @@ def _unproved_first(original, calls: list, *args):
 
 
 class _SettlesBehindTheAbandonment:
-    """The checkout read off its head once, and `newer` settled right behind the edit abandoning `captured`."""
+    """The checkout read off its head once, and `newer` settled right behind the edit abandoning `captured`.
 
-    def __init__(self, case, captured, *, moves_again: bool) -> None:
+    `marks` settles it right ahead of that edit instead, refusing it, the mark
+    of movement in its handoff's place (`handoff` kept).
+    """
+
+    def __init__(self, case, captured, *, moves_again: bool = False, marks: bool = False) -> None:
         self._case = case
         self._captured = captured
         self._moves_again = moves_again
+        self._marks = marks
         self._head = case._wt_head()
         self._edits = case.gh.edit_pinned_state
         self._reads = rewrite_facts._reads_the_checkout
         self.newer = None
+        self.handoff = None
 
     def __call__(self, issue, staged, **options):
-        """The strict edit, a newer run settled right behind the one that abandons the captured run."""
-        answered = self._edits(issue, staged, **options)
+        """The strict edit, a newer run settled right behind -- or ahead of -- the one abandoning the captured run."""
         retired = readings.records(staged.data)[2]
-        abandoned = (self._captured.receipt, readings.ABANDONED) in retired
-        if answered is PinnedEdit.EDITED and abandoned and self.newer is None:
-            self._case._git("reset", "--quiet", "--hard", self._head, cwd=self._case._wt)
-            self.newer = settled.records_a_newer_run(self._case, settles=True, binding=self._captured.binding)
-            if self._moves_again:
-                self._case._git(*support.STRAY_COMMIT, cwd=self._case._wt)
+        abandoning = (self._captured.receipt, readings.ABANDONED) in retired
+        abandoning = abandoning and self.newer is None
+        if abandoning and self._marks:
+            self._settles()
+        answered = self._edits(issue, staged, **options)
+        if abandoning and not self._marks and answered is PinnedEdit.EDITED:
+            self._settles()
         return answered
 
     def recovers(self) -> None:
@@ -81,6 +86,19 @@ class _SettlesBehindTheAbandonment:
         if self.newer is None and self._case._wt_head() == self._head:
             self._case._git(*support.STRAY_COMMIT, cwd=self._case._wt)
         return self._reads(*read)
+
+    def _settles(self) -> None:
+        """Put the checkout back, settle `newer` -- marked moved where `marks` -- and move the checkout again."""
+        case = self._case
+        case._git("reset", "--quiet", "--hard", self._head, cwd=case._wt)
+        self.newer = settled.records_a_newer_run(case, settles=True, binding=self._captured.binding)
+        if self._marks:
+            state = case.gh.read_pinned_state(case.issue)
+            self.handoff = state.get(_HANDOFF)
+            state.set(_HANDOFF, {"moved": self.newer.receipt})
+            case.gh.write_pinned_state(case.issue, state)
+        if self._moves_again:
+            case._git(*support.STRAY_COMMIT, cwd=case._wt)
 
 
 class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
@@ -171,6 +189,18 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
                 races.recovers()
 
                 self._assert_proved_on_its_own(captured, races.newer, moved=moves_again)
+
+    def test_a_marked_successor_behind_a_refusal(self) -> None:
+        # The newer run settles right ahead of the abandonment, refusing it,
+        # marked moved: the recovery reads it afresh behind that refusal and
+        # retires it whole, so its handoff put back routes nothing current.
+        captured = self.captures()[1]
+        races = _SettlesBehindTheAbandonment(self, captured, marks=True)
+        races.recovers()
+        self.puts_back_records({_HANDOFF: races.handoff})
+        self.recovers()
+
+        self._assert_proved_on_its_own(captured, races.newer, moved=True)
 
     def _assert_proved_on_its_own(self, captured, newer, *, moved: bool) -> None:
         """`captured` abandoned, and `newer` current -- or, where the checkout `moved` again, invalidated behind it."""

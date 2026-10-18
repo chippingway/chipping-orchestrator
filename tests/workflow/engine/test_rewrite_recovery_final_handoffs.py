@@ -15,17 +15,10 @@ relabelled once with one stage-entry event, its round reset, and the attempt
 retired, with nothing run, posted, or settled again, nothing pushed, and no
 developer launched; a later poll finds nothing left to do.
 
-Settled evidence is proved ready again before that route: an issue edited, a
-later report settled and reviewed, or another command configured since the
-settlement invalidates it into history whole, its revision and binding kept,
-and the head goes on to the fresh reviewer, while a pull request nobody could
-read holds the route for the next tick, which routes the evidence exactly as
-it settled, and a checkout that moves off the head while the evidence is
-proved invalidates it and holds the route. A base that advanced again while
-the attempt stood continues the landed head to another rebase instead of
-routing it, with no second announcement of it. And two base advances whose
-runs come out differently each settle or publish their own result once,
-whatever boundary either finish died at.
+Settled evidence is proved ready again before that route -- invalidated whole
+where anything it rests on moved, held where the pull request will not read --
+a base advanced again continues the head instead, and two base advances whose
+runs differ each resolve their own result once, whichever boundary died.
 """
 from __future__ import annotations
 

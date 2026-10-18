@@ -109,6 +109,7 @@ from orchestrator.git.ref_transport import _RefRead
 from orchestrator.workflow.engine import (
     rewrite_finish_captured as _captured,
     rewrite_finish_readiness as _readiness,
+    rewrite_finish_rechecks as _rechecks,
     rewrite_landing_records as _landing_records,
     verification_carries as _carries,
     verification_records as _records,
@@ -209,26 +210,32 @@ def abandons(
     road settled under a receipt of its own, which the abandonment's fresh
     reading took in, is proved on its own readings instead
     (`rewrite_finish_readiness.stands_ready`), invalidated only where they
-    read it moving. Nothing is routed either way, and nothing is read or
-    written where neither stands. False where either still stands once its
-    write was asked -- a write refused or never confirmed, over a comment
-    nobody could read again as well as over the tick's own reading -- or
-    where a successor's proof holds.
+    read it moving. So is one whose write refused the abandonment: the
+    comment is read afresh and laid over the tick's state behind that refusal
+    (`rewrite_finish_rechecks.rechecks_behind`), a successor that reading
+    disproves -- a mark of movement under its receipt among it -- retired
+    there. Nothing is routed either way, and nothing is read or written where
+    neither stands. False where either still stands once its write was asked
+    -- a write refused or never confirmed, over a comment nobody could read
+    again as well as over the tick's own reading -- or where a successor's
+    proof holds.
     """
     held = getattr(_landing_records.settled(context.state), "receipt", None)
     pending = _landing_records.captured(context.state)
+    stands = False
     if pending is not None:
         finish = _finish(context, pending.binding.target.target_head, snapshot, candidate)
         _captured.stands_before_the_route(finish, proof=LEFT_THE_LANDING)
-        if _stands(finish, pending):
-            return False
+        stands = _stands(finish, pending)
+        if stands:
+            stands = not _rechecks.rechecks_behind(finish, pending.receipt) or _stands(finish, pending)
     settled = _landing_records.settled(context.state)
     if settled is None:
-        return True
+        return not stands
     finish = _finish(context, settled.binding.target.target_head, snapshot, candidate)
     if settled.receipt == held:
-        return _readiness.invalidates(finish, settled)
-    return _readiness.stands_ready(finish, settled) is None
+        return _readiness.invalidates(finish, settled) and not stands
+    return _readiness.stands_ready(finish, settled) is None and not stands
 
 
 def proves_captured(
