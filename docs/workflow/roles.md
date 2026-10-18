@@ -2586,7 +2586,9 @@ finish's own writes, that relabel made once behind a record of its own on the at
 finish made while it answered, and retires it whole into history
 where anything it rests on moved -- one historical execution, never run, posted, or charged again, its evidence then
 the fresh reviewer's to owe, and a newer transaction another road recorded beside it left owed as that road wrote it
--- is built and its whole finish callable directly, but no road selects it (see the same section).
+-- is built and its whole finish callable directly, but no finish selects it. The recovery's own proofs hold settled
+evidence to it, retiring it whole where a snapshot reads the landing on another head or a reset takes the checkout
+off it, and proving it again before every park or hold that keeps the attempt (see the same section).
 
 [workflow-labels]: ../state-machine/labels-and-state.md#workflow-labels
 [review-subject]: ../state-machine/labels-and-state.md#pinned-state

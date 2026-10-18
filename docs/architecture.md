@@ -1024,13 +1024,16 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   landing on another head, or its reset takes the checkout off it (`workflow/engine/rewrite_landing_moved.py`), the
   git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
   park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). Evidence a
-  finish already settled for the landed head has dormant primitives beside these, which no production finish, recovery,
-  or park road asks yet (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it
-  -- the base readings that made a continuation excused over a head the base advanced past again, and proved once more
-  behind any stop of a write the finish makes after it -- and invalidating it into history whole where anything it is
-  bound to moved -- over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the
-  invalidation cannot land, so nothing put back revives it. In a finish only the dormant settled-evidence policy
-  asks them: a caller selects it by building the finish with `proves_settled` and handing it directly to the
+  finish already settled for the landed head has primitives beside these
+  (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it -- the base readings
+  that made a continuation excused over a head the base advanced past again, and proved once more behind any stop of
+  a write the finish makes after it -- and invalidating it into history whole where anything it is bound to moved --
+  over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the invalidation cannot
+  land, so nothing put back revives it. The recovery's answers to a snapshot read off the head, a landed reset, and a
+  park or hold that keeps the attempt ask them on every road, over finishes built for the proof alone and held to the
+  settled-evidence policy (`workflow/engine/rewrite_landing_moved.py`, `rewrite_landing_retirement.py`,
+  `rewrite_recovery_parks.py`). In a finish that routes, only the dormant settled-evidence policy asks them: a caller
+  selects it by building the finish with `proves_settled` and handing it directly to the
   coordinator (`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which
   announces, relabels, parks, and retires nothing), and no production road builds such a finish
   (`workflow/engine/rewrite_finish_settled.py`). That phase proves settled evidence
@@ -1057,18 +1060,20 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   finish of the landing already did (`workflow/engine/rewrite_finish_stops.py`,
   `workflow/engine/rewrite_finish_announced.py`, `workflow/engine/rewrite_finish_writes.py`) -- its relabel landed
   behind a guarded record of its own on the attempt (`pending_auto_base_rebase_relabelled`), read beside the label,
-  and beside a label the issue already wore against the audit log where one is configured. Dormant guarded
-  recovery operations are built on the readiness
-  primitives,
-  and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof
-  before a park that keeps the attempt (`workflow/engine/rewrite_landing_retirement.py`), which retire settled
-  evidence whole beside a captured run and refuse the attempt's release where history has no room for it; and the
-  reset recorded against captured or settled evidence before git moves the checkout, with every recovery park landed
-  through the guarded commit over the comment read afresh and proving what it keeps once more behind its notice
-  (`workflow/engine/rewrite_recovery_parks.py`), each an optional answer the git owner transports
-  (`records_before_a_reset`, `lands_a_park`) -- a park made again over a notice already said taking it in rather than
-  posting it twice (`workflow/engine/rewrite_recovery_notices.py`) -- beside the guarded hold a publication gate's
-  hold of a recovery's push would be recorded as (`lands_a_hold`). It runs under its caller's issue writer claim.
+  and beside a label the issue already wore against the audit log where one is configured. The recovery's guarded
+  operations are built on the same readiness primitives, and every recovery context the workflow builds carries those
+  its road asks (`workflow/engine/rewrite_recovery.py`, `base_rewrite.py`, `dispatch_guards.py`): the settled-aware
+  answer to a landed reset and the proof before a park or hold that keeps the attempt
+  (`workflow/engine/rewrite_landing_retirement.py`), which retire settled evidence whole beside a captured run and
+  refuse the attempt's release where history has no room for it; and the reset recorded against captured or settled
+  evidence before git moves the checkout, with every recovery park landed through the guarded commit over the comment
+  read afresh and proving what it keeps once more behind its notice (`workflow/engine/rewrite_recovery_parks.py`), each
+  an answer the git owner transports (`settles_over_a_reset`, `records_before_a_reset`, `proves_before_a_park`,
+  `lands_a_park`) -- a park made again over a notice already said taking it in rather than posting it twice
+  (`workflow/engine/rewrite_recovery_notices.py`). A publication gate's hold of the landed road's leased no-op or of the
+  retry's reissued push is recorded through the guarded hold, its proof taken first (`lands_a_hold`), and the ordinary
+  publication's gate hold lands as the same `HOLD` write over the comment read afresh, with nothing pushed for a proof
+  to answer (`workflow/engine/rewrite_publication.py`). The finish runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

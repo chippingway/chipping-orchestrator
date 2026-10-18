@@ -16,7 +16,9 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
   `base_rebased` a base-rewrite finish files, and holds that route while the file or a copy exists but cannot be
   read, or a rotation keeps moving them under every read. Deleting a copy, truncating the file with no copy kept, or
   pointing `EVENT_LOG_PATH` at another file, while a crashed finish is still to retry, can let that retry file its
-  `base_rebased` twice. See
+  `base_rebased` twice. Left unset, a restarted process takes a base rewrite's durable word that an event may be out --
+  the record of its `base_rebased`, a recovery park's notice already said -- as the event filed, so such an event is
+  filed at most once and one a process was lost ahead of goes unfiled. See
   [`event-streams.md#audit-event-log`](../observability/event-streams.md#audit-event-log-event_log_path).
 - `ANALYTICS_LOG_PATH` — default `LOG_DIR/analytics.jsonl`. project-local analytics JSONL sink. Set to empty / `off` /
   `disabled` / `none` to disable. Which kinds land here — the per-tick and per-run records, the one bounded record
