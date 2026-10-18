@@ -12,7 +12,8 @@ nothing current, the run never made again and nothing pushed or launched. Anothe
 evidence record back right behind a quiet hold's retirement has the run retired once more; one retiring the run itself
 right ahead of it, pinning another attempt or settling a newer run in its place, holds the tick over what it wrote, the
 checkout put back on the head left unreset. A HEAD read by the dispatcher's hold or the eligibility gate finding it gone
-is recorded the same way, and a tip back on a comment too full for the retirement is blanked again, the run kept whole.
+or the uncounted lag's abort at its reset is recorded the same way, and a tip back on a comment too full for the
+retirement is blanked again, the run kept whole.
 """
 from __future__ import annotations
 
@@ -21,11 +22,12 @@ import unittest
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator.git import commands
 from orchestrator.git.base_sync import attempts as _attempts, rewrite_facts
-from orchestrator.git.verification import probes
 from orchestrator.git.worktrees import creation
 from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import (
+    base_refresh,
     rewrite_landing_retirement as _retirement,
     verification_durable as _durable,
     verification_settlement_state as _settlement,
@@ -37,6 +39,7 @@ from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_moves as moves,
     rewrite_finish_readings as readings,
+    rewrite_handoff_test_support as handoff,
     rewrite_verification_recovery_support as support,
     settled_finish_support as settled_support,
 )
@@ -51,6 +54,9 @@ _PROVES = "retires_unproved"
 _EDITS = "edit_pinned_state"
 
 _CURRENT = "verification_evidence_current"
+
+# The roads whose git request ahead of any proof finds the checkout gone: the hold, the gate, the uncounted lag's abort.
+_DISPATCHER, _REFRESH, _ABORT = "dispatcher", "refresh", "abort"
 
 
 def _moves_past(case, live, *read, **options):
@@ -95,6 +101,31 @@ class _LostCheckoutCase(guarded.GuardedRecoveryCase):
         again(answers)
         self.issue.labels = [FakeLabel(git_support.REVIEWING)]
         self.continues()
+
+    def loses_the_checkout_down(self, road: str) -> None:
+        """Answer the case down `road`, the checkout gone right ahead of the git request reading or resetting it."""
+        answers = partial(guarded.answers_a_held_anchor, self) if road == _DISPATCHER else self.recovers
+        if road == _REFRESH:
+            self.unstarts()
+        verb = "reset" if road == _ABORT else "rev-parse"
+        request = handoff.Boundary("ahead of the request", "_git_hardened", lambda asked, *_args, **_kw: asked == verb)
+        gone = request.racing(
+            commands._git_hardened, partial(self._wt.rename, self._away), lambda: None,
+        )
+        counts = (lambda *_args: None) if road == _ABORT else base_refresh._worktree_behind_base
+        with (
+            patch.object(commands, "_git_hardened", gone),
+            patch.object(base_refresh, "_worktree_behind_base", counts),
+        ):
+            answers()
+
+    def unstarts(self) -> None:
+        """Leave the attempt as one that never left its anchor, the checkout back on it, under an undriven label."""
+        unstarted = self.gh.read_pinned_state(self.issue)
+        unstarted.set(readings.KEY_REWRITE_SHA, None)
+        self.gh.write_pinned_state(self.issue, unstarted)
+        self._git("reset", "--quiet", "--hard", self.anchor, cwd=self._wt)
+        self.issue.labels = [FakeLabel(_UNDRIVEN)]
 
     def assert_retired(self, *, routes: bool = True) -> None:
         """The run invalidated whole while the checkout is away, and still once it is back on the head -- and routed."""
@@ -219,24 +250,16 @@ class MidRoadCheckoutTest(_LostCheckoutCase, unittest.TestCase):
             guarded.answers_a_held_anchor(self)
         self.assert_retired()
 
-    def test_a_head_read_ahead_of_any_proof(self) -> None:
+    def test_a_git_request_ahead_of_any_proof(self) -> None:
         # The dispatcher's hold, or the refresh's eligibility gate under an undriven label over an attempt that never
-        # left the anchor, finds the checkout gone as it reads its HEAD, ahead of any proof.
-        for answerer in ("dispatcher", "refresh"):
-            with self.subTest(answerer=answerer):
+        # left the anchor, reads the checkout's HEAD -- or the abort over a lag nobody counted resets it -- and finds
+        # it gone ahead of any proof.
+        for road in (_DISPATCHER, _REFRESH, _ABORT):
+            with self.subTest(road=road):
                 self.setUp()
                 self.settles()
-                answers = partial(guarded.answers_a_held_anchor, self)
-                if answerer == "refresh":
-                    answers = self.recovers
-                    unstarted = self.gh.read_pinned_state(self.issue)
-                    unstarted.set(readings.KEY_REWRITE_SHA, None)
-                    self.gh.write_pinned_state(self.issue, unstarted)
-                    self._git("reset", "--quiet", "--hard", self.anchor, cwd=self._wt)
-                    self.issue.labels = [FakeLabel(_UNDRIVEN)]
-                with patch.object(probes, "_head_sha", partial(_vanishes_ahead, self, probes._head_sha)):
-                    answers()
-                self.assert_retired(routes=answerer == "dispatcher")
+                self.loses_the_checkout_down(road)
+                self.assert_retired(routes=road != _REFRESH)
 
     def _vanishes_in_the_proof(self, recovery) -> None:
         """Run `recovery`, the checkout gone from disk right as the recovery's proof is first asked over it."""

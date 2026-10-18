@@ -2185,8 +2185,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     rewrite_recovery.py     the recovery an interrupted attempt is owed, in the order it has always been asked: the
                             decision the coordinator takes ahead of any rebase (a recovery that answered the anchor
                             owns the tick, and a reply it spent is not spent again by the rebase behind it -- as does
-                            one whose git request found the checkout gone, that loss recorded against the evidence
-                            it kept by the reset's recorder, `rewrite_recovery_readings.RecordsALostCheckout`); a label
+                            one whose git request, or the uncountable lag's abort's, found the checkout gone, that
+                            loss recorded against the evidence it kept by the reset's recorder,
+                            `rewrite_recovery_readings.RecordsALostCheckout`); a label
                             the refresh does not drive cleared or parked, and a checkout still on the anchor cleared
                             or parked, both before any comparison (`git/base_sync/replay_cleanup.py`); the fetch and
                             the remote comparison (`git/base_sync/snapshot.py`) and the transfer the attempt left

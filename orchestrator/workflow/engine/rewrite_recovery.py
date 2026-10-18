@@ -152,16 +152,22 @@ def answers_an_unreadable_checkout(context: _AutoRebaseContext, consumed_comment
     (`rewrite_landing_retirement.retires_over_the_reset`). That park, and the
     one a reset that did not land takes over the proof it asks first
     (`rewrite_recovery_parks.proves_before_a_park`), land as every recovery
-    park does (`rewrite_recovery_parks.lands_a_park`).
+    park does (`rewrite_recovery_parks.lands_a_park`). A checkout the abort's
+    git requests find gone from disk has that loss recorded
+    (`RecordsALostCheckout`), and the abort owns the tick.
     """
-    return _recovery_holds._answers_an_unreadable_checkout(
-        context,
-        consumed_comment_id,
-        settles_over_a_reset=partial(_retirement.retires_over_the_reset, context),
-        records_before_a_reset=_recovery_parks.records_the_reset,
-        proves_before_a_park=_recovery_parks.proves_before_a_park,
-        lands_a_park=_recovery_parks.lands_a_park,
-    )
+    recovering = _recovery._recovery_context(context, consumed_comment_id)
+    owns = True
+    with RecordsALostCheckout(replace(recovering, records_before_a_reset=_recovery_parks.records_the_reset)):
+        owns = _recovery_holds._answers_an_unreadable_checkout(
+            context,
+            consumed_comment_id,
+            settles_over_a_reset=partial(_retirement.retires_over_the_reset, context),
+            records_before_a_reset=_recovery_parks.records_the_reset,
+            proves_before_a_park=_recovery_parks.proves_before_a_park,
+            lands_a_park=_recovery_parks.lands_a_park,
+        )
+    return owns
 
 
 def recovers(context: _AutoRebaseRecoveryContext) -> bool:
