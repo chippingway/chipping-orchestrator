@@ -365,6 +365,10 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
             context.issue.number, (landed.refusal or landed.status).value,
         )
     if not context.worktree.is_dir():
+        log.warning(
+            "issue=#%d the checkout is gone from disk; retiring what a finish captured or settled for the landed "
+            "head as over a reset, in a write of its own", context.issue.number,
+        )
         return lands_the_retirement(context, CLEAR) and recorded
     if moved:
         recorded = _retirement.retires_unproved(

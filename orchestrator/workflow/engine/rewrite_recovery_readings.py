@@ -24,10 +24,12 @@ finish held to the settled-evidence policy reads one still owed.
 rechecks laid what they read over it, still carries the attempt the
 recovery recovers rather than one another road put in its place.
 `LosesTheCheckout` lets the proof read a checkout gone from disk under one of
-its own requests as that loss, rather than raise it past the record it owes.
+its own requests as that loss, rather than raise it past the record it owes,
+and `RecordsALostCheckout` records that loss for a road that owes it.
 """
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterable
 from dataclasses import replace
 
@@ -37,8 +39,12 @@ from orchestrator.git.base_sync import attempt_records as _attempt_records, stat
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedEdit, PinnedState
-from orchestrator.workflow.engine import verification_proof as _proof, verification_records as _records
-from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit
+from orchestrator.workflow.engine import (
+    pinned_commit_models as _commit_models,
+    rewrite_landing_records as _landing_records,
+    verification_proof as _proof,
+    verification_records as _records,
+)
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.rewrite_finish_outranking import outranks_the_owed
 
@@ -131,6 +137,33 @@ class LosesTheCheckout:
         return isinstance(error, FileNotFoundError) and not self._context.worktree.is_dir()
 
 
+class RecordsALostCheckout(LosesTheCheckout):
+    """A recovery road's block a checkout gone from disk cuts short, that loss recorded before the road unwinds.
+
+    The reset is recorded against what a finish captured or settled for the
+    landed head, and that retired as over it, each in a write of its own, by
+    the recorder `context` carries (`records_before_a_reset`), over the
+    comment as the tick last read it, so nothing the road staged rides them;
+    the tick's state is withheld from every whole-state write behind, and the
+    road's caller holds the tick. Where the comment carries nothing a finish
+    captured or settled for the head, the failure goes on as before.
+    """
+
+    def __exit__(self, kind, error, trace) -> bool:
+        state = self._context.state
+        records = self._context.records_before_a_reset
+        lost = super().__exit__(kind, error, trace)
+        if not lost or records is None or state.synced is None:
+            return False
+        read = PinnedState(comment_id=state.comment_id, state_data=json.loads(state.synced))
+        read.synced = state.synced
+        if _landing_records.captured(read) is None and _landing_records.settled(read) is None:
+            return False
+        records(replace(self._context, state=read))
+        state.withheld = True
+        return True
+
+
 def asks_every_reading(
     context: _AutoRebaseRecoveryContext, asks: Callable[[PinnedState], object],
 ) -> _AutoRebaseRecoveryContext:
@@ -157,7 +190,7 @@ def stands_as_recovered(context: _AutoRebaseRecoveryContext) -> bool:
 
 
 def tip_moves(
-    comment: PinnedState, attempt: PinnedCommit | None,
+    comment: PinnedState, attempt: _commit_models.PinnedCommit | None,
 ) -> tuple[ReportEvidence | None, ReportEvidence | None]:
     """What `comment`'s base tip records moving: under evidence the tick held, then under evidence it never held.
 

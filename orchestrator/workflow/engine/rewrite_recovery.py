@@ -106,6 +106,7 @@ from orchestrator.workflow.engine import (
     rewrite_recovery_parks as _recovery_parks,
     rewrite_retry as _rewrite_retry,
 )
+from orchestrator.workflow.engine.rewrite_recovery_readings import RecordsALostCheckout
 
 
 def decides(
@@ -120,11 +121,17 @@ def decides(
     (`base_rewrite`) -- and the trusted reply that released a park this
     refresh left goes on with it only while that park still stands: a
     recovery that took the park down spent the reply, and the rebase behind it
-    may not spend it again.
+    may not spend it again. A checkout one of the recovery's git requests
+    finds gone from disk has that loss recorded (`RecordsALostCheckout`), and
+    the recovery owns the tick.
     """
     if not context.pending_pre_rebase_sha:
         return _AutoRebaseDecision(True, consumed_comment_id)
-    if recovers(_recovery._recovery_context(context, consumed_comment_id)):
+    recovering = _recovery._recovery_context(context, consumed_comment_id)
+    owns = True
+    with RecordsALostCheckout(replace(recovering, records_before_a_reset=_recovery_parks.records_the_reset)):
+        owns = recovers(recovering)
+    if owns:
         return _AutoRebaseDecision(should_continue=False)
     if not context.state.get(_AWAITING_HUMAN):
         consumed_comment_id = None

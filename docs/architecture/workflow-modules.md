@@ -2184,7 +2184,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             already landed proves it through. It runs under the refresh's issue writer claim
     rewrite_recovery.py     the recovery an interrupted attempt is owed, in the order it has always been asked: the
                             decision the coordinator takes ahead of any rebase (a recovery that answered the anchor
-                            owns the tick, and a reply it spent is not spent again by the rebase behind it); a label
+                            owns the tick, and a reply it spent is not spent again by the rebase behind it -- as does
+                            one whose git request found the checkout gone, that loss recorded against the evidence
+                            it kept by the reset's recorder, `rewrite_recovery_readings.RecordsALostCheckout`); a label
                             the refresh does not drive cleared or parked, and a checkout still on the anchor cleared
                             or parked, both before any comparison (`git/base_sync/replay_cleanup.py`); the fetch and
                             the remote comparison (`git/base_sync/snapshot.py`) and the transfer the attempt left
@@ -2456,7 +2458,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             still standing, evidence the tick never held; and under a captured transaction a revision
                             read spent past it (`owed_moves`), as a finish held to the settled-evidence policy reads
                             one still owed; and a block a checkout gone from disk cuts short (`LosesTheCheckout`), its
-                            git request there read as that loss rather than raised
+                            git request there read as that loss rather than raised, and recorded for a road
+                            (`RecordsALostCheckout`), over the comment as the tick last read it
     rewrite_recovery_staging.py
                             what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it

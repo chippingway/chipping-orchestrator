@@ -1583,7 +1583,8 @@ because there it is the claim that this stage has already rerouted rather than a
   proved once more behind the record (`rewrite_recovery_parks.lands_a_hold`). The ordinary publication's gate hold
   lands as `HOLD` too, with no proof first, since nothing was pushed for a finish to hold evidence for
   (`rewrite_publication`). A checkout gone from disk, ahead of a park's or hold's record or behind one or a notice
-  that raised -- or while the proof reads it, under one of its own git requests among it -- has the reset recorded
+  that raised -- or while the proof reads it, under one of its own git requests among it, or under any other git
+  request of the recovery's, which then owns the tick -- has the reset recorded
   and the evidence retired as over it, each in a write of its own, so a quiet
   hold, a park already standing, or a record refused leaves it retired however soon the base tip is put back
   (`rewrite_recovery_parks.proves_before_a_park`).
