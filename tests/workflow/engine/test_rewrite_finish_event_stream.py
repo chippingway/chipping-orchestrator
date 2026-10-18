@@ -15,9 +15,9 @@ so does a log rotated in between -- renamed to its first copy, or copied
 compressed beside it and truncated -- whose copy still carries the event. A
 log that would not read is no answer: the finish is held with nothing filed,
 relabelled, or retired, and the next tick, the log readable again, finds the
-event the same way. Nothing is run again, pushed, or launched. With no log, the
-attempt's record of the event is taken as the event filed -- another producer's
-too, where it refused this finish's own, leaving this process owing nothing.
+event the same way. Nothing is run again, pushed, or launched.
+With no log, the attempt's record of the event is taken as the event filed -- another producer's too, where it
+refused this finish's own, leaving this process owing nothing.
 """
 from __future__ import annotations
 
@@ -165,10 +165,9 @@ class UnloggedEventRecoveryTest(support.CapturedRunCase, unittest.TestCase):
     """With no audit log, a fresh process takes the attempt's record of the event as the event filed."""
 
     def test_a_recorded_event_is_filed_once_at_most(self) -> None:
-        # The finish dies behind the event's record -- ahead of the event or
-        # behind it -- and the process restarts with no event in memory and
-        # none noted owing: the record says the event may be out, so the head
-        # is routed with nothing filed again, once at most.
+        # The finish dies behind the event's record -- ahead of the event or behind it -- and the process restarts
+        # with no event in memory and none noted owing: the record says the event may be out, so the head is routed
+        # with nothing filed again, once at most.
         self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
         for boundary, filed in ((handoff.BEFORE_THE_EVENT, 0), (handoff.BEFORE_THE_CHECKPOINT, 1)):
             with self.subTest(boundary=boundary.name):
@@ -186,10 +185,9 @@ class UnloggedEventRecoveryTest(support.CapturedRunCase, unittest.TestCase):
                 self.assertEqual(readings.relabels(self), readings.ROUTED)
 
     def test_a_refused_record_owes_nothing(self) -> None:
-        # Another producer records the head's event, and files it on its own
-        # stream, right as this finish's record of it is sent, refusing it:
-        # this process owes nothing for a record it never landed, so its retry
-        # takes that record as the event filed and files none of its own.
+        # Another producer records the head's event, and files it on its own stream, right as this finish's record
+        # of it is sent, refusing it: this process owes nothing for a record it never landed, so its retry takes
+        # that record as the event filed and files none of its own.
         self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
         self._head = self.lands_a_reviewed_rebase()
         handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, self._head))

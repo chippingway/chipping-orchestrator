@@ -381,9 +381,9 @@ class RefusedBeforeThePushTest(_PublicationCase):
         # tick, so no anchor is left to hold that adjudication behind. A count
         # nobody can pin parks instead and leaves no adjudication to take the
         # replay over, so the attempt stays pinned for the recovery the park's
-        # reply brings back. Another road records a revision floor while the
-        # gate answers either way, and the hold's own record lands over the
-        # comment read afresh, keeping the floor as that road wrote it.
+        # reply brings back.
+        # Another road records a revision floor while the gate answers either way, and the hold's own record lands
+        # over the comment read afresh, keeping the floor as that road wrote it.
         for count, relabelled, left, parked in holds.HOLDS:
             with self.subTest(count.__name__):
                 self._fresh()

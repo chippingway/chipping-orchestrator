@@ -20,9 +20,8 @@ abort's park writes, so it goes in the very write that releases the attempt --
 whatever a comment read of the abandonment's own would have answered, and
 whether or not the attempt's record names its replay yet, since the receipt
 the finish put on the attempt beside the run is what says it is the finish's --
-or, where that write is refused, the attempt still stands while the run, proved
-again behind the refusal over the reset recorded first, is abandoned in its own
-write. The notice goes out ahead of the park's write, so it says the write
+or, where that write is refused, the attempt still stands while the run, proved again behind the refusal over the
+reset recorded first, is abandoned in its own write. The notice goes out ahead of the park's write, so it says the write
 drops the attempt rather than that it is gone, whether the write is then
 refused or lands with its answer lost. Nothing runs, pushes, or announces
 again, and no developer is launched.
@@ -191,11 +190,9 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
         # The fetch fails and the abort's reset lands, and the write recording
         # its park is refused, or lands with its answer lost. The notice posted
         # ahead of that write says the write drops the attempt, never that it
-        # is gone. Refused, the release is not written, so the attempt still
-        # stands, but the reset recorded ahead of it is movement the proof
-        # behind the refusal reads: the run is abandoned in a write of its
-        # own, and the reconciliation settles nothing even with the checkout
-        # put back. Landed, both went together.
+        # is gone. Refused, the release is not written, so the attempt still stands, but the reset recorded ahead of
+        # it is movement the proof behind the refusal reads: the run is abandoned in a write of its own, and the
+        # reconciliation settles nothing even with the checkout put back. Landed, both went together.
         for unconfirmed, lands in _UNCONFIRMED:
             with self.subTest(write=unconfirmed):
                 head, captured, notice = self._parks_unconfirmed(lands=lands)

@@ -378,10 +378,10 @@ class ResetAnswerTest(unittest.TestCase):
 class _Owed:
     """A recovery's answers over its reset: a record staged on `state` once it landed, and one made ahead of it.
 
-    `releases` is what the answer to a landed reset says: True to release the
-    attempt, or False to keep it. `recorded` is whether the record made ahead
-    of the reset (`records`) lands, blanking the base tip on the tick's state;
-    each one is noted in `ordered`.
+    `releases` is what the answer to a landed reset says: True to release the attempt, or
+    False to keep it. `recorded` is whether the record made ahead of the reset
+    (`records`) lands, blanking the base tip on the tick's state; each one is
+    noted in `ordered`.
     """
 
     def __init__(self, releases: bool = True, *, recorded: bool = True) -> None:

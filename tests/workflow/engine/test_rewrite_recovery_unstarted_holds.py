@@ -125,10 +125,9 @@ class UnstartedRecoveryHoldsTest(support.VerificationRecoveryCase, unittest.Test
                 self._assert_rebased(reply)
 
     def test_a_newer_transaction_refuses_the_clear(self) -> None:
-        # Another road records a transaction while the recovery fetches: the
-        # clear, guarded over the evidence records as the tick read them, is
-        # refused, so that transaction and its revision floor stand, and the
-        # attempt is kept for the next tick.
+        # Another road records a transaction while the recovery fetches: the clear, guarded over the evidence records
+        # as the tick read them, is refused, so that transaction and its revision floor stand, and the attempt is
+        # kept for the next tick.
         git_support.advances_the_base(self)
         _holds_beside_an_unstarted_attempt(self, _HOLDS[1])
         recorded: list = []

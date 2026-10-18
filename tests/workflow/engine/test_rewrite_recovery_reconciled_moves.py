@@ -5,8 +5,7 @@
 The guarded recovery case (`guarded_recovery_support`): issue #7's rebased
 head reviewed, its run settled under the anchor, and the finish killed before
 its announcement, so the attempt stands. The recovery context read off the
-comment is handed straight to the guarded park
-(`rewrite_recovery_parks.lands_a_park`), as a recovery road does.
+comment is handed straight to the guarded park (`rewrite_recovery_parks.lands_a_park`), as a recovery road does.
 
 Another road settles report 3 behind the park's notice, whose post then
 raises, or right behind the park's own record, whose answer is lost -- and

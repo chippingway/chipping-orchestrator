@@ -17,9 +17,9 @@ candidate -- for a recovery, past the fetch it classified the branch on -- as
 the git owner reads the candidate again for its push, past the gate's
 measurement, and as the gate asks whether the publication ended, past that
 reading and immediately before the push. The moves themselves are
-`rewrite_publication_moves`. And one moment another road writes the pinned
-comment in (`WritesBehindTheGate`): right behind the gate's own answer, a
-revision floor recorded for the hold's record to keep.
+`rewrite_publication_moves`.
+And one moment another road writes the pinned comment in (`WritesBehindTheGate`): right behind the gate's own
+answer, a revision floor recorded for the hold's record to keep.
 """
 from __future__ import annotations
 

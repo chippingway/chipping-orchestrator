@@ -16,10 +16,9 @@ than saying it twice -- the issue marked awaiting a human, the watermark moved
 to it, and the notice entered behind the comment-id ledger as it stood -- and
 asks the audit log for the event naming that notice: it files nothing where
 the log carries it or will not read, and files it once more where the log
-lost it; with none configured, the notice said is taken as its event filed. The
-run is invalidated whole beside the park. With no log, a notice that went out
-with its answer lost leaves its event owed: the park made again in that process
-files it, and one a restarted process makes files none.
+lost it; with none configured, the notice said is taken as its event filed. The run is invalidated whole beside the
+park. With no log, a notice that went out with its answer lost leaves its event owed: the park made again in that
+process files it, and one a restarted process makes files none.
 """
 from __future__ import annotations
 
@@ -119,10 +118,9 @@ class RestartedParkNoticeTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._assert_taken_in(ledger, stream.files)
 
     def test_a_lost_post_still_owes_its_event(self) -> None:
-        # With no log, the first park's notice goes out with its answer lost,
-        # so nothing is filed or recorded. The next park takes the notice in:
-        # this process still owes the event and files it once, while a
-        # restarted one, owing nothing, takes the notice said as filed.
+        # With no log, the first park's notice goes out with its answer lost, so nothing is filed or recorded. The
+        # next park takes the notice in: this process still owes the event and files it once, while a restarted
+        # one, owing nothing, takes the notice said as filed.
         for restarted, filed in ((False, 1), (True, 0)):
             with self.subTest(restarted=restarted):
                 self.setUp()

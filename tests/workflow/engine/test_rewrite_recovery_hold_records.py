@@ -4,20 +4,17 @@
 
 The guarded recovery case (`guarded_recovery_support`): issue #7's rebased
 head reviewed, its run settled under the anchor, and the finish killed before
-its announcement, so the attempt stands. The next tick's recovery reads the
-landing standing with a transfer permission still outstanding beside it, so
-the landed road receipts it through the permit-only leased no-op, and the
-publication gate holds that no-op (`rewrite_landed_hold_support`): its hold is
-recorded through the guarded `HOLD` (`rewrite_recovery_parks.lands_a_hold`),
-the run proved first, and only what the tick staged since its
+its announcement, so the attempt stands. The next tick's recovery reads the landing standing with a transfer
+permission still outstanding beside it, so the landed road receipts it through the permit-only leased no-op, and the
+publication gate holds that no-op (`rewrite_landed_hold_support`): its hold is recorded through the guarded `HOLD`
+(`rewrite_recovery_parks.lands_a_hold`), the run proved first, and only what the tick staged since its
 reading lands, over the comment read afresh.
-The transfer's machinery -- its progress, its permit, the gate's answer -- is
-stood in for; some cases hand the hold or park a recovery context directly.
+The transfer's machinery -- its progress, its permit, the gate's answer -- is stood in for; some cases hand the hold
+or park a recovery context directly.
 
-The issue edited under the run has it invalidated whole, putting the
-requirements back reviving nothing. A newer transaction recorded while the
-gate answers survives the record with its revision floor, and a newer run
-settled beside report 3 is proved on its own readings.
+The issue edited under the run has it invalidated whole, putting the requirements back reviving nothing. A newer
+transaction recorded while the gate answers survives the record with its revision
+floor, and a newer run settled beside report 3 is proved on its own readings.
 Behind the record the run is proved once more, so movement read at the record
 stands however soon it is put back: report 3 settled there (landed, answer
 lost, or refused, for room among the rest), or ahead of the fresh reading a
@@ -406,10 +403,9 @@ class HeldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """The proof a hold or park takes, held to the settled-evidence policy as a finish is."""
 
     def test_a_moved_run_is_invalidated(self) -> None:
-        # The issue is edited before a held poll: the run is invalidated whole
-        # with the attempt kept and nothing parked; put back, a second held
-        # poll and the poll the gate lets through revive nothing, the head
-        # routed once with nothing current.
+        # The issue is edited before a held poll: the run is invalidated whole with the attempt kept and nothing
+        # parked; put back, a second held poll and the poll the gate lets through revive nothing, the head routed
+        # once with nothing current.
         head, settled = self.settles_then_dies()
         for body in (_EDITED_BODY, self.issue.body):
             self.issue.body = body

@@ -4,12 +4,13 @@
 
 The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 rebased head reviewed, its run settled under the anchor, and the finish killed
-before its announcement. The next tick cannot fetch the branch, or count the
-checkout's lag against base, so it takes the fail-closed abort with the
-workflow's guarded operations (`guarded_recovery_support`): the reset is
-recorded first by blanking the base tip, and the park behind it releases the
-attempt and invalidates the run in one write. While the notice is posted,
-another road settles report 3, or records a newer transaction beside the run.
+before its announcement. The next tick cannot fetch the branch, or count the checkout's lag against base, so it
+takes the fail-closed abort with the workflow's guarded operations (`guarded_recovery_support`): the reset is
+recorded first by blanking the base tip, and the park behind that
+reset releases the attempt and invalidates the settled run in one write. While
+the park's notice is posted, another road writes the comment: it settles and
+reviews report 3 of the head, or records a newer transaction for it beside the
+run.
 
 The park's record lands over the comment as it then stands, never over the
 tick's whole reading -- a run the finish only captured is abandoned in it
@@ -93,9 +94,8 @@ class _Abort(NamedTuple):
     answered: object
 
 
-# The fetch of the pull request's branch, which the recovery answers with the
-# abort, and the count of the checkout's lag against base, which the refresh
-# answers with it ahead of any recovery road.
+# The fetch of the pull request's branch, which the recovery answers with the abort, and the count of the checkout's
+# lag against base, which the refresh answers with it ahead of any recovery road.
 _ABORTS = (
     _Abort("the branch's fetch failed", branch_transport, _FETCHES, guarded.unfetched),
     _Abort("the base lag was not counted", base_refresh, "_worktree_behind_base", lambda *_args: None),
@@ -127,8 +127,8 @@ class ResetParkMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A reset park's record keeps what another road wrote under its notice, whether or not the process lived."""
 
     def test_the_park_keeps_what_moved_under_it(self) -> None:
-        # Whichever road takes the abort, its reset is recorded ahead of it,
-        # and report 3 lands beside the park, or the newer transaction refuses
+        # Whichever road takes the abort, its reset is recorded ahead of it.
+        # Report 3 lands beside the park, or the newer transaction refuses
         # it and the next tick parks around it; a death before the record is
         # answered alike, and every poll behind the park changes nothing.
         for case in _CASES:
@@ -167,9 +167,8 @@ class ResetParkMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def _recovers(self, head: str, case: _Case) -> str | None:
         """Poll three times into `case`'s abort, its write made behind the first park's notice; what that answered.
 
-        The first poll is killed at `case`'s boundary, and records the park only
-        where it ran through and the write refuses nothing; whatever it came to,
-        the reset was recorded ahead of it, the attempt's base tip blank.
+        The first poll is killed at `case`'s boundary, and records the park only where it ran through and the write
+        refuses nothing; whatever it came to, the reset was recorded ahead of it, the attempt's base tip blank.
         """
         written: list = []
         writes = partial(_kept, written, case.write.writes, self, head)

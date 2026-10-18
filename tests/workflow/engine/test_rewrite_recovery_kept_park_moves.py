@@ -186,9 +186,8 @@ class KeptParkProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # The park keeps the attempt, its base tip as recorded, and records
         # report 3 as the comment carries it, its answer lost or not --
         # report 2 put back right behind that record, before the proof, or
-        # only after the tick, or report 2 respelled and put back alike: the
-        # run, settled or only captured, is invalidated or abandoned whole, and
-        # a continued park routes the head with nothing current.
+        # only after the tick, or report 2 respelled and put back alike: the run, settled or only captured, is
+        # invalidated or abandoned whole, and a continued park routes the head with nothing current.
         for captures, kept in _KEPT_PARKS:
             with self.subTest(captured=captures, **kept):
                 self.setUp()

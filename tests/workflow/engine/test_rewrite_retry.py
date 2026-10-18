@@ -156,11 +156,9 @@ class GatedRetryRecordTest(retry.RetryCase):
     """A retry the gate holds records its hold over the comment read afresh, keeping what another road wrote."""
 
     def test_another_roads_floor_survives_the_hold(self) -> None:
-        # While the gate answers -- handing the issue to an adjudication, or
-        # parking a count nobody can pin -- another road records a revision
-        # floor: the hold's own record lands over the comment read afresh,
-        # so the floor stays as that road wrote it and the hold reads as it
-        # would with nothing written beside it.
+        # While the gate answers -- handing the issue to an adjudication, or parking a count nobody can pin -- another
+        # road records a revision floor: the hold's own record lands over the comment read afresh, so the floor stays
+        # as that road wrote it and the hold reads as it would with nothing written beside it.
         for count, _relabelled, left, parked in holds.HOLDS:
             with self.subTest(count.__name__):
                 self._fresh()

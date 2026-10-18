@@ -9,10 +9,9 @@ off it -- a checkout or remote nobody read moves nothing; any snapshot reading
 a head elsewhere abandons it before its road is taken, or answers that the road
 must hold where no write could. A reset the git owner landed releases the
 attempt and abandons the run in the park's one write, dropping it where the
-comment has no room for its history; a reset that failed keeps both.
-Evidence a finish settled for the announced head (`SettledEvidenceCase`) is
-invalidated whole into history by any snapshot reading a head off it, kept by
-one that read none, and holds the road where no write lands. Nothing is
+comment has no room for its history; a reset that failed keeps both. Evidence a finish settled for the announced
+head (`SettledEvidenceCase`) is invalidated whole into history by any snapshot reading a head off it, kept by one
+that read none, and holds the road where no write lands. Nothing is
 run, launched, or routed.
 """
 from __future__ import annotations
@@ -172,9 +171,8 @@ class SettledLandingMovedTest(unittest.TestCase, captured_support.SettledEvidenc
         captured_support.SettledEvidenceCase.setUp(self)
 
     def test_a_snapshot_off_the_landing_invalidates(self) -> None:
-        # Its revision, binding, and provenance kept in history, so putting
-        # the landing back revives nothing; a snapshot that read no head off
-        # it keeps it current.
+        # Its revision, binding, and provenance kept in history, so putting the landing back revives nothing; a
+        # snapshot that read no head off it keeps it current.
         for read, local, remote, retires in _SETTLED_SNAPSHOTS:
             with self.subTest(read=read):
                 self.setUp()

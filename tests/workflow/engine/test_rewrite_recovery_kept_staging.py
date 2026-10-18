@@ -4,8 +4,7 @@
 
 The guarded recovery case (`guarded_recovery_support`): issue #7's run
 settled and its finish killed before its announcement, the recovery context
-read off the comment handed straight to the guarded hold or park
-(`rewrite_recovery_parks`), as a recovery road does.
+read off the comment handed straight to the guarded hold or park (`rewrite_recovery_parks`), as a recovery road does.
 
 - A gate's record of the hold, staged before the proof invalidates the run,
   still lands with the hold -- or is refused as a conflict where another road

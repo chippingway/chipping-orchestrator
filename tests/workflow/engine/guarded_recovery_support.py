@@ -2,11 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The workflow's guarded recovery operations, reached through the production roads that hand them to the git owner.
 
-A case reaches them as a live tick does: through the fail-closed abort a
-failed fetch takes (`unfetched`), the dispatcher's hold (`answers_a_held_anchor`),
-or a context the recovery itself hands its roads (`recovery_context`).
-Another finish of the landing settling a captured run meanwhile is
-`settles_elsewhere`.
+A case reaches them as a live tick does: through the fail-closed abort a failed fetch takes (`unfetched`), the
+dispatcher's hold (`answers_a_held_anchor`), or a context the recovery itself hands its roads (`recovery_context`).
+Another finish of the landing settling a captured run meanwhile is `settles_elsewhere`.
 """
 from __future__ import annotations
 
@@ -57,10 +55,8 @@ BEFORE_THE_RECORD = handoff.Boundary("before the park is recorded", "edit_pinned
 def recovery_context(case) -> _AutoRebaseRecoveryContext:
     """The context the workflow's recovery hands every road, over `case`'s comment and checkout as they now read.
 
-    Taken off the recovery itself (`rewrite_recovery.recovers`), its fetch of
-    the branch stopped before any road is chosen, so a case handing it to a
-    git owner's road directly takes that road with exactly what a live
-    recovery would hand it.
+    Taken off the recovery itself (`rewrite_recovery.recovers`), its branch fetch stopped before any road is chosen, so
+    a case handing it to a git owner's road directly takes that road with exactly what a live recovery hands it.
     """
     state = case.gh.read_pinned_state(case.issue)
     read = _AutoRebaseRecoveryContext(
@@ -83,8 +79,7 @@ def recovery_context(case) -> _AutoRebaseRecoveryContext:
 def settles_elsewhere(case, head: str, written: str, raced: list, then=None) -> None:
     """Put the issue back as `written` and settle `head`'s captured run as another finish would, once; into `raced`.
 
-    That finish dies before its announcement, so the attempt still stands;
-    `then`, where given, is made behind it.
+    That finish dies before its announcement, so the attempt still stands; `then`, where given, is made behind it.
     """
     if raced:
         return
