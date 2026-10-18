@@ -27,8 +27,8 @@ decision is made here, in the order the recovery has always kept:
   moved since, or a head that no longer reads -- makes nothing, and the next
   tick classifies what it then finds; a transaction an earlier finish
   captured for the fetched head is abandoned first, and evidence one settled
-  invalidated, where the checkout reads another head
-  (`rewrite_landing_moved`), since that move is movement under
+  invalidated, where the checkout reads
+  another head (`rewrite_landing_moved`), since that move is movement under
   it, and kept for the next proof where its head would not read at all. A
   snapshot that read either head off the landing never reaches this road:
   the coordinator (`rewrite_recovery`) abandons the transaction before the
@@ -205,11 +205,11 @@ def _finishes_the_observation(
     A remote read anywhere but the landed head -- another commit, or no
     branch at all -- is a landing the finish refuses, and movement under a
     transaction an earlier finish captured for that head, or evidence one
-    settled, which is retired first (`rewrite_landing_moved.abandons`) so
-    that no later route takes it, even one finding the branch back on the
-    head. A remote nobody could read established nothing: the finish refuses
-    the landing all the same, and the evidence waits for the next tick to
-    prove it again.
+    settled, which is retired
+    first (`rewrite_landing_moved.abandons`) so that no later route takes it,
+    even one finding the branch back on the head. A remote nobody could read
+    established nothing: the finish refuses the landing all the same, and the
+    evidence waits for the next tick to prove it again.
     """
     landing = _rewrite_transport._observes_the_landing(context.spec, context.worktree, candidate)
     if landing.remote.sha is not None and not landing.landed:

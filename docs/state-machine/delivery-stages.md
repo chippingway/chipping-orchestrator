@@ -1487,8 +1487,8 @@ because there it is the claim that this stage has already rerouted rather than a
   head routed to the fresh reviewer, rather than routed as current or held over a revision a newer transaction
   abandoned over that very move spent past it. Before any road its snapshot chooses, the recovery's coordinator
   abandons the transaction a finish of the attempt captured, and invalidates whole the evidence one settled, where the
-  remote or the checkout reads a head off it (`workflow/engine/rewrite_landing_moved.py`). Which transaction that is,
-  is the attempt's own word: the finish puts
+  remote or the checkout reads a head off it
+  (`workflow/engine/rewrite_landing_moved.py`). Which transaction that is, is the attempt's own word: the finish puts
   its receipt on the attempt in the very write that records it (`pending_auto_base_rebase_evidence_receipt`, staged
   by `workflow/engine/rewrite_landing_records.py`), since it resolves the evidence ahead of any mark -- and an attempt
   from before that receipt existed recorded evidence only behind its mark, which then names the head. Whether the
@@ -1551,16 +1551,17 @@ because there it is the claim that this stage has already rerouted rather than a
   carries in that place, or takes in behind an invalidation that landed, proved the same way on its own binding, and one
   read beside an attempt still recording no tip moved by that blank though the tick read it too -- by a finish held to
   the dormant settled-evidence policy, built for the proof alone (the policy bullet below), so a mark of movement under
-  its receipt counts, a settlement another finish made of the captured run while its abandonment was asked is
-  invalidated over the same movement, and an announcement another finish put on the attempt is taken in before the
-  invalidation lands. Every park lands through the guarded commit over the comment read afresh and proves what it keeps
-  once more behind its record, landed or not, or behind a notice that raised (`rewrite_recovery_parks.lands_a_park`) --
-  a movement its record carried, or that the comment its refusal was read over carried, the fresh one a record too long
-  for the comment was measured over, and the fresh one a refused edit was derived over beside the comment that edit
-  found among them, or any comment the record's commit reads, the one a refusal for room takes to say whether the
-  comment moved among them, a report or review record moved off the binding of the evidence it is asked of -- a record
-  no binding rests on no movement -- a mark of movement under settled evidence's receipt or a revision spent past it, or
-  the attempt's base tip blanked or repointed beside the rest of the attempt as read -- this landing's announcement
+  its receipt counts, a settlement another finish made of the captured run while its
+  abandonment was asked is invalidated over the same movement, and an announcement another finish put on the attempt is
+  taken in before the invalidation lands. Every park lands through the guarded commit over the comment read afresh and
+  proves what it keeps once more behind its record, landed or not, or behind a notice that raised
+  (`rewrite_recovery_parks.lands_a_park`) -- a movement its record
+  carried, or that the comment its refusal was read over carried, the fresh one a record too long for the comment was
+  measured over, and the fresh one a refused edit was derived over beside the comment that edit found among them, or
+  any comment the record's commit reads, the one a refusal for room takes to say whether the comment moved among them, a
+  report or review record moved off the binding of the evidence it is asked of -- a record no binding rests on no
+  movement -- a mark of movement under settled evidence's receipt or a revision spent past it, or the
+  attempt's base tip blanked or repointed beside the rest of the attempt as read -- this landing's announcement
   bookkeeping set aside -- kept as read under whichever evidence it was read under, a comment carrying no captured
   transaction or no settled evidence for the head asked of what the tick held there
   (`rewrite_landing_retirement.moved_under`); behind a notice that raised, or a record refused or sent with its answer
@@ -1570,10 +1571,11 @@ because there it is the claim that this stage has already rerouted rather than a
   movement was read under it -- by that reading, or by the record's own refusal -- every other record laid beside it,
   and each member of the attempt that reading carries exactly as the tick staged it -- a record whose lost answer landed
   that staging, or a base tip staged back behind a reset git refused -- taken in as read, so the proof takes that
-  attempt for the tick's own (`rewrite_landing_retirement.reconciles`) -- and one settled only after that reading asked
-  of its own binding and requirements in the proof's readings, retired whole or marked where it moved. A park made again
-  over a record that never landed takes in the notice the conversation already carries past the watermark rather than
-  posting it twice, and files its `park_awaiting_human` event only where the stream lacks the one naming that notice
+  attempt for the tick's own
+  (`rewrite_landing_retirement.reconciles`) -- and one settled only after that reading asked of its own binding and
+  requirements in the proof's readings, retired whole or marked where it moved. A park made again over a record that
+  never landed takes in the notice the conversation already carries past the watermark rather than posting it twice, and
+  files its `park_awaiting_human` event only where the stream lacks the one naming that notice
   (`rewrite_recovery_notices.parks_awaiting_human`). A publication gate's hold of a recovery's push -- the landed road's
   leased no-op (`rewrite_landed`) or the retry's reissued push (`rewrite_retry`) -- is recorded the same way, as `HOLD`
   over the comment read afresh, so an evidence record, a report, or a revision floor another road wrote while the gate
@@ -1651,8 +1653,8 @@ because there it is the claim that this stage has already rerouted rather than a
   every road selects -- so none of the finish's bullets above changes for a live issue; a finish not built with it
   reads, retries, and writes exactly as it always has. The recovery's own proofs build finishes held to it for the
   evidence they retire or prove, routing none of them (**Base-rewrite evidence, recovered** above). The phase and the
-  primitives announce, relabel, park, or retire nothing, and none of them launches a developer or spends, reserves, or
-  releases an agent run:
+  primitives announce, relabel, park, or retire nothing, and none of
+  them launches a developer or spends, reserves, or releases an agent run:
   - the phase's steps (`workflow/engine/rewrite_finish_settled.py`) prove evidence settled for the landed head ready
     again (`rewrite_finish_readiness.stands_ready`) before every route, before a hold over records out of step, and
     beside a stop of the evidence step or of a settlement that leaves its transaction recorded -- the evidence records,

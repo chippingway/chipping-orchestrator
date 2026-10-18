@@ -18,21 +18,21 @@ or base that moved since leaves evidence that no longer answers for the head
 it would be routed with.
 
 These are the primitives a route that takes settled evidence as it stands
-proves it ready with (`stands_ready`): a finish held to the dormant
-settled-evidence policy (`rewrite_finish_models.LandedFinish.proves_settled`)
--- its evidence phase (`rewrite_finish_settlement.resolves`) and its
-coordinator's stops (`rewrite_finish_stops`) -- and the recovery's answers
-wherever it reads the landing moving or keeps the attempt for a reply
-(`rewrite_landing_moved`, `rewrite_landing_retirement`) ask them, the
-finishes those answers build for their proofs alone held to that policy on
-every road. No production finish selects it, so every route a finish takes
-reads such evidence behind the settlement step's own record check and the
-last word over the landing and the base
-(`rewrite_finish_captured.stands_before_the_route`). Such a finish has them
-read and retire more, as below, and only a caller that builds one and hands
-it to the coordinator (`rewrite_finish.finalizes`) or that phase, or asks
-them, directly reaches that (`rewrite_finish_settled`); every production
-finish keeps the policy every road selects. The proof
+proves it ready with (`stands_ready`): a finish
+held to the dormant settled-evidence policy
+(`rewrite_finish_models.LandedFinish.proves_settled`) -- its evidence phase
+(`rewrite_finish_settlement.resolves`) and its coordinator's stops
+(`rewrite_finish_stops`) -- and the recovery's answers wherever it reads the
+landing moving or keeps the attempt for a reply (`rewrite_landing_moved`,
+`rewrite_landing_retirement`) ask them, the finishes those answers build for
+their proofs alone held to that policy on every road. No production finish
+selects it, so every route a finish takes reads such evidence behind the
+settlement step's own record check and the last word over the landing and
+the base (`rewrite_finish_captured.stands_before_the_route`). Such a finish
+has them read and retire more, as below, and only a caller that builds one
+and hands it to the coordinator (`rewrite_finish.finalizes`) or that phase,
+or asks them, directly reaches that (`rewrite_finish_settled`); every
+production finish keeps the policy every road selects. The proof
 (`settled_word`) reads the evidence records over the issue and pinned comment
 read afresh, and the requirements of that issue, then, where they neither
 move nor hold, the readiness proof every reader relying on current evidence

@@ -182,8 +182,9 @@ def _answers_an_unreadable_checkout(
     what it records before the reset (`records_before_a_reset`) and owes over
     one that landed (`settles_over_a_reset`), what it asks before the park of
     a reset that did not land (`proves_before_a_park`), and the park it
-    records either park through (`lands_a_park`). An answer not handed in is
-    the context's None.
+    records either
+    park through (`lands_a_park`). An answer not handed in is the context's
+    None.
     """
     return snapshot._abort_recovery_unverified(
         _AutoRebaseRecoveryContext(
@@ -234,13 +235,13 @@ def _answers_a_held_anchor(
     the one thing it can be missing is a checkout to walk: only the checkouts
     that exist are walked, so one that is not on disk is brought back and
     nothing else, and the next refresh classifies the anchor over whatever the
-    local branch still names. The hold keeps the attempt for that refresh as
-    a park keeps it for a reply, so what the workflow captured or settled for
-    the landed head is proved first all the same
-    (`persistence._proves_before_the_park`), with nothing posted: a
-    requirement edited while the hold stands and put back before the refresh
-    reaches the anchor is read moving now, rather than routed unread then --
-    and a checkout gone from disk is proved gone, before it is brought back.
+    local branch still names.
+    The hold keeps the attempt for that refresh as a park keeps it for a reply,
+    so what the workflow captured or settled for the landed head is proved
+    first all the same (`persistence._proves_before_the_park`), with nothing
+    posted: a requirement edited while the hold stands and put back before the
+    refresh reaches the anchor is read moving now, not routed unread then --
+    and a checkout gone from disk is proved gone before it is brought back.
 
     Where it does not, what the refresh would answer is the ineligible road,
     which reads no pull request and fetches nothing -- so it is taken here

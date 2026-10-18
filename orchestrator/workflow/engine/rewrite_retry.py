@@ -150,8 +150,8 @@ def _publishes(
     routed; its park's flags are recorded as the gate left them -- guarded,
     over the comment read afresh, as the landed road's hold is
     (`rewrite_recovery_parks.lands_a_hold`), so an evidence record or a
-    revision floor another road wrote while the gate answered is kept -- and
-    the attempt is offered to the adjudication the hold may have left
+    revision floor another road wrote while the gate answered is kept -- and the
+    attempt is offered to the adjudication the hold may have left
     (`rewrite_takeover`), whose proof is what tells that hold from a park.
 
     The reply that released this recovery, where it only asked for the

@@ -17,13 +17,14 @@ however often the log was rotated meanwhile), record or no record, and files
 the event only where the stream does not carry it. A stream that would not
 read is nobody's answer: the finish is held with nothing filed, relabelled, or
 retired, for the next tick to ask again -- so an audit log the process cannot
-read holds every landed rewrite's route until it reads. With no audit log the
-stream is this process's tail alone, so the attempt's record of the event is
-taken as the event filed -- once at most, never twice: a process lost between
-the record and the event files none, while a finish of this process cut short
-there still owes it (`owed_events`), and one whose record was refused outright
--- another producer's record in its place -- owes nothing it noted for that
-write. Once the mark is down, no later finish announces the head at all.
+read holds every landed rewrite's route until it reads. Once the mark is down,
+no later finish announces the head at all.
+With no audit log the stream is this process's tail alone, so the attempt's
+record of the event is taken as the event filed -- once at most, never twice: a
+process lost between the record and the event files none, while a finish of
+this process cut short there still owes it (`owed_events`), and one whose
+record was refused outright -- another producer's record in its place -- owes
+nothing it noted for that write.
 
 The attempt records the event ahead of filing it, in a guarded write of its
 own (`rewrite_finish_writes.ANNOUNCED_EVENT`), decided on the attempt: the

@@ -253,16 +253,15 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> bool:
 def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
     """Record a clear the tick staged on `context.state` over the comment read afresh, as `CLEAR`; whether it landed.
 
-    Only what the tick staged lands; a successor settled while the checkout
-    was read refuses it, its revision floor kept, the tick's state withheld
-    for the next tick to answer again. The checkout read off the landed head
-    is movement all the same, so a clear that did not land has the reset
-    recorded against the attempt as the tick read it (`records_the_reset`),
-    and what the comment read afresh carries proved with that movement read
-    under each receipt the tick held (`proves_before_a_park`): a settlement
-    another finish made of the run meanwhile is invalidated whole, and a
-    successor under another receipt proved on its own. A state nothing was
-    read into is written whole.
+    Only what the tick staged lands; a successor settled while the checkout was
+    read refuses it, its revision floor kept, the tick's state withheld for the
+    next tick to answer again. The checkout read off the landed head is movement
+    all the same, so a clear that did not land has the reset recorded against
+    the attempt as the tick read it (`records_the_reset`), and what the comment
+    read afresh carries proved with that movement read under each receipt the
+    tick held (`proves_before_a_park`): a settlement another finish made of the
+    run meanwhile is invalidated whole, and a successor under another receipt
+    proved on its own. A state nothing was read into is written whole.
     """
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
@@ -358,20 +357,20 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     the blank reads it as movement. A tip the tick read blank is held to the
     comment read afresh all the same, so one another road put back meanwhile
     refuses the record and the reset is not made unrecorded; read blank there
-    too, the record lands with nothing sent. True where the blank landed or
-    stood; False, logged, where it was refused or went unconfirmed, for the
+    too, the record lands with nothing sent. True where the blank stood or
+    landed; False, logged, where it was refused or went unconfirmed, for the
     git owner to hold with nothing reset or cleaned -- the tick's state
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
-    never written back over a blank that landed unconfirmed. Movement the
-    record's commit read (`rewrite_landing_retirement.moved_under`) is proved
-    as read first -- landed, refused, or sent with its answer lost -- so a
-    report moved, or a tip blanked, and put back under it revives nothing:
+    never written back over a blank that landed unconfirmed.
+    Movement the record's commit read (`rewrite_landing_retirement.moved_under`)
+    is proved as read first -- landed, refused, or sent with its answer lost --
+    so a report moved, or a tip blanked, and put back under it revives nothing:
     behind a blank that landed, the evidence it moved under is retired before
-    the reset goes on, since a reset git then refuses stages the tip back, and
-    a retirement that does not land answers False, the blank left standing as
-    the record of that movement. A checkout gone from disk leaves no landing
-    to prove that evidence over, so, blank landed or not, the evidence is
-    retired as over a reset and landed as `CLEAR` in a write of its own
+    the reset goes on, since a reset git then refuses stages the tip back, and a
+    retirement that does not land answers False, the blank left standing as the
+    record of that movement. A checkout gone from disk leaves no landing to
+    prove that evidence over, so, blank landed or not, the evidence is retired
+    as over a reset and landed as `CLEAR` in a write of its own
     (`rewrite_recovery_staging.lands_the_retirement`), over a tip another road
     put back behind the blank among it; True there only where both landed and
     the comment read afresh behind the retirement carries none of what it

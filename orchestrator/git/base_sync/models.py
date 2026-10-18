@@ -215,10 +215,11 @@ class _AutoRebaseRecoveryContext:
     # publication or one its record does not account for: whether the park may
     # go on, once a verification transaction a finish captured for the landed
     # head, or evidence one settled for it, was proved again and retired where
-    # anything it rests on moved (`persistence._proves_before_the_park`) -- and
-    # before a dispatcher hold that keeps it with nothing posted. False holds
-    # the tick with nothing parked. None asks nothing; the workflow hands
-    # its answer in on every recovery context it builds or has built
+    # anything it rests on moved -- and before a dispatcher hold that keeps it
+    # with nothing posted
+    # (`persistence._proves_before_the_park`). False holds the tick with nothing
+    # parked. None asks nothing; the workflow hands its answer in on every
+    # recovery context it builds or has built
     # (`workflow/engine/rewrite_recovery_parks.proves_before_a_park`).
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None
     # How every park this recovery takes is posted and recorded, given the

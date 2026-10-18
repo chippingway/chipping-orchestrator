@@ -1025,12 +1025,12 @@ orchestrator/
                         the dispatch hold -- whether a standing anchor keeps a stage handler back,
                         which every label the refresh does not drive does, and one it drives does unless a late
                         claim the reconciliation answers freezes the refresh out -- with a missing checkout
-                        restored where the refresh drives the label once the evidence the anchor keeps is proved there with
-                        nothing posted, and the ineligible answer taken where it does not, over a context built apart
-                        (`_held_anchor_context`) so the dispatcher can hand it the workflow's answer before a park keeps
-                        the attempt and the park that one is recorded through
-                        (`workflow/engine/rewrite_recovery_parks.answers_a_held_anchor`). An anchor beside a live
-                        adjudication reaches it only once the dispatcher's handoff
+                        restored where the refresh drives the label once the evidence the anchor keeps is proved there
+                        with nothing posted, and the ineligible answer taken where it does
+                        not, over a context built apart (`_held_anchor_context`) so the dispatcher can hand it the
+                        workflow's answer before a park keeps the attempt, and the park that one is recorded
+                        through (`workflow/engine/rewrite_recovery_parks.answers_a_held_anchor`). An anchor beside a
+                        live adjudication reaches it only once the dispatcher's handoff
                         (`workflow/engine/rewrite_takeover.py`) has refused the pair
       persistence.py    the parks and the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
@@ -1040,8 +1040,8 @@ orchestrator/
                         optional answer the workflow's recovery hands on every road, which answers whether the
                         attempt may go; one that may not -- settled evidence with no room for its history entry --
                         is kept, with nothing dropped or parked (`_releases_over_the_reset`). Before the reset
-                        moves anything the context is asked to record it (`_resets`, `records_before_a_reset`), so
-                        a process lost behind it leaves nothing a checkout put back revives; one whose record was
+                        moves anything the context is asked to record it (`_resets`, `records_before_a_reset`), so a
+                        process lost behind it leaves nothing a checkout put back revives; one whose record was
                         refused or went unconfirmed is not made, nor is the clean behind it, and one git refused has
                         the base tip that record blanked staged back for the park. The park's notice is the
                         caller's reason followed by what the reset, the clean, and the drop came to
@@ -1056,12 +1056,12 @@ orchestrator/
                         abandonment or invalidation could not land. Every recovery park is
                         recorded through the park a recovery context carries where it carries one
                         (`_parks_the_recovery`, `lands_a_park`), landed over the comment read afresh; a context
-                        with none -- a refresh's own, ahead of any recovery -- writes the state whole. The
-                        workflow hands its park in on every recovery context it builds, and its record ahead of
-                        the reset on every one whose road may reset; a context with no recorder resets with
-                        nothing recorded. The dispatcher's holds that keep the attempt with nothing posted ask
-                        the same proof (`recovery_holds`, `replay_publication_parks`). The finish of a landing
-                        -- its report debt, notice, event, announcement mark, and route -- is the workflow's
+                        with none -- a refresh's own, ahead of any recovery -- writes the state whole. The workflow
+                        hands its park in on every recovery context it builds, and its record ahead of the reset on
+                        every one whose road may reset; a context with no recorder resets with nothing recorded. The
+                        dispatcher's holds that keep the attempt with nothing posted ask the same proof
+                        (`recovery_holds`, `replay_publication_parks`). The finish of a landing -- its report debt,
+                        notice, event, announcement mark, and route -- is the workflow's
                         (`workflow/engine/rewrite_finish.py`)
       recovery_notices.py
                         how a recovery's park notices name the commits they are about

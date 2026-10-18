@@ -182,11 +182,10 @@ def _park_stranded_recovery(context: _AutoRebaseRecoveryContext) -> bool:
     that reply brings back, so the recovery context is asked first whether the
     park may go on (`persistence._proves_before_the_park`), and the park is
     recorded as every recovery park is (`persistence._parks_the_recovery`).
-    That proof is asked on every poll that arrives here, the one that finds
-    the park already standing included, which posts nothing: a requirement
-    edited under the standing park and put back before the reply is read
-    moving on the poll that saw it, rather than carried unread into the
-    finish that reply brings back.
+    That proof is asked on every poll that arrives here, including one finding
+    the park already standing, which posts nothing: a requirement edited under
+    the standing park and put back before the reply is read moving on the poll
+    that saw it, not carried unread into the finish the reply brings back.
     """
     if not persistence._proves_before_the_park(context) or _already_stranded(context.state):
         return True
