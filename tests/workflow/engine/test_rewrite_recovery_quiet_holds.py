@@ -37,9 +37,6 @@ _EDITED_BODY = "Also cover a base that moved twice."
 # The checkout's head reading, read before any case stands in for it.
 _HEAD_SHA = _probes._head_sha
 
-# Where a case moves the checkout to take it off disk.
-_AWAY = "checkout-away"
-
 # The proof's issue read the checkout goes from disk behind, and the reading of that loss it comes back at.
 _BEHIND_A_READ = handoff.Boundary("behind an issue read", "get_issue", lambda *_called: True)
 
@@ -162,10 +159,10 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # The checkout comes back on its head as the hold's reset record goes out refused: the loss that record was
         # asked over still abandons the captured run whole, and the head is then routed once.
         head, run = self.captures()
-        away = self._wt.parent / _AWAY
+        away = self._wt.parent / guarded.AWAY
         self._wt.rename(away)
-        self._live_edit = self.gh.edit_pinned_state
-        with patch.object(self.gh, "edit_pinned_state", partial(self._returns_under_the_blank, away)):
+        edits = partial(guarded.returns_under_the_blank, self, self.gh.edit_pinned_state)
+        with patch.object(self.gh, "edit_pinned_state", edits):
             guarded.answers_a_held_anchor(self)
         self._assert_retired(run, captured=True)
         self.recovers()
@@ -175,7 +172,7 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # The checkout goes behind one of the proof's issue reads and comes back the moment the proof reads that
         # loss: the loss still invalidates the run whole, and the head is then routed once.
         head, run = self.settles_then_dies()
-        away = self._wt.parent / _AWAY
+        away = self._wt.parent / guarded.AWAY
         vanishes = _BEHIND_A_READ.moving(self.gh.get_issue, partial(self._wt.rename, away))
         exits = _AT_ITS_LOSS.moving(_readings.LosesTheCheckout.__exit__, partial(away.rename, self._wt))
         with (
@@ -197,17 +194,6 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         guarded.answers_a_held_anchor(self)
         self.issue.body = written
         self.assertEqual(len(self.gh.posted_comments), noticed)
-
-    def _returns_under_the_blank(self, away, issue, staged, **options):
-        """The pinned-comment edit, the base tip's first blank refused with the checkout back from `away` under it."""
-        tip = readings.KEY_REWRITE_BASE
-        read = options["over"].get(tip)
-        if read and staged.get(tip) is None and away.exists():
-            away.rename(self._wt)
-            self.gh.pinned_failures.refused.add(issue.number)
-        answered = self._live_edit(issue, staged, **options)
-        self.gh.pinned_failures.refused.discard(issue.number)
-        return answered
 
     def _assert_retired(self, run, *, captured: bool) -> None:
         """`run` abandoned whole where it was only `captured`, else invalidated whole, the attempt on its anchor."""

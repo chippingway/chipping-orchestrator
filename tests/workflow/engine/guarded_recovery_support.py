@@ -30,6 +30,9 @@ from tests.workflow.engine import (
 
 AWAITING = "awaiting_human"
 
+# Where a case moves the checkout to take it off disk.
+AWAY = "checkout-away"
+
 # The park's flag and the attempt's anchor and base tip, as a case reads them together.
 ATTEMPT_FIELDS = (AWAITING, readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
 
@@ -96,6 +99,19 @@ def answers_a_held_anchor(case) -> None:
     label = case.gh.workflow_label(case.issue)
     state = case.gh.read_pinned_state(case.issue)
     _dispatch_guards._anchor_holds_the_tick(case.gh, case._spec, case.issue, label, state)
+
+
+def returns_under_the_blank(case, live, issue, staged, **options):
+    """`live`, the pinned-comment edit, the tip's first blank refused, `case`'s checkout back from `AWAY` under it."""
+    away = case._wt.parent / AWAY
+    tip = readings.KEY_REWRITE_BASE
+    read = options["over"].get(tip)
+    if read and staged.get(tip) is None and away.exists():
+        away.rename(case._wt)
+        case.gh.pinned_failures.refused.add(issue.number)
+    answered = live(issue, staged, **options)
+    case.gh.pinned_failures.refused.discard(issue.number)
+    return answered
 
 
 class GuardedRecoveryCase(support.CapturedRunCase):

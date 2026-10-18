@@ -33,7 +33,6 @@ from itertools import product
 from unittest.mock import patch
 
 from orchestrator.git.base_sync import rewrite_facts
-from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import (
     rewrite_recovery_parks as _parks,
     verification_settlement_state as _settlement,
@@ -258,8 +257,8 @@ class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         """Recover over the checkout read past the head and gone behind that reading, back where it `returns`."""
         self._moved = False
         reads = partial(self._moves_then_vanishes, rewrite_facts._reads_the_checkout, away)
-        returned = away if returns else self._wt / _AWAY
-        edits = partial(self._returns_under_the_blank, self.gh.edit_pinned_state, returned)
+        edits = self.gh.edit_pinned_state
+        edits = partial(guarded.returns_under_the_blank, self, edits) if returns else edits
         with patch.object(rewrite_facts, "_reads_the_checkout", reads), patch.object(self.gh, _EDITS, edits):
             self.recovers()
 
@@ -272,15 +271,6 @@ class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         reading = live(*read, **options)
         self._wt.rename(away)
         return reading
-
-    def _returns_under_the_blank(self, live, away, issue, staged, **options):
-        """`live`, the pinned-comment edit, the tip's first blank refused, the checkout back from `away` under it."""
-        tip = readings.KEY_REWRITE_BASE
-        read = options["over"].get(tip)
-        if read and staged.get(tip) is None and away.exists():
-            away.rename(self._wt)
-            return PinnedEdit.UNREAD
-        return live(issue, staged, **options)
 
 
 if __name__ == "__main__":
