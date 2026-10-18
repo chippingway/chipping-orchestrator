@@ -105,10 +105,8 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
     """A whole recovery that keeps the attempt over the settled run proves it first, as a direct finish does."""
 
     def test_an_unproved_head_proves_first(self) -> None:
-        # The landed road cannot prove the candidate's head, so it finishes
-        # nothing, and the issue was edited: the run is invalidated before the
-        # attempt is kept, and with the issue and the reading back the head is
-        # routed with nothing current.
+        # The landed road cannot prove the candidate's head, and the issue was
+        # edited: the run is invalidated before the attempt is kept.
         head = self.settles_then_dies()
         written = self.issue.body
         self.issue.body = held.EDITED_BODY
@@ -124,11 +122,8 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
         self.assert_routed_once(head)
 
     def test_a_raised_stranded_notice_proves(self) -> None:
-        # The issue is relabelled out from under the attempt, and while the
-        # stranded park's notice is posted report 3 of the head is settled
-        # and the post's answer lost: the run is invalidated before the error
-        # goes on, so report 2 and the label put back route the head with
-        # nothing current.
+        # Report 3 is settled while the stranded park's notice is posted, its
+        # answer lost: the run is invalidated before the error goes on.
         head = self.settles_then_dies()
         self.issue.labels = [FakeLabel("workflow:resolving_conflict")]
         replaced = self.settles_under_the_notice(head, raises=True, recovered=True)
@@ -143,10 +138,8 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
         self.assert_routed_once(head)
 
     def test_a_debt_park_notice_proves_the_run(self) -> None:
-        # The finish's own debt park, reached by a whole recovery: report 3
-        # settled while its notice is posted, refused or raising, invalidates
-        # the run before the recovery stops, and the next one routes the head
-        # with nothing current once room is made.
+        # Report 3 settled while the finish's debt park notice is posted,
+        # refused or raising, invalidates the run before the recovery stops.
         for raises in (False, True):
             with self.subTest(raised=raises):
                 self.setUp()

@@ -113,7 +113,7 @@ from orchestrator.workflow.engine import (
     verification_records as _evidence_records,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
-from orchestrator.workflow.engine.rewrite_recovery_readings import AsksEveryReading
+from orchestrator.workflow.engine.rewrite_recovery_readings import AsksEveryReading, asks_every_reading
 from orchestrator.workflow.engine.rewrite_recovery_staging import keeps_the_staging
 
 log = logging.getLogger("orchestrator.workflow")
@@ -314,11 +314,15 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     landed; False, logged, where it was refused or went unconfirmed, for the
     git owner to hold with nothing reset or cleaned -- the tick's state
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
-    never written back over a blank that landed unconfirmed.
+    never written back over a blank that landed unconfirmed. Movement a
+    refused record read (`rewrite_landing_retirement.moved_under`) is proved
+    as read first, so a tip blanked and put back under it revives nothing.
     """
     if not _attempt_records._recorded_onto(context.state):
         return True
-    commit = _commits.ReportCommit(context.gh, context.issue, context.state)
+    moved: dict[str, ReportEvidence] = {}
+    asked = asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved))
+    commit = _commits.ReportCommit(asked.gh, context.issue, context.state)
     staged = commit.staging()
     staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
     landed = commit.lands(staged, _writes.INVALIDATION)
@@ -330,6 +334,8 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
         "nothing is reset until a later tick records it",
         context.issue.number, (landed.refusal or landed.status).value,
     )
+    if moved and landed.status is _commit_models.CommitStatus.REFUSED and context.worktree.is_dir():
+        _retirement.retires_unproved(context, _retirement.reconciles(context, moved))
     return False
 
 

@@ -101,18 +101,18 @@ def _dies_behind_the_reset(case) -> None:
         case.recovers()
 
 
-def _loses_the_blank(live, issue, state, *, over: dict):
+def _loses_the_blank(live, issue, state, **options):
     """`live`, the client's pinned-comment edit, landed with its answer lost where it is the base tip's blank."""
-    blanks = _blanking(issue, state, over=over)
-    answered = live(issue, state, over=over)
+    blanks = _blanking(issue, state, over=options["over"])
+    answered = live(issue, state, **options)
     return PinnedEdit.UNCONFIRMED if blanks else answered
 
 
-def _refuses_the_blank(refused: set, live, issue, state, *, over: dict):
+def _refuses_the_blank(refused: set, live, issue, state, **options):
     """`live`, the client's pinned-comment edit, refused by GitHub where it is the base tip's blank."""
-    if _blanking(issue, state, over=over):
+    if _blanking(issue, state, over=options["over"]):
         refused.add(issue.number)
-    answered = live(issue, state, over=over)
+    answered = live(issue, state, **options)
     refused.discard(issue.number)
     return answered
 
@@ -278,7 +278,7 @@ class ResetRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
 
 class UnconfirmedRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
-    """A reset whose record went out unconfirmed is not made, nor the clean behind it, and nothing stale undoes it."""
+    """A reset whose record did not land is not made, nor the clean behind it, and nothing stale undoes it."""
 
     def test_a_lost_record_resets_and_cleans_nothing(self) -> None:
         # The dirty checkout's park records its reset and the answer is lost:
@@ -302,6 +302,34 @@ class UnconfirmedRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(self._checkout(), (self.anchor, False))
         self.assert_invalidated(settled)
         self.assert_released()
+
+    def test_a_blank_under_a_refused_record_is_read(self) -> None:
+        # Another road blanks the base tip as the reset's record reads, refusing
+        # it, and puts it back: that movement still invalidates the run whole.
+        settled = self.settles_then_dies()[1]
+        armed: list = []
+        reads = partial(self._reads_a_blank_once, armed, self.gh.read_pinned_state)
+        fetches = _BEHIND_THE_FETCH.moving(guarded.unfetched, partial(armed.append, True))
+        with patch.object(branch_transport, _FETCHES, fetches), patch.object(self.gh, "read_pinned_state", reads):
+            self.recovers()
+        self.recovers()
+
+        invalidated = (settled.receipt, readings.INVALIDATED)
+        self.assertIsNone(readings.pinned_records(self)[1])
+        self.assertIn(invalidated, readings.pinned_records(self)[2])
+
+    def _reads_a_blank_once(self, armed: list, read, issue):
+        """`read`, the comment's reading, the first behind `armed` taken with the base tip blanked, put back behind."""
+        if armed != [True]:
+            return read(issue)
+        armed.append(False)
+        saved = read(issue)
+        blank = read(issue)
+        blank.set(readings.KEY_REWRITE_BASE, None)
+        self.gh.write_pinned_state(issue, blank)
+        answer = read(issue)
+        self.gh.write_pinned_state(issue, saved)
+        return answer
 
     def _parks_the_dirty_checkout(self, head: str):
         """Take the git owner's park over a dirty checkout on `head`, which resets and cleans, guarded; its context."""

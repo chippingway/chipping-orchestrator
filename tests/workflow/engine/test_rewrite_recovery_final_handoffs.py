@@ -90,11 +90,8 @@ _RESOLUTIONS = (
 _VALIDATING = "validating"
 
 # Every resolution and boundary from the stage that asked for the rebase, and
-# from `workflow:validating` at and behind the relabel's record, whose relabel
-# is owed onto the label the issue already wears -- a tail lost at that record,
-# ahead of the relabel, among them. One lost at the relabel itself, behind its
-# record, is read as relabelled, which `test_rewrite_finish_relabel_records`
-# covers.
+# from `workflow:validating` up to the relabel's record; one lost behind it is
+# read as relabelled (`test_rewrite_finish_relabel_records`).
 _JOURNEYS = (
     *product((False,), _RESOLUTIONS, handoff.BOUNDARIES),
     *product((True,), _RESOLUTIONS, (handoff.BEFORE_THE_RELABEL_RECORD, handoff.BEFORE_THE_RETIREMENT)),
@@ -177,11 +174,7 @@ class FinalHandoffRecoveryTest(_HandoffCase, unittest.TestCase):
         # Whatever resolved the evidence and wherever the tail died, two later
         # polls leave one announcement, one relabel and stage entry, the
         # evidence exactly as resolved, and nothing run or published again --
-        # also on an issue already on `workflow:validating` before its rebase,
-        # whose route relabels it once all the same, a tail lost at the
-        # relabel's record included: the mark and that label say nothing of
-        # this head's relabel, which only its own record, landed ahead of it,
-        # does.
+        # an issue already on `workflow:validating` relabelled once all the same.
         for validating, resolution, boundary in _JOURNEYS:
             with self.subTest(validating=validating, resolution=resolution.name, boundary=boundary.name):
                 self.setUp()
@@ -199,10 +192,8 @@ class FinalHandoffRecoveryTest(_HandoffCase, unittest.TestCase):
                 self.assert_finished(resolution.ran)
 
     def test_movement_invalidates_settled_evidence(self) -> None:
-        # The run settled before the tail died, and something it is bound to
-        # moved before the next tick: the recovery invalidates it whole rather
-        # than routing it as current, and routes the head to the fresh
-        # reviewer with nothing run or posted again and no second notice.
+        # Something the settled run is bound to moved before the next tick: the
+        # run is invalidated whole and the head routed once, nothing run again.
         for (name, moves), boundary in product(_MOVES, handoff.BOUNDARIES):
             with self.subTest(move=name, boundary=boundary.name):
                 self.setUp()
@@ -218,10 +209,8 @@ class FinalHandoffRecoveryTest(_HandoffCase, unittest.TestCase):
                 self.assert_finished(1)
 
     def test_an_unread_proof_holds_the_route(self) -> None:
-        # The pull request will not read while the recovery proves the settled
-        # run ready again: the route is held with the run current and the
-        # attempt standing, nothing said or relabelled beyond what the dead
-        # tick did, and the next recovery routes the run exactly as it settled.
+        # The pull request will not read for the proof: the route is held with
+        # the run current, and the next recovery routes it exactly as settled.
         for boundary in handoff.BOUNDARIES:
             with self.subTest(boundary=boundary.name):
                 self.setUp()
@@ -238,11 +227,9 @@ class FinalHandoffRecoveryTest(_HandoffCase, unittest.TestCase):
                 self.assert_finished(1)
 
     def test_a_landing_moved_mid_proof_holds(self) -> None:
-        # The checkout commits past the landed head while the recovery re-reads
-        # the report the settled run is bound to: that is movement under the
-        # run, which is invalidated whole, and the landing it would route no
-        # longer stands, so the route is held with the attempt standing and
-        # nothing said or relabelled beyond what the dead tick did.
+        # The checkout commits past the landed head while the proof re-reads
+        # the report: the run is invalidated whole and the route held, nothing
+        # said or relabelled beyond what the dead tick did.
         for boundary in handoff.BOUNDARIES:
             with self.subTest(boundary=boundary.name):
                 self.setUp()
@@ -259,8 +246,7 @@ class FinalHandoffRecoveryTest(_HandoffCase, unittest.TestCase):
 
     def test_a_base_advance_continues_the_head(self) -> None:
         # The base advances again while the attempt stands: the next tick
-        # retires it unrouted -- announcing the landed head only where the
-        # dead tick had not -- rebases once more, and routes what that push
+        # retires it unrouted, rebases once more, and routes what that push
         # landed, invalidating the run settled for the head it replaced.
         for boundary in handoff.BOUNDARIES:
             with self.subTest(boundary=boundary.name):
@@ -299,11 +285,9 @@ class DifferingRunsJourneyTest(_HandoffCase, unittest.TestCase):
     """Two base advances whose runs pass and then fail each resolve their own result once."""
 
     def test_each_advance_resolves_its_own_run(self) -> None:
-        # The first rebased head's run passes and settles; the second's, over
-        # a base that brought in what breaks the suite, fails and its notice
-        # is published. Wherever both tails died, the passing run ends in
-        # history with its own tested head, nothing is current, each head is
-        # announced once and run once, and nothing is pushed or launched.
+        # The first rebased head's run passes and settles; the second's fails.
+        # Wherever both tails died, the passing run ends in history with its
+        # own head, and each head is announced once and run once.
         for boundary in (None, *handoff.BOUNDARIES):
             named = "uninterrupted" if boundary is None else boundary.name
             with self.subTest(boundary=named):

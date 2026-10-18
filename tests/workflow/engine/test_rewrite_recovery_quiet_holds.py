@@ -134,11 +134,8 @@ class SettledUnderTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_routed(head)
 
     def test_a_full_comment_records_the_movement(self) -> None:
-        # The invalidation has no room, so the movement is recorded by the
-        # tip blanked, and nothing is parked; the room that blank freed takes
-        # the invalidation the proof asks again, so the run is retired whole
-        # however the comment is filled. Room made, the next recovery routes
-        # the head with nothing current.
+        # The invalidation has no room, so the tip is blanked and nothing
+        # parked; the room that blank freed takes the invalidation asked again.
         head, captured = self._holds_over_a_settlement(finish_moves.fills_the_comment)
         self.assertEqual(self.pinned_fields(guarded.AWAITING, readings.KEY_REWRITE_BASE), (None, None))
         current, retired = readings.pinned_records(self)[1:]
@@ -195,11 +192,9 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                     self.assert_invalidated(run)
 
     def test_a_successor_refuses_the_clear(self) -> None:
-        # Another road settles a newer run over the run while the checkout's
-        # head is read: the clear, decided on the evidence records as the tick
-        # read them, is refused, so the newer run stays current with its
-        # revision floor and the attempt stands; the next answer clears the
-        # attempt beside that run, kept as its road wrote it.
+        # A newer run settles while the checkout's head is read: the clear is
+        # refused, the newer run kept with its revision floor, and the next
+        # answer clears the attempt beside it.
         for name, clears in _CLEARS:
             with self.subTest(cleared_by=name):
                 self.setUp()

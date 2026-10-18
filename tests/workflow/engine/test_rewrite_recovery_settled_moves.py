@@ -37,12 +37,10 @@ from tests.workflow.interleaving import _RacesPastTheCall
 
 _EDITED_BODY = "Also cover a base that moved twice."
 
-# Room on the pinned comment for the evidence's history entry and the park
-# behind it, and short of the report debt and the announcement it rides.
+# Room for the evidence's history entry and the park, not the debt's write.
 _SHORT_OF_THE_DEBT = 250
 
-# Room on the pinned comment for a debt already recorded, and short of the
-# evidence's history entry.
+# Room for a debt already recorded, and not the evidence's history entry.
 _SHORT_OF_THE_HISTORY = 20
 
 _FILLER = "room_filler"
@@ -51,20 +49,16 @@ _DEBT_PARK = "auto_base_rebase_unrecorded_debt"
 
 _ANOTHER_COMMAND = "echo another"
 
-# Whether the comment is filled ahead of the recovery, or by another road
-# while the recovery proves the run -- behind the proof's own reading of the
-# comment, ahead of the write that would invalidate it.
+# Whether the comment is filled ahead of the recovery, or while it proves the run.
 _FILLED_WHILE_PROVED = (False, True)
 
 # The proof's reading of the pinned comment: the refresh read it first.
 _THE_PROOFS_READING = 2
 
-# The finishes that die once their checkpoint has landed, so the next one
-# finds the landing announced and its debt recorded.
+# The finishes that die once their checkpoint, announcing the landing, landed.
 _CHECKPOINTED = handoff.BOUNDARIES[4:]
 
-# The finishes that die before their checkpoint lands, so the next one still
-# owes the landing's report debt a write.
+# The finishes that die before their checkpoint lands, the debt still owed.
 _UNCHECKPOINTED = handoff.BOUNDARIES[:4]
 
 
@@ -133,10 +127,8 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
                 self._assert_invalidated(settled)
 
     def test_an_unread_comment_still_invalidates(self) -> None:
-        # The issue is edited under the run, and the pinned comment will not
-        # read again for the write invalidating it: that write lands over the
-        # tick's own reading, the head is routed once, and putting the
-        # requirements back finds nothing current to route.
+        # The issue is edited under the run, and the comment will not read
+        # again: the invalidation lands over the tick's own reading.
         for boundary in handoff.BOUNDARIES:
             with self.subTest(boundary=boundary.name):
                 self.setUp()
@@ -154,10 +146,8 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
                 self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
 
     def test_a_debt_park_invalidates_first(self) -> None:
-        # The comment has no room for the landing's report debt, and the issue
-        # was edited under the settled run: the run is invalidated before the
-        # park the debt takes, so room made, the requirements put back, and a
-        # reply route the head with nothing current, the run made once.
+        # No room for the debt, and the issue edited under the run: the run is
+        # invalidated before the debt's park, so nothing current is routed.
         for boundary in _UNCHECKPOINTED:
             with self.subTest(boundary=boundary.name):
                 self.setUp()
@@ -204,11 +194,9 @@ class FullCommentMoveTest(support.CapturedRunCase, unittest.TestCase):
     """Movement under a settled run the comment has no room to invalidate is recorded, so nothing put back revives."""
 
     def test_moved_requirements_are_recorded(self) -> None:
-        # The issue is edited under the run, the comment filled ahead of the
-        # recovery or while it proves the run: the route is held with the run
-        # current and the movement recorded by blanking the base tip, and the
-        # requirements put back before room is made still leave the run
-        # invalidated whole and the head routed with nothing current.
+        # The issue is edited under the run on a full comment: the movement is
+        # recorded by blanking the base tip, so putting the requirements back
+        # before room is made still leaves the run invalidated whole.
         for during, boundary in product(_FILLED_WHILE_PROVED, handoff.BOUNDARIES):
             with self.subTest(filled_while_proved=during, boundary=boundary.name):
                 self.setUp()
@@ -221,10 +209,8 @@ class FullCommentMoveTest(support.CapturedRunCase, unittest.TestCase):
                 self._puts_it_right(head, settled, partial(setattr, self.issue, "body", written))
 
     def test_a_moved_configuration_is_recorded(self) -> None:
-        # Once the landing is announced, another command is configured on a
-        # full comment: the run cannot be invalidated, so the movement is
-        # recorded, and the configuration put back before room is made still
-        # leaves the run invalidated whole and the head routed once.
+        # Another command is configured on a full comment once the landing is
+        # announced: the movement is recorded, so putting it back revives nothing.
         for boundary in _CHECKPOINTED:
             with self.subTest(boundary=boundary.name):
                 self.setUp()
