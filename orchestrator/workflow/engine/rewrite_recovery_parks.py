@@ -127,7 +127,7 @@ from orchestrator.workflow.engine import (
     rewrite_recovery_notices as _notices,
     verification_records as _evidence_records,
 )
-from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
     AsksEveryReading,
     RecordsALostCheckout,
@@ -147,6 +147,10 @@ _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PAR
 HOLD = _commits.ReportWrite(
     owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS),
 ).reading_moves(True)
+
+# What a clear read under every evidence the tick held, as the landed road's
+# move off the landing is (`rewrite_evidence_proof.LEFT_THE_LANDING`).
+_OFF_THE_LANDING = ReportEvidence(ReportEvidenceVerdict.HOLD, "the checkout stood back on the anchor, off the landing")
 
 # A clear's record under a label the refresh does not drive, decided on the
 # attempt and the evidence records, so a successor settled meanwhile refuses it
@@ -254,8 +258,11 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
     for the next tick to answer again. The checkout read off the landed head
     is movement all the same, so a clear that did not land has the reset
     recorded against the attempt as the tick read it (`records_the_reset`),
-    and a checkout put back before the next tick revives nothing. A state
-    nothing was read into is written whole.
+    and what the comment read afresh carries proved with that movement read
+    under each receipt the tick held (`proves_before_a_park`): a settlement
+    another finish made of the run meanwhile is invalidated whole, and a
+    successor under another receipt proved on its own. A state nothing was
+    read into is written whole.
     """
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
@@ -269,10 +276,14 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
         "tick answers the comment as it then stands",
         context.issue.number, (landed.refusal or landed.status).value,
     )
-    synced = context.state.synced
-    read = PinnedState(comment_id=context.state.comment_id, state_data=json.loads(synced))
-    read.synced = synced
-    records_the_reset(replace(context, state=read))
+    read = PinnedState(
+        comment_id=context.state.comment_id, state_data=json.loads(context.state.synced),
+    )
+    read.synced = context.state.synced
+    held = dict.fromkeys(_retirement.receipts(read), _OFF_THE_LANDING)
+    moving = replace(context, state=read)
+    records_the_reset(moving)
+    proves_before_a_park(moving, _retirement.reconciles(moving, held))
     return False
 
 

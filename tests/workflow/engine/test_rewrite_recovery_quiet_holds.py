@@ -36,6 +36,9 @@ _EDITED_BODY = "Also cover a base that moved twice."
 # The checkout's head reading, read before any case stands in for it.
 _HEAD_SHA = _probes._head_sha
 
+# How a case puts the checkout on a commit of its own.
+_PUTS_BACK = ("reset", "--quiet", "--hard")
+
 # A label the refresh does not drive, under which the dispatcher's hold strands the attempt.
 _UNDRIVEN = "workflow:resolving_conflict"
 
@@ -54,21 +57,33 @@ def _puts_the_label_back(case) -> None:
 
 
 class _ChargesTheClear:
-    """`case`'s pinned-comment edit, behind a usage write landed first the first time it sends the clear."""
+    """`case`'s pinned-comment edit, behind a usage write -- or another finish settling `settles`, the captured head,
+    over the checkout put back on it -- landed first the first time it sends the clear."""
 
-    def __init__(self, case) -> None:
-        self._gh = case.gh
+    def __init__(self, case, settles: str | None = None) -> None:
+        self._case = case
         self._live = case.gh.edit_pinned_state
+        self._settles = settles
         self.raced = False
 
     def __call__(self, issue, staged, **options):
-        """Answer the edit, a usage write landing right ahead of the clear the first time."""
+        """Answer the edit, the race landing right ahead of the clear the first time."""
         if not staged.get(readings.KEY_PENDING_PUSH) and not self.raced:
             self.raced = True
-            fresh = self._gh.read_pinned_state(issue)
-            fresh.set("issue_total_tokens", (fresh.get("issue_total_tokens") or 0) + 1)
-            self._gh.write_pinned_state(issue, fresh)
+            self._races(issue)
         return self._live(issue, staged, **options)
+
+    def _races(self, issue) -> None:
+        """Land the usage write, or the settlement under the label the run was reviewed in."""
+        case = self._case
+        if self._settles is None:
+            fresh = case.gh.read_pinned_state(issue)
+            fresh.set("issue_total_tokens", (fresh.get("issue_total_tokens") or 0) + 1)
+            case.gh.write_pinned_state(issue, fresh)
+            return
+        case._git(*_PUTS_BACK, self._settles, cwd=case._wt)
+        case.issue.labels = [FakeLabel(git_support.REVIEWING)]
+        guarded.settles_elsewhere(case, self._settles, case.issue.body, [])
 
 
 # What answers an anchor under an undriven label: the dispatcher's hold, or a whole refresh's eligibility gate.
@@ -79,16 +94,25 @@ _CLEARS = (
 
 
 class _Road(NamedTuple):
-    """Where the dispatcher's quiet hold stands: what brings it there, and what releases the anchor after it."""
+    """Where the dispatcher's quiet hold stands: what brings it there, what releases the anchor, whether it edits."""
 
     name: str
     stands: Callable
     releases: Callable
+    edits: bool = True
 
 
 _ROADS = (
     _Road("a label the refresh drives", lambda _case: None, lambda _case: None),
     _Road("a stranded park already standing", _strands, _puts_the_label_back),
+    _Road(
+        "a checkout gone from disk, brought back",
+        lambda case: case._git(
+            "worktree", "remove", "--force", str(case._wt), cwd=case._work,
+        ),
+        lambda _case: None,
+        edits=False,
+    ),
 )
 
 
@@ -96,8 +120,8 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A hold that posts nothing proves the run it keeps, so restoring what moved revives nothing."""
 
     def test_a_quiet_hold_proves_the_run(self) -> None:
-        # The run, captured or settled, is retired whole by the hold that read the edit, with the attempt kept and
-        # nothing posted; the head is then routed once with nothing current.
+        # The run, captured or settled, is retired whole by the hold that read the edit -- or found the checkout gone,
+        # before bringing it back -- with the attempt kept and nothing posted; the head is then routed once.
         for road, captures in product(_ROADS, (True, False)):
             with self.subTest(road=road.name, captured=captures):
                 self.setUp()
@@ -111,11 +135,11 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assert_routed(head)
 
     def _holds_over_an_edit(self, road: _Road) -> None:
-        """Bring the hold to `road`; the dispatcher holds its anchor over an issue edit put back, posting nothing."""
+        """Bring the hold to `road`; the dispatcher holds its anchor over any edit it makes, put back, posting none."""
         road.stands(self)
         noticed = len(self.gh.posted_comments)
         written = self.issue.body
-        self.issue.body = _EDITED_BODY
+        self.issue.body = _EDITED_BODY if road.edits else written
         guarded.answers_a_held_anchor(self)
         self.issue.body = written
         self.assertEqual(len(self.gh.posted_comments), noticed)
@@ -188,7 +212,7 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 head, run = self.captures() if captures else self.settles_then_dies()
                 self._unnamed_on_the_anchor()
                 clears(self)
-                self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+                self._git(*_PUTS_BACK, head, cwd=self._wt)
                 self.reconciles()
 
                 self.assertEqual(self.pinned_fields(guarded.AWAITING, readings.KEY_PENDING_PUSH), (None, None))
@@ -211,7 +235,28 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
                 self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (self.anchor,))
                 clears(self)
-                self._assert_kept_beside_a_clear(newer[0])
+                kept = (
+                    readings.pinned_records(self)[1].receipt,
+                    *self.pinned_fields(readings.KEY_REVISION_FLOOR, readings.KEY_PENDING_PUSH),
+                )
+                expected = newer[0]
+                self.assertEqual(kept, (expected.receipt, expected.revision, None))
+
+    def test_a_racing_settlement_is_invalidated(self) -> None:
+        # Another finish settles the captured run as the clear is sent, refusing it: the move off the landing the
+        # clear read invalidates that settlement whole, so the replay named again and the checkout on its head
+        # route nothing current.
+        head, captured = self.captures()
+        self._unnamed_on_the_anchor()
+        with patch.object(self.gh, "edit_pinned_state", _ChargesTheClear(self, settles=head)):
+            guarded.answers_a_held_anchor(self)
+        named = self.gh.read_pinned_state(self.issue)
+        named.set(readings.KEY_REWRITE_SHA, head)
+        self.gh.write_pinned_state(self.issue, named)
+        self.recovers()
+        records = readings.pinned_records(self)
+        self.assertIsNone(records[1])
+        self.assertIn((captured.receipt, readings.INVALIDATED), records[2])
 
     def test_a_refused_clear_records_the_reset(self) -> None:
         # A usage write refuses the sent clear, the reset recorded by base tip: the checkout put back revives nothing.
@@ -225,7 +270,7 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
                 fields = (readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
                 self.assertEqual(self.pinned_fields(*fields), (self.anchor, None))
-                self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+                self._git(*_PUTS_BACK, head, cwd=self._wt)
                 clears(self)
                 self.assert_invalidated(run)
 
@@ -248,14 +293,8 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         state = self.gh.read_pinned_state(self.issue)
         state.set(readings.KEY_REWRITE_SHA, None)
         self.gh.write_pinned_state(self.issue, state)
-        self._git("reset", "--quiet", "--hard", self.anchor, cwd=self._wt)
+        self._git(*_PUTS_BACK, self.anchor, cwd=self._wt)
         self.issue.labels = [FakeLabel(_UNDRIVEN)]
-
-    def _assert_kept_beside_a_clear(self, newer) -> None:
-        """`newer` current with the revision floor it raised, the attempt cleared beside it."""
-        current = readings.pinned_records(self)[1].receipt
-        floor, anchored = self.pinned_fields(readings.KEY_REVISION_FLOOR, readings.KEY_PENDING_PUSH)
-        self.assertEqual((current, floor, anchored), (newer.receipt, newer.revision, None))
 
     def _settles_on_the_anchor(self, newer: list, *called, **options):
         """The checkout's head read, a newer run settled over the run into `newer` the first time it is the anchor."""

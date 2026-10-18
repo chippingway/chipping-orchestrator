@@ -239,7 +239,8 @@ def _answers_a_held_anchor(
     the landed head is proved first all the same
     (`persistence._proves_before_the_park`), with nothing posted: a
     requirement edited while the hold stands and put back before the refresh
-    reaches the anchor is read moving now, rather than routed unread then.
+    reaches the anchor is read moving now, rather than routed unread then --
+    and a checkout gone from disk is proved gone, before it is brought back.
 
     Where it does not, what the refresh would answer is the ineligible road,
     which reads no pull request and fetches nothing -- so it is taken here
@@ -266,9 +267,9 @@ def _answers_a_held_anchor(
     """
     context = replace(context, proves_before_a_park=proves_before_a_park, lands_a_park=lands_a_park)
     if context.label in _PR_REFRESH_DETOUR_LABELS:
+        _persistence._proves_before_the_park(context)
         if not context.worktree.is_dir():
             _restores_the_checkout(context.spec, context.issue.number, context.state)
-        _persistence._proves_before_the_park(context)
         return
     if context.worktree.is_dir():
         _replay_cleanup._answers_an_ineligible_label(context)

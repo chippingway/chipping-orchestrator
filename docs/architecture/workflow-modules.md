@@ -2423,7 +2423,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`rewrite_publication.py`) lands as `HOLD` too, with no proof first, since nothing was
                             pushed for any finish to hold evidence for; an ineligible label's clear lands as `CLEAR`
                             (`lands_a_clear`), which a successor settled meanwhile refuses; one that does not land
-                            records the reset against the attempt as read, blanking its base tip (`records_the_reset`).
+                            records the reset against the attempt as read, blanking its base tip (`records_the_reset`),
+                            and proves the evidence read afresh with its move off the landing under each receipt held.
                             Asked ahead of a record, that proof keeps what the tick staged before it -- a gate's record
                             of the hold, or the tip the git owner stages back behind a reset git refused -- across
                             every write it lands (`rewrite_recovery_staging.py`), and behind one keeps it out of them. A

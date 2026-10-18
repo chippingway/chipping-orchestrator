@@ -1025,7 +1025,7 @@ orchestrator/
                         the dispatch hold -- whether a standing anchor keeps a stage handler back,
                         which every label the refresh does not drive does, and one it drives does unless a late
                         claim the reconciliation answers freezes the refresh out -- with a missing checkout
-                        restored where the refresh drives the label, and the evidence the anchor keeps proved there with
+                        restored where the refresh drives the label once the evidence the anchor keeps is proved there with
                         nothing posted, and the ineligible answer taken where it does not, over a context built apart
                         (`_held_anchor_context`) so the dispatcher can hand it the workflow's answer before a park keeps
                         the attempt and the park that one is recorded through
