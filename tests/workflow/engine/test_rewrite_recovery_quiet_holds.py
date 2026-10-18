@@ -2,13 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """An anchor the dispatcher holds with nothing parked or posted, proving the run it keeps first.
 
-On the real-git finish case, its run captured or settled and the finish killed, a hold posting nothing proves the run
-first (`git/base_sync/persistence._proves_before_the_park`) -- under a label the refresh drives, or beside its own
-stranded park standing: an issue edited and put back has it retired whole, the next recovery routing the head, nothing
-current. A run another finish settles mid-proof is invalidated too, or recorded by its base tip in a full comment; a
-newer run settled over it is kept. A clear under a label the refresh does not drive, over a checkout back on the anchor,
-retires the run in the guarded write clearing the attempt, keeps the attempt where history has no room, and a newer run
-settled meanwhile refuses it; one a usage write refuses records the reset by base tip. Nothing is run again or pushed.
+A hold posting nothing over the real-git finish case's captured or settled run, its finish killed, proves the run first
+(`git/base_sync/persistence._proves_before_the_park`), under a driven label or beside its standing stranded park: an
+edited issue put back retires it whole, the head then routed with nothing current. A run settled mid-proof is
+invalidated, or recorded by base tip in a full comment; a newer run over it is kept. An undriven clear over a checkout
+back on the anchor retires the run as it clears the attempt, keeps the attempt with no history room, yields to a newer
+run, and records the reset by base tip if a usage write refuses it. Nothing is run again or pushed.
 """
 from __future__ import annotations
 
@@ -63,8 +62,7 @@ def _puts_the_label_back(case) -> None:
 
 
 class _ChargesTheClear:
-    """`case`'s pinned-comment edit, behind a usage write -- or another finish settling `settles`, the captured head,
-    over the checkout put back on it -- landed first the first time it sends the clear."""
+    """`case`'s pinned-comment edit, a usage write or a finish settling `settles` landing ahead of its first clear."""
 
     def __init__(self, case, settles: str | None = None) -> None:
         self._case = case
@@ -126,8 +124,7 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A hold that posts nothing proves the run it keeps, so restoring what moved revives nothing."""
 
     def test_a_quiet_hold_proves_the_run(self) -> None:
-        # The run, captured or settled, is retired whole by the hold that read the edit -- or found the checkout gone,
-        # before bringing it back -- with the attempt kept and nothing posted; the head is then routed once.
+        # The hold reading the edit, or the checkout gone before it brings it back, retires the run and posts nothing.
         for road, captures in product(_ROADS, (True, False)):
             with self.subTest(road=road.name, captured=captures):
                 self.setUp()
@@ -141,8 +138,7 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assert_routed(head)
 
     def test_a_refused_record_keeps_the_checkout_away(self) -> None:
-        # Every pinned write is refused as the hold finds the checkout gone: nothing brings it back over a loss no
-        # write recorded, and the next hold, its writes landing, retires the run before it does.
+        # Every write refused, nothing restores the checkout; the next hold retires the run before bringing it back.
         head, run = self.settles_then_dies()
         _ROADS[-1].stands(self)
         with patch.object(self.gh.pinned_failures, "refused", {self.issue.number}):
@@ -156,8 +152,7 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_routed(head)
 
     def test_a_checkout_back_under_a_refused_record(self) -> None:
-        # The checkout comes back on its head as the hold's reset record goes out refused: the loss that record was
-        # asked over still abandons the captured run whole, and the head is then routed once.
+        # The checkout returns as the hold's reset record goes out refused; the loss it was asked over abandons the run.
         head, run = self.captures()
         away = self._wt.parent / guarded.AWAY
         self._wt.rename(away)
@@ -169,8 +164,7 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_routed(head)
 
     def test_a_loss_the_proof_read_retires_the_run(self) -> None:
-        # The checkout goes behind one of the proof's issue reads and comes back the moment the proof reads that
-        # loss: the loss still invalidates the run whole, and the head is then routed once.
+        # The checkout goes behind a proof's issue read and returns as that loss is read: the run is still invalidated.
         head, run = self.settles_then_dies()
         away = self._wt.parent / guarded.AWAY
         vanishes = _BEHIND_A_READ.moving(self.gh.get_issue, partial(self._wt.rename, away))
@@ -255,8 +249,7 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A clear under a label the refresh does not drive retires the run with the attempt it releases."""
 
     def test_a_clear_retires_the_run(self) -> None:
-        # The run, captured or settled, is retired whole in the write that clears the attempt, so the checkout put
-        # back on the landed head and the reconciliation revive nothing.
+        # The write clearing the attempt retires the run; the checkout put back and reconciling revive nothing.
         for (name, clears), captures in product(_CLEARS, (True, False)):
             with self.subTest(cleared_by=name, captured=captures):
                 self.setUp()
@@ -273,8 +266,7 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                     self.assert_invalidated(run)
 
     def test_a_successor_refuses_the_clear(self) -> None:
-        # A newer run settles while the checkout's head is read: the clear is refused, the newer run kept with its
-        # revision floor, and the next answer clears the attempt beside it.
+        # A newer run settling at the HEAD read refuses the clear and keeps its floor; the next clears the attempt.
         for name, clears in _CLEARS:
             with self.subTest(cleared_by=name):
                 self.setUp()
@@ -294,9 +286,8 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assertEqual(kept, (expected.receipt, expected.revision, None))
 
     def test_a_racing_settlement_is_invalidated(self) -> None:
-        # Another finish settles the captured run as the clear is sent, refusing it: the move off the landing the
-        # clear read invalidates that settlement whole, so the replay named again and the checkout on its head
-        # route nothing current.
+        # Another finish settling the run as the clear is sent refuses it; the move off the landing the clear read
+        # invalidates that settlement, so the replay named again and the checkout on its head route nothing current.
         head, captured = self.captures()
         self._unnamed_on_the_anchor()
         with patch.object(self.gh, "edit_pinned_state", _ChargesTheClear(self, settles=head)):

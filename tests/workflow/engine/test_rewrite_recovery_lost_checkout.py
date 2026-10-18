@@ -2,17 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """A settled run stays retired for good once a recovery finds its checkout gone from disk.
 
-The real-git finish case (`rewrite_verification_recovery_support`): issue #7's rebased head reviewed, its run settled
-under the anchor, the finish killed before its announcement. The checkout goes from disk under the landed road, the
-dispatcher's quiet hold, or a standing stranded park -- ahead of the recovery's proof, while it is asked, behind one of
-its own readings of the issue, or as the landed road reads the checkout as its candidate -- another road perhaps writing
-back right behind it the base tip the reset's record blanked. The reset is recorded and the run retired, each in its own
-write, so with the checkout back on the head -- the label and a reply too, for the park -- the head is routed with
-nothing current, the run never made again and nothing pushed or launched. Another road writing the attempt and every
-evidence record back right behind a quiet hold's retirement has the run retired once more; one retiring the run itself
-right ahead of it, pinning another attempt or settling a newer run in its place, holds the tick over what it wrote, the
-checkout put back on the head left unreset. A git request of the hold, the gate, or an abort finding it gone is recorded
-the same way, and a retirement a full comment or a usage write refuses over the tip put back is asked over it whole.
+The real-git finish case (`rewrite_verification_recovery_support`), issue #7's reviewed run settled under the anchor and
+its finish killed unannounced, loses its checkout under the landed road, the quiet hold, or a standing stranded park:
+ahead of the proof, as it is asked, behind an issue read, or as the landed road reads its candidate, the base tip the
+reset blanked perhaps written back behind. The reset and the retirement land in separate writes, so the head put back
+(label and reply too, for the park) routes with nothing current, nothing remade, pushed, or launched. A run written back
+with its attempt behind a quiet hold's retirement is retired again; a road retiring it just ahead, pinning another
+attempt or a newer run, holds the tick over what it wrote, the checkout unreset. A git request of the hold, gate, or
+abort finding it gone is recorded alike; a retirement a full comment or usage write refuses is asked again whole.
 """
 from __future__ import annotations
 
@@ -57,8 +54,7 @@ _CURRENT = "verification_evidence_current"
 # The usage total another road's write moves, refusing a retirement decided on the comment before it.
 _USAGE_TOTAL = "issue_total_tokens"
 
-# What crowds the tip written back behind its blank: a comment filled past the retirement, or a usage write refusing
-# it -- once, or every time.
+# What crowds the tip written back: a comment filled past the retirement, or a usage write refusing it once or always.
 _FULL, _USAGE, _EVERY = "full", "usage", "every"
 
 # The roads whose git request ahead of any proof finds the checkout gone: the hold, the gate, the uncounted lag's abort.
@@ -175,9 +171,8 @@ class RestoredTipTest(_LostCheckoutCase, unittest.TestCase):
                 self.assert_retired()
 
     def test_a_quiet_hold(self) -> None:
-        # The dispatcher holds a stage the refresh drives; the checkout it brings back for the refresh never returns.
-        # A comment too full for the retirement, or a usage write refusing every retirement edit, has the tip
-        # blanked once more, the run and attempt kept whole until room is made and the next hold retires it.
+        # A hold under a driven stage never gets the checkout back; a full comment, or a usage write refusing every
+        # retirement, blanks the tip again, run and attempt kept until room is made and the next hold retires it.
         for crowds in (None, _FULL, _USAGE, _EVERY):
             with self.subTest(crowds=crowds):
                 self.setUp()
@@ -256,8 +251,7 @@ class MidRoadCheckoutTest(_LostCheckoutCase, unittest.TestCase):
         self.assert_retired()
 
     def test_a_standing_park(self) -> None:
-        # The dispatcher's hold, or the refresh's eligibility gate, finds its stranded park already standing, and the
-        # checkout goes as its proof is asked.
+        # The hold, or the refresh's eligibility gate, finds its stranded park standing; the checkout goes as it proves.
         answerers = {"dispatcher": partial(guarded.answers_a_held_anchor, self), "refresh": self.recovers}
         for answerer, answers in answerers.items():
             with self.subTest(answerer=answerer):
@@ -273,8 +267,7 @@ class MidRoadCheckoutTest(_LostCheckoutCase, unittest.TestCase):
         self.assert_retired()
 
     def test_a_git_request_ahead_of_any_proof(self) -> None:
-        # The hold, or the gate over an unstarted attempt under an undriven label, reads the checkout's HEAD -- or the
-        # uncounted lag's abort resets it -- and finds it gone ahead of any proof.
+        # The hold or the gate over an undriven unstarted attempt reads HEAD, or the abort resets it, and finds it gone.
         for road in (_DISPATCHER, _REFRESH, _ABORT):
             with self.subTest(road=road):
                 self.setUp()
@@ -292,9 +285,8 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
     """A run retired over a checkout gone from disk, another road writing right ahead of that retirement or behind."""
 
     def test_a_run_written_back_behind(self) -> None:
-        # The dispatcher holds a stage the refresh drives over a checkout that never comes back; right behind the write
-        # retiring the run another road writes back the attempt and each evidence record read before the hold. Nothing
-        # past a quiet hold proves the run again, so the comment read afresh behind that write has it retired once more.
+        # A hold under a driven stage, its checkout never back, retires the run; another road writes back the attempt
+        # and evidence read before it, and with no proof past a quiet hold, the comment read afresh retires it again.
         self.settles()
         self._written = copy.deepcopy(readings.pinned(self))
         self._wt.rename(self._away)
@@ -308,10 +300,9 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
         self.assert_retired()
 
     def test_another_road_retires_the_run_ahead(self) -> None:
-        # The fetch fails, so the abort resets the checkout to the anchor; it goes right behind the blank recording that
-        # reset. Right ahead of the run's retirement -- or of its last, behind two a usage write refused -- another
-        # road retires the run itself and pins another attempt, its base tip whole, or settles a newer run over it,
-        # putting the checkout back. What that road wrote stands, nothing reset or blanked over it.
+        # The fetch fails and the checkout goes behind the abort's reset blank. Right ahead of the retirement, or its
+        # last behind two a usage write refused, another road retires the run, pinning another attempt, base tip whole,
+        # or settling a newer run, and puts the checkout back: what it wrote stands, nothing reset or blanked.
         races = (
             ("attempt", self._replaces_the_attempt),
             ("successor", partial(settled_support.records_a_newer_run, settles=True)),

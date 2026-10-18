@@ -48,8 +48,7 @@ proof of a landed base rewrite (`rewrite_evidence_proof`) and the readiness
 proof of the evidence such a rewrite's finish settled
 (`rewrite_finish_readiness`), which only a finish held to the dormant
 settled-evidence policy asks: no production finish selects it, while the
-recovery's guarded operations build their proofs' finishes with it on every
-road.
+recovery's guarded operations build proof finishes with it on every road.
 
 `configured_context_revision` is the context both witnesses are held to: the
 configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, minted by the verify

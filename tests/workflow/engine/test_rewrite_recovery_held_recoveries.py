@@ -144,9 +144,7 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
         self.assert_routed_once(head)
 
     def test_a_successor_is_proved_on_its_own(self) -> None:
-        # The landed road reads the checkout off the captured run's head and abandons the run; a newer run settled right
-        # behind that write is proved on its own readings, not over that movement: kept current over the checkout back
-        # on the head, invalidated over one moved again.
+        # A newer run settled right behind the abandonment is proved on its own readings, not over that movement.
         for moves_again in (False, True):
             with self.subTest(moved_again=moves_again):
                 self.setUp()
@@ -157,9 +155,8 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
                 self._assert_proved_on_its_own(captured, races.newer, moved=moves_again)
 
     def test_a_marked_successor_behind_a_refusal(self) -> None:
-        # The newer run settles right ahead of the abandonment, refusing it, marked moved -- the mark left standing, or
-        # put back as the refused edit returns: the recovery retires it whole on the movement read under its own
-        # receipt, so its handoff put back routes nothing current.
+        # A newer run settling right ahead of the abandonment, refusing it, marked moved -- the mark standing, or put
+        # back as the refused edit returns -- is retired on the movement read under its own receipt.
         for race in (_SettlesBehindTheAbandonment, _PutsTheMarkBack):
             with self.subTest(race=race.__name__):
                 self.setUp()

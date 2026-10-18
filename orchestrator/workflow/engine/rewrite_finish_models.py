@@ -32,9 +32,8 @@ caller that builds a
 finish selecting it explicitly and hands it to the coordinator
 (`rewrite_finish.finalizes`), its evidence phase
 (`rewrite_finish_settlement.resolves`), or those primitives directly reaches it.
-The recovery's proofs are such a caller: every finish they build to retire or
-prove a landing's evidence, routing nothing, selects it
-(`rewrite_landing_captured`).
+The recovery's proofs are one: every finish they build to retire or prove a
+landing's evidence, routing nothing, selects it (`rewrite_landing_captured`).
 """
 from __future__ import annotations
 

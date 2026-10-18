@@ -55,9 +55,8 @@ decision is made here, in the order the recovery has always kept:
 - Anything else is observed (`git/base_sync/rewrite_transport.py`): the remote
   read as it stands, with no push at all, which is how an accepted push whose
   answer was lost is finished without a second one. A remote read off the
-  landed head abandons a transaction captured for it, and invalidates
-  evidence settled for it, first, as a checkout that left the head does; one
-  nobody could read keeps both.
+  landed head first abandons or invalidates what was captured or settled for
+  it, as a checkout leaving the head does; one nobody could read keeps both.
 
 What the proof or the observation found is handed to the one finish every
 landing gets (`rewrite_finish.finishes_the_recovery`): the debt and the room

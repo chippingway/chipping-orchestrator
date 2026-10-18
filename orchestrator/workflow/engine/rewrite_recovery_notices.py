@@ -78,9 +78,8 @@ def _said(context: _AutoRebaseRecoveryContext, message: str) -> int | None:
 def _files_the_event(context: _AutoRebaseRecoveryContext, notice: int, reason: str, message: str) -> None:
     """File the `park_awaiting_human` event of the park whose notice `notice` was said, where the stream lacks it.
 
-    With no audit log the notice said is taken as its event filed, save one
-    this process owes over a notice saying `message` (`owed_events.unfiled`):
-    once at most, never twice.
+    With no audit log the notice said is taken as its event filed, once at
+    most, save one this process owes over `message` (`owed_events.unfiled`).
     """
     issue_number = context.issue.number
     named = {"reason": reason, "notice_id": notice}

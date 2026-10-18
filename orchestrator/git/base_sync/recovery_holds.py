@@ -181,8 +181,7 @@ def _answers_an_unreadable_checkout(
     recovery (`workflow/engine/rewrite_recovery.answers_an_unreadable_checkout`):
     what it records before the reset (`records_before_a_reset`) and owes over
     one that landed (`settles_over_a_reset`), what it asks before the park of
-    a reset that did not land (`proves_before_a_park`), and the park it
-    records either
+    a refused reset (`proves_before_a_park`), and the park it records either
     park through (`lands_a_park`). An answer not handed in is the context's
     None.
     """

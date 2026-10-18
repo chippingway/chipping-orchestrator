@@ -20,12 +20,11 @@ beside the attempt as the tick read it, every evidence; blank beside an
 attempt still standing, evidence the tick never held. `owed_moves` reads
 what it records moving under a transaction captured for the head, as the
 finish held to the settled-evidence policy reads one still owed.
-`stands_as_recovered` says whether the tick's state, with what the proof's
-rechecks read laid over it, still carries the attempt the recovery recovers,
-not one another road put in its place. `LosesTheCheckout` lets the proof read
-a checkout gone from disk under one of its own requests as that loss, not
-raise it past the record it owes, and `RecordsALostCheckout` records that loss
-for a road that owes it.
+`stands_as_recovered` says whether the tick's state, the proof's rechecks laid
+over it, still carries the attempt the recovery recovers, not one another road
+put in its place. `LosesTheCheckout` lets the proof read a checkout gone from
+disk under one of its own requests as that loss, not raise it past the record
+it owes; `RecordsALostCheckout` records that loss for a road owing it.
 """
 from __future__ import annotations
 
@@ -143,13 +142,12 @@ class LosesTheCheckout:
 class RecordsALostCheckout(LosesTheCheckout):
     """A recovery road's block a checkout gone from disk cuts short, that loss recorded before the road unwinds.
 
-    The reset is recorded against what a finish captured or settled for the
-    landed head, and that retired as over it, each in a write of its own, by
-    the recorder `context` carries (`records_before_a_reset`), over the
-    comment as the tick last read it, so nothing the road staged rides them;
-    the tick's state is withheld from every whole-state write behind, and the
-    road's caller holds the tick. Where the comment carries nothing a finish
-    captured or settled for the head, the failure goes on as before.
+    The recorder `context` carries (`records_before_a_reset`) records the
+    reset against what a finish captured or settled for the landed head and
+    retires that as over it, each in its own write over the comment as the
+    tick last read it, so nothing the road staged rides them; the tick's state
+    is withheld from every whole-state write behind, the road's caller holding
+    the tick. Over a comment carrying neither, the failure goes on.
     """
 
     def __exit__(self, kind, error, trace) -> bool:
@@ -182,10 +180,9 @@ def stands_as_recovered(context: _AutoRebaseRecoveryContext) -> bool:
     """Whether `context.state` still carries the attempt `context` recovers, rather than another in its place.
 
     The proof's rechecks lay an attempt another road put in place over the
-    tick's state as read, so the caller holds over it rather than routing past
-    it. The anchor and the replay the attempt records are what name it; its
-    base tip and the bookkeeping a finish of its landing puts down move under
-    the very same attempt, so neither counts.
+    tick's state as read, for the caller to hold over, not route past. The
+    anchor and replay the attempt records name it; its base tip and a finish's
+    bookkeeping of its landing move under the same attempt, so neither counts.
     """
     state = context.state
     read = (state.get(_base_sync_state._PENDING_PUSH_SHA), _attempt_records._pending_rewrite(state))

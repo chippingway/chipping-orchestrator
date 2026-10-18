@@ -151,12 +151,11 @@ def retires_over_the_reset(
 
     A recovery's answer to a reset that landed, asked by the git owner before
     the attempt is dropped from `context.state`: the reset took the checkout
-    off the landed head, which is movement under both -- and so is a checkout
-    standing back on the anchor under a label the refresh does not drive,
-    whose clear asks it too
+    off the landed head, movement under both, as is a checkout back on the
+    anchor under a label the refresh does not drive, whose clear asks it too
     (`git/base_sync/snapshot._clear_ineligible_recovery`). The transaction is
-    abandoned (`rewrite_landing_captured.abandons_over_the_reset`),
-    and settled evidence is
+    abandoned (`rewrite_landing_captured.abandons_over_the_reset`) and settled
+    evidence is
     invalidated on the same state, into history whole, its revision and
     binding kept, so both land with the attempt's release or neither does.
     With no room for its history entry the settled evidence is not dropped:
@@ -201,10 +200,9 @@ def retires_unproved(
 ) -> bool:
     """Prove what a finish captured or settled for the landed head before a park keeps it, retiring what moved.
 
-    Whether the park may go on -- or, asked by a snapshot that read the
-    landing moved (`rewrite_landing_moved.abandons`), its road. The
-    transaction is proved first (`rewrite_landing_captured.proves_captured`),
-    and settled evidence then
+    Whether the park -- or the road of a snapshot that read the landing moved
+    (`rewrite_landing_moved.abandons`) -- may go on. The transaction is proved
+    first (`rewrite_landing_captured.proves_captured`), settled evidence then
     proved ready again and invalidated whole where it moved; nothing is read
     or written where neither stands and no movement was read, and what
     nothing moved under is kept. Movement read under a receipt the tick holds
@@ -237,16 +235,15 @@ def retires_unproved(
     go on while evidence still standing carries movement read only behind its
     own proof, both are asked again with it; a proof that reads movement
     retires what moved or answers False, so the asking stops there.
-    With no checkout on disk -- gone before the proof, or while it was asked,
-    one of its requests finding nothing there -- nothing proves the landing,
-    so the reset is recorded against both and both retired as over it, each
-    in a write of its own, by the recorder `context` carries
-    (`_AutoRebaseRecoveryContext.records_before_a_reset`,
+    With no checkout on disk, gone before the proof or found gone by one of
+    its requests, nothing proves the landing, so the reset is recorded against
+    both and both retired as over it, each in its own write, by the recorder
+    `context` carries (`_AutoRebaseRecoveryContext.records_before_a_reset`,
     `rewrite_recovery_parks.records_the_reset`, which hands it every proof it
-    and the proof before a park ask), its answer the proof's; a context with
-    no recorder has both retired on the state the park lands
-    (`retires_over_the_reset`); one back on disk by then has that loss asked
-    again as movement under each receipt held. False only where evidence still
+    and the proof before a park ask), its answer the proof's; with no recorder
+    both are retired on the state the park lands (`retires_over_the_reset`).
+    One back on disk by then has that loss asked again as movement under each
+    receipt held. False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
     its history entry among it, its movement recorded instead -- or where the
     comment the proof read carries another attempt in place of the one

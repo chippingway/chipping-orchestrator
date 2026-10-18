@@ -91,10 +91,9 @@ class GitHubClient(
             else bot_login
         )
         self.recorded_events: list[dict] = []
-        # The events this process noted it is filing and has not filed yet
-        # (`workflow/engine/owed_events`), shared with every worker client
-        # this one mints, so a worker that takes an issue up behind one lost
-        # mid-filing still owes them.
+        # Events this process noted it is filing, not yet filed
+        # (`workflow/engine/owed_events`), shared with every worker client it
+        # mints, so a worker taking over from one lost mid-filing owes them.
         self.owed_events: set[tuple] = set()
         self._label_cache: dict[str, Label] = {}
         self._absent_after_sweep: dict[str, int] = {}

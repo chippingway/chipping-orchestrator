@@ -214,9 +214,8 @@ class _AutoRebaseRecoveryContext:
     # land, an issue relabelled out from under it, a landing made for another
     # publication or one its record does not account for: whether the park may
     # go on, once a verification transaction a finish captured for the landed
-    # head, or evidence one settled for it, was proved again and retired where
-    # anything it rests on moved -- and before a dispatcher hold that keeps it
-    # with nothing posted
+    # head, or evidence one settled, was proved again and retired where it
+    # moved -- and before a dispatcher hold that keeps it with nothing posted
     # (`persistence._proves_before_the_park`). False holds the tick with nothing
     # parked. None asks nothing; the workflow hands its answer in on every
     # recovery context it builds or has built

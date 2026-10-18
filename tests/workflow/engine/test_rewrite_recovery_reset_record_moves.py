@@ -2,19 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """Movement a reset's own record reads under the run, retired before the reset goes on, whatever git answers.
 
-The guarded recovery case (`guarded_recovery_support`): issue #7's rebased head reviewed, its run settled under the
-anchor -- or only captured, the finish dying at its artifact's post -- the finish killed before its announcement. The
-next tick's branch fetch fails as another road writes the run's report at another revision. The abort first records its
-reset, blanking the base tip over the comment read with the report moved, the report put back right behind; git refuses
-the reset, staging the tip back for the park keeping the attempt. The run is retired first -- abandoned or invalidated
-whole, revision and binding kept -- so neither tip nor report put back revives it. Every write behind the blank refused,
-no retirement lands and nothing is reset or parked: the next recovery reads the blank as the movement's record and
-invalidates the run whole, releasing the attempt. A base tip the tick read blank is held to the comment read afresh too:
-put back by another road as the fetch fails, it refuses the record, so no unrecorded reset is made; the next tick
-records and makes it. Over a checkout gone from disk, a record that read the report moved and lost its answer leaves no
-park to retire the run on, so a write of its own retires it whole, and the restored checkout and label route the head,
-nothing current. An attempt another road pins in the recovery's place right behind the write retiring the run is kept as
-written: the recovery holds, nothing reset or cleared, for the next tick to recover the attempt the comment carries.
+The guarded recovery case (`guarded_recovery_support`): issue #7's reviewed run settled under the anchor, or captured
+with the finish dying at its artifact's post, its finish killed unannounced. The next fetch fails as another road moves
+the run's report. The abort's reset record blanks the base tip over the moved report, put back behind; git refuses the
+reset, staging the tip back for the park keeping the attempt. The run is retired first, abandoned or invalidated whole
+with revision and binding kept, so neither tip nor report put back revives it. Every write behind the blank refused,
+nothing is retired, reset, or parked; the next recovery reads the blank as the move and invalidates the run, releasing
+the attempt. A tip read blank, put back as the fetch fails, refuses the record read afresh, so no reset goes unrecorded;
+the next tick records and makes it. With the checkout gone, a lost-answer record over the moved report leaves no park,
+so a write of its own retires the run, and the restored checkout and label route the head, nothing current. An attempt
+another road pins right behind the retirement is kept as written, the recovery holding, nothing reset or cleared.
 """
 from __future__ import annotations
 
@@ -85,8 +82,7 @@ class RecordedMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (self.anchor,))
 
     def test_an_unlanded_retirement_keeps_the_blank(self) -> None:
-        # Every write behind the blank refused, no retirement lands: nothing reset or parked, the run current by its
-        # blank tip; writes landing, the next recovery reads it to invalidate the run whole and release the attempt.
+        # Every write behind the blank refused, nothing lands; with writes landing, the next recovery reads the blank.
         settled = self.settles_then_dies()[1]
         self._recovers_over_a_moved_report(refusing=True)
 
@@ -146,8 +142,7 @@ class BlankTipTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A base tip the tick read blank is held to the comment read afresh before the reset goes on."""
 
     def test_a_tip_put_back_holds_the_reset(self) -> None:
-        # The tick reads the base tip blank, put back by another road as the fetch fails: the record refused, no reset
-        # is made unrecorded; the next tick records and makes it, releasing the attempt, the run invalidated whole.
+        # The tip read blank, put back as the fetch fails, refuses the record and the reset; the next tick makes both.
         settled = self.settles_then_dies()[1]
         self._tip = [self.pinned_fields(readings.KEY_REWRITE_BASE)[0]]
         self._writes_the_tip(None)
@@ -183,9 +178,8 @@ class GoneCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A reset's record that did not land over a checkout gone from disk still retires what it read moving."""
 
     def test_an_unlanded_record_retires_the_run(self) -> None:
-        # The report moves, the checkout goes from disk, and the dispatcher's hold strands the attempt, whose reset's
-        # record reads the report moved and loses its answer, the report put back. The run, settled or only captured, is
-        # retired whole in a write of its own, so the checkout and label put back route the head, nothing current.
+        # With the report moved and the checkout gone, the hold's reset record reads the move and loses its answer, the
+        # report put back; the run, settled or captured, is retired in a write of its own.
         for captures in (False, True):
             with self.subTest(captured=captures):
                 self.setUp()
@@ -230,8 +224,7 @@ class ReplacedAttemptTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """An attempt another road pins while the reset's record retires what it read moving is kept, nothing reset."""
 
     def test_a_replacement_holds_the_reset(self) -> None:
-        # The report taken off as the fetch fails, the reset's record invalidates the moved run; another road pins its
-        # own attempt right behind, and the recovery holds, nothing reset, the replacement standing exactly as written.
+        # The report taken off, the reset's record invalidates the run; an attempt pinned right behind holds the reset.
         head = self.settles_then_dies()[0]
         self._pinned = fixtures.attempt_record(head, "", git_support.PR_NUMBER, git_support.REVIEWING)
         self._taken = False

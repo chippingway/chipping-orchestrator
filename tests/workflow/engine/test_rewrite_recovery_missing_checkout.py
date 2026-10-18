@@ -11,12 +11,10 @@ workflow's proof and park by the dispatcher (`guarded_recovery_support`).
 
 With no checkout there is nothing to prove the landing over, so the movement is recorded against the run
 first, in a write of its own, by blanking the base tip the attempt recorded
-its replay as made onto, and the run is retired whole in another ahead of the park's record, which keeps
-the attempt. A park record GitHub refuses, or a process killed before it, leaves the run retired, so with
-the checkout and label put back the landed road routes the head with nothing current.
+its replay as made onto, and the run is retired whole in another ahead of the park's record keeping the attempt. A
+park record refused, or a process killed before it, leaves the run retired; put back, the head routes, nothing current.
 
-The guarded hold a publication gate's hold of a recovery's push is recorded
-through takes that proof too, so with the checkout gone the reset
+The guarded hold recording a publication gate's hold of a recovery's push takes the proof, so with no checkout the reset
 is recorded ahead of the hold's record, and a hold record GitHub refuses
 leaves the run read moving once the checkout is back. A checkout that goes
 from disk only as a hold's or a park's record lands, or as a park's notice
@@ -117,8 +115,7 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_a_park_that_never_lands(self) -> None:
         # The stranded park's record is refused, or the process is killed
-        # ahead of it: the run was retired in a write of its own first, so
-        # with the checkout and the label put back the landed road routes the head with nothing current.
+        # ahead of it: the run, retired first in a write of its own, has the head put back routed with nothing current.
         for failing in _NEVER_LANDS:
             with self.subTest(record=failing):
                 self.setUp()
@@ -233,10 +230,8 @@ class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A checkout read off the landed head that goes from disk before its run is retired still retires it whole."""
 
     def test_a_vanished_checkout_retires_the_run(self) -> None:
-        # The checkout the landed road reads committed past the head goes from disk right behind that reading, with
-        # no park to retire the run on: settled or only captured, it is retired whole in its own record behind the
-        # reset's -- or, put back on the head as that reset's record goes out refused, by the proof the loss read
-        # under it -- so the checkout back on the head revives nothing.
+        # The checkout read past the head goes right behind that reading, leaving no park: the run, settled or captured,
+        # is retired in its own record behind the reset's, or, put back as that record is refused, by the loss's proof.
         for captures, returns in product((False, True), (False, True)):
             with self.subTest(captured=captures, returned=returns):
                 self.setUp()

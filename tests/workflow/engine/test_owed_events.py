@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which events behind a durable word that they may be out a process still has to file.
 
-With an audit log configured every absence the stream reads is the log's to vouch for, so the event is filed; with none,
-only one this process noted owing and never paid is, whatever its notice's id -- noted by any worker client the
-repository's client minted, none of another repository's -- and only for a notice saying what the owing post said, so an
-earlier process's notice found said is never filed again over the debt another notice's failed post left.
+With an audit log every absence is the log's to vouch for and the event filed; with none, only one this process owes
+unpaid is, whatever its notice's id, noted by any worker of its repository's client, not another repository's, and only
+for a notice saying what the owing post said: an earlier notice found said is not refiled over another's failed post.
 """
 from __future__ import annotations
 
@@ -74,8 +73,7 @@ class OwedEventTest(unittest.TestCase):
         self.assertTrue(owed_events.unfiled(SimpleNamespace(), _PARKED, **_NAMED))
 
     def test_workers_share_their_repository_debt(self) -> None:
-        # A scheduled handler's worker client is lost behind its notice, and the next one minted for the issue still
-        # owes the event; paid there, it is paid for every worker, and another repository's owes nothing.
+        # A lost worker client's debt passes to the next one minted for the issue; paid there, it is paid for all.
         self.enterContext(patch.object(config, _LOG, None))
         lost, replacing, later, other = _minted(3)
         owed_events.owes(lost, _PARKED, **_NAMED)
@@ -86,8 +84,7 @@ class OwedEventTest(unittest.TestCase):
         self.assertFalse(owed_events.unfiled(later, _PARKED, **_NAMED))
 
     def test_another_notices_debt_files_nothing(self) -> None:
-        # A restarted process owes the event of a notice whose post failed unsent; a park that then finds the earlier
-        # process's notice said, saying something else, takes its event as filed: once in all.
+        # A restart owing a failed notice's event takes an earlier notice found saying something else as filed.
         self.enterContext(patch.object(config, _LOG, None))
         issue = FakeIssue(_NAMED["issue_number"], labels=[FakeLabel("workflow:fixing")])
         gh = FakeGitHubClient([issue])

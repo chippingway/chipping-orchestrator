@@ -20,11 +20,10 @@ retired, for the next tick to ask again -- so an audit log the process cannot
 read holds every landed rewrite's route until it reads. Once the mark is down,
 no later finish announces the head at all.
 With no audit log the stream is this process's tail alone, so the attempt's
-record of the event is taken as the event filed -- once at most, never twice: a
-process lost between the record and the event files none, while a finish of
-this process cut short there still owes it (`owed_events`), and one whose
-record was refused outright -- another producer's record in its place -- owes
-nothing it noted for that write.
+record of the event is taken as the event filed -- once at most, never twice:
+a process lost between record and event files none, while this process's
+finish cut short there still owes it (`owed_events`), and one whose record was
+refused outright for another producer's owes nothing it noted for that write.
 
 The attempt records the event ahead of filing it, in a guarded write of its
 own (`rewrite_finish_writes.ANNOUNCED_EVENT`), decided on the attempt: the

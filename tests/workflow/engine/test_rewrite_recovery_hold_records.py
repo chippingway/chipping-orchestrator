@@ -9,8 +9,7 @@ permission still outstanding beside it, so the landed road receipts it through t
 publication gate holds that no-op (`rewrite_landed_hold_support`): its hold is recorded through the guarded `HOLD`
 (`rewrite_recovery_parks.lands_a_hold`), the run proved first, and only what the tick staged since its
 reading lands, over the comment read afresh.
-The transfer's machinery -- its progress, its permit, the gate's answer -- is stood in for; some cases hand the hold
-or park a recovery context directly.
+The transfer's machinery (progress, permit, gate answer) is stood in for; some cases hand the hold or park a context.
 
 The issue edited under the run has it invalidated whole, putting the requirements back reviving nothing. A newer
 transaction recorded while the gate answers survives the record with its revision
@@ -403,9 +402,8 @@ class HeldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """The proof a hold or park takes, held to the settled-evidence policy as a finish is."""
 
     def test_a_moved_run_is_invalidated(self) -> None:
-        # The issue is edited before a held poll: the run is invalidated whole with the attempt kept and nothing
-        # parked; put back, a second held poll and the poll the gate lets through revive nothing, the head routed
-        # once with nothing current.
+        # The issue edited before a held poll invalidates the run, the attempt kept and nothing parked; put back, a
+        # second held poll and the poll the gate lets through revive nothing.
         head, settled = self.settles_then_dies()
         for body in (_EDITED_BODY, self.issue.body):
             self.issue.body = body

@@ -2,39 +2,34 @@
 # SPDX-License-Identifier: Apache-2.0
 """The transaction a landed rewrite's finish captured, proved or abandoned where a recovery keeps or drops its attempt.
 
-A recovery park that keeps the attempt keeps the evidence with it, for the human reply that brings the recovery back: a
-reset that did not land, an issue relabelled out of the stages the refresh drives, a landing made for another
-publication or one its record does not account for. A human puts right what such a park read, and the reply then
-finishes the landing, so the git owner has the evidence proved again before every such park
-(`rewrite_landing_retirement.retires_unproved`): the transaction over the issue and comment read afresh, held to the
-last word (`proves_captured`), none of it needing the fetch an abort could not take, and abandoned now where anything it
-rests on moved, a configuration or a pull request repointed among the reasons, so putting that back before the reply
-revives nothing. One that still proves, or that only a reading nobody could take holds, is kept for that finish. A
-snapshot that read the landing off the head hands the same proof that movement as already read
-(`rewrite_landing_moved`).
+A recovery park that keeps the attempt -- a reset that did not land, an issue relabelled out of the stages the refresh
+drives, a landing made for another publication or one its record does not account for -- keeps the evidence for the
+human reply that brings the recovery back to finish the landing once what the park read is put right, so the git owner
+proves it again before every such park (`rewrite_landing_retirement.retires_unproved`): the transaction over the issue
+and comment read afresh, held to the last word (`proves_captured`), with no fetch an abort could not take, and abandoned
+now where anything it rests on moved, a configuration or pull request repointed among the reasons, so putting that back
+before the reply revives nothing. One still proving, or held only by a reading nobody could take, stays for that finish.
+A snapshot reading the landing off the head (`rewrite_landing_moved`) hands the proof that movement as already read.
 
-A reset is the one road that moves the checkout off the landed head itself, and the git owner's park behind it drops the
-attempt in one write (`git/base_sync/persistence._reset_clear_and_park`). `abandons_over_the_reset` is the transaction's
-half of the answer that owner stages on that very state once the reset landed
-(`rewrite_landing_retirement.retires_over_the_reset`, the recovery context's `settles_over_a_reset`), so the transaction
-goes with the attempt's release or neither goes: a park write that fails leaves both standing, and a reset that failed
-moved nothing and keeps both.
+A reset alone moves the checkout off the landed head itself, and the git owner's park behind it drops the attempt in one
+write (`git/base_sync/persistence._reset_clear_and_park`). `abandons_over_the_reset`, the transaction's half of the
+answer that owner stages on that state once the reset landed (`rewrite_landing_retirement.retires_over_the_reset`, the
+recovery context's `settles_over_a_reset`), makes the transaction go with the attempt's release or neither go: a failed
+park write leaves both, and a failed reset moved nothing and keeps both.
 
 Only a transaction a finish of the attempt recorded is read (`rewrite_landing_records.captured`): the one under the
-receipt the finish put on the attempt in the very write that recorded it (`pending_auto_base_rebase_evidence_receipt`),
-or -- for an attempt from before that receipt existed, whose finish recorded evidence only behind its announcement
-mark -- one about the head that mark names. A finish resolves the landed head's evidence before it announces it, so no
-mark need be down, and the replay the attempt's record names -- written before the push, or not yet written in the
-window git leaves -- says nothing either way. Any other pending transaction was recorded by another road -- a newer head
-it published, or a newer record about the same one -- and is kept as that road wrote it, with its revision floor,
-whatever this recovery reads, on every road it takes. Settled evidence is the attempt's where it settled under that
-receipt, or is about the head the attempt's record or mark names (`rewrite_landing_records.settled`): the anchor keeps
-every other road off that head's evidence while the attempt stands.
+receipt that finish put on the attempt as it recorded it (`pending_auto_base_rebase_evidence_receipt`) or, for an
+attempt older than that receipt whose finish recorded evidence only behind its announcement mark, one about the head
+that mark names. A finish resolves the landed head's evidence before announcing it, so no mark need be down, and the
+replay the attempt's record names -- written before the push, or not yet in the window git leaves -- says nothing either
+way. Any other pending transaction is another road's, for a newer head it published or a newer record about the same
+one, kept as that road wrote it with its revision floor whatever this recovery reads or road it takes. Settled evidence
+(`rewrite_landing_records.settled`) is the attempt's where it settled under that receipt or is about the head its record
+or mark names: the anchor keeps every other road off that head's evidence while the attempt stands.
 
-The finish built for the recovery's proofs alone, to retire or prove that evidence (`_finish`), is held to the
-settled-evidence policy (`LandedFinish.proves_settled`) whichever policy the finish the recovery routes a landing
-through selects, so what those proofs retire, a settlement another road made meanwhile, and a successor's own binding
-are read as that policy reads them.
+The finish built only for the recovery's proofs (`_finish`), which retire or prove that evidence, is held to the
+settled-evidence policy (`LandedFinish.proves_settled`) whatever policy the routing finish selects, so what those proofs
+retire, a settlement another road made meanwhile, and a successor's own binding read as that policy reads them.
 """
 from __future__ import annotations
 
@@ -76,15 +71,14 @@ def abandons_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
 
     The transaction's half of the recovery's answer to a reset (`rewrite_landing_retirement.retires_over_the_reset`),
     asked once the reset landed and before the attempt is dropped from `context.state`: the reset took the checkout off
-    the landed head, which is movement under the transaction. Staged on the state the park then lands, the abandonment
-    lands with the attempt's release or not at all, so no cleared attempt leaves the transaction behind it for the
-    reconciliation to settle once the checkout is put back. With no room for its history entry, the transaction is
-    dropped instead and refused for good, as the finish's own abandonment refuses one (`rewrite_finish_captured`): the
-    base tip the attempt recorded its replay as made onto is blanked with it, so where the attempt outlives that
-    write -- the park over a checkout gone from disk keeps it -- every later reading of the base proves nothing
-    (`rewrite_evidence_proof.standing_refusal`), and no finish of this landing runs or carries the evidence again, with
-    neither the transaction nor its history entry left to say a run was captured. A reset's release drops the tip with
-    the attempt either way. `why` names the write it rides, logged.
+    the landed head, movement under the transaction. Staged on the state the park lands, the abandonment lands with the
+    attempt's release or not at all, so no cleared attempt leaves the transaction for the reconciliation to settle once
+    the checkout is put back. With no room for its history entry, the transaction is dropped and refused for good, as
+    the finish's own abandonment refuses one (`rewrite_finish_captured`), and the base tip the attempt recorded its
+    replay as made onto is blanked with it: where the attempt outlives that write -- the park over a checkout gone from
+    disk keeps it -- every later reading of the base proves nothing (`rewrite_evidence_proof.standing_refusal`), and no
+    finish of this landing runs or carries the evidence again, no transaction or history entry left to say a run was
+    captured. A reset's release drops the tip with the attempt either way. `why`, logged, names the write it rides.
     """
     pending = _landing_records.captured(context.state)
     if pending is None:
@@ -110,15 +104,14 @@ def proves_captured(
 
     Over the landing as `snapshot` read it, a checkout with no head read among it. The transaction's binding is proved
     again over the issue and comment read afresh (`rewrite_finish_captured.proved_again`) and held to the last word
-    beside it (`rewrite_evidence_proof.last_word`), neither of which needs the fetch a failed abort could not take;
-    where either reads movement, the transaction is abandoned unrun -- or, with no room, refused for good, or its
-    settlement another finish made meanwhile invalidated -- through the last word with that movement as its proof.
-    `moved` is movement the caller already read under the transaction -- a record a park's own commit adopted while its
-    notice was posted -- which stands as that proof in place of the proof read again, so no reading taken now hides it
-    by finding it put back. An announcement another finish put on the attempt beside that settlement is taken in.
-    `asks`, which the recovery's proof before a park hands in (`rewrite_landing_retirement.retires_unproved`), is asked
-    of every comment the proof and the last word read, under the transaction's receipt, so a base tip read blank or
-    repointed there moves it however soon it is put back.
+    beside it (`rewrite_evidence_proof.last_word`), neither needing the fetch a failed abort could not take; where
+    either reads movement, the last word abandons the transaction unrun with that movement as its proof -- or, with no
+    room, refuses it for good, or invalidates its settlement another finish made meanwhile, taking in an announcement
+    that finish put on the attempt beside it. `moved`, movement the caller already read under the transaction -- a
+    record a park's own commit adopted while its notice was posted -- stands as that proof in place of the one read
+    again, so no reading taken now hides it by finding it put back. `asks`, handed in by the recovery's proof before a
+    park (`rewrite_landing_retirement.retires_unproved`), is asked of every comment the proof and the last word read,
+    under the transaction's receipt, so a base tip read blank or repointed there moves it however soon it is put back.
     """
     pending = _landing_records.captured(context.state)
     if pending is None:

@@ -15,12 +15,11 @@ asks `takes_in_the_announcement` and `takes_in_the_attempt`
 stops (`rewrite_finish_stops`) ask `takes_in_the_announcement` behind an
 announcement nobody confirmed, `stands_back` behind a retirement nobody
 confirmed, `retires_the_marked` where the attempt is retired or replaced,
-and `behind_a_raise` behind a relabel that raised. No production finish
-selects that policy, but the recovery's proof-only finishes do
-(`rewrite_landing_captured`), and their abandonment of a captured run
-(`rewrite_finish_captured._abandoned`) asks `reconciles_the_abandonment` --
-and through it `retires_the_settled` -- on every recovery road; none of the
-rest is asked there:
+and `behind_a_raise` behind a relabel that raised. Only the recovery's
+proof-only finishes select that policy (`rewrite_landing_captured`), and their
+abandonment of a captured run (`rewrite_finish_captured._abandoned`) asks
+`reconciles_the_abandonment` -- and through it `retires_the_settled` -- on
+every recovery road; none of the rest is asked there:
 
 - `takes_in_the_announcement` takes in that bookkeeping, naming the landed
   head (`rewrite_finish_announced.takes_in_the_announcement`), and hands back

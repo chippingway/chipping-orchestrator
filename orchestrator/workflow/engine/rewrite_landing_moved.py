@@ -32,21 +32,19 @@ establishes no movement, so the evidence is kept: the road such a snapshot
 takes resets the checkout, and that reset, once it lands, is the movement the
 retirement answers (`rewrite_landing_retirement.retires_over_the_reset`),
 while one that fails keeps the attempt and the evidence both. `abandons` hands
-the evidence the tick holds to the recovery's own proof
-(`rewrite_landing_retirement.retires_unproved`), the one every park and hold
-that keeps the attempt asks, with the landing's move as the movement already
-read under each receipt it holds (`rewrite_evidence_proof.LEFT_THE_LANDING`),
-whatever the proof's readings say -- the heads may be back by then: the
-transaction is abandoned unrun through the last word, or refused for good
-where the comment has no room, and settled evidence invalidated into history
-whole and read afresh behind that write, so a settlement put back right behind
-it is retired again. Each write falls back to the tick's own reading where it
-does not land over the comment read afresh, holding the tick only where
-neither lands. A successor another road settled under a receipt of its own is
-proved on its own readings, and every comment those finishes read -- a refused
-abandonment's strict edit among them -- is asked what it records moving under
-the successor too, so a mark of movement read there retires it however soon
-the mark is put back. The proof's primitives are `rewrite_landing_captured`'s.
+what the tick holds to the recovery's proof, the one every park and hold
+keeping the attempt asks (`rewrite_landing_retirement.retires_unproved`), with
+the landing's move as movement already read under each receipt it holds
+(`rewrite_evidence_proof.LEFT_THE_LANDING`) whatever the proof's readings say,
+the heads perhaps back by then: the transaction is abandoned unrun through the
+last word, or refused for good with no room, and settled evidence invalidated
+into history whole, then read afresh and retired again if put back behind that
+write. A write not landing over the fresh comment falls back to the tick's own
+reading, the tick held only where neither lands. A successor another road
+settled under its own receipt is proved on its own readings, every comment
+those finishes read, a refused abandonment's strict edit among them, asked
+for movement under it too, so a mark of movement read there retires it
+however soon put back. The proof's primitives are `rewrite_landing_captured`'s.
 """
 from __future__ import annotations
 

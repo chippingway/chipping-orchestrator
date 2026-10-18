@@ -94,8 +94,7 @@ class _Abort(NamedTuple):
     answered: object
 
 
-# The fetch of the pull request's branch, which the recovery answers with the abort, and the count of the checkout's
-# lag against base, which the refresh answers with it ahead of any recovery road.
+# The branch fetch the recovery answers with the abort, and the base lag count the refresh answers with it first.
 _ABORTS = (
     _Abort("the branch's fetch failed", branch_transport, _FETCHES, guarded.unfetched),
     _Abort("the base lag was not counted", base_refresh, "_worktree_behind_base", lambda *_args: None),

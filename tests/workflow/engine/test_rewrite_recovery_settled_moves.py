@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Evidence settled for a landed head, invalidated wherever a later tick's recovery reads the landing moving.
 
-The real-git finish case (`rewrite_verification_recovery_support`): the run settled, the finish killed at a final
-handoff boundary. The landing read moving -- the checkout committed past the head, or the remote rolled back --
-invalidates the run whole whatever road that reading takes, nothing reviving it: not the landing put back, nor a report
-put back that a reset's record, its answer lost, read moved, nor another road writing the comment back as read right
-behind that invalidation, retired again before any road is taken. The run is never made again, nor a developer launched.
+The real-git finish case (`rewrite_verification_recovery_support`), its run settled and finish killed at a final handoff
+boundary: the landing read moving -- the checkout committed past the head, or the remote rolled back -- invalidates the
+run whole on any road, nothing reviving it: not the landing put back, nor a report put back that a lost-answer reset
+record read moved, nor the comment written back behind, retired again first. No run is remade, no developer launched.
 """
 from __future__ import annotations
 
@@ -88,8 +87,7 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
     """A run settled under the anchor goes into history wherever the recovery reads the landing moving."""
 
     def test_a_moved_landing_invalidates_the_run(self) -> None:
-        # The recovery reads the landing off the head and resets or parks without routing it: the run is invalidated
-        # first, and stays so once the landing is put back and the issue's author replies.
+        # The recovery resets or parks without routing the head, the run invalidated first and kept so past the reply.
         for move, boundary in product(_MOVES, handoff.BOUNDARIES):
             with self.subTest(move=move.name, boundary=boundary.name):
                 self.setUp()
@@ -126,8 +124,7 @@ class PutBackMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """Movement a recovery's write read stands, however soon another road puts the comment back behind that write."""
 
     def test_a_restored_run_is_retired_again(self) -> None:
-        # The snapshot reads the checkout back on the anchor, and the run another road writes back as read right behind
-        # the invalidating write retires again before the road goes on, the next poll routing the head, nothing current.
+        # The snapshot reads the checkout on the anchor; the run written back behind its invalidation retires again.
         head, settled = self.settles_then_dies()
         self._held = [self.gh.read_pinned_state(self.issue)]
         snapshot = _AutoRebaseRecoverySnapshot(branch=git_support.BRANCH, local_head=self.anchor, remote_head=head)
@@ -138,8 +135,7 @@ class PutBackMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self._assert_routed_past(head, settled)
 
     def test_a_report_moved_under_a_lost_record(self) -> None:
-        # Another road takes the run's report off before the reset's record reads the comment, and puts it back as that
-        # record goes out with its answer lost: the movement it read still invalidates the run whole.
+        # A report taken off before the reset's record and put back as its answer is lost still invalidates the run.
         head, settled = self.settles_then_dies()
         context = guarded.recovery_context(self)
         self._held = [self.pinned_fields(_REPORT)[0]]
@@ -150,8 +146,7 @@ class PutBackMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self._assert_routed_past(head, settled)
 
     def test_a_rollback_the_no_op_read(self) -> None:
-        # The landed road's leased no-op reads the remote rolled back to the anchor, put back on the head right behind:
-        # that movement invalidates the run whole before the park, so the reply routes nothing current.
+        # The leased no-op reads the remote rolled back, restored right behind: the run is invalidated before the park.
         head, settled = self.settles_then_dies()
         allowed = late_publication._PublishedCandidate(held=False, revision=head, lease=head, standing=head)
         reads = partial(_rolls_back_under, self, head, _publication.CandidatePush.reads)
