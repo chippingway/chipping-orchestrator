@@ -2470,7 +2470,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             head retired as over a reset in a guarded write of its own, asked once more over the
                             comment read afresh where it was refused, and read afresh behind it where it landed, so
                             evidence another road wrote back there is retired once more and the tick held, and asked
-                            once more over that comment whole where it was refused for room, the base tip blanked in a
+                            once more over that comment whole where refused for room or twice, the base tip blanked in a
                             shrinking write where it has none; a successor or another attempt standing in its place
                             holds the tick before anything is read as retired (`lands_the_retirement`)
     rewrite_landing_records.py

@@ -11,9 +11,8 @@ write, so with the checkout back on the head -- the label and a reply too, for t
 nothing current, the run never made again and nothing pushed or launched. Another road writing the attempt and every
 evidence record back right behind a quiet hold's retirement has the run retired once more; one retiring the run itself
 right ahead of it, pinning another attempt or settling a newer run in its place, holds the tick over what it wrote, the
-checkout put back on the head left unreset. A HEAD read by the dispatcher's hold or the eligibility gate finding it gone
-or the uncounted lag's abort at its reset is recorded the same way, and a tip back on a comment too full for the
-retirement is blanked again, the run kept whole.
+checkout put back on the head left unreset. A git request of the hold, the gate, or an abort finding it gone is recorded
+the same way, and a retirement a full comment or a usage write refuses over the tip put back is asked over it whole.
 """
 from __future__ import annotations
 
@@ -55,6 +54,9 @@ _EDITS = "edit_pinned_state"
 
 _CURRENT = "verification_evidence_current"
 
+# What crowds the tip written back behind its blank: a comment filled past the retirement, or a usage write refusing it.
+_FULL, _USAGE = "full", "usage"
+
 # The roads whose git request ahead of any proof finds the checkout gone: the hold, the gate, the uncounted lag's abort.
 _DISPATCHER, _REFRESH, _ABORT = "dispatcher", "refresh", "abort"
 
@@ -87,7 +89,7 @@ class _LostCheckoutCase(guarded.GuardedRecoveryCase):
         super().setUp()
         self._away = self._wt.parent / "checkout-away"
         self._tips: list = []
-        self._fills = False
+        self._crowds = None
 
     def settles(self) -> None:
         """Land a reviewed rebase, settle its run, and kill its finish, the head and the run kept for the case."""
@@ -127,6 +129,16 @@ class _LostCheckoutCase(guarded.GuardedRecoveryCase):
         self._git("reset", "--quiet", "--hard", self.anchor, cwd=self._wt)
         self.issue.labels = [FakeLabel(_UNDRIVEN)]
 
+    def crowds_the_retirement(self, issue, staged, over: dict) -> None:
+        """Once the tip is written back, have a usage write land right ahead of the edit retiring the run, once."""
+        if self._crowds != _USAGE or self._tips or not over.get(_CURRENT):
+            return
+        if staged.get(_CURRENT) is None:
+            self._crowds = None
+            spent = self.gh.read_pinned_state(issue)
+            spent.set("issue_total_tokens", (spent.get("issue_total_tokens") or 0) + 1)
+            self.gh.write_pinned_state(issue, spent)
+
     def assert_retired(self, *, routes: bool = True) -> None:
         """The run invalidated whole while the checkout is away, and still once it is back on the head -- and routed."""
         head, settled = self._run
@@ -148,24 +160,28 @@ class RestoredTipTest(_LostCheckoutCase, unittest.TestCase):
 
     def test_a_vanishing_candidate(self) -> None:
         # The landed road reads the checkout committed past the head; it goes from disk right behind that reading.
-        self.settles()
-        reads = partial(_vanishes_behind, self, partial(_moves_past, self, getattr(rewrite_facts, _READS)))
-        with patch.object(rewrite_facts, _READS, reads):
-            self._races(self.recovers)
-        self.assert_retired()
+        for crowds in (None, _USAGE):
+            with self.subTest(crowds=crowds):
+                self.setUp()
+                self.settles()
+                self._crowds = crowds
+                reads = partial(_vanishes_behind, self, partial(_moves_past, self, getattr(rewrite_facts, _READS)))
+                with patch.object(rewrite_facts, _READS, reads):
+                    self._races(self.recovers)
+                self.assert_retired()
 
     def test_a_quiet_hold(self) -> None:
         # The dispatcher holds a stage the refresh drives; the checkout it brings back for the refresh never returns.
-        # Where the tip comes back on a comment too full for the run's retirement, it is blanked once more, the run
-        # and its attempt kept whole until room is made and the next hold retires it.
-        for fills in (False, True):
-            with self.subTest(full=fills):
+        # A comment too full for the retirement has the tip blanked once more, the run and attempt kept whole until
+        # room is made and the next hold retires it.
+        for crowds in (None, _FULL, _USAGE):
+            with self.subTest(crowds=crowds):
                 self.setUp()
                 self.settles()
-                self._fills = fills
+                self._crowds = crowds
                 self._wt.rename(self._away)
                 self._races(self._holds_unrestored)
-                if fills:
+                if crowds == _FULL:
                     self.assertEqual(readings.pinned_records(self)[1], self._run[1])
                     standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
                     self.assertEqual(standing, (self.anchor, None))
@@ -194,15 +210,17 @@ class RestoredTipTest(_LostCheckoutCase, unittest.TestCase):
         with patch.object(self.gh, "edit_pinned_state", partial(self._puts_back_behind, self.gh.edit_pinned_state)):
             recovery()
         self.assertEqual(self._tips, [])
+        self.assertNotEqual(self._crowds, _USAGE, "no usage write raced the retirement")
 
     def _puts_back_behind(self, live, issue, staged, **options):
-        """`live`, the pinned-comment edit, the tip held written back right behind the first to blank it."""
+        """`live`, the pinned-comment edit, the tip held written back right behind the first to blank it, crowded."""
+        self.crowds_the_retirement(issue, staged, options["over"])
         answered = live(issue, staged, **options)
         tip = readings.KEY_REWRITE_BASE
         read = options["over"].get(tip)
         blanks = read is not None and staged.get(tip) is None
         if answered is PinnedEdit.EDITED and blanks and self._tips:
-            if self._fills:
+            if self._crowds == _FULL:
                 moves.fills_the_comment(self, left=len(self._tips[0]) - 2)
             state = self.gh.read_pinned_state(issue)
             state.set(tip, self._tips.pop())
@@ -251,9 +269,8 @@ class MidRoadCheckoutTest(_LostCheckoutCase, unittest.TestCase):
         self.assert_retired()
 
     def test_a_git_request_ahead_of_any_proof(self) -> None:
-        # The dispatcher's hold, or the refresh's eligibility gate under an undriven label over an attempt that never
-        # left the anchor, reads the checkout's HEAD -- or the abort over a lag nobody counted resets it -- and finds
-        # it gone ahead of any proof.
+        # The hold, or the gate over an unstarted attempt under an undriven label, reads the checkout's HEAD -- or the
+        # uncounted lag's abort resets it -- and finds it gone ahead of any proof.
         for road in (_DISPATCHER, _REFRESH, _ABORT):
             with self.subTest(road=road):
                 self.setUp()

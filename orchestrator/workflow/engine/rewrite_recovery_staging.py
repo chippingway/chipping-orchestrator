@@ -110,8 +110,9 @@ def lands_the_retirement(
     fields `write` is decided on laid from it, a tip or record another road
     moved kept as it wrote it; behind a write that landed, evidence put back
     there retired again, or its movement recorded, and False; behind a
-    refusal for room, over that reading whole, the base tip blanked in a
-    shrinking write where it has no room, and False. Only while the comment
+    refusal for room or a second refusal, over that reading whole, retired or
+    the base tip blanked in a shrinking write where it has no room, and False.
+    Only while the comment
     carries nothing for the head under a receipt the tick did not hold, and
     the attempt `context` recovers: a successor is left for its own proof and
     another attempt for its own recovery, both False before anything is read
@@ -138,20 +139,21 @@ def _lands(
 
     With no room for its history the evidence stays current, its base tip
     blanked as the record of its movement, which the reading behind blanks
-    once more where it was put back. False on the last asking, or where the
-    comment would not read afresh.
+    once more where it was put back. A write no later asking may follow
+    hands the last to the comment read whole, so a refusal never leaves the
+    evidence standing beside a tip another road put back. False on the last
+    asking, or where the comment would not read afresh.
     """
     _retirement.retires_over_the_reset(context, _LAST if behind else _GONE)
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)
     outcome = commit.lands(context.state, write)
-    full = outcome.refusal in _commits._ROOM
     landed = outcome.status is _commit_models.CommitStatus.COMMITTED
-    if behind or not (landed or again or full):
+    if behind:
         return False
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
     if durable is None:
         return False
-    if full:
+    if not (landed or again) or outcome.refusal in _commits._ROOM:
         return lands_the_retirement(replace(context, state=durable), write, asked, behind=True)
     _lays(context.state, durable.data, write.decided_on)
     _commit.takes_in(context.state, durable.data, write.decided_on)
