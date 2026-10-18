@@ -2341,9 +2341,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             movement, a settlement another finish made of the captured run while its abandonment was
                             asked is invalidated over the same movement in its place, and an announcement another
                             finish of the landing put on the attempt is taken in before the invalidation lands over
-                            it; a checkout gone from disk retires both as over a reset. The landed road's own holds
-                            (`rewrite_landed.py`) ask the same proof ahead of a hold's write. The receipts of what
-                            stands (`receipts`) name the evidence movement read before a write is keyed under, which
+                            it; a checkout gone from disk, before the proof or while it is asked, has the reset
+                            recorded and both retired as over it in writes of their own by the recorder the context
+                            carries (`records_before_a_reset`), staged for the park only where it carries none. The
+                            landed road's own holds (`rewrite_landed.py`) ask the same proof ahead of a hold's write.
+                            The receipts of what stands (`receipts`) name the evidence movement read before a write is
+                            keyed under, which
                             the proof asks only of evidence standing under that very receipt; a record that did not
                             land has the evidence records the comment carries now laid over the tick's state
                             (`reconciles`), so a successor another road settled meanwhile is the evidence proved

@@ -234,10 +234,13 @@ def retires_unproved(
     go on while evidence still standing carries movement read only behind its
     own proof, both are asked again with it; a proof that reads movement
     retires what moved or answers False, so the asking stops there.
-    With no checkout on disk both are retired on the state
-    the park lands (`retires_over_the_reset`) -- a checkout gone by the time a
-    park's proof is asked is taken ahead of this, its retirement landed in a
-    write of its own (`rewrite_recovery_parks.records_the_reset`). False only where evidence still
+    With no checkout on disk -- gone before the proof or while it was asked
+    -- nothing proves the landing, so the reset is recorded against both and
+    both retired as over it, each in a write of its own, by the recorder
+    `context` carries (`_AutoRebaseRecoveryContext.records_before_a_reset`,
+    `rewrite_recovery_parks.records_the_reset`), its answer the proof's; a
+    context with no recorder has both retired on the state the park lands
+    (`retires_over_the_reset`). False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
     its history entry among it, its movement recorded instead -- or where the
     comment the proof read carries another attempt in place of the one
@@ -249,9 +252,14 @@ def retires_unproved(
     if not (moved or receipts(context.state)):
         return True
     if not context.worktree.is_dir():
-        return retires_over_the_reset(context, _landing_captured._CHECKOUT_GONE)
-    branch = _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
-    unread = _base_sync_models._AutoRebaseRecoverySnapshot(branch=branch, local_head="")
+        records = context.records_before_a_reset
+        return (
+            retires_over_the_reset(context, _landing_captured._CHECKOUT_GONE)
+            if records is None else records(context)
+        )
+    unread = _base_sync_models._AutoRebaseRecoverySnapshot(
+        branch=_naming._resolve_branch_name(context.state, context.spec, context.issue.number), local_head="",
+    )
     asked = asks_every_reading(
         context, lambda reading: moved_under(reading, tick=context.state, into=moved),
     )

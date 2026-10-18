@@ -94,7 +94,9 @@ disk has nothing to prove the landing over, so the reset is recorded against
 its evidence and the evidence retired as over that reset, each in a write of
 its own (`records_the_reset`), ahead of a park or hold and behind one alike:
 a quiet hold, a park already standing, or a record refused leaves nothing
-behind it to carry a retirement only staged (`proves_before_a_park`).
+behind it to carry a retirement only staged (`proves_before_a_park`). One gone
+while the proof itself is asked is recorded and retired the same way, through
+the reset's recorder every recovery context the workflow builds carries.
 """
 from __future__ import annotations
 
@@ -272,10 +274,14 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
     keeps the attempt, so it asks the proof first (`proves_before_a_park`) and
     is recorded as every recovery park is (`lands_a_park`) -- and so does a
     hold that keeps it with nothing posted, on every poll that holds. A clear
-    retires the evidence first and lands guarded (`lands_a_clear`).
+    retires the evidence first and lands guarded (`lands_a_clear`). The
+    reset's recorder (`records_the_reset`) is handed in too, for the proof to
+    record and retire over a checkout gone from disk while it was asked.
     """
     settles = partial(_retirement.retires_over_the_reset, held)
-    owing = replace(held, settles_over_a_reset=settles, lands_a_clear=lands_a_clear)
+    owing = replace(
+        held, settles_over_a_reset=settles, records_before_a_reset=records_the_reset, lands_a_clear=lands_a_clear,
+    )
     _recovery_holds._answers_a_held_anchor(owing, proves_before_a_park, lands_a_park)
 
 
