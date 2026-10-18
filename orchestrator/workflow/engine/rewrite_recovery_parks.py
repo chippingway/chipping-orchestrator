@@ -148,9 +148,10 @@ HOLD = _commits.ReportWrite(
     owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS),
 ).reading_moves(True)
 
-# What a clear read under every evidence the tick held, as the landed road's
-# move off the landing is (`rewrite_evidence_proof.LEFT_THE_LANDING`).
-_OFF_THE_LANDING = ReportEvidence(ReportEvidenceVerdict.HOLD, "the checkout stood back on the anchor, off the landing")
+# What a clear, or a reset record asked over a checkout gone from disk, read
+# under every evidence the tick held, as the landed road's move off the landing
+# is (`rewrite_evidence_proof.LEFT_THE_LANDING`).
+_OFF_THE_LANDING = ReportEvidence(ReportEvidenceVerdict.HOLD, "the checkout left the landing: on the anchor, or gone")
 
 # A clear's record under a label the refresh does not drive, decided on the
 # attempt and the evidence records, so a successor settled meanwhile refuses it
@@ -374,9 +375,13 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     (`rewrite_recovery_staging.lands_the_retirement`), over a tip another road
     put back behind the blank among it; True there only where both landed and
     the comment read afresh behind the retirement carries none of what it
-    retired back, nor a successor or another attempt in its place.
+    retired back, nor a successor or another attempt in its place. A checkout
+    gone as the record is asked is movement read under every evidence held,
+    so one back before the record answers still has that evidence retired.
     """
     moved: dict[str, ReportEvidence] = {}
+    if not context.worktree.is_dir():
+        moved.update(dict.fromkeys(_retirement.receipts(context.state), _OFF_THE_LANDING))
     commit = _commits.ReportCommit(
         asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved)).gh,
         context.issue,

@@ -134,6 +134,21 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
                 self.assert_routed(head)
 
+    def test_a_refused_record_keeps_the_checkout_away(self) -> None:
+        # Every pinned write is refused as the hold finds the checkout gone: nothing brings it back over a loss no
+        # write recorded, and the next hold, its writes landing, retires the run before it does.
+        head, run = self.settles_then_dies()
+        _ROADS[-1].stands(self)
+        with patch.object(self.gh.pinned_failures, "refused", {self.issue.number}):
+            guarded.answers_a_held_anchor(self)
+        self.assertFalse(self._wt.is_dir())
+        self.assertEqual(readings.pinned_records(self)[1], run)
+        guarded.answers_a_held_anchor(self)
+        self._assert_retired(run, captured=False)
+        self.assertTrue(self._wt.is_dir())
+        self.recovers()
+        self.assert_routed(head)
+
     def _holds_over_an_edit(self, road: _Road) -> None:
         """Bring the hold to `road`; the dispatcher holds its anchor over any edit it makes, put back, posting none."""
         road.stands(self)

@@ -29,9 +29,11 @@ from __future__ import annotations
 
 import unittest
 from functools import partial
+from itertools import product
 from unittest.mock import patch
 
 from orchestrator.git.base_sync import rewrite_facts
+from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import (
     rewrite_recovery_parks as _parks,
     verification_settlement_state as _settlement,
@@ -234,31 +236,51 @@ class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def test_a_vanished_checkout_retires_the_run(self) -> None:
         # The checkout the landed road reads committed past the head goes from disk right behind that reading, with
         # no park to retire the run on: settled or only captured, it is retired whole in its own record behind the
-        # reset's, so the checkout put back on the head revives nothing.
-        for captures in (False, True):
-            with self.subTest(captured=captures):
+        # reset's -- or, put back on the head as that reset's record goes out refused, by the proof the loss read
+        # under it -- so the checkout back on the head revives nothing.
+        for captures, returns in product((False, True), (False, True)):
+            with self.subTest(captured=captures, returned=returns):
                 self.setUp()
                 head, run = self.captures() if captures else self.settles_then_dies()
                 away = self._wt.parent / _AWAY
-                reads = partial(self._moves_then_vanishes, rewrite_facts._reads_the_checkout, away)
-                with patch.object(rewrite_facts, "_reads_the_checkout", reads):
-                    self.recovers()
-
+                self._recovers_past_the_head(away, returns=returns)
                 if captures:
                     self.assert_abandoned(run)
                 else:
                     self.assert_invalidated(run)
-                away.rename(self._wt)
+                if away.exists():
+                    away.rename(self._wt)
                 self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
                 self.recovers()
                 self.assert_routed(head)
 
+    def _recovers_past_the_head(self, away, *, returns: bool) -> None:
+        """Recover over the checkout read past the head and gone behind that reading, back where it `returns`."""
+        self._moved = False
+        reads = partial(self._moves_then_vanishes, rewrite_facts._reads_the_checkout, away)
+        returned = away if returns else self._wt / _AWAY
+        edits = partial(self._returns_under_the_blank, self.gh.edit_pinned_state, returned)
+        with patch.object(rewrite_facts, "_reads_the_checkout", reads), patch.object(self.gh, _EDITS, edits):
+            self.recovers()
+
     def _moves_then_vanishes(self, live, away, *read, **options):
-        """`live`, the checkout's reading, taken past a stray commit, the checkout moved to `away` right behind it."""
+        """`live`, the checkout's reading, taken past a stray commit, the checkout moved to `away` behind it, once."""
+        if self._moved:
+            return live(*read, **options)
+        self._moved = True
         self._git(*support.STRAY_COMMIT, cwd=self._wt)
         reading = live(*read, **options)
         self._wt.rename(away)
         return reading
+
+    def _returns_under_the_blank(self, live, away, issue, staged, **options):
+        """`live`, the pinned-comment edit, the tip's first blank refused, the checkout back from `away` under it."""
+        tip = readings.KEY_REWRITE_BASE
+        read = options["over"].get(tip)
+        if read and staged.get(tip) is None and away.exists():
+            away.rename(self._wt)
+            return PinnedEdit.UNREAD
+        return live(issue, staged, **options)
 
 
 if __name__ == "__main__":
