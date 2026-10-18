@@ -153,11 +153,12 @@ def resolves(finish: LandedFinish) -> FinishOutcome | None:
 
     Any of those out of step holds the route, since nobody can say what was
     owed -- behind the readiness proof all the same, so movement it reads is
-    invalidated before the hold -- and so does any pending record about
-    another head beside evidence an earlier finish of this landing already
-    retired for it, current evidence or none (`_holds_out_of_step`) -- by the
-    records, or by the receipt the finish put on the attempt once the history
-    no longer keeps the run: that record was written after this landing's own,
+    invalidated before the hold -- and so does any
+    pending record about another head beside evidence an earlier finish of
+    this landing already retired for it, current evidence or none
+    (`_holds_out_of_step`) -- by the records, or by the receipt the finish
+    put on the attempt once the history no longer keeps the run: that record
+    was written after this landing's own,
     which recording its own would have retired, so it is another road's,
     unresolved, and stands with the attempt for whoever answers it. That one
     holds a continuation too, since announcing it, resetting the round, and
@@ -213,8 +214,8 @@ def settles(finish: LandedFinish) -> FinishOutcome | None:
     save evidence another finish settled under `pending`'s receipt -- before
     its route took the attempt, or beside another road's attempt -- which is
     adopted right behind the answer, ahead of that hold, and which the
-    movement this answer read invalidates all the same
-    (`rewrite_finish_settled.retires_the_adopted`). Once nothing is
+    movement this answer read invalidates all the
+    same (`rewrite_finish_settled.retires_the_adopted`). Once nothing is
     recorded for the head any more -- settled or retired by the answer, or
     abandoned by the last word behind it -- the records that left are resolved
     afresh (`resolves`), with nothing recorded to answer this
@@ -302,10 +303,10 @@ def _behind_the_answer(
     (`rewrite_finish_rechecks.rechecks_behind`): a newer transaction
     another road recorded beside the settlement adopted -- ahead of the
     invalidation, under it, or right behind its strict edit -- stands as that
-    road wrote it, for the next finish to answer, the route held behind the
-    adopted settlement's own invalidation, so the movement read under
-    `pending` is never proved over the successor, nor the successor published
-    and settled behind it.
+    road wrote it, for the next finish to answer, the route
+    held behind the adopted settlement's own invalidation, so the movement
+    read under `pending` is never proved over the successor, nor the
+    successor published and settled behind it.
     """
     resolved = _captured.recorded(finish, logged=False) is None
     if resolved and _answered_alone(finish, pending, attempt):
@@ -395,10 +396,10 @@ def _holds_out_of_step(finish: LandedFinish) -> FinishOutcome | None:
     (`rewrite_finish_settled.out_of_step`).
 
     A readable revision spent past it is no hold but outranks it, and the
-    evidence is proved ready before any of those holds
-    (`rewrite_finish_settled.stands_ready_if_settled`), so movement read under
-    it is invalidated whole before the route is held, and what another road
-    wrote right behind that invalidation is taken in.
+    evidence is proved ready before any of
+    those holds (`rewrite_finish_settled.stands_ready_if_settled`), so
+    movement read under it is invalidated whole before the route is held, and
+    what another road wrote right behind that invalidation is taken in.
     """
     current = _settlement.read_current_evidence(finish.state)
     if current is not None and current.binding.target.target_head != finish.head:

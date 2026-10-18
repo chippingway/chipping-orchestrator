@@ -364,9 +364,9 @@ def parks(finish: LandedFinish, observed: ProofReading | None = None) -> FinishO
     land posts nothing. `observed` collects the movement a refusal read
     (`_stopped`). A park the tick reads standing for the debt is reused where
     no reply the finish was handed answers it, the finish holds where the
-    issue's conversation would not read, and one is landed over the notice
-    an earlier finish posted -- past the watermark, or past a reply handed in
-    again -- ahead of a park write that did not land
+    issue's conversation would not read, and one is landed over the notice an
+    earlier finish posted -- past the watermark, or past a
+    reply handed in again -- ahead of a park write that did not land
     (`rewrite_finish_debt.noticed`), filing its `park_awaiting_human` event
     only where the event stream lacks that park's own
     (`rewrite_finish_debt.files_the_park`), so neither is made twice; its

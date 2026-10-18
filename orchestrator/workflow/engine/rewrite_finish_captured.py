@@ -61,9 +61,9 @@ comment stays as it reads. An abandonment another finish refused by settling
 that very transaction meanwhile retires the settlement instead, and so does
 one whose own write landed with that settlement right behind it, the comment
 read afresh behind every abandonment that lands
-(`rewrite_finish_unconfirmed.reconciles_the_abandonment`) -- a successor
-under another receipt kept, and one recorded beside that settlement holding
-the route.
+(`rewrite_finish_unconfirmed.reconciles_the_abandonment`) -- a
+successor under another receipt kept, and one recorded beside that settlement
+holding the route.
 
 Only a record about the landed head is read here: while the attempt stands the
 anchor holds every other road, so nothing but a finish of this landing records

@@ -193,11 +193,11 @@ def _reset_clear_and_park(
     that failed keeps it, and the next tick asks again. What the workflow
     captured or settled for the head is marked moved before the reset is even
     made (`_resets`), since the reset moves the checkout ahead of every write
-    behind it: a process lost between them, or a write behind it that does
-    not land, would otherwise leave it for a checkout put back to revive.
-    That write is the recovery's own park (`_parks_the_recovery`), landed over
-    the comment read afresh, so a report or evidence record another road
-    wrote while the notice went out is kept beside it rather than put back.
+    behind it: a process lost between them, or a write behind it that does not
+    land, would otherwise leave it for a checkout put back to revive. That
+    write is the recovery's own park (`_parks_the_recovery`), landed over the
+    comment read afresh, so a report or evidence record another road wrote
+    while the notice went out is kept beside it rather than put back.
     """
     reset = _resets(context, reset_sha)
     if reset is None:

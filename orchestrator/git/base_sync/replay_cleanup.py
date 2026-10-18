@@ -70,6 +70,10 @@ def _answers_an_ineligible_label(
     The head is read locally, which costs no fetch and no request. A reading
     that could not be taken is no evidence the branch is where the attempt
     left it, so it parks with everything else this route cannot prove.
+    A checkout back on the anchor is off any head a finish of the attempt
+    captured or settled evidence for, so the clear retires that evidence with
+    the attempt, or keeps the attempt where it cannot
+    (`snapshot._clear_ineligible_recovery`).
     """
     if context.pending_rewrite.left_a_replay:
         return _replay_publication_parks._park_stranded_recovery(context)

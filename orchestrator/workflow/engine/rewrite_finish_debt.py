@@ -22,16 +22,17 @@ measures on the comment as it stands alone. A finish that routes its head
 -- measures beside both the record of the relabel its route lands behind them
 (`rewrite_finish_announced.relabels_once`), since that record is written too
 before the retirement clears; the coordinator reserves it again on the
-checkpoint it prepares over the fresh comment (`rewrite_finish._checkpoints`).
-A proved debt short of either room stops the finish before it says anything:
-the caller parks for a human to make room (`unrecorded`), with the push kept
-and the attempt standing. The finish asks first whether that park already
-stands -- unless a reply it was handed answers it -- or its notice was said,
-past the watermark or that reply, ahead of a park write that did not land
-(`noticed`) -- holding where the conversation would not read -- and files
-the event of a park said that way, naming the landed head and the notice,
-only where the event stream does not carry that park's own (`files_the_park`),
-so it is neither said nor filed twice.
+checkpoint it prepares over the fresh comment
+(`rewrite_finish._checkpoints`). A proved debt short of either
+room stops the finish before it says anything: the caller parks for a human
+to make room (`unrecorded`), with the push kept and the attempt standing. The
+finish asks first whether that park already stands -- unless a reply it was
+handed answers it -- or its notice was said, past the watermark or that reply,
+ahead of a park write that did not land (`noticed`) -- holding where the
+conversation would not read -- and files the event of a park said that way,
+naming the landed head and the notice, only where the event stream does not
+carry that park's own (`files_the_park`), so it is neither said nor filed
+twice.
 
 A standing claim the rewrite cannot be carried onto -- another pull request or
 branch, a head somebody else pushed in between, a claim nobody can read -- is

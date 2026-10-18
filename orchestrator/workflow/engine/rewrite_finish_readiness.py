@@ -82,16 +82,16 @@ again: the evidence goes on as it settled, or into history as it was.
   the route with the attempt standing, nothing announced, relabelled, or
   retired -- behind the invalidation, where that reading or another
   establishes movement too -- and the next tick classifies the branch and
-  counts the head again. A readable revision spent past the evidence -- on the
-  handoff or any history entry that reads on its own beside a floor or entries
-  that do not, or on the floor -- is no such record: it outranks the evidence
-  for good, so the proof reads it as movement -- whatever the pull request
-  reads, and whatever else holds -- rather than every poll holding. Beside a
-  pending record the proof reads one past the one revision that record may own
-  (`rewrite_finish_outranking`), and it reads the mark of movement in the
-  evidence's handoff place as movement too. Nor is a handoff that names the
-  evidence but describes another pull request or head, which the proof refuses
-  the evidence over as movement too.
+  counts the head again. A readable revision spent past the evidence -- on
+  the handoff or any history entry that reads on its own beside a floor or
+  entries that do not, or on the floor -- is no such record: it outranks the
+  evidence for good, so the proof reads it as movement -- whatever the pull
+  request reads, and whatever else holds -- rather than every poll holding.
+  Beside a pending record the proof reads one past the one revision that
+  record may own (`rewrite_finish_outranking`), and it reads the mark of
+  movement in the evidence's handoff place as movement too. Nor is a handoff
+  that names the evidence but describes another pull request or head, which
+  the proof refuses the evidence over as movement too.
 
 A write a finish makes behind the proof -- its announcement checkpoint, the
 record of its event, its debt park, or its retirement -- is refused by a
@@ -258,8 +258,8 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence, asks: 
     (`_heard`), so its movement is never read against `current`'s alone.
     `asks`, where a caller hands one, is asked of each of those readings
     beside the records, under the receipt of the evidence asked there --
-    `current`, or a successor in its place -- what the recovery's proof reads
-    moving there that the records alone do not, a base tip
+    `current`, or a successor in its place -- what the recovery's
+    proof reads moving there that the records alone do not, a base tip
     blanked or repointed among it, so movement a reading records stands
     however soon it is put back before the next.
     """

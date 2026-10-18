@@ -4,16 +4,17 @@
 
 Every finish proves evidence already settled for the landed head ready again
 (`rewrite_finish_readiness.stands_ready`) as well as a transaction an earlier
-finish captured for it, and invalidates that evidence into history whole
-wherever anything it is bound to moved since it settled.
+finish captured for it, and invalidates that evidence into history
+whole wherever anything it is bound to moved since it settled.
 
-Each step here is one the evidence phase (`rewrite_finish_settlement.resolves`)
-takes, a phase that announces, relabels, parks, and retires nothing. The
-coordinator (`rewrite_finish.finalizes`) asks `stands_ready_if_settled` itself
-behind the relabel -- or where it continues the head instead -- for a routed
-head over the base too, and asks it beside an unfinishable landing, ahead of
-the park and of the relabel, and takes its other proofs around its writes,
-through `rewrite_finish_stops`.
+Each step here is one the evidence phase
+(`rewrite_finish_settlement.resolves`) takes, a phase that announces,
+relabels, parks, and retires nothing. The coordinator
+(`rewrite_finish.finalizes`) asks `stands_ready_if_settled` itself behind the
+relabel -- or where it continues the head instead -- for a routed head over
+the base too, and asks it beside an unfinishable landing, ahead of the park
+and of the relabel, and takes its other proofs around its writes, through
+`rewrite_finish_stops`.
 
 - `stands_ready_if_settled` proves evidence settled current for the head
   ready, where any is -- reading the comment afresh behind an invalidation
@@ -111,8 +112,8 @@ def stands_ready_if_settled(
     """`stands_ready` over evidence settled current for `finish`'s landed head, where any is; None to go on.
 
     Where that proof invalidated the evidence, the comment is read afresh
-    behind its write (`_proves_ready`). `or_the_base` asks for the proof a
-    route's last write needs, behind requests that took time: a
+    behind its write (`_proves_ready`). `or_the_base` asks for
+    the proof a route's last write needs, behind requests that took time: a
     base advanced meanwhile holds the route with the attempt standing, a head
     with no evidence current held to the base tip its replay was made onto
     (`rewrite_finish_captured.stands_before_the_route`), so the recovery
@@ -286,17 +287,17 @@ def reads_moving(
     """The movement `state`, a comment the answer to `pending` read behind `attempt`, records; or None.
 
     `state` is the comment the answer starts from, one a refusal of moved
-    bound records was read over, or the one the answer leaves the tick's state
-    carrying -- an artifact's ledger entry committed alone takes the comment
-    in whole (`verification_proof.ProofReading.reads`) -- or one the adoption
-    of a settlement took (`adopts_the_answer`), and another road may have
-    recorded movement on it before putting it back. The blank a proof records
-    movement under the evidence with (`_BLANKED`): the base tip `attempt`, the
-    one captured before the answer, recorded read blank beside every other
-    member as `attempt` captured it -- or advanced by its own announcement
-    (`rewrite_finish_rechecks.stands_as_read`). And, where `state` carries
-    evidence current under `pending`'s receipt, the readiness proof's reading
-    of the records alone under the settled-evidence policy
+    bound records was read over, or the one the answer leaves the tick's
+    state carrying -- an artifact's ledger entry committed alone takes the
+    comment in whole (`verification_proof.ProofReading.reads`) -- or one the
+    adoption of a settlement took (`adopts_the_answer`), and another road may
+    have recorded movement on it before putting it back. The blank a proof
+    records movement under the evidence with (`_BLANKED`): the base tip
+    `attempt`, the one captured before the answer, recorded read blank beside
+    every other member as `attempt` captured it -- or advanced by its own
+    announcement (`rewrite_finish_rechecks.stands_as_read`). And, where
+    `state` carries evidence current under `pending`'s receipt, the readiness
+    proof's reading of the records alone under the settled-evidence policy
     (`rewrite_finish_readiness.settled_word`): the mark of movement in the
     handoff's place, a handoff naming the evidence that describes another
     head, a readable revision spent past it, or a review or report record
@@ -305,11 +306,11 @@ def reads_moving(
     binding (`verification_proof.recorded_verdict`), or a readable revision
     spent past it, the floor's or one a history entry shows beside a floor
     nobody can read (`rewrite_finish_outranking.outranks_the_owed`,
-    `_SPENT_PAST`), so a settlement another road makes of `pending` once they
-    are put back adopts none of it. Asked of that very reading, it is the
-    movement it is however soon the records are put back, where a refusal
-    naming the evidence records or the attempt's members alone is none
-    (`moves_the_binding`). None where nothing moved under it: a plain
+    `_SPENT_PAST`), so a settlement another road makes of
+    `pending` once they are put back adopts none of it. Asked of that very
+    reading, it is the movement it is however soon the records are put back,
+    where a refusal naming the evidence records or the attempt's members alone
+    is none (`moves_the_binding`). None where nothing moved under it: a plain
     settlement, `pending` still owed over the records it was bound to, or
     retired or superseded.
     """

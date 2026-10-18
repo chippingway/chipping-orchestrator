@@ -52,6 +52,7 @@ from orchestrator.git.base_sync.models import (
 )
 from orchestrator.git.base_sync.state import _PENDING_PUSH_SHA
 from orchestrator.workflow.engine import (
+    rewrite_landing_retirement as _retirement,
     rewrite_publication as _rewrite_publication,
     rewrite_recovery as _rewrite_recovery,
     rewrite_recovery_parks as _recovery_parks,
@@ -120,11 +121,23 @@ def _held_past_the_anchor(context: _AutoRebaseContext) -> bool:
     )
 
 
+def _is_eligible(context: _AutoRebaseContext) -> bool:
+    """Whether the refresh may rebase `context`'s PR at all (`eligibility._auto_rebase_label_is_eligible`).
+
+    An anchor under a label the refresh does not drive is answered there, the
+    recovery's answers handed in: the proof before the park that keeps the
+    attempt, that park, and what a clear that releases it over a checkout back
+    on the anchor owes the evidence a finish captured or settled for the
+    landed head (`rewrite_landing_retirement.retires_over_the_reset`).
+    """
+    return eligibility._auto_rebase_label_is_eligible(
+        context, _recovery_parks.proves_before_a_park, _recovery_parks.lands_a_park, _retirement.retires_over_the_reset,
+    )
+
+
 def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:
     """Run one refresh-time PR synchronization from normalized inputs."""
-    if not eligibility._auto_rebase_label_is_eligible(
-        context, _recovery_parks.proves_before_a_park, _recovery_parks.lands_a_park,
-    ):
+    if not _is_eligible(context):
         return
 
     retry = eligibility._auto_rebase_retry_decision(context)
@@ -175,9 +188,7 @@ def _sync_unreadable_pr_worktree(request: _AutoRebaseRequest) -> None:
     (`rewrite_recovery.answers_an_unreadable_checkout`).
     """
     context = request.to_context(_PENDING_PUSH_SHA)
-    if not eligibility._auto_rebase_label_is_eligible(
-        context, _recovery_parks.proves_before_a_park, _recovery_parks.lands_a_park,
-    ):
+    if not _is_eligible(context):
         return
     retry = eligibility._auto_rebase_retry_decision(context)
     if eligibility._open_auto_rebase_pr(context) is None:

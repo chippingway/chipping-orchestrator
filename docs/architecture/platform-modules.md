@@ -993,7 +993,10 @@ orchestrator/
                         shipped rewrite's permission settled with its receipt, any other dropped on the rollback's
                         rule, in one write
       replay_cleanup.py the clear-or-park decision for an ineligible label or a checkout back on the anchor. Records
-                        that describe a replay, announcement, or unspent transfer prevent a silent clear
+                        that describe a replay, announcement, or unspent transfer prevent a silent clear, and the
+                        clear retires what a finish captured or settled for the landed head on the state it writes
+                        first, or keeps the attempt where that cannot land (`snapshot._clear_ineligible_recovery`,
+                        over the context's `settles_over_a_reset`)
       replay_evidence.py
                         pure readings tying the checkout and recorded publication to this attempt, including the
                         grant-vouched window before a replay head was recorded and the finish's own relabel

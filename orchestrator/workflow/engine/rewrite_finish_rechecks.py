@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """The comment the evidence phase reads afresh behind an invalidation it landed, and the attempt it reads there.
 
-An invalidation a finish of a landed rewrite lands leaves the tick's state
-carrying what its write sent -- over the comment read afresh, or over the
-tick's own copy -- so a newer transaction of the head, or an attempt in place
-of the one the finish read, that another road writes right behind that write,
-before the invalidation returns, is one only a fresh reading finds.
+An invalidation a finish of a landed rewrite lands leaves the tick's
+state carrying what its write sent -- over the comment read afresh, or over
+the tick's own copy -- so a newer transaction of the head, or an attempt in
+place of the one the finish read, that another road writes right behind that
+write, before the invalidation returns, is one only a fresh reading finds.
 The evidence phase (`rewrite_finish_settlement.resolves`) asks
 `rechecks_behind` behind every invalidation it lands: of settled evidence its
 readiness proof read moving (`rewrite_finish_settled.stands_ready_if_settled`)

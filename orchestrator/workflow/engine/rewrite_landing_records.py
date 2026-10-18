@@ -36,11 +36,11 @@ and holds over any record another road left pending beside it.
 
 `settled` is the evidence such a finish settled for the head and left
 current: the evidence the readiness proof (`rewrite_finish_readiness`) proves
-ready again and invalidates where the landing is read moving under it, as a
-captured transaction is abandoned, so restoring the landing revives no
+ready again and invalidates where the landing is read moving under it,
+as a captured transaction is abandoned, so restoring the landing revives no
 decision taken over it. The recovery's helpers read it wherever a snapshot
-reads the landing moved (`rewrite_landing_moved`), and so do its answers to
-a landed reset and to a park that keeps the attempt
+reads the landing moved (`rewrite_landing_moved`), and so do its answers to a
+landed reset and to a park that keeps the attempt
 (`rewrite_landing_retirement`).
 
 `resolved` is the narrower question of whether evidence for the head was

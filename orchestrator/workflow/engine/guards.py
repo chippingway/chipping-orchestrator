@@ -328,9 +328,10 @@ def _park_awaiting_human(
     the id of the notice this call posted as `notice_id`, which only the
     poster can know: a later caller that finds that notice said and asks the
     event stream whether its park's event was filed then asks for that park's
-    own, not any earlier one's. Only the debt park of a landed rewrite and
-    the recovery parks of an automatic base rewrite (`rewrite_recovery_notices`)
-    ask for it, so every other record goes out without the field.
+    own, not any earlier one's. Only the debt park of a landed rewrite and the
+    recovery parks of an automatic base rewrite
+    (`rewrite_recovery_notices`) ask for it, so every other record goes out
+    without the field.
     """
     reason = correlation.pop("reason", None)
     bounded = correlation.pop("bounded", False)

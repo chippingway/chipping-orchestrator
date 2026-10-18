@@ -104,15 +104,16 @@ class ProofReading:
     binding the answer reads, a bound record read moved among them
     (`observes`), so a movement read once and put back before anything reads
     the comment again is still the movement it was. `classifies_a_move`, set
-    only by that finish, reads a comment the answer read or took in for the
-    movement it records under the transaction answered (`reads`) -- the
+    only by that finish -- on every road, over a transaction captured for its
+    head -- reads a comment the answer read or took in for
+    the movement it records under the transaction answered (`reads`) -- the
     comment a refusal of moved bound records was read over among them
     (`observes`): its guarded writes keep that comment
-    (`pinned_commit_models.PinnedCommit.reads_a_move`), and a settlement whose
-    edit found the comment moved under it names the bound records the comment
-    that edit read spells otherwise, so a record moved there is observed too
-    -- and what it moved to -- however soon it is put back; and a pull request
-    the answer read ended is kept beside them (`keeps`).
+    (`pinned_commit_models.PinnedCommit.reads_a_move`), and a settlement
+    whose edit found the comment moved under it names the bound records the
+    comment that edit read spells otherwise, so a record moved there is
+    observed too -- and what it moved to -- however soon it is put back; and
+    a pull request the answer read ended is kept beside them (`keeps`).
     """
 
     gh: GitHubClient
@@ -153,10 +154,13 @@ class ProofReading:
         `durable` is that reading, None where it would not read, and `refused`
         what its records earned (`verification_durable.durable_comment`). The
         retirement stands down on a refusal rather than refusing the
-        transaction, so the policy every road selects observes neither; a
-        reading that `classifies_a_move` keeps the refusal (`keeps`) and asks
-        the comment what it records (`reads`), so a record moved there and put
-        back before anything reads the comment again is the movement it is.
+        transaction, so a reading with no classifier -- the dispatcher's
+        reconciliation of a recorded transaction (`verification_transaction`)
+        among them -- observes neither. A landed rewrite's finish, whose
+        settlement's reading `classifies_a_move` on every road, keeps the
+        refusal (`keeps`) and asks the comment what it records (`reads`), so a
+        record moved there and put back before anything reads the comment
+        again is the movement it is.
         """
         self.keeps(refused)
         if durable is not None:
@@ -166,11 +170,11 @@ class ProofReading:
         """Keep `refused`, which the answer retires its transaction over rather than refusing it, where moves count.
 
         A pull request read ENDED retires the transaction with nothing
-        observed under the policy every road selects, which proves it again
-        before routing it. A reading that `classifies_a_move` keeps it as the
-        movement it is, so a settlement another road makes of that very
-        transaction once the pull request reopens is invalidated over it all
-        the same.
+        observed for a reading with no classifier, such as the dispatcher's
+        reconciliation. A landed rewrite's finish, whose settlement's reading
+        `classifies_a_move` on every road, keeps it as the movement it is, so
+        a settlement another road makes of that very transaction once the pull
+        request reopens is invalidated over it all the same.
         """
         if self.classifies_a_move is not None:
             self.observes(refused)

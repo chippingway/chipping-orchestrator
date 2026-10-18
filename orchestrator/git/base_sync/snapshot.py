@@ -54,7 +54,27 @@ def _abort_recovery_unverified(
 def _clear_ineligible_recovery(
     context: _AutoRebaseRecoveryContext,
 ) -> bool:
-    """Clear an interrupted-rebase anchor after an operator relabel."""
+    """Clear an interrupted-rebase anchor after an operator relabel.
+
+    The checkout stands back on the anchor, so it is off any head a finish of
+    the attempt captured or settled evidence for: movement under that
+    evidence, which the release would otherwise leave standing for a checkout
+    put back to revive. The recovery's answer to a release over a checkout
+    taken off that head (`_AutoRebaseRecoveryContext.settles_over_a_reset`)
+    is staged first on the state the clear writes, so the evidence goes with
+    the attempt or neither goes. Where it answers False -- settled evidence
+    with no room for its history entry, its movement recorded instead --
+    nothing is cleared, and the attempt keeps guarding it for a later tick.
+    """
+    settles = context.settles_over_a_reset
+    if settles is not None and not settles():
+        log.warning(
+            "issue=#%d auto-rebase recovery: the verification evidence settled for the landed head could not be "
+            "retired with the attempt; keeping the attempt rather than clearing it under label %r",
+            context.issue.number,
+            context.label,
+        )
+        return True
     attempts._clears_the_attempt(context.state)
     context.gh.write_pinned_state(context.issue, context.state)
     log.info(

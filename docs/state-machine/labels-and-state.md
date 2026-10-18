@@ -3182,8 +3182,12 @@ The keys that matter for the state machine fall into a few groups:
   does not drive — the read-only stages it skips and a generation an
   adjudication is still deciding included — nothing is waited on: the dispatcher takes the refresh's own ineligible
   road itself, a clear or the stranded park, and over a checkout that is not on disk goes straight to the park, since
-  no reading of where the branch stands can be taken. The stranded park asks for the label back and a reply both,
-  since that park is the refresh's own and a relabel alone never releases it -- save beside a live adjudication, whose
+  no reading of where the branch stands can be taken. The clear's checkout stands back on the anchor, off the landed
+  head, so evidence a finish captured or settled for that head is retired in the write that clears the attempt -- or,
+  where settled evidence has no room for its history entry, the attempt is kept, the movement recorded by blanking
+  its base tip -- on this road and the refresh's eligibility gate alike. The stranded park asks for the label back and
+  a reply both, since that park is the refresh's own and a relabel alone never releases it -- save beside a live
+  adjudication, whose
   guard restores its label: there it asks for the `pending_auto_base_rebase_*` and `late_rewrite_*` fields, and the
   park's own flags, to be reconciled by hand, past which the adjudication runs and asks for its usual decision. On a
   label the refresh drives, the hold

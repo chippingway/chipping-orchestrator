@@ -21,17 +21,17 @@ reset's tail, both replay parks, and a label the refresh does not drive among
 them --, the abort over a checkout whose lag could not be counted
 (`rewrite_recovery.answers_an_unreadable_checkout`), the eligibility gate's
 park of an ineligible label (`base_rewrite`), and the dispatcher's stranded
-park of an anchor it holds a handler back for (`answers_a_held_anchor`),
-whose holds that post nothing ask the same proof. The holds behind a
-publication gate that held the landed road's leased no-op or the retry's
-reissued push are recorded here too (`lands_a_hold`): their proof taken
-first, as before a park that keeps the attempt, what the tick staged before
-that proof kept across every write it lands (`rewrite_recovery_staging`), and
-only what the tick staged since its reading landed, as `HOLD`, over the
-comment read afresh -- the write the ordinary publication's gate hold lands
-as too (`rewrite_publication`). A park made again over a record that never
-landed takes in the notice the conversation already carries rather than
-saying it twice (`rewrite_recovery_notices`).
+park of an anchor it holds a handler back for (`answers_a_held_anchor`), whose
+holds that post nothing ask the same proof. The holds behind a publication
+gate that held the landed road's leased no-op or the retry's reissued push are
+recorded here too (`lands_a_hold`): their proof taken first, as before a
+park that keeps the attempt, what the tick staged before that proof kept
+across every write it lands (`rewrite_recovery_staging`), and only what the
+tick staged since its reading landed, as `HOLD`, over the comment read
+afresh -- the write the ordinary publication's gate hold lands as too
+(`rewrite_publication`). A park made again over a record that never landed
+takes in the notice the conversation already carries rather than saying it
+twice (`rewrite_recovery_notices`).
 
 The park (`lands_a_park`) lands through the guarded commit
 (`report_commits.ReportCommit`) as `PARK`: owning every field the tick staged
@@ -92,6 +92,8 @@ reset recorded there instead (`proves_before_a_park`).
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
+from functools import partial
 
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
@@ -219,9 +221,14 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
     restores a checkout, clears the attempt, or parks it stranded; that park
     keeps the attempt, so it asks the proof first (`proves_before_a_park`) and
     is recorded as every recovery park is (`lands_a_park`) -- and so does a
-    hold that keeps it with nothing posted, on every poll that holds.
+    hold that keeps it with nothing posted, on every poll that holds. A clear
+    releases the attempt over a checkout back on the anchor, so what a finish
+    captured or settled for the landed head is retired on the state it writes
+    first, or the attempt kept where it cannot be
+    (`rewrite_landing_retirement.retires_over_the_reset`).
     """
-    _recovery_holds._answers_a_held_anchor(held, proves_before_a_park, lands_a_park)
+    owing = replace(held, settles_over_a_reset=partial(_retirement.retires_over_the_reset, held))
+    _recovery_holds._answers_a_held_anchor(owing, proves_before_a_park, lands_a_park)
 
 
 def proves_before_a_park(context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence] | None = None) -> bool:

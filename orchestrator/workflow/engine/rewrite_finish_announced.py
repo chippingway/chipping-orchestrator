@@ -6,15 +6,15 @@ A finish's announcement puts the record of its `base_rebased` event and the
 mark on the attempt, and its relabel follows behind a record of its own;
 another finish of the landing may put them down meanwhile, or a write of this
 finish's own may land them with its answer lost -- the attempt advanced, not
-replaced. `advanced_by_the_announcement` tells that from another attempt, and
-`takes_in_the_announcement` lays it over the tick's state, so movement read
-under settled evidence is retired over the attempt as it stands rather than
-refused as another road's. The coordinator (`rewrite_finish.finalizes`) asks
-`marked` and `relabelled`, so a finish neither announces a head another
+replaced. `advanced_by_the_announcement` tells that from another attempt,
+and `takes_in_the_announcement` lays it over the tick's state, so movement
+read under settled evidence is retired over the attempt as it stands rather
+than refused as another road's. The coordinator (`rewrite_finish.finalizes`)
+asks `marked` and `relabelled`, so a finish neither announces a head another
 finish marked meanwhile nor relabels -- and files the stage-entry event of --
-an issue another finish already relabelled for that head, which the
-relabel's own record on the attempt, landed ahead of every relabel
-(`relabels_once`), says beside the label.
+an issue another finish already relabelled for that head, which the relabel's
+own record on the attempt, landed ahead of every relabel (`relabels_once`),
+says beside the label.
 """
 from __future__ import annotations
 

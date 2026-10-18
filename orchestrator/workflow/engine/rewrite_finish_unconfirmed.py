@@ -8,11 +8,11 @@ bookkeeping on the attempt, or the retirement behind the relabel blanking it
 whole. These read it, so movement a proof read behind that write is recorded
 over the attempt as it stands rather than refused as though another road had
 replaced it. The evidence phase asks `takes_in_the_announcement` and
-`takes_in_the_attempt` (`rewrite_finish_settled.adopts_the_answer`), and
-every abandonment asks `reconciles_the_abandonment`
-(`rewrite_finish_captured`) -- the recovery's own, wherever it reads the
-landing moving (`rewrite_landing_moved`), among them; the coordinator's stops
-(`rewrite_finish_stops`) ask `takes_in_the_announcement` behind an
+`takes_in_the_attempt` (`rewrite_finish_settled.adopts_the_answer`), and every
+abandonment asks `reconciles_the_abandonment` (`rewrite_finish_captured`) --
+the recovery's own, wherever it reads the landing moving
+(`rewrite_landing_moved`), among them; the coordinator's
+stops (`rewrite_finish_stops`) ask `takes_in_the_announcement` behind an
 announcement nobody confirmed, `stands_back` behind a retirement nobody
 confirmed, `retires_the_marked` where the attempt is retired or replaced,
 and `behind_a_raise` behind a relabel that raised:

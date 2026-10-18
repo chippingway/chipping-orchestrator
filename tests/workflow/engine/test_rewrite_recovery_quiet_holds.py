@@ -20,6 +20,15 @@ proof abandons it is invalidated over that edit all the same -- or, the comment
 full, has it recorded by its base tip blanked first, which frees the room the
 invalidation then takes -- and a newer run settled over it under its own
 receipt is left as it stands.
+
+An anchor under a label the refresh does not drive, over a checkout back on
+the anchor with no replay named, no announcement, and no transfer outstanding,
+is cleared rather than parked -- by the dispatcher's answer to its hold, or by
+the refresh's eligibility gate. The checkout is off the landed head, so the
+run is retired whole in the very write that clears the attempt, and restoring
+the checkout revives nothing; where the comment has no room for the run's
+history entry, the attempt is kept instead, the run current and its base tip
+blanked.
 The run is made once, and nothing is pushed or launched.
 """
 from __future__ import annotations
@@ -58,6 +67,23 @@ def _puts_the_label_back(case) -> None:
     """Put `case`'s issue back on the stage it was reviewed in and reply to the park."""
     case.issue.labels = [FakeLabel(git_support.REVIEWING)]
     case.continues()
+
+
+def _unnamed_on_the_anchor(case) -> None:
+    """Blank the replay the attempt names, put the checkout back on the anchor, and relabel out of the refresh."""
+    state = case.gh.read_pinned_state(case.issue)
+    state.set(readings.KEY_REWRITE_SHA, None)
+    case.gh.write_pinned_state(case.issue, state)
+    case._git("reset", "--quiet", "--hard", case.anchor, cwd=case._wt)
+    case.issue.labels = [FakeLabel(_UNDRIVEN)]
+
+
+# What answers an anchor under a label the refresh does not drive: the
+# dispatcher's hold, or a whole refresh, whose eligibility gate answers it.
+_CLEARS = (
+    ("the dispatcher's hold", guarded.answers_a_held_anchor),
+    ("the eligibility gate", lambda case: case.recovers()),
+)
 
 
 class _Road(NamedTuple):
@@ -166,6 +192,45 @@ class SettledUnderTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             guarded.answers_a_held_anchor(self)
         self.assertEqual(raced, [head])
         return head, captured
+
+
+class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """A clear under a label the refresh does not drive retires the run with the attempt it releases."""
+
+    def test_a_clear_retires_the_run(self) -> None:
+        # The run, captured or settled, is retired whole in the write that
+        # clears the attempt, so the checkout put back on the landed head and
+        # the reconciliation revive nothing.
+        for (name, clears), captures in product(_CLEARS, (True, False)):
+            with self.subTest(cleared_by=name, captured=captures):
+                self.setUp()
+                head, run = self.captures() if captures else self.settles_then_dies()
+                _unnamed_on_the_anchor(self)
+                clears(self)
+                self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+                self.reconciles()
+
+                self.assertEqual(self.pinned_fields(guarded.AWAITING, readings.KEY_PENDING_PUSH), (None, None))
+                if captures:
+                    self.assert_abandoned(run)
+                else:
+                    self.assert_invalidated(run)
+
+    def test_a_full_comment_keeps_the_attempt(self) -> None:
+        # No room for the run's history entry: nothing is cleared, the run
+        # stays current with its base tip blanked, so every later proof reads
+        # it moved.
+        for name, clears in _CLEARS:
+            with self.subTest(cleared_by=name):
+                self.setUp()
+                run = self.settles_then_dies()[1]
+                _unnamed_on_the_anchor(self)
+                finish_moves.fills_the_comment(self)
+                clears(self)
+
+                standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
+                self.assertEqual(standing, (self.anchor, None))
+                self.assertEqual(readings.pinned_records(self)[1], run)
 
 
 if __name__ == "__main__":

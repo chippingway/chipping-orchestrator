@@ -55,22 +55,22 @@ publication or one its record does not account for. What such a park read is
 put right by a human, and the reply then finishes the landing, so the git
 owner has the evidence proved again before every such park
 (`rewrite_landing_retirement.retires_unproved`): the transaction over the
-issue and comment read afresh, held to the last word (`proves_captured`),
-none of it needing the fetch an abort could not take, and abandoned now where
-anything it rests on moved, a configuration or a pull request repointed among
-the reasons, so putting that back before the reply revives nothing. One that
-still proves, or that only a reading nobody could take holds, is kept for
-that finish.
+issue and comment read afresh, held to the last word (`proves_captured`), none
+of it needing the fetch an abort could not take, and abandoned now
+where anything it rests on moved, a configuration or a pull request repointed
+among the reasons, so putting that back before the reply revives nothing. One
+that still proves, or that only a reading nobody could take holds, is kept
+for that finish.
 
 A reset is the one road that moves the checkout off the landed head itself,
 and the git owner's park behind it drops the attempt in one write
-(`git/base_sync/persistence._reset_clear_and_park`).
-`abandons_over_the_reset` is the transaction's half of the answer that owner
-stages on that very state once the reset landed
-(`rewrite_landing_retirement.retires_over_the_reset`, the recovery context's
-`settles_over_a_reset`), so the transaction goes with the attempt's release
-or neither goes: a park write that fails leaves both standing, and a reset
-that failed moved nothing and keeps both.
+(`git/base_sync/persistence._reset_clear_and_park`). `abandons_over_the_reset`
+is the transaction's half of the answer that owner stages on that very state
+once the reset landed (`rewrite_landing_retirement.retires_over_the_reset`,
+the recovery context's `settles_over_a_reset`), so the transaction goes with
+the attempt's release or neither goes: a park write that fails leaves both
+standing, and a reset that failed moved nothing and
+keeps both.
 
 Only a transaction a finish of the attempt recorded is read
 (`rewrite_landing_records.captured`): the one under the receipt the finish put
@@ -120,7 +120,7 @@ from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad, Lande
 
 log = logging.getLogger("orchestrator.workflow")
 
-_RELEASED = "in the write that releases its attempt behind the reset that took the checkout off it"
+_RELEASED = "in the write that releases its attempt, the checkout taken off it"
 
 _CHECKOUT_GONE = "in the write that parks its attempt, the checkout it was captured on gone"
 

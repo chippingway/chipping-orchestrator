@@ -107,9 +107,9 @@ def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> 
     removing the records left null or unreadable (`_lands`), save beside a
     pending transaction, whose revision already outranks it; that retirement
     too is read and made once more where the comment moved under its edit,
-    keeping whatever another road wrote there. Where not even that fits -- the
-    comment full and no evidence record left to remove -- a revision is spent
-    past `current` on the floor instead
+    keeping whatever another road wrote there. Where not even that fits --
+    the comment full and no evidence record left to remove -- a revision is
+    spent past `current` on the floor instead
     (`rewrite_finish_outranking.spends_past`), read and spent once more
     likewise. `current` stays current with its whole binding, revision, and
     transcript digest, so no provenance is lost, while every reader reads it
@@ -118,11 +118,12 @@ def marks(finish: LandedFinish, current: _records.CurrentEvidence, why: str) -> 
     it whole into history once room is made. Where the floor would gain a
     digit the comment has no room for, or nobody can say what was spent,
     `current` is retired whole into history after all, read and made once more
-    likewise, with the floor taken off to make room
-    (`rewrite_finish_outranking.unfloors`) -- only where it shows no revision
-    past `current`, whose entry carries the revision it did -- so the run's
-    provenance and its movement both stand; nobody can then say what was
-    spent, and nothing is minted for the issue until the floor is put back.
+    likewise, with the floor taken off to
+    make room (`rewrite_finish_outranking.unfloors`) -- only where it shows no
+    revision past `current`, whose entry carries the revision it did -- so
+    the run's provenance and its movement both stand; nobody can then say
+    what was spent, and nothing is minted for the issue until the floor is
+    put back.
     """
     landed = "not landed"
     for how in _RECORDINGS:

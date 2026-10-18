@@ -28,8 +28,8 @@ decision is made here, in the order the recovery has always kept:
   tick classifies what it then finds; a transaction an earlier finish
   captured for the fetched head is abandoned first, and evidence one settled
   invalidated, where the checkout reads another head
-  (`rewrite_landing_moved`), since that move is movement under it, and kept
-  for the next proof where its head would not read at all. A
+  (`rewrite_landing_moved`), since that move is movement under
+  it, and kept for the next proof where its head would not read at all. A
   snapshot that read either head off the landing never reaches this road:
   the coordinator (`rewrite_recovery`) abandons the transaction before the
   road it does take.
@@ -180,8 +180,8 @@ def _left_the_fetched_head(
     movement under it. One whose head could not be proved read nothing
     move, so that evidence is proved again over everything else that can be
     read, as before a park that keeps the attempt
-    (`rewrite_recovery_parks.proves_before_a_park`), retired where any of
-    that moved and otherwise kept for the next tick to prove again.
+    (`rewrite_recovery_parks.proves_before_a_park`), retired where any
+    of that moved and otherwise kept for the next tick to prove again.
     """
     reads = candidate.rewritten_head
     if reads == completed.head:

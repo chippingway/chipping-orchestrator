@@ -2135,7 +2135,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a reply the recovery did not spend is left for the rebase that follows -- and the same
                             gates in front of the abort a checkout whose lag cannot be counted takes, the eligibility
                             gate's park of a label the refresh does not drive handed the recovery's proof and park
-                            (`rewrite_recovery_parks.proves_before_a_park`, `lands_a_park`). It writes
+                            (`rewrite_recovery_parks.proves_before_a_park`, `lands_a_park`), and its clear what it
+                            owes the evidence a finish captured or settled for the landed head (`_is_eligible`, over
+                            `rewrite_landing_retirement.retires_over_the_reset`). It writes
                             nothing itself -- a reply that let the rebase start is staged read, where it only asked
                             for the retry, for the anchor's own write to land (`rewrite_replies.py`) -- and a clean
                             rebase is handed to `rewrite_publication.py`, a pinned anchor's recovery to
@@ -2278,11 +2280,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the dispatcher's held anchor (`rewrite_recovery_parks.answers_a_held_anchor`) --
                             over a captured run and evidence a finish of the attempt settled for the head and left
                             current behind a tail cut short (`rewrite_landing_records.settled`). Over a reset that
-                            landed (`retires_over_the_reset`, the context's `settles_over_a_reset`) a captured run
-                            is abandoned as `abandons_over_the_reset` stages it and settled evidence invalidated
-                            into history whole on the same state, so both go with the attempt's release or neither
-                            does; with no room for its history entry the settled evidence is kept current and whole
-                            beside the attempt, its base tip blanked in a write of its own
+                            landed, or a clear of an attempt under a label the refresh does not drive over a checkout
+                            back on the anchor (`retires_over_the_reset`, the context's `settles_over_a_reset`), a
+                            captured run is abandoned as `abandons_over_the_reset` stages it and settled evidence
+                            invalidated into history whole on the same state, so both go with the attempt's release
+                            or neither does; with no room for its history entry the settled evidence is kept current
+                            and whole beside the attempt, its base tip blanked in a write of its own
                             (`rewrite_finish_writes.ABANDONMENT`) so every later proof reads movement, and the
                             answer is False, for the git owner to keep the attempt with nothing released or parked.
                             Before a park or hold that keeps the attempt (`retires_unproved`) the captured run is
