@@ -2470,7 +2470,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that staging is taken off the state for the proof, put back only where no proof edit
                             landed or may have; and over a checkout gone from disk, what the tick holds for the landed
                             head retired as over a reset in a guarded write of its own, asked once more over the
-                            comment read afresh where it was refused, a successor or another attempt held instead
+                            comment read afresh where it was refused, and read afresh behind it where it landed, so
+                            evidence another road wrote back there is retired once more and the tick held; a successor
+                            or another attempt standing in its place holds the tick before anything is read as retired
                             (`lands_the_retirement`)
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written

@@ -94,7 +94,11 @@ disk has nothing to prove the landing over, so the reset is recorded against
 its evidence and the evidence retired as over that reset, each in a write of
 its own (`records_the_reset`), ahead of a park or hold and behind one alike:
 a quiet hold, a park already standing, or a record refused leaves nothing
-behind it to carry a retirement only staged (`proves_before_a_park`). One gone
+behind it to carry a retirement only staged (`proves_before_a_park`). Nothing
+behind a quiet hold proves that evidence again either, so the comment is read
+afresh behind the retirement: evidence another road wrote back there is
+retired once more and the tick held, as it is over a successor or another
+attempt another road put in its place first, with nothing reset. One gone
 while the proof itself is asked is recorded and retired the same way: every
 proof asked here runs over a context carrying the reset's recorder, whichever
 context the git owner handed in -- the eligibility gate's carries none.
@@ -344,7 +348,9 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     whether or not the blank landed, the evidence is retired as over a reset
     and landed in a write of its own (`rewrite_recovery_staging.lands_the_retirement`,
     as `CLEAR`), over a tip another road put back behind the blank among it;
-    True there only where both landed.
+    True there only where both landed and the comment read afresh behind the
+    retirement carries none of what it retired back, nor a successor or
+    another attempt in its place.
     """
     moved: dict[str, ReportEvidence] = {}
     commit = _commits.ReportCommit(

@@ -13,23 +13,37 @@ blanked back right behind it. The reset is recorded and the run retired, each
 in a write of its own, so with the checkout back on the head -- the label and
 a reply too, for the park -- the head is routed with nothing current. The run
 is never made again, and nothing is pushed or launched.
+
+Another road writing the attempt and every evidence record back right behind
+the retirement a quiet hold lands has the run retired once more. One that
+retires the run itself right ahead of that retirement, and pins another
+attempt or settles a newer run in its place, holds the tick over what that
+road wrote, the checkout put back on the head left there unreset.
 """
 from __future__ import annotations
 
+import copy
 import unittest
 from functools import partial
 from unittest.mock import patch
 
-from orchestrator.git.base_sync import rewrite_facts
+from orchestrator.git import branch_transport
+from orchestrator.git.base_sync import attempts as _attempts, rewrite_facts
 from orchestrator.git.worktrees import creation
 from orchestrator.github.pinned_state import PinnedEdit
-from orchestrator.workflow.engine import rewrite_landing_retirement as _retirement
+from orchestrator.workflow.engine import (
+    rewrite_landing_retirement as _retirement,
+    verification_durable as _durable,
+    verification_settlement_state as _settlement,
+)
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
+    rewrite_finish_evidence_test_support as fixtures,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
+    settled_finish_support as settled_support,
 )
 
 # A label the refresh does not drive, under which the dispatcher's hold strands the attempt.
@@ -38,6 +52,10 @@ _UNDRIVEN = "workflow:resolving_conflict"
 _READS = "_reads_the_checkout"
 
 _PROVES = "retires_unproved"
+
+_EDITS = "edit_pinned_state"
+
+_CURRENT = "verification_evidence_current"
 
 
 def _moves_past(case, live, *read, **options):
@@ -198,6 +216,103 @@ class MidRoadCheckoutTest(_LostCheckoutCase, unittest.TestCase):
         with patch.object(_retirement, _PROVES, partial(_vanishes_ahead, self, getattr(_retirement, _PROVES))):
             recovery()
 
+
+class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
+    """A run retired over a checkout gone from disk, another road writing right ahead of that retirement or behind."""
+
+    def test_a_run_written_back_behind(self) -> None:
+        # The dispatcher holds a stage the refresh drives over a checkout that
+        # will not come back, and right behind the write retiring the run
+        # another road writes the attempt and every evidence record back as
+        # they read before the hold. Nothing behind a quiet hold proves the
+        # run again, so the comment read afresh behind that write has it
+        # retired once more.
+        self.settles()
+        self._written = copy.deepcopy(readings.pinned(self))
+        self._wt.rename(self._away)
+        unavailable = RuntimeError("the checkout could not be brought back")
+        with (
+            patch.object(creation, "_ensure_pr_worktree", side_effect=unavailable),
+            patch.object(self.gh, _EDITS, partial(self._writes_back_behind, self.gh.edit_pinned_state)),
+        ):
+            guarded.answers_a_held_anchor(self)
+        self.assertIsNone(self._written)
+        self.assert_retired()
+
+    def test_another_road_retires_the_run_ahead(self) -> None:
+        # The fetch fails, so the abort resets the checkout to the anchor; the
+        # checkout goes from disk right behind the blank recording that reset,
+        # and right ahead of the run's retirement another road retires the run
+        # itself and pins another attempt -- or settles a newer run over it --
+        # putting the checkout back. Nothing is reset over what that road
+        # wrote, which stands as it wrote it.
+        successor = partial(settled_support.records_a_newer_run, settles=True)
+        for race, writes in (("attempt", self._replaces_the_attempt), ("successor", successor)):
+            with self.subTest(race=race):
+                self.setUp()
+                self.settles()
+                self._blanked = False
+                self._written = None
+                edits = partial(self._races_the_retirement, writes, self.gh.edit_pinned_state)
+                with (
+                    patch.object(branch_transport, "_authed_fetch", guarded.unfetched),
+                    patch.object(self.gh, _EDITS, edits),
+                ):
+                    self.recovers()
+                self._assert_held_as_written(race)
+
+    def _assert_held_as_written(self, race: str) -> None:
+        """What another road wrote ahead of the retirement standing as it wrote it, the checkout left on the head."""
+        self.assertTrue(self._blanked and self._written)
+        self.assertEqual(self._wt_head(), self._run[0], "the checkout was reset over what another road wrote")
+        if race == "attempt":
+            pinned = self.pinned_fields(*self._written)
+            self.assertEqual(pinned, tuple(self._written.values()))
+        else:
+            current = readings.pinned_records(self)[1]
+            self.assertEqual(current.receipt, self._written.receipt)
+            self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (self.anchor,))
+        self.assert_made_once()
+
+    def _writes_back_behind(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, the run and its attempt written back right behind the first to retire it."""
+        answered = live(issue, staged, **options)
+        if answered is PinnedEdit.EDITED and self._retires(staged, **options) and self._written:
+            state = self.gh.read_pinned_state(issue)
+            for field in (*readings.ATTEMPT_KEYS, *_durable._EVIDENCE_RECORDS):
+                state.set(field, self._written.get(field))
+            self.gh.write_pinned_state(issue, state)
+            self._written = None
+        return answered
+
+    def _races_the_retirement(self, writes, live, issue, staged, **options):
+        """`live`, the pinned-comment edit: the checkout gone behind the reset's blank, `writes` ahead of the run's."""
+        if self._blanked and self._written is None and self._retires(staged, **options):
+            self._written = writes(self)
+            self._away.rename(self._wt)
+        answered = live(issue, staged, **options)
+        tip = readings.KEY_REWRITE_BASE
+        blanks = options["over"].get(tip) is not None
+        blanks = blanks and staged.get(tip) is None
+        if answered is PinnedEdit.EDITED and blanks and not self._blanked:
+            self._blanked = True
+            self._wt.rename(self._away)
+        return answered
+
+    def _retires(self, staged, *, over: dict, **_options) -> bool:
+        """Whether a pinned-comment edit retires the run the comment it is decided on carries current."""
+        return bool(over.get(_CURRENT)) and not staged.get(_CURRENT)
+
+    def _replaces_the_attempt(self, _case) -> dict:
+        """Retire the run and pin another attempt in place of its own, as another road would; that attempt."""
+        replacement = fixtures.attempt_record(self._run[0], None, git_support.PR_NUMBER, git_support.REVIEWING)
+        state = self.gh.read_pinned_state(self.issue)
+        self.assertTrue(_settlement.retire_current_evidence(state))
+        _attempts._clears_the_attempt(state)
+        for key, member in replacement.items():
+            state.set(key, member)
+        self.gh.write_pinned_state(self.issue, state)
+        return replacement
 
 if __name__ == "__main__":
     unittest.main()
