@@ -95,8 +95,9 @@ its evidence and the evidence retired as over that reset, each in a write of
 its own (`records_the_reset`), ahead of a park or hold and behind one alike:
 a quiet hold, a park already standing, or a record refused leaves nothing
 behind it to carry a retirement only staged (`proves_before_a_park`). One gone
-while the proof itself is asked is recorded and retired the same way, through
-the reset's recorder every recovery context the workflow builds carries.
+while the proof itself is asked is recorded and retired the same way: every
+proof asked here runs over a context carrying the reset's recorder, whichever
+context the git owner handed in -- the eligibility gate's carries none.
 """
 from __future__ import annotations
 
@@ -274,14 +275,10 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
     keeps the attempt, so it asks the proof first (`proves_before_a_park`) and
     is recorded as every recovery park is (`lands_a_park`) -- and so does a
     hold that keeps it with nothing posted, on every poll that holds. A clear
-    retires the evidence first and lands guarded (`lands_a_clear`). The
-    reset's recorder (`records_the_reset`) is handed in too, for the proof to
-    record and retire over a checkout gone from disk while it was asked.
+    retires the evidence first and lands guarded (`lands_a_clear`).
     """
     settles = partial(_retirement.retires_over_the_reset, held)
-    owing = replace(
-        held, settles_over_a_reset=settles, records_before_a_reset=records_the_reset, lands_a_clear=lands_a_clear,
-    )
+    owing = replace(held, settles_over_a_reset=settles, lands_a_clear=lands_a_clear)
     _recovery_holds._answers_a_held_anchor(owing, proves_before_a_park, lands_a_park)
 
 
@@ -310,7 +307,7 @@ def proves_before_a_park(context: _AutoRebaseRecoveryContext, moved: dict[str, R
     a proof write already carried (`rewrite_recovery_staging.keeps_the_staging`).
     Behind a record its staging is kept out of every write the proof lands.
     """
-    with keeps_the_staging(context, ahead=moved is None) as proving:
+    with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:
         if proving.worktree.is_dir():
             return _retirement.retires_unproved(proving, moved)
         return records_the_reset(proving)
@@ -370,7 +367,9 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     if not context.worktree.is_dir():
         return lands_the_retirement(context, CLEAR) and recorded
     if moved:
-        recorded = _retirement.retires_unproved(context, _retirement.reconciles(context, moved)) and recorded
+        recorded = _retirement.retires_unproved(
+            replace(context, records_before_a_reset=records_the_reset), _retirement.reconciles(context, moved),
+        ) and recorded
     return recorded
 
 

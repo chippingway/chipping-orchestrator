@@ -108,6 +108,7 @@ from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit, spel
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_rechecks import invalidates_rechecked, lays
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
+    LosesTheCheckout,
     asks_every_reading,
     owed_moves,
     stands_as_recovered,
@@ -234,12 +235,14 @@ def retires_unproved(
     go on while evidence still standing carries movement read only behind its
     own proof, both are asked again with it; a proof that reads movement
     retires what moved or answers False, so the asking stops there.
-    With no checkout on disk -- gone before the proof or while it was asked
-    -- nothing proves the landing, so the reset is recorded against both and
-    both retired as over it, each in a write of its own, by the recorder
-    `context` carries (`_AutoRebaseRecoveryContext.records_before_a_reset`,
-    `rewrite_recovery_parks.records_the_reset`), its answer the proof's; a
-    context with no recorder has both retired on the state the park lands
+    With no checkout on disk -- gone before the proof, or while it was asked,
+    one of its requests finding nothing there -- nothing proves the landing,
+    so the reset is recorded against both and both retired as over it, each
+    in a write of its own, by the recorder `context` carries
+    (`_AutoRebaseRecoveryContext.records_before_a_reset`,
+    `rewrite_recovery_parks.records_the_reset`, which hands it every proof it
+    and the proof before a park ask), its answer the proof's; a context with
+    no recorder has both retired on the state the park lands
     (`retires_over_the_reset`). False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
     its history entry among it, its movement recorded instead -- or where the
@@ -251,39 +254,41 @@ def retires_unproved(
     moved = dict(moved or {})
     if not (moved or receipts(context.state)):
         return True
-    if not context.worktree.is_dir():
-        records = context.records_before_a_reset
-        return (
-            retires_over_the_reset(context, _landing_captured._CHECKOUT_GONE)
-            if records is None else records(context)
-        )
     unread = _base_sync_models._AutoRebaseRecoverySnapshot(
         branch=_naming._resolve_branch_name(context.state, context.spec, context.issue.number), local_head="",
     )
     asked = asks_every_reading(
         context, lambda reading: moved_under(reading, tick=context.state, into=moved),
     )
-    proved = (
-        _landing_captured.proves_captured(
-            asked,
-            unread,
-            moved.get(getattr(_landing_records.captured(context.state), "receipt", None)),
-            asks=lambda reading, receipt: (
-                moved_under(reading, tick=context.state, into=moved).get(receipt)
+    proved = False
+    with LosesTheCheckout(context):
+        proved = context.worktree.is_dir() and all((
+            _landing_captured.proves_captured(
+                asked,
+                unread,
+                moved.get(getattr(_landing_records.captured(context.state), "receipt", None)),
+                asks=lambda reading, receipt: (
+                    moved_under(reading, tick=context.state, into=moved).get(receipt)
+                ),
             ),
-        ),
-        _proves_settled(asked, unread, moved),
-    )
-    if all(proved) and moved.keys() & receipts(context.state):
+            _proves_settled(asked, unread, moved),
+        ))
+    if not context.worktree.is_dir():
+        records = context.records_before_a_reset
+        return (
+            retires_over_the_reset(context, _landing_captured._CHECKOUT_GONE)
+            if records is None else records(context)
+        )
+    if proved and moved.keys() & receipts(context.state):
         return retires_unproved(context, moved)
-    if all(proved) and not stands_as_recovered(context):
+    if proved and not stands_as_recovered(context):
         log.warning(
             "issue=#%d another auto-rebase attempt stands in place of the one its recovery read; holding with "
             "nothing reset, cleared, or parked, for the next tick to recover the attempt the comment carries",
             context.issue.number,
         )
         return False
-    return all(proved)
+    return proved
 
 
 def receipts(state) -> frozenset[str]:

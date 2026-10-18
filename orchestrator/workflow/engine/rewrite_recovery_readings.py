@@ -23,6 +23,8 @@ finish held to the settled-evidence policy reads one still owed.
 `stands_as_recovered` says whether the tick's state, once the proof's
 rechecks laid what they read over it, still carries the attempt the
 recovery recovers rather than one another road put in its place.
+`LosesTheCheckout` lets the proof read a checkout gone from disk under one of
+its own requests as that loss, rather than raise it past the record it owes.
 """
 from __future__ import annotations
 
@@ -106,6 +108,27 @@ class AsksEveryReading:
         for reading in readings:
             if reading.parsed:
                 self._asks(reading)
+
+
+class LosesTheCheckout:
+    """A block a checkout gone from disk cuts short: a request of it there answered by that loss, not raised.
+
+    For the recovery's proof (`rewrite_landing_retirement.retires_unproved`),
+    which reads the checkout well after its caller found it on disk: a git
+    request run in a checkout gone meanwhile fails with `FileNotFoundError`,
+    swallowed here only where the checkout is gone by then, for the proof to
+    read that loss and record it. Any other failure, or one over a checkout
+    still on disk, goes on.
+    """
+
+    def __init__(self, context: _AutoRebaseRecoveryContext) -> None:
+        self._context = context
+
+    def __enter__(self) -> None:
+        """Enter the block, handing it nothing."""
+
+    def __exit__(self, kind, error, trace) -> bool:
+        return isinstance(error, FileNotFoundError) and not self._context.worktree.is_dir()
 
 
 def asks_every_reading(

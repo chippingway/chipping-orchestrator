@@ -8,11 +8,13 @@ before its announcement. The checkout then goes from disk right as the
 recovery's proof (`rewrite_landing_retirement.retires_unproved`) is asked
 over it, after its caller read it on disk -- by the landed road that read it
 committed past the head, by the dispatcher's quiet hold of a stage the refresh
-drives, or by its stranded park already standing. The proof records the reset
-and retires the run, each in a write of its own, so with the checkout back on
-the head -- the label and a reply too, for the park -- the head is routed with
-nothing current. The run is never made again, and nothing is pushed or
-launched.
+drives, or by a stranded park already standing, found by the dispatcher or by
+the refresh's eligibility gate -- or right behind one of the proof's own
+readings of the issue, so its next git request finds nothing there. The proof
+records the reset and retires the run, each in a write of its own, so with
+the checkout back on the head -- the label and a reply too, for the park --
+the head is routed with nothing current. The run is never made again, and
+nothing is pushed or launched.
 """
 from __future__ import annotations
 
@@ -35,11 +37,28 @@ _UNDRIVEN = "workflow:resolving_conflict"
 
 _READS = "_reads_the_checkout"
 
+_PROVES = "retires_unproved"
+
 
 def _moves_past(case, live, *read, **options):
     """`live`, the checkout's reading, taken past a stray commit made on `case`'s checkout."""
     case._git(*support.STRAY_COMMIT, cwd=case._wt)
     return live(*read, **options)
+
+
+def _vanishes_ahead(case, live, *asked, **options):
+    """`live`, a call, asked once `case`'s checkout is gone from disk."""
+    if case._wt.is_dir():
+        case._wt.rename(case._away)
+    return live(*asked, **options)
+
+
+def _vanishes_behind(case, live, *asked, **options):
+    """`live`, a call, its answer handed back once `case`'s checkout is gone from disk."""
+    answered = live(*asked, **options)
+    if case._wt.is_dir():
+        case._wt.rename(case._away)
+    return answered
 
 
 class MidProofCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
@@ -65,29 +84,37 @@ class MidProofCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self._assert_retired(head, settled)
 
     def test_a_standing_park(self) -> None:
-        # The dispatcher's hold of a stage the refresh does not drive finds
-        # its stranded park already standing, and the checkout goes as its
-        # proof is asked; the author replies once the label is put back.
+        # The dispatcher's hold, or the refresh's eligibility gate, of a stage
+        # the refresh does not drive finds its stranded park already
+        # standing, and the checkout goes as its proof is asked; the author
+        # replies once the label is put back.
+        answerers = {"dispatcher": partial(guarded.answers_a_held_anchor, self), "refresh": self.recovers}
+        for answerer, answers in answerers.items():
+            with self.subTest(answerer=answerer):
+                self.setUp()
+                head, settled = self.settles_then_dies()
+                self.issue.labels = [FakeLabel(_UNDRIVEN)]
+                answers()
+                self._vanishes_in_the_proof(answers)
+                self.issue.labels = [FakeLabel(git_support.REVIEWING)]
+                self.continues()
+                self._assert_retired(head, settled)
+
+    def test_a_request_inside_the_proof(self) -> None:
+        # The dispatcher's quiet hold proves over a checkout on disk, which
+        # goes right behind one of the proof's own readings of the issue, so
+        # its next git request of the checkout finds nothing there.
         head, settled = self.settles_then_dies()
-        self.issue.labels = [FakeLabel(_UNDRIVEN)]
-        guarded.answers_a_held_anchor(self)
-        self._vanishes_in_the_proof(partial(guarded.answers_a_held_anchor, self))
-        self.issue.labels = [FakeLabel(git_support.REVIEWING)]
-        self.continues()
+        with patch.object(self.gh, "get_issue", partial(_vanishes_behind, self, self.gh.get_issue)):
+            guarded.answers_a_held_anchor(self)
+        self.assertFalse(self._wt.is_dir())
         self._assert_retired(head, settled)
 
     def _vanishes_in_the_proof(self, recovery) -> None:
         """Run `recovery`, the checkout gone from disk right as the recovery's proof is first asked over it."""
-        vanishes = partial(self._vanishes, _retirement.retires_unproved)
-        with patch.object(_retirement, "retires_unproved", vanishes):
+        with patch.object(_retirement, _PROVES, partial(_vanishes_ahead, self, getattr(_retirement, _PROVES))):
             recovery()
         self.assertFalse(self._wt.is_dir())
-
-    def _vanishes(self, proves, context, moved=None) -> bool:
-        """`proves`, the recovery's proof, asked once the checkout is gone from disk."""
-        if self._wt.is_dir():
-            self._wt.rename(self._away)
-        return proves(context, moved)
 
     def _assert_retired(self, head: str, settled) -> None:
         """`settled` invalidated whole while the checkout is away, and still once it is back on `head` and routed."""

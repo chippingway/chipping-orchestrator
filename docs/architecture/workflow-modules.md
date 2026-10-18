@@ -2341,9 +2341,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             movement, a settlement another finish made of the captured run while its abandonment was
                             asked is invalidated over the same movement in its place, and an announcement another
                             finish of the landing put on the attempt is taken in before the invalidation lands over
-                            it; a checkout gone from disk, before the proof or while it is asked, has the reset
-                            recorded and both retired as over it in writes of their own by the recorder the context
-                            carries (`records_before_a_reset`), staged for the park only where it carries none. The
+                            it; a checkout gone from disk, before the proof or while it is asked -- one of its git
+                            requests finding nothing there among it (`rewrite_recovery_readings.LosesTheCheckout`) --
+                            has the reset recorded and both retired as over it in writes of their own by the recorder
+                            the context carries (`records_before_a_reset`), which every proof the parks module asks is
+                            handed, staged for the park only where it carries none. The
                             landed road's own holds (`rewrite_landed.py`) ask the same proof ahead of a hold's write.
                             The receipts of what stands (`receipts`) name the evidence movement read before a write is
                             keyed under, which
@@ -2453,7 +2455,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             beside the attempt as the tick read it, every evidence there, or blank beside an attempt
                             still standing, evidence the tick never held; and under a captured transaction a revision
                             read spent past it (`owed_moves`), as a finish held to the settled-evidence policy reads
-                            one still owed
+                            one still owed; and a block a checkout gone from disk cuts short (`LosesTheCheckout`), its
+                            git request there read as that loss rather than raised
     rewrite_recovery_staging.py
                             what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it
