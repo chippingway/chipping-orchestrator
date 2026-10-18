@@ -10,9 +10,13 @@ says nothing of an event an earlier process filed, so the word is taken as the
 event filed: once at most, never twice -- an event a process was lost ahead
 of goes unfiled. Only an event this process noted it was filing (`owes`) and
 never filed since (`pays`) -- the step ahead of it raised, or its finish was
-cut short -- is still its own to file (`unfiled`), since its tail would carry
-it had it gone out. A notice the event names (`notice_id`) is no part of what
-is owed: the event is owed before its notice is posted.
+cut short -- is still its own to file (`unfiled`). The note is kept on the
+repository's client, which shares it with every worker client it mints
+(`github/client.GitHubClient._for_worker_thread`), so a worker taking an
+issue up behind one lost mid-filing files what that one still owed, and one
+repository's debt never answers for another's. A notice the event names
+(`notice_id`) is no part of what is owed: the event is owed before its notice
+is posted.
 """
 from __future__ import annotations
 
@@ -20,7 +24,7 @@ from typing import Any
 
 from orchestrator.github import events as _events
 
-# Where a client keeps the events its process noted owing, beside its event tail.
+# Where a client keeps the events its process noted owing, shared with every worker client it mints.
 _NOTED = "owed_events"
 
 # The notice an event names, which is posted after the event is owed.
@@ -50,7 +54,7 @@ def unfiled(client: Any, event: str, *, issue_number: int, **identity: Any) -> b
 
 
 def _noted(client: Any) -> set:
-    """The events `client`'s process noted owing, kept on the client beside its event tail."""
+    """The events `client`'s process noted owing, kept on the client -- a test double's own where it carries none."""
     if getattr(client, _NOTED, None) is None:
         setattr(client, _NOTED, set())
     return getattr(client, _NOTED)

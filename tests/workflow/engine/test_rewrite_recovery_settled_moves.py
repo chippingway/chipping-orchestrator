@@ -6,8 +6,10 @@ The real-git finish case (`rewrite_verification_recovery_support`), the run
 settled and the finish killed at a final handoff boundary. The landing read
 moving -- the checkout committed past the head, or the remote rolled back --
 invalidates the run whole on whichever road that reading takes, so putting the
-landing back revives nothing. The run is never made again, and no developer is
-launched.
+landing back revives nothing -- nor does another road writing the comment back
+as it read right behind that invalidation, which is retired again before any
+road is taken, or putting a report back that a reset's record, its answer
+lost, read moved. The run is never made again, and no developer is launched.
 """
 from __future__ import annotations
 
@@ -16,14 +18,29 @@ from collections.abc import Callable
 from functools import partial
 from itertools import product
 from typing import NamedTuple
+from unittest.mock import patch
 
-from orchestrator.workflow.engine import verification_settlement_state as _settlement
+from orchestrator.git.base_sync.models import _AutoRebaseRecoverySnapshot
+from orchestrator.github.pinned_state import PinnedEdit
+from orchestrator.workflow.engine import (
+    rewrite_landing_moved as _landing_moved,
+    verification_settlement_state as _settlement,
+)
 from tests.workflow.engine import (
+    guarded_recovery_support as guarded,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
     rewrite_verification_recovery_support as support,
 )
+
+# The current record a settled run stands in, the report record it is bound
+# to, and the edit another road's writes race.
+_CURRENT = "verification_evidence_current"
+
+_REPORT = "developer_report_current"
+
+_EDITS = "edit_pinned_state"
 
 
 def _commits_past(case: support.CapturedRunCase, _head: str) -> None:
@@ -98,6 +115,64 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
         made = (self.runs(), self.pushes.call_count, self.developer.call_count)
         self.assertEqual(made, (1, 0, 0))
 
+
+
+class PutBackMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """Movement a recovery's write read stands, however soon another road puts the comment back behind that write."""
+
+    def test_a_restored_run_is_retired_again(self) -> None:
+        # The snapshot reads the checkout back on the anchor, and another road
+        # writes the comment back as it read right behind the write that
+        # invalidated the run: the run is retired again before the road goes
+        # on, and the poll behind routes the head with nothing current.
+        head, settled = self.settles_then_dies()
+        self._held = [self.gh.read_pinned_state(self.issue)]
+        snapshot = _AutoRebaseRecoverySnapshot(branch=git_support.BRANCH, local_head=self.anchor, remote_head=head)
+        with patch.object(self.gh, _EDITS, partial(self._puts_back_behind, self.gh.edit_pinned_state)):
+            self.assertTrue(_landing_moved.abandons_off_the_landing(guarded.recovery_context(self), snapshot))
+
+        self.assertEqual(self._held, [])
+        self._assert_routed_past(head, settled)
+
+    def test_a_report_moved_under_a_lost_record(self) -> None:
+        # Another road takes the run's report off before the reset's record
+        # reads the comment, and puts it back as that record goes out with its
+        # answer lost: the movement it read still invalidates the run whole.
+        head, settled = self.settles_then_dies()
+        context = guarded.recovery_context(self)
+        self._held = [self.pinned_fields(_REPORT)[0]]
+        self._writes_the_report(None)
+        with patch.object(self.gh, _EDITS, partial(self._answers_lost_once, self.gh.edit_pinned_state)):
+            self.assertFalse(context.records_before_a_reset(context))
+
+        self._assert_routed_past(head, settled)
+
+    def _puts_back_behind(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, the comment written back as held right behind the first to drop the run."""
+        answered = live(issue, staged, **options)
+        drops = answered is PinnedEdit.EDITED and staged.get(_CURRENT) is None
+        if drops and self._held:
+            self.gh.write_pinned_state(issue, self._held.pop())
+        return answered
+
+    def _answers_lost_once(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, its first answer lost behind the report held written back."""
+        if not self._held:
+            return live(issue, staged, **options)
+        self._writes_the_report(self._held.pop())
+        return PinnedEdit.UNCONFIRMED
+
+    def _writes_the_report(self, report) -> None:
+        """Write `report` as the run's report record, as another road would."""
+        state = self.gh.read_pinned_state(self.issue)
+        state.set(_REPORT, report)
+        self.gh.write_pinned_state(self.issue, state)
+
+    def _assert_routed_past(self, head: str, settled) -> None:
+        """`settled` invalidated whole before anything is routed, then the next poll routing `head`, nothing current."""
+        self.assert_invalidated(settled)
+        self.recovers()
+        self.assert_routed(head)
 
 if __name__ == "__main__":
     unittest.main()

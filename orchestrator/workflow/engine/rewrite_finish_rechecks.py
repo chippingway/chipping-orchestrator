@@ -40,10 +40,8 @@ land right behind (`rewrite_finish_unconfirmed.reconciles_the_abandonment`).
   taken in as read.
 
 No production finish selects that policy; the recovery's proofs, which
-build finishes held to it, ask `rechecks_behind` behind an abandonment
-another road's write refused (`rewrite_landing_moved.abandons`) and
-`invalidates_rechecked` behind their invalidation
-(`rewrite_landing_retirement`).
+build finishes held to it, ask `invalidates_rechecked` behind every
+invalidation of settled evidence they land (`rewrite_landing_retirement`).
 """
 from __future__ import annotations
 

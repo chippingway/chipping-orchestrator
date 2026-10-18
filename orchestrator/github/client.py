@@ -91,6 +91,11 @@ class GitHubClient(
             else bot_login
         )
         self.recorded_events: list[dict] = []
+        # The events this process noted it is filing and has not filed yet
+        # (`workflow/engine/owed_events`), shared with every worker client
+        # this one mints, so a worker that takes an issue up behind one lost
+        # mid-filing still owes them.
+        self.owed_events: set[tuple] = set()
         self._label_cache: dict[str, Label] = {}
         self._absent_after_sweep: dict[str, int] = {}
         self._pollable_calls = 0
@@ -159,14 +164,18 @@ class GitHubClient(
         Every scheduled handler mints one, so the mint asks GitHub nothing:
         the token and bot login are the ones this client already resolved, and
         the repository waits for the first read of its own metadata. A handler
-        that never reads it never fetches it.
+        that never reads it never fetches it. The events this client's process
+        owes are the worker's too (`owed_events`), the one ledger every worker
+        of this repository shares, so another repository's never mixes in.
         """
-        return GitHubClient(
+        worker = GitHubClient(
             token=self._token,
             repo_slug=self._repo_slug,
             bot_login=self._bot_login,
             lazy_repository=True,
         )
+        worker.owed_events = self.owed_events
+        return worker
 
     def _emit_stage_enter(self, issue: Issue, stage: str, **correlation: object) -> None:
         """Record matching audit and analytics stage-enter events, `correlation` on the audit event alone."""

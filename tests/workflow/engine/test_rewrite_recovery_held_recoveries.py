@@ -8,7 +8,8 @@ head nobody could prove, or a stranded park whose notice raised, proves the
 run first, so movement retires it whole and putting what moved back routes
 the head once with nothing current. A newer run settled right behind -- or,
 refusing it, ahead of -- the landed road's abandonment of a captured run is
-proved on its own readings.
+proved on its own readings, a mark of movement the refused edit read under it
+standing however soon it is put back.
 """
 from __future__ import annotations
 
@@ -100,6 +101,18 @@ class _SettlesBehindTheAbandonment:
             case._git(*support.STRAY_COMMIT, cwd=case._wt)
 
 
+class _PutsTheMarkBack(_SettlesBehindTheAbandonment):
+    """That race, the newer run's mark of movement put back as the edit it refused returns."""
+
+    def __call__(self, issue, staged, **options):
+        """The strict edit and the race around it, the handoff put back behind the first edit the mark refused."""
+        marked = self.handoff is None
+        answered = super().__call__(issue, staged, **options)
+        if marked and self.handoff is not None:
+            self._case.puts_back_records({_HANDOFF: self.handoff})
+        return answered
+
+
 class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
     """A whole recovery that keeps the attempt over the settled run proves it first, as a direct finish does."""
 
@@ -152,15 +165,19 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
 
     def test_a_marked_successor_behind_a_refusal(self) -> None:
         # The newer run settles right ahead of the abandonment, refusing it,
-        # marked moved: the recovery reads it afresh behind that refusal and
-        # retires it whole, so its handoff put back routes nothing current.
-        captured = self.captures()[1]
-        races = _SettlesBehindTheAbandonment(self, captured, marks=True)
-        races.recovers()
-        self.puts_back_records({_HANDOFF: races.handoff})
-        self.recovers()
+        # marked moved -- the mark left standing, or put back as the refused
+        # edit returns: the recovery retires it whole on the movement read
+        # under its own receipt, so its handoff put back routes nothing current.
+        for race in (_SettlesBehindTheAbandonment, _PutsTheMarkBack):
+            with self.subTest(race=race.__name__):
+                self.setUp()
+                captured = self.captures()[1]
+                races = race(self, captured, marks=True)
+                races.recovers()
+                self.puts_back_records({_HANDOFF: races.handoff})
+                self.recovers()
 
-        self._assert_proved_on_its_own(captured, races.newer, moved=True)
+                self._assert_proved_on_its_own(captured, races.newer, moved=True)
 
     def _assert_proved_on_its_own(self, captured, newer, *, moved: bool) -> None:
         """`captured` abandoned, and `newer` current -- or, where the checkout `moved` again, invalidated behind it."""

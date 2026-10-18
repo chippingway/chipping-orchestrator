@@ -184,7 +184,7 @@ def _left_the_fetched_head(
             "finished (it now reads %.8s); finishing nothing until a later tick classifies it again",
             context.issue.number, completed.head, context.pr_number, reads,
         )
-        _landing_moved.abandons(context, completed, candidate)
+        _landing_moved.abandons(context)
     else:
         log.warning(
             "issue=#%d the checkout's head could not be proved against %.8s, the head PR #%d was fetched standing "
@@ -213,7 +213,7 @@ def _finishes_the_observation(
     """
     landing = _rewrite_transport._observes_the_landing(context.spec, context.worktree, candidate)
     if landing.remote.sha is not None and not landing.landed:
-        _landing_moved.abandons(context, completed, candidate)
+        _landing_moved.abandons(context)
     return _finish.finishes_the_recovery(context, landing)
 
 

@@ -33,7 +33,7 @@ coordinator (`rewrite_finish.finalizes`), its evidence phase
 (`rewrite_finish_settlement.resolves`), or those primitives directly reaches it.
 The recovery's proofs are such a caller: every finish they build to retire or
 prove a landing's evidence, routing nothing, selects it
-(`rewrite_landing_moved`).
+(`rewrite_landing_captured`).
 """
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ class LandedFinish:
     (`rewrite_finish.finalizes`) and its evidence phase
     (`rewrite_finish_settlement.resolves`), which no production road hands
     over -- the recovery's proofs build their finishes with it
-    (`rewrite_landing_moved`) and route none of them: every shared helper the
+    (`rewrite_landing_captured`) and route none of them: every shared helper the
     finish calls -- readiness, adoption, retirement, and its guarded writes
     among them -- reads it before taking
     any of that policy's proofs, write profiles, adoptions, retries, marks, or

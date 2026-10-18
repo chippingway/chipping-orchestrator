@@ -328,8 +328,9 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     git owner to hold with nothing reset or cleaned -- the tick's state
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
     never written back over a blank that landed unconfirmed. Movement a
-    refused record read (`rewrite_landing_retirement.moved_under`) is proved
-    as read first, so a tip blanked and put back under it revives nothing.
+    record that did not land read -- refused, or sent with its answer lost --
+    (`rewrite_landing_retirement.moved_under`) is proved as read first, so a
+    report moved, or a tip blanked, and put back under it revives nothing.
     """
     if not _attempt_records._recorded_onto(context.state):
         return True
@@ -347,7 +348,7 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
         "nothing is reset until a later tick records it",
         context.issue.number, (landed.refusal or landed.status).value,
     )
-    if moved and landed.status is _commit_models.CommitStatus.REFUSED and context.worktree.is_dir():
+    if moved and context.worktree.is_dir():
         _retirement.retires_unproved(context, _retirement.reconciles(context, moved))
     return False
 

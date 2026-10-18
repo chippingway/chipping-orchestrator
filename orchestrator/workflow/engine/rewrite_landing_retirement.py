@@ -7,11 +7,11 @@ short of its route leaves it pending beside the attempt
 (`rewrite_landing_records.captured`), and one that settled it and then died
 in the tail of its route -- before the announcement, the relabel, or the
 retirement -- leaves it current beside the attempt
-(`rewrite_landing_records.settled`). The recovery's helpers
-(`rewrite_landing_moved`) retire both wherever a snapshot reads the landing
-moved. These hold both to the same readings on the two roads that end a
-recovery without that landing's route -- a reset that releases the attempt,
-and a park that keeps it -- and every recovery context the workflow builds
+(`rewrite_landing_records.settled`). These hold both to the same readings
+on the two roads that end a recovery without that landing's route -- a reset
+that releases the attempt, and a park that keeps it -- and on a snapshot that
+reads the landing moved, whose helpers (`rewrite_landing_moved`) hand the
+park's proof that movement as read; every recovery context the workflow builds
 carries them: each recovery road's (`rewrite_recovery.recovers`), the abort
 over an unreadable checkout's, the eligibility gate's park of a label the
 refresh does not drive (`base_rewrite`), and the dispatcher's held anchor
@@ -21,7 +21,7 @@ refresh does not drive (`base_rewrite`), and the dispatcher's held anchor
   (`retires_over_the_reset`, the answer a recovery context's
   `settles_over_a_reset` carries): the transaction is abandoned on the state
   the park or the clear lands, as its own half stages it
-  (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
+  (`rewrite_landing_captured.abandons_over_the_reset`), and settled evidence is
   invalidated into history whole on that same state, its revision, binding,
   and provenance kept, so it goes with the attempt's release or neither goes.
   With no room for its history entry it is never dropped: it stays current and
@@ -36,7 +36,7 @@ refresh does not drive (`base_rewrite`), and the dispatcher's held anchor
   `git/base_sync/snapshot._clear_ineligible_recovery`).
 - Before a park that keeps the attempt (`retires_unproved`): the transaction
   is proved again and abandoned where it moved
-  (`rewrite_landing_moved.proves_captured`), and settled evidence is proved
+  (`rewrite_landing_captured.proves_captured`), and settled evidence is proved
   ready (`rewrite_finish_readiness.settled_word`) and invalidated whole where
   it moved (`rewrite_finish_readiness.invalidates`), both by a finish of the
   landed head held to the settled-evidence policy -- the mark of
@@ -99,7 +99,7 @@ from orchestrator.workflow.engine import (
     report_commits as _commits,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_writes as _writes,
-    rewrite_landing_moved as _landing_moved,
+    rewrite_landing_captured as _landing_captured,
     rewrite_landing_records as _landing_records,
     verification_durable as _durable,
     verification_settlement_state as _settlement,
@@ -138,7 +138,7 @@ _SLOTS = ((PENDING_EVIDENCE, _landing_records.captured), (CURRENT_EVIDENCE, _lan
 
 def retires_over_the_reset(
     context: _base_sync_models._AutoRebaseContext | _base_sync_models._AutoRebaseRecoveryContext,
-    why: str = _landing_moved._RELEASED,
+    why: str = _landing_captured._RELEASED,
 ) -> bool:
     """Stage the retirement of what a finish captured or settled for the landed head; whether the attempt may go.
 
@@ -148,7 +148,7 @@ def retires_over_the_reset(
     standing back on the anchor under a label the refresh does not drive,
     whose clear asks it too
     (`git/base_sync/snapshot._clear_ineligible_recovery`). The transaction is
-    abandoned (`rewrite_landing_moved.abandons_over_the_reset`), and settled
+    abandoned (`rewrite_landing_captured.abandons_over_the_reset`), and settled
     evidence is invalidated on the same state, into history whole, its
     revision and binding kept, so both land with the attempt's release or
     neither does. With no room for its history entry the settled evidence is
@@ -166,7 +166,7 @@ def retires_over_the_reset(
     tick with nothing parked until room is made. `why` names the write it
     rides, logged.
     """
-    _landing_moved.abandons_over_the_reset(context, why)
+    _landing_captured.abandons_over_the_reset(context, why)
     settled = _landing_records.settled(context.state)
     if settled is None:
         return True
@@ -193,8 +193,10 @@ def retires_unproved(
 ) -> bool:
     """Prove what a finish captured or settled for the landed head before a park keeps it, retiring what moved.
 
-    Whether the park may go on. The transaction is proved first
-    (`rewrite_landing_moved.proves_captured`), and settled evidence then
+    Whether the park may go on -- or, asked by a snapshot that read the
+    landing moved (`rewrite_landing_moved.abandons`), its road. The
+    transaction is proved first (`rewrite_landing_captured.proves_captured`),
+    and settled evidence then
     proved ready again and invalidated whole where it moved; nothing is read
     or written where neither stands and no movement was read, and what
     nothing moved under is kept. Movement read under a receipt the tick holds
@@ -237,14 +239,14 @@ def retires_unproved(
     if not (moved or receipts(context.state)):
         return True
     if not context.worktree.is_dir():
-        return retires_over_the_reset(context, _landing_moved._CHECKOUT_GONE)
+        return retires_over_the_reset(context, _landing_captured._CHECKOUT_GONE)
     branch = _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
     unread = _base_sync_models._AutoRebaseRecoverySnapshot(branch=branch, local_head="")
     asked = asks_every_reading(
         context, lambda reading: moved_under(reading, tick=context.state, into=moved),
     )
     proved = (
-        _landing_moved.proves_captured(
+        _landing_captured.proves_captured(
             asked,
             unread,
             moved.get(getattr(_landing_records.captured(context.state), "receipt", None)),
@@ -466,7 +468,7 @@ def _proves_settled(
         settled = _landing_records.settled(context.state)
     if settled is None:
         return True
-    finish = _landing_moved._finish(context, settled.binding.target.target_head, unread, None)
+    finish = _landing_captured._finish(context, settled.binding.target.target_head, unread, None)
     word = moved.get(settled.receipt) or _readiness.settled_word(
         finish,
         settled,

@@ -392,7 +392,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     owed_events.py          the events this process is filing behind a durable word that they may be out -- a landed
                             rewrite's `base_rebased` record, a park's notice -- noted owed until filed, so with no
                             audit log such a word is taken as its event filed, once at most, save one this process
-                            still owes
+                            still owes -- noted on the repository's client, which shares it with every worker client
+                            it mints (`github/client.py`)
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked
@@ -1212,7 +1213,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             would not read, a post that raised and is not found -- or unfinishable; and which evidence
                             policy the finish is held to (`proves_settled`): the one every road hands over, or the
                             dormant settled-evidence policy only a caller building the finish itself selects -- the
-                            recovery's proofs, which route nothing (`rewrite_landing_moved.py`), among them -- which
+                            recovery's proofs, which route nothing (`rewrite_landing_captured.py`), among them -- which
                             every shared helper the finish calls reads before taking any of its proofs, write
                             profiles, adoptions, or retirements; and whether a finish's route lands a record of its
                             own relabel -- held to that dormant policy and routing, not continuing, its head
@@ -2255,22 +2256,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction an earlier finish recorded, found by the receipt on the attempt, published and
                             settled under the anchor -- before anything is announced, the mark an earlier finish left
                             keeping its notice and event from being said again
-    rewrite_landing_moved.py
-                            the recovery's helpers: the evidence transaction a finish of the attempt captured --
-                            the one under the receipt it put on the attempt, or before that receipt existed one
+    rewrite_landing_captured.py
+                            the recovery's primitives over the evidence transaction a finish of the attempt captured
+                            -- the one under the receipt it put on the attempt, or before that receipt existed one
                             about the head its mark names (`rewrite_landing_records.captured`), which leaves any
-                            other as the road that recorded it wrote it --
-                            abandoned, unrun, and evidence a finish settled for the head
-                            (`rewrite_landing_records.settled`) invalidated into history whole
-                            (`rewrite_finish_readiness.invalidates`), before any road that reads the landing
-                            off that head -- a snapshot reading its checkout or remote on another head
-                            (`abandons_off_the_landing`, through `rewrite_finish_captured.py`'s last word with the
-                            movement already read, a settlement another finish made of the run while its abandonment was
-                            asked invalidated over that movement, a successor under another receipt kept), answering
-                            False where no write could retire either so the road holds, and keeping both where a head
-                            went unread, which moves nothing, for a reset that lands to retire; the same retirement
-                            asked by the landed road (`rewrite_landed.py`) of a checkout or remote it reads leaving the
-                            head (`abandons`); the transaction's half of the answer a
+                            other as the road that recorded it wrote it: the transaction's half of the answer a
                             landed reset is owed (`abandons_over_the_reset`), staged on the
                             state the git owner's park lands (`git/base_sync/persistence.py`) so it goes with the
                             attempt's release or not at all, dropped with the recorded base tip blanked where
@@ -2278,9 +2268,25 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             captured proof behind every park or hold that keeps the attempt (`proves_captured`), which
                             takes movement a caller already read as its proof, asks each comment its proof and last word
                             read what it records moving under the transaction there where the recovery's proof before a
-                            park hands that in (`asks`), and abandons the transaction where either reads movement. The
+                            park hands that in (`asks`), and abandons the transaction where either reads movement, a
+                            settlement another finish made of the run while that was asked invalidated over it. The
                             settled-aware answers (`rewrite_landing_retirement.py`) are built
-                            over it and over the finish of a head's landing (`_finish`)
+                            over it and over the finish of a head's landing they prove with (`_finish`), held to the
+                            settled-evidence policy
+    rewrite_landing_moved.py
+                            the recovery's helpers over a landing read moved: the transaction a finish captured
+                            abandoned, unrun, and evidence a finish settled for the head
+                            (`rewrite_landing_records.settled`) invalidated into history whole, read afresh behind and
+                            retired again where it was put back, before any road that reads the landing off that head
+                            -- a snapshot reading its checkout or remote on another head (`abandons_off_the_landing`)
+                            -- through the recovery's proof before a park
+                            (`rewrite_landing_retirement.retires_unproved`) handed that movement as already read under
+                            every receipt the tick holds, a successor under
+                            another receipt proved on its own readings and on any comment the proof's writes read,
+                            answering False where no write could retire either so the road holds, and keeping both
+                            where a head went unread, which moves nothing, for a reset that lands to retire; the same
+                            retirement asked by the landed road (`rewrite_landed.py`) of a checkout or remote it reads
+                            leaving the head (`abandons`)
     rewrite_landing_retirement.py
                             the settled-aware answers every recovery context the workflow builds carries -- each
                             recovery road's (`rewrite_recovery.recovers`), the abort over an unreadable checkout's,
@@ -2297,7 +2303,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`rewrite_finish_writes.ABANDONMENT`) so every later proof reads movement, and the
                             answer is False, for the git owner to keep the attempt with nothing released or parked.
                             Before a park or hold that keeps the attempt (`retires_unproved`) the captured run is
-                            proved again (`rewrite_landing_moved.proves_captured`) and settled evidence proved ready
+                            proved again (`rewrite_landing_captured.proves_captured`) and settled evidence proved ready
                             (`rewrite_finish_readiness.settled_word`) and invalidated where it moved, read afresh behind
                             as the finish's evidence phase reads it (`rewrite_finish_rechecks.invalidates_rechecked`) so
                             that evidence put back current right behind is retired again -- asked once more where that
@@ -2412,7 +2418,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `records_before_a_reset`), decided on every evidence record and the attempt as
                             the tick read them (`rewrite_finish_writes.INVALIDATION`), so evidence settled since refuses
                             it, and a blank refused or never confirmed holds with nothing reset or cleaned, the tick's
-                            state withheld so its stale tip is never written back over a blank that landed unconfirmed;
+                            state withheld so its stale tip is never written back over a blank that landed unconfirmed,
+                            and what its commit read moving under the evidence proved as read, so putting that back
+                            revives nothing;
                             and the proof before a park
                             that keeps the attempt (`proves_before_a_park`) records the same blank first over a
                             checkout gone from disk
