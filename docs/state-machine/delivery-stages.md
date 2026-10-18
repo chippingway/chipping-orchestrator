@@ -1530,7 +1530,8 @@ because there it is the claim that this stage has already rerouted rather than a
   (`rewrite_recovery_parks.answers_a_held_anchor`). It is invalidated whole wherever a snapshot reads the landing off
   its head (`rewrite_landing_moved`); the reset is recorded first by blanking the attempt's base tip in a write decided
   on the evidence records as the tick read them (`rewrite_recovery_parks.records_the_reset`), so no reset or clean
-  moves the checkout before that record is confirmed landed; settled evidence is invalidated whole in the write that
+  moves the checkout before that record is confirmed landed, nor before evidence it read moving is retired, the tip a
+  reset git refused stages back reviving none of it; settled evidence is invalidated whole in the write that
   releases the attempt, or kept whole beside it with nothing released where history has no room
   (`rewrite_landing_retirement.retires_over_the_reset`); and every park or hold that keeps the attempt asks the proof
   before it (`rewrite_recovery_parks.proves_before_a_park`) -- the dispatcher's holds that post nothing and a stranded

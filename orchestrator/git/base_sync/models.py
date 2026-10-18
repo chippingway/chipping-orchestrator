@@ -203,7 +203,8 @@ class _AutoRebaseRecoveryContext:
     # settled for that head marked moved by blanking the attempt's recorded
     # base tip in a write of its own -- decided on the evidence records as the
     # tick read them, so evidence settled since refuses it -- which a reset git
-    # refused has staged back. False holds the tick with nothing reset,
+    # refused has staged back, so evidence that write read moving is retired
+    # before the reset is let go on. False holds the tick with nothing reset,
     # cleaned, dropped, or parked. None records nothing; the workflow's
     # recovery hands its recorder in on every context whose road may reset
     # (`workflow/engine/rewrite_recovery_parks.records_the_reset`).

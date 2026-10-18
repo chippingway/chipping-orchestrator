@@ -378,7 +378,9 @@ def _resets(
     again. A reset git refused
     moved nothing, so the tip is staged back on the state for the park that
     keeps the attempt to write, and the decision stands for the proof that
-    park asks first, as it did before the record. A context with no recorder
+    park asks first, as it did before the record -- a decision that record
+    read moving the recorder has retired before answering, so none stands
+    then for the tip put back to revive. A context with no recorder
     -- a refresh's own, ahead of any recovery -- resets with nothing recorded.
     """
     onto = context.state.get(_PENDING_REWRITE_BASE)

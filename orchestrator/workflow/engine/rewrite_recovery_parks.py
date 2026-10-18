@@ -327,30 +327,38 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     landed; False, logged, where it was refused or went unconfirmed, for the
     git owner to hold with nothing reset or cleaned -- the tick's state
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
-    never written back over a blank that landed unconfirmed. Movement a
-    record that did not land read -- refused, or sent with its answer lost --
-    (`rewrite_landing_retirement.moved_under`) is proved as read first, so a
-    report moved, or a tip blanked, and put back under it revives nothing.
+    never written back over a blank that landed unconfirmed. Movement the
+    record's commit read (`rewrite_landing_retirement.moved_under`) is proved
+    as read before anything else -- landed, refused, or sent with its answer
+    lost -- so a report moved, or a tip blanked, and put back under it
+    revives nothing: behind a blank that landed, the evidence it moved under
+    is retired before the reset is let go on, since a reset git then refuses
+    stages the tip back, and where that retirement does not land the answer
+    is False, the blank left standing as the record of that movement.
     """
     if not _attempt_records._recorded_onto(context.state):
         return True
     moved: dict[str, ReportEvidence] = {}
-    asked = asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved))
-    commit = _commits.ReportCommit(asked.gh, context.issue, context.state)
+    commit = _commits.ReportCommit(
+        asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved)).gh,
+        context.issue,
+        context.state,
+    )
     staged = commit.staging()
     staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
     landed = commit.lands(staged, _writes.INVALIDATION)
-    if landed.status is _commit_models.CommitStatus.COMMITTED:
+    recorded = landed.status is _commit_models.CommitStatus.COMMITTED
+    if recorded:
         log.info("issue=#%d recorded the reset ahead of it by blanking the attempt's base tip", context.issue.number)
-        return True
-    log.warning(
-        "issue=#%d the reset could not be recorded ahead of it over the evidence records the tick read (%s); "
-        "nothing is reset until a later tick records it",
-        context.issue.number, (landed.refusal or landed.status).value,
-    )
+    else:
+        log.warning(
+            "issue=#%d the reset could not be recorded ahead of it over the evidence records the tick read (%s); "
+            "nothing is reset until a later tick records it",
+            context.issue.number, (landed.refusal or landed.status).value,
+        )
     if moved and context.worktree.is_dir():
-        _retirement.retires_unproved(context, _retirement.reconciles(context, moved))
-    return False
+        recorded = _retirement.retires_unproved(context, _retirement.reconciles(context, moved)) and recorded
+    return recorded
 
 
 def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, named: str) -> None:
