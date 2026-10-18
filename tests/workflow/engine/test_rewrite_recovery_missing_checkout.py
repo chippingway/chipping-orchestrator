@@ -25,9 +25,11 @@ is recorded ahead of the hold's record, and a hold record GitHub refuses
 leaves the run read moving once the checkout is back. A checkout that goes
 from disk only as a hold's or a park's record lands, or as a park's notice
 raises, leaves nothing behind it to prove the run over, so the reset is
-recorded against the run there instead, with the same effect. Nothing is run
-again or pushed, nothing is announced or relabelled ahead of a route, and no
-developer is launched.
+recorded against the run there instead, with the same effect. A checkout the
+landed road reads off the head and that goes from disk right behind that
+reading leaves no park behind it, so the run's retirement is landed in a
+record of its own, as a hold's is. Nothing is run again or pushed, nothing is
+announced or relabelled ahead of a route, and no developer is launched.
 """
 from __future__ import annotations
 
@@ -35,6 +37,7 @@ import unittest
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator.git.base_sync import rewrite_facts
 from orchestrator.workflow.engine import rewrite_recovery_parks as _parks
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
@@ -42,6 +45,7 @@ from tests.workflow.engine import (
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
+    rewrite_verification_recovery_support as support,
 )
 
 # A label the refresh does not drive, under which the dispatcher's hold strands the attempt.
@@ -221,6 +225,42 @@ class MissingCheckoutRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(standing, (self.anchor, None))
         self.assertTrue(self.proves())
         self.assert_invalidated(settled)
+
+
+
+class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """A checkout read off the landed head that goes from disk before its run is retired still retires it whole."""
+
+    def test_a_vanished_checkout_retires_the_run(self) -> None:
+        # The landed road reads the checkout committed past the head, and the
+        # checkout goes from disk right behind that reading, leaving no park to
+        # write the retirement on: the run, settled or only captured, is retired
+        # whole in a record of its own, the reset recorded ahead of it, so the
+        # checkout put back on the head revives nothing.
+        for captures in (False, True):
+            with self.subTest(captured=captures):
+                self.setUp()
+                head, run = self.captures() if captures else self.settles_then_dies()
+                away = self._wt.parent / _AWAY
+                reads = partial(self._moves_then_vanishes, rewrite_facts._reads_the_checkout, away)
+                with patch.object(rewrite_facts, "_reads_the_checkout", reads):
+                    self.recovers()
+
+                if captures:
+                    self.assert_abandoned(run)
+                else:
+                    self.assert_invalidated(run)
+                away.rename(self._wt)
+                self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+                self.recovers()
+                self.assert_routed(head)
+
+    def _moves_then_vanishes(self, live, away, *read, **options):
+        """`live`, the checkout's reading, taken past a stray commit, the checkout moved to `away` right behind it."""
+        self._git(*support.STRAY_COMMIT, cwd=self._wt)
+        reading = live(*read, **options)
+        self._wt.rename(away)
+        return reading
 
 
 if __name__ == "__main__":

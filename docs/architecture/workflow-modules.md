@@ -2286,7 +2286,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             answering False where no write could retire either so the road holds, and keeping both
                             where a head went unread, which moves nothing, for a reset that lands to retire; the same
                             retirement asked by the landed road (`rewrite_landed.py`) of a checkout or remote it reads
-                            leaving the head (`abandons`)
+                            leaving the head (`abandons`), landed over a checkout gone from disk since as a hold's is
+                            (`rewrite_recovery_parks.lands_a_hold`), the reset recorded first, since that road writes
+                            nothing behind it
     rewrite_landing_retirement.py
                             the settled-aware answers every recovery context the workflow builds carries -- each
                             recovery road's (`rewrite_recovery.recovers`), the abort over an unreadable checkout's,
@@ -2414,8 +2416,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             every write it lands (`rewrite_recovery_staging.py`), and behind one keeps it out of them. A
                             checkout gone from disk only behind a record or a notice that raised has the reset recorded
                             there instead (`proves_before_a_park`). Ahead of every reset whose attempt records a base
-                            tip, that tip is blanked in a write of its own (`records_the_reset`, the context's
-                            `records_before_a_reset`), decided on every evidence record and the attempt as
+                            tip -- or one the tick read blank, confirmed blank over the comment read afresh, so a tip
+                            another road put back refuses the reset -- that tip is blanked in a write of its own
+                            (`records_the_reset`, the context's `records_before_a_reset`), decided on every evidence
+                            record and the attempt as
                             the tick read them (`rewrite_finish_writes.INVALIDATION`), so evidence settled since refuses
                             it, and a blank refused or never confirmed holds with nothing reset or cleaned, the tick's
                             state withheld so its stale tip is never written back over a blank that landed unconfirmed,

@@ -3359,7 +3359,8 @@ The keys that matter for the state machine fall into a few groups:
   (`proves_before_a_park`), as every dispatcher hold that keeps it with nothing posted has, on every poll. Each
   recovery park is recorded through the guarded park every recovery context the workflow builds carries, over the
   comment read afresh (`lands_a_park`), and every recovery reset is recorded first, the attempt's base tip blanked
-  where it records one, so nothing a checkout put back revives the evidence (`records_before_a_reset`,
+  where it records one and a tip the tick read blank confirmed blank on the comment read afresh, so nothing a
+  checkout put back revives the evidence (`records_before_a_reset`,
   `workflow/engine/rewrite_recovery_parks.py`); a publication gate's hold of a recovery's push is recorded over the
   comment read afresh too, its proof taken first (`lands_a_hold`, `HOLD`). Their records keep what moved under them
   as read -- the comment a refused strict edit

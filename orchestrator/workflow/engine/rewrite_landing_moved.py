@@ -58,6 +58,7 @@ from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext, _AutoR
 from orchestrator.workflow.engine import (
     rewrite_landing_records as _landing_records,
     rewrite_landing_retirement as _retirement,
+    rewrite_recovery_parks as _recovery_parks,
 )
 from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING
 
@@ -106,6 +107,16 @@ def abandons(context: _AutoRebaseRecoveryContext) -> bool:
     it moving. Nothing is routed either way, and nothing is read or written
     where neither stands. False where either still stands once its
     retirement was asked, or where a successor's proof holds.
+
+    A checkout gone from disk since the landing was read has nothing to prove
+    over, and the proof stages its retirement for a park's write
+    (`rewrite_landing_retirement.retires_over_the_reset`), which a road that
+    writes nothing behind would drop. So the retirement is recorded as a
+    recovery hold records it (`rewrite_recovery_parks.lands_a_hold`): the
+    reset recorded first by blanking the base tip, then the retirement landed
+    over the comment read afresh.
     """
     left = {receipt: LEFT_THE_LANDING for receipt in _retirement.receipts(context.state)}
+    if left and not context.worktree.is_dir():
+        return _recovery_parks.lands_a_hold(context)
     return _retirement.retires_unproved(context, left)

@@ -17,6 +17,11 @@ report restored revives it. Where that retirement does not land -- every write
 behind the blank refused -- nothing is reset or parked, the blank standing as
 the record of that movement, and the next recovery reads it and invalidates
 the run whole with the attempt's release.
+
+A base tip the tick read blank is held to the comment read afresh too: put
+back by another road while the fetch fails, it refuses the record, so no
+reset is made that nothing records, and the next tick records the reset and
+makes it.
 """
 from __future__ import annotations
 
@@ -45,6 +50,13 @@ def _refuses_the_reset(live, asked: list, verb: str, *args, **options) -> subpro
     if verb == "reset":
         asked.append(verb)
         return subprocess.CompletedProcess([verb, *args], 1, "", "reset refused")
+    return live(verb, *args, **options)
+
+
+def _notes_the_reset(live, asked: list, verb: str, *args, **options) -> subprocess.CompletedProcess:
+    """`live`, the hardened git call, run as it is, every reset noted in `asked`."""
+    if verb == "reset":
+        asked.append(verb)
     return live(verb, *args, **options)
 
 
@@ -124,6 +136,46 @@ class RecordedMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         """Write `report` as the run's report record, as another road would."""
         state = self.gh.read_pinned_state(self.issue)
         state.set(_REPORT, report)
+        self.gh.write_pinned_state(self.issue, state)
+
+
+
+class BlankTipTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """A base tip the tick read blank is held to the comment read afresh before the reset goes on."""
+
+    def test_a_tip_put_back_holds_the_reset(self) -> None:
+        # The tick reads the attempt's base tip blank, and another road puts it
+        # back while the fetch fails: the record is refused, so no reset is made
+        # that nothing records; the next tick records the reset, makes it, and
+        # releases the attempt with the run invalidated whole.
+        settled = self.settles_then_dies()[1]
+        self._tip = [self.pinned_fields(readings.KEY_REWRITE_BASE)[0]]
+        self._writes_the_tip(None)
+        resets: list = []
+        with (
+            patch.object(branch_transport, _FETCHES, self._puts_the_tip_back),
+            patch.object(commands, _GIT, partial(_notes_the_reset, getattr(commands, _GIT), resets)),
+        ):
+            self.recovers()
+            self.assertEqual((resets, self._tip), ([], []))
+            self.assertIsNotNone(self.pinned_fields(readings.KEY_REWRITE_BASE)[0])
+            self.recovers()
+
+        self.assertEqual(resets, ["reset"])
+        self.assert_invalidated(settled)
+        self.assert_released()
+
+    def _puts_the_tip_back(self, spec, ref: str, **options):
+        """The branch's fetch, failing, the tip held written back behind it the first time."""
+        fetched = guarded.unfetched(spec, ref, **options)
+        if "issue-7" in ref and self._tip:
+            self._writes_the_tip(self._tip.pop())
+        return fetched
+
+    def _writes_the_tip(self, tip) -> None:
+        """Write `tip` as the attempt's base tip, as another road would."""
+        state = self.gh.read_pinned_state(self.issue)
+        state.set(readings.KEY_REWRITE_BASE, tip)
         self.gh.write_pinned_state(self.issue, state)
 
 
