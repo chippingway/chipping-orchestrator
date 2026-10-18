@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The client a base rewrite's dormant recovery proof reads the pinned comment through, every reading asked first.
+"""The client a base rewrite's recovery proof reads the pinned comment through, every reading asked first.
 
 The proof before a park or hold that keeps the attempt
 (`rewrite_landing_retirement.retires_unproved`) builds finishes of its own,
@@ -18,11 +18,8 @@ first.
 classifier (`rewrite_landing_retirement.moved_under`): blank or repointed
 beside the attempt as the tick read it, every evidence; blank beside an
 attempt still standing, evidence the tick never held. `owed_moves` reads
-what it records moving under a transaction captured for the head, as the
-complete dormant finish reads one still owed.
-
-It is dormant, as that proof is: no recovery context the workflow builds
-reaches it.
+what it records moving under a transaction captured for the head, as a
+finish held to the settled-evidence policy reads one still owed.
 """
 from __future__ import annotations
 
@@ -68,7 +65,7 @@ _SPENT_PAST_THE_OWED = ReportEvidence(
 
 
 class AsksEveryReading:
-    """`gh` for one issue's dormant recovery proof: every call passed through, each reading of its comment asked."""
+    """`gh` for one issue's recovery proof: every call passed through, each reading of its comment asked."""
 
     def __init__(self, gh: GitHubClient, issue_number: int, asks: Callable[[PinnedState], object]) -> None:
         self._gh = gh
@@ -145,7 +142,7 @@ def owed_moves(comment: PinnedState, pending: _records.PendingEvidence) -> tuple
 
     A review or report record off its binding (`verification_proof.recorded_verdict`)
     and a readable revision spent past it (`rewrite_finish_outranking.outranks_the_owed`),
-    as the complete dormant finish reads a transaction still owed
+    as a finish held to the settled-evidence policy reads a transaction still owed
     (`rewrite_finish_settled.reads_moving`); None for each that holds.
     """
     spent = _SPENT_PAST_THE_OWED if outranks_the_owed(comment, pending) else None

@@ -1,18 +1,24 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A dormant guarded recovery hold, its settled run proved first and once more behind its own record.
+"""A guarded recovery hold, its settled run proved first and once more behind its own record.
 
 The guarded recovery case (`guarded_recovery_support`): issue #7's rebased
 head reviewed, its run settled under the anchor, and the finish killed before
-its announcement, so the attempt stands. No recovery road records a
-publication gate's hold through the guarded `HOLD` yet, so a case hands the
-recovery context read off the comment straight to the dormant hold
-(`rewrite_recovery_parks.lands_a_hold`), as a gate that held a recovery's
-push would: the run is proved first, and only what the tick staged since its
+its announcement, so the attempt stands. The next tick's recovery reads the
+landing standing with a transfer permission still outstanding beside it, so
+the landed road receipts it through the permit-only leased no-op, and the
+publication gate holds that no-op (`rewrite_landed_hold_support`): its hold is
+recorded through the guarded `HOLD` (`rewrite_recovery_parks.lands_a_hold`),
+the run proved first, and only what the tick staged since its
 reading lands, over the comment read afresh.
+The transfer's own machinery -- how far it got, its permit, and the gate's
+answer -- is stood in for. A case that hands a recovery context straight to
+the hold or the park asks that operation directly.
 
-A newer transaction recorded before the record survives it with its revision
-floor, and a newer run settled beside report 3 is proved on its own readings.
+The issue edited under the run has it invalidated whole, putting the
+requirements back reviving nothing. A newer transaction recorded while the
+gate answers survives the record with its revision floor, and a newer run
+settled beside report 3 is proved on its own readings.
 Behind the record the run is proved once more, so movement read at the record
 stands however soon it is put back: report 3 settled there (landed, answer
 lost, or refused, for room among the rest), or ahead of the fresh reading a
@@ -32,6 +38,7 @@ from unittest.mock import patch
 
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from orchestrator.workflow.engine import (
+    owed_events as _owed_events,
     report_commits as _commits,
     rewrite_landing_records as _landing_records,
     rewrite_recovery_parks as _parks,
@@ -43,10 +50,13 @@ from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
+    rewrite_landed_hold_support as gate,
     rewrite_verification_recovery_support as support,
     settled_finish_support as settled_support,
     verification_report_fixture as _report,
 )
+
+_EDITED_BODY = "Also cover a base that moved twice."
 
 # How the history records evidence a newer transaction for its head settled over.
 _SUPERSEDED = "superseded"
@@ -73,8 +83,12 @@ _AHEAD_OF_THE_EDIT = "ahead of the edit"
 
 # The tip blanked under that edit beside the record of the `base_rebased`
 # event another finish of the landing is filing for the head, which advances
-# this very attempt rather than replacing it; the tip alone is put back.
+# this very attempt rather than replacing it; the tip alone is put back. That
+# finish is this process's, so its event is noted owed as it notes it.
 _TIP_BESIDE_THE_EVENT = "the tip beside the event record under the edit"
+
+# The event that finish files.
+_REBASED = "base_rebased"
 
 # A record the tick staged since its reading, as a gate holding over a
 # reading of its own does, so the hold's record has an edit to send -- one
@@ -98,7 +112,7 @@ _ELSEWHERE = "0123456789abcdef0123456789abcdef01234567"
 # The modes whose movement races the record's strict edit itself.
 _AT_THE_EDIT = frozenset((_UNDER_THE_EDIT, _TIP_UNDER_THE_EDIT, _TIP_BESIDE_THE_EVENT, _AHEAD_OF_THE_EDIT))
 
-# The dormant guarded records a case races -- the hold's, and the park's -- and how a recovery context lands each.
+# The guarded records a case races -- the hold's, and the park's -- and how a recovery context lands each.
 _RECORDS = frozenset((_parks.HOLD, _parks.PARK))
 _LANDED_BY = (
     ("hold", _parks.lands_a_hold),
@@ -201,6 +215,7 @@ class _AroundTheHold:
         durable.set(readings.KEY_REWRITE_BASE, None)
         if self._failing == _TIP_BESIDE_THE_EVENT:
             durable.set(readings.KEY_ANNOUNCED_EVENT, self._head)
+            _owed_events.owes(case.gh, _REBASED, issue_number=case.issue.number, sha=self._head)
         case.gh.write_pinned_state(case.issue, durable)
 
     def _moves_under(self, live, issue, state, *, over: dict, **options):
@@ -255,11 +270,6 @@ class _WritesAtTheHold:
         self._case.gh.write_pinned_state(self._case.issue, state)
 
 
-def _holds(case) -> None:
-    """Hand the recovery context read off `case`'s comment as it stands to the dormant guarded hold."""
-    _parks.lands_a_hold(guarded.recovery_context(case))
-
-
 def _assert_routed(case, head: str, current=None) -> None:
     """`head` announced once and routed, its attempt retired, `current` current with nothing pending; run once."""
     case.assert_recovered(head)
@@ -287,7 +297,7 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 head, settled = self.settles_then_dies()
                 around = _AroundTheHold(self, head, failing, restores=restores)
                 with patch.object(_commits.ReportCommit, _LANDING, side_effect=around, autospec=True):
-                    _holds(self)
+                    gate.holds(self)
 
                 self.assert_invalidated(settled)
                 self._assert_held()
@@ -322,7 +332,7 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         head = self.settles_then_dies()[0]
         around = _AroundTheHold(self, head, successor=True)
         with patch.object(_commits.ReportCommit, _LANDING, side_effect=around, autospec=True):
-            _holds(self)
+            gate.holds(self)
 
         self.assertEqual(readings.pinned_records(self)[1], around.successor)
         self._assert_held()
@@ -341,7 +351,7 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 head = self.settles_then_dies()[0]
                 around = _AroundTheHold(self, head, failing, restores=True, successor=True)
                 with patch.object(_commits.ReportCommit, _LANDING, side_effect=around, autospec=True):
-                    _holds(self)
+                    gate.holds(self)
 
                 records = readings.pinned_records(self)
                 retired = records[2][-1]
@@ -350,15 +360,16 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._assert_held()
 
     def test_a_newer_run_survives_the_hold(self) -> None:
-        # Another road records a newer transaction for the head after the
-        # tick read the comment: the hold's record keeps it pending, with the
-        # revision floor it raised, beside the settled run the proof kept;
-        # the next poll settles it over that run and routes the head.
+        # Another road records a newer transaction for the head while the gate
+        # answers: the hold's record keeps it pending, with the revision floor
+        # it raised, beside the settled run the proof kept; the next poll
+        # settles it over that run and routes the head.
         head, settled = self.settles_then_dies()
-        context = guarded.recovery_context(self)
-        newer = settled_support.records_a_newer_run(self)
-        _parks.lands_a_hold(context)
+        recorded: list = []
+        with gate.holding(partial(gate.holds_beside_a_newer_run, self, recorded)):
+            self.recovers()
 
+        newer = recorded[0]
         self.assertEqual(readings.pinned_records(self)[:2], (newer, settled))
         self.assertEqual(readings.pinned(self)[readings.KEY_REVISION_FLOOR], newer.revision)
         self._assert_held()
@@ -373,8 +384,8 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # Nothing moved: every hold keeps the run current exactly as it
         # settled, and the next poll routes the head with it.
         head, settled = self.settles_then_dies()
-        _holds(self)
-        _holds(self)
+        gate.holds(self)
+        gate.holds(self)
 
         self.assertEqual(readings.pinned_records(self)[:2], (None, settled))
         self._assert_held()
@@ -393,14 +404,31 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
 
 class HeldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
-    """The proof a dormant hold or park takes, held to the dormant settled-evidence policy as a direct finish is."""
+    """The proof a hold or park takes, held to the settled-evidence policy as a finish is."""
+
+    def test_a_moved_run_is_invalidated(self) -> None:
+        # The issue is edited before a held poll: the run is invalidated whole
+        # with the attempt kept and nothing parked; put back, a second held
+        # poll and the poll the gate lets through revive nothing, the head
+        # routed once with nothing current.
+        head, settled = self.settles_then_dies()
+        for body in (_EDITED_BODY, self.issue.body):
+            self.issue.body = body
+            with gate.holding():
+                self.recovers()
+
+            self.assert_invalidated(settled)
+            standing = self.pinned_fields(guarded.AWAITING, readings.KEY_PENDING_PUSH)
+            self.assertEqual(standing, (None, self.anchor))
+        self.recovers()
+        _assert_routed(self, head)
 
     def test_marked_movement_is_retired(self) -> None:
         # An earlier finish left the mark of movement under the run's receipt
         # in the handoff's place: the proof a park asks before it keeps the
         # attempt, and the one the hold takes, read it as the movement it is
         # and invalidate the run whole, with the attempt kept.
-        for name, proof in (("park", guarded.GuardedRecoveryCase.proves), ("hold", _holds)):
+        for name, proof in (("park", guarded.GuardedRecoveryCase.proves), ("hold", gate.holds)):
             with self.subTest(proof=name):
                 self.setUp()
                 settled = self.settles_then_dies()[1]
@@ -456,9 +484,10 @@ class HeldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # nothing current.
         head, settled = self.settles_then_dies()
         around = _AroundTheHold(self, head, restores=True)
+        _owed_events.owes(self.gh, _REBASED, issue_number=self.issue.number, sha=head)
         announces = _WritesAtTheHold(self, {readings.KEY_ANNOUNCED_EVENT: head}, around=around)
         with patch.object(_commits.ReportCommit, _LANDING, side_effect=announces, autospec=True):
-            _holds(self)
+            gate.holds(self)
 
         self.assert_invalidated(settled)
         self.recovers()
@@ -478,7 +507,7 @@ class HeldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.gh.write_pinned_state(self.issue, state)
         marks = _WritesAtTheHold(self, {_records.EVIDENCE_HANDOFF: {"moved": run.receipt}}, ahead=True)
         with patch.object(_commits.ReportCommit, _LANDING, side_effect=marks, autospec=True):
-            _holds(self)
+            gate.holds(self)
 
         self.assertEqual(readings.pinned_records(self)[:2], (newer, None))
         retired = readings.pinned_records(self)[2][-1]

@@ -54,9 +54,25 @@ def _abort_recovery_unverified(
 def _clear_ineligible_recovery(
     context: _AutoRebaseRecoveryContext,
 ) -> bool:
-    """Clear an interrupted-rebase anchor after an operator relabel."""
-    attempts._clears_the_attempt(context.state)
-    context.gh.write_pinned_state(context.issue, context.state)
+    """Clear an interrupted-rebase anchor after an operator relabel.
+
+    The checkout stands back on the anchor, off any head a finish of the
+    attempt captured or settled evidence for, so that evidence is retired on
+    the state the clear writes first (`settles_over_a_reset`) -- False keeps
+    the attempt -- and the clear lands through `lands_a_clear`, which a
+    successor another road settled meanwhile refuses.
+    """
+    settles = context.settles_over_a_reset
+    if settles is not None and not settles():
+        log.warning(
+            "issue=#%d auto-rebase recovery: the verification evidence settled for the landed head could not be "
+            "retired with the attempt; keeping the attempt rather than clearing it under label %r",
+            context.issue.number,
+            context.label,
+        )
+        return True
+    if not _lands_the_clear(context):
+        return True
     log.info(
         "issue=#%d auto-rebase recovery: label %r is no longer in "
         "the refresh-driven set; clearing pending flag",
@@ -107,9 +123,9 @@ def _fetch_recovery_snapshot(
 def _clear_unchanged_recovery(
     context: _AutoRebaseRecoveryContext,
 ) -> bool:
-    """Clear an anchor when HEAD never moved beyond the pre-rebase SHA."""
-    attempts._clears_the_attempt(context.state)
-    context.gh.write_pinned_state(context.issue, context.state)
+    """Clear an anchor when HEAD never moved beyond the pre-rebase SHA; True holds where the clear did not land."""
+    if not _lands_the_clear(context):
+        return True
     log.info(
         "issue=#%d auto-rebase recovery: local HEAD matches pre-"
         "rebase SHA `%s`; clearing flag and falling through to "
@@ -118,6 +134,21 @@ def _clear_unchanged_recovery(
         context.pending_pre_rebase_sha[:8],
     )
     return False
+
+
+def _lands_the_clear(context: _AutoRebaseRecoveryContext) -> bool:
+    """Clear the attempt through the context's guarded clear (`lands_a_clear`), or whole with none; whether it landed.
+
+    Guarded, a record another road wrote while the recovery read the checkout
+    or fetched -- a transaction, a successor, its revision floor -- refuses it
+    rather than being written over, and the caller holds the tick.
+    """
+    attempts._clears_the_attempt(context.state)
+    lands = context.lands_a_clear
+    if lands is None:
+        context.gh.write_pinned_state(context.issue, context.state)
+        return True
+    return lands(context)
 
 
 def _read_remote_recovery_head(

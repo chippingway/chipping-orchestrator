@@ -76,6 +76,7 @@ from orchestrator.git.base_sync.transfer_values import _Handoff
 from orchestrator.workflow.engine import (
     rewrite_finish as _finish,
     rewrite_publication as _rewrite_publication,
+    rewrite_recovery_parks as _recovery_parks,
     rewrite_replies as _rewrite_replies,
     rewrite_takeover as _takeover,
 )
@@ -146,8 +147,11 @@ def _publishes(
 
     A gate that held the candidate -- parked it, or handed it to an
     adjudication -- owns the issue from there, so nothing is announced or
-    routed; its park's flags are written as the gate left them, and the
-    attempt is offered to the adjudication the hold may have left
+    routed; its park's flags are recorded as the gate left them -- guarded,
+    over the comment read afresh, as the landed road's hold is
+    (`rewrite_recovery_parks.lands_a_hold`), so an evidence record or a
+    revision floor another road wrote while the gate answered is kept -- and
+    the attempt is offered to the adjudication the hold may have left
     (`rewrite_takeover`), whose proof is what tells that hold from a park.
 
     The reply that released this recovery, where it only asked for the
@@ -169,7 +173,7 @@ def _publishes(
     if published.refused:
         return _replay_transfer_parks._park_refused_permit_recovery(context, completed)
     if published.held:
-        context.gh.write_pinned_state(context.issue, context.state)
+        _recovery_parks.lands_a_hold(context)
         _takeover.takes_over(context.gh, context.issue, context.state)
         return True
     landing = push.landing

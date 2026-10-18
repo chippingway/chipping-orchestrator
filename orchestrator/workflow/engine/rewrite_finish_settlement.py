@@ -89,7 +89,7 @@ ready again before every route takes it (`rewrite_finish_readiness.stands_ready`
 -- and beside a stop of the evidence step, or of a settlement that leaves its
 transaction recorded (`_decided_and_settled`) --
 invalidating it whole where anything moved or a revision outranks it. No
-production road builds such a finish: a caller holding one asks `resolves`
+production road hands such a finish this phase: a caller holding one asks `resolves`
 directly, which announces, relabels, parks, and retires nothing itself, or
 hands it to the coordinator (`rewrite_finish.finalizes`), which asks it.
 """

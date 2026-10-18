@@ -17,18 +17,23 @@ only why it parks. A recovery park
 that keeps the attempt instead -- that tail behind a reset that did not land,
 and the parks that never reset -- asks the recovery context first whether it
 may go on (`_proves_before_the_park`), so a transaction the workflow captured
-for the landed head is proved again before the record a human's reply brings
-back is left standing.
+for the landed head, or evidence it settled for it, is proved again before the
+record a human's reply brings back is left standing.
 
-Two more answers a recovery context may carry are transported here, and the
-workflow hands neither in yet: what it records before a reset moves the
-checkout (`_resets`, `_AutoRebaseRecoveryContext.records_before_a_reset`), and
-the park every recovery park is recorded through (`_parks_the_recovery`,
-`_AutoRebaseRecoveryContext.lands_a_park`) -- over the comment read afresh,
-so nothing another road wrote while the notice went out is put back. A context
-carrying neither resets and writes the tick's state whole, as every recovery
-park always has. The finish of a rewrite that landed is the workflow's
-(`workflow/engine/rewrite_finish.py`), whichever road reached it.
+The reset itself is recorded first where the recovery context carries a
+recorder (`_resets`, `_AutoRebaseRecoveryContext.records_before_a_reset`), and
+every recovery park is recorded through the park the context carries
+(`_parks_the_recovery`, `_AutoRebaseRecoveryContext.lands_a_park`) -- over the
+comment read afresh, so nothing another road wrote while the notice went out
+is put back. The workflow hands its park in on every recovery context it
+builds, and its recorder on every one whose road may reset; a refresh's own
+context, which carries neither, resets with nothing recorded and writes the
+tick's state whole. The finish of a rewrite that landed is the
+workflow's (`workflow/engine/rewrite_finish.py`), whichever road reached it,
+and so is the tail an interrupted finish leaves behind its evidence -- the
+announcement, the relabel, and the retirement -- which none of these parks
+takes: a park that keeps the attempt keeps it for the reply that brings that
+finish back, with what the attempt still owes.
 """
 from __future__ import annotations
 
@@ -185,13 +190,12 @@ def _reset_clear_and_park(
     drop, or neither lands -- and where the recovery answers that it cannot
     be settled, settled evidence with no room left for its history entry,
     nothing is dropped or parked: the attempt is kept guarding it, as a reset
-    that failed keeps it, and the next tick asks again. A recovery that
-    records the reset first (`_resets`) has what it captured or settled for
-    the head marked moved before the reset is even made, since the reset
-    moves the checkout ahead of every write behind it: a process lost between
-    them, or a write behind it that does not land, would otherwise leave it
-    for a checkout put back to revive. That write is the recovery's own park
-    (`_parks_the_recovery`), which a recovery that carries one lands over the
+    that failed keeps it, and the next tick asks again. What the workflow
+    captured or settled for the head is marked moved before the reset is even
+    made (`_resets`), since the reset moves the checkout ahead of every write
+    behind it: a process lost between them, or a write behind it that does not
+    land, would otherwise leave it for a checkout put back to revive. That
+    write is the recovery's own park (`_parks_the_recovery`), landed over the
     comment read afresh, so a report or evidence record another road wrote
     while the notice went out is kept beside it rather than put back.
     """
@@ -231,15 +235,14 @@ def _parks_the_recovery(
 
     The park's record lands behind its notice, a request after the tick read
     the comment -- long enough for another road to settle and review a later
-    report, or move an evidence record. A recovery context that carries a
-    park of its own (`_AutoRebaseRecoveryContext.lands_a_park`) is recorded
-    through it instead, landed over the comment read afresh and keeping
-    whatever another road wrote meanwhile: over a landed reset, the evidence
-    a finish captured or settled for the head is retired in the very write
-    that drops the attempt (`_releases_over_the_reset`), and that write puts
-    back no report the evidence was superseded by. A context with none -- a
-    refresh's own, and every recovery context the workflow builds until it
-    hands that dormant park in -- writes the state whole.
+    report, or move an evidence record. A recovery context the workflow built
+    carries the park that lands over the comment read afresh instead, keeping
+    whatever another road wrote meanwhile
+    (`_AutoRebaseRecoveryContext.lands_a_park`): over a landed reset, the
+    evidence a finish captured or settled for the head is retired in the very
+    write that drops the attempt (`_releases_over_the_reset`), and that write
+    puts back no report the evidence was superseded by. A context with none --
+    a refresh's own -- writes the state whole.
     """
     lands = context.lands_a_park if isinstance(context, _AutoRebaseRecoveryContext) else None
     if lands is None:
@@ -275,15 +278,18 @@ def _proves_before_the_park(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
 
     Every such park leaves the whole record standing for a human's reply to
     bring the recovery back to, and a verification transaction the workflow
-    captured for the landed head stands with it, as may evidence a finish
+    captured for the landed head stands with it, as does evidence a finish
     already settled for it. So the workflow proves them again first
     (`_AutoRebaseRecoveryContext.proves_before_a_park`), and abandons the one
-    -- or, where its answer holds settled evidence to the same readings,
-    invalidates the other -- where anything it rests on moved, before the park
-    and not behind the reply, by which time what moved may be back. False is a
+    or invalidates the other where anything it rests on moved, before the park
+    and not behind the reply -- by which time what moved may be back. False is a
     movement it read and could not record: nothing is parked, the anchor still
     holds every handler, and the next tick's recovery asks again. A refresh's
-    own context, ahead of any recovery, has captured nothing to prove.
+    own context, ahead of any recovery, has captured nothing to prove. The
+    dispatcher's holds that keep the attempt with nothing posted ask it too
+    (`recovery_holds._answers_a_held_anchor`,
+    `replay_publication_parks._park_stranded_recovery`), their answer the
+    hold they take either way.
     """
     proves = context.proves_before_a_park if isinstance(context, _AutoRebaseRecoveryContext) else None
     if proves is None or proves(context):
@@ -306,11 +312,11 @@ def _releases_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCo
     moved under. The recovery's answer to it is staged first on the state the
     park writes (`_AutoRebaseRecoveryContext.settles_over_a_reset`), so it
     lands in the park's one write beside the attempt's release, or neither
-    does, and a dropped attempt never leaves it behind. Only an answer of
-    False refuses the release -- settled evidence the comment has no room to
-    retire into history -- logged: the attempt keeps guarding it, nothing is
-    dropped or parked, and the next tick's recovery asks again. Any other
-    answer releases it, the None a captured-only answer gives among them.
+    does, and a dropped attempt never leaves it behind. False where the
+    recovery answers that the record cannot go with the release -- settled
+    evidence the comment has no room to retire into history -- logged: the
+    attempt keeps guarding it, nothing is dropped or parked, and the next
+    tick's recovery asks again.
 
     The drop of what the reset took the branch off is staged, not written, so
     the park's own write makes it durable: the approval and a transfer's
@@ -320,7 +326,7 @@ def _releases_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCo
     paid by.
     """
     settles = context.settles_over_a_reset if isinstance(context, _AutoRebaseRecoveryContext) else None
-    if settles is not None and settles() is False:
+    if settles is not None and not settles():
         log.warning(
             "issue=#%d auto-rebase recovery: the reset landed, but the verification evidence settled for the head "
             "it took the checkout off could not be retired with the attempt; keeping the attempt and holding "
@@ -360,9 +366,9 @@ def _resets(
     transaction a finish captured, or evidence one settled -- and the reset
     moves the checkout ahead of every write that answers for it: a process
     lost behind the reset, or a park write that does not land, would leave
-    that decision for a checkout put back on the head to take up again. So a
-    recovery context that carries a recorder has the reset recorded first, in
-    a write of its own (`_AutoRebaseRecoveryContext.records_before_a_reset`):
+    that decision for a checkout put back on the head to take up again. So the
+    recovery records the reset first, in a write of its own
+    (`_AutoRebaseRecoveryContext.records_before_a_reset`):
     the base tip the attempt recorded its replay as made onto, blanked, which
     every later proof of the decision reads as movement -- decided on the
     decision's records as the tick read them, so one another road made since
@@ -373,8 +379,7 @@ def _resets(
     moved nothing, so the tip is staged back on the state for the park that
     keeps the attempt to write, and the decision stands for the proof that
     park asks first, as it did before the record. A context with no recorder
-    -- every one the workflow builds until it hands that dormant answer in --
-    resets with nothing recorded.
+    -- a refresh's own, ahead of any recovery -- resets with nothing recorded.
     """
     onto = context.state.get(_PENDING_REWRITE_BASE)
     records = context.records_before_a_reset if isinstance(context, _AutoRebaseRecoveryContext) else None

@@ -1,11 +1,9 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The notice a base rewrite's dormant recovery park says, said once however often the park is made again.
+"""The notice a base rewrite's recovery park says, said once however often the park is made again.
 
-The guarded recovery park (`rewrite_recovery_parks.lands_a_park`) posts its
-notice and files its `park_awaiting_human` event before it records the park,
-and it is dormant: no recovery context the workflow builds carries it yet, so
-nothing here is reached in production. A park recorded that way posts first, so
+Every recovery park posts its notice and files its `park_awaiting_human`
+event before it records the park (`rewrite_recovery_parks.lands_a_park`), so
 a tick lost between the two, or a record that did not land, leaves the
 attempt standing for the next tick's recovery to park again -- over a notice
 already said. Posted afresh, that notice and its event would be said twice.
@@ -15,11 +13,12 @@ ours (`parks_awaiting_human`). One found is taken in as a post of it would
 be: the issue marked awaiting a human, the watermark moved to it, and the
 comment entered in the ledger, so the park lands over it with nothing posted
 again. Its event is filed only where the event stream carries none naming
-that notice, which every park recorded this way names (`notice_id`); a stream
+that notice, which every recovery park's event does (`notice_id`); a stream
 that would not read files nothing, so nothing is filed twice. With no audit
-log the stream is this process's tail alone, so a process lost between the
-event and the park's record, and restarted, files that event once more,
-though never the notice. A conversation that would not read raises, as a post
+log the stream is this process's tail alone, so the notice said is taken as
+its event filed -- once at most, never twice: a process lost between the
+notice and its event files none, while one whose post raised still owes it
+(`owed_events`). A conversation that would not read raises, as a post
 that raised does, and nothing is parked.
 """
 from __future__ import annotations
@@ -33,6 +32,7 @@ from orchestrator.github.comments import authored_by_us
 from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
+    owed_events as _owed_events,
     prompt_delivery as _prompt_delivery,
 )
 from orchestrator.workflow.state import stage_name
@@ -76,7 +76,11 @@ def _said(context: _AutoRebaseRecoveryContext, message: str) -> int | None:
 
 
 def _files_the_event(context: _AutoRebaseRecoveryContext, notice: int, reason: str) -> None:
-    """File the `park_awaiting_human` event of the park whose notice `notice` was said, where the stream lacks it."""
+    """File the `park_awaiting_human` event of the park whose notice `notice` was said, where the stream lacks it.
+
+    With no audit log the notice said is taken as its event filed, save one
+    this process owes (`owed_events.unfiled`): once at most, never twice.
+    """
     issue_number = context.issue.number
     named = {"reason": reason, "notice_id": notice}
     found = _github_events.filed(context.gh, _PARKED, issue_number=issue_number, **named)
@@ -87,8 +91,12 @@ def _files_the_event(context: _AutoRebaseRecoveryContext, notice: int, reason: s
             issue_number, notice,
         )
         return
-    if found:
-        log.info("issue=#%d recovery park notice %d already said and filed; posting nothing", issue_number, notice)
+    if found or not _owed_events.unfiled(context.gh, _PARKED, issue_number=issue_number, **named):
+        log.info(
+            "issue=#%d recovery park notice %d already said, its event filed or, with no audit log, taken as filed; "
+            "posting nothing", issue_number, notice,
+        )
         return
     stage = stage_name(context.gh.workflow_label(context.issue))
     context.gh.emit_event(_PARKED, issue_number=issue_number, stage=stage, **named)
+    _owed_events.pays(context.gh, _PARKED, issue_number=issue_number, **named)

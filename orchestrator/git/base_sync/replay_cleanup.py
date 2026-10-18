@@ -70,6 +70,8 @@ def _answers_an_ineligible_label(
     The head is read locally, which costs no fetch and no request. A reading
     that could not be taken is no evidence the branch is where the attempt
     left it, so it parks with everything else this route cannot prove.
+    The clear retires what a finish captured or settled for the landed head
+    with the attempt (`snapshot._clear_ineligible_recovery`).
     """
     if context.pending_rewrite.left_a_replay:
         return _replay_publication_parks._park_stranded_recovery(context)

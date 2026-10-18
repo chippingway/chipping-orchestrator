@@ -1,20 +1,20 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A dormant recovery record over a captured run that another road settles, or settles a newer run over, right then.
+"""A recovery record over a captured run that another road settles, or settles a newer run over, right then.
 
 The guarded recovery case (`guarded_recovery_support`): issue #7's rebased
 head reviewed and its run recorded, the finish killed posting its artifact, so
 the run stands captured beside the attempt. The recovery context read off the
-comment is handed straight to the dormant guarded hold or park
+comment is handed straight to the guarded hold or park
 (`rewrite_recovery_parks.lands_a_hold`, `lands_a_park`), as a recovery road
-would. Report 3 settles right under the strict edit of that record, which is
+does. Report 3 settles right under the strict edit of that record, which is
 refused over it, and report 2 is put back right behind: the proof behind the
 record reads report 3 moved under the captured run and abandons it.
 
 Right as that abandonment is written, another finish of the landing settles
 that very run -- announcing it on the attempt, or not -- which refuses the
-abandonment. The recovery proof holds the captured run to the dormant
-settled-evidence policy as a direct finish is held: the settlement is taken
+abandonment. The recovery proof holds the captured run to the
+settled-evidence policy as a finish is held: the settlement is taken
 in and invalidated whole over the movement already read under its receipt,
 its revision and binding kept, and the announcement kept on the attempt.
 
@@ -55,7 +55,7 @@ from tests.workflow.engine import (
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
 
-# The dormant guarded records a case races, and how a recovery context lands each.
+# The guarded records a case races, and how a recovery context lands each.
 _PARKS = partial(_parks.lands_a_park, message="The auto rebase needs a human.", reason="auto_base_rebase_push_failed")
 _LANDED_BY = (("hold", _parks.lands_a_hold), ("park", _PARKS))
 
@@ -180,7 +180,7 @@ class _MarksBehindTheReading:
 
 
 class CapturedSettlementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
-    """A captured run's abandonment behind a dormant record retires a settlement another finish made of it."""
+    """A captured run's abandonment behind a guarded record retires a settlement another finish made of it."""
 
     def test_a_concurrent_settlement_is_retired(self) -> None:
         # Report 3 moves under the hold's or park's record, so the proof

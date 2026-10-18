@@ -15,7 +15,8 @@ so does a log rotated in between -- renamed to its first copy, or copied
 compressed beside it and truncated -- whose copy still carries the event. A
 log that would not read is no answer: the finish is held with nothing filed,
 relabelled, or retired, and the next tick, the log readable again, finds the
-event the same way. Nothing is run again, pushed, or launched.
+event the same way. Nothing is run again, pushed, or launched. With no log
+configured, the attempt's record of the event is taken as the event filed.
 """
 from __future__ import annotations
 
@@ -157,6 +158,31 @@ class EventStreamRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
         made = (self.runs(), self.pushes.call_count, self.developer.call_count)
         self.assertEqual(made, (1, 0, 0))
+
+
+class UnloggedEventRecoveryTest(support.CapturedRunCase, unittest.TestCase):
+    """With no audit log, a fresh process takes the attempt's record of the event as the event filed."""
+
+    def test_a_recorded_event_is_filed_once_at_most(self) -> None:
+        # The finish dies behind the event's record -- ahead of the event or
+        # behind it -- and the process restarts with no event in memory and
+        # none noted owing: the record says the event may be out, so the head
+        # is routed with nothing filed again, once at most.
+        self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
+        for boundary, filed in ((handoff.BEFORE_THE_EVENT, 0), (handoff.BEFORE_THE_CHECKPOINT, 1)):
+            with self.subTest(boundary=boundary.name):
+                self.setUp()
+                head = self.lands_a_reviewed_rebase()
+                handoff.dies_at(self.gh, boundary, partial(self.finishes, head))
+                before = support.announced(self)
+                self.gh.recorded_events.clear()
+                self.gh.owed_events = set()
+
+                self.recovers()
+
+                announced = before + support.announced(self)
+                self.assertEqual(announced, [head][:filed])
+                self.assertEqual(readings.relabels(self), readings.ROUTED)
 
 
 if __name__ == "__main__":

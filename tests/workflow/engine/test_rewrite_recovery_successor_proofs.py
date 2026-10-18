@@ -1,13 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A dormant recovery proof that proves every run standing for the landed head, a successor in the run's place included.
+"""A recovery proof that proves every run standing for the landed head, a successor in the run's place included.
 
 The guarded recovery case (`guarded_recovery_support`): issue #7's rebased
 head reviewed and its run settled -- or only captured -- under the anchor, and
 the finish killed short of its route, so the attempt stands. The recovery
-context read off the comment is handed straight to the dormant guarded park,
+context read off the comment is handed straight to the guarded park,
 or to the proof before a park that keeps the attempt
-(`rewrite_recovery_parks`), as a recovery road would.
+(`rewrite_recovery_parks`), as a recovery road does.
 
 - The park's notice raises behind report 3 settled under the run, and right
   behind the reconciliation's reading another road settles a newer run in the
@@ -68,7 +68,7 @@ from tests.workflow.engine import (
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
 
-# The park a case hands the dormant guarded park.
+# The park a case hands the guarded park directly.
 _PARKS = partial(_parks.lands_a_park, message="The auto rebase needs a human.", reason="auto_base_rebase_push_failed")
 
 # How the history records evidence a newer transaction for its head settled over.
@@ -354,7 +354,7 @@ class LateMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH)[0], self.anchor)
 
     def _holds(self, *, overflows: bool = False):
-        """Hand the dormant hold the context read off the comment, its state too long for it where `overflows`; it."""
+        """Hand the hold the context read off the comment, its state too long for it where `overflows`; it."""
         context = guarded.recovery_context(self)
         if overflows:
             context.state.set(_FILLER, "x" * MAX_PINNED_BODY)

@@ -58,6 +58,7 @@ from orchestrator.github.comments import authored_by_us
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
+    owed_events as _owed_events,
     prompt_delivery as _prompt_delivery,
     report_record_values as _record_values,
     report_rewrite_debt as _rewrite_debt,
@@ -208,7 +209,9 @@ def files_the_park(finish: LandedFinish, notice: int) -> FinishOutcome | None:
     such a finish's park does -- only where the stream carries no event of
     this very park: one naming that notice, which no earlier park of the
     issue, of this head or another, does. HELD, logged, where the stream
-    would not read, so nothing is filed twice.
+    would not read, so nothing is filed twice. With no audit log the notice
+    said is taken as its event filed, save one this process owes
+    (`owed_events.unfiled`): once at most, never twice.
     """
     issue_number = finish.issue.number
     named = {"reason": _PARKED_FOR_THE_DEBT, "sha": finish.head, "notice_id": notice}
@@ -216,9 +219,10 @@ def files_the_park(finish: LandedFinish, notice: int) -> FinishOutcome | None:
     if found is None:
         log.warning("issue=#%d could not read the event stream back for its debt park; holding", issue_number)
         return FinishOutcome.HELD
-    if not found:
+    if not found and _owed_events.unfiled(finish.gh, _PARKED, issue_number=issue_number, **named):
         stage = stage_name(finish.gh.workflow_label(finish.issue))
         finish.gh.emit_event(_PARKED, issue_number=issue_number, stage=stage, **named)
+        _owed_events.pays(finish.gh, _PARKED, issue_number=issue_number, **named)
     return None
 
 

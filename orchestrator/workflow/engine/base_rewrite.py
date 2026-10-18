@@ -52,9 +52,10 @@ from orchestrator.git.base_sync.models import (
 )
 from orchestrator.git.base_sync.state import _PENDING_PUSH_SHA
 from orchestrator.workflow.engine import (
-    rewrite_landing_moved as _landing_moved,
+    rewrite_landing_retirement as _retirement,
     rewrite_publication as _rewrite_publication,
     rewrite_recovery as _rewrite_recovery,
+    rewrite_recovery_parks as _recovery_parks,
     rewrite_replies as _rewrite_replies,
 )
 
@@ -120,9 +121,20 @@ def _held_past_the_anchor(context: _AutoRebaseContext) -> bool:
     )
 
 
+def _is_eligible(context: _AutoRebaseContext) -> bool:
+    """Whether the refresh may rebase `context`'s PR, an ineligible label's anchor handed the recovery's answers."""
+    return eligibility._auto_rebase_label_is_eligible(
+        context,
+        _recovery_parks.proves_before_a_park,
+        _recovery_parks.lands_a_park,
+        _retirement.retires_over_the_reset,
+        _recovery_parks.lands_a_clear,
+    )
+
+
 def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:
     """Run one refresh-time PR synchronization from normalized inputs."""
-    if not eligibility._auto_rebase_label_is_eligible(context, _landing_moved.abandons_unproved):
+    if not _is_eligible(context):
         return
 
     retry = eligibility._auto_rebase_retry_decision(context)
@@ -173,7 +185,7 @@ def _sync_unreadable_pr_worktree(request: _AutoRebaseRequest) -> None:
     (`rewrite_recovery.answers_an_unreadable_checkout`).
     """
     context = request.to_context(_PENDING_PUSH_SHA)
-    if not eligibility._auto_rebase_label_is_eligible(context, _landing_moved.abandons_unproved):
+    if not _is_eligible(context):
         return
     retry = eligibility._auto_rebase_retry_decision(context)
     if eligibility._open_auto_rebase_pr(context) is None:

@@ -13,7 +13,9 @@ what the next tick does.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
+from orchestrator.workflow.stages.implementing import late_push as _late_push
 from tests.git.base_sync.candidate_reads_support import _checkout_carries
 from tests.workflow.engine import (
     rewrite_gate_holds_support as holds,
@@ -148,6 +150,29 @@ class RefusedRetryTest(retry.RetryCase):
         """The remote takes the lease again, and git resets."""
         self.world.rejects = False
         self.git.refuses_reset = False
+
+
+class GatedRetryRecordTest(retry.RetryCase):
+    """A retry the gate holds records its hold over the comment read afresh, keeping what another road wrote."""
+
+    def test_another_roads_floor_survives_the_hold(self) -> None:
+        # While the gate answers -- handing the issue to an adjudication, or
+        # parking a count nobody can pin -- another road records a revision
+        # floor: the hold's own record lands over the comment read afresh,
+        # so the floor stays as that road wrote it and the hold reads as it
+        # would with nothing written beside it.
+        for count, _relabelled, left, parked in holds.HOLDS:
+            with self.subTest(count.__name__):
+                self._fresh()
+
+                behind = world.WritesBehindTheGate(self)
+                with count(), patch.object(_late_push, "_publishes", behind):
+                    self._ticks()
+
+                self.assertEqual(behind.floor(), world.ANOTHER_ROADS_FLOOR)
+                self.assertEqual(holds.left_with(self.gh), left)
+                self.assertEqual(retry.parked(self.gh), parked)
+                self.assertEqual(self.world.pushes, [])
 
 
 class HandedOverReplyTest(retry.RetryCase):

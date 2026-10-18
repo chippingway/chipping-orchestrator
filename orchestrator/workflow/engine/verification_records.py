@@ -30,8 +30,8 @@ from the bounded history, and the revision it spent -- one its artifact may
 already carry on the pull request -- must outlive it. A finish held to the
 dormant settled-evidence policy may spend one past current evidence it read
 moving, a revision no transaction carries, or take the floor off to retire
-that evidence whole (`rewrite_finish_outranking`); no production road selects
-that policy.
+that evidence whole (`rewrite_finish_outranking`); no production finish
+selects that policy, and only the recovery's proofs build finishes held to it.
 
 The binding EXTENDS the report records rather than forking them. What the
 evidence is written for is the report domain's own `ReportSubject`: the

@@ -1,12 +1,12 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A dormant guarded recovery park keeping the movement its reconciliation read, and none an unrelated edit made.
+"""A guarded recovery park keeping the movement its reconciliation read, and none an unrelated edit made.
 
 The guarded recovery case (`guarded_recovery_support`): issue #7's rebased
 head reviewed, its run settled under the anchor, and the finish killed before
 its announcement, so the attempt stands. The recovery context read off the
-comment is handed straight to the dormant guarded park
-(`rewrite_recovery_parks.lands_a_park`), as a recovery road would.
+comment is handed straight to the guarded park
+(`rewrite_recovery_parks.lands_a_park`), as a recovery road does.
 
 Another road settles report 3 behind the park's notice, whose post then
 raises, or right behind the park's own record, whose answer is lost -- and
@@ -255,7 +255,7 @@ _RAISED_NOTICES = (
 
 
 class ReconciledMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
-    """What a dormant park's reconciliation read moving counts, and what an unrelated edit under it does not."""
+    """What a park's reconciliation read moving counts, and what an unrelated edit under it does not."""
 
     def test_a_raised_notice_keeps_the_move_it_read(self) -> None:
         # The notice's post raises behind report 3 -- or behind a newer run
@@ -374,7 +374,7 @@ class ReconciledMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assert_abandoned(run)
 
     def _parks_under(self, head: str, moves: dict, *, raised: bool) -> None:
-        """Hand the dormant park a context read off the comment, `moves` written under its record's edit and undone.
+        """Hand the park a context read off the comment, `moves` written under its record's edit and undone.
 
         `raised` writes them as the park's notice raises instead, undone right
         behind the reconciliation's reading.

@@ -27,10 +27,13 @@ finish's own writes, a settlement adopted from another road invalidated over
 movement read under it (`rewrite_finish_settled`, `rewrite_finish_stops`), and
 that movement retired under its own receipt or recorded however the attempt
 or the comment moved since (`rewrite_finish_marks`,
-`rewrite_finish_unconfirmed`) -- is dormant: only a caller that builds a
-finish selecting it explicitly and hands it to the coordinator
-(`rewrite_finish.finalizes`), its evidence phase
+`rewrite_finish_unconfirmed`) -- is dormant for the finish itself: only a
+caller that builds a finish selecting it explicitly and hands it to the
+coordinator (`rewrite_finish.finalizes`), its evidence phase
 (`rewrite_finish_settlement.resolves`), or those primitives directly reaches it.
+The recovery's proofs are such a caller: every finish they build to retire or
+prove a landing's evidence, routing nothing, selects it
+(`rewrite_landing_moved`).
 """
 from __future__ import annotations
 
@@ -109,8 +112,10 @@ class LandedFinish:
     dormant settled-evidence policy for the coordinator
     (`rewrite_finish.finalizes`) and its evidence phase
     (`rewrite_finish_settlement.resolves`), which no production road hands
-    over: every shared helper the finish calls -- readiness, adoption,
-    retirement, and its guarded writes among them -- reads it before taking
+    over -- the recovery's proofs build their finishes with it
+    (`rewrite_landing_moved`) and route none of them: every shared helper the
+    finish calls -- readiness, adoption, retirement, and its guarded writes
+    among them -- reads it before taking
     any of that policy's proofs, write profiles, adoptions, retries, marks, or
     retirements, and answers as it always has where it is False.
     """

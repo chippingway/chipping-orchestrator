@@ -14,10 +14,11 @@ carries or follows a recorded decision ends in the last word -- a captured
 transaction's behind whatever stopped it -- and only a fresh decision held
 before its write, whose write did not land, or whose failure notice nobody
 could confirm ends without it, leaving no transaction behind it to abandon.
-The dormant readiness primitives (`rewrite_finish_readiness`) ask the last
-word over evidence already settled for the head as well, and only the dormant
-settled-evidence finish policy asks them
-(`rewrite_finish_models.LandedFinish.proves_settled`).
+The readiness primitives (`rewrite_finish_readiness`) ask the last word over
+evidence already settled for the head as well, asked by a finish held to the
+dormant settled-evidence policy
+(`rewrite_finish_models.LandedFinish.proves_settled`) -- the recovery's
+proofs build theirs so on every road -- and by no other finish.
 
 `proves_again` reads the world afresh rather than off the tick's own reading:
 the issue is fetched again, since the one a finish holds carries the title and
@@ -29,7 +30,7 @@ holds is answered beside the review and report records the comment it read
 carries (`verification_proof.recorded_verdict`): a subject or settled report
 that moved is movement, whatever went unanswered. A caller may hand it a
 verdict of its own to ask of that comment first (`Asks`, the recovery's
-dormant proof's), which every production caller leaves out.
+proof before a park's), which every finish leaves out.
 
 That proof makes requests of its own -- the pull request, the branch fetch,
 the settled report re-read -- and so would the finish behind it: the evidence
@@ -148,7 +149,7 @@ LEFT_THE_LANDING = _evidence_models.ReportEvidence(
 Refusals = tuple[_evidence_models.ReportEvidence | None, ...]
 
 # What a caller reads moving in a comment a proof read under the evidence of a
-# receipt, None for nothing: the recovery's dormant proofs hand one in so a
+# receipt, None for nothing: the recovery's proofs before a park hand one in so a
 # base tip read blank or repointed there moves that evidence.
 Asks = Callable[[PinnedState, str], _evidence_models.ReportEvidence | None]
 
@@ -266,8 +267,8 @@ def last_word(
     behind it -- does not count the base readings that made the continuation
     (`ADVANCED`): they are dropped before the first movement and the first
     hold are taken, so none of them hides a reading behind it. Only the
-    dormant readiness proof asks `records`, so only a finish held to the
-    dormant settled-evidence policy and the recovery's dormant answers ask
+    readiness proof asks `records`, so only a finish held to the dormant
+    settled-evidence policy and the recovery's answers built over it ask
     that.
 
     Every reading is taken, and none nobody could take hides one that read

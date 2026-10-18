@@ -39,8 +39,11 @@ land right behind (`rewrite_finish_unconfirmed.reconciles_the_abandonment`).
 - `lays` lays fields of a comment read afresh over the tick's state, each
   taken in as read.
 
-No production road builds such a finish, so no production road asks any of
-these.
+No production finish selects that policy; the recovery's proofs, which
+build finishes held to it, ask `rechecks_behind` behind an abandonment
+another road's write refused (`rewrite_landing_moved.abandons`) and
+`invalidates_rechecked` behind their invalidation
+(`rewrite_landing_retirement`).
 """
 from __future__ import annotations
 

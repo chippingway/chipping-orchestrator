@@ -46,9 +46,10 @@ a caller whose whole proof stopped at a reading nobody could take and that
 still has to hear what those records say moved. Its readers are the evidence
 proof of a landed base rewrite (`rewrite_evidence_proof`) and the readiness
 proof of the evidence such a rewrite's finish settled
-(`rewrite_finish_readiness`), which is dormant: only the dormant
-settled-evidence finish policy and the recovery's dormant guarded operations
-ask it, and no production road selects either.
+(`rewrite_finish_readiness`), which only a finish held to the dormant
+settled-evidence policy asks: no production finish selects it, while the
+recovery's guarded operations build their proofs' finishes with it on every
+road.
 
 `configured_context_revision` is the context both witnesses are held to: the
 configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, minted by the verify

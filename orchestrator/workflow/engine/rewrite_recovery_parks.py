@@ -15,17 +15,27 @@ retire that evidence and put back the report it was superseded by beside it.
 
 These are the answers a recovery context carries for that
 (`_AutoRebaseRecoveryContext.lands_a_park`, `records_before_a_reset`,
-`proves_before_a_park`), and they are dormant: no recovery road, eligibility
-gate, or dispatcher hold the workflow builds a context for is handed them
-yet, so every recovery park is still written whole and every reset made with
-nothing recorded ahead of it. So is the hold behind a publication gate that
-held a recovery's push (`lands_a_hold`): its proof taken first, as before a
+`proves_before_a_park`), and the workflow hands them in on every recovery
+context it builds: each recovery road's (`rewrite_recovery.recovers`) -- a
+reset's tail, both replay parks, and a label the refresh does not drive among
+them --, the abort over a checkout whose lag could not be counted
+(`rewrite_recovery.answers_an_unreadable_checkout`), the eligibility gate's
+park of an ineligible label (`base_rewrite`), and the dispatcher's stranded
+park of an anchor it holds a handler back for (`answers_a_held_anchor`), whose
+holds that post nothing ask the same proof. The holds behind a publication
+gate that held the landed road's leased no-op or the retry's reissued push are
+recorded here too (`lands_a_hold`): their proof taken first, as before a
 park that keeps the attempt, what the tick staged before that proof kept
 across every write it lands (`rewrite_recovery_staging`), and only what the
 tick staged since its reading landed, as `HOLD`, over the comment read
-afresh; no recovery road records its hold through it yet. A park made again
-over a record that never landed takes in the notice the conversation already
-carries rather than saying it twice (`rewrite_recovery_notices`).
+afresh -- the write the ordinary publication's gate hold lands as too
+(`rewrite_publication`). A park made again over a record that never landed
+takes in the notice the conversation already carries rather than saying it
+twice (`rewrite_recovery_notices`). A clear of the attempt -- under a label the
+refresh does not drive, or of one whose checkout never left the anchor -- is
+recorded as `CLEAR` over the comment read afresh (`lands_a_clear`), so a
+successor another road settled while the checkout was read refuses it, its
+revision floor kept.
 
 The park (`lands_a_park`) lands through the guarded commit
 (`report_commits.ReportCommit`) as `PARK`: owning every field the tick staged
@@ -85,14 +95,19 @@ reset recorded there instead (`proves_before_a_park`).
 """
 from __future__ import annotations
 
+import json
 import logging
+from dataclasses import replace
+from functools import partial
 
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
     attempts as _attempts,
+    recovery_holds as _recovery_holds,
     state as _base_sync_state,
 )
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     prompt_delivery as _prompt_delivery,
@@ -104,7 +119,7 @@ from orchestrator.workflow.engine import (
     verification_records as _evidence_records,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
-from orchestrator.workflow.engine.rewrite_recovery_readings import AsksEveryReading
+from orchestrator.workflow.engine.rewrite_recovery_readings import AsksEveryReading, asks_every_reading
 from orchestrator.workflow.engine.rewrite_recovery_staging import keeps_the_staging
 
 log = logging.getLogger("orchestrator.workflow")
@@ -119,6 +134,17 @@ _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PAR
 HOLD = _commits.ReportWrite(
     owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS),
 ).reading_moves(True)
+
+# A clear's record under a label the refresh does not drive, decided on the
+# attempt and the evidence records, so a successor settled meanwhile refuses it.
+CLEAR = _commits.ReportWrite(
+    owned=frozenset(),
+    decided_on=frozenset(_attempts._ATTEMPT_KEYS) | {
+        _evidence_records.PENDING_EVIDENCE,
+        _evidence_records.CURRENT_EVIDENCE,
+        _evidence_records.EVIDENCE_HISTORY,
+    },
+)
 
 # A park's record, decided on the attempt it keeps or drops, the park's own
 # flags, and the evidence records a landed reset retires beside the attempt,
@@ -179,22 +205,23 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
     """Prove what a recovery hold keeps, then record the hold over the comment read afresh, as `HOLD`.
 
     A publication gate that held a recovery's push -- the landed road's leased
-    no-op, or the retry's reissued push -- keeps the attempt, so its evidence
-    is proved first, as before every park that keeps it
-    (`proves_before_a_park`): over a checkout gone from disk the reset is
-    recorded against it in a write of its own before the hold's record
-    retires it, so a record refused or never confirmed leaves every later
-    proof reading it moved. Where that proof does not land -- the reset not
-    recorded among it -- nothing is recorded, for a later tick to answer. The
-    gate's own record, staged on the tick's state before this is asked, is
-    kept across every write that proof lands, so the hold's record still
-    carries it. The gate's answer is long enough for another road to record a newer
-    transaction, so only what the tick staged since its reading lands, every
-    other field kept as the fresh comment carries it, and a record refused or
-    never confirmed withholds the tick's state. Behind the record the evidence
-    is proved once more, over the move the record itself carried, as behind
-    every park (`lands_a_park`) -- or the reset recorded, over a checkout gone
-    from disk by then. A state nothing was read into is written whole.
+    no-op (`rewrite_landed`), or the retry's reissued push (`rewrite_retry`)
+    -- keeps the attempt, so its evidence is proved first, as before every
+    park that keeps it (`proves_before_a_park`): over a checkout gone from
+    disk the reset is recorded against it in a write of its own before the
+    hold's record retires it, so a record refused or never confirmed leaves
+    every later proof reading it moved. Where that proof does not land -- the
+    reset not recorded among it -- nothing is recorded, for a later tick to
+    answer. The gate's own record, staged on the tick's state before this is
+    asked, is kept across every write that proof lands, so the hold's record
+    still carries it. The gate's answer is long enough for another road to
+    record a newer transaction, so only what the tick staged since its reading
+    lands, every other field kept as the fresh comment carries it, and a
+    record refused or never confirmed withholds the tick's state. Behind the
+    record the evidence is proved once more, over the move the record itself
+    carried, as behind every park (`lands_a_park`) -- or the reset recorded,
+    over a checkout gone from disk by then. A state nothing was read into is
+    written whole.
     """
     if not proves_before_a_park(context):
         return
@@ -202,6 +229,51 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
         context.gh.write_pinned_state(context.issue, context.state)
         return
     _lands_then_proves(context, HOLD, "hold")
+
+
+def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
+    """Record a clear the tick staged on `context.state` over the comment read afresh, as `CLEAR`; whether it landed.
+
+    Only what the tick staged lands; a successor settled while the checkout
+    was read refuses it, its revision floor kept, the tick's state withheld
+    for the next tick to answer again. The checkout read off the landed head
+    is movement all the same, so a clear that did not land has the reset
+    recorded against the attempt as the tick read it (`records_the_reset`),
+    and a checkout put back before the next tick revives nothing. A state
+    nothing was read into is written whole.
+    """
+    if context.state.synced is None:
+        context.gh.write_pinned_state(context.issue, context.state)
+        return True
+    commit = _commits.ReportCommit(context.gh, context.issue, context.state)
+    landed = commit.lands(context.state, CLEAR)
+    if landed.status is _commit_models.CommitStatus.COMMITTED:
+        return True
+    log.warning(
+        "issue=#%d the clear of its auto-rebase attempt did not land (%s); nothing is cleared, and the next "
+        "tick answers the comment as it then stands",
+        context.issue.number, (landed.refusal or landed.status).value,
+    )
+    synced = context.state.synced
+    read = PinnedState(comment_id=context.state.comment_id, state_data=json.loads(synced))
+    read.synced = synced
+    records_the_reset(replace(context, state=read))
+    return False
+
+
+def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
+    """Answer an anchor the dispatcher holds a handler back for, handed the workflow's proof and park.
+
+    The git owner's answer (`git/base_sync/recovery_holds._answers_a_held_anchor`)
+    restores a checkout, clears the attempt, or parks it stranded; that park
+    keeps the attempt, so it asks the proof first (`proves_before_a_park`) and
+    is recorded as every recovery park is (`lands_a_park`) -- and so does a
+    hold that keeps it with nothing posted, on every poll that holds. A clear
+    retires the evidence first and lands guarded (`lands_a_clear`).
+    """
+    settles = partial(_retirement.retires_over_the_reset, held)
+    owing = replace(held, settles_over_a_reset=settles, lands_a_clear=lands_a_clear)
+    _recovery_holds._answers_a_held_anchor(owing, proves_before_a_park, lands_a_park)
 
 
 def proves_before_a_park(context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence] | None = None) -> bool:
@@ -255,11 +327,15 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     landed; False, logged, where it was refused or went unconfirmed, for the
     git owner to hold with nothing reset or cleaned -- the tick's state
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
-    never written back over a blank that landed unconfirmed.
+    never written back over a blank that landed unconfirmed. Movement a
+    refused record read (`rewrite_landing_retirement.moved_under`) is proved
+    as read first, so a tip blanked and put back under it revives nothing.
     """
     if not _attempt_records._recorded_onto(context.state):
         return True
-    commit = _commits.ReportCommit(context.gh, context.issue, context.state)
+    moved: dict[str, ReportEvidence] = {}
+    asked = asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved))
+    commit = _commits.ReportCommit(asked.gh, context.issue, context.state)
     staged = commit.staging()
     staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
     landed = commit.lands(staged, _writes.INVALIDATION)
@@ -271,6 +347,8 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
         "nothing is reset until a later tick records it",
         context.issue.number, (landed.refusal or landed.status).value,
     )
+    if moved and landed.status is _commit_models.CommitStatus.REFUSED and context.worktree.is_dir():
+        _retirement.retires_unproved(context, _retirement.reconciles(context, moved))
     return False
 
 

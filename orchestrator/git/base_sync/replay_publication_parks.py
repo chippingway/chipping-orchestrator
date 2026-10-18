@@ -180,11 +180,15 @@ def _park_stranded_recovery(context: _AutoRebaseRecoveryContext) -> bool:
     the label back and a reply, or -- beside a live adjudication, which keeps
     its label -- the record reconciled by hand. The record it keeps is what
     that reply brings back, so the recovery context is asked first whether the
-    park may go on (`persistence._proves_before_the_park`), each time the park
-    is about to be taken, and the park is recorded as every recovery park is
-    (`persistence._parks_the_recovery`).
+    park may go on (`persistence._proves_before_the_park`), and the park is
+    recorded as every recovery park is (`persistence._parks_the_recovery`).
+    That proof is asked on every poll that arrives here, the one that finds
+    the park already standing included, which posts nothing: a requirement
+    edited under the standing park and put back before the reply is read
+    moving on the poll that saw it, rather than carried unread into the
+    finish that reply brings back.
     """
-    if _already_stranded(context.state) or not persistence._proves_before_the_park(context):
+    if not persistence._proves_before_the_park(context) or _already_stranded(context.state):
         return True
     log.warning(
         "issue=#%d auto-rebase recovery: label %r is not one the refresh "

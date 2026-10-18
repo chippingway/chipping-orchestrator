@@ -55,10 +55,17 @@ from orchestrator.agents.models import (
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, park_watermarks as _park_watermarks
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    owed_events as _owed_events,
+    park_watermarks as _park_watermarks,
+)
 from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The event every park files.
+_PARKED = "park_awaiting_human"
 
 
 def _ignore_if_interrupted(issue: Issue, agent_result: AgentResult) -> bool:
@@ -329,14 +336,18 @@ def _park_awaiting_human(
     poster can know: a later caller that finds that notice said and asks the
     event stream whether its park's event was filed then asks for that park's
     own, not any earlier one's. Only the dormant debt park of a landed rewrite
-    and the dormant guarded recovery parks of an automatic base rewrite
+    and the recovery parks of an automatic base rewrite
     (`rewrite_recovery_notices`) ask for it, so every other record goes out
-    without the field.
+    without the field. Its event is noted owed ahead of the post until it is
+    filed (`owed_events`), so with no audit log that caller files it for a
+    notice this process said, and takes one an earlier process said as filed.
     """
     reason = correlation.pop("reason", None)
     bounded = correlation.pop("bounded", False)
     names_the_notice = correlation.pop("names_the_notice", False)
     _screened_correlation(correlation)
+    if names_the_notice:
+        _owed_events.owes(gh, _PARKED, issue_number=issue.number, reason=reason, **correlation)
     said_before = _comments._orchestrator_ids(state) if bounded else None
     posted = _comments._post_issue_comment(gh, issue, state, message)
     state.set("awaiting_human", True)
@@ -352,9 +363,11 @@ def _park_awaiting_human(
     # itself is unchanged by this call -- callers relabel only after the
     # `write_pinned_state` they do next).
     gh.emit_event(
-        "park_awaiting_human",
+        _PARKED,
         issue_number=issue.number,
         stage=stage_name(gh.workflow_label(issue)),
         reason=reason,
         **correlation,
     )
+    if names_the_notice:
+        _owed_events.pays(gh, _PARKED, issue_number=issue.number, reason=reason, **correlation)

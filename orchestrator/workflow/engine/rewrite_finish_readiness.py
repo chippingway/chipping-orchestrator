@@ -18,20 +18,21 @@ or base that moved since leaves evidence that no longer answers for the head
 it would be routed with.
 
 These are the primitives a route that takes settled evidence as it stands
-proves it ready with (`stands_ready`), and they are dormant: only a finish
-held to the dormant settled-evidence policy
-(`rewrite_finish_models.LandedFinish.proves_settled`) -- its evidence phase
-(`rewrite_finish_settlement.resolves`) and its coordinator's stops
-(`rewrite_finish_stops`) -- and the recovery's dormant answers
-(`rewrite_landing_retirement`) ask them, and no production finish, recovery,
-announcement, dispatcher, or park road selects that policy or carries those
-answers, so every route those roads take reads such evidence behind the
-settlement step's own record check and the last word over the landing and
-the base (`rewrite_finish_captured.stands_before_the_route`). Such a finish
-has them read and retire more, as below, and only a caller that builds one
-and hands it to the coordinator (`rewrite_finish.finalizes`) or that phase,
-or asks them, directly reaches that (`rewrite_finish_settled`); every
-production road keeps the policy every road selects. The proof
+proves it ready with (`stands_ready`): a finish held to the dormant
+settled-evidence policy (`rewrite_finish_models.LandedFinish.proves_settled`)
+-- its evidence phase (`rewrite_finish_settlement.resolves`) and its
+coordinator's stops (`rewrite_finish_stops`) -- and the recovery's answers
+wherever it reads the landing moving or keeps the attempt for a reply
+(`rewrite_landing_moved`, `rewrite_landing_retirement`) ask them, the
+finishes those answers build for their proofs alone held to that policy on
+every road. No production finish selects it, so every route a finish takes
+reads such evidence behind the settlement step's own record check and the
+last word over the landing and the base
+(`rewrite_finish_captured.stands_before_the_route`). Such a finish has them
+read and retire more, as below, and only a caller that builds one and hands
+it to the coordinator (`rewrite_finish.finalizes`) or that phase, or asks
+them, directly reaches that (`rewrite_finish_settled`); every production
+finish keeps the policy every road selects. The proof
 (`settled_word`) reads the evidence records over the issue and pinned comment
 read afresh, and the requirements of that issue, then, where they neither
 move nor hold, the readiness proof every reader relying on current evidence
@@ -124,9 +125,9 @@ excused from the last word (`rewrite_evidence_proof.ADVANCED`), so it neither
 moves nor holds the evidence. `settled_word` and `invalidates` are shaped for
 a recovery as well, over the evidence a finish of the attempt settled
 (`rewrite_landing_records.settled`), wherever it would read the landing
-moving or keep the attempt for a human's reply: the recovery's dormant
-answers to a reset and to a park that keeps the attempt ask them
-(`rewrite_landing_retirement`), and no recovery road is handed those yet.
+moving or keep the attempt for a human's reply: the recovery's answers to a
+snapshot read off the head (`rewrite_landing_moved`), to a reset, and to a
+park that keeps the attempt (`rewrite_landing_retirement`) ask them on every road.
 That recovery hands `settled_word` a verdict of its own to ask of each
 reading beside the records (`asks`) -- what that very comment records moving
 under the evidence, or under a successor read in its place, a base tip read
@@ -261,14 +262,14 @@ def settled_word(finish: LandedFinish, current: _records.CurrentEvidence, asks: 
     again is never left for a later poll to find put back. Every reading's
     movement and every reading's hold are kept side by side, so none is
     hidden behind another. What `stands_ready` routes over, and what the
-    recovery's dormant proof asks before a park keeps the attempt over
+    recovery's proof asks before a park keeps the attempt over
     `current` (`rewrite_landing_retirement.retires_unproved`). Both
     readings of the comment ask a successor another road settled in
     `current`'s place after the caller read it of its own binding there too
     (`_heard`), so its movement is never read against `current`'s alone.
     `asks`, where a caller hands one, is asked of each of those readings
     beside the records, under the receipt of the evidence asked there --
-    `current`, or a successor in its place -- what the recovery's dormant
+    `current`, or a successor in its place -- what the recovery's
     proof reads moving there that the records alone do not, a base tip
     blanked or repointed among it, so movement a reading records stands
     however soon it is put back before the next.
