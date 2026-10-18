@@ -235,7 +235,9 @@ def retires_unproved(
     own proof, both are asked again with it; a proof that reads movement
     retires what moved or answers False, so the asking stops there.
     With no checkout on disk both are retired on the state
-    the park lands (`retires_over_the_reset`). False only where evidence still
+    the park lands (`retires_over_the_reset`) -- a checkout gone by the time a
+    park's proof is asked is taken ahead of this, its retirement landed in a
+    write of its own (`rewrite_recovery_parks.records_the_reset`). False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
     its history entry among it, its movement recorded instead -- or where the
     comment the proof read carries another attempt in place of the one

@@ -119,14 +119,13 @@ def abandons(context: _AutoRebaseRecoveryContext, *, read: bool = True) -> bool:
     proof then reads what the comment and the checkout record moving itself.
 
     A checkout gone from disk since the landing was read has nothing to prove
-    over, and the proof stages its retirement for a park's write
-    (`rewrite_landing_retirement.retires_over_the_reset`), which a road that
-    writes nothing behind would drop. So the retirement is recorded as a
-    recovery hold records it (`rewrite_recovery_parks.lands_a_hold`): the
-    reset recorded first by blanking the base tip, then the retirement landed
-    over the comment read afresh.
+    over, so the proof a park asks first takes it
+    (`rewrite_recovery_parks.proves_before_a_park`): the reset recorded by
+    blanking the base tip, and the retirement landed in a write of its own
+    over the comment read afresh, however soon another road puts that tip
+    back.
     """
     held = _retirement.receipts(context.state)
     if held and not context.worktree.is_dir():
-        return _recovery_parks.lands_a_hold(context)
+        return _recovery_parks.proves_before_a_park(context)
     return _retirement.retires_unproved(context, dict.fromkeys(held, LEFT_THE_LANDING) if read else None)

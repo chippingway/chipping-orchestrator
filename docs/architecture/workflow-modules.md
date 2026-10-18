@@ -2290,9 +2290,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             answering False where no write could retire either so the road holds, and keeping both
                             where a head went unread, which moves nothing, for a reset that lands to retire; the same
                             retirement asked by the landed road (`rewrite_landed.py`) of a checkout or remote it reads
-                            leaving the head (`abandons`), landed over a checkout gone from disk since as a hold's is
-                            (`rewrite_recovery_parks.lands_a_hold`), the reset recorded first, since that road writes
-                            nothing behind it
+                            leaving the head (`abandons`), landed over a checkout gone from disk since by the proof
+                            before a park (`rewrite_recovery_parks.proves_before_a_park`), the reset recorded first,
+                            since that road writes nothing behind it
     rewrite_landing_retirement.py
                             the settled-aware answers every recovery context the workflow builds carries -- each
                             recovery road's (`rewrite_recovery.recovers`), the abort over an unreadable checkout's,
@@ -2421,8 +2421,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             Asked ahead of a record, that proof keeps what the tick staged before it -- a gate's record
                             of the hold, or the tip the git owner stages back behind a reset git refused -- across
                             every write it lands (`rewrite_recovery_staging.py`), and behind one keeps it out of them. A
-                            checkout gone from disk only behind a record or a notice that raised has the reset recorded
-                            there instead (`proves_before_a_park`). Ahead of every reset whose attempt records a base
+                            checkout gone from disk, ahead of a record or behind one or a notice that raised, has the
+                            reset recorded and the evidence retired as over it, each in a write of its own
+                            (`proves_before_a_park`). Ahead of every reset whose attempt records a base
                             tip -- or one the tick read blank, confirmed blank over the comment read afresh, so a tip
                             another road put back refuses the reset -- that tip is blanked in a write of its own
                             (`records_the_reset`, the context's `records_before_a_reset`), decided on every evidence
@@ -2433,11 +2434,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and what its commit read moving under the evidence proved as read, so putting that back
                             revives nothing -- behind a blank that landed too, before the reset goes on, since a reset
                             git refuses stages the tip back, the reset held where that retirement does not land, and
-                            over a checkout gone from disk, where no landing proves it and a record that did not land
-                            leaves no park to carry it, retired as over a reset in a `HOLD` write of its own;
-                            and the proof before a park
-                            that keeps the attempt (`proves_before_a_park`) records the same blank first over a
-                            checkout gone from disk
+                            over a checkout gone from disk, where no landing proves it, retired as over a reset in a
+                            `CLEAR` write of its own whether or not the blank landed, over a tip another road put back
+                            behind it among the rest (`rewrite_recovery_staging.lands_the_retirement`); and the proof
+                            before a park that keeps the attempt (`proves_before_a_park`) records the same blank and
+                            retirement over a checkout gone from disk
     rewrite_recovery_readings.py
                             the client the recovery's proof before a park or hold that
                             keeps the attempt (`rewrite_landing_retirement.retires_unproved`) builds its finishes over,
@@ -2458,7 +2459,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             so the record behind lands it as the tick's own move or refuses it as a conflict, a field
                             the proof itself left staged keeping the proof's staging; behind a record that did not land,
                             that staging is taken off the state for the proof, put back only where no proof edit
-                            landed or may have
+                            landed or may have; and over a checkout gone from disk, what the tick holds for the landed
+                            head retired as over a reset in a guarded write of its own, asked once more over the
+                            comment read afresh where it was refused, a successor or another attempt held instead
+                            (`lands_the_retirement`)
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written
                             only once it saw the push land: whether any record -- pending, current, retired, or a

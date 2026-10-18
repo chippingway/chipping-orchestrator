@@ -10,15 +10,13 @@ hold answers it with the stranded park that keeps the attempt -- handed the
 workflow's proof and park by the dispatcher's own answer
 (`guarded_recovery_support`).
 
-With no checkout there is nothing to prove the landing over, so the run is
-retired on the state the park writes, and the movement is recorded against it
-first, in a write of its own, by blanking the base tip the attempt recorded
-its replay as made onto. A park record that lands keeps the attempt and
-retires the run whole; one GitHub refuses, or a process killed before it,
-leaves the run current, but read moving once the checkout and the label are
-put back: the recovery asks the proof a park that keeps the attempt asks
-before the landed road finishes over heads both on the landing, so the run is
-invalidated whole and the head routed with nothing current.
+With no checkout there is nothing to prove the landing over, so the movement
+is recorded against the run in a write of its own, by blanking the base tip
+the attempt recorded its replay as made onto, and the run is retired whole in
+another ahead of the park's record, which keeps the attempt. A park record
+GitHub refuses, or a process killed before it, leaves the run retired all the
+same, so with the checkout and the label put back the landed road routes the
+head with nothing current.
 
 The guarded hold a publication gate's hold of a recovery's push is recorded
 through takes that proof too, so with the checkout gone the reset
@@ -123,11 +121,9 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_a_park_that_never_lands(self) -> None:
         # The stranded park's record is refused, or the process is killed
-        # ahead of it: the movement was recorded against the run first, so
-        # with the checkout and the label put back the recovery reads that
-        # blank as movement, though both heads stand on the landing, and
-        # invalidates the run whole before the landed road routes the head
-        # with nothing current.
+        # ahead of it: the run was retired in a write of its own first, so
+        # with the checkout and the label put back the landed road routes the
+        # head with nothing current.
         for failing in _NEVER_LANDS:
             with self.subTest(record=failing):
                 self.setUp()
@@ -135,7 +131,7 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._strands_unrecorded(failing)
                 self._returns()
 
-                self.assertEqual(readings.pinned_records(self)[1], settled)
+                self.assertIsNone(readings.pinned_records(self)[1])
                 self.assertEqual(self.pinned_fields(readings.KEY_REWRITE_BASE), (None,))
                 self.recovers()
                 self._assert_routed_past(head, settled)

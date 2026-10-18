@@ -90,10 +90,11 @@ record refused or sent with its answer lost, the comment's evidence is laid
 over the tick's state first (`rewrite_landing_retirement.reconciles`), so a
 successor another road settled meanwhile is proved on its own binding, and
 that record's staging rides none of the proof's writes. A checkout gone from
-disk has nothing to prove the landing over, so its evidence is retired on the
-state the park or hold writes, the reset recorded against it first in a write
-of its own; one gone only behind a record, or a notice that raised, has the
-reset recorded there instead (`proves_before_a_park`).
+disk has nothing to prove the landing over, so the reset is recorded against
+its evidence and the evidence retired as over that reset, each in a write of
+its own (`records_the_reset`), ahead of a park or hold and behind one alike:
+a quiet hold, a park already standing, or a record refused leaves nothing
+behind it to carry a retirement only staged (`proves_before_a_park`).
 """
 from __future__ import annotations
 
@@ -121,15 +122,11 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_recovery_readings import AsksEveryReading, asks_every_reading
-from orchestrator.workflow.engine.rewrite_recovery_staging import keeps_the_staging
+from orchestrator.workflow.engine.rewrite_recovery_staging import keeps_the_staging, lands_the_retirement
 
 log = logging.getLogger("orchestrator.workflow")
 
 _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PARK_REASON))
-
-# The write a retirement rides where the reset's record did not land over a
-# checkout gone from disk, logged.
-_UNRECORDED = "in a write of its own, the reset's record not landed and the checkout gone"
 
 # What a recovery hold records: whatever the tick staged since its reading --
 # a publication gate's own record of the no-op it held -- decided on the
@@ -141,7 +138,8 @@ HOLD = _commits.ReportWrite(
 ).reading_moves(True)
 
 # A clear's record under a label the refresh does not drive, decided on the
-# attempt and the evidence records, so a successor settled meanwhile refuses it.
+# attempt and the evidence records, so a successor settled meanwhile refuses it
+# -- the write a retirement over a checkout gone from disk lands as too.
 CLEAR = _commits.ReportWrite(
     owned=frozenset(),
     decided_on=frozenset(_attempts._ATTEMPT_KEYS) | {
@@ -213,11 +211,10 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> bool:
     no-op (`rewrite_landed`), or the retry's reissued push (`rewrite_retry`)
     -- keeps the attempt, so its evidence is proved first, as before every
     park that keeps it (`proves_before_a_park`): over a checkout gone from
-    disk the reset is recorded against it in a write of its own before the
-    hold's record retires it, so a record refused or never confirmed leaves
-    every later proof reading it moved. Where that proof does not land -- the
-    reset not recorded among it -- nothing is recorded, for a later tick to
-    answer. The gate's own record, staged on the tick's state before this is
+    disk the reset is recorded against it and it is retired, each in a write
+    of its own, so a hold record refused or never confirmed leaves it retired.
+    Where that proof does not land -- the reset not recorded among it --
+    nothing is recorded, for a later tick to answer. The gate's own record, staged on the tick's state before this is
     asked, is kept across every write that proof lands, so the hold's record
     still carries it. The gate's answer is long enough for another road to
     record a newer transaction, so only what the tick staged since its reading
@@ -226,10 +223,8 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> bool:
     record the evidence is proved once more, over the move the record itself
     carried, as behind every park (`lands_a_park`) -- or the reset recorded,
     over a checkout gone from disk by then. A state nothing was read into is
-    written whole. A snapshot that read the landing off the head over a
-    checkout gone from disk records its retirement the same way
-    (`rewrite_landing_moved.abandons`), since its road writes nothing behind.
-    True where the proof landed and so did the record, its proof behind it too.
+    written whole. True where the proof landed and so did the record, its
+    proof behind it too.
     """
     if not proves_before_a_park(context):
         return False
@@ -290,19 +285,18 @@ def proves_before_a_park(context: _AutoRebaseRecoveryContext, moved: dict[str, R
     The proof is the recovery's (`rewrite_landing_retirement.retires_unproved`),
     over a transaction a finish captured and evidence one settled alike. A
     checkout gone from disk has no reading to prove the landing over, so the
-    evidence is retired on the state the park writes -- and recorded against
-    first (`records_the_reset`), in a write of its own, so that a park write
-    refused, never confirmed, or cut short by a lost process leaves every later
-    proof reading the evidence moved however the checkout is put back. A
-    record that does not land holds the tick with nothing parked.
+    reset is recorded against the evidence and the evidence retired as over
+    it, each in a write of its own (`records_the_reset`), so that a park write
+    refused, never confirmed, cut short by a lost process, or never made -- a
+    quiet hold's, or one a park already standing skips -- leaves it retired
+    however the checkout and the base tip are put back. A reset record or a
+    retirement that does not land holds the tick with nothing parked.
 
     Behind a park's or hold's record, or a notice that raised, it is asked
     once more, `moved` the movement already read there -- handed only then --
     which a checkout on disk hands the proof as read. A checkout gone from
     disk by then, under the record's write or the notice's post among it,
-    leaves no write behind to retire the evidence on, so the reset recorded
-    is all that lands: every later proof reads that blank as movement and
-    invalidates the evidence once the checkout is back, however soon.
+    has the reset recorded and the evidence retired the same way.
 
     Asked ahead of a record, the proof keeps what the tick staged before it
     -- a gate's record of a hold, or a tip staged back behind a reset git
@@ -313,9 +307,7 @@ def proves_before_a_park(context: _AutoRebaseRecoveryContext, moved: dict[str, R
     with keeps_the_staging(context, ahead=moved is None) as proving:
         if proving.worktree.is_dir():
             return _retirement.retires_unproved(proving, moved)
-        if not records_the_reset(proving):
-            return False
-        return moved is not None or _retirement.retires_unproved(proving)
+        return records_the_reset(proving)
 
 
 def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
@@ -345,10 +337,11 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     is retired before the reset is let go on, since a reset git then refuses
     stages the tip back, and where that retirement does not land the answer
     is False, the blank left standing as the record of that movement. A
-    checkout gone from disk leaves no landing to prove that evidence over, and
-    a record that did not land leaves no park behind to carry its retirement,
-    so it is retired as over a reset and landed over the comment read afresh
-    in a write of its own (`HOLD`), only what that retirement staged among it.
+    checkout gone from disk leaves no landing to prove that evidence over, so
+    whether or not the blank landed, the evidence is retired as over a reset
+    and landed in a write of its own (`rewrite_recovery_staging.lands_the_retirement`,
+    as `CLEAR`), over a tip another road put back behind the blank among it;
+    True there only where both landed.
     """
     moved: dict[str, ReportEvidence] = {}
     commit = _commits.ReportCommit(
@@ -368,13 +361,10 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
             "nothing is reset until a later tick records it",
             context.issue.number, (landed.refusal or landed.status).value,
         )
-    if moved and context.worktree.is_dir():
+    if not context.worktree.is_dir():
+        return lands_the_retirement(context, CLEAR) and recorded
+    if moved:
         recorded = _retirement.retires_unproved(context, _retirement.reconciles(context, moved)) and recorded
-    elif moved and not recorded:
-        _retirement.reconciles(context, moved)
-        _retirement.retires_over_the_reset(context, _UNRECORDED)
-        commit = _commits.ReportCommit(context.gh, context.issue, context.state)
-        commit.lands(context.state, HOLD)
     return recorded
 
 
