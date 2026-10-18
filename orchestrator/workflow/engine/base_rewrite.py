@@ -37,12 +37,14 @@ context from.
 from __future__ import annotations
 
 import inspect
+from dataclasses import replace
 from typing import Any
 
 from github.PullRequest import PullRequest
 
 from orchestrator.git.base_sync import (
     eligibility,
+    recovery,
     refresh_selection,
     startup,
 )
@@ -56,6 +58,7 @@ from orchestrator.workflow.engine import (
     rewrite_publication as _rewrite_publication,
     rewrite_recovery as _rewrite_recovery,
     rewrite_recovery_parks as _recovery_parks,
+    rewrite_recovery_readings as _readings,
     rewrite_replies as _rewrite_replies,
 )
 
@@ -122,14 +125,22 @@ def _held_past_the_anchor(context: _AutoRebaseContext) -> bool:
 
 
 def _is_eligible(context: _AutoRebaseContext) -> bool:
-    """Whether the refresh may rebase `context`'s PR, an ineligible label's anchor handed the recovery's answers."""
-    return eligibility._auto_rebase_label_is_eligible(
-        context,
-        _recovery_parks.proves_before_a_park,
-        _recovery_parks.lands_a_park,
-        _retirement.retires_over_the_reset,
-        _recovery_parks.lands_a_clear,
-    )
+    """Whether the refresh may rebase `context`'s PR, an ineligible label's anchor handed the recovery's answers.
+
+    A checkout that answer finds gone from disk has that loss recorded
+    (`rewrite_recovery_readings.RecordsALostCheckout`), and nothing is rebased.
+    """
+    recovering = replace(recovery._recovery_context(context), records_before_a_reset=_recovery_parks.records_the_reset)
+    eligible = False
+    with _readings.RecordsALostCheckout(recovering):
+        eligible = eligibility._auto_rebase_label_is_eligible(
+            context,
+            _recovery_parks.proves_before_a_park,
+            _recovery_parks.lands_a_park,
+            _retirement.retires_over_the_reset,
+            _recovery_parks.lands_a_clear,
+        )
+    return eligible
 
 
 def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:

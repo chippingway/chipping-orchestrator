@@ -128,7 +128,11 @@ from orchestrator.workflow.engine import (
     verification_records as _evidence_records,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
-from orchestrator.workflow.engine.rewrite_recovery_readings import AsksEveryReading, asks_every_reading
+from orchestrator.workflow.engine.rewrite_recovery_readings import (
+    AsksEveryReading,
+    RecordsALostCheckout,
+    asks_every_reading,
+)
 from orchestrator.workflow.engine.rewrite_recovery_staging import keeps_the_staging, lands_the_retirement
 
 log = logging.getLogger("orchestrator.workflow")
@@ -271,19 +275,29 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
     return False
 
 
-def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
-    """Answer an anchor the dispatcher holds a handler back for, handed the workflow's proof and park.
+def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> bool:
+    """Whether the dispatcher's hold of `held`'s anchor stops this tick, answered with the workflow's proof and park.
 
-    The git owner's answer (`git/base_sync/recovery_holds._answers_a_held_anchor`)
-    restores a checkout, clears the attempt, or parks it stranded; that park
-    keeps the attempt, so it asks the proof first (`proves_before_a_park`) and
-    is recorded as every recovery park is (`lands_a_park`) -- and so does a
-    hold that keeps it with nothing posted, on every poll that holds. A clear
-    retires the evidence first and lands guarded (`lands_a_clear`).
+    The hold is the git owner's question (`git/base_sync/recovery_holds._recovery_holds_dispatch`),
+    and its answer (`_answers_a_held_anchor`) restores a checkout, clears the
+    attempt, or parks it stranded; that park keeps the attempt, so it asks the
+    proof first (`proves_before_a_park`) and is recorded as every recovery park
+    is (`lands_a_park`) -- and so does a hold that keeps it with nothing
+    posted, on every poll that holds. A clear retires the evidence first and
+    lands guarded (`lands_a_clear`). A checkout the question or the answer
+    finds gone from disk has that loss recorded (`RecordsALostCheckout`), and
+    the handler held.
     """
     settles = partial(_retirement.retires_over_the_reset, held)
     owing = replace(held, settles_over_a_reset=settles, lands_a_clear=lands_a_clear)
-    _recovery_holds._answers_a_held_anchor(owing, proves_before_a_park, lands_a_park)
+    holds = True
+    with RecordsALostCheckout(replace(held, records_before_a_reset=records_the_reset)):
+        holds = _recovery_holds._recovery_holds_dispatch(
+            held.issue, held.label or None, held.state, held.worktree,
+        )
+        if holds:
+            _recovery_holds._answers_a_held_anchor(owing, proves_before_a_park, lands_a_park)
+    return holds
 
 
 def proves_before_a_park(context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence] | None = None) -> bool:

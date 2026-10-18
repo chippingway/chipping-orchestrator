@@ -51,10 +51,10 @@ from orchestrator.workflow.engine import (
 _MAY_HAVE_LANDED = frozenset((PinnedEdit.EDITED, PinnedEdit.UNCONFIRMED))
 
 # The write a retirement over a checkout gone from disk rides, logged -- and
-# the one made again over evidence another road wrote back behind it.
+# the last, over the comment read afresh behind one that landed or was refused for room.
 _GONE = "in a write of its own, the checkout it was captured on gone"
 
-_PUT_BACK = f"{_GONE} and the evidence written back behind its retirement, holding"
+_LAST = f"{_GONE}, asked once more over the comment read afresh, holding"
 
 
 class _KeepsWhatItCarried:
@@ -117,14 +117,18 @@ def lands_the_retirement(
     afresh behind it too, since nothing behind a quiet hold proves the
     evidence again: evidence another road put back there is retired once
     more, or its movement recorded, and the answer is False, for the git
-    owner to hold the tick. Only while the comment carries nothing for the
+    owner to hold the tick. One refused for room is asked once more over that
+    comment read whole, so where it has no room the base tip is blanked in a
+    shrinking write of its own as the record of the movement, and the tick
+    held the same way. Only while the comment carries nothing for the
     head under a receipt the tick did not hold, and the attempt `context`
     recovers: a successor another road settled is left for its own proof, and
     another attempt for its own recovery, both answered False before anything
     is read as retired. True where nothing the tick held stands any more. A
     state nothing was read into is staged only, for the whole-state write
     behind it. `held` is the receipts the first write was asked over, and
-    `behind` says the reading follows a write that landed.
+    `behind` says the reading follows a write that landed or was refused for
+    room, and is the last.
     """
     asked = _retirement.receipts(context.state) if held is None else held
     if context.state.synced is None:
@@ -143,20 +147,25 @@ def _lands(
 ) -> bool:
     """Retire what `context.state` holds as over a reset, land it as `write`, and read the comment afresh behind it.
 
-    Read afresh behind a retirement that landed, or a write refused and asked
-    `again`; one with no room for its history keeps the evidence current, its
-    base tip blanked as the record of its movement, and holds. False `behind`
-    a retirement that landed, or where the comment would not read afresh.
+    Read afresh behind a write that landed, one refused and asked `again`,
+    or one refused for room, whose last asking runs over that reading whole.
+    With no room for its history the evidence stays current, its base tip
+    blanked as the record of its movement, so the reading behind blanks a tip
+    put back there once more and holds. False `behind` a write that landed or
+    was refused for room, or where the comment would not read afresh.
     """
-    retired = _retirement.retires_over_the_reset(context, _PUT_BACK if behind else _GONE)
+    _retirement.retires_over_the_reset(context, _LAST if behind else _GONE)
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)
-    landed = commit.lands(context.state, write).status is _commit_models.CommitStatus.COMMITTED
-    reads = retired if landed else again
-    if behind or not reads:
+    outcome = commit.lands(context.state, write)
+    full = outcome.refusal in _commits._ROOM
+    landed = outcome.status is _commit_models.CommitStatus.COMMITTED
+    if behind or not (landed or again or full):
         return False
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
     if durable is None:
         return False
+    if full:
+        return lands_the_retirement(replace(context, state=durable), write, asked, behind=True)
     _lays(context.state, durable.data, write.decided_on)
     _commit.takes_in(context.state, durable.data, write.decided_on)
     return lands_the_retirement(context, write, asked, behind=landed)

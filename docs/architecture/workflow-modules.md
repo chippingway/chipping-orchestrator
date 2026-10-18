@@ -2390,7 +2390,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             does not drive among them, the abort over a checkout whose lag could not be counted
                             (`rewrite_recovery.answers_an_unreadable_checkout`), the eligibility gate's park of an
                             ineligible label (`base_rewrite.py`), and the dispatcher's stranded park of an anchor it
-                            holds a handler back for (`answers_a_held_anchor`), whose holds that post nothing ask the
+                            holds a handler back for (`answers_a_held_anchor`, which asks the hold itself, a checkout
+                            its question or answer finds gone recorded), whose holds that post nothing ask the
                             same proof on every poll: the park every recovery park is recorded through
                             (`lands_a_park`, the answer `git/base_sync/persistence._parks_the_recovery` transports),
                             the notice posted and the park staged as every auto-rebase park is, or a notice already
@@ -2471,9 +2472,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             landed or may have; and over a checkout gone from disk, what the tick holds for the landed
                             head retired as over a reset in a guarded write of its own, asked once more over the
                             comment read afresh where it was refused, and read afresh behind it where it landed, so
-                            evidence another road wrote back there is retired once more and the tick held; a successor
-                            or another attempt standing in its place holds the tick before anything is read as retired
-                            (`lands_the_retirement`)
+                            evidence another road wrote back there is retired once more and the tick held, and asked
+                            once more over that comment whole where it was refused for room, the base tip blanked in a
+                            shrinking write where it has none; a successor or another attempt standing in its place
+                            holds the tick before anything is read as retired (`lands_the_retirement`)
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written
                             only once it saw the push land: whether any record -- pending, current, retired, or a

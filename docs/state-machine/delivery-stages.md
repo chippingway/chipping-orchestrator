@@ -1584,12 +1584,14 @@ because there it is the claim that this stage has already rerouted rather than a
   lands as `HOLD` too, with no proof first, since nothing was pushed for a finish to hold evidence for
   (`rewrite_publication`). A checkout gone from disk, ahead of a park's or hold's record or behind one or a notice
   that raised -- or while the proof reads it, under one of its own git requests among it, or under any other git
-  request of the recovery's, which then owns the tick -- has the reset recorded
+  request of the recovery's, the dispatcher's hold, or the eligibility gate's, which then holds the tick -- has the
+  reset recorded
   and the evidence retired as over it, each in a write of its own, so a quiet
   hold, a park already standing, or a record refused leaves it retired however soon the base tip is put back
   (`rewrite_recovery_parks.proves_before_a_park`). The comment is read afresh behind that retirement, so evidence
   another road writes back right behind it is retired once more and the tick held, and a successor or another attempt
-  another road put in its place holds the tick with nothing reset
+  another road put in its place holds the tick with nothing reset; one refused for room is asked once more over the
+  comment read whole, blanking the base tip in a shrinking write where there is still no room
   (`rewrite_recovery_staging.lands_the_retirement`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the

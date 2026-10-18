@@ -373,17 +373,14 @@ def _anchor_holds_the_tick(
         )
         return True
     held = _recovery_holds._held_anchor_context(gh, spec, issue, state, label)
-    if not _recovery_holds._recovery_holds_dispatch(
-        issue, label, state, held.worktree,
-    ):
+    if not answers_a_held_anchor(held):
         return False
     log.info(
         "repo=%s issue=#%s carries an auto-rebase anchor no recovery has "
-        "ended; holding the %r handler so no agent runs over an "
+        "ended; held the %r handler so no agent runs over an "
         "unpublished replay",
         spec.slug, issue.number, label,
     )
-    answers_a_held_anchor(held)
     return True
 
 

@@ -20,8 +20,8 @@ import unittest
 from functools import partial
 from unittest.mock import patch
 
-from orchestrator.git import branch_transport
 from orchestrator.git.base_sync import attempts as _attempts, rewrite_facts
+from orchestrator.git.verification import probes
 from orchestrator.git.worktrees import creation
 from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import (
@@ -34,6 +34,7 @@ from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_evidence_test_support as fixtures,
     rewrite_finish_git_support as git_support,
+    rewrite_finish_moves as moves,
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
     settled_finish_support as settled_support,
@@ -79,6 +80,7 @@ class _LostCheckoutCase(guarded.GuardedRecoveryCase):
         super().setUp()
         self._away = self._wt.parent / "checkout-away"
         self._tips: list = []
+        self._fills = False
 
     def settles(self) -> None:
         """Land a reviewed rebase, settle its run, and kill its finish, the head and the run kept for the case."""
@@ -93,17 +95,20 @@ class _LostCheckoutCase(guarded.GuardedRecoveryCase):
         self.issue.labels = [FakeLabel(git_support.REVIEWING)]
         self.continues()
 
-    def assert_retired(self) -> None:
-        """The run invalidated whole while the checkout is away, and still once it is back on the head and routed."""
+    def assert_retired(self, *, routes: bool = True) -> None:
+        """The run invalidated whole while the checkout is away, and still once it is back on the head -- and routed."""
         head, settled = self._run
         self.assertFalse(self._wt.is_dir())
         self.assert_invalidated(settled)
         self._away.rename(self._wt)
         self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
+        self.issue.labels = [FakeLabel(git_support.REVIEWING)]
         self.recovers()
-        self.assert_routed(head)
-        retired = readings.pinned_records(self)[2]
-        self.assertIn((settled.receipt, readings.INVALIDATED), retired)
+        records = readings.pinned_records(self)
+        self.assertIsNone(records[1])
+        self.assertIn((settled.receipt, readings.INVALIDATED), records[2])
+        if routes:
+            self.assert_routed(head)
 
 
 class RestoredTipTest(_LostCheckoutCase, unittest.TestCase):
@@ -119,17 +124,32 @@ class RestoredTipTest(_LostCheckoutCase, unittest.TestCase):
 
     def test_a_quiet_hold(self) -> None:
         # The dispatcher holds a stage the refresh drives; the checkout it brings back for the refresh never returns.
-        self.settles()
-        self._wt.rename(self._away)
-        unavailable = RuntimeError("the checkout could not be brought back")
-        with patch.object(creation, "_ensure_pr_worktree", side_effect=unavailable):
-            self._races(partial(guarded.answers_a_held_anchor, self))
-        self.assert_retired()
+        # Where the tip comes back on a comment too full for the run's retirement, it is blanked once more, the run
+        # and its attempt kept whole until room is made and the next hold retires it.
+        for fills in (False, True):
+            with self.subTest(full=fills):
+                self.setUp()
+                self.settles()
+                self._fills = fills
+                self._wt.rename(self._away)
+                self._races(self._holds_unrestored)
+                if fills:
+                    self.assertEqual(readings.pinned_records(self)[1], self._run[1])
+                    standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
+                    self.assertEqual(standing, (self.anchor, None))
+                    moves.makes_room(self)
+                    self._holds_unrestored()
+                self.assert_retired()
 
     def test_a_standing_park(self) -> None:
         # The dispatcher's hold of a stage the refresh does not drive finds its stranded park already standing.
         self.strands_then(partial(guarded.answers_a_held_anchor, self), self._races_away)
         self.assert_retired()
+
+    def _holds_unrestored(self) -> None:
+        """The dispatcher's quiet hold over a checkout it cannot bring back."""
+        with patch.object(creation, "_ensure_pr_worktree", side_effect=RuntimeError("not brought back")):
+            guarded.answers_a_held_anchor(self)
 
     def _races_away(self, recovery) -> None:
         """Run `recovery` with the checkout gone from disk, the base tip written back behind its blank."""
@@ -150,6 +170,8 @@ class RestoredTipTest(_LostCheckoutCase, unittest.TestCase):
         read = options["over"].get(tip)
         blanks = read is not None and staged.get(tip) is None
         if answered is PinnedEdit.EDITED and blanks and self._tips:
+            if self._fills:
+                moves.fills_the_comment(self, left=len(self._tips[0]) - 2)
             state = self.gh.read_pinned_state(issue)
             state.set(tip, self._tips.pop())
             self.gh.write_pinned_state(issue, state)
@@ -196,6 +218,25 @@ class MidRoadCheckoutTest(_LostCheckoutCase, unittest.TestCase):
             guarded.answers_a_held_anchor(self)
         self.assert_retired()
 
+    def test_a_head_read_ahead_of_any_proof(self) -> None:
+        # The dispatcher's hold, or the refresh's eligibility gate under an undriven label over an attempt that never
+        # left the anchor, finds the checkout gone as it reads its HEAD, ahead of any proof.
+        for answerer in ("dispatcher", "refresh"):
+            with self.subTest(answerer=answerer):
+                self.setUp()
+                self.settles()
+                answers = partial(guarded.answers_a_held_anchor, self)
+                if answerer == "refresh":
+                    answers = self.recovers
+                    unstarted = self.gh.read_pinned_state(self.issue)
+                    unstarted.set(readings.KEY_REWRITE_SHA, None)
+                    self.gh.write_pinned_state(self.issue, unstarted)
+                    self._git("reset", "--quiet", "--hard", self.anchor, cwd=self._wt)
+                    self.issue.labels = [FakeLabel(_UNDRIVEN)]
+                with patch.object(probes, "_head_sha", partial(_vanishes_ahead, self, probes._head_sha)):
+                    answers()
+                self.assert_retired(routes=answerer == "dispatcher")
+
     def _vanishes_in_the_proof(self, recovery) -> None:
         """Run `recovery`, the checkout gone from disk right as the recovery's proof is first asked over it."""
         with patch.object(_retirement, _PROVES, partial(_vanishes_ahead, self, getattr(_retirement, _PROVES))):
@@ -234,7 +275,7 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
                 self._written = None
                 edits = partial(self._races_the_retirement, writes, self.gh.edit_pinned_state)
                 with (
-                    patch.object(branch_transport, "_authed_fetch", guarded.unfetched),
+                    patch("orchestrator.git.branch_transport._authed_fetch", guarded.unfetched),
                     patch.object(self.gh, _EDITS, edits),
                 ):
                     self.recovers()
