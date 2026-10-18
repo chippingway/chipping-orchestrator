@@ -16,7 +16,9 @@ compressed beside it and truncated -- whose copy still carries the event. A
 log that would not read is no answer: the finish is held with nothing filed,
 relabelled, or retired, and the next tick, the log readable again, finds the
 event the same way. Nothing is run again, pushed, or launched. With no log
-configured, the attempt's record of the event is taken as the event filed.
+configured, the attempt's record of the event is taken as the event filed --
+another producer's too, where it refused this finish's own record, which leaves
+this process owing nothing.
 """
 from __future__ import annotations
 
@@ -183,6 +185,32 @@ class UnloggedEventRecoveryTest(support.CapturedRunCase, unittest.TestCase):
                 announced = before + support.announced(self)
                 self.assertEqual(announced, [head][:filed])
                 self.assertEqual(readings.relabels(self), readings.ROUTED)
+
+    def test_a_refused_record_owes_nothing(self) -> None:
+        # Another producer records the head's event, and files it on its own
+        # stream, right as this finish's record of it is sent, refusing it:
+        # this process owes nothing for a record it never landed, so its retry
+        # takes that record as the event filed and files none of its own.
+        self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
+        self._head = self.lands_a_reviewed_rebase()
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, self._head))
+        self._raced = False
+        with patch.object(self.gh, "edit_pinned_state", partial(self._records_first, self.gh.edit_pinned_state)):
+            self.recovers()
+        self.recovers()
+
+        self.assertEqual((self._raced, support.announced(self)), (True, []))
+        self.assertEqual(readings.relabels(self), readings.ROUTED)
+
+    def _records_first(self, live, issue, staged, **options):
+        """`live`, the strict edit, another producer's record of the head's event written right ahead of this one's."""
+        records = staged.get(readings.KEY_ANNOUNCED_EVENT) == self._head
+        if records and not options["over"].get(readings.KEY_ANNOUNCED_EVENT) and not self._raced:
+            self._raced = True
+            state = self.gh.read_pinned_state(issue)
+            state.set(readings.KEY_ANNOUNCED_EVENT, self._head)
+            self.gh.write_pinned_state(issue, state)
+        return live(issue, staged, **options)
 
 
 if __name__ == "__main__":

@@ -21,8 +21,9 @@ read holds every landed rewrite's route until it reads. With no audit log the
 stream is this process's tail alone, so the attempt's record of the event is
 taken as the event filed -- once at most, never twice: a process lost between
 the record and the event files none, while a finish of this process cut short
-there still owes it (`owed_events`). Once the mark is down, no later finish
-announces the head at all.
+there still owes it (`owed_events`), and one whose record was refused outright
+-- another producer's record in its place -- owes nothing it noted for that
+write. Once the mark is down, no later finish announces the head at all.
 
 The attempt records the event ahead of filing it, in a guarded write of its
 own (`rewrite_finish_writes.ANNOUNCED_EVENT`), decided on the attempt: the
@@ -94,14 +95,13 @@ def files(finish: LandedFinish, staged: PinnedState, observed: ProofReading | No
     outcome of the record's own write where that did not land, the movement
     its refusal read collected on `observed` (`rewrite_finish_writes.lands`).
     """
-    issue_number = finish.issue.number
-    named = {"issue_number": issue_number, "sha": finish.head}
+    named = {"issue_number": finish.issue.number, "sha": finish.head}
     found = _github_events.filed(finish.gh, _REBASED, **named)
     if found is None:
         log.warning(
             "issue=#%d could not read the event stream back for the base_rebased event of %.8s, which may "
             "already be filed; holding the finish with nothing filed",
-            issue_number, finish.head,
+            finish.issue.number, finish.head,
         )
         return FinishOutcome.HELD
     recorded = finish.state.get(_FILED) == finish.head
@@ -109,17 +109,18 @@ def files(finish: LandedFinish, staged: PinnedState, observed: ProofReading | No
         log.info(
             "issue=#%d finds the base_rebased event of %.8s already on the event stream, or recorded with no "
             "audit log to ask; not filing it again",
-            issue_number, finish.head,
+            finish.issue.number, finish.head,
         )
         return None
-    _owed_events.owes(finish.gh, _REBASED, **named)
-    if not recorded:
-        stopped = _records(finish, staged, observed)
-        if stopped is not None:
-            return stopped
+    anew = _owed_events.owes(finish.gh, _REBASED, **named)
+    stopped = None if recorded else _records(finish, staged, observed)
+    if stopped is FinishOutcome.REFUSED and anew:
+        _owed_events.pays(finish.gh, _REBASED, **named)
+    if stopped is not None:
+        return stopped
     finish.gh.emit_event(
         _REBASED,
-        issue_number=issue_number,
+        issue_number=finish.issue.number,
         stage=stage_name(finish.label),
         pr_number=finish.pr_number,
         sha=finish.head,

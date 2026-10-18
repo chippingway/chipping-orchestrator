@@ -284,7 +284,8 @@ file is the durable record.
   in-memory tail, then the whole audit log and its rotated copies), whatever the attempt records -- a finish from
   before `pending_auto_base_rebase_announced_event` existed filed it with no record, and with no log configured that
   record is taken as the event filed unless this process still owes it (`workflow/engine/owed_events.py`), so a
-  restart between the record and the event files it at most once; a log or copy the process cannot
+  restart between the record and the event files it at most once, and a record another producer landed in place of one
+  this finish's write had refused owes this process nothing; a log or copy the process cannot
   read holds that finish with nothing filed, relabelled, or retired, and only a copy deleted, or a log truncated with
   no copy kept, between a lost finish and its retry can let it file a second one -- and only once the landed head's
   verification evidence is resolved (settled, retired, or left to the fresh reviewer), so a tick whose evidence post

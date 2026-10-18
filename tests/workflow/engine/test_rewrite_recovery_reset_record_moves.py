@@ -24,7 +24,10 @@ reset is made that nothing records, and the next tick records the reset and
 makes it. Over a checkout gone from disk, a record whose answer is lost after
 it read the report moved leaves no park behind to retire the run on, so the run
 is retired whole in a write of its own, and the checkout and the label put back
-route the head with nothing current.
+route the head with nothing current. And an attempt another road pins in place
+of the recovery's right behind the write retiring the run is kept as written:
+the recovery holds with nothing reset or cleared, for the next tick to recover
+the attempt the comment carries.
 """
 from __future__ import annotations
 
@@ -34,10 +37,12 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
+from orchestrator.git.base_sync import attempts as _attempts
 from orchestrator.github.pinned_state import PinnedEdit
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
+    rewrite_finish_evidence_test_support as fixtures,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
 )
@@ -47,6 +52,9 @@ from tests.workflow.engine import (
 _REPORT = "developer_report_current"
 
 _REVISION = "revision"
+
+# The current record a settled run stands in, which the write invalidating it drops.
+_CURRENT = "verification_evidence_current"
 
 _FETCHES = "_authed_fetch"
 
@@ -241,6 +249,56 @@ class GoneCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         state.set(_REPORT, self._held.pop())
         self.gh.write_pinned_state(issue, state)
         return PinnedEdit.UNCONFIRMED
+
+
+
+class ReplacedAttemptTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """An attempt another road pins while the reset's record retires what it read moving is kept, nothing reset."""
+
+    def test_a_replacement_holds_the_reset(self) -> None:
+        # The report is taken off as the fetch fails, so the reset's record
+        # reads the run moved and invalidates it, and right behind that write
+        # another road pins an attempt of its own: the recovery holds, with no
+        # reset made and the replacement standing exactly as written.
+        head = self.settles_then_dies()[0]
+        self._pinned = fixtures.attempt_record(head, "", git_support.PR_NUMBER, git_support.REVIEWING)
+        self._taken = False
+        self._replaced = False
+        resets: list = []
+        with (
+            patch.object(branch_transport, _FETCHES, self._takes_the_report_off),
+            patch.object(self.gh, "edit_pinned_state", partial(self._replaces_behind, self.gh.edit_pinned_state)),
+            patch.object(commands, _GIT, partial(_notes_the_reset, getattr(commands, _GIT), resets)),
+        ):
+            self.recovers()
+
+        pinned = readings.pinned(self)
+        self.assertEqual((self._replaced, resets), (True, []))
+        standing = {key: pinned.get(key) for key in self._pinned}
+        self.assertEqual(standing, self._pinned)
+
+    def _takes_the_report_off(self, spec, ref: str, **options):
+        """The branch's fetch, failing, the run's report taken off the comment behind it the first time."""
+        fetched = guarded.unfetched(spec, ref, **options)
+        if "issue-7" in ref and not self._taken:
+            self._taken = True
+            state = self.gh.read_pinned_state(self.issue)
+            state.set(_REPORT, None)
+            self.gh.write_pinned_state(self.issue, state)
+        return fetched
+
+    def _replaces_behind(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, another road's attempt pinned right behind the first that drops the run."""
+        answered = live(issue, staged, **options)
+        current = staged.get(_CURRENT)
+        if answered is PinnedEdit.EDITED and current is None and not self._replaced:
+            self._replaced = True
+            state = self.gh.read_pinned_state(issue)
+            _attempts._clears_the_attempt(state)
+            for key, pinned in self._pinned.items():
+                state.set(key, pinned)
+            self.gh.write_pinned_state(issue, state)
+        return answered
 
 
 if __name__ == "__main__":

@@ -34,17 +34,22 @@ _NOTED = "owed_events"
 _NOTICE = "notice_id"
 
 
-def owes(client: Any, event: str, *, issue_number: int, said: str = "", **identity: Any) -> None:
-    """Note that `client`'s process is about to file `event` for `issue_number`, as `identity` names it.
+def owes(client: Any, event: str, *, issue_number: int, said: str = "", **identity: Any) -> bool:
+    """Note that `client`'s process is about to file `event` for `issue_number`, as `identity` names it; noted anew.
 
     `said` is the text of the notice the event rides, where it rides one.
+    False where the debt was owed already, for a caller whose write behind
+    the note was refused to drop only a debt that write introduced (`pays`).
     """
     owing = _owing(event, issue_number, said, identity)
-    _noted(client).add(owing)
+    noted = _noted(client)
+    anew = owing not in noted
+    noted.add(owing)
+    return anew
 
 
 def pays(client: Any, event: str, *, issue_number: int, said: str = "", **identity: Any) -> None:
-    """Drop the note `owes` made: the event is filed."""
+    """Drop the note `owes` made: the event is filed, or the write saying it may be out was refused outright."""
     owing = _owing(event, issue_number, said, identity)
     _noted(client).discard(owing)
 

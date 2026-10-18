@@ -107,7 +107,12 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit, spelled
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_rechecks import invalidates_rechecked, lays
-from orchestrator.workflow.engine.rewrite_recovery_readings import asks_every_reading, owed_moves, tip_moves
+from orchestrator.workflow.engine.rewrite_recovery_readings import (
+    asks_every_reading,
+    owed_moves,
+    stands_as_recovered,
+    tip_moves,
+)
 from orchestrator.workflow.engine.verification_records import (
     CURRENT_EVIDENCE,
     PENDING_EVIDENCE,
@@ -232,8 +237,11 @@ def retires_unproved(
     With no checkout on disk both are retired on the state
     the park lands (`retires_over_the_reset`). False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
-    its history entry among it, its movement recorded instead -- for the git
-    owner to hold the tick with nothing parked.
+    its history entry among it, its movement recorded instead -- or where the
+    comment the proof read carries another attempt in place of the one
+    `context` recovers, laid over the tick's state by its rechecks
+    (`rewrite_recovery_readings.stands_as_recovered`): either way for the git
+    owner to hold the tick with nothing reset, cleared, or parked over it.
     """
     moved = dict(moved or {})
     if not (moved or receipts(context.state)):
@@ -258,6 +266,13 @@ def retires_unproved(
     )
     if all(proved) and moved.keys() & receipts(context.state):
         return retires_unproved(context, moved)
+    if all(proved) and not stands_as_recovered(context):
+        log.warning(
+            "issue=#%d another auto-rebase attempt stands in place of the one its recovery read; holding with "
+            "nothing reset, cleared, or parked, for the next tick to recover the attempt the comment carries",
+            context.issue.number,
+        )
+        return False
     return all(proved)
 
 

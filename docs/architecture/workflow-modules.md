@@ -394,7 +394,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             audit log such a word is taken as its event filed, once at most, save one this process
                             still owes -- noted on the repository's client, which shares it with every worker client
                             it mints (`github/client.py`), under the text its notice says, so a failed post of one
-                            notice never files the event of another found said
+                            notice never files the event of another found said, and a debt noted anew dropped again
+                            where the write recording the event was refused outright (`rewrite_finish_events.py`)
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked
@@ -2313,7 +2314,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             as the finish's evidence phase reads it (`rewrite_finish_rechecks.invalidates_rechecked`) so
                             that evidence put back current right behind is retired again -- asked once more where that
                             reading cannot say the route is free, and going on only over a comment read afresh carrying
-                            nothing current under that receipt, a successor it carries there laid over the tick's state
+                            nothing current under that receipt and still the attempt the recovery recovers -- another
+                            road's attempt laid in its place holding the tick with nothing reset, cleared, or parked
+                            (`rewrite_recovery_readings.stands_as_recovered`) --, a successor it carries there laid over
+                            the tick's state
                             and proved the same way, what that reading records moving kept, a successor that reading
                             takes in behind an invalidation that landed proved too -- each asked whatever the
                             other's proof answered and every comment either reads -- the readings its abandonment,

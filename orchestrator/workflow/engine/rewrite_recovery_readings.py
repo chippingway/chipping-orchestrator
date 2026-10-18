@@ -20,6 +20,9 @@ beside the attempt as the tick read it, every evidence; blank beside an
 attempt still standing, evidence the tick never held. `owed_moves` reads
 what it records moving under a transaction captured for the head, as a
 finish held to the settled-evidence policy reads one still owed.
+`stands_as_recovered` says whether the tick's state, once the proof's
+rechecks laid what they read over it, still carries the attempt the
+recovery recovers rather than one another road put in its place.
 """
 from __future__ import annotations
 
@@ -114,6 +117,20 @@ def asks_every_reading(
     built over the answer reads and writes as one built over `context` would.
     """
     return replace(context, gh=AsksEveryReading(context.gh, context.issue.number, asks))
+
+
+def stands_as_recovered(context: _AutoRebaseRecoveryContext) -> bool:
+    """Whether `context.state` still carries the attempt `context` recovers, rather than another in its place.
+
+    The proof's rechecks lay an attempt another road put in place over the
+    tick's state as read, so the caller holds over it rather than routing past
+    it. The anchor and the replay the attempt records are what name it; its
+    base tip and the bookkeeping a finish of its landing puts down move under
+    the very same attempt, so neither counts.
+    """
+    state = context.state
+    read = (state.get(_base_sync_state._PENDING_PUSH_SHA), _attempt_records._pending_rewrite(state))
+    return read == (context.pending_pre_rebase_sha, context.pending_rewrite)
 
 
 def tip_moves(
