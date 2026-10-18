@@ -39,7 +39,19 @@ _HEAD_SHA = _probes._head_sha
 # The proof's issue read the checkout goes from disk behind, and the reading of that loss it comes back at.
 _BEHIND_A_READ = handoff.Boundary("behind an issue read", "get_issue", lambda *_called: True)
 
-_AT_ITS_LOSS = handoff.Boundary("at its loss", "__exit__", lambda _held, kind, *_rest: kind is FileNotFoundError)
+_EXITS = "__exit__"
+
+_AT_ITS_LOSS = handoff.Boundary("at its loss", _EXITS, lambda _held, kind, *_rest: kind is FileNotFoundError)
+
+# The proof's reading client the checkout goes from disk behind, and the end of the proof's block it comes back at.
+_BEHIND_THE_CLIENT = handoff.Boundary("behind the proof's client", "asks_every_reading", lambda *_called: True)
+
+_BEHIND_THE_BLOCK = handoff.Boundary("behind the proof's block", _EXITS, lambda *_called: True)
+
+# The handoff a movement mark takes the place of, and the usage total another road's write moves.
+_HANDOFF = "verification_evidence_handoff"
+
+_USAGE = "issue_total_tokens"
 
 # How a case puts the checkout on a commit of its own.
 _PUTS_BACK = ("reset", "--quiet", "--hard")
@@ -62,33 +74,54 @@ def _puts_the_label_back(case) -> None:
 
 
 class _ChargesTheClear:
-    """`case`'s pinned-comment edit, a usage write or a finish settling `settles` landing ahead of its first clear."""
+    """`case`'s pinned-comment edit, a usage write, a finish settling `settles`, or a newer run it `marks` moved, the
+    mark put back behind, landing ahead of its first clear."""
 
-    def __init__(self, case, settles: str | None = None) -> None:
+    def __init__(self, case, settles: str | None = None, *, marks: bool = False) -> None:
         self._case = case
         self._live = case.gh.edit_pinned_state
         self._settles = settles
+        self._marks = marks
         self.raced = False
+        self.newer = None
 
     def __call__(self, issue, staged, **options):
         """Answer the edit, the race landing right ahead of the clear the first time."""
-        if not staged.get(readings.KEY_PENDING_PUSH) and not self.raced:
-            self.raced = True
-            self._races(issue)
-        return self._live(issue, staged, **options)
+        if staged.get(readings.KEY_PENDING_PUSH) or self.raced:
+            return self._live(issue, staged, **options)
+        self.raced = True
+        handoff = self._races(issue)
+        answered = self._live(issue, staged, **options)
+        if self._marks:
+            self.sets(issue, _HANDOFF, handoff)
+        return answered
 
-    def _races(self, issue) -> None:
-        """Land the usage write, or the settlement under the label the run was reviewed in."""
+    def sets(self, issue, field: str, member) -> None:
+        """Write `field` as `member` on `issue`'s comment, as another road would."""
+        fresh = self._case.gh.read_pinned_state(issue)
+        fresh.set(field, member)
+        self._case.gh.write_pinned_state(issue, fresh)
+
+    def _races(self, issue):
+        """Land the race under the label the run was reviewed in; the handoff a mark replaced."""
         case = self._case
         if self._settles is None:
-            fresh = case.gh.read_pinned_state(issue)
-            fresh.set("issue_total_tokens", (fresh.get("issue_total_tokens") or 0) + 1)
-            case.gh.write_pinned_state(issue, fresh)
-            return
+            spent = case.gh.read_pinned_state(issue).get(_USAGE) or 0
+            self.sets(issue, _USAGE, spent + 1)
+            return None
         case._git(*_PUTS_BACK, self._settles, cwd=case._wt)
         case.issue.labels = [FakeLabel(git_support.REVIEWING)]
-        guarded.settles_elsewhere(case, self._settles, case.issue.body, [])
+        if not self._marks:
+            return guarded.settles_elsewhere(case, self._settles, case.issue.body, [])
+        self.newer = settled.records_a_newer_run(case, settles=True)
+        handoff = case.gh.read_pinned_state(issue).get(_HANDOFF)
+        self.sets(issue, readings.KEY_EVIDENCE_RECEIPT, self.newer.receipt)
+        self.sets(issue, _HANDOFF, {"moved": self.newer.receipt})
+        return handoff
 
+
+# The dispatcher's hold of an anchor, as a quiet hold answers it.
+_HOLDS = guarded.answers_a_held_anchor
 
 # What answers an anchor under an undriven label: the dispatcher's hold, or a whole refresh's eligibility gate.
 _CLEARS = (
@@ -165,17 +198,34 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_a_loss_the_proof_read_retires_the_run(self) -> None:
         # The checkout goes behind a proof's issue read and returns as that loss is read: the run is still invalidated.
-        head, run = self.settles_then_dies()
+        head, kept = self.settles_then_dies()
         away = self._wt.parent / guarded.AWAY
         vanishes = _BEHIND_A_READ.moving(self.gh.get_issue, partial(self._wt.rename, away))
         exits = _AT_ITS_LOSS.moving(_readings.LosesTheCheckout.__exit__, partial(away.rename, self._wt))
         with (
             patch.object(self.gh, "get_issue", vanishes),
-            patch.object(_readings.LosesTheCheckout, "__exit__", autospec=True, side_effect=exits),
+            patch.object(_readings.LosesTheCheckout, _EXITS, autospec=True, side_effect=exits),
         ):
-            guarded.answers_a_held_anchor(self)
+            _HOLDS(self)
         self.assertTrue(self._wt.is_dir())
-        self._assert_retired(run, captured=False)
+        self._assert_retired(kept, captured=False)
+        self.recovers()
+        self.assert_routed(head)
+
+    def test_a_directory_read_gone_retires_the_run(self) -> None:
+        # The proof reads the checkout gone at its own directory check, back before anything reads it again: that
+        # reading still invalidates the run whole, and the head is then routed once.
+        head, kept = self.settles_then_dies()
+        away = self._wt.parent / guarded.AWAY
+        vanishes = _BEHIND_THE_CLIENT.moving(_readings.asks_every_reading, partial(self._wt.rename, away))
+        exits = _BEHIND_THE_BLOCK.moving(_readings.LosesTheCheckout.__exit__, partial(away.rename, self._wt))
+        with (
+            patch("orchestrator.workflow.engine.rewrite_landing_retirement.asks_every_reading", vanishes),
+            patch.object(_readings.LosesTheCheckout, _EXITS, autospec=True, side_effect=exits),
+        ):
+            _HOLDS(self)
+        self.assertTrue(self._wt.is_dir())
+        self._assert_retired(kept, captured=False)
         self.recovers()
         self.assert_routed(head)
 
@@ -286,19 +336,22 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assertEqual(kept, (expected.receipt, expected.revision, None))
 
     def test_a_racing_settlement_is_invalidated(self) -> None:
-        # Another finish settling the run as the clear is sent refuses it; the move off the landing the clear read
-        # invalidates that settlement, so the replay named again and the checkout on its head route nothing current.
-        head, captured = self.captures()
-        self._unnamed_on_the_anchor()
-        with patch.object(self.gh, "edit_pinned_state", _ChargesTheClear(self, settles=head)):
-            guarded.answers_a_held_anchor(self)
-        named = self.gh.read_pinned_state(self.issue)
-        named.set(readings.KEY_REWRITE_SHA, head)
-        self.gh.write_pinned_state(self.issue, named)
-        self.recovers()
-        records = readings.pinned_records(self)
-        self.assertIsNone(records[1])
-        self.assertIn((captured.receipt, readings.INVALIDATED), records[2])
+        # Another finish settling the captured run as the clear is sent refuses it -- or a newer run another road marks
+        # moved, the mark put back behind that refusal -- and the move it read invalidates that settlement, so the
+        # replay named again and the checkout on its head route nothing current.
+        for marks in (False, True):
+            with self.subTest(marked=marks):
+                self.setUp()
+                head, run = self.settles_then_dies() if marks else self.captures()
+                self._unnamed_on_the_anchor()
+                racing = _ChargesTheClear(self, settles=head, marks=marks)
+                with patch.object(self.gh, "edit_pinned_state", racing):
+                    guarded.answers_a_held_anchor(self)
+                racing.sets(self.issue, readings.KEY_REWRITE_SHA, head)
+                self.recovers()
+                settlement = getattr(racing.newer, "receipt", run.receipt)
+                self.assertIsNone(readings.pinned_records(self)[1])
+                self.assertIn((settlement, readings.INVALIDATED), readings.pinned_records(self)[2])
 
     def test_a_refused_clear_records_the_reset(self) -> None:
         # A usage write refuses the sent clear, the reset recorded by base tip: the checkout put back revives nothing.

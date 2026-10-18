@@ -262,7 +262,7 @@ def retires_unproved(
     )
     proved = None
     with LosesTheCheckout(context):
-        proved = context.worktree.is_dir() and all((
+        proved = all((
             _landing_captured.proves_captured(
                 asked,
                 unread,
@@ -272,7 +272,7 @@ def retires_unproved(
                 ),
             ),
             _proves_settled(asked, unread, moved),
-        ))
+        )) if context.worktree.is_dir() else None
     if not context.worktree.is_dir():
         records = context.records_before_a_reset
         return (
@@ -342,8 +342,10 @@ def reconciles(
     landed the tick's own staging, a base tip staged back behind a reset git
     refused among it -- is taken in as read too, so the proof behind takes
     that attempt for this tick's own rather than one another road put in its
-    place. Empty where nothing moved; `moved` alone, laying nothing,
-    where the comment would not read either time.
+    place; the receipt on the attempt is laid beside the evidence, so a
+    successor settled under a receipt of its own is the attempt's. Empty
+    where nothing moved; `moved` alone, laying nothing, where the comment
+    would not read either time.
     """
     moved = dict(moved or {})
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
@@ -357,7 +359,7 @@ def reconciles(
         if reads(durable) is None and (
             getattr(reads(context.state), "receipt", None) in moved
         )
-    })
+    } | {_base_sync_state._PENDING_EVIDENCE_RECEIPT})
     _commit.takes_in(context.state, durable.data, [
         member for member in _attempts._ATTEMPT_KEYS
         if spelled(durable.data, member) == spelled(context.state.data, member)

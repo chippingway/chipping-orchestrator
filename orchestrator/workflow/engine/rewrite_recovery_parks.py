@@ -258,7 +258,12 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
         return True
-    commit = _commits.ReportCommit(context.gh, context.issue, context.state)
+    moved: dict[str, ReportEvidence] = {}
+    commit = _commits.ReportCommit(
+        asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved)).gh,
+        context.issue,
+        context.state,
+    )
     landed = commit.lands(context.state, CLEAR)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
         return True
@@ -271,10 +276,10 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
         comment_id=context.state.comment_id, state_data=json.loads(context.state.synced),
     )
     read.synced = context.state.synced
-    held = dict.fromkeys(_retirement.receipts(read), LEFT_THE_CHECKOUT)
+    moved.update(dict.fromkeys(_retirement.receipts(read), LEFT_THE_CHECKOUT))
     moving = replace(context, state=read)
     records_the_reset(moving)
-    proves_before_a_park(moving, _retirement.reconciles(moving, held))
+    proves_before_a_park(moving, _retirement.reconciles(moving, moved))
     return False
 
 
