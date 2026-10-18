@@ -62,10 +62,8 @@ def _auto_rebase_label_is_eligible(
     `proves_before_a_park` is what the workflow's recovery asks before that
     park keeps the attempt (`_AutoRebaseRecoveryContext.proves_before_a_park`),
     and `lands_a_park` the park it records it through
-    (`_AutoRebaseRecoveryContext.lands_a_park`), and `settles_over_a_release`
-    what it owes over a clear that releases the attempt, bound to the
-    recovery context as its `settles_over_a_reset`, and `lands_a_clear` the
-    record that clear lands through (`_AutoRebaseRecoveryContext.lands_a_clear`),
+    (`_AutoRebaseRecoveryContext.lands_a_park`), `settles_over_a_release` its
+    clear's `settles_over_a_reset`, and `lands_a_clear` that clear's record,
     all handed in by the workflow's coordinator (`workflow/engine/base_rewrite.py`).
     """
     if context.label in _PR_REFRESH_DETOUR_LABELS:

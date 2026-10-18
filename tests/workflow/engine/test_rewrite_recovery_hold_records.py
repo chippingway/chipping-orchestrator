@@ -7,14 +7,13 @@ head reviewed, its run settled under the anchor, and the finish killed before
 its announcement, so the attempt stands. The next tick's recovery reads the
 landing standing with a transfer permission still outstanding beside it, so
 the landed road receipts it through the permit-only leased no-op, and the
-publication gate holds that no-op (`rewrite_landed_hold_support`): its hold
-is recorded through
-the guarded `HOLD` (`rewrite_recovery_parks.lands_a_hold`), the run proved
-first, and only what the tick staged since its reading lands, over the
-comment read afresh. The transfer's own machinery -- how far it got, its
-permit, and the gate's answer -- is stood in for. A case that hands a
-recovery context straight to the hold or the park asks that operation
-directly.
+publication gate holds that no-op (`rewrite_landed_hold_support`): its hold is
+recorded through the guarded `HOLD` (`rewrite_recovery_parks.lands_a_hold`),
+the run proved first, and only what the tick staged since its
+reading lands, over the comment read afresh.
+The transfer's own machinery -- how far it got, its permit, and the gate's
+answer -- is stood in for. A case that hands a recovery context straight to
+the hold or the park asks that operation directly.
 
 The issue edited under the run has it invalidated whole, putting the
 requirements back reviving nothing. A newer transaction recorded while the

@@ -2135,10 +2135,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a reply the recovery did not spend is left for the rebase that follows -- and the same
                             gates in front of the abort a checkout whose lag cannot be counted takes, the eligibility
                             gate's park of a label the refresh does not drive handed the recovery's proof and park
-                            (`rewrite_recovery_parks.proves_before_a_park`, `lands_a_park`), and its clear what it
-                            owes the evidence a finish captured or settled for the landed head and the record it
-                            lands through (`_is_eligible`, over `rewrite_landing_retirement.retires_over_the_reset`
-                            and `rewrite_recovery_parks.lands_a_clear`). It writes
+                            (`rewrite_recovery_parks.proves_before_a_park`, `lands_a_park`), and its clear's
+                            retirement and record (`_is_eligible`). It writes
                             nothing itself -- a reply that let the rebase start is staged read, where it only asked
                             for the retry, for the anchor's own write to land (`rewrite_replies.py`) -- and a clean
                             rebase is handed to `rewrite_publication.py`, a pinned anchor's recovery to
@@ -2390,10 +2388,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proof taken first as before a park that keeps the attempt, recording nothing where that
                             proof does not land (`lands_a_hold`); the ordinary publication's gate hold
                             (`rewrite_publication.py`) lands as `HOLD` too, with no proof first, since nothing was
-                            pushed for any finish to hold evidence for. A clear of the attempt under a label the
-                            refresh does not drive lands as `CLEAR` (`lands_a_clear`), decided on the attempt and the
-                            evidence records, so a successor another road settled meanwhile refuses it and the
-                            attempt stands for the next tick. Asked ahead of a record, that proof keeps what the tick staged before it -- a gate's record
+                            pushed for any finish to hold evidence for; an ineligible label's clear lands as `CLEAR`
+                            (`lands_a_clear`), which a successor settled meanwhile refuses.
+                            Asked ahead of a record, that proof keeps what the tick staged before it -- a gate's record
                             of the hold, or the tip the git owner stages back behind a reset git refused -- across
                             every write it lands (`rewrite_recovery_staging.py`), and behind one keeps it out of them. A
                             checkout gone from disk only behind a record or a notice that raised has the reset recorded

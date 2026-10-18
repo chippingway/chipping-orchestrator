@@ -21,16 +21,10 @@ full, has it recorded by its base tip blanked first, which frees the room the
 invalidation then takes -- and a newer run settled over it under its own
 receipt is left as it stands.
 
-An anchor under a label the refresh does not drive, over a checkout back on
-the anchor with no replay named, no announcement, and no transfer outstanding,
-is cleared rather than parked -- by the dispatcher's answer to its hold, or by
-the refresh's eligibility gate. The checkout is off the landed head, so the
-run is retired whole in the very write that clears the attempt, and restoring
-the checkout revives nothing; where the comment has no room for the run's
-history entry, the attempt is kept instead, the run current and its base tip
-blanked. That write lands over the comment read afresh, so a newer run another
-road settles while the checkout is read refuses it, kept current with its
-revision floor, and the next answer clears the attempt beside it.
+An anchor cleared under such a label over a checkout back on the anchor --
+by the dispatcher's hold or the refresh's eligibility gate -- retires the run
+whole in the guarded write that clears the attempt, keeps the attempt where
+history has no room, and is refused by a newer run settled meanwhile.
 The run is made once, and nothing is pushed or launched.
 """
 from __future__ import annotations

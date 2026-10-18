@@ -18,15 +18,14 @@ either. So does a finish the comment has no room to record the landing's
 report debt on: the run is proved ready before the park that debt takes, and
 the requirements edited under it invalidate it there, so making room, putting
 the requirements back, and replying routes the head with nothing current. A
-comment with no room for the run's history entry at all -- filled ahead of
-the recovery, or by another road while the recovery proves the run -- keeps
-the run current and records the movement against it instead, by blanking the
-base tip its replay was made onto, so putting the requirements back before
-room is made still finds it moved. So does another command configured once
-the landing is announced, which the evidence step would otherwise invalidate
-the run over with no room to: putting the configuration back before room is
-made revives nothing either. The run is never made again, and no developer is
-launched.
+comment with no room for the run's history entry at all -- filled ahead of the
+recovery, or by another road while the recovery proves the run -- keeps the
+run current and records the movement against it instead, by blanking the base
+tip its replay was made onto, so putting the requirements back before room is
+made still finds it moved. So does another command configured once the landing
+is announced, which the evidence step would otherwise invalidate the run over
+with no room to: putting the configuration back before room is made revives
+nothing either. The run is never made again, and no developer is launched.
 """
 from __future__ import annotations
 

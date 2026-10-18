@@ -6,9 +6,9 @@ The guarded recovery case (`guarded_recovery_support`): issue #7's rebased
 head reviewed, its run settled under the anchor, and the finish killed before
 its announcement. The next tick's recovery cannot fetch the branch, so it
 takes the git owner's fail-closed abort, handed the workflow's guarded
-operations as every recovery is: the park behind the reset posts its notice
-and files its `park_awaiting_human` event, and GitHub refuses its record, so
-the attempt stands for the next tick's recovery to park again.
+operations as every recovery is: the park behind the reset
+posts its notice and files its `park_awaiting_human` event, and GitHub refuses
+its record, so the attempt stands for the next tick's recovery to park again.
 The process restarts in between, with no event in memory. The park made
 again takes in the notice the conversation carries past the watermark rather
 than saying it twice -- the issue marked awaiting a human, the watermark moved

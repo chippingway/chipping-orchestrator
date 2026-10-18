@@ -204,11 +204,18 @@ def abandons(
     was asked. Evidence a finish already settled for the head is invalidated
     into history the same way, whatever is read next
     (`rewrite_finish_readiness.invalidates`), so putting the landing back
-    revives no decision taken over it. Nothing is routed either way, and
-    nothing is read or written where neither stands. False where either still
-    stands once its write was asked: a write refused or never confirmed, over
-    a comment nobody could read again as well as over the tick's own reading.
+    revives no decision taken over it. That movement was read under the
+    evidence the tick held, and answers for nothing else: a successor another
+    road settled under a receipt of its own, which the abandonment's fresh
+    reading took in, is proved on its own readings instead
+    (`rewrite_finish_readiness.stands_ready`), invalidated only where they
+    read it moving. Nothing is routed either way, and nothing is read or
+    written where neither stands. False where either still stands once its
+    write was asked -- a write refused or never confirmed, over a comment
+    nobody could read again as well as over the tick's own reading -- or
+    where a successor's proof holds.
     """
+    held = getattr(_landing_records.settled(context.state), "receipt", None)
     pending = _landing_records.captured(context.state)
     if pending is not None:
         finish = _finish(context, pending.binding.target.target_head, snapshot, candidate)
@@ -219,7 +226,9 @@ def abandons(
     if settled is None:
         return True
     finish = _finish(context, settled.binding.target.target_head, snapshot, candidate)
-    return _readiness.invalidates(finish, settled)
+    if settled.receipt == held:
+        return _readiness.invalidates(finish, settled)
+    return _readiness.stands_ready(finish, settled) is None
 
 
 def proves_captured(

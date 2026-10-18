@@ -14,13 +14,13 @@ recorded or filed; behind that record and before the event, so the retry
 finds the event recorded and asks the stream, which does not carry it; behind
 the event and before the checkpoint, so the retry finds the notice and the
 event with no mark beside them; behind the checkpoint and before the relabel,
-so the retry reads the head as already announced; at the relabel's own
-record, ahead of the relabel whatever label the issue wears, so the retry has
-to tell whether that relabel landed; and behind the relabel and before the
-retirement, so the retry reads the issue as already relabelled too. A
-boundary can also stand for another road's move behind the call it picks
-rather than a death (`Boundary.moving`), or for one made right before that
-call and put back right behind it (`Boundary.racing`).
+so the retry reads the head as already announced; at the relabel's own record,
+ahead of the relabel whatever label the issue wears, so the retry has to tell
+whether that relabel landed; and behind the relabel and
+before the retirement, so the retry reads the issue as already relabelled
+too. A boundary can also stand for another road's move behind the call it
+picks rather than a death (`Boundary.moving`), or for one made right before
+that call and put back right behind it (`Boundary.racing`).
 
 The death is the process exiting (`sys.exit`): the handler around the
 notice's post catches whatever an `Exception` would raise, to read the

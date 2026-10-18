@@ -10,10 +10,10 @@ transaction and retires it, spending a revision past the run, or it drops the
 handoff that names the run. The recovery's own settlement is refused over that
 moved comment, and the ledger entry it then commits alone takes the comment in
 as it stands. A dropped handoff is held to the same agreement the finish asks
-of settled evidence before it resolves anything, so the route is held:
-nothing announced, relabelled, or retired, the round as it was spent, and the
-records exactly as that road left them -- poll after poll. Nothing runs
-again, nothing is pushed, and no developer is launched.
+of settled evidence before it resolves anything, so the route is held: nothing
+announced, relabelled, or retired, the round as it was spent, and the records
+exactly as that road left them -- poll after poll. Nothing runs again, nothing
+is pushed, and no developer is launched.
 
 The evidence phase asked directly (`settled_finish_support`) holds over the
 dropped handoff the same way, reads a revision spent past the run as

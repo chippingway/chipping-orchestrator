@@ -129,10 +129,8 @@ HOLD = _commits.ReportWrite(
     owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS),
 ).reading_moves(True)
 
-# A clear's record under a label the refresh does not drive: the attempt it
-# drops and the evidence retired beside it, decided on the attempt and the
-# evidence records as the tick read them, so a successor another road settled
-# meanwhile refuses it rather than being written over.
+# A clear's record under a label the refresh does not drive, decided on the
+# attempt and the evidence records, so a successor settled meanwhile refuses it.
 CLEAR = _commits.ReportWrite(
     owned=frozenset(),
     decided_on=frozenset(_attempts._ATTEMPT_KEYS) | {
@@ -230,16 +228,10 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> None:
 def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
     """Record a clear the tick staged on `context.state` over the comment read afresh, as `CLEAR`; whether it landed.
 
-    The answer every context that may clear an attempt under a label the
-    refresh does not drive carries (`_AutoRebaseRecoveryContext.lands_a_clear`):
-    only what the tick staged since its reading lands -- the attempt dropped
-    and the evidence retired beside it -- every other field kept as the fresh
-    comment carries it, and a record another road moved among the attempt or
-    the evidence records -- a successor settled while the checkout was read,
-    with the revision floor it raised -- refuses it. A clear refused or never
-    confirmed withholds the tick's state (`report_commits.ReportCommit.withholds`),
-    and the next tick answers the attempt again over the comment as it then
-    stands. A state nothing was read into is written whole.
+    Only what the tick staged lands; a successor settled while the checkout
+    was read refuses it, its revision floor kept, the tick's state withheld
+    for the next tick to answer again. A state nothing was read into is
+    written whole.
     """
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
@@ -264,11 +256,7 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> None:
     keeps the attempt, so it asks the proof first (`proves_before_a_park`) and
     is recorded as every recovery park is (`lands_a_park`) -- and so does a
     hold that keeps it with nothing posted, on every poll that holds. A clear
-    releases the attempt over a checkout back on the anchor, so what a finish
-    captured or settled for the landed head is retired on the state it writes
-    first, or the attempt kept where it cannot be
-    (`rewrite_landing_retirement.retires_over_the_reset`), and the clear lands
-    over the comment read afresh (`lands_a_clear`).
+    retires the evidence first and lands guarded (`lands_a_clear`).
     """
     settles = partial(_retirement.retires_over_the_reset, held)
     owing = replace(held, settles_over_a_reset=settles, lands_a_clear=lands_a_clear)

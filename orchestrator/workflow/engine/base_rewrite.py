@@ -122,16 +122,7 @@ def _held_past_the_anchor(context: _AutoRebaseContext) -> bool:
 
 
 def _is_eligible(context: _AutoRebaseContext) -> bool:
-    """Whether the refresh may rebase `context`'s PR at all (`eligibility._auto_rebase_label_is_eligible`).
-
-    An anchor under a label the refresh does not drive is answered there, the
-    recovery's answers handed in: the proof before the park that keeps the
-    attempt, that park, what a clear that releases it over a checkout back on
-    the anchor owes the evidence a finish captured or settled for the landed
-    head (`rewrite_landing_retirement.retires_over_the_reset`), and the record
-    that clear lands through over the comment read afresh
-    (`rewrite_recovery_parks.lands_a_clear`).
-    """
+    """Whether the refresh may rebase `context`'s PR, an ineligible label's anchor handed the recovery's answers."""
     return eligibility._auto_rebase_label_is_eligible(
         context,
         _recovery_parks.proves_before_a_park,

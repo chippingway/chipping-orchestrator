@@ -26,9 +26,9 @@ def resumed(fixture, label: str) -> _models._AutoRebaseDecision:
     The anchor is read off the pinned comment as the coordinator reads it, so
     a tick after a finish or a rollback that retired the attempt finds nothing
     to recover. The replay is already on the advanced base, so nothing is
-    behind it, and no human reply brought it back. The issue wears `label`
-    too, as the tick read it, since a finish reads the label again before it
-    relabels anything.
+    behind it, and no human reply brought it back.
+    The issue wears `label` too, as the tick read it, since a finish reads the
+    label again before it relabels anything.
     """
     fixture.issue.labels = [FakeLabel(label)]
     state = fixture.gh.read_pinned_state(fixture.issue)

@@ -5,9 +5,9 @@
 The guarded recovery case (`guarded_recovery_support`): issue #7's rebased
 head reviewed and its run settled -- or only captured -- under the anchor, and
 the finish killed short of its route, so the attempt stands. The recovery
-context read off the comment is handed straight to the guarded hold or park
-(`rewrite_recovery_parks.lands_a_hold`, `lands_a_park`), as a recovery road
-does.
+context read off the comment is handed straight to the guarded hold or
+park (`rewrite_recovery_parks.lands_a_hold`, `lands_a_park`), as a recovery
+road does.
 
 - The settled run, taken off beside a blank of the base tip under the
   record's strict edit, is put back in two steps -- the tip behind that edit,

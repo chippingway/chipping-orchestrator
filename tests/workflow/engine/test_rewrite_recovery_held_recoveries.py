@@ -10,7 +10,9 @@ out from under the attempt whose notice raised, and the finish's own debt
 park for a report debt with no room, refused or raising over report 3 settled
 while its notice was posted. Each proves the run first, so the movement
 invalidates it whole -- or abandons a run only captured -- and putting what
-moved back routes the head once with nothing current, the run made once.
+moved back routes the head once with nothing current, the run made once. A
+newer run settled right behind the landed road's abandonment of a captured run
+is proved on its own readings.
 """
 from __future__ import annotations
 
@@ -21,12 +23,15 @@ from unittest.mock import patch
 
 from orchestrator.git.base_sync import rewrite_facts
 from orchestrator.git.publication.probes import _BranchDivergence
+from orchestrator.github.pinned_state import PinnedEdit
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     held_run_support as held,
     rewrite_finish_git_support as git_support,
     rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
+    rewrite_verification_recovery_support as support,
+    settled_finish_support as settled,
 )
 
 
@@ -37,6 +42,45 @@ def _unproved_first(original, calls: list, *args):
     if len(calls) > 1:
         return reading
     return replace(reading, head="", tree="", base=_BranchDivergence())
+
+
+class _SettlesBehindTheAbandonment:
+    """The checkout read off its head once, and `newer` settled right behind the edit abandoning `captured`."""
+
+    def __init__(self, case, captured, *, moves_again: bool) -> None:
+        self._case = case
+        self._captured = captured
+        self._moves_again = moves_again
+        self._head = case._wt_head()
+        self._edits = case.gh.edit_pinned_state
+        self._reads = rewrite_facts._reads_the_checkout
+        self.newer = None
+
+    def __call__(self, issue, staged, **options):
+        """The strict edit, a newer run settled right behind the one that abandons the captured run."""
+        answered = self._edits(issue, staged, **options)
+        retired = readings.records(staged.data)[2]
+        abandoned = (self._captured.receipt, readings.ABANDONED) in retired
+        if answered is PinnedEdit.EDITED and abandoned and self.newer is None:
+            self._case._git("reset", "--quiet", "--hard", self._head, cwd=self._case._wt)
+            self.newer = settled.records_a_newer_run(self._case, settles=True, binding=self._captured.binding)
+            if self._moves_again:
+                self._case._git(*support.STRAY_COMMIT, cwd=self._case._wt)
+        return answered
+
+    def recovers(self) -> None:
+        """One whole recovery of the case, its checkout read and its comment edited through this race."""
+        with (
+            patch.object(rewrite_facts, "_reads_the_checkout", self.reads),
+            patch.object(self._case.gh, "edit_pinned_state", self),
+        ):
+            self._case.recovers()
+
+    def reads(self, *read):
+        """The checkout's reading, a stray commit made on it the first time."""
+        if self.newer is None and self._case._wt_head() == self._head:
+            self._case._git(*support.STRAY_COMMIT, cwd=self._case._wt)
+        return self._reads(*read)
 
 
 class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
@@ -114,6 +158,30 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
         self.assert_abandoned(captured)
         self.assert_routed_once(head)
 
+    def test_a_successor_is_proved_on_its_own(self) -> None:
+        # The landed road reads the checkout off the captured run's head and
+        # abandons the run; a newer run settled right behind that write is
+        # proved on its own readings, not over that movement: kept current
+        # over the checkout back on the head, invalidated over one moved again.
+        for moves_again in (False, True):
+            with self.subTest(moved_again=moves_again):
+                self.setUp()
+                captured = self.captures()[1]
+                races = _SettlesBehindTheAbandonment(self, captured, moves_again=moves_again)
+                races.recovers()
+
+                self._assert_proved_on_its_own(captured, races.newer, moved=moves_again)
+
+    def _assert_proved_on_its_own(self, captured, newer, *, moved: bool) -> None:
+        """`captured` abandoned, and `newer` current -- or, where the checkout `moved` again, invalidated behind it."""
+        current, retired = readings.pinned_records(self)[1:]
+        expected = [(captured.receipt, readings.ABANDONED)]
+        if moved:
+            expected.append((newer.receipt, readings.INVALIDATED))
+        kept = None if moved else newer.receipt
+        standing = getattr(current, "receipt", None)
+        self.assertEqual(retired[-len(expected):], tuple(expected))
+        self.assertEqual(standing, kept)
 
 if __name__ == "__main__":
     unittest.main()

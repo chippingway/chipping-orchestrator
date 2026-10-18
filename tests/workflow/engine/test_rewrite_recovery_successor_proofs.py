@@ -5,9 +5,9 @@
 The guarded recovery case (`guarded_recovery_support`): issue #7's rebased
 head reviewed and its run settled -- or only captured -- under the anchor, and
 the finish killed short of its route, so the attempt stands. The recovery
-context read off the comment is handed straight to the guarded park, or to
-the proof before a park that keeps the attempt (`rewrite_recovery_parks`), as
-a recovery road does.
+context read off the comment is handed straight to the guarded park,
+or to the proof before a park that keeps the attempt
+(`rewrite_recovery_parks`), as a recovery road does.
 
 - The park's notice raises behind report 3 settled under the run, and right
   behind the reconciliation's reading another road settles a newer run in the

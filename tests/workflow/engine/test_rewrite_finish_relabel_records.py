@@ -13,12 +13,12 @@ report 3 in the run's place, read by that recheck with report 2 put back and
 report 3 put back behind it, is invalidated on its own binding the same way. A
 relabel that raises, behind another road settling report 3 and a newer run
 bound to it and then putting report 2 back, is proved again over the comment
-as it then stands: that newer run is invalidated on its own binding before the
-error goes on, so putting report 3 back revives nothing and the next finish
-routes the head once. So it is where that road settles them only right behind
-the reading the proof starts from, and puts report 3 back right behind the
-proof's own next reading: that reading asks the newer run of its own binding
-rather than the run's alone.
+as it then stands: that newer run is invalidated on its own binding before
+the error goes on, so putting report 3 back revives nothing and the next
+finish routes the head once. So it is where that road settles them only right
+behind the reading the proof starts from, and puts report 3 back right behind
+the proof's own next reading: that reading asks the newer run of its own
+binding rather than the run's alone.
 
 On an issue already on `workflow:validating` the relabel's own record lands
 ahead of it, and a finish lost anywhere around the two comes back behind a

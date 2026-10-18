@@ -4,8 +4,8 @@
 
 Direct finishes of the recovery's road (`settled_route_support`): issue #7's
 run captured and the comment left without room for the landing's report debt,
-so the finish parks for it, proving the run's binding whole ahead of the
-park and behind its notice, so the report edited around the notice --
+so the finish parks for it, proving the run's binding whole ahead of
+the park and behind its notice, so the report edited around the notice --
 answered or raising -- abandons the run, and the head is later routed with
 nothing current; asked again with no reply, it finds its park standing and
 posts nothing -- also where its park write went out and never landed, the

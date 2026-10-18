@@ -261,9 +261,8 @@ def _answers_a_held_anchor(
     (`_AutoRebaseRecoveryContext.proves_before_a_park`), and `lands_a_park`
     the park it records that one through (`_AutoRebaseRecoveryContext.lands_a_park`),
     both handed in by the workflow's answer to the dispatcher's hold
-    (`workflow/engine/rewrite_recovery_parks.answers_a_held_anchor`), which
-    hands `context` in carrying what a clear owes the evidence a finish
-    captured or settled for the landed head (`settles_over_a_reset`).
+    (`workflow/engine/rewrite_recovery_parks.answers_a_held_anchor`), with
+    a clear's answers on `context`.
     """
     context = replace(context, proves_before_a_park=proves_before_a_park, lands_a_park=lands_a_park)
     if context.label in _PR_REFRESH_DETOUR_LABELS:

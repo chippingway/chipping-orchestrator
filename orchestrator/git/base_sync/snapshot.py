@@ -56,19 +56,11 @@ def _clear_ineligible_recovery(
 ) -> bool:
     """Clear an interrupted-rebase anchor after an operator relabel.
 
-    The checkout stands back on the anchor, so it is off any head a finish of
-    the attempt captured or settled evidence for: movement under that
-    evidence, which the release would otherwise leave standing for a checkout
-    put back to revive. The recovery's answer to a release over a checkout
-    taken off that head (`_AutoRebaseRecoveryContext.settles_over_a_reset`)
-    is staged first on the state the clear writes, so the evidence goes with
-    the attempt or neither goes. Where it answers False -- settled evidence
-    with no room for its history entry, its movement recorded instead --
-    nothing is cleared, and the attempt keeps guarding it for a later tick.
-    The clear lands through the record the context carries
-    (`_AutoRebaseRecoveryContext.lands_a_clear`), over the comment read
-    afresh, so a successor another road settled meanwhile refuses it and the
-    attempt stands for the next tick to answer again.
+    The checkout stands back on the anchor, off any head a finish of the
+    attempt captured or settled evidence for, so that evidence is retired on
+    the state the clear writes first (`settles_over_a_reset`) -- False keeps
+    the attempt -- and the clear lands through `lands_a_clear`, which a
+    successor another road settled meanwhile refuses.
     """
     settles = context.settles_over_a_reset
     if settles is not None and not settles():

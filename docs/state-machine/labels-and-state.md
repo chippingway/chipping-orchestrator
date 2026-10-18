@@ -577,18 +577,18 @@ no claim.
 
 The room the debt needs is measured on the whole write it rides -- the announcement, which also puts down the notice's
 ledger entry (reserved at the widest id a comment is recorded at), the record of the `base_rebased` event
-(`pending_auto_base_rebase_announced_event`), the `review_round` both finishes reset ahead of the mark, the mark,
-and -- for a finish that routes its head, since a continuation relabels nothing -- the record of the relabel the route
-makes behind them (`pending_auto_base_rebase_relabelled`), which lands before the retirement clears it -- rather than
-on the debt alone, and on the comment as it stands as well, since resetting a wide round can make the announcement
-the narrower of the two; the retirement past them only clears. That record is reserved on the checkpoint the finish
-prepares over the comment read afresh, so a comment filled since posts nothing. A proved debt that does not fit
-stops the finish before it announces anything: no notice, no `base_rebased`, no relabel, and no clear. It parks
-`auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay standing, and the anchor holding every
-stage handler back; the park asks for room to be made on the pinned comment and a reply, and the reply brings the
-recovery back to finish the landed head -- recording the debt first, or parking again if there is still no room. A
-standing claim the rewrite cannot be carried onto is no such debt, and `workflow/engine/report_rewrite_room.py` is what
-tells the two refusals apart, for the conflict stage as well.
+(`pending_auto_base_rebase_announced_event`), the `review_round` both finishes reset ahead of the mark,
+the mark, and -- for a finish that routes its head, since a continuation relabels nothing -- the record of the relabel
+the route makes behind them (`pending_auto_base_rebase_relabelled`), which lands before
+the retirement clears it -- rather than on the debt alone, and on the comment as it stands as well, since resetting a
+wide round can make the announcement the narrower of the two; the retirement past them only clears. That record
+is reserved on the checkpoint the finish prepares over the comment read afresh, so a comment filled since posts
+nothing. A proved debt that does not fit stops the finish before it announces anything: no notice, no `base_rebased`, no
+relabel, and no clear. It parks `auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay
+standing, and the anchor holding every stage handler back; the park asks for room to be made on the pinned comment and a
+reply, and the reply brings the recovery back to finish the landed head -- recording the debt first, or parking again if
+there is still no room. A standing claim the rewrite cannot be carried onto is no such debt, and
+`workflow/engine/report_rewrite_room.py` is what tells the two refusals apart, for the conflict stage as well.
 
 A clean rebase whose candidate the size gate hands to an adjudication instead of pushing leaves two owners over one
 unpublished replay: the attempt's anchor, and the live late generation whose candidate that replay is. Left that way
@@ -3182,15 +3182,10 @@ The keys that matter for the state machine fall into a few groups:
   does not drive — the read-only stages it skips and a generation an
   adjudication is still deciding included — nothing is waited on: the dispatcher takes the refresh's own ineligible
   road itself, a clear or the stranded park, and over a checkout that is not on disk goes straight to the park, since
-  no reading of where the branch stands can be taken. The clear's checkout stands back on the anchor, off the landed
-  head, so evidence a finish captured or settled for that head is retired in the write that clears the attempt -- or,
-  where settled evidence has no room for its history entry, the attempt is kept, the movement recorded by blanking
-  its base tip -- on this road and the refresh's eligibility gate alike. That write lands over the comment read
-  afresh, decided on the attempt and the evidence records as the tick read them, so a successor another road settled
-  meanwhile refuses it, its revision floor kept, and the attempt stands for the next tick
-  (`workflow/engine/rewrite_recovery_parks.lands_a_clear`). The stranded park asks for the label back and
-  a reply both, since that park is the refresh's own and a relabel alone never releases it -- save beside a live
-  adjudication, whose
+  no reading of where the branch stands can be taken; its clear retires the landed head's evidence in a guarded write
+  a successor settled meanwhile refuses (`workflow/engine/rewrite_recovery_parks.lands_a_clear`). The stranded park
+  asks for the label back and a reply both,
+  since that park is the refresh's own and a relabel alone never releases it -- save beside a live adjudication, whose
   guard restores its label: there it asks for the `pending_auto_base_rebase_*` and `late_rewrite_*` fields, and the
   park's own flags, to be reconciled by hand, past which the adjudication runs and asks for its usual decision. On a
   label the refresh drives, the hold
