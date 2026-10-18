@@ -107,14 +107,10 @@ def lands_the_retirement(
     """Retire what `context.state` holds for the landed head, its checkout gone, landed as `write`; whether it did.
 
     Retired as over a reset over the comment the tick read, then asked once
-    more over the comment read afresh (`_lands`): behind a refusal, with the
-    fields `write` is decided on laid from it, a tip or record another road
-    moved kept as it wrote it; behind a write that landed, evidence put back
-    there retired again, or its movement recorded, and False; behind a
-    refusal for room or a second refusal, over that reading whole, retired or
-    the base tip blanked in a shrinking write where it has no room or that
-    retirement is refused too, and False.
-    Only while the comment
+    more over the comment read afresh (`_lands`): behind a refusal, the fields
+    `write` is decided on laid from it; behind a write that landed, evidence
+    put back there retired again, and False; behind a refusal for room or a
+    second refusal, over that reading whole, and False. Only while the comment
     carries nothing for the head under a receipt the tick did not hold, and
     the attempt `context` recovers: a successor is left for its own proof and
     another attempt for its own recovery, both False before anything is read
@@ -139,27 +135,27 @@ def _lands(
 ) -> bool:
     """Retire what `context.state` holds as over a reset, land it as `write`, and read the comment afresh behind it.
 
-    With no room for its history the evidence stays current, its base tip
-    blanked as the record of its movement, which the reading behind blanks
-    once more where it was put back. A write no later asking may follow
-    hands the last to the comment read whole, and a last one refused blanks
-    the base tip over the comment read afresh in a shrinking write that
-    leaves every evidence record as it stands, so a refusal never leaves the
-    evidence beside a tip another road put back. False on the last asking, or
-    where the comment would not read afresh.
+    With no room for its history, or a last asking refused, the evidence
+    stays current, its base tip blanked as the record of its movement in a
+    shrinking write decided on the attempt and every evidence record as read,
+    so a replacement attempt or a successor written since refuses it, and a
+    tip put back behind a landed write is blanked once more. False on the last
+    asking, or where the comment would not read afresh.
     """
     _retirement.retires_over_the_reset(context, _LAST if behind else _GONE)
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)
     outcome = commit.lands(context.state, write)
     landed = outcome.status is _commit_models.CommitStatus.COMMITTED
-    if behind and landed:
+    if behind and not landed:
+        staged = PinnedState(
+            comment_id=context.state.comment_id, state_data=json.loads(context.state.synced),
+        )
+        staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+        commit.lands(staged, _writes.INVALIDATION)
+    if behind:
         return False
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
     if durable is None:
-        return False
-    if behind:
-        durable.set(_base_sync_state._PENDING_REWRITE_BASE, None)
-        _commits.ReportCommit(context.gh, context.issue, durable).lands(durable, _writes.INVALIDATION)
         return False
     if not (landed or again) or outcome.refusal in _commits._ROOM:
         return lands_the_retirement(replace(context, state=durable), write, asked, behind=True)

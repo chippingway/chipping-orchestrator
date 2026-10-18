@@ -54,6 +54,9 @@ _EDITS = "edit_pinned_state"
 
 _CURRENT = "verification_evidence_current"
 
+# The usage total another road's write moves, refusing a retirement decided on the comment before it.
+_USAGE_TOTAL = "issue_total_tokens"
+
 # What crowds the tip written back behind its blank: a comment filled past the retirement, or a usage write refusing
 # it -- once, or every time.
 _FULL, _USAGE, _EVERY = "full", "usage", "every"
@@ -137,7 +140,7 @@ class _LostCheckoutCase(guarded.GuardedRecoveryCase):
         if over.get(_CURRENT) and staged.get(_CURRENT) is None:
             self._crowds = None if self._crowds == _USAGE else self._crowds
             spent = self.gh.read_pinned_state(issue)
-            spent.set("issue_total_tokens", (spent.get("issue_total_tokens") or 0) + 1)
+            spent.set(_USAGE_TOTAL, (spent.get(_USAGE_TOTAL) or 0) + 1)
             self.gh.write_pinned_state(issue, spent)
 
     def assert_retired(self, *, routes: bool = True) -> None:
@@ -306,15 +309,22 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
 
     def test_another_road_retires_the_run_ahead(self) -> None:
         # The fetch fails, so the abort resets the checkout to the anchor; it goes right behind the blank recording that
-        # reset. Right ahead of the run's retirement another road retires the run itself and pins another attempt -- or
-        # settles a newer run over it -- putting the checkout back. What that road wrote stands, nothing reset over it.
-        successor = partial(settled_support.records_a_newer_run, settles=True)
-        for race, writes in (("attempt", self._replaces_the_attempt), ("successor", successor)):
+        # reset. Right ahead of the run's retirement -- or of its last, behind two a usage write refused -- another
+        # road retires the run itself and pins another attempt, its base tip whole, or settles a newer run over it,
+        # putting the checkout back. What that road wrote stands, nothing reset or blanked over it.
+        races = (
+            ("attempt", self._replaces_the_attempt),
+            ("successor", partial(settled_support.records_a_newer_run, settles=True)),
+            ("last", partial(self._replaces_the_attempt, spends=2)),
+        )
+        for race, writes in races:
             with self.subTest(race=race):
                 self.setUp()
                 self.settles()
+                self._onto = self.pinned_fields(readings.KEY_REWRITE_BASE)[0]
                 self._blanked = False
                 self._written = None
+                self._spent = 0
                 edits = partial(self._races_the_retirement, writes, self.gh.edit_pinned_state)
                 with (
                     patch("orchestrator.git.branch_transport._authed_fetch", guarded.unfetched),
@@ -327,13 +337,13 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
         """What another road wrote ahead of the retirement standing as it wrote it, the checkout left on the head."""
         self.assertTrue(self._blanked and self._written)
         self.assertEqual(self._wt_head(), self._run[0], "the checkout was reset over what another road wrote")
-        if race == "attempt":
-            pinned = self.pinned_fields(*self._written)
-            self.assertEqual(pinned, tuple(self._written.values()))
-        else:
+        if race == "successor":
             current = readings.pinned_records(self)[1]
             self.assertEqual(current.receipt, self._written.receipt)
             self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (self.anchor,))
+        else:
+            pinned = self.pinned_fields(*self._written)
+            self.assertEqual(pinned, tuple(self._written.values()))
         self.assert_made_once()
 
     def _writes_back_behind(self, live, issue, staged, **options):
@@ -351,7 +361,8 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
         """`live`, the pinned-comment edit: the checkout gone behind the reset's blank, `writes` ahead of the run's."""
         if self._blanked and self._written is None and self._retires(staged, **options):
             self._written = writes(self)
-            self._away.rename(self._wt)
+            if self._written is not None:
+                self._away.rename(self._wt)
         answered = live(issue, staged, **options)
         tip = readings.KEY_REWRITE_BASE
         blanks = options["over"].get(tip) is not None
@@ -365,10 +376,17 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
         """Whether a pinned-comment edit retires the run the comment it is decided on carries current."""
         return bool(over.get(_CURRENT)) and not staged.get(_CURRENT)
 
-    def _replaces_the_attempt(self, _case) -> dict:
-        """Retire the run and pin another attempt in place of its own, as another road would; that attempt."""
-        replacement = fixtures.attempt_record(self._run[0], None, git_support.PR_NUMBER, git_support.REVIEWING)
+    def _replaces_the_attempt(self, _case, spends: int = 0) -> dict | None:
+        """Retire the run and pin another attempt, as another road would; it, or None for its first `spends` calls."""
         state = self.gh.read_pinned_state(self.issue)
+        if self._spent < spends:
+            self._spent += 1
+            state.set(_USAGE_TOTAL, (state.get(_USAGE_TOTAL) or 0) + 1)
+            self.gh.write_pinned_state(self.issue, state)
+            return None
+        replacement = fixtures.attempt_record(
+            self._run[0], None, git_support.PR_NUMBER, git_support.REVIEWING, self._onto,
+        )
         self.assertTrue(_settlement.retire_current_evidence(state))
         _attempts._clears_the_attempt(state)
         for key, member in replacement.items():
