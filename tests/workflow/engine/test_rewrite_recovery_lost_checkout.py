@@ -54,8 +54,9 @@ _EDITS = "edit_pinned_state"
 
 _CURRENT = "verification_evidence_current"
 
-# What crowds the tip written back behind its blank: a comment filled past the retirement, or a usage write refusing it.
-_FULL, _USAGE = "full", "usage"
+# What crowds the tip written back behind its blank: a comment filled past the retirement, or a usage write refusing
+# it -- once, or every time.
+_FULL, _USAGE, _EVERY = "full", "usage", "every"
 
 # The roads whose git request ahead of any proof finds the checkout gone: the hold, the gate, the uncounted lag's abort.
 _DISPATCHER, _REFRESH, _ABORT = "dispatcher", "refresh", "abort"
@@ -130,11 +131,11 @@ class _LostCheckoutCase(guarded.GuardedRecoveryCase):
         self.issue.labels = [FakeLabel(_UNDRIVEN)]
 
     def crowds_the_retirement(self, issue, staged, over: dict) -> None:
-        """Once the tip is written back, have a usage write land right ahead of the edit retiring the run, once."""
-        if self._crowds != _USAGE or self._tips or not over.get(_CURRENT):
+        """Once the tip is written back, have a usage write land right ahead of the edit retiring the run."""
+        if self._crowds not in {_USAGE, _EVERY} or self._tips:
             return
-        if staged.get(_CURRENT) is None:
-            self._crowds = None
+        if over.get(_CURRENT) and staged.get(_CURRENT) is None:
+            self._crowds = None if self._crowds == _USAGE else self._crowds
             spent = self.gh.read_pinned_state(issue)
             spent.set("issue_total_tokens", (spent.get("issue_total_tokens") or 0) + 1)
             self.gh.write_pinned_state(issue, spent)
@@ -172,16 +173,16 @@ class RestoredTipTest(_LostCheckoutCase, unittest.TestCase):
 
     def test_a_quiet_hold(self) -> None:
         # The dispatcher holds a stage the refresh drives; the checkout it brings back for the refresh never returns.
-        # A comment too full for the retirement has the tip blanked once more, the run and attempt kept whole until
-        # room is made and the next hold retires it.
-        for crowds in (None, _FULL, _USAGE):
+        # A comment too full for the retirement, or a usage write refusing every retirement edit, has the tip
+        # blanked once more, the run and attempt kept whole until room is made and the next hold retires it.
+        for crowds in (None, _FULL, _USAGE, _EVERY):
             with self.subTest(crowds=crowds):
                 self.setUp()
                 self.settles()
                 self._crowds = crowds
                 self._wt.rename(self._away)
                 self._races(self._holds_unrestored)
-                if crowds == _FULL:
+                if crowds in {_FULL, _EVERY}:
                     self.assertEqual(readings.pinned_records(self)[1], self._run[1])
                     standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
                     self.assertEqual(standing, (self.anchor, None))

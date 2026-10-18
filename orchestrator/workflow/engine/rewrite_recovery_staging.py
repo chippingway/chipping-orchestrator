@@ -32,13 +32,14 @@ from typing import Any
 
 from github.Issue import Issue
 
-from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
+from orchestrator.git.base_sync import models as _base_sync_models, state as _base_sync_state
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedEdit, PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit as _commit,
     pinned_commit_models as _commit_models,
     report_commits as _commits,
+    rewrite_finish_writes as _writes,
     rewrite_landing_retirement as _retirement,
     rewrite_recovery_readings as _readings,
     verification_durable as _durable,
@@ -75,8 +76,8 @@ class _KeepsWhatItCarried:
 
 @contextmanager
 def keeps_the_staging(
-    context: _AutoRebaseRecoveryContext, *, ahead: bool = True,
-) -> Iterator[_AutoRebaseRecoveryContext]:
+    context: _base_sync_models._AutoRebaseRecoveryContext, *, ahead: bool = True,
+) -> Iterator[_base_sync_models._AutoRebaseRecoveryContext]:
     """The context to prove over, what the tick staged kept for a record `ahead` of it, and out of it behind one.
 
     Behind a record that did not land, that staging is taken off the state for
@@ -100,8 +101,8 @@ def keeps_the_staging(
 
 
 def lands_the_retirement(
-    context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, held: frozenset[str] | None = None, *,
-    behind: bool = False,
+    context: _base_sync_models._AutoRebaseRecoveryContext, write: _commits.ReportWrite,
+    held: frozenset[str] | None = None, *, behind: bool = False,
 ) -> bool:
     """Retire what `context.state` holds for the landed head, its checkout gone, landed as `write`; whether it did.
 
@@ -111,7 +112,8 @@ def lands_the_retirement(
     moved kept as it wrote it; behind a write that landed, evidence put back
     there retired again, or its movement recorded, and False; behind a
     refusal for room or a second refusal, over that reading whole, retired or
-    the base tip blanked in a shrinking write where it has no room, and False.
+    the base tip blanked in a shrinking write where it has no room or that
+    retirement is refused too, and False.
     Only while the comment
     carries nothing for the head under a receipt the tick did not hold, and
     the attempt `context` recovers: a successor is left for its own proof and
@@ -132,26 +134,32 @@ def lands_the_retirement(
 
 
 def _lands(
-    context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, asked: frozenset[str], *, again: bool,
-    behind: bool,
+    context: _base_sync_models._AutoRebaseRecoveryContext, write: _commits.ReportWrite, asked: frozenset[str], *,
+    again: bool, behind: bool,
 ) -> bool:
     """Retire what `context.state` holds as over a reset, land it as `write`, and read the comment afresh behind it.
 
     With no room for its history the evidence stays current, its base tip
     blanked as the record of its movement, which the reading behind blanks
     once more where it was put back. A write no later asking may follow
-    hands the last to the comment read whole, so a refusal never leaves the
-    evidence standing beside a tip another road put back. False on the last
-    asking, or where the comment would not read afresh.
+    hands the last to the comment read whole, and a last one refused blanks
+    the base tip over the comment read afresh in a shrinking write that
+    leaves every evidence record as it stands, so a refusal never leaves the
+    evidence beside a tip another road put back. False on the last asking, or
+    where the comment would not read afresh.
     """
     _retirement.retires_over_the_reset(context, _LAST if behind else _GONE)
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)
     outcome = commit.lands(context.state, write)
     landed = outcome.status is _commit_models.CommitStatus.COMMITTED
-    if behind:
+    if behind and landed:
         return False
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
     if durable is None:
+        return False
+    if behind:
+        durable.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+        _commits.ReportCommit(context.gh, context.issue, durable).lands(durable, _writes.INVALIDATION)
         return False
     if not (landed or again) or outcome.refusal in _commits._ROOM:
         return lands_the_retirement(replace(context, state=durable), write, asked, behind=True)

@@ -1591,7 +1591,8 @@ because there it is the claim that this stage has already rerouted rather than a
   comment is read afresh behind that retirement, so evidence another road writes back right behind it is retired once
   more and the tick held, and a successor or another attempt another road put in its place holds the tick with nothing
   reset; one refused for room or twice is asked once more over the comment read whole, blanking the base tip in a
-  shrinking write where there is still no room (`rewrite_recovery_staging.lands_the_retirement`).
+  shrinking write where there is still no room or that last retirement is refused too
+  (`rewrite_recovery_staging.lands_the_retirement`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of

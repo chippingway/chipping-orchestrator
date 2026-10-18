@@ -54,7 +54,7 @@ def fills_the_comment(case, left: int = 0) -> None:
 def makes_room(case) -> None:
     """Take the filler back off the pinned comment, as a human making room does."""
     emptied = case.gh.read_pinned_state(case.issue)
-    emptied.data.pop(_FILLER)
+    emptied.data.pop(_FILLER, None)
     case.gh.write_pinned_state(case.issue, emptied)
 
 
