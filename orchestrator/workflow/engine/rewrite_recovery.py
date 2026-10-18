@@ -260,12 +260,13 @@ def _routes_the_comparison(
 
     The transaction a finish of the attempt captured -- the one under the
     receipt on the attempt, whether or not any mark is down -- is abandoned,
-    and evidence one settled invalidated, off each snapshot before anything is
-    taken on it (`rewrite_landing_moved.abandons_off_the_landing`): the
-    checkout the fetch read, ahead of the remote head that completes it --
-    whose reading may fail into an abort whose reset fails too, which would
-    park the attempt with that evidence kept over a checkout already read
-    moving -- and then the remote head the completion read.
+    and evidence one settled invalidated,
+    off each snapshot before anything is taken on it
+    (`rewrite_landing_moved.abandons_off_the_landing`): the checkout the fetch
+    read, ahead of the remote head that completes it -- whose reading may
+    fail into an abort whose reset fails too, which would park the attempt
+    with that evidence kept over a checkout already read moving -- and then
+    the remote head the completion read.
     """
     if not _landing_moved.abandons_off_the_landing(context, observed):
         return True

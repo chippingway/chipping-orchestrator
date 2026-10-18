@@ -16,11 +16,10 @@ not on the checkout -- rolled back, or moved out of band -- and a remote and
 checkout that agree on another head. These are the helpers that abandon the
 transaction, and invalidate the settled evidence into history whole
 (`rewrite_finish_readiness.invalidates`), before any such road is taken, so
-that movement under a decision leaves no decision a later route, or a reader
-once the attempt is cleared, may take. The recovery's coordinator
-(`rewrite_recovery`) asks them of every snapshot before the road it chooses,
-and the landed road (`rewrite_landed`) of a checkout or remote it reads
-leaving the head.
+movement under a decision leaves none a later route, or a reader once the
+attempt is cleared, may take. The recovery's coordinator (`rewrite_recovery`)
+asks them of every snapshot before the road it chooses, and the landed road
+(`rewrite_landed`) of a checkout or remote it reads leaving the head.
 
 `abandons_off_the_landing` answers whether a road may go on: True where the
 snapshot reads no head off the head a finish captured or settled evidence
@@ -32,23 +31,22 @@ not read -- a checkout whose head would not prove, or a remote not yet read --
 establishes no movement, so the evidence is kept: the road such a snapshot
 takes resets the checkout, and that reset, once it lands, is the movement the
 retirement answers (`rewrite_landing_retirement.retires_over_the_reset`),
-while one that fails keeps the attempt and the evidence both. `abandons`
-hands the evidence the tick holds to the recovery's own proof
+while one that fails keeps the attempt and the evidence both. `abandons` hands
+the evidence the tick holds to the recovery's own proof
 (`rewrite_landing_retirement.retires_unproved`), the one every park and hold
 that keeps the attempt asks, with the landing's move as the movement already
 read under each receipt it holds (`rewrite_evidence_proof.LEFT_THE_LANDING`),
-however the proof's own readings come out -- the heads may be back by then:
-the transaction is abandoned unrun through the last word, or refused for good
-where the comment has no room for that, and settled evidence invalidated into
-history whole and read afresh behind that write, so a settlement put back
-right behind it is retired again. Each write falls back to the tick's own
-reading where it does not land over the comment read afresh, and holds the
-tick only where neither lands. A successor another road settled under a
-receipt of its own is proved on its own readings, and every comment those
-finishes read -- a refused abandonment's strict edit among them -- is asked
-what it records moving under the successor too, so a mark of movement read
-there retires it however soon the mark is put back. The primitives that proof
-builds on are `rewrite_landing_captured`'s.
+whatever the proof's readings say -- the heads may be back by then: the
+transaction is abandoned unrun through the last word, or refused for good
+where the comment has no room, and settled evidence invalidated into history
+whole and read afresh behind that write, so a settlement put back right behind
+it is retired again. Each write falls back to the tick's own reading where it
+does not land over the comment read afresh, holding the tick only where
+neither lands. A successor another road settled under a receipt of its own is
+proved on its own readings, and every comment those finishes read -- a refused
+abandonment's strict edit among them -- is asked what it records moving under
+the successor too, so a mark of movement read there retires it however soon
+the mark is put back. The proof's primitives are `rewrite_landing_captured`'s.
 """
 from __future__ import annotations
 
@@ -104,26 +102,24 @@ def abandons(context: _AutoRebaseRecoveryContext, *, read: bool = True) -> bool:
     """Retire what an earlier finish recorded or settled for the head the landing was read leaving; whether none stands.
 
     The recovery's proof (`rewrite_landing_retirement.retires_unproved`),
-    handed the landing's move as the movement already read under every
-    receipt the tick holds (`LEFT_THE_LANDING`), so nothing it reads next --
-    the heads back on the landing among it -- keeps that evidence: a captured
+    handed the landing's move as the movement already read under every receipt
+    the tick holds (`LEFT_THE_LANDING`), so nothing it reads next -- the heads
+    back on the landing among it -- keeps that evidence: a captured
     transaction is abandoned unrun, or refused for good with no room, and
     settled evidence invalidated whole, read afresh behind its write and
-    retired again where it was put back there. A successor another road
-    settled under a receipt of its own is proved on its own readings, and
-    invalidated only where they, or a comment the proof's writes read, record
-    it moving. Nothing is routed either way, and nothing is read or written
-    where neither stands. False where either still stands once its
-    retirement was asked, or where a successor's proof holds. `read` False
-    hands the proof no landing movement, for a caller that read none: the
-    proof then reads what the comment and the checkout record moving itself.
+    retired again if put back there. A successor another road settled under
+    its own receipt is proved on its own readings, and invalidated only where
+    they, or a comment the proof's writes read, record it moving. Nothing is
+    routed either way, nor read or written where neither stands. False where
+    either still stands once its retirement was asked, or a successor's proof
+    holds. `read` False hands the proof no landing movement, for a caller that
+    read none, so it reads what the comment and checkout record moving itself.
 
     A checkout gone from disk since the landing was read has nothing to prove
     over, so the proof a park asks first takes it
     (`rewrite_recovery_parks.proves_before_a_park`): the reset recorded by
-    blanking the base tip, and the retirement landed in a write of its own
-    over the comment read afresh, however soon another road puts that tip
-    back.
+    blanking the base tip, the retirement landed in a write of its own over
+    the comment read afresh, however soon another road puts that tip back.
     """
     held = _retirement.receipts(context.state)
     if held and not context.worktree.is_dir():

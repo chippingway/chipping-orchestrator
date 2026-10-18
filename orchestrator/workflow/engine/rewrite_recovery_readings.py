@@ -18,14 +18,14 @@ first.
 classifier (`rewrite_landing_retirement.moved_under`): blank or repointed
 beside the attempt as the tick read it, every evidence; blank beside an
 attempt still standing, evidence the tick never held. `owed_moves` reads
-what it records moving under a transaction captured for the head, as a
+what it records moving under a transaction captured for the head, as the
 finish held to the settled-evidence policy reads one still owed.
-`stands_as_recovered` says whether the tick's state, once the proof's
-rechecks laid what they read over it, still carries the attempt the
-recovery recovers rather than one another road put in its place.
-`LosesTheCheckout` lets the proof read a checkout gone from disk under one of
-its own requests as that loss, rather than raise it past the record it owes,
-and `RecordsALostCheckout` records that loss for a road that owes it.
+`stands_as_recovered` says whether the tick's state, with what the proof's
+rechecks read laid over it, still carries the attempt the recovery recovers,
+not one another road put in its place. `LosesTheCheckout` lets the proof read
+a checkout gone from disk under one of its own requests as that loss, not
+raise it past the record it owes, and `RecordsALostCheckout` records that loss
+for a road that owes it.
 """
 from __future__ import annotations
 
@@ -120,11 +120,10 @@ class LosesTheCheckout:
     """A block a checkout gone from disk cuts short: a request of it there answered by that loss, not raised.
 
     For the recovery's proof (`rewrite_landing_retirement.retires_unproved`),
-    which reads the checkout well after its caller found it on disk: a git
-    request run in a checkout gone meanwhile fails with `FileNotFoundError`,
-    swallowed here only where the checkout is gone by then, for the proof to
-    read that loss and record it. Any other failure, or one over a checkout
-    still on disk, goes on.
+    reading the checkout well after its caller found it on disk: a git request
+    in a checkout gone meanwhile fails with `FileNotFoundError`, swallowed
+    only where the checkout is gone by then, for the proof to read and record
+    that loss. Any other failure, or one over a checkout on disk, goes on.
     """
 
     def __init__(self, context: _AutoRebaseRecoveryContext) -> None:

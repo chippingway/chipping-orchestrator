@@ -154,15 +154,16 @@ def retires_over_the_reset(
     standing back on the anchor under a label the refresh does not drive,
     whose clear asks it too
     (`git/base_sync/snapshot._clear_ineligible_recovery`). The transaction is
-    abandoned (`rewrite_landing_captured.abandons_over_the_reset`), and settled
-    evidence is invalidated on the same state, into history whole, its
-    revision and binding kept, so both land with the attempt's release or
-    neither does. With no room for its history entry the settled evidence is
-    not dropped: it stays current, whole, beside the attempt that keeps every
-    reader off it, and the movement is recorded instead by blanking the base
-    tip the attempt recorded its replay as made onto, so every later proof of
-    the evidence reads movement (`rewrite_evidence_proof.standing_refusal`)
-    and invalidates it whole once the comment has room -- putting the checkout
+    abandoned (`rewrite_landing_captured.abandons_over_the_reset`),
+    and settled evidence is
+    invalidated on the same state, into history whole, its revision and
+    binding kept, so both land with the attempt's release or neither does.
+    With no room for its history entry the settled evidence is not dropped:
+    it stays current, whole, beside the attempt that keeps every reader off
+    it, and the movement is recorded instead by blanking the base tip the
+    attempt recorded its replay as made onto, so every later proof of the
+    evidence reads movement (`rewrite_evidence_proof.standing_refusal`) and
+    invalidates it whole once the comment has room -- putting the checkout
     back first revives nothing. A reset recorded ahead of it has that blank
     landed already (`rewrite_recovery_parks.records_the_reset`); a checkout
     gone from disk has it landed here. It only shrinks the comment, so it

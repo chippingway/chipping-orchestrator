@@ -2222,11 +2222,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             gate measures as the publication would have; an ordinary replay measured; the
                             exact candidate pushed under the anchor's lease through `rewrite_publication.py`'s
                             transport, a refused or unlanded push reset and parked `auto_base_rebase_push_failed`, a
-                            gate's hold recorded as it left it -- what the attempt keeps proved first, then landed
-                            over the comment read afresh as the guarded `HOLD` and proved again behind it
-                            (`rewrite_recovery_parks.lands_a_hold`) -- the reply that brought the attempt back
-                            recorded read in that write where it only asked for the retry (`rewrite_replies.py`),
-                            and offered to
+                            gate's hold recorded as it left it -- what the attempt keeps proved first, then landed over
+                            the comment read afresh as the guarded `HOLD` and proved again behind it
+                            (`rewrite_recovery_parks.lands_a_hold`) -- the reply that brought the attempt back recorded
+                            read in that write where it only asked for the retry (`rewrite_replies.py`), and offered to
                             the adjudication it may have left (`rewrite_takeover.py`), and a landing whose verdict
                             did not rotate parked with
                             HEAD and the anchor kept; and every other landing handed to `rewrite_finish.py` on its
@@ -2274,9 +2273,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             read what it records moving under the transaction there where the recovery's proof before a
                             park hands that in (`asks`), and abandons the transaction where either reads movement, a
                             settlement another finish made of the run while that was asked invalidated over it. The
-                            settled-aware answers (`rewrite_landing_retirement.py`) are built
-                            over it and over the finish of a head's landing they prove with (`_finish`), held to the
-                            settled-evidence policy
+                            settled-aware answers (`rewrite_landing_retirement.py`) are built over it and over the
+                            finish of a head's landing they prove with (`_finish`), held to the settled-evidence policy
     rewrite_landing_moved.py
                             the recovery's helpers over a landing read moved: the transaction a finish captured
                             abandoned, unrun, and evidence a finish settled for the head
@@ -2339,24 +2337,23 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the receipt it was read under, and of none other -- both by a finish of the landed head
                             built for that proof alone and held to the settled-evidence policy (`proves_settled`),
                             whichever policy the finish that routes the landing selects, so a mark of movement under the
-                            evidence's receipt is read as
-                            movement, a settlement another finish made of the captured run while its abandonment was
-                            asked is invalidated over the same movement in its place, and an announcement another
-                            finish of the landing put on the attempt is taken in before the invalidation lands over
-                            it; a checkout gone from disk, before the proof or while it is asked -- one of its git
-                            requests finding nothing there among it (`rewrite_recovery_readings.LosesTheCheckout`) --
-                            has the reset recorded and both retired as over it in writes of their own by the recorder
-                            the context carries (`records_before_a_reset`), which every proof the parks module asks is
-                            handed, staged for the park only where it carries none. The
-                            landed road's own holds (`rewrite_landed.py`) ask the same proof ahead of a hold's write.
-                            The receipts of what stands (`receipts`) name the evidence movement read before a write is
-                            keyed under, which
-                            the proof asks only of evidence standing under that very receipt; a record that did not
-                            land has the evidence records the comment carries now laid over the tick's state
-                            (`reconciles`), so a successor another road settled meanwhile is the evidence proved
-                            behind it, on its own binding, the movement that very reading records under it handed to
-                            that proof as already read -- save a slot the comment carries nothing in where movement
-                            was read under what the tick held there -- by that reading, or by the record's own
+                            evidence's receipt is read as movement, a settlement another finish made of the captured run
+                            while its abandonment was asked is invalidated over the same movement in its place, and an
+                            announcement another finish of the landing put on the attempt is taken in before the
+                            invalidation lands over it; a checkout gone from disk, before the proof or while it is asked
+                            -- one of its git requests finding nothing there among it
+                            (`rewrite_recovery_readings.LosesTheCheckout`) -- has the reset recorded and both retired as
+                            over it in writes of their own by the recorder the context carries
+                            (`records_before_a_reset`), which every proof the parks module asks is handed, staged for
+                            the park only where it carries none. The landed road's own holds (`rewrite_landed.py`) ask
+                            the same proof ahead of a hold's write. The receipts of what stands (`receipts`) name the
+                            evidence movement read before a write is keyed under, which the proof asks only of evidence
+                            standing under that very receipt; a record that did not land has the evidence records the
+                            comment carries now laid over the tick's state (`reconciles`), so a successor another road
+                            settled meanwhile is the evidence proved behind it, on its own binding, the movement that
+                            very reading records under it handed to that proof as already read -- save a slot the
+                            comment carries nothing in where movement was read under what the tick held there -- by that
+                            reading, or by the record's own
                             refusal, handed in -- which is kept from the tick's state for the proof while every other
                             record is laid, a successor settled in the other slot among them -- a comment that would not
                             read read once more, and each member of the attempt that reading carries exactly as the
@@ -2431,11 +2428,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             every write it lands (`rewrite_recovery_staging.py`), and behind one keeps it out of them. A
                             checkout gone from disk, ahead of a record or behind one or a notice that raised, has the
                             reset recorded and the evidence retired as over it, each in a write of its own
-                            (`proves_before_a_park`). Ahead of every reset whose attempt records a base
-                            tip -- or one the tick read blank, confirmed blank over the comment read afresh, so a tip
-                            another road put back refuses the reset -- that tip is blanked in a write of its own
-                            (`records_the_reset`, the context's `records_before_a_reset`), decided on every evidence
-                            record and the attempt as
+                            (`proves_before_a_park`). Ahead of every reset whose attempt records a base tip -- or one
+                            the tick read blank, confirmed blank over the comment read afresh, so a tip another road put
+                            back refuses the reset -- that tip is blanked in a write of its own (`records_the_reset`,
+                            the context's `records_before_a_reset`), decided on every evidence record and the attempt as
                             the tick read them (`rewrite_finish_writes.INVALIDATION`), so evidence settled since refuses
                             it, and a blank refused or never confirmed holds with nothing reset or cleaned, the tick's
                             state withheld so its stale tip is never written back over a blank that landed unconfirmed,

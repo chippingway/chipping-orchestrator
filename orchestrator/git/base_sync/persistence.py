@@ -236,13 +236,13 @@ def _parks_the_recovery(
     The park's record lands behind its notice, a request after the tick read
     the comment -- long enough for another road to settle and review a later
     report, or move an evidence record. A recovery context the workflow built
-    carries the park that lands over the comment read afresh instead, keeping
-    whatever another road wrote meanwhile
-    (`_AutoRebaseRecoveryContext.lands_a_park`): over a landed reset, the
-    evidence a finish captured or settled for the head is retired in the very
-    write that drops the attempt (`_releases_over_the_reset`), and that write
-    puts back no report the evidence was superseded by. A context with none --
-    a refresh's own -- writes the state whole.
+    carries the park (`_AutoRebaseRecoveryContext.lands_a_park`) that lands
+    over the comment read afresh instead, keeping
+    whatever another road wrote meanwhile: over a landed reset, the evidence
+    a finish captured or settled for the head is retired in the very write
+    that drops the attempt (`_releases_over_the_reset`), and that write puts
+    back no report the evidence was superseded by. A context with none -- a
+    refresh's own -- writes the state whole.
     """
     lands = context.lands_a_park if isinstance(context, _AutoRebaseRecoveryContext) else None
     if lands is None:
@@ -312,11 +312,10 @@ def _releases_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCo
     moved under. The recovery's answer to it is staged first on the state the
     park writes (`_AutoRebaseRecoveryContext.settles_over_a_reset`), so it
     lands in the park's one write beside the attempt's release, or neither
-    does, and a dropped attempt never leaves it behind. False where the
-    recovery answers that the record cannot go with the release -- settled
-    evidence the comment has no room to retire into history -- logged: the
-    attempt keeps guarding it, nothing is dropped or parked, and the next
-    tick's recovery asks again.
+    does, and a dropped attempt never leaves it behind. False, logged, where
+    the recovery answers the record cannot go with the release -- settled
+    evidence with no room for its history entry: the attempt keeps guarding
+    it, nothing is dropped or parked, and the next tick's recovery asks again.
 
     The drop of what the reset took the branch off is staged, not written, so
     the park's own write makes it durable: the approval and a transfer's

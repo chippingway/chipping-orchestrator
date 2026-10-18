@@ -11,7 +11,8 @@ write, so with the checkout back on the head -- the label and a reply too, for t
 nothing current, the run never made again and nothing pushed or launched. Another road writing the attempt and every
 evidence record back right behind a quiet hold's retirement has the run retired once more; one retiring the run itself
 right ahead of it, pinning another attempt or settling a newer run in its place, holds the tick over what it wrote, the
-checkout put back on the head left unreset.
+checkout put back on the head left unreset. A HEAD read by the dispatcher's hold or the eligibility gate finding it gone
+is recorded the same way, and a tip back on a comment too full for the retirement is blanked again, the run kept whole.
 """
 from __future__ import annotations
 

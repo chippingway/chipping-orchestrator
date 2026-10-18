@@ -28,14 +28,14 @@ recorded here too (`lands_a_hold`): their proof taken first, as before a
 park that keeps the attempt, what the tick staged before that proof kept
 across every write it lands (`rewrite_recovery_staging`), and only what the
 tick staged since its reading landed, as `HOLD`, over the comment read
-afresh -- the write the ordinary publication's gate hold lands as too
-(`rewrite_publication`). A park made again over a record that never landed
-takes in the notice the conversation already carries rather than saying it
-twice (`rewrite_recovery_notices`). A clear of the attempt -- under a label the
-refresh does not drive, or of one whose checkout never left the anchor -- is
-recorded as `CLEAR` over the comment read afresh (`lands_a_clear`), so a
-successor another road settled while the checkout was read refuses it, its
-revision floor kept.
+afresh, as the ordinary publication's gate hold is
+(`rewrite_publication`). A park made again
+over a record that never landed takes in the notice the conversation already
+carries rather than saying it twice (`rewrite_recovery_notices`).
+A clear of the attempt -- under a label the refresh does not drive, or of one
+whose checkout never left the anchor -- is recorded as `CLEAR` over the
+comment read afresh (`lands_a_clear`), so a successor another road settled
+while the checkout was read refuses it, its revision floor kept.
 
 The park (`lands_a_park`) lands through the guarded commit
 (`report_commits.ReportCommit`) as `PARK`: owning every field the tick staged
@@ -220,22 +220,23 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> bool:
 
     A publication gate that held a recovery's push -- the landed road's leased
     no-op (`rewrite_landed`), or the retry's reissued push (`rewrite_retry`)
-    -- keeps the attempt, so its evidence is proved first, as before every
-    park that keeps it (`proves_before_a_park`): over a checkout gone from
-    disk the reset is recorded against it and it is retired, each in a write
-    of its own, so a hold record refused or never confirmed leaves it retired.
-    Where that proof does not land -- the reset not recorded among it --
-    nothing is recorded, for a later tick to answer. The gate's own record, staged on the tick's state before this is
-    asked, is kept across every write that proof lands, so the hold's record
-    still carries it. The gate's answer is long enough for another road to
-    record a newer transaction, so only what the tick staged since its reading
-    lands, every other field kept as the fresh comment carries it, and a
-    record refused or never confirmed withholds the tick's state. Behind the
-    record the evidence is proved once more, over the move the record itself
-    carried, as behind every park (`lands_a_park`) -- or the reset recorded,
-    over a checkout gone from disk by then. A state nothing was read into is
-    written whole. True where the proof landed and so did the record, its
-    proof behind it too.
+    -- keeps the attempt, so its evidence
+    is proved first, as before every park that keeps it
+    (`proves_before_a_park`): over a checkout gone from disk the reset is
+    recorded against it and it is retired, each in a write of its own, so a
+    hold record refused or never confirmed leaves it retired. Where that proof
+    does not land -- the reset not
+    recorded among it -- nothing is recorded, for a later tick to answer. The
+    gate's own record, staged on the tick's state before this is asked, is
+    kept across every write that proof lands, so the hold's record still
+    carries it. The gate's answer is long enough for another road to record a newer
+    transaction, so only what the tick staged since its reading lands, every
+    other field kept as the fresh comment carries it, and a record refused or
+    never confirmed withholds the tick's state. Behind the record the evidence
+    is proved once more, over the move the record itself carried, as behind
+    every park (`lands_a_park`) -- or the reset recorded, over a checkout gone
+    from disk by then. A state nothing was read into is written whole.
+    True where the proof, the record, and the proof behind it all landed.
     """
     if not proves_before_a_park(context):
         return False
@@ -352,19 +353,18 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
     never written back over a blank that landed unconfirmed. Movement the
     record's commit read (`rewrite_landing_retirement.moved_under`) is proved
-    as read before anything else -- landed, refused, or sent with its answer
-    lost -- so a report moved, or a tip blanked, and put back under it
-    revives nothing: behind a blank that landed, the evidence it moved under
-    is retired before the reset is let go on, since a reset git then refuses
-    stages the tip back, and where that retirement does not land the answer
-    is False, the blank left standing as the record of that movement. A
-    checkout gone from disk leaves no landing to prove that evidence over, so
-    whether or not the blank landed, the evidence is retired as over a reset
-    and landed in a write of its own (`rewrite_recovery_staging.lands_the_retirement`,
-    as `CLEAR`), over a tip another road put back behind the blank among it;
-    True there only where both landed and the comment read afresh behind the
-    retirement carries none of what it retired back, nor a successor or
-    another attempt in its place.
+    as read first -- landed, refused, or sent with its answer lost -- so a
+    report moved, or a tip blanked, and put back under it revives nothing:
+    behind a blank that landed, the evidence it moved under is retired before
+    the reset goes on, since a reset git then refuses stages the tip back, and
+    a retirement that does not land answers False, the blank left standing as
+    the record of that movement. A checkout gone from disk leaves no landing
+    to prove that evidence over, so, blank landed or not, the evidence is
+    retired as over a reset and landed as `CLEAR` in a write of its own
+    (`rewrite_recovery_staging.lands_the_retirement`), over a tip another road
+    put back behind the blank among it; True there only where both landed and
+    the comment read afresh behind the retirement carries none of what it
+    retired back, nor a successor or another attempt in its place.
     """
     moved: dict[str, ReportEvidence] = {}
     commit = _commits.ReportCommit(

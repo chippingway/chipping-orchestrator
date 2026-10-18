@@ -1025,15 +1025,16 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
   park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). Evidence a
   finish already settled for the landed head has primitives beside these
-  (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it -- the base readings
-  that made a continuation excused over a head the base advanced past again, and proved once more behind any stop of
-  a write the finish makes after it -- and invalidating it into history whole where anything it is bound to moved --
-  over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the invalidation cannot
-  land, so nothing put back revives it. The recovery's answers to a snapshot read off the head, a landed reset, and a
-  park or hold that keeps the attempt ask them on every road, over finishes built for the proof alone and held to the
-  settled-evidence policy (`workflow/engine/rewrite_landing_moved.py`, `rewrite_landing_retirement.py`,
-  `rewrite_recovery_parks.py`). In a finish that routes, only the dormant settled-evidence policy asks them: a caller
-  selects it by building the finish with `proves_settled` and handing it directly to the
+  (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it
+  -- the base readings that made a continuation excused over a head the base advanced past again, and proved once more
+  behind any stop of a write the finish makes after it -- and invalidating it into history whole where anything it is
+  bound to moved -- over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the
+  invalidation cannot land, so nothing put back revives it. The recovery's answers to a snapshot read off the head, a
+  landed reset, and a park or hold that keeps the attempt ask them on every road, over finishes built for the proof
+  alone and held to the settled-evidence policy (`workflow/engine/rewrite_landing_moved.py`,
+  `rewrite_landing_retirement.py`, `rewrite_recovery_parks.py`). In a finish that routes, only the dormant
+  settled-evidence policy
+  asks them: a caller selects it by building the finish with `proves_settled` and handing it directly to the
   coordinator (`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which
   announces, relabels, parks, and retires nothing), and no production road builds such a finish
   (`workflow/engine/rewrite_finish_settled.py`). That phase proves settled evidence

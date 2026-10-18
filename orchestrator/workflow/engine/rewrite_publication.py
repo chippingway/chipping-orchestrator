@@ -20,10 +20,9 @@ it is made here, in the order the auto rebase has always kept:
   is pushed (`stages/implementing/late_push.py`): they hold it, hand it to an
   adjudication, or -- where the permit refuses -- measure it cumulatively like
   any other candidate. A hold is recorded as the gate left it over the comment
-  read afresh, as every road's gate hold is (`rewrite_recovery_parks.HOLD`), so
-  an evidence record, a report, or a revision floor another road wrote while
-  the gate answered is kept rather than written back over. A hold that handed
-  the replay to an adjudication hands
+  read afresh, as every road's gate hold is (`rewrite_recovery_parks.HOLD`),
+  keeping an evidence record, a report, or a revision floor another road wrote
+  while the gate answered. One that handed the replay to an adjudication hands
   the attempt over with it (`rewrite_takeover`), so the live generation owns
   the replay and its next tick adjudicates it rather than meeting an anchor
   the dispatcher holds it behind; every park the gate takes instead keeps the
@@ -94,10 +93,9 @@ def publishes(context: _AutoRebaseContext, anchor: str) -> None:
 
     A gate that held the candidate -- parked it, or handed it to an
     adjudication -- owns the issue from there, so nothing is announced or
-    routed; its park's flags are recorded as the gate left them
-    (`_records_the_hold`), and the attempt is offered to the adjudication the
-    hold may have left (`rewrite_takeover`), whose proof is what tells that
-    hold from a park.
+    routed; its park's flags are recorded (`_records_the_hold`) as the gate
+    left them, and the attempt is offered to the adjudication the hold may
+    have left (`rewrite_takeover`), whose proof tells that hold from a park.
     """
     candidate = _prepared(context, anchor)
     if not _gateable(context, candidate):
@@ -187,14 +185,13 @@ def _records_the_hold(context: _AutoRebaseContext) -> None:
     The gate's answer is long enough for another road to write the comment --
     settle a report, record evidence, spend a revision past it -- so only what
     the tick staged since its reading lands, the park's flags as the gate left
-    them among it, decided on the attempt the hold keeps, every other field
-    kept as the fresh comment carries it (`rewrite_recovery_parks.HOLD`). The
-    gate held before anything was pushed, so no finish has evidence for the
-    replay to prove first, as the recovery's holds do
-    (`rewrite_recovery_parks.lands_a_hold`). A record refused or never
-    confirmed withholds the tick's state (`report_commits.ReportCommit.withholds`),
-    for the next tick to answer the comment as it then stands; a state
-    nothing was read into is written whole.
+    them among it, decided on the attempt the hold keeps, every other field as
+    the fresh comment carries it (`rewrite_recovery_parks.HOLD`). The gate
+    held before any push, so no finish has evidence for the replay to prove
+    first, as the recovery's holds do (`rewrite_recovery_parks.lands_a_hold`).
+    A record refused or never confirmed withholds the tick's state
+    (`report_commits.ReportCommit.withholds`), for the next tick to answer the
+    comment as it then stands; a state nothing was read into is written whole.
     """
     state = context.state
     if state.synced is None:

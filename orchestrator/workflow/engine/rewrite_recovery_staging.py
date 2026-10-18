@@ -16,13 +16,10 @@ proof itself left staged keeps the proof's staging.
 
 A checkout gone from disk leaves the proof nothing to read the landing over,
 so what the tick holds for the landed head is retired as over a reset
-(`rewrite_landing_retirement.retires_over_the_reset`) and landed at once in a
-guarded write of its own (`lands_the_retirement`), rather than staged for a
-write behind that a quiet hold, a park already standing, or another road's
-refusal never makes. Nothing behind a quiet hold proves that evidence again,
-so the comment is read afresh behind the write that landed, and evidence it
-retired found put back there is retired once more, or its movement recorded,
-and the tick held.
+(`rewrite_landing_retirement.retires_over_the_reset`) in a guarded write of
+its own (`lands_the_retirement`), not staged for a write a quiet hold, a park
+already standing, or a refusal never makes -- and, since nothing behind a
+quiet hold proves it again, asked once more over the comment read afresh.
 """
 from __future__ import annotations
 
@@ -50,8 +47,7 @@ from orchestrator.workflow.engine import (
 # The edits that may have carried what they sent onto the comment: landed, or sent with the answer lost.
 _MAY_HAVE_LANDED = frozenset((PinnedEdit.EDITED, PinnedEdit.UNCONFIRMED))
 
-# The write a retirement over a checkout gone from disk rides, logged -- and
-# the last, over the comment read afresh behind one that landed or was refused for room.
+# The write a retirement over a checkout gone from disk rides, logged, and the last one asked over a fresh reading.
 _GONE = "in a write of its own, the checkout it was captured on gone"
 
 _LAST = f"{_GONE}, asked once more over the comment read afresh, holding"
@@ -109,26 +105,19 @@ def lands_the_retirement(
 ) -> bool:
     """Retire what `context.state` holds for the landed head, its checkout gone, landed as `write`; whether it did.
 
-    Retired as over a reset, and landed over the comment the tick read; a
-    write refused or never confirmed has the fields `write` is decided on laid
-    from the comment read afresh -- a base tip another road put back, or a
-    record it moved, kept as that road wrote it -- and is retired and landed
-    once more over that. One that landed has them laid from the comment read
-    afresh behind it too, since nothing behind a quiet hold proves the
-    evidence again: evidence another road put back there is retired once
-    more, or its movement recorded, and the answer is False, for the git
-    owner to hold the tick. One refused for room is asked once more over that
-    comment read whole, so where it has no room the base tip is blanked in a
-    shrinking write of its own as the record of the movement, and the tick
-    held the same way. Only while the comment carries nothing for the
-    head under a receipt the tick did not hold, and the attempt `context`
-    recovers: a successor another road settled is left for its own proof, and
-    another attempt for its own recovery, both answered False before anything
-    is read as retired. True where nothing the tick held stands any more. A
-    state nothing was read into is staged only, for the whole-state write
-    behind it. `held` is the receipts the first write was asked over, and
-    `behind` says the reading follows a write that landed or was refused for
-    room, and is the last.
+    Retired as over a reset over the comment the tick read, then asked once
+    more over the comment read afresh (`_lands`): behind a refusal, with the
+    fields `write` is decided on laid from it, a tip or record another road
+    moved kept as it wrote it; behind a write that landed, evidence put back
+    there retired again, or its movement recorded, and False; behind a
+    refusal for room, over that reading whole, the base tip blanked in a
+    shrinking write where it has no room, and False. Only while the comment
+    carries nothing for the head under a receipt the tick did not hold, and
+    the attempt `context` recovers: a successor is left for its own proof and
+    another attempt for its own recovery, both False before anything is read
+    as retired. True where nothing the tick held stands. A state nothing was
+    read into is staged only, for the whole-state write behind it. `held` is
+    the receipts first asked over; `behind` marks the last asking.
     """
     asked = _retirement.receipts(context.state) if held is None else held
     if context.state.synced is None:
@@ -147,12 +136,10 @@ def _lands(
 ) -> bool:
     """Retire what `context.state` holds as over a reset, land it as `write`, and read the comment afresh behind it.
 
-    Read afresh behind a write that landed, one refused and asked `again`,
-    or one refused for room, whose last asking runs over that reading whole.
     With no room for its history the evidence stays current, its base tip
-    blanked as the record of its movement, so the reading behind blanks a tip
-    put back there once more and holds. False `behind` a write that landed or
-    was refused for room, or where the comment would not read afresh.
+    blanked as the record of its movement, which the reading behind blanks
+    once more where it was put back. False on the last asking, or where the
+    comment would not read afresh.
     """
     _retirement.retires_over_the_reset(context, _LAST if behind else _GONE)
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)
