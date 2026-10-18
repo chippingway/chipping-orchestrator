@@ -15,11 +15,11 @@ again takes in the notice the conversation carries past the watermark rather
 than saying it twice -- the issue marked awaiting a human, the watermark moved
 to it, and the notice entered behind the comment-id ledger as it stood -- and
 asks the audit log for the event naming that notice: it files nothing where
-the log carries it or will not read, or where none is configured -- the
-notice said is then taken as its event filed -- and files it once more where
-the log lost it. The run is invalidated whole beside the park. With no log, a
-notice that went out with its answer lost leaves its event owed: the park made
-again in that process files it, and one a restarted process makes files none.
+the log carries it or will not read, and files it once more where the log
+lost it; with none configured, the notice said is taken as its event filed. The
+run is invalidated whole beside the park. With no log, a notice that went out
+with its answer lost leaves its event owed: the park made again in that process
+files it, and one a restarted process makes files none.
 """
 from __future__ import annotations
 

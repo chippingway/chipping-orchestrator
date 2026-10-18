@@ -15,10 +15,9 @@ so does a log rotated in between -- renamed to its first copy, or copied
 compressed beside it and truncated -- whose copy still carries the event. A
 log that would not read is no answer: the finish is held with nothing filed,
 relabelled, or retired, and the next tick, the log readable again, finds the
-event the same way. Nothing is run again, pushed, or launched. With no log
-configured, the attempt's record of the event is taken as the event filed --
-another producer's too, where it refused this finish's own record, which leaves
-this process owing nothing.
+event the same way. Nothing is run again, pushed, or launched. With no log, the
+attempt's record of the event is taken as the event filed -- another producer's
+too, where it refused this finish's own, leaving this process owing nothing.
 """
 from __future__ import annotations
 

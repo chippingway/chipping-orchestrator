@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Issue #7's settled run, its finish killed at a final handoff, and the moves a hold, park, or continuation proves.
 
-The real-git settled route case (`settled_route_support`) the hold-proof
-modules share, with the records it moves put back after and the run read
-back invalidated whole or the head continued once.
+The real-git settled route case (`settled_route_support`) the hold-proof modules share, with the records it moves put
+back after and the run read back invalidated whole or the head continued once.
 """
 from __future__ import annotations
 

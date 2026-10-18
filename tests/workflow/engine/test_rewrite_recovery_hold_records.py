@@ -11,9 +11,8 @@ publication gate holds that no-op (`rewrite_landed_hold_support`): its hold is
 recorded through the guarded `HOLD` (`rewrite_recovery_parks.lands_a_hold`),
 the run proved first, and only what the tick staged since its
 reading lands, over the comment read afresh.
-The transfer's own machinery -- how far it got, its permit, and the gate's
-answer -- is stood in for. A case that hands a recovery context straight to
-the hold or the park asks that operation directly.
+The transfer's machinery -- its progress, its permit, the gate's answer -- is
+stood in for; some cases hand the hold or park a recovery context directly.
 
 The issue edited under the run has it invalidated whole, putting the
 requirements back reviving nothing. A newer transaction recorded while the
@@ -83,8 +82,8 @@ _AHEAD_OF_THE_EDIT = "ahead of the edit"
 
 # The tip blanked under that edit beside the record of the `base_rebased`
 # event another finish of the landing is filing for the head, which advances
-# this very attempt rather than replacing it; the tip alone is put back. That
-# finish is this process's, so its event is noted owed as it notes it.
+# this very attempt rather than replacing it; the tip alone is put back.
+# That finish is this process's, so its event is noted owed as it notes it.
 _TIP_BESIDE_THE_EVENT = "the tip beside the event record under the edit"
 
 # The event that finish files.
@@ -360,10 +359,10 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._assert_held()
 
     def test_a_newer_run_survives_the_hold(self) -> None:
-        # Another road records a newer transaction for the head while the gate
-        # answers: the hold's record keeps it pending, with the revision floor
-        # it raised, beside the settled run the proof kept; the next poll
-        # settles it over that run and routes the head.
+        # While the publication gate answers, another road records a newer
+        # transaction for the head: the hold's record keeps it pending, with the
+        # revision floor it raised, beside the settled run the proof kept;
+        # the next poll settles it over that run and routes the head.
         head, settled = self.settles_then_dies()
         recorded: list = []
         with gate.holding(partial(gate.holds_beside_a_newer_run, self, recorded)):

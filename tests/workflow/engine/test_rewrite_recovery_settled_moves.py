@@ -2,14 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Evidence settled for a landed head, invalidated wherever a later tick's recovery reads the landing moving.
 
-The real-git finish case (`rewrite_verification_recovery_support`), the run
-settled and the finish killed at a final handoff boundary. The landing read
-moving -- the checkout committed past the head, or the remote rolled back --
-invalidates the run whole on whichever road that reading takes, so putting the
-landing back revives nothing -- nor does another road writing the comment back
-as it read right behind that invalidation, which is retired again before any
-road is taken, or putting a report back that a reset's record, its answer
-lost, read moved. The run is never made again, and no developer is launched.
+The real-git finish case (`rewrite_verification_recovery_support`): the run settled, the finish killed at a final
+handoff boundary. The landing read moving -- the checkout committed past the head, or the remote rolled back --
+invalidates the run whole whatever road that reading takes, nothing reviving it: not the landing put back, nor a report
+put back that a reset's record, its answer lost, read moved, nor another road writing the comment back as read right
+behind that invalidation, retired again before any road is taken. The run is never made again, nor a developer launched.
 """
 from __future__ import annotations
 
@@ -34,8 +31,7 @@ from tests.workflow.engine import (
     rewrite_verification_recovery_support as support,
 )
 
-# The current record a settled run stands in, the report record it is bound
-# to, and the edit another road's writes race.
+# A settled run's current record, the report record it is bound to, and the edit another road's writes race.
 _CURRENT = "verification_evidence_current"
 
 _REPORT = "developer_report_current"
@@ -81,9 +77,8 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
     """A run settled under the anchor goes into history wherever the recovery reads the landing moving."""
 
     def test_a_moved_landing_invalidates_the_run(self) -> None:
-        # The recovery reads the landing off the head and resets or parks
-        # without routing it: the run is invalidated first, and stays so once
-        # the landing is put back and the issue's author replies.
+        # The recovery reads the landing off the head and resets or parks without routing it: the run is invalidated
+        # first, and stays so once the landing is put back and the issue's author replies.
         for move, boundary in product(_MOVES, handoff.BOUNDARIES):
             with self.subTest(move=move.name, boundary=boundary.name):
                 self.setUp()
@@ -116,15 +111,12 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
         self.assertEqual(made, (1, 0, 0))
 
 
-
 class PutBackMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """Movement a recovery's write read stands, however soon another road puts the comment back behind that write."""
 
     def test_a_restored_run_is_retired_again(self) -> None:
-        # The snapshot reads the checkout back on the anchor, and another road
-        # writes the comment back as it read right behind the write that
-        # invalidated the run: the run is retired again before the road goes
-        # on, and the poll behind routes the head with nothing current.
+        # The snapshot reads the checkout back on the anchor, and the run another road writes back as read right behind
+        # the invalidating write retires again before the road goes on, the next poll routing the head, nothing current.
         head, settled = self.settles_then_dies()
         self._held = [self.gh.read_pinned_state(self.issue)]
         snapshot = _AutoRebaseRecoverySnapshot(branch=git_support.BRANCH, local_head=self.anchor, remote_head=head)
@@ -135,9 +127,8 @@ class PutBackMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self._assert_routed_past(head, settled)
 
     def test_a_report_moved_under_a_lost_record(self) -> None:
-        # Another road takes the run's report off before the reset's record
-        # reads the comment, and puts it back as that record goes out with its
-        # answer lost: the movement it read still invalidates the run whole.
+        # Another road takes the run's report off before the reset's record reads the comment, and puts it back as that
+        # record goes out with its answer lost: the movement it read still invalidates the run whole.
         head, settled = self.settles_then_dies()
         context = guarded.recovery_context(self)
         self._held = [self.pinned_fields(_REPORT)[0]]

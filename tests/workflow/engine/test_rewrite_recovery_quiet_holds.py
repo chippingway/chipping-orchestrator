@@ -2,18 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """An anchor the dispatcher holds with nothing parked or posted, proving the run it keeps first.
 
-The real-git finish case, its run captured or settled and the finish killed.
-A dispatcher hold that posts nothing -- under a label the refresh drives, or
-beside its own stranded park already standing -- proves the run first
-(`git/base_sync/persistence._proves_before_the_park`): an issue edited and put
-back has it retired whole, and the next recovery routes the head with nothing
-current. A run another finish settles during that proof is invalidated too,
-or recorded by its base tip where the comment is full; a newer run settled
-over it is kept. An anchor cleared under a label the refresh does not drive,
-over a checkout back on the anchor, retires the run in the guarded write that
-clears the attempt, keeps the attempt where history has no room, and is
-refused by a newer run settled meanwhile; one a usage write refuses records
-the reset by its base tip. Nothing is run again or pushed.
+On the real-git finish case, its run captured or settled and the finish killed, a hold posting nothing proves the run
+first (`git/base_sync/persistence._proves_before_the_park`) -- under a label the refresh drives, or beside its own
+stranded park standing: an issue edited and put back has it retired whole, the next recovery routing the head, nothing
+current. A run another finish settles mid-proof is invalidated too, or recorded by its base tip in a full comment; a
+newer run settled over it is kept. A clear under a label the refresh does not drive, over a checkout back on the anchor,
+retires the run in the guarded write clearing the attempt, keeps the attempt where history has no room, and a newer run
+settled meanwhile refuses it; one a usage write refuses records the reset by base tip. Nothing is run again or pushed.
 """
 from __future__ import annotations
 
@@ -76,8 +71,7 @@ class _ChargesTheClear:
         return self._live(issue, staged, **options)
 
 
-# What answers an anchor under a label the refresh does not drive: the
-# dispatcher's hold, or a whole refresh, whose eligibility gate answers it.
+# What answers an anchor under an undriven label: the dispatcher's hold, or a whole refresh's eligibility gate.
 _CLEARS = (
     ("the dispatcher's hold", guarded.answers_a_held_anchor),
     ("the eligibility gate", lambda case: case.recovers()),
@@ -102,9 +96,8 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A hold that posts nothing proves the run it keeps, so restoring what moved revives nothing."""
 
     def test_a_quiet_hold_proves_the_run(self) -> None:
-        # The run, captured or settled, is retired whole by the hold that
-        # read the edit, with the attempt kept and nothing posted; the head
-        # is then routed once with nothing current.
+        # The run, captured or settled, is retired whole by the hold that read the edit, with the attempt kept and
+        # nothing posted; the head is then routed once with nothing current.
         for road, captures in product(_ROADS, (True, False)):
             with self.subTest(road=road.name, captured=captures):
                 self.setUp()
@@ -118,10 +111,7 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assert_routed(head)
 
     def _holds_over_an_edit(self, road: _Road) -> None:
-        """Bring the hold to `road`, then have the dispatcher hold the anchor with the issue edited, put back behind.
-
-        The hold posts nothing.
-        """
+        """Bring the hold to `road`; the dispatcher holds its anchor over an issue edit put back, posting nothing."""
         road.stands(self)
         noticed = len(self.gh.posted_comments)
         written = self.issue.body
@@ -143,8 +133,7 @@ class SettledUnderTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A captured run another finish settles while the stranded park's proof abandons it over an edited issue."""
 
     def test_the_settled_run_is_invalidated(self) -> None:
-        # The park is taken over the run invalidated whole, and continued,
-        # routes the head with nothing current.
+        # The park is taken over the run invalidated whole, and continued, routes the head with nothing current.
         head, captured = self._holds_over_a_settlement()
         self.assertTrue(self.pinned_fields(guarded.AWAITING)[0])
         self.assert_invalidated(captured)
@@ -154,8 +143,7 @@ class SettledUnderTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_routed(head)
 
     def test_a_full_comment_records_the_movement(self) -> None:
-        # The invalidation has no room, so the tip is blanked and nothing
-        # parked; the room that blank freed takes the invalidation asked again.
+        # No room for the invalidation: the tip is blanked, nothing parked, and the room freed takes it asked again.
         head, captured = self._holds_over_a_settlement(finish_moves.fills_the_comment)
         self.assertEqual(self.pinned_fields(guarded.AWAITING, readings.KEY_REWRITE_BASE), (None, None))
         current, retired = readings.pinned_records(self)[1:]
@@ -167,8 +155,7 @@ class SettledUnderTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_routed(head)
 
     def test_a_successor_settled_meanwhile_is_kept(self) -> None:
-        # The newer run stays current, the captured one superseded as that
-        # road left it, and nothing is parked.
+        # The newer run stays current, the captured one superseded as that road left it, and nothing is parked.
         captured = self._holds_over_a_settlement(partial(settled.records_a_newer_run, settles=True))[1]
         current, retired = readings.pinned_records(self)[1:]
         self.assertNotEqual(current.receipt, captured.receipt)
@@ -193,9 +180,8 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A clear under a label the refresh does not drive retires the run with the attempt it releases."""
 
     def test_a_clear_retires_the_run(self) -> None:
-        # The run, captured or settled, is retired whole in the write that
-        # clears the attempt, so the checkout put back on the landed head and
-        # the reconciliation revive nothing.
+        # The run, captured or settled, is retired whole in the write that clears the attempt, so the checkout put
+        # back on the landed head and the reconciliation revive nothing.
         for (name, clears), captures in product(_CLEARS, (True, False)):
             with self.subTest(cleared_by=name, captured=captures):
                 self.setUp()
@@ -212,9 +198,8 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                     self.assert_invalidated(run)
 
     def test_a_successor_refuses_the_clear(self) -> None:
-        # A newer run settles while the checkout's head is read: the clear is
-        # refused, the newer run kept with its revision floor, and the next
-        # answer clears the attempt beside it.
+        # A newer run settles while the checkout's head is read: the clear is refused, the newer run kept with its
+        # revision floor, and the next answer clears the attempt beside it.
         for name, clears in _CLEARS:
             with self.subTest(cleared_by=name):
                 self.setUp()
@@ -229,8 +214,7 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._assert_kept_beside_a_clear(newer[0])
 
     def test_a_refused_clear_records_the_reset(self) -> None:
-        # A usage write lands as the clear is sent, refusing it: the reset is
-        # recorded by the base tip, so the checkout put back revives nothing.
+        # A usage write refuses the sent clear, the reset recorded by base tip: the checkout put back revives nothing.
         for name, clears in _CLEARS:
             with self.subTest(cleared_by=name):
                 self.setUp()
@@ -246,9 +230,7 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assert_invalidated(run)
 
     def test_a_full_comment_keeps_the_attempt(self) -> None:
-        # No room for the run's history entry: nothing is cleared, the run
-        # stays current with its base tip blanked, so every later proof reads
-        # it moved.
+        # No history room: nothing cleared, the run current with its base tip blanked, so later proofs read it moved.
         for name, clears in _CLEARS:
             with self.subTest(cleared_by=name):
                 self.setUp()

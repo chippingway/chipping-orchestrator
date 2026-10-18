@@ -20,12 +20,12 @@ abort's park writes, so it goes in the very write that releases the attempt --
 whatever a comment read of the abandonment's own would have answered, and
 whether or not the attempt's record names its replay yet, since the receipt
 the finish put on the attempt beside the run is what says it is the finish's --
-or, where that write is refused, the attempt still stands while the run,
-proved again behind the refusal over the reset recorded ahead of it, is
-abandoned in a write of its own. The park's notice goes out ahead of that
-write, so it says the write drops the attempt rather than that it is gone,
-whether the write is then refused or lands with its answer lost. Nothing runs,
-pushes, or announces again, and no developer is launched.
+or, where that write is refused, the attempt still stands while the run, proved
+again behind the refusal over the reset recorded first, is abandoned in its own
+write. The notice goes out ahead of the park's write, so it says the write
+drops the attempt rather than that it is gone, whether the write is then
+refused or lands with its answer lost. Nothing runs, pushes, or announces
+again, and no developer is launched.
 """
 from __future__ import annotations
 
@@ -117,8 +117,7 @@ _RELEASED_BY_THE_WRITE = "is dropped by the pinned-state write that records this
 def _answers_the_park(edit, lands: bool, issue, state, **options) -> PinnedEdit:
     """`edit`, the client's strict edit, answering the park's record as refused -- or, where it `lands`, as lost.
 
-    The park's record is the edit flagging the issue awaiting a human over a
-    comment that does not; every other edit is answered as it always is.
+    The park's record flags the issue awaiting a human over a comment that does not; other edits are answered as always.
     """
     if not state.get(_AWAITING) or options["over"].get(_AWAITING):
         return edit(issue, state, **options)
@@ -244,10 +243,7 @@ class UnlandedAbandonmentTest(support.CapturedRunCase, unittest.TestCase):
         return head, captured
 
     def _assert_released(self, captured, *, attempt: str | None = None) -> None:
-        """`captured` abandoned and the attempt cleared, or still on `attempt`, with nothing announced or made again.
-
-        Nothing announced, pushed, launched, or run again.
-        """
+        """`captured` abandoned, the attempt cleared or on `attempt`; nothing announced, pushed, launched, or rerun."""
         recorded = readings.pinned_records(self)
         anchored = readings.pinned(self)[readings.KEY_PENDING_PUSH]
         self.assertEqual(

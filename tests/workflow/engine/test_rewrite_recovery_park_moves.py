@@ -5,12 +5,11 @@
 The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 rebased head reviewed, its run settled under the anchor, and the finish killed
 before its announcement. The next tick cannot fetch the branch, or count the
-checkout's lag against base, and takes the fail-closed abort with the
+checkout's lag against base, so it takes the fail-closed abort with the
 workflow's guarded operations (`guarded_recovery_support`): the reset is
 recorded first by blanking the base tip, and the park behind it releases the
-attempt and invalidates the run in one write. While the park's notice is
-posted, another road settles report 3, or records a newer transaction beside
-the run.
+attempt and invalidates the run in one write. While the notice is posted,
+another road settles report 3, or records a newer transaction beside the run.
 
 The park's record lands over the comment as it then stands, never over the
 tick's whole reading -- a run the finish only captured is abandoned in it
@@ -168,10 +167,9 @@ class ResetParkMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def _recovers(self, head: str, case: _Case) -> str | None:
         """Poll three times into `case`'s abort, its write made behind the first park's notice; what that answered.
 
-        The first poll is killed at `case`'s boundary, and records the park
-        only where it ran through and the write refuses nothing; whatever it
-        came to, the reset was recorded ahead of it, the attempt's base tip
-        blank.
+        The first poll is killed at `case`'s boundary, and records the park only
+        where it ran through and the write refuses nothing; whatever it came to,
+        the reset was recorded ahead of it, the attempt's base tip blank.
         """
         written: list = []
         writes = partial(_kept, written, case.write.writes, self, head)

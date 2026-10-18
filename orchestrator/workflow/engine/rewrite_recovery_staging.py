@@ -104,10 +104,7 @@ def keeps_the_staging(
 
 
 def lands_the_retirement(
-    context: _AutoRebaseRecoveryContext,
-    write: _commits.ReportWrite,
-    held: frozenset[str] | None = None,
-    *,
+    context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, held: frozenset[str] | None = None, *,
     behind: bool = False,
 ) -> bool:
     """Retire what `context.state` holds for the landed head, its checkout gone, landed as `write`; whether it did.
@@ -116,21 +113,18 @@ def lands_the_retirement(
     write refused or never confirmed has the fields `write` is decided on laid
     from the comment read afresh -- a base tip another road put back, or a
     record it moved, kept as that road wrote it -- and is retired and landed
-    once more over that. A write that landed has those fields laid from the
-    comment read afresh behind it too, since nothing behind a quiet hold
-    proves the evidence again: evidence it retired found standing there --
-    another road putting the comment back as it read before -- is retired
-    once more, or its movement recorded where that has no room, and the
-    answer is False, for the git owner to hold the tick and the next to read
-    what stands. Only while the comment carries nothing for the head under a
-    receipt the tick did not hold, and the attempt `context` recovers: a
-    successor another road settled is left for its own proof, and another
-    attempt for its own recovery, both answered False before anything is
-    retired or read as gone. True where nothing the tick held stands any more,
-    retired with room for its history. A state nothing was read into is
-    staged only, for the whole-state write behind it. `held` is the receipts
-    the first write was asked over, handed only to the readings behind it,
-    and `behind` says the reading follows a write that landed.
+    once more over that. One that landed has them laid from the comment read
+    afresh behind it too, since nothing behind a quiet hold proves the
+    evidence again: evidence another road put back there is retired once
+    more, or its movement recorded, and the answer is False, for the git
+    owner to hold the tick. Only while the comment carries nothing for the
+    head under a receipt the tick did not hold, and the attempt `context`
+    recovers: a successor another road settled is left for its own proof, and
+    another attempt for its own recovery, both answered False before anything
+    is read as retired. True where nothing the tick held stands any more. A
+    state nothing was read into is staged only, for the whole-state write
+    behind it. `held` is the receipts the first write was asked over, and
+    `behind` says the reading follows a write that landed.
     """
     asked = _retirement.receipts(context.state) if held is None else held
     if context.state.synced is None:
@@ -144,21 +138,15 @@ def lands_the_retirement(
 
 
 def _lands(
-    context: _AutoRebaseRecoveryContext,
-    write: _commits.ReportWrite,
-    asked: frozenset[str],
-    *,
-    again: bool,
+    context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, asked: frozenset[str], *, again: bool,
     behind: bool,
 ) -> bool:
     """Retire what `context.state` holds as over a reset, land it as `write`, and read the comment afresh behind it.
 
     Read afresh behind a retirement that landed, or a write refused and asked
     `again`; one with no room for its history keeps the evidence current, its
-    base tip blanked as the record of its movement, and holds with nothing
-    read. Made `behind` a retirement that landed, over evidence put back, the
-    answer is False whatever this one did; so it is where the comment would
-    not read afresh, since nobody can then say nothing the tick held stands.
+    base tip blanked as the record of its movement, and holds. False `behind`
+    a retirement that landed, or where the comment would not read afresh.
     """
     retired = _retirement.retires_over_the_reset(context, _PUT_BACK if behind else _GONE)
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)

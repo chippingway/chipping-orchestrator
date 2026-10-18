@@ -2,14 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Settled evidence a whole recovery keeps the attempt over, proved ready before it holds or parks.
 
-The held-run case (`held_run_support`), its run settled -- or only captured --
-and its finish killed: a whole recovery that keeps the attempt over a candidate
-head nobody could prove, or a stranded park whose notice raised, proves the
-run first, so movement retires it whole and putting what moved back routes
-the head once with nothing current. A newer run settled right behind -- or,
-refusing it, ahead of -- the landed road's abandonment of a captured run is
-proved on its own readings, a mark of movement the refused edit read under it
-standing however soon it is put back.
+The held-run case (`held_run_support`), its run settled -- or only captured -- and its finish killed: a whole recovery
+keeping the attempt over a candidate head nobody could prove, or a stranded park whose notice raised, proves the run
+first, so movement retires it whole and putting what moved back routes the head once with nothing current. A newer run
+settled right behind -- or, refusing it, ahead of -- the landed road's abandonment of a captured run is proved on its
+own readings, a mark of movement the refused edit read under it standing however soon it is put back.
 """
 from __future__ import annotations
 
@@ -46,8 +43,7 @@ def _unproved_first(original, calls: list, *args):
 class _SettlesBehindTheAbandonment:
     """The checkout read off its head once, and `newer` settled right behind the edit abandoning `captured`.
 
-    `marks` settles it right ahead of that edit instead, refusing it, the mark
-    of movement in its handoff's place (`handoff` kept).
+    `marks` settles it right ahead, refusing that edit, the mark of movement in its handoff's place (`handoff` kept).
     """
 
     def __init__(self, case, captured, *, moves_again: bool = False, marks: bool = False) -> None:
@@ -117,8 +113,7 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
     """A whole recovery that keeps the attempt over the settled run proves it first, as a direct finish does."""
 
     def test_an_unproved_head_proves_first(self) -> None:
-        # The landed road cannot prove the candidate's head, and the issue was
-        # edited: the run is invalidated before the attempt is kept.
+        # The landed road proves no candidate head, the issue edited: the run is invalidated before the attempt is kept.
         head = self.settles_then_dies()
         written = self.issue.body
         self.issue.body = held.EDITED_BODY
@@ -134,8 +129,7 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
         self.assert_routed_once(head)
 
     def test_a_raised_stranded_notice_proves(self) -> None:
-        # Report 3 is settled while the stranded park's notice is posted, its
-        # answer lost: the run is invalidated before the error goes on.
+        # Report 3 settles under the stranded notice, its answer lost: the run is invalidated before the error goes on.
         head = self.settles_then_dies()
         self.issue.labels = [FakeLabel("workflow:resolving_conflict")]
         replaced = self.settles_under_the_notice(head, raises=True, recovered=True)
@@ -150,10 +144,9 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
         self.assert_routed_once(head)
 
     def test_a_successor_is_proved_on_its_own(self) -> None:
-        # The landed road reads the checkout off the captured run's head and
-        # abandons the run; a newer run settled right behind that write is
-        # proved on its own readings, not over that movement: kept current
-        # over the checkout back on the head, invalidated over one moved again.
+        # The landed road reads the checkout off the captured run's head and abandons the run; a newer run settled right
+        # behind that write is proved on its own readings, not over that movement: kept current over the checkout back
+        # on the head, invalidated over one moved again.
         for moves_again in (False, True):
             with self.subTest(moved_again=moves_again):
                 self.setUp()
@@ -164,10 +157,9 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
                 self._assert_proved_on_its_own(captured, races.newer, moved=moves_again)
 
     def test_a_marked_successor_behind_a_refusal(self) -> None:
-        # The newer run settles right ahead of the abandonment, refusing it,
-        # marked moved -- the mark left standing, or put back as the refused
-        # edit returns: the recovery retires it whole on the movement read
-        # under its own receipt, so its handoff put back routes nothing current.
+        # The newer run settles right ahead of the abandonment, refusing it, marked moved -- the mark left standing, or
+        # put back as the refused edit returns: the recovery retires it whole on the movement read under its own
+        # receipt, so its handoff put back routes nothing current.
         for race in (_SettlesBehindTheAbandonment, _PutsTheMarkBack):
             with self.subTest(race=race.__name__):
                 self.setUp()

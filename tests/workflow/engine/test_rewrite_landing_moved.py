@@ -9,11 +9,11 @@ off it -- a checkout or remote nobody read moves nothing; any snapshot reading
 a head elsewhere abandons it before its road is taken, or answers that the road
 must hold where no write could. A reset the git owner landed releases the
 attempt and abandons the run in the park's one write, dropping it where the
-comment has no room for its history; a reset that failed keeps both. Evidence a
-finish settled for the announced head (`SettledEvidenceCase`) is invalidated
-whole into history by any snapshot reading a head off it, kept by one that read
-none, and holds the road where no write lands. Nothing is run, launched, or
-routed.
+comment has no room for its history; a reset that failed keeps both.
+Evidence a finish settled for the announced head (`SettledEvidenceCase`) is
+invalidated whole into history by any snapshot reading a head off it, kept by
+one that read none, and holds the road where no write lands. Nothing is
+run, launched, or routed.
 """
 from __future__ import annotations
 

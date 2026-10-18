@@ -7,16 +7,14 @@ rebased head reviewed, its run settled under the anchor, and the finish killed
 before its announcement. Then the checkout goes from disk and the issue is
 relabelled to a stage the refresh does not drive, so the dispatcher's anchor
 hold answers it with the stranded park that keeps the attempt -- handed the
-workflow's proof and park by the dispatcher's own answer
-(`guarded_recovery_support`).
+workflow's proof and park by the dispatcher (`guarded_recovery_support`).
 
-With no checkout there is nothing to prove the landing over, so the movement
-is recorded against the run in a write of its own, by blanking the base tip
-the attempt recorded its replay as made onto, and the run is retired whole in
-another ahead of the park's record, which keeps the attempt. A park record
-GitHub refuses, or a process killed before it, leaves the run retired all the
-same, so with the checkout and the label put back the landed road routes the
-head with nothing current.
+With no checkout there is nothing to prove the landing over, so the movement is
+recorded against the run in its own write, blanking the base tip the attempt
+recorded its replay onto, and the run is retired whole in another ahead of the
+park's record, which keeps the attempt. A park record GitHub refuses, or a
+process killed before it, leaves the run retired, so with the checkout and
+label put back the landed road routes the head with nothing current.
 
 The guarded hold a publication gate's hold of a recovery's push is recorded
 through takes that proof too, so with the checkout gone the reset
@@ -24,11 +22,10 @@ is recorded ahead of the hold's record, and a hold record GitHub refuses
 leaves the run read moving once the checkout is back. A checkout that goes
 from disk only as a hold's or a park's record lands, or as a park's notice
 raises, leaves nothing behind it to prove the run over, so the reset is
-recorded against the run there instead, with the same effect. A checkout the
-landed road reads off the head and that goes from disk right behind that
-reading leaves no park behind it, so the run's retirement is landed in a
-record of its own, as a hold's is. Nothing is run again or pushed, nothing is
-announced or relabelled ahead of a route, and no developer is launched.
+recorded against the run there instead, with the same effect. A checkout gone
+from disk right behind the landed road's reading off the head leaves no park,
+so the run's retirement lands in its own record, as a hold's does. Nothing is
+run again, pushed, or launched, nor announced or relabelled before a route.
 """
 from __future__ import annotations
 
@@ -234,16 +231,14 @@ class MissingCheckoutRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_invalidated(settled)
 
 
-
 class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A checkout read off the landed head that goes from disk before its run is retired still retires it whole."""
 
     def test_a_vanished_checkout_retires_the_run(self) -> None:
-        # The landed road reads the checkout committed past the head, and the
-        # checkout goes from disk right behind that reading, leaving no park to
-        # write the retirement on: the run, settled or only captured, is retired
-        # whole in a record of its own, the reset recorded ahead of it, so the
-        # checkout put back on the head revives nothing.
+        # The checkout the landed road reads committed past the head goes from
+        # disk right behind that reading, with no park to retire the run on:
+        # settled or only captured, it is retired whole in its own record behind
+        # the reset's, so the checkout put back on the head revives nothing.
         for captures in (False, True):
             with self.subTest(captured=captures):
                 self.setUp()

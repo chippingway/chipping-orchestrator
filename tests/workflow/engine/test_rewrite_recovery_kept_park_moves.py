@@ -6,11 +6,10 @@ The real-git finish case (`rewrite_verification_recovery_support`): issue #7's
 rebased head reviewed, its run settled under the anchor -- or only captured,
 the finish dying at its artifact's post -- and the finish killed before its
 announcement. The next tick's recovery can neither fetch the branch nor
-reset the checkout, so the git owner's abort, handed the workflow's guarded
-operations as every recovery is (`guarded_recovery_support`), parks keeping
-the attempt: the reset it recorded first moved nothing, so the base tip that
-record blanked is staged back and the park writes it as the attempt recorded
-it.
+reset the checkout, so the git owner's abort, handed the guarded operations
+every recovery gets (`guarded_recovery_support`), parks keeping the attempt:
+the reset it recorded first moved nothing, so the base tip that record blanked
+is staged back and the park writes it as the attempt recorded it.
 
 While the park's notice is posted another road settles and reviews report 3
 of the head, replacing the report the run was bound to, and the park's record
@@ -18,9 +17,8 @@ keeps report 3 as the comment then carries it. That record -- landed, or sent
 with its answer lost -- carried the move, which is handed to the proof taken
 once more behind the notice as movement already read: the run is invalidated,
 or abandoned, whole, even where report 2 is put back right behind that record
-and before the proof reads the comment again -- and so it is where report 2 is
-only written back in another spelling of its revision. Once the park is
-continued, the head is routed with nothing current. So is the run behind the
+and before the proof reads the comment again, or only its revision respelled;
+a continued park routes the head with nothing current. So is the run behind the
 stranded park the dispatcher's hold takes under a label the refresh does not
 drive, whose notice's post raises after report 3 settled: the proof is taken
 before the error goes on, and nothing is parked -- over the evidence the
@@ -30,8 +28,7 @@ that park's record, which is refused over it, is movement read off the comment
 that edit found, however soon report 2 is put back; and a newer run settled
 beside report 3 at a record refused or sent with its answer lost is the
 evidence proved behind it, invalidated whole over report 2 put back. Nothing
-is run again or pushed, nothing is announced or relabelled ahead of a route,
-and no developer is launched.
+is run again, pushed, or launched, nor announced or relabelled before a route.
 """
 from __future__ import annotations
 
@@ -190,9 +187,8 @@ class KeptParkProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # report 3 as the comment carries it, its answer lost or not --
         # report 2 put back right behind that record, before the proof, or
         # only after the tick, or report 2 respelled and put back alike: the
-        # run, settled or only captured, is invalidated or abandoned whole,
-        # and once the park is continued the head is routed with nothing
-        # current.
+        # run, settled or only captured, is invalidated or abandoned whole, and
+        # a continued park routes the head with nothing current.
         for captures, kept in _KEPT_PARKS:
             with self.subTest(captured=captures, **kept):
                 self.setUp()
