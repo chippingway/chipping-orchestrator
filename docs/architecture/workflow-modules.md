@@ -2576,8 +2576,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             caller read gone or off the evidence's head (`lost`, `heads_read`), or a loss an earlier
                             proof owes (`owed_events.loss_owed`), however soon it is back -- has the reset recorded
                             and the evidence retired as over it, each in a write of its own (`proves_before_a_park`),
-                            the attempt owing that loss from the moment it is read, ahead of any write, so evidence
-                            put back later is retired too, however soon the checkout returned before those writes.
+                            the attempt owing that loss from the moment it is read, ahead of any write -- whether or
+                            not the tick holds any evidence, the comment read afresh for evidence put back since -- so
+                            evidence put back later is retired too, however soon the checkout returned before those
+                            writes; a head read is weighed against the replay's own where the tick holds none.
                             Ahead of every reset whose attempt records a base tip -- or one the tick read blank,
                             confirmed blank over the comment read afresh, so a tip another road put back refuses the
                             reset -- that tip is blanked in a write of its own (`records_the_reset`, the answer
@@ -2588,10 +2590,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a blank that landed is followed by the comment read afresh, a tip another road put back or
                             an attempt it pinned right behind it -- or a comment that would not read -- holding the
                             reset with the tick's state withheld; and what its commit read moving proved as read
-                            before the reset goes on, the reset held where that retirement does not land; over a
-                            checkout read gone, the evidence
-                            retired as
-                            over a reset in a `CLEAR` write of its own (`rewrite_recovery_staging.lands_the_retirement`)
+                            before the reset goes on, the comment read afresh once more behind that proof and the reset
+                            held where that retirement does not land or the blank no longer stands; over a
+                            checkout read gone, the evidence retired as over a reset in a `CLEAR` write of its own
+                            (`rewrite_recovery_staging.lands_the_retirement`)
                             -- the loss owed as soon as it is read, the tick's state withheld where that does not land
     rewrite_recovery_readings.py
                             dormant, as the proof it serves is: the client the recovery's proof before a park that
