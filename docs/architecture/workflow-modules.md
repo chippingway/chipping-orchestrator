@@ -2444,7 +2444,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             still standing, evidence the tick never held; and under a captured transaction a revision
                             read spent past it (`owed_moves`), as a finish held to the settled-evidence policy reads
                             one still owed; and a block a checkout gone from disk cuts short (`LosesTheCheckout`), its
-                            git request there read as that loss rather than raised, and recorded for a road
+                            git request there read as that loss, back by then or not, and recorded for a road
                             (`RecordsALostCheckout`), over the comment as the tick last read it
     rewrite_recovery_staging.py
                             what the tick staged before the proof a recovery park

@@ -125,8 +125,8 @@ class LosesTheCheckout:
     For the recovery's proof (`rewrite_landing_retirement.retires_unproved`),
     reading the checkout well after its caller found it on disk: a git request
     in a checkout gone meanwhile fails with `FileNotFoundError`, swallowed
-    only where the checkout is gone by then, for the proof to read and record
-    that loss. Any other failure, or one over a checkout on disk, goes on.
+    where the checkout is gone by then, or the failure names it however soon
+    it returned, for the proof to read and record that loss. Any other goes on.
     """
 
     def __init__(self, context: _AutoRebaseRecoveryContext) -> None:
@@ -136,7 +136,9 @@ class LosesTheCheckout:
         """Enter the block, handing it nothing."""
 
     def __exit__(self, kind, error, trace) -> bool:
-        return isinstance(error, FileNotFoundError) and not self._context.worktree.is_dir()
+        worktree = self._context.worktree
+        named = str(getattr(error, "filename", None)) == str(worktree)
+        return isinstance(error, FileNotFoundError) and (named or not worktree.is_dir())
 
 
 class RecordsALostCheckout(LosesTheCheckout):
@@ -145,9 +147,10 @@ class RecordsALostCheckout(LosesTheCheckout):
     The recorder `context` carries (`records_before_a_reset`) records the
     reset against what a finish captured or settled for the landed head and
     retires that as over it, each in its own write over the comment as the
-    tick last read it, so nothing the road staged rides them; the tick's state
-    is withheld from every whole-state write behind, the road's caller holding
-    the tick. Over a comment carrying neither, the failure goes on.
+    tick last read it, so nothing the road staged rides them, that loss read as
+    movement under each however soon the checkout returns; the tick's state is
+    withheld from every whole-state write behind, the road's caller holding the
+    tick. Over a comment carrying neither, the failure goes on.
     """
 
     def __exit__(self, kind, error, trace) -> bool:
@@ -160,7 +163,7 @@ class RecordsALostCheckout(LosesTheCheckout):
         read.synced = state.synced
         if _landing_records.captured(read) is None and _landing_records.settled(read) is None:
             return False
-        records(replace(self._context, state=read))
+        records(replace(self._context, state=read), lost=(self._context.worktree,))
         state.withheld = True
         return True
 

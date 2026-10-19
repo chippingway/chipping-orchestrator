@@ -106,7 +106,6 @@ from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit, spel
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_rechecks import invalidates_rechecked, lays
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
-    LEFT_THE_CHECKOUT,
     LosesTheCheckout,
     asks_every_reading,
     owed_moves,
@@ -242,8 +241,8 @@ def retires_unproved(
     `rewrite_recovery_parks.records_the_reset`, which hands it every proof it
     and the proof before a park ask), its answer the proof's; with no recorder
     both are retired on the state the park lands (`retires_over_the_reset`).
-    One back on disk by then has that loss asked again as movement under each
-    receipt held. False only where evidence still
+    One back on disk by then is recorded alike, the recorder handed that loss.
+    False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
     its history entry among it, its movement recorded instead -- or where the
     comment the proof read carries another attempt in place of the one
@@ -273,13 +272,13 @@ def retires_unproved(
             ),
             _proves_settled(asked, unread, moved),
         )) if context.worktree.is_dir() else None
-    if not context.worktree.is_dir():
+    if proved is None:
         records = context.records_before_a_reset
-        return records(context) if records else retires_over_the_reset(context, _landing_captured._CHECKOUT_GONE)
-    moved.update({
-        receipt: LEFT_THE_CHECKOUT for receipt in receipts(context.state) if proved is None
-    })
-    if proved is not False and moved.keys() & receipts(context.state):
+        return (
+            records(context, lost=(context.worktree,))
+            if records else retires_over_the_reset(context, _landing_captured._CHECKOUT_GONE)
+        )
+    if proved and moved.keys() & receipts(context.state):
         return retires_unproved(context, moved)
     if proved and not stands_as_recovered(context):
         log.warning(

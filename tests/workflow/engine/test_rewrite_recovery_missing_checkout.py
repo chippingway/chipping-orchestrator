@@ -269,6 +269,30 @@ class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.recovers()
                 self.assert_routed(head)
 
+    def test_a_loss_back_as_it_unwinds(self) -> None:
+        # The candidate's read finds the checkout gone, back before that failure unwinds: the run, captured or settled,
+        # is retired whole all the same, and the next poll routes the head with nothing current.
+        for captures in (False, True):
+            with self.subTest(captured=captures):
+                self.setUp()
+                head, run = self.captures() if captures else self.settles_then_dies()
+                reads = partial(self._gone_while_read, rewrite_facts._reads_the_checkout)
+                with patch.object(rewrite_facts, "_reads_the_checkout", reads):
+                    self.recovers()
+                (self.assert_abandoned if captures else self.assert_invalidated)(run)
+                self.recovers()
+                self.assert_routed(head)
+
+    def _gone_while_read(self, live, *read, **options):
+        """`live`, the checkout's reading, taken with the checkout away, put back as the failure it meets unwinds."""
+        away = self._wt.with_name(_AWAY)
+        self._wt.rename(away)
+        try:
+            return live(*read, **options)
+        except FileNotFoundError:
+            away.rename(self._wt)
+            raise
+
     def _recovers_past_the_head(self, away, *, returns: bool) -> None:
         """Recover over the checkout read past the head and gone behind that reading, back where it `returns`."""
         self._moved = False

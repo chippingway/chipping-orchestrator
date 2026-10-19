@@ -3,16 +3,13 @@
 """The events this process is filing behind a durable word that they may be out, for a caller with no log to ask.
 
 A caller that leaves such a word on GitHub -- a landed rewrite's record of its `base_rebased` event, a park's notice
-naming its `park_awaiting_human` -- and then files the event asks the stream before filing it again (`events.filed`).
-With no audit log configured that stream is this process's tail alone, blind to an event an earlier process filed, so
-the word is taken as the event filed: once at most, never twice, an event a process was lost ahead of going unfiled.
-Only an event this process noted it was filing (`owes`) and never filed since (`pays`) -- the step ahead of it raised,
-or its finish was cut short -- is still its own to file (`unfiled`). The note lives on the repository's client, shared
-with every worker client it mints (`github/client.GitHubClient._for_worker_thread`), so a worker taking up an issue
-behind one lost mid-filing files what that one owed, and no repository's debt answers for another's. What is owed leaves
-out the notice the event names (`notice_id`), the event being owed before it is posted, but keeps what it says (`said`):
-a park posts a notice only where none saying the same stands past the watermark, so one found saying it later is that
-post's own, and a debt one notice's failed post left never files the event of another found said.
+naming its `park_awaiting_human` -- asks the stream before filing the event again (`events.filed`). With no audit log
+that stream is this process's tail alone, so the word is taken as the event filed: once at most, an event a process was
+lost ahead of going unfiled. Only an event this process noted filing (`owes`) and never filed since (`pays`) is still
+its own to file (`unfiled`). The note lives on the repository's client, shared with every worker client it mints
+(`github/client.GitHubClient._for_worker_thread`) and never another repository's; it leaves out the notice's id
+(`notice_id`), owed before the post, but keeps what it says (`said`), so a debt one notice's failed post left never
+files the event of another found said.
 """
 from __future__ import annotations
 

@@ -332,20 +332,16 @@ def proves_before_a_park(
     refused -- across every write it lands, for the record behind, save what
     a proof write already carried (`rewrite_recovery_staging.keeps_the_staging`).
     Behind a record its staging is kept out of every write the proof lands.
-    `lost`, where not empty, is a checkout the caller read gone from disk: that
-    loss under every receipt held, so one back by now has the evidence retired.
+    `lost`, where not empty, is a checkout the caller read gone from disk, the
+    reset recorded and the evidence retired over it however soon it returned.
     """
-    ahead = moved is None
-    if lost:
-        held = _retirement.receipts(context.state)
-        moved = dict.fromkeys(held, LEFT_THE_CHECKOUT) | (moved or {})
-    with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=ahead) as proving:
-        if proving.worktree.is_dir():
+    with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:
+        if proving.worktree.is_dir() and not lost:
             return _retirement.retires_unproved(proving, moved)
-        return records_the_reset(proving)
+        return records_the_reset(proving, lost=lost)
 
 
-def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
+def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     """Record a reset about to move the checkout against evidence for the landed head; may the reset go on.
 
     The recovery's answer ahead of every reset (`_AutoRebaseRecoveryContext.records_before_a_reset`):
@@ -374,9 +370,9 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
     (`rewrite_recovery_staging.lands_the_retirement`) in its own `CLEAR` write,
     blank landed or not, even over a tip another road put back behind it; True
     there only where both landed and the comment reread behind carries back
-    none of what it retired, nor a successor or another attempt in its place. A
-    checkout gone as the record is asked is movement read under every evidence
-    held, so one back before the record answers has it retired.
+    none of what it retired, nor a successor or another attempt in its place --
+    over one `lost` names, its caller having read it gone, however soon it is
+    back. One gone as the record is asked is movement under every evidence held.
     """
     moved: dict[str, ReportEvidence] = {}
     if not context.worktree.is_dir():
@@ -398,7 +394,7 @@ def records_the_reset(context: _AutoRebaseRecoveryContext) -> bool:
             "nothing is reset until a later tick records it",
             context.issue.number, (landed.refusal or landed.status).value,
         )
-    if not context.worktree.is_dir():
+    if lost or not context.worktree.is_dir():
         log.warning(
             "issue=#%d the checkout is gone from disk; retiring what a finish captured or settled for the landed "
             "head as over a reset, in a write of its own", context.issue.number,
