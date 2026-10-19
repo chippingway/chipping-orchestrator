@@ -7,7 +7,8 @@ the next fetch failing as another road moves the run's report, the git owner's a
 refuses the abort's reset behind its record's blank: the run is retired whole first, so neither tip nor report put back
 revives it; every write behind the blank refused, the next recovery reads the blank and invalidates it. A tip read blank
 and put back refuses the record, so no reset goes unrecorded; a gone checkout's lost-answer record, under the
-dispatcher's stranded park, retires the run in its own write; an attempt pinned behind is kept.
+dispatcher's stranded park, retires the run in its own write; an attempt pinned behind is kept, its base tip
+unblanked where the proof took it in beside a newer run before the checkout went.
 """
 from __future__ import annotations
 
@@ -19,7 +20,10 @@ from unittest.mock import patch
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.base_sync import attempts as _attempts, persistence
 from orchestrator.github.pinned_state import PinnedEdit
-from orchestrator.workflow.engine import rewrite_recovery_parks as _parks
+from orchestrator.workflow.engine import (
+    rewrite_recovery_parks as _parks,
+    rewrite_recovery_readings as _readings,
+)
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
@@ -358,6 +362,23 @@ class ReplacedAttemptTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         standing = self.pinned_fields(*self._pinned)
         self.assertEqual(standing, tuple(self._pinned.values()))
 
+    def test_a_loss_under_an_adopted_replacement(self) -> None:
+        # Behind the run's invalidation another road settles a newer run on its binding and pins a fresh attempt over
+        # it, and the checkout goes: the proof takes both in and finds the checkout gone under the successor's own
+        # proof, so it holds, the tick's state withheld, and records no reset over the replacement's base tip.
+        self._run = self.settles_then_dies()
+        head = self._run[0]
+        context = guarded.recovery_context(self)
+        tip = context.state.get(readings.KEY_REWRITE_BASE)
+        self._pinned = fixtures.attempt_record(head, head, git_support.PR_NUMBER, git_support.REVIEWING, tip)
+        self._replaced = False
+        handed = {self._run[1].receipt: _readings.LEFT_THE_CHECKOUT}
+        with patch.object(self.gh, _EDITS, partial(self._settles_and_replaces, self.gh.edit_pinned_state)):
+            self.assertFalse(_parks.proves_before_a_park(context, handed))
+        self.assertTrue(self._replaced and context.state.withheld)
+        standing = self.pinned_fields(*self._pinned)
+        self.assertEqual(standing, tuple(self._pinned.values()), "the replacement's base tip was blanked")
+
     def _takes_the_report_off(self, spec, ref: str, **options):
         """The branch's fetch, failing, the run's report taken off the comment behind it the first time."""
         fetched = guarded.unfetched(spec, ref, **options)
@@ -391,6 +412,17 @@ class ReplacedAttemptTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             self.gh.write_pinned_state(issue, state)
         return answered
 
+    def _settles_and_replaces(self, live, *asked, **options):
+        """`live`, the pinned-comment edit: behind the first that drops the run, a newer run settled on its binding and
+        an attempt pinned over it, as another road would, the checkout then gone from disk."""
+        answered = live(*asked, **options)
+        dropped = answered is PinnedEdit.EDITED and options[_OVER].get(_CURRENT)
+        if dropped and not (asked[-1].get(_CURRENT) or self._replaced):
+            self._replaced = True
+            newer = settled.records_a_newer_run(self, settles=True, binding=self._run[1].binding)
+            _writes(self, {**self._pinned, readings.KEY_EVIDENCE_RECEIPT: newer.receipt}, clears=True)
+            self._wt.rename(self._wt.parent / _AWAY)
+        return answered
 
 
 if __name__ == "__main__":

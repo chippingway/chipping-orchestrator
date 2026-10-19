@@ -67,7 +67,10 @@ holds the tick with nothing reset or cleaned, and the tick's state, which
 still carries the tip, is withheld from every whole-state write behind it, so
 a blank that landed with its answer lost is never put back. A blank that
 landed is followed by the comment read afresh, and a tip put back or another
-attempt pinned right behind it holds the reset the same way. A reset git
+attempt pinned right behind it holds the reset the same way. A tick whose
+state carries another attempt by then -- one a proof took in off the comment
+-- blanks nothing and holds the same way, so no reset is recorded over the
+tip a replacement attempt records. A reset git
 refused moved nothing, and the git owner
 stages the tip back for the park that keeps the attempt, so the evidence
 stands for that park's proof as it did before.
@@ -348,7 +351,10 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     never written back over a blank that landed unconfirmed. False and
     withheld too where the comment read afresh behind a landed blank carries
     its tip put back or another attempt, or would not read, so no reset moves
-    the checkout off evidence nothing records moved, or under another attempt.
+    the checkout off evidence nothing records moved, or under another attempt;
+    and where the tick's state already carries another attempt -- one a proof
+    took in off the comment -- with no blank written, so a replacement's tip
+    is never blanked under a recovery of the attempt it replaced.
     Movement the record's commit read (`rewrite_landing_retirement.moved_under`)
     is proved as read first, so what moved is retired before the reset goes on,
     False where that does not land -- and the comment is read afresh once more
@@ -393,7 +399,9 @@ def _blanks_the_tip(
 ) -> bool:
     """Blank the attempt's base tip in a guarded write of its own, what each reading it takes moves kept in `moved`.
 
-    Whether it landed, logged either way; refused or unconfirmed, the commit withholds the tick's state. A blank that
+    Whether it landed, logged either way; refused or unconfirmed, the commit withholds the tick's state. A tick whose
+    state carries another attempt in place of the one `context` recovers writes nothing and holds, its state withheld,
+    since the write is decided on the attempt as the tick holds it and would blank that attempt's tip. A blank that
     landed is followed by the comment read afresh, so a tip another road put back right behind it, an attempt it
     pinned there, or a comment that would not read holds the reset too -- no reset moving the checkout off evidence
     nothing records moved -- the tick's state withheld rather than written back over what that road wrote. `again`
@@ -401,6 +409,14 @@ def _blanks_the_tip(
     """
     asked = asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved))
     if not again:
+        if not stands_as_recovered(context):
+            log.warning(
+                "issue=#%d the tick's state carries another auto-rebase attempt in place of the one its recovery "
+                "recovers; nothing is recorded or reset, for the next tick to recover the attempt the comment carries",
+                context.issue.number,
+            )
+            context.state.withheld = True
+            return False
         commit = _commits.ReportCommit(asked.gh, context.issue, context.state)
         staged = commit.staging()
         staged.set(_TIP, None)
