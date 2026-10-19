@@ -636,18 +636,72 @@ is one text: the reviewer's findings as `workflow/engine/review_findings.py` sho
 declaration has been read off the run's own message, which nothing rewrites. Every `VERIFICATION:` marker, `COMMAND:`
 and `EXIT:` line, and the output of each check shown to pass is set aside; a check not shown passing stays as a sentence
 naming its command and how it ended, over the output the reviewer quoted, which is the diagnostic the developer acts on.
-The failure entries the reviewer writes beside the declaration are findings, shown as written, snippets included.
+The failure entries the reviewer writes beside the declaration are findings, shown as written, snippets included, save
+what an entry leaves out (`workflow/engine/review_findings_entries.py`): a `Failure:` line naming nothing, and an error
+or a reproduction no label of the entry gives, are said where the entry stands — in place on a blank label, otherwise on
+a line added in the entry's own indentation, the error below its name and the reproduction below all its last label
+gives — a code block there that nothing closes closed first, so the line added stands outside the reviewer's block. An
+entry's labels run to the next `Failure:` line or the next finding — a list item or a heading set out no further than
+the entry, or a paragraph set out less — so a later finding's label is never its own, and what it leaves out is said
+above that finding, while a label written below the declaration stays the entry's. A label goes on over the lines below
+it up to a check's sentence, never past it; and a run of label lines right above that sentence is the lead the
+formatting wrote only where it runs as a lead runs over a sentence closing as that one does — over a period, the check
+quoting no output, naming nothing and saying no error was recorded; over a colon, giving an error only for a failure
+pytest's output reports, named in a code span or as the check's run itself — a label giving nothing never, so an entry
+standing there is shown with what it leaves out said too.
+
+Each check shown leads with what failed (`workflow/engine/review_findings_failures.py`), in the entries' own labels, its
+command and exit status following as supporting details. Its output is read without the colors a terminal shows it in,
+as `--color=yes` prints them, and quoted with them. Every failure pytest's short summary reports there leads, however
+many, with the error its summary line gives: a test by its exact node ID, parameters included, and a subtest pytest
+reports as `SUBFAILED` by its test's node ID and pytest's description of it. A parameter may hold the dash that parts an
+ID from its message, so the ID is the one a section of the line's run showing that message's exception names — the first
+no line took yet, in pytest's order, so tests whose IDs overlap each keep their own — else one pytest titled a section
+of that run by, or an entry names whole; otherwise it ends where a message of pytest's shape may first begin, so the
+message is never cut short, and an `Unavailable:` line says where the ID ends is uncertain when a later split could end
+it too. A path pytest could not collect leads as that collection, never under a test ID nobody reported, and an `ERROR`
+node ID as the setup or teardown whose section raised its error, as a collection where its run says pytest failed
+collecting it or its path or was interrupted collecting, or else as an error in its collection, setup, or teardown;
+words of a check's own `ERROR` line naming no Python file are no collection unless pytest says so. A collection, setup,
+or teardown a section says failed, a test's own section no summary line took — as with `-rN`, or `-rE`, which leaves
+failures out — save one a summary line reporting a test that took no section pairs with, as a doctest's does, and a
+conftest or a plugin pytest could not load before running any test lead by that section, saying no summary line gives a
+test ID; a run pytest refused before running any test — a path it could not find, an argument it could not read — leads
+as the check's run itself, with the error pytest printed, unless an entry gives that line as its error: a probe may
+print `ERROR:` and a message too, and the entry's scenario name leads it. Where a summary line carries no error — pytest
+drops it from a line too long for the terminal — the exception the section pytest printed for that failure shows gives
+one, each section going to one summary line of its own run, else the error of the entry naming the failure, else a line
+saying the summary gave none. pytest's output is read as `workflow/engine/review_findings_pytest.py` reads it, so
+nothing pytest captured from a test, or reported under a heading for what did not fail, is read as a failure of its own,
+and each of several runs in one check's output leads with its own failures. Otherwise the check leads with each entry
+whose error its output shows whole — ending a line of it, no word running on into its start, so an error opening
+another's, `stale` beside `stale report`, backs no run showing only the longer — matched by that error, never by the
+command, so two runs of `.venv/bin/python -` each lead with their own scenario and are never merged — or with a line
+saying no test ID or scenario name was recorded for it. Whatever is missing stays visible as such: a check that quoted
+no output says no error was recorded, and one whose command reads its code from stdin — a `-` argument, split as a shell
+splits it, after no program given inline (`-c`, `-e`), by module (`-m`), or as a script; whatever names its failures —
+says, of each entry its output backs that gives no snippet as a code block holding code below its `Reproduce:` line,
+that none was recorded for it, whatever the entry names as its command, one entry's snippet being no other's, and, where
+no entry backs it, that none was recorded. A lead by entries names every entry its output backs. No lead line opens on a
+declaration keyword, so formatting the shown feedback again changes nothing, and what a lead says is read from the text
+alone: the evidence, statuses, and provenance stay those the declaration recorded.
+
 Findings that are a declaration and nothing else read as a sentence saying the reviewer stated none, never as the raw
 message they sit in. The transaction keeps every command, exit status, and output exactly, and the formatting decides
 nothing: a missing, malformed, stale, failing, or incomplete declaration is disposed of exactly as it would be
 unformatted, and no approval rests on what the findings show.
 
-A request persisted before that formatting still carries its declaration raw. Its record stays exactly as written,
-since every comparison its recovery makes is against it, and so does any feedback post an earlier handoff made. Only
-the words that go out are formatted: the post a recovery makes where none was made, the fix prompt it resumes the
-developer on (`stages/validating/review_handoffs.py`), and the anchored post an accepted `/orchestrator continue`
-replays, whose findings are quoted formatted while the comment and its id stay as posted
-(`stages/validating/feedback_posts.py`).
+A request persisted before that formatting still carries its declaration raw. Its record stays exactly as written, since
+every comparison its recovery makes is against it, and so does any feedback post an earlier handoff made. Only the words
+that go out are formatted: the post a recovery makes where none was made, the fix prompt it resumes the developer on
+(`stages/validating/review_handoffs.py`), and the anchored post an accepted `/orchestrator continue` replays, whose
+findings are quoted formatted while the comment and its id stay as posted (`stages/validating/feedback_posts.py`). A
+post an earlier tick made of such a request before each failing check was led by what failed — its own concise layout,
+each check's sentence over its output, receipted or not — is found by those words too and anchored, never posted again,
+though the formatting shows each check led. A request persisted, or a post made, in that layout holds no declaration to
+read a check from again, so each check is read off the paragraph it stands as — its sentence opening the paragraph,
+closing it on a period, or on a colon over the fenced output — and the words that go out, and the replay, lead it as a
+live round's check is led, while the record and the post stay as they were.
 
 A change request stands without evidence: its failed run is published before its feedback, and it is handed to the one
 developer it owes behind that feedback posted and anchored (`stages/validating/review_handoffs.py`), keeping its

@@ -90,10 +90,77 @@ REQUESTED = "1. The suite fails on the empty configuration; handle it."
 
 # What a failing run of the suite printed, and the findings a human is shown of
 # a change request declaring it: the reviewer's words, then that check as the
-# diagnostic a developer acts on, its output quoted whole.
-FAILURE_OUTPUT = "FAILED tests/test_config.py::test_empty - KeyError: 'VERIFY_COMMANDS'\n1 failed, 11 passed"
+# diagnostic a developer acts on -- led by the test that failed, named by its
+# exact ID, and its error, then the command and how it ended, over its output
+# quoted whole.
+FAILED_TEST = "tests/test_config.py::test_empty"
 
-CONCISE_FAILURE = f"{REQUESTED}\n\n`{SUITE}` exited with status 1:\n\n```\n{FAILURE_OUTPUT}\n```"
+FAILURE_ERROR = "KeyError: 'VERIFY_COMMANDS'"
+
+FAILURE_OUTPUT = f"FAILED {FAILED_TEST} - {FAILURE_ERROR}\n1 failed, 11 passed"
+
+CONCISE_FAILURE = (
+    f"{REQUESTED}\n\nFailure: `{FAILED_TEST}`\nError: `{FAILURE_ERROR}`\n"
+    f"`{SUITE}` exited with status 1:\n\n```\n{FAILURE_OUTPUT}\n```"
+)
+
+# The findings a tick before each failing check was led by what failed showed
+# of that change request -- the check's sentence over its output alone --
+# spelled out as such a tick posted them, so a post it made stays found
+# whatever the formatting shows now.
+PREVIOUS_CONCISE_FAILURE = f"{REQUESTED}\n\n`{SUITE}` exited with status 1:\n\n```\n{FAILURE_OUTPUT}\n```"
+
+# A stdin command a reviewer ran two probes of its own through, each probe's
+# scenario name and the error its run printed, and the change request entering
+# each failure in the findings by that name, error, and snippet above the
+# declaration of both runs -- declared in the other order than the entries
+# stand in. The findings a human is shown of it are those entries as written,
+# then each run led by the scenario whose error it printed, never the two
+# merged for the command they share.
+PROBE = ".venv/bin/python -"
+
+PROBES = (
+    ("A lost announcement revives settled evidence", "AssertionError: a lost announcement revived settled evidence"),
+    ("A failed relabel revives settled evidence", "AssertionError: a failed relabel revived settled evidence"),
+)
+
+PROBE_RUNS = tuple(reversed(PROBES))
+
+PROBE_ENTRIES = "\n\n".join(
+    f"Failure: {scenario}\nError: {error}\nReproduce: `{PROBE}` reading:\n\n"
+    f"```python\nfrom tests.workflow import probes\nprobes.check({scenario!r})\n```"
+    for scenario, error in PROBES
+)
+
+PROBED_REQUEST = (
+    f"{REQUESTED}\n\n{PROBE_ENTRIES}\n\nVERIFICATION: RUN {HEAD}\n"
+    + "".join(f"COMMAND: {PROBE}\nEXIT: 1\n{error}\n" for _scenario, error in PROBE_RUNS)
+    + "VERIFICATION: END\n\nVERDICT: CHANGES_REQUESTED"
+)
+
+CONCISE_PROBES = "\n\n".join((
+    REQUESTED,
+    PROBE_ENTRIES,
+    *(f"Failure: {scenario}\n`{PROBE}` exited with status 1:\n\n```\n{error}\n```" for scenario, error in PROBE_RUNS),
+))
+
+# The same probes printing their errors in the shape pytest refuses a run in,
+# `ERROR:` and a message, as their entries give them: each run is still led by
+# its own scenario, never as a run pytest refused -- and so is each where a
+# tick before leads showed the request, each run's sentence over its output.
+REFUSAL_RUNS = tuple(
+    (scenario, error.replace("AssertionError:", "ERROR:")) for scenario, error in PROBE_RUNS
+)
+
+REFUSAL_PROBED_REQUEST, CONCISE_REFUSAL_PROBES = (
+    shown.replace("AssertionError: a ", "ERROR: a ") for shown in (PROBED_REQUEST, CONCISE_PROBES)
+)
+
+PREVIOUS_REFUSAL_PROBES = "\n\n".join((
+    REQUESTED,
+    PROBE_ENTRIES.replace("AssertionError: a ", "ERROR: a "),
+    *(f"`{PROBE}` exited with status 1:\n\n```\n{error}\n```" for _scenario, error in REFUSAL_RUNS),
+))
 
 # What findings that are a declaration and nothing else read as.
 NO_FINDINGS = _findings._NO_FINDINGS

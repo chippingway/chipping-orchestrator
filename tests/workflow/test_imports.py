@@ -141,6 +141,8 @@ _ENGINE_OWNERS = (
     "rewrite_recovery_staging",
     "rewrite_retry",
     "review_findings",
+    "review_findings_entries",
+    "review_findings_failures",
     "review_findings_fences",
     "review_findings_pytest",
     "review_findings_summary",

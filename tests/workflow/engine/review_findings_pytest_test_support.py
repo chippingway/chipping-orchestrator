@@ -1,11 +1,12 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""pytest's headings as it prints them, and a caller reading pytest's output as the dormant readers are meant to be.
+"""pytest's headings as it prints them, and a caller reading pytest's output as `review_findings_failures` does.
 
-`correlated` stands in for the caller to come: it reads each line pytest's
-summary may report a failure on, names its test ID by the sections the output
-holds, takes the section the line reports, and then takes each section no
-line took by its own title.
+`correlated` reads the output as the lead naming a check's failures does, the
+findings' entries aside: it reads each line pytest's summary may report a
+failure on, names its test ID by the sections the output holds, takes the
+section the line reports, and then takes each section no line took by its own
+title.
 """
 from __future__ import annotations
 
