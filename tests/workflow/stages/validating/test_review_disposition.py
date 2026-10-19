@@ -139,6 +139,12 @@ _READY = (
 # What the artifact of the world's failed run of the suite carries.
 FAILED_RUN = ((_world.SUITE, 1, _world.FAILURE_OUTPUT),)
 
+# What the artifact of the world's two probes through one stdin command carries, in the order they ran.
+PROBED_RUNS, REFUSAL_PROBED_RUNS = (
+    tuple((_world.PROBE, 1, error) for _scenario, error in runs)
+    for runs in (_world.PROBE_RUNS, _world.REFUSAL_RUNS)
+)
+
 # The reply each change request was returned with, and what the tick leaves:
 # the feedback it is persisted with; the use, pass, and coverage of the claim
 # its declaration earned, or the refusal it earned none with; and every
@@ -151,6 +157,24 @@ _CONCISE = (
             _world.CONCISE_FAILURE,
             ((PUBLISHED, False, False), ""),
             FAILED_RUN,
+        ),
+    ),
+    (
+        "named probes sharing a command",
+        lambda _case: _world.PROBED_REQUEST,
+        (
+            _world.CONCISE_PROBES,
+            ((PUBLISHED, False, False), ""),
+            PROBED_RUNS,
+        ),
+    ),
+    (
+        "named probes printing errors pytest refuses a run in",
+        lambda _case: _world.REFUSAL_PROBED_REQUEST,
+        (
+            _world.CONCISE_REFUSAL_PROBES,
+            ((PUBLISHED, False, False), ""),
+            REFUSAL_PROBED_RUNS,
         ),
     ),
     (
@@ -466,10 +490,11 @@ class PersistedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # The declaration is read off the message as the reviewer wrote it,
         # so a run, a reuse, a failed check, a configured command left out,
         # and nothing declared each earn what they would unformatted, and the
-        # artifact keeps every command, status, and output. The feedback sets
-        # the declaration aside, save a failed check kept as its diagnostic,
-        # and a run declared alone reads as no findings rather than as the
-        # raw message it sits in.
+        # artifact keeps every command, status, and output -- one stdin
+        # command run twice included, as it ran. The feedback sets the
+        # declaration aside, save a failed check kept as its diagnostic, led
+        # by the test or scenario that failed, and a run declared alone reads
+        # as no findings rather than as the raw message it sits in.
         for name, reply, expected in _CONCISE:
             with self.subTest(name):
                 self.setUp()

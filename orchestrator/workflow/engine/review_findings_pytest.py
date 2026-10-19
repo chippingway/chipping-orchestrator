@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """What pytest's output says beside its short summary: the sections it printed, and where its summary lines stand.
 
-Dormant, as `review_findings_summary` is: no production road reads pytest's
-output yet. A caller reads the output once (`PytestOutput`), each line that
-may report a failure with the run it stands in (`PytestOutput.summary`), and
-hands each to `review_findings_summary.SummaryLine.read`, naming its ID by the
+The lead above each check a reviewer's findings show failing
+(`review_findings_failures`) reads the output once (`PytestOutput`), each line
+that may report a failure with the run it stands in (`PytestOutput.summary`),
+and hands each to `review_findings_summary.SummaryLine.read`, naming its ID by the
 sections here (`PytestOutput.showing`, `PytestOutput.titled`); then it takes
 the section the line reports -- a test's (`PytestOutput.take`), a setup's or a
 teardown's (`PytestOutput.phase`), or a collection's

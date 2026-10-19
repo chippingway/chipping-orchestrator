@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """A line of pytest's short summary, read for the failure it reports.
 
-Dormant: no production road reads a summary line yet. It is written for the
-lead that is to name, above each check a reviewer's findings show failing, the
-failures the check's output reports; that lead reads the output through here
-and through `review_findings_pytest`, which reads the rest of pytest's output
-for the sections a line reports on.
+The lead naming, above each check a reviewer's findings show failing, the
+failures the check's output reports (`review_findings_failures`) reads the
+output through here and through `review_findings_pytest`, which reads the rest
+of pytest's output for the sections a line reports on.
 
 pytest's short summary reports each failure on a line of its own: its outcome
 -- `FAILED` for a test, `ERROR` for an error outside any test body, and

@@ -148,13 +148,27 @@ _UNACCOUNTED = (
     ("reserved under a fingerprint no reader takes", _resumed.RESERVED_UNREAD, None),
 )
 
-# Each request a tick persisted and posted before findings were formatted,
-# and the findings a continue of its launch's park quotes of that post: a
-# passing run's, the reviewer's words alone, or a failed run's, the failed
-# check kept as their diagnostic.
+# Each request a tick persisted and posted before findings were formatted --
+# or before failing checks were led, in that tick's concise layout -- what it
+# posted, and the findings a continue of its launch's park quotes of that
+# post: a passing run's, the reviewer's words alone, or a failed run's, the
+# failed check kept as their diagnostic, led by the test that failed.
 _POSTED_RAW = (
-    ("a passing run", _world.PASSED_REQUEST, _world.REQUESTED),
-    ("a failed run", _world.FAILED_REQUEST, _world.CONCISE_FAILURE),
+    (
+        "a passing run",
+        _raw.leaves_raw,
+        _world.PASSED_REQUEST,
+        _raw.as_persisted(_world.PASSED_REQUEST),
+        _world.REQUESTED,
+    ),
+    ("a failed run", _raw.leaves_raw, _world.FAILED_REQUEST, _raw.RAW_FAILURE, _world.CONCISE_FAILURE),
+    (
+        "a failed run before leads",
+        _raw.leaves_previous,
+        _world.FAILED_REQUEST,
+        _world.PREVIOUS_CONCISE_FAILURE,
+        _world.CONCISE_FAILURE,
+    ),
 )
 
 # Where another write points a handed request's pinned anchor: at another
@@ -770,37 +784,48 @@ class RawReplayTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
     """A launch handed over behind a post made before findings were formatted parks; a continue replays it concise."""
 
     def test_a_continue_replays_a_raw_post_concise(self) -> None:
-        # A request persisted and posted with its declaration raw, its
-        # developer's launch started: the launch parks, and `/orchestrator
-        # continue` hands one fresh developer the anchored post's findings
-        # formatted -- the declaration set aside, a failed check kept as its
-        # diagnostic -- while the post stays on the pull request as posted.
-        for name, reply, concise in _POSTED_RAW:
+        # A request persisted and posted with its declaration raw, or in the
+        # concise layout before leads, its developer's launch started: the
+        # launch parks, and `/orchestrator continue` hands one fresh developer
+        # the anchored post's findings formatted -- the declaration set aside,
+        # a failed check kept as its diagnostic, led by the test that failed --
+        # while the post stays on the pull request as posted.
+        for name, *posted in _POSTED_RAW:
             with self.subTest(name):
                 self.setUp()
-                parked = self._parks_raw(reply)
-                self.asks_to_continue()
+                self._replays(*posted)
 
-                replayed = self.fixes(**_disposed.fixing())
+    def _replays(self, leaves, reply: str, posted: str, concise: str) -> None:
+        """Park the launch of the request `reply` asks for, left as `leaves` did, posting `posted`, then continue it.
 
-                self.assertEqual(
-                    (
-                        parked,
-                        replayed.call_count,
-                        _raw.posted(self),
-                        _raw.quotes(replayed.call_args.args[1], concise),
-                        self.github.label_history[-1],
-                    ),
-                    ((0, _PARKED), 1, (_raw.as_persisted(reply),), (True, False), VALIDATING),
-                )
+        The launch parks, the continue runs one developer on a replay quoting
+        `concise` and carrying no declaration, the post stays as posted, and
+        the issue is back on validating.
+        """
+        parked = self._parks_raw(reply, leaves)
+        self.asks_to_continue()
 
-    def _parks_raw(self, reply: str) -> tuple:
-        """Hand over the request `reply` asks for as a tick before formatting did, start its launch, and park it.
+        replayed = self.fixes(**_disposed.fixing())
+
+        quoted = _raw.quotes(replayed.call_args.args[1], concise)
+        self.assertEqual(
+            (
+                parked,
+                replayed.call_count,
+                _raw.posted(self),
+                quoted,
+                self.github.label_history[-1],
+            ),
+            ((0, _PARKED), 1, (posted,), (True, False), VALIDATING),
+        )
+
+    def _parks_raw(self, reply: str, leaves) -> tuple:
+        """Hand over the request `reply` asks for as `leaves` did, start its launch, and park it.
 
         What the fixing tick that parks it left: the developers it ran, and
         the park as `parked` reads it.
         """
-        _raw.leaves_raw(self, _resumed.ResumedVerdictWorld.hands_over_unstarted, reply)
+        leaves(self, _resumed.ResumedVerdictWorld.hands_over_unstarted, reply)
         _resumed.starts(self, how=_resumed.STARTED)
         ran = self.fixes(**{**_disposed.fixing(), **_IN_SYNC})
         return ran.call_count, self.parked()

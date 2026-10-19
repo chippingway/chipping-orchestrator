@@ -4461,7 +4461,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      record as persisted -- round, subject, evidence claim and its receipt, and anchor -- and only the words it posts
      and resumes its developer on are formatted (`engine/review_findings.py`): one persisted before findings were
      formatted, its verification declaration still raw, posts the concise findings where its feedback was never
-     posted and hands them to its developer, each check not shown passing kept as its diagnostic, with the record's own
+     posted and hands them to its developer, each check not shown passing kept as its diagnostic, led by what failed --
+     as is each check of one persisted in the concise layout before leads -- with the record's own
      feedback left as persisted and no post made again. A subject that moved and a handed verdict
      whose developer may have run, its subject resolved again, drop the verdict, restoring no checkout, so one that will
      not restore holds nothing up, in a guarded commit over the comment read afresh -- only while it still carries that
@@ -4963,7 +4964,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        round cap it names, and the hidden receipt below them naming the request's round, subject, and evidence claim, so
        another request's receipted post in the same findings is never taken, or in the words a tick before receipts
        posted it in, raw or
-       concise, only where that post stands behind the report and evidence the request was reviewed over and no landed
+       concise, or a tick before failing checks were led by what failed posted a raw request's findings in, receipted
+       or not -- one with no receipt
+       only where that post stands behind the report and evidence the request was reviewed over and no landed
        handoff's ledger entry accounts for it -- this orchestrator's own and no copy another author wrote, read off the
        whole thread so findings quoting the pinned state's marker are found too, and taken instead
        (`validating/feedback_posts.py`) -- and a post that failed, left no positive whole id, or had no such pull
