@@ -1571,7 +1571,8 @@ because there it is the claim that this stage has already rerouted rather than a
   nothing recorded where that proof does not land, and whether it all landed answered
   (`rewrite_recovery_parks.lands_a_hold`); so is the clear an ineligible label's gate or an unmoved anchor would land
   as `CLEAR` over the comment read afresh, retiring what a finish captured or settled for the head on the clear's own
-  state first, a successor settled meanwhile refusing it with its floor kept and a full history keeping the attempt
+  state first, a successor settled meanwhile refusing it with its floor kept, a successor or another attempt written
+  right behind it holding the tick with its state withheld, and a full history keeping the attempt
   (`rewrite_recovery_parks.lands_a_clear`, `git/base_sync/snapshot.py`); and a checkout gone from disk -- ahead of a
   park's or hold's record or behind one or a notice that raised, found gone by one of the proof's own git requests
   (`rewrite_recovery_readings.LosesTheCheckout`), or read gone or off the evidence's head by its caller, however soon

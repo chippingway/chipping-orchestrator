@@ -2566,9 +2566,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proof does not land, and answering whether the proof, the record, and the proof behind it
                             all landed (`lands_a_hold`); no recovery road records its hold through it yet. A clear
                             would land as `CLEAR` (`lands_a_clear`), decided on the attempt and evidence records, so a
-                            successor settled meanwhile refuses it with its floor kept; one that does not land records
-                            the reset against the attempt as read and proves the evidence read afresh with its move off
-                            the landing under each receipt held.
+                            successor settled meanwhile refuses it with its floor kept; one that lands is followed by
+                            the comment read afresh, a successor or another attempt written right behind it holding the
+                            tick with its state withheld; one that does not land records the reset against the attempt
+                            as read and proves the evidence read afresh with its move off the landing under each
+                            receipt held.
                             Asked ahead of a record, that proof keeps what the tick staged before it -- a gate's record
                             of the hold, or the tip the git owner stages back behind a reset git refused -- across
                             every write it lands (`rewrite_recovery_staging.py`), and behind one keeps it out of them. A
