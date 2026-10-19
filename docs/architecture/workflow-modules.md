@@ -225,6 +225,126 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             bullet or a marker numbered 1, with content after it, interrupts a paragraph; and a
                             less indented line continuing a paragraph lazily, opening no block that would interrupt
                             it, keeps every item open, as Markdown does
+    review_findings_pytest.py
+                            what pytest's output says beside its short summary, read once per check's output
+                            (`PytestOutput`): dormant, no production road reading it yet, as `review_findings_summary`,
+                            whose lines a caller is to correlate with the sections here. A conftest or a plugin pytest
+                            could not load before running any test reads as a section titled by the line saying so,
+                            where that line stands outside every section, summary, and capture -- below the statistics
+                            closing a run printed with no summary too; a test's traceback may end on an exception of
+                            either shape -- and each section it printed, titled between underscores -- one each side at
+                            least -- by a failed test's name, its node ID past the path with classes dotted and
+                            parameters as written (`name`), by `ERROR at setup of` or `ERROR at teardown of` and that
+                            name, or by `ERROR collecting` and what it collected, a line of spaced underscores parting
+                            frames and titling nothing, a CRLF line's carriage return being no word of a title or a
+                            rule; its title says what failed (`Section.failed`). A section's exception is the one its
+                            last traceback shows, below the last line saying another exception was raised handling the
+                            one above or from it. One in Python's own form -- as `--tb=native` prints it, and as pytest
+                            prints an exception group in any mode -- ends on it: the first line at the margin below the
+                            last header, for a group the margin its rail sets, the exceptions it holds standing further
+                            in, its message running on below in lines of any shape, marked ones too. Any other shows the
+                            first line set out least in its last run of lines marked `E`, not an explanation, diff hint,
+                            or source line set out further, nor the line `--showlocals` prints for a local named `E`.
+                            With `--tb=line` a failure has no section: each line under the failures heading giving a
+                            `path:line:` -- its path holding blanks or colons or neither, though no colon a blank
+                            follows, as one does an exception's name -- and the exception, at the margin of the
+                            failure's marked lines above it, is a section titled by nothing, a line of its shape set out
+                            further being their explanation's, as an assertion's diff may hold one; a strict XPASS,
+                            having no crash location, gets its mark and reason in that line's stead -- pytest 9 printing
+                            them first, above what it captured, read as its section, and again where the line stands,
+                            closing the capture, pytest 8 that line alone -- a run where a line traceback of a crash
+                            stands right below the failures heading or another line traceback, with no report between as
+                            pytest 9 prints one, being pytest 8's, each mark in it a failure's own however alike. Each
+                            summary line takes a section of its own run alone, the first no line before it took, the one
+                            whose exception the line's error opens where it gives one, pytest's ellipsis aside, as is
+                            the `AssertionError: ` Python's own form keeps and pytest's message drops, and the repr it
+                            gives a group's one exception opening on the group as on itself, since pytest prints both in
+                            one order and tests of two modules may share a title: a test's titled by its name and any
+                            subtest's description, or untitled -- going to a line giving an error only where that error
+                            opens on its exception, so a failure whose report is text alone, as a plugin's may be, takes
+                            none rather than the next failure's (`take`), a setup's or teardown's (`phase`), or a
+                            collection's naming its path relative to pytest's root or to where it ran, either ending on
+                            the other at a directory, else its run's interruption, said on pytest's banner below its
+                            summary lines and in no exception's message (`collection`); a run printed with `--tb=no`
+                            borrows none of the next run's. A line's test ID is named by the first section of its run no
+                            line took yet showing the exception its message opens (`showing`), else by a title of that
+                            run (`titled`), and what no line took is found by taking each section's own title in turn.
+                            Below a heading reporting what did not fail -- `PASSES`, `XPASSES`, `XFAILURES` -- every
+                            line reads as captured up to the next heading, its sections titled as a failure's are, as
+                            does every line below a warnings summary's heading -- the run's, or the final one below its
+                            short summary, for what its terminal summary raised -- a warning's text saying anything. A
+                            rule of dashes ends a section's traceback: below it stands what pytest captured from the
+                            test, or a plugin added, up to the next title, rule, or heading as wide as the last heading
+                            pytest printed -- it pads each to its terminal's width, so a narrower one is a test's -- and
+                            nothing there is read as pytest's own -- no marked line, line traceback, summary line, or
+                            conftest or plugin failure, the summary lines read below the short summary's heading where
+                            the output holds one (`summary`), and where it holds none, quoting them alone, off a line
+                            below no heading and no run's opening, since a run printed with `-rN` prints none and its
+                            traceback may run on in their shape -- save the `--tb=line` line closing it, which gives the
+                            exception the failure's last marked line showed at those lines' margin -- or an exception
+                            group's, which pytest prints in Python's own form in any mode: the group's own exception,
+                            or, the group holding one, that exception's repr and the group's name (`Section.says`) --
+                            one set out further staying captured, and a `-q` line of statistics. A line of statistics
+                            standing in a section's text, or in what pytest captured, closes its run only where nothing
+                            of that run can follow it: the output ends below it, a `-q -s` run's progress letters
+                            follow, or the next line is one pytest prints beginning a run alone -- its opening, the
+                            errors heading, a conftest or a plugin it could not load -- or the error refusing it, or
+                            below pytest's banner of a run it stopped early, its collection interrupted, say, or where
+                            the first line of pytest's own shapes below it, past any text a runner printed between two
+                            runs, is a heading, as a `-q --tb=no` run reporting no progress opens on, right below a
+                            blank line -- pytest ends its progress line before a run's terminal summary, a blank one
+                            where it printed no progress, and prints that summary's headings right below a section's
+                            text or capture -- or a run's opening that nothing of a run around the one it opens follows
+                            below that one's statistics, as something would a run a test printed, or where the next line
+                            is a heading right below them in a section's text below no traceback in Python's own form
+                            but a group's, since only such a traceback's message runs on there in lines of that shape --
+                            a section's text ending there too; below any other line it is that text's own, as an
+                            exception's message may say it. A run's opening in what pytest captured -- the session's
+                            heading, a `-q` progress line, a subtest's letters among its outcomes, or a heading right
+                            below a `-q -s` run's progress letters, which carry no percentage -- opens a whole run a
+                            test printed, and a run that one captured in turn one inside it -- one `-q` progress line
+                            right below another going on with its run -- each captured up to the line of statistics
+                            closing it -- each count naming its outcome in a word or more, as `1 subtests passed` does
+                            -- unless only the output's last such line, or none, closes it, the test having cut it
+                            short, when it is read as no run from its opening on, every run a test printed above it
+                            still read as one; and only the last short summary of a run is read, any above it in the run
+                            being one a test printed. Outside anything captured a run opens on the session's heading or
+                            a `-q` progress line, or -- a `-q` run failing collection alone reports no progress -- on
+                            the errors or failures heading standing in the summary of the run before it, or on any
+                            heading or title below the line of statistics closing a run -- with `-q -s` progress letters
+                            carry no percentage -- so each of several runs reports its own failures. A run pytest
+                            refused before running any test has no summary, so beside the summary lines the line
+                            refusing it is read wherever it stands outside every section, summary, and capture -- above
+                            the next run or below the statistics closing the last -- and off no other line, summary or
+                            none, a section's traceback being free to print an exception's message of its shape
+    review_findings_summary.py
+                            a line of pytest's short summary, read for the failure it reports (`SummaryLine`): dormant,
+                            no production road reading it yet, beside `review_findings_pytest`. Besides `FAILED`,
+                            `ERROR`, and `SUBFAILED` lines, a line saying pytest refused the run before running any test
+                            -- `ERROR:` and the error, its usage line aside, or its argument parser's -- reads as
+                            reporting no node, the error its message (`SummaryLine.refused`). A summary line reads as
+                            its outcome -- `SUBFAILED` with the subtest's description, its message in brackets and its
+                            parameters in parentheses, either holding anything, the line's dash too, parted from the
+                            node ID after it the way whose ID the caller names surest, then the way pytest writes one,
+                            no group's bracket or parenthesis closing before the group's end, then the longest -- the
+                            node ID, whatever file it names -- its path may hold blanks, brackets, and the dash, ending
+                            at any of the line's test separators, its test's name blanks, and only a bracket past that
+                            name opens parameters -- or, for an error, the path whose collection failed, ending on a
+                            dash or the line's end short of any separator, and the message after a dash. A parameter may
+                            hold the dash that parts an ID from its message and text of a message's shape after it, and
+                            a message a bracket and a dash of its own, so the caller names the ID: its callback, handed
+                            each ID the line may end on with the message after it, answers how surely that ID is the
+                            line's as a key, the greatest surest and empty for none, as `review_findings_pytest`'s
+                            sections can -- one of the line's run showing the exception the message opens, the first no
+                            line took yet, as where two tests' IDs overlap, or a title pytest gave a section of that
+                            run. The ID is the longest named surest -- a doctest's offered too where its test, repeating
+                            its text file's name, holds the dash; else a doctest's ends past that name, no other test's
+                            name repeating its file's, and any other ends on the first split leaving a message of
+                            pytest's shape -- a rewritten assertion's `assert` or an exception's name, never a file's or
+                            a separator, a bare name's class opening on a capital as no file's suffix does, the repr of
+                            a group's one exception, or a strict XPASS's `[XPASS(strict)]` -- so the message is never
+                            cut short, the line marked unsure where a later split leaves one too (`unsure`); else,
+                            pytest having given no message, on the last
     stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call
                             (the settled-report reader the verification-evidence proof reuses among them);
                             the unlabeled target reaches pickup through the same resolver. Named here too, though
