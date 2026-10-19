@@ -2605,9 +2605,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             keeps the attempt (`rewrite_landing_retirement.retires_unproved`) builds its finishes over,
                             and a park's or hold's record commits through (`asks_every_reading`, `AsksEveryReading`),
                             every call passed through and each parsed reading of the issue's comment -- the comment a
-                            strict edit found moved, the reread behind a refusal for room, and the one confirming an
-                            edit whose answer was lost, among them -- handed to that proof's classifier first, so
-                            movement any helper read there stands however soon it is
+                            strict edit found moved, and the reread behind a refusal for room, among them -- handed to
+                            that proof's classifier first, so movement any helper read there stands however soon it is
                             put back; and what a reading's base tip records moving (`tip_moves`) -- blank or repointed
                             beside the attempt as the tick read it, every evidence there, or blank beside an attempt
                             still standing, evidence the tick never held; and under a captured transaction a revision
@@ -2622,16 +2621,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             dormant, as the proof it serves is: what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it
                             over the comment the tick read (`keeps_the_staging`) -- a field no strict edit of the
-                            proof's carried, landed or may have, an equal total another road wrote proving nothing --
-                            so the record behind lands it as the tick's own move or refuses it as a conflict, a field
-                            the proof itself left staged keeping the proof's staging, and within the proof, what the
-                            tick staged that an edit landed or sent with its answer lost taken in as that edit spelled
-                            it, so no later write of the proof sends it again -- save where the comment read afresh
-                            behind a lost answer, a reading the proof asks as it asks every other, carries none of the
-                            fields the edit moved as it sent them, an edit that never landed however another road moved
-                            those fields since, its staging left for the writes behind; behind a record that did not
-                            land, that staging is taken off the state for the proof, put back only where no proof edit
-                            landed or may have; over a checkout gone from disk, what the tick holds for the landed head
+                            proof's landed, an equal total another road wrote proving nothing -- so the record behind
+                            lands it as the tick's own move or refuses it as a conflict, a field the proof itself left
+                            staged keeping the proof's staging, and within the proof, what the tick staged that an edit
+                            landed taken in as that edit spelled it, so no later write of the proof sends it again; an
+                            edit whose answer was lost takes in nothing, since nothing left on the comment says whether
+                            it landed, and the next write sends that staging again, which the guarded commit takes over
+                            a comment already carrying it -- save a total that adds up, usage, which rides none of the
+                            proof's writes and lands once behind it in a guarded write of its own, decided on nothing
+                            and added to the total the comment then carries, a lost answer there taken as sent so it is
+                            never sent twice (`adds_the_totals`); behind a record that did not land, that staging is
+                            taken off the state for the proof, put back only where no proof edit landed or may have;
+                            over a checkout gone from disk, what the tick holds for the landed head
                             retired as over a reset in its own guarded write (`lands_the_retirement`) -- the comment
                             read afresh first where the tick holds none, so evidence put back since is retired and
                             another attempt holds -- asked again over the comment read afresh, evidence another road

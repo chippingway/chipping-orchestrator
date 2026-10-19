@@ -1533,9 +1533,8 @@ because there it is the claim that this stage has already rerouted rather than a
   a receipt movement was already read under -- the tick holding no evidence at all among it -- taken in from the comment
   read afresh -- read once more where it would not read -- what that reading records moving kept, and proved on its own
   binding, each reading the readiness proof and the captured run's proof take asked the same -- their abandonment's,
-  invalidation's, and rechecks' own readings, a comment a strict edit among them found moved, and the comment read to
-  confirm one whose answer was lost, included, each read through a client that asks it first
-  (`rewrite_recovery_readings.AsksEveryReading`) -- what the tick holds
+  invalidation's, and rechecks' own readings, and a comment a strict edit among them found moved, included, each read
+  through a client that asks it first (`rewrite_recovery_readings.AsksEveryReading`) -- what the tick holds
   asked in a slot the reading leaves empty, and what any reading reads moving kept for every step behind it, both proofs
   asked again where a run still standing carries movement read only behind its own proof -- so a base
   tip read blank or repointed there moves whichever evidence that reading carries, and an invalidation read behind so
@@ -1586,16 +1585,16 @@ because there it is the claim that this stage has already rerouted rather than a
   finish reads off the landing, as its candidate or in the last word whatever refusal is weighed ahead of it, recorded
   before the proof answers -- a remote read off the landing owes none. A retirement that does not land withholds the
   tick's state from every whole-state write, so a successor and the floor it raised are never written back over, and
-  usage the tick staged that a proof write landed, or sent with its answer lost, is never sent again by a later one,
-  while a lost answer the comment read afresh shows never landed -- none of what it sent there, however another road
-  moved those fields since -- leaves that staging, a gate's record among it, for the writes behind
-  (`rewrite_recovery_staging.keeps_the_staging`). A tip the tick read blank holds an unrecorded
-  reset where another road put it back, movement the reset's own record read is retired before the reset goes on, and a
-  tip put back or an attempt pinned right behind that record, or behind the proof of what it read moving, holds the
-  reset, read off the comment afresh, the tick's state withheld, and a tick whose state carries another attempt by
-  then -- one a proof took in off the comment -- holds it with no blank written over that attempt's tip
-  (`rewrite_recovery_parks.records_the_reset`); so does a proof that reads another attempt in place of the one it
-  recovers (`rewrite_landing_retirement.retires_unproved`).
+  the usage the tick staged rides none of the proof's writes: it lands once behind the proof in a guarded write of its
+  own, added to the total the comment then carries, never sent twice even where that write's answer was lost, while the
+  rest of the tick's staging, a gate's record among it, is sent again by the write behind any whose answer was lost,
+  nothing read into what survives on the comment (`rewrite_recovery_staging.keeps_the_staging`). A tip the tick read
+  blank holds an unrecorded reset where another road put it back, movement the reset's own record read is retired before
+  the reset goes on, and a tip put back or an attempt pinned right behind that record, or behind the proof of what it
+  read moving, holds the reset, read off the comment afresh, the tick's state withheld, and a tick whose state carries
+  another attempt by then -- one a proof took in off the comment -- holds it with no blank written over that attempt's
+  tip (`rewrite_recovery_parks.records_the_reset`); so does a proof that reads another attempt in place of the one
+  it recovers (`rewrite_landing_retirement.retires_unproved`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
