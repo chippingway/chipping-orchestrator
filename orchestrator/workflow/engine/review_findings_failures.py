@@ -25,7 +25,8 @@ pytest printed says failed that no summary line reports -- a run printed with
 `-rN` reports none -- leads by that section alone, as does a conftest or a
 plugin pytest could not load before running any test, and a run pytest refused
 before running any test -- as the check's run itself, with the error pytest
-printed -- and each test's own section no line took, by its title -- save one
+printed, wherever it stands outside any section beside the check's other runs
+-- and each test's own section no line took, by its title -- save one
 a summary line reporting a test that took no section pairs with, as a
 doctest's line does -- no test ID said. A node ID names the setup or teardown
 of a test where a section pytest printed says that failed -- where both did,

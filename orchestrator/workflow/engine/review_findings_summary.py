@@ -120,7 +120,7 @@ class SummaryLine:
         """
         summary = _SUMMARY_RE.fullmatch(line)
         if summary is None:
-            return cls._refused(line)
+            return cls.refused(line)
         reported = summary.group("reported")
         found = cls._end(reported, named, summary.group("outcome") == _ERRORED)
         if found is None:
@@ -135,8 +135,13 @@ class SummaryLine:
         )
 
     @classmethod
-    def _refused(cls, line: str) -> SummaryLine | None:
-        """The run `line` says pytest refused before running any test, with its error; None where it says none."""
+    def refused(cls, line: str) -> SummaryLine | None:
+        """The run `line` says pytest refused before running any test, with its error; None where it says none.
+
+        pytest prints that line outside its short summary, which a run it
+        refused has none of, so beside the summary lines it is read wherever
+        it stands outside every section and capture (`review_findings_pytest`).
+        """
         refused = _REFUSED_RE.fullmatch(line)
         if refused is None:
             return None

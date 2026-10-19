@@ -24,7 +24,12 @@ may print anything there, lines of a traceback's or a summary's shape too, so
 no line there is read as pytest's own: a section's exception is read from its
 traceback alone, and the summary lines from below the short summary's heading
 (`PytestOutput.summary`) -- or, in output quoting the summary lines alone,
-from any line nothing captured holds. A test may print a whole run of
+from any line nothing captured holds. A run pytest refused before running any
+test -- a path it could not find, an argument it could not parse -- has no
+summary: pytest prints the error refusing it outside any section, so beside
+the summary lines that error is read from any line standing outside every
+section, summary, and capture, wherever it falls among the check's other
+runs (`_Where.summary`). A test may print a whole run of
 pytest's: below a rule, where pytest itself never opens a run, a run's opening
 -- its session's heading, or the progress line its first tests report on with
 `-q` -- opens one a test printed, captured up to the line of statistics that
@@ -83,6 +88,8 @@ from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from itertools import accumulate, chain, compress, count, groupby, takewhile
 from types import MappingProxyType
+
+from orchestrator.workflow.engine import review_findings_summary as _summary
 
 # A section's title, and a line that opens a section: a title, a rule
 # titling what pytest captured below its traceback, or a line of equals signs
@@ -177,10 +184,11 @@ _UNPHASED = ("", "")
 
 # Where in the output a line stands: under the failures heading, outside any
 # titled section, where `--tb=line` prints each failure's line traceback; in
-# the short summary below its heading; or elsewhere -- by the heading opening
-# the region.
+# the short summary below its heading; in a section a title opens; or
+# elsewhere, outside any section -- by the heading or title opening the region.
 _TRACED = "traced"
 _SUMMARISED = "summarised"
+_SECTIONED = "sectioned"
 _ELSEWHERE = ""
 _HEADED = MappingProxyType({_FAILURES: _TRACED, _SUMMARY: _SUMMARISED})
 
@@ -236,35 +244,47 @@ class _Where:
 
     @classmethod
     def summary(cls, lines: Sequence[str], wheres: Sequence[_Where]) -> list[_Summarised]:
-        """Those of `lines` standing, by `wheres`, in the last short summary of their run, each with that run.
+        """Those of `lines` reporting, by `wheres`, a failure of their run, in order, each with that run.
 
-        pytest prints a run's short summary last, so a summary heading above
-        another in one run is one a test printed. None stand where no summary
-        does.
+        They stand in the last short summary of their run, or say pytest
+        refused their run before running any test (`reports`). None stand
+        where no summary does.
         """
         last = {where.run: where.summaries for where in wheres if where.region == _SUMMARISED}
+        if not last:
+            return []
         return [
             (line, where.run)
             for line, where in zip(lines, wheres, strict=True)
-            if where.summarises(last)
+            if where.reports(line, last)
         ]
 
     def stands(self, region: str) -> bool:
         """Whether the line stands in `region`, outside anything captured."""
         return self.region == region and not self.captured
 
-    def summarises(self, last: Mapping[int, int]) -> bool:
-        """Whether the line stands in its run's last short summary, `last` counting each run's summary headings."""
-        return self.stands(_SUMMARISED) and last[self.run] == self.summaries
+    def reports(self, line: str, last: Mapping[int, int]) -> bool:
+        """Whether `line`, standing here, reports a failure of its run, `last` counting each run's summary headings.
+
+        It stands in its run's last short summary -- pytest prints a run's
+        short summary last, so a summary heading above another in one run is
+        one a test printed -- or says pytest refused the run before running
+        any test: pytest prints that error outside any section, a run it
+        refused having none, nor a summary, so a line of its shape in a
+        section or in anything captured is a test's or its traceback's.
+        """
+        summarised = self.stands(_SUMMARISED) and last[self.run] == self.summaries
+        refused = self.stands(_ELSEWHERE) and _summary.SummaryLine.refused(line) is not None
+        return summarised or refused
 
     def below(self, line: str) -> _Where:
         """Where `line`, the line below the one this says, stands.
 
-        A heading opens a region, and a title closes it; a rule opens what
-        pytest captured, and the next line opening a section closes that --
-        as does the line traceback `--tb=line` prints last for a failure,
-        below anything it captured, giving the exception its marked lines
-        showed. A run's opening in what was captured opens a run a test
+        A heading opens a region, and a title the region of its section,
+        closing the heading's; a rule opens what pytest captured, and the
+        next line opening a section closes that -- as does the line traceback
+        `--tb=line` prints last for a failure, below anything it captured,
+        giving the exception its marked lines showed. A run's opening in what was captured opens a run a test
         printed, and only its line of statistics closes that; outside it, a
         run of pytest's own, which its line of statistics closes -- a heading
         or not -- ending its short summary too.
@@ -323,7 +343,7 @@ class _Where:
         if opened.group("rule"):
             return replace(self, captured=True)
         named = opened.group("heading") or ""
-        region = _HEADED.get(named, _ELSEWHERE)
+        region = _HEADED.get(named, _ELSEWHERE) if opened.group("equals") else _SECTIONED
         heading = named if opened.group("equals") else self.heading
         reopens = self.closed or (named in _SUMMARISED_BELOW and self.stands(_SUMMARISED))
         return _Where(
@@ -438,9 +458,10 @@ class PytestOutput:
         self.sections = tuple(chain(unstarted, self._read()))
         failed = ((section.failed[1], section.run) for section in self.sections)
         self.titled = frozenset(failed)
-        # The lines pytest's short summary lines may stand on, each with the
-        # run it closes. The summary's heading stands in it, so none does
-        # only where the output holds none.
+        # The lines pytest's short summary lines, or the error refusing a
+        # run, may stand on, each with the run it reports on. The summary's
+        # heading stands in it, so none does only where the output holds
+        # none, and every line nothing captured holds may be one.
         self.summary = (
             _Where.summary(lines, self._wheres) or _uncaptured(lines, self._wheres)
         )

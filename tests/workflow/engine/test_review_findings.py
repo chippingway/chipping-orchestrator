@@ -804,6 +804,25 @@ _QUIET_UNCOLLECTED = (
 _QUIET_UNCOLLECTED_LEAD = (
     f"{_QUIET_FIRST_LEAD}{_UNCOLLECTED_NAME}Error: `ModuleNotFoundError: No module named 'nowhere'`\n"
 )
+# A run pytest refused beside one its summary reports a failure of, either
+# first: the error refusing it stands outside any section, above the next
+# run or below the statistics closing the last. And lines of that error's
+# shape a test's traceback holds, or pytest captured from it, refuse nothing.
+_REFUSED_FIRST = f"{_UNFOUND_PATH}\n{_QUIET_FIRST.rstrip()}"
+_REFUSED_FIRST_LEAD = f"{_UNFOUND_PATH_LEAD}{_QUIET_FIRST_LEAD}"
+_REFUSED_LAST = f"{_QUIET_FIRST}{_UNPARSED_ARGUMENT}"
+_REFUSED_LAST_LEAD = f"{_QUIET_FIRST_LEAD}{_UNPARSED_ARGUMENT_LEAD}"
+_REFUSAL_PRINTED = (
+    f"{_QUIET_PROGRESS}"
+    "=================================== FAILURES ===================================\n"
+    "__________________________________ test_first __________________________________\n"
+    "    ERROR: file or directory not found: __traced__.py\n"
+    f"E   ValueError: first\n{_CAPTURE_RULE}"
+    "python -m pytest: error: unrecognized arguments: --captured-flag\n"
+    f"{_SUMMARY_HEADING}"
+    "FAILED tests/test_first.py::test_first - ValueError: first\n"
+    "1 failed in 0.01s"
+)
 # Runs `-q -s --tb=no` printed one after another, their progress letters
 # carrying no percentage: each opens below the statistics closing the one
 # before. And a run printing no section before one titling a section by an ID
@@ -1732,6 +1751,12 @@ class FailureNamesTest(unittest.TestCase):
             # itself, with the error pytest gave.
             (_UNFOUND_PATH, "", _UNFOUND_PATH_LEAD),
             (_UNPARSED_ARGUMENT, "", _UNPARSED_ARGUMENT_LEAD),
+            # So it does beside a run pytest's summary names a failure of,
+            # before or after it, the error standing outside any section;
+            # one a test's section holds refuses nothing.
+            (_REFUSED_FIRST, "", _REFUSED_FIRST_LEAD),
+            (_REFUSED_LAST, "", _REFUSED_LAST_LEAD),
+            (_REFUSAL_PRINTED, "", _QUIET_FIRST_LEAD),
             # Its path may hold blanks, as the doctest a file's path holding
             # blanks names may; words naming no Python file are a collection
             # only where pytest says so.
@@ -1873,7 +1898,8 @@ class FailureNamesTest(unittest.TestCase):
         # the summary leaves out, a node ID whose path holds the dash, a
         # conftest pytest could not load, runs of one check each leading
         # their own failures by their own sections, what did not fail leading
-        # nothing, output a terminal colored, and a run pytest refused.
+        # nothing, output a terminal colored, and a run pytest refused, alone
+        # or before or after a run its summary names a failure of.
         led = (
             (_ERRORS_ONLY, _ERRORS_ONLY_LEAD),
             (_DASHED, _DASHED_LEAD),
@@ -1884,6 +1910,8 @@ class FailureNamesTest(unittest.TestCase):
             (_COLORED, _COLORED_LEAD),
             (_UNFOUND_PATH, _UNFOUND_PATH_LEAD),
             (_UNPARSED_ARGUMENT, _UNPARSED_ARGUMENT_LEAD),
+            (_REFUSED_FIRST, _REFUSED_FIRST_LEAD),
+            (_REFUSED_LAST, _REFUSED_LAST_LEAD),
         )
         for output, lead in led:
             unled = f"`uv run pytest tests` exited with status 1:\n\n```\n{output}\n```"

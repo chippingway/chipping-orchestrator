@@ -669,7 +669,8 @@ save one a summary line reporting a test that took no section pairs with, as a d
 printed both; and a conftest or a plugin pytest could not load before running any test leads by its path or name, with
 the exception its traceback shows, and a run pytest refused before running any test — a path it could not find, an
 argument or a configuration it could not read, printed as `ERROR:` and the error, or by its argument parser — leads as
-the check's run itself, with that error; each such lead saying no summary line gives its test ID, none naming a test it
+the check's run itself, with that error, wherever it stands outside any section, before or after another run whose
+summary the check's output holds; each such lead saying no summary line gives its test ID, none naming a test it
 never ran — while words of a check's own `ERROR` line naming no Python file are no collection without that — and so does
 a node ID where its own run says pytest failed collecting it or its path — however the section and the summary line each
 spell that path — or that collection was interrupted, as for a class it could not collect; a node ID whose setup or

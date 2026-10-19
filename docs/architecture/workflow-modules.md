@@ -236,7 +236,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             collecting it or the run was interrupted collecting -- by its section alone where no summary
                             line reports it, as with `-rN`, as is a setup or teardown a section says failed, a conftest
                             or a plugin pytest could not load before running any test, a run pytest refused before
-                            running any test -- as the check's run itself, with the error pytest printed -- and a test's
+                            running any test -- as the check's run itself, with the error pytest printed, wherever it
+                            stands outside any section beside the check's other runs -- and a test's
                             own section no line took by its title -- save one a summary line reporting a test that took
                             no section pairs with, as a doctest's does -- none said to give a test ID -- words naming no
                             Python file being no collection without that -- each with the error its line gives, else --
@@ -315,7 +316,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             heading or a `-q` progress line, or -- a `-q` run failing collection alone reports no
                             progress -- on the errors or failures heading standing in the summary of the run before it,
                             or on any heading or title below the line of statistics closing a run -- with `-q -s`
-                            progress letters carry no percentage -- so each of several runs leads with its own failures
+                            progress letters carry no percentage -- so each of several runs leads with its own failures.
+                            A run pytest refused before running any test has no summary, so beside the summary lines the
+                            line refusing it is read wherever it stands outside every section, summary, and capture --
+                            above the next run or below the statistics closing the last
     review_findings_entries.py
                             the failure entries a reviewer writes in its findings, for `review_findings_failures` and
                             `review_findings`: an entry runs from one `Failure:` line to the next, or to the next
