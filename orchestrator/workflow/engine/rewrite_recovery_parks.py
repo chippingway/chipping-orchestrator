@@ -66,8 +66,8 @@ blank refuses an unrecorded reset. A blank refused or never confirmed
 holds the tick with nothing reset or cleaned, and the tick's state, which
 still carries the tip, is withheld from every whole-state write behind it, so
 a blank that landed with its answer lost is never put back. A blank that
-landed is followed by the comment read afresh, and another attempt pinned
-right behind it holds the reset the same way. A reset git
+landed is followed by the comment read afresh, and a tip put back or another
+attempt pinned right behind it holds the reset the same way. A reset git
 refused moved nothing, and the git owner
 stages the tip back for the park that keeps the attempt, so the evidence
 stands for that park's proof as it did before.
@@ -132,6 +132,9 @@ from orchestrator.workflow.engine.verification_durable import durable_comment
 log = logging.getLogger("orchestrator.workflow")
 
 _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PARK_REASON))
+
+# The base tip the attempt recorded its replay as made onto, which the reset's record blanks.
+_TIP = _base_sync_state._PENDING_REWRITE_BASE
 
 # What a recovery hold records: whatever the tick staged since its reading --
 # a publication gate's own record of the no-op it held -- decided on the
@@ -330,7 +333,8 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
     never written back over a blank that landed unconfirmed. False and
     withheld too where the comment read afresh behind a landed blank carries
-    another attempt, or would not read, so no reset moves the checkout under it.
+    its tip put back or another attempt, or would not read, so no reset moves
+    the checkout off evidence nothing records moved, or under another attempt.
     Movement the record's commit read (`rewrite_landing_retirement.moved_under`)
     is proved as read first, so what moved is retired before the reset goes on,
     False where that does not land. Over a checkout gone from disk, or one
@@ -340,9 +344,9 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     put back later retired over it; and the evidence is retired as over a
     reset in its own `CLEAR` write (`rewrite_recovery_staging.lands_the_retirement`),
     blank landed or not. True only where both landed and nothing it retired,
-    no successor or other attempt, is read back; where the retirement does
-    not land, the tick's state is withheld from every whole-state write
-    behind, since the comment may carry a successor and its floor by then.
+    no successor or other attempt, is read back; where either does not land,
+    the tick's state is withheld from every whole-state write behind, since
+    the comment may carry a successor and its floor, or a tip put back, by then.
     """
     moved: dict[str, ReportEvidence] = {}
     gone = bool(lost) or not context.worktree.is_dir()
@@ -356,10 +360,10 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
             "issue=#%d the checkout is gone from disk; retiring what a finish captured or settled for the landed "
             "head as over a reset, in a write of its own", context.issue.number,
         )
-        if not lands_the_retirement(context, CLEAR):
+        if not (lands_the_retirement(context, CLEAR) and recorded):
             context.state.withheld = True
             return False
-        return recorded
+        return True
     if moved:
         recorded = _retirement.retires_unproved(
             replace(context, records_before_a_reset=records_the_reset), _retirement.reconciles(context, moved),
@@ -371,24 +375,26 @@ def _blanks_the_tip(context: _AutoRebaseRecoveryContext, moved: dict[str, Report
     """Blank the attempt's base tip in a guarded write of its own, what each reading it takes moves kept in `moved`.
 
     Whether it landed, logged either way; refused or unconfirmed, the commit withholds the tick's state. A blank that
-    landed is followed by the comment read afresh, so an attempt another road pinned right behind it -- or a comment
-    that would not read -- holds the reset too, the tick's state withheld rather than written back over that attempt.
+    landed is followed by the comment read afresh, so a tip another road put back right behind it, an attempt it
+    pinned there, or a comment that would not read holds the reset too -- no reset moving the checkout off evidence
+    nothing records moved -- the tick's state withheld rather than written back over what that road wrote.
     """
     asked = asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved))
     commit = _commits.ReportCommit(asked.gh, context.issue, context.state)
     staged = commit.staging()
-    staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+    staged.set(_TIP, None)
     landed = commit.lands(staged, _writes.INVALIDATION)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
         durable = durable_comment(asked.gh, context.issue, context.state)[0]
-        if durable is not None and stands_as_recovered(context, durable):
+        if durable is not None and not durable.get(_TIP) and stands_as_recovered(context, durable):
             log.info(
                 "issue=#%d recorded the reset ahead of it by blanking the attempt's base tip", context.issue.number,
             )
             return True
         log.warning(
-            "issue=#%d the reset was recorded, but the comment read afresh behind it carries no attempt this recovery "
-            "recovers; nothing is reset until a later tick answers the comment as it then stands", context.issue.number,
+            "issue=#%d the reset was recorded, but the comment read afresh behind it carries its base tip back or no "
+            "attempt this recovery recovers; nothing is reset until a later tick answers the comment as it then stands",
+            context.issue.number,
         )
         context.state.withheld = True
         return False

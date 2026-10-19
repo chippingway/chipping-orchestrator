@@ -36,6 +36,7 @@ _REVISION = "revision"
 _CURRENT = "verification_evidence_current"
 _FETCHES = "_authed_fetch"
 _EDITS = "edit_pinned_state"
+_OVER = "over"
 _GIT = "_git_hardened"
 _RESET = "reset"
 
@@ -128,7 +129,7 @@ class RecordedMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def _puts_the_report_back(self, live, issue, staged, **options):
         """`live`, the pinned-comment edit, the report written back right behind the edit blanking the base tip."""
         answered = live(issue, staged, **options)
-        read = options["over"].get(readings.KEY_REWRITE_BASE)
+        read = options[_OVER].get(readings.KEY_REWRITE_BASE)
         if read and not staged.get(readings.KEY_REWRITE_BASE) and self._held:
             self._writes_the_report(self._held.pop())
             if self._refusing:
@@ -162,6 +163,31 @@ class BlankTipTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(resets, [_RESET])
         self.assert_invalidated(settled)
         self.assert_released()
+
+    def test_a_tip_put_back_behind_the_blank_holds(self) -> None:
+        # Another road puts the tip back right behind the reset record's blank: the record reads it afresh and holds
+        # the reset, the run, captured or settled, left on the landed head it was proved over and the tick's state
+        # withheld, so no reset moves the checkout off evidence nothing records moved.
+        for captures in (False, True):
+            with self.subTest(captured=captures):
+                self.setUp()
+                head = (self.captures() if captures else self.settles_then_dies())[0]
+                context = guarded.recovery_context(self)
+                self._tip = [self.pinned_fields(readings.KEY_REWRITE_BASE)[0]]
+                puts_back = partial(self._puts_the_tip_back_behind, self.gh.edit_pinned_state)
+                with patch.object(self.gh, _EDITS, puts_back):
+                    self.assertIsNone(persistence._resets(context, self.anchor))
+                held = (self._tip, self._wt_head(), context.state.withheld)
+                self.assertEqual(held, ([], head, True))
+
+    def _puts_the_tip_back_behind(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, the tip held written back right behind the first edit blanking it."""
+        answered = live(issue, staged, **options)
+        tip = readings.KEY_REWRITE_BASE
+        blanks = options[_OVER].get(tip) and not staged.get(tip)
+        if blanks and self._tip:
+            self._writes_the_tip(self._tip.pop())
+        return answered
 
     def _puts_the_tip_back(self, spec, ref: str, **options):
         """The branch's fetch, failing, the tip held written back behind it the first time."""
@@ -200,12 +226,12 @@ class GoneCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_a_run_put_back_behind_the_blank(self) -> None:
         # The tick reads no run current over a checkout gone, and another road puts the run and its base tip back right
-        # behind the reset record's blank: the retirement reads the comment afresh and retires the run whole before
-        # the proof goes on.
+        # behind the reset record's blank: the retirement reads the comment afresh and retires the run whole, and with
+        # that blank undone the proof holds, the tick's state withheld.
         run = self.settles_then_dies()[1]
         written = dict(zip(_RUN_AND_TIP, self.pinned_fields(*_RUN_AND_TIP), strict=True))
         answered = self._proves_over_nothing_held(partial(_writes, self, written))
-        self.assertEqual(answered, (True, False))
+        self.assertEqual(answered, (False, True))
         records = readings.pinned_records(self)
         self.assertIsNone(records[1])
         self.assertIn((run.receipt, readings.INVALIDATED), records[2])
@@ -237,7 +263,7 @@ class GoneCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         """`live`, the pinned-comment edit, what is held behind made right behind the first edit blanking the tip."""
         answered = live(issue, staged, **options)
         tip = readings.KEY_REWRITE_BASE
-        read = options["over"].get(tip)
+        read = options[_OVER].get(tip)
         if read and not staged.get(tip) and self._behind:
             self._behind.pop()()
         return answered
@@ -318,7 +344,7 @@ class ReplacedAttemptTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         """`live`, the pinned-comment edit, another road's attempt pinned right behind the first that blanks the tip."""
         answered = live(issue, staged, **options)
         tip = readings.KEY_REWRITE_BASE
-        blanks = options["over"].get(tip) and not staged.get(tip)
+        blanks = options[_OVER].get(tip) and not staged.get(tip)
         if blanks and not self._replaced:
             self._replaced = True
             _writes(self, self._pinned, clears=True)
