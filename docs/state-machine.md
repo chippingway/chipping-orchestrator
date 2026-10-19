@@ -196,11 +196,10 @@ finish put on the attempt in the write that recorded it (`pending_auto_base_reba
 another road's, and kept as it wrote it. Every recovery park or hold that keeps the attempt for a later tick or a
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
 anything moved, so putting that input back before the attempt is taken up again revives nothing -- and proves settled
-evidence a finish left current the same way, invalidating it whole where anything it rests on moved, as it does wherever
-its snapshot reads the landing on another head. Proving settled evidence ready again before its route, and invalidating
-it whole wherever anything it rests on moved, are primitives (`workflow/engine/rewrite_finish_readiness.py`) the
-recovery asks on every road, over finishes built for its proofs alone, and that in a finish that routes only the dormant
-settled-evidence policy
+evidence a finish left current the same way, invalidating it whole where it moved or its snapshot reads the landing on
+another head. Proving settled evidence ready again before its route, and invalidating it whole wherever anything it
+rests on moved, are primitives (`workflow/engine/rewrite_finish_readiness.py`) the recovery asks on every road, over
+finishes built for its proofs alone, and that in a finish that routes only the dormant settled-evidence policy
 asks -- one a caller selects by building a finish with `proves_settled` and handing it directly to the coordinator
 (`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which announces,
 relabels, parks, and retires nothing), as no production finish does (`workflow/engine/rewrite_finish_settled.py`). The
@@ -216,9 +215,8 @@ beside it, and asks the primitives that policy adds -- retiring the same receipt
 announcement of the landing taken in and a refused write retried, and recording movement history has no room for under
 the evidence's own receipt, beside restoring an attempt a retirement nobody confirmed took, which the coordinator asks
 (`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_unconfirmed.py`). Every recovery road
-(`workflow/engine/rewrite_recovery.py`) -- the eligibility gate's park of a label the refresh does not drive
-(`workflow/engine/base_rewrite.py`) and the dispatcher's anchor hold (`workflow/engine/dispatch_guards.py`) among
-them -- asks the guarded
+(`workflow/engine/rewrite_recovery.py`) -- the dispatcher's anchor hold (`workflow/engine/dispatch_guards.py`) and the
+eligibility gate's park of an ineligible label (`workflow/engine/base_rewrite.py`) among them -- asks the guarded
 recovery operations built on them: a reset recorded against captured or settled evidence before git moves the checkout,
 settled evidence retired whole with a landed reset's release or kept whole beside the attempt where history has no room,
 and every recovery park, and a publication gate's hold of a recovery's push, landed over the comment read afresh,

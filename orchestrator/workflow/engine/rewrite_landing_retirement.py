@@ -7,21 +7,19 @@ short of its route leaves it pending beside the attempt
 (`rewrite_landing_records.captured`), and one that settled it and then died
 in the tail of its route -- before the announcement, the relabel, or the
 retirement -- leaves it current beside the attempt
-(`rewrite_landing_records.settled`). These hold both to the same readings
-on the two roads that end a recovery without that landing's route -- a reset
-that releases the attempt, and a park that keeps it -- and on a snapshot that
-reads the landing moved, whose helpers (`rewrite_landing_moved`) hand the
-park's proof that movement as read; every recovery context the workflow builds
-carries them: each recovery road's (`rewrite_recovery.recovers`), the abort
-over an unreadable checkout's, the eligibility gate's park of a label the
-refresh does not drive (`base_rewrite`), and the dispatcher's held anchor
-(`rewrite_recovery_parks.answers_a_held_anchor`).
+(`rewrite_landing_records.settled`). These hold both to the same readings on
+the two roads that end a recovery without that landing's route -- a reset that
+releases the attempt, and a park that keeps it -- and on a snapshot reading the
+landing moved, whose helpers (`rewrite_landing_moved`) hand the park's proof
+that movement as read; every recovery context the workflow builds carries them:
+each recovery road's (`rewrite_recovery.recovers`), the unreadable checkout's
+abort, the eligibility gate's park of an ineligible label (`base_rewrite`), and
+the dispatcher's held anchor (`rewrite_recovery_parks.answers_a_held_anchor`).
 
 - Over a reset that landed, or a clear over a checkout back on the anchor
-  (`retires_over_the_reset`, the answer a recovery context's
-  `settles_over_a_reset` carries): the transaction is abandoned on the state
-  the park or the clear lands, as its own half stages it
-  (`rewrite_landing_captured.abandons_over_the_reset`), and settled evidence is
+  (`retires_over_the_reset`, the context's `settles_over_a_reset`): the
+  transaction is abandoned on the state the park or clear lands, as its own half
+  does (`rewrite_landing_captured.abandons_over_the_reset`), settled evidence
   invalidated into history whole on that same state, its revision, binding,
   and provenance kept, so it goes with the attempt's release or neither goes.
   With no room for its history entry it is never dropped: it stays current and
@@ -337,15 +335,14 @@ def reconciles(
     it. A comment that would not read is read
     once more, so one failed request does not leave the proof behind it
     classifying the tick's older evidence while its own reading carries a
-    successor. Each member of the attempt the comment carries as
-    `context.state` staged it -- a record sent with its answer lost that
-    landed the tick's own staging, a base tip staged back behind a reset git
-    refused among it -- is taken in as read too, so the proof behind takes
-    that attempt for this tick's own rather than one another road put in its
-    place; the receipt on the attempt is laid beside the evidence, so a
-    successor settled under a receipt of its own is the attempt's. Empty
-    where nothing moved; `moved` alone, laying nothing, where the comment
-    would not read either time.
+    successor. Each attempt member the comment carries as `context.state`
+    staged it -- a record sent with its answer lost that landed the tick's own
+    staging, a base tip staged back behind a reset git refused among it -- is
+    taken in as read too, so the proof behind takes that attempt for this
+    tick's own, not one another road put in its place; the receipt on the
+    attempt is laid beside the evidence, so a successor settled under a
+    receipt of its own is the attempt's. Empty where nothing moved; `moved`
+    alone, laying nothing, where the comment would not read either time.
     """
     moved = dict(moved or {})
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]

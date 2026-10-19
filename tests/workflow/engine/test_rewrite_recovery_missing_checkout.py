@@ -11,8 +11,7 @@ workflow's proof and park by the dispatcher (`guarded_recovery_support`).
 
 With no checkout there is nothing to prove the landing over, so the movement is recorded against the run
 first, in a write of its own, by blanking the base tip the attempt recorded
-its replay as made onto, and the run is retired whole in another ahead of the park's record keeping the attempt. A
-park record refused, or a process killed before it, leaves the run retired; put back, the head routes, nothing current.
+its replay as made onto, and the run is retired whole in another ahead of the park's record, whether that lands or not.
 
 The guarded hold recording a publication gate's hold of a recovery's push takes the proof, so with no checkout the reset
 is recorded ahead of the hold's record, and a hold record GitHub refuses
@@ -230,8 +229,7 @@ class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A checkout read off the landed head that goes from disk before its run is retired still retires it whole."""
 
     def test_a_vanished_checkout_retires_the_run(self) -> None:
-        # The checkout read past the head goes right behind that reading, leaving no park: the run, settled or captured,
-        # is retired in its own record behind the reset's, or, put back as that record is refused, by the loss's proof.
+        # No park: the run retires in its own record after the reset's or, back as it is refused, by the loss's proof.
         for captures, returns in product((False, True), (False, True)):
             with self.subTest(captured=captures, returned=returns):
                 self.setUp()

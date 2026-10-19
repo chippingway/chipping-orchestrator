@@ -185,10 +185,9 @@ class _AutoRebaseRecoveryContext:
     behind: int = 0
     unparking_consumed_max: int | None = None
     # What the workflow's recovery owes over a release of the attempt with the
-    # checkout off the head the attempt landed -- behind a reset that took it
-    # off, or a clear under a label the refresh does not drive over a checkout
-    # back on the anchor -- staged on `state` before the attempt is dropped
-    # from it, so it rides the write that releases it or not at all
+    # checkout off the landed head -- behind a reset, or an ineligible label's
+    # clear over a checkout back on the anchor -- staged on `state` before the
+    # attempt is dropped, so it rides the write that releases it or not at all
     # (`persistence._reset_clear_and_park`, `snapshot._clear_ineligible_recovery`).
     # False keeps the attempt and holds, nothing dropped or parked: a record
     # that cannot go with the release -- settled evidence with no room left

@@ -1655,8 +1655,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `rewrite_finish_readiness.py`: the binding proved again over the issue and comment read
                             afresh, the review and report records heard beside a proof that stopped at an unread reading
                             (`proves_again`, beside any verdict a caller hands it to ask of that comment first: `Asks`,
-                            the recovery's proof before a park's); the head held to the base tip its replay was
-                            recorded as made onto, or to
+                            the proof before a recovery park's); the head held to its replay's recorded base tip, or to
                             one the caller hands in (`standing_refusal`, over `git/base_sync/rewrite_facts.py`) -- a
                             base moved or unread holds, rewound under the head or never recorded defers; and the last
                             word behind every request (`last_word`), every reading taken -- the remote branch, the base,
@@ -2145,10 +2144,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and let the tick go on -- so a record the anchor set aside, a developer report recorded
                             and unsettled among them, holds the rebase behind it as it holds an unanchored one, and
                             a reply the recovery did not spend is left for the rebase that follows -- and the same
-                            gates in front of the abort a checkout whose lag cannot be counted takes, the eligibility
-                            gate's park of a label the refresh does not drive handed the recovery's proof and park
-                            (`rewrite_recovery_parks.proves_before_a_park`, `lands_a_park`), and its clear's
-                            retirement and record (`_is_eligible`). It writes
+                            gates in front of the uncountable lag's abort, the eligibility gate's park of an ineligible
+                            label handed the recovery's proof and park (`rewrite_recovery_parks.proves_before_a_park`,
+                            `lands_a_park`), and its clear's retirement and record (`_is_eligible`). It writes
                             nothing itself -- a reply that let the rebase start is staged read, where it only asked
                             for the retry, for the anchor's own write to land (`rewrite_replies.py`) -- and a clean
                             rebase is handed to `rewrite_publication.py`, a pinned anchor's recovery to

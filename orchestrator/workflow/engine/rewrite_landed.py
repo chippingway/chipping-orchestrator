@@ -203,8 +203,7 @@ def _finishes_the_observation(
 
     A remote read anywhere but the landed head -- another commit, or no
     branch at all -- is a landing the finish refuses, and movement under a
-    transaction an earlier finish captured for that head, or evidence one
-    settled, which is retired
+    transaction an earlier finish captured or settled for that head, retired
     first (`rewrite_landing_moved.abandons`) so that no later route takes it,
     even one finding the branch back on the head. A remote nobody could read
     established nothing: the finish refuses the landing all the same, and the

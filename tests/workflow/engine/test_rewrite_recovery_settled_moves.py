@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Evidence settled for a landed head, invalidated wherever a later tick's recovery reads the landing moving.
 
-The real-git finish case (`rewrite_verification_recovery_support`), its run settled and finish killed at a final handoff
-boundary: the landing read moving -- the checkout committed past the head, or the remote rolled back -- invalidates the
-run whole on any road, nothing reviving it: not the landing put back, nor a report put back that a lost-answer reset
-record read moved, nor the comment written back behind, retired again first. No run is remade, no developer launched.
+The real-git finish case (`rewrite_verification_recovery_support`), its finish killed at a final handoff, the checkout
+committed past the head or the remote rolled back: nothing revives the run, not the landing put back, a report put back
+under a lost reset record, nor the comment written back behind, retired again first. Nothing is remade or launched.
 """
 from __future__ import annotations
 

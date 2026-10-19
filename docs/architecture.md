@@ -1030,10 +1030,9 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   behind any stop of a write the finish makes after it -- and invalidating it into history whole where anything it is
   bound to moved -- over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the
   invalidation cannot land, so nothing put back revives it. The recovery's answers to a snapshot read off the head, a
-  landed reset, and a park or hold that keeps the attempt ask them on every road, over finishes built for the proof
-  alone and held to the settled-evidence policy (`workflow/engine/rewrite_landing_moved.py`,
-  `rewrite_landing_retirement.py`, `rewrite_recovery_parks.py`). In a finish that routes, only the dormant
-  settled-evidence policy
+  landed reset, and a park or hold keeping the attempt ask them on every road, over finishes built for the proof alone
+  and held to the settled-evidence policy (`workflow/engine/rewrite_landing_moved.py`, `rewrite_landing_retirement.py`,
+  `rewrite_recovery_parks.py`). In a finish that routes, only the dormant settled-evidence policy
   asks them: a caller selects it by building the finish with `proves_settled` and handing it directly to the
   coordinator (`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which
   announces, relabels, parks, and retires nothing), and no production road builds such a finish

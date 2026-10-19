@@ -449,9 +449,8 @@ orchestrator/
     client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records -- a
                         caller's correlation on a relabel riding the audit one alone -- and canonical
                         repository identity; a clone reuses the parent's token and bot login on a requester of its
-                        own, shares the parent's ledger of events its process still owes
-                        (`workflow/engine/owed_events.py`), and fetches its repository only on the first read of
-                        repository metadata, while
+                        own, shares the parent's ledger of events its process owes (`workflow/engine/owed_events.py`),
+                        and fetches its repository only on the first read of repository metadata, while
                         number, label, and commit operations stay eager at the call; ownership checks complete that
                         repository first, use GitHub's repository name case-insensitively, and reject a head with no
                         repository; `repo_id` answers the numeric id no rename changes, completing a clone's

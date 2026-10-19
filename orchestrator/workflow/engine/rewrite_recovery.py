@@ -50,10 +50,9 @@ found already landed -- hand it to the one finish every landing gets
   is left for a human's reply, so the git owner has the transaction proved
   again before it (`rewrite_recovery_parks.proves_before_a_park`), over readings
   no failed fetch is needed for, and abandoned where anything it rests on
-  moved; one whose abandonment did not land is not parked at all. Every one
-  of these parks is recorded over the comment read afresh
-  (`rewrite_recovery_parks`), so what another road wrote while its notice
-  went out -- a later report, a newer transaction -- is never put back.
+  moved; one whose abandonment did not land is never parked. Each such park is
+  recorded over the fresh comment (`rewrite_recovery_parks`), keeping a later
+  report or newer transaction another road wrote while its notice went out.
 - The remote head completes the comparison, and how far the transfer beside
   the attempt got is read off the comment (`git/base_sync/transfers.py`).
 - A remote standing on the checkout is a push that already landed, and the
@@ -187,16 +186,15 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     Every road that resets the checkout drops the attempt in one write, and
     the recovery's answer to that movement rides it: the context the roads
     are handed carries `rewrite_landing_retirement.retires_over_the_reset`,
-    asked by the git owner once a reset landed and before the drop, keeping
-    the attempt where settled evidence has no room to retire into history --
-    and the proof every park keeping the attempt asks first
+    asked by the git owner once a reset landed and before the drop, keeping the
+    attempt where settled evidence has no room to retire into history -- and
+    the proof every park keeping the attempt asks first
     (`rewrite_recovery_parks.proves_before_a_park`). Every reset is recorded
     before it moves the checkout against evidence a finish captured or settled
     for the landed head (`rewrite_recovery_parks.records_the_reset`), decided
-    on the evidence records as the tick read them, so evidence settled since
-    holds it. Every park, that drop's included, and a clear under a label the
-    refresh does not drive land over the comment read afresh
-    (`rewrite_recovery_parks.lands_a_park`,
+    on the evidence records as read, so evidence settled since holds it. Every
+    park, that drop's included, and an ineligible label's clear land over the
+    comment read afresh (`rewrite_recovery_parks.lands_a_park`,
     `rewrite_recovery_parks.lands_a_clear`), a park keeping what another road
     wrote while its notice went out and proving what it keeps again behind it.
     """

@@ -36,14 +36,13 @@ _EDITED_BODY = "Also cover a base that moved twice."
 # The checkout's head reading, read before any case stands in for it.
 _HEAD_SHA = _probes._head_sha
 
-# The proof's issue read the checkout goes from disk behind, and the reading of that loss it comes back at.
+# The checkout leaves behind the proof's issue read or reading client, back at that loss's reading or the block's end.
 _BEHIND_A_READ = handoff.Boundary("behind an issue read", "get_issue", lambda *_called: True)
 
 _EXITS = "__exit__"
 
 _AT_ITS_LOSS = handoff.Boundary("at its loss", _EXITS, lambda _held, kind, *_rest: kind is FileNotFoundError)
 
-# The proof's reading client the checkout goes from disk behind, and the end of the proof's block it comes back at.
 _BEHIND_THE_CLIENT = handoff.Boundary("behind the proof's client", "asks_every_reading", lambda *_called: True)
 
 _BEHIND_THE_BLOCK = handoff.Boundary("behind the proof's block", _EXITS, lambda *_called: True)
@@ -53,10 +52,9 @@ _HANDOFF = "verification_evidence_handoff"
 
 _USAGE = "issue_total_tokens"
 
-# How a case puts the checkout on a commit of its own.
+# How a case resets the checkout, and the undriven label under which the dispatcher's hold strands the attempt.
 _PUTS_BACK = ("reset", "--quiet", "--hard")
 
-# A label the refresh does not drive, under which the dispatcher's hold strands the attempt.
 _UNDRIVEN = "workflow:resolving_conflict"
 
 
@@ -74,8 +72,7 @@ def _puts_the_label_back(case) -> None:
 
 
 class _ChargesTheClear:
-    """`case`'s pinned-comment edit, a usage write, a finish settling `settles`, or a newer run it `marks` moved, the
-    mark put back behind, landing ahead of its first clear."""
+    """The edit, its first clear raced by a usage write, a finish settling `settles`, or a newer run `marks` moved."""
 
     def __init__(self, case, settles: str | None = None, *, marks: bool = False) -> None:
         self._case = case
@@ -86,7 +83,7 @@ class _ChargesTheClear:
         self.newer = None
 
     def __call__(self, issue, staged, **options):
-        """Answer the edit, the race landing right ahead of the clear the first time."""
+        """Answer the edit, the race landing right ahead of the first clear, a mark taken back behind it."""
         if staged.get(readings.KEY_PENDING_PUSH) or self.raced:
             return self._live(issue, staged, **options)
         self.raced = True
@@ -120,10 +117,9 @@ class _ChargesTheClear:
         return handoff
 
 
-# The dispatcher's hold of an anchor, as a quiet hold answers it.
+# The dispatcher's hold of an anchor, and what answers one under an undriven label: that hold or the eligibility gate.
 _HOLDS = guarded.answers_a_held_anchor
 
-# What answers an anchor under an undriven label: the dispatcher's hold, or a whole refresh's eligibility gate.
 _CLEARS = (
     ("the dispatcher's hold", guarded.answers_a_held_anchor),
     ("the eligibility gate", lambda case: case.recovers()),
@@ -213,8 +209,7 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_routed(head)
 
     def test_a_directory_read_gone_retires_the_run(self) -> None:
-        # The proof reads the checkout gone at its own directory check, back before anything reads it again: that
-        # reading still invalidates the run whole, and the head is then routed once.
+        # The proof reads the checkout gone at its directory check, back before any later read: still invalidated whole.
         head, kept = self.settles_then_dies()
         away = self._wt.parent / guarded.AWAY
         vanishes = _BEHIND_THE_CLIENT.moving(_readings.asks_every_reading, partial(self._wt.rename, away))
@@ -336,9 +331,8 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assertEqual(kept, (expected.receipt, expected.revision, None))
 
     def test_a_racing_settlement_is_invalidated(self) -> None:
-        # Another finish settling the captured run as the clear is sent refuses it -- or a newer run another road marks
-        # moved, the mark put back behind that refusal -- and the move it read invalidates that settlement, so the
-        # replay named again and the checkout on its head route nothing current.
+        # Another finish settling the captured run, or a newer run marked moved then unmarked, refuses the sent clear;
+        # the move read invalidates that settlement: the replay named again, the checkout on it, leaves nothing current.
         for marks in (False, True):
             with self.subTest(marked=marks):
                 self.setUp()

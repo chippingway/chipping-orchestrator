@@ -51,10 +51,9 @@ _EDITS = "edit_pinned_state"
 
 _CURRENT = "verification_evidence_current"
 
-# The usage total another road's write moves, refusing a retirement decided on the comment before it.
+# The usage total, and what crowds a retirement over the restored tip: a full comment, or a usage write once or always.
 _USAGE_TOTAL = "issue_total_tokens"
 
-# What crowds the tip written back: a comment filled past the retirement, or a usage write refusing it once or always.
 _FULL, _USAGE, _EVERY = "full", "usage", "every"
 
 # The roads whose git request ahead of any proof finds the checkout gone: the hold, the gate, the uncounted lag's abort.
@@ -171,8 +170,7 @@ class RestoredTipTest(_LostCheckoutCase, unittest.TestCase):
                 self.assert_retired()
 
     def test_a_quiet_hold(self) -> None:
-        # A hold under a driven stage never gets the checkout back; a full comment, or a usage write refusing every
-        # retirement, blanks the tip again, run and attempt kept until room is made and the next hold retires it.
+        # Under a driven stage, a full comment, or a usage write refusing every time, keeps the run until room is made.
         for crowds in (None, _FULL, _USAGE, _EVERY):
             with self.subTest(crowds=crowds):
                 self.setUp()
@@ -285,8 +283,7 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
     """A run retired over a checkout gone from disk, another road writing right ahead of that retirement or behind."""
 
     def test_a_run_written_back_behind(self) -> None:
-        # A hold under a driven stage, its checkout never back, retires the run; another road writes back the attempt
-        # and evidence read before it, and with no proof past a quiet hold, the comment read afresh retires it again.
+        # The run and attempt written back behind an unrestored hold's retirement retire again, the comment read afresh.
         self.settles()
         self._written = copy.deepcopy(readings.pinned(self))
         self._wt.rename(self._away)
@@ -300,9 +297,8 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
         self.assert_retired()
 
     def test_another_road_retires_the_run_ahead(self) -> None:
-        # The fetch fails and the checkout goes behind the abort's reset blank. Right ahead of the retirement, or its
-        # last behind two a usage write refused, another road retires the run, pinning another attempt, base tip whole,
-        # or settling a newer run, and puts the checkout back: what it wrote stands, nothing reset or blanked.
+        # The fetch fails and the checkout goes behind the reset's blank; ahead of the retirement, or its third try past
+        # two usage writes, another road pins a fresh attempt or a newer run, the checkout back: what it wrote stands.
         races = (
             ("attempt", self._replaces_the_attempt),
             ("successor", partial(settled_support.records_a_newer_run, settles=True)),
