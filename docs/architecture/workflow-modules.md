@@ -2596,10 +2596,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             an attempt it pinned right behind it -- or a comment that would not read -- holding the
                             reset with the tick's state withheld; and what its commit read moving proved as read
                             before the reset goes on, the comment read afresh once more behind that proof and the reset
-                            held where that retirement does not land or the blank no longer stands, a successor that
-                            reading reads moving proved in turn until a reading reads none new; the record keeping
-                            what the tick staged as a proof keeps it, its usage landing once in a write of its own,
-                            wherever no proof keeps it already (`rewrite_recovery_staging.keeps_the_staging`); over a
+                            held where that retirement does not land or the blank no longer stands, evidence that
+                            reading carries under a receipt read moving -- a successor, or the run put back -- proved
+                            again until a reading carries none; the record keeping what the tick staged as a proof
+                            keeps it, its usage landing first in a write of its own whose readings it proves, wherever
+                            no proof keeps it already (`rewrite_recovery_staging.keeps_the_staging`); over a
                             checkout read gone, the evidence retired as over a reset in a `CLEAR` write of its own
                             (`rewrite_recovery_staging.lands_the_retirement`)
                             -- the loss owed as soon as it is read, the tick's state withheld where that does not land
@@ -2631,9 +2632,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             edit whose answer was lost takes in nothing, since nothing left on the comment says whether
                             it landed, and the next write sends that staging again, which the guarded commit takes over
                             a comment already carrying it -- save a total that adds up, usage, which rides none of the
-                            proof's writes and lands once behind it in a guarded write of its own, decided on nothing
-                            and added to the total the comment then carries, a lost answer there taken as sent so it is
-                            never sent twice (`adds_the_totals`), and a context already kept handed back as it is, so
+                            proof's writes and lands first, ahead of every other write the proof or the reset's record
+                            makes, in a guarded write of its own, decided on nothing and added to the total the comment
+                            then carries, read through the client that asks every reading, so what it reads moving is
+                            proved and an attempt put in place holds the caller; a lost answer there taken as sent so it
+                            is never sent twice, a refusal staged again for the record behind (`adds_the_totals`), and a
+                            context already kept handed back as it is, so
                             the reset's recorder keeps it alike asked inside a proof or directly by the git owner
                             (`rewrite_recovery_parks.records_the_reset`); behind a record that did not land, that
                             staging is taken off the state for the proof, put back only where no proof edit landed or
