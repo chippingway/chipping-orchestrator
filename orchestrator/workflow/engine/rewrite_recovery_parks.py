@@ -139,9 +139,8 @@ HOLD = _commits.ReportWrite(
     owned=frozenset(), decided_on=frozenset(_attempts._ATTEMPT_KEYS),
 ).reading_moves(True)
 
-# A clear's record under a label the refresh does not drive, decided on the
-# attempt and the evidence records, so a successor settled meanwhile refuses it
-# -- the write a retirement over a checkout gone from disk lands as too.
+# A clear's record, decided on the attempt and evidence records so a successor settled meanwhile refuses it; a
+# retirement over a checkout read gone lands as it too.
 CLEAR = _commits.ReportWrite(
     owned=frozenset(),
     decided_on=frozenset(_attempts._ATTEMPT_KEYS) | {
@@ -278,15 +277,12 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
 def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> bool:
     """Whether the dispatcher's hold of `held`'s anchor stops this tick, answered with the workflow's proof and park.
 
-    The hold is the git owner's question (`git/base_sync/recovery_holds._recovery_holds_dispatch`),
-    and its answer (`_answers_a_held_anchor`) restores a checkout, clears the
-    attempt, or parks it stranded. That park and a hold keeping the attempt
-    with nothing posted, on every poll that holds, ask the proof first
-    (`proves_before_a_park`), the park recorded as every recovery park is
-    (`lands_a_park`); a clear retires the evidence first and lands guarded
-    (`lands_a_clear`). A checkout the question or the answer finds gone from
-    disk has that loss recorded (`RecordsALostCheckout`), the handler held,
-    and one either reads gone is that loss to the proof however soon it returns.
+    The git owner's question (`git/base_sync/recovery_holds._recovery_holds_dispatch`)
+    and answer (`_answers_a_held_anchor`) restore a checkout, clear the attempt,
+    or park it, each park or quiet hold proving first (`proves_before_a_park`,
+    `lands_a_park`, `lands_a_clear`). A checkout either reads gone or off the
+    replay is that loss to the proof however soon it returns, and one a git
+    request finds gone is recorded (`RecordsALostCheckout`), the handler held.
     """
     settles = partial(_retirement.retires_over_the_reset, held)
     owing = replace(held, settles_over_a_reset=settles, lands_a_clear=lands_a_clear)

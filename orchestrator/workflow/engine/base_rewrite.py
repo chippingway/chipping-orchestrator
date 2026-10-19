@@ -127,8 +127,7 @@ def _held_past_the_anchor(context: _AutoRebaseContext) -> bool:
 def _is_eligible(context: _AutoRebaseContext) -> bool:
     """Whether the refresh may rebase `context`'s PR, an ineligible label's anchor handed the recovery's answers.
 
-    A checkout that answer finds gone from disk has that loss recorded
-    (`rewrite_recovery_readings.RecordsALostCheckout`), and nothing is rebased.
+    A checkout found gone there is recorded (`rewrite_recovery_readings.RecordsALostCheckout`), nothing rebased.
     """
     recovering = replace(recovery._recovery_context(context), records_before_a_reset=_recovery_parks.records_the_reset)
     eligible = False

@@ -56,11 +56,9 @@ def _clear_ineligible_recovery(
 ) -> bool:
     """Clear an interrupted-rebase anchor after an operator relabel.
 
-    The checkout stands back on the anchor, off any head a finish of the
-    attempt captured or settled evidence for, so that evidence is retired on
-    the state the clear writes first (`settles_over_a_reset`) -- False keeps
-    the attempt -- and the clear lands through `lands_a_clear`, which a
-    successor another road settled meanwhile refuses.
+    The checkout stands back on the anchor, off the landed head, so evidence
+    for it is retired on the clear's state first (`settles_over_a_reset`),
+    False keeping the attempt, and the clear lands guarded (`lands_a_clear`).
     """
     settles = context.settles_over_a_reset
     if settles is not None and not settles():

@@ -2265,13 +2265,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             state the git owner's park lands (`git/base_sync/persistence.py`) so it goes with the
                             attempt's release or not at all, dropped with the recorded base tip blanked where
                             history has no room, so an attempt a park keeps runs nothing for that landing again.
-                            The captured proof behind that park (`proves_captured`) takes movement a caller already read
-                            as its proof, is asked behind a hold that keeps the attempt too, asks each comment its proof
-                            and last word read what it records moving under the transaction there where the recovery's
-                            proof before a park hands that in (`asks`), and abandons the transaction where either reads
-                            movement, a settlement another finish made of the run meanwhile invalidated over it. The
-                            settled-aware answers (`rewrite_landing_retirement.py`) are built over it and over the
-                            finish of a head's landing they prove with (`_finish`), held to the settled-evidence policy
+                            The captured proof behind that park or a hold (`proves_captured`) takes movement already
+                            read as its proof, asks each comment it reads (`asks`), and abandons the transaction where
+                            it moved, another finish's settlement of it invalidated. The settled-aware answers
+                            (`rewrite_landing_retirement.py`) are built over it and over the finish they prove with
+                            (`_finish`), held to the settled-evidence policy
     rewrite_landing_moved.py
                             the recovery's helpers over a landing read moved: a captured transaction abandoned, unrun,
                             and settled evidence (`rewrite_landing_records.settled`) invalidated whole, retired again
@@ -2283,11 +2281,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             The landed road (`rewrite_landed.py`) asks the same of a checkout or remote leaving the head
                             (`abandons`), over a checkout gone from disk through the proof before a park
     rewrite_landing_retirement.py
-                            the settled-aware answers every recovery context the workflow builds carries -- each
-                            recovery road's (`rewrite_recovery.recovers`), the abort over an unreadable checkout's,
-                            the eligibility gate's park of a label the refresh does not drive (`base_rewrite.py`),
-                            and the dispatcher's held anchor (`rewrite_recovery_parks.answers_a_held_anchor`) --
-                            over a captured run and evidence a finish of the attempt settled for the head
+                            the settled-aware answers every recovery context the workflow builds carries -- the
+                            recovery roads', the abort's, the eligibility gate's (`base_rewrite.py`), and the held
+                            anchor's -- over a captured run and evidence a finish of the attempt settled for the head
                             and left current behind a tail cut short (`rewrite_landing_records.settled`). Over a
                             reset that landed, or an ineligible label's clear of the attempt over a checkout back on the
                             anchor (`retires_over_the_reset`, the context's `settles_over_a_reset`), a captured run is

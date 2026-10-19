@@ -37,6 +37,7 @@ from orchestrator.git import branch_transport as _branch_transport, commands as 
 from orchestrator.git.base_sync import (
     models as _base_sync_models,
     pre_pr as _pre_pr,
+    recovery_holds as _recovery_holds,
     refresh_selection as _selection,
     state as _base_sync_state,
 )
@@ -45,7 +46,11 @@ from orchestrator.git.worktrees import paths as _paths
 from orchestrator.github import client as _client
 from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.scheduler.service import IssueScheduler
-from orchestrator.workflow.engine import base_rewrite as _base_rewrite
+from orchestrator.workflow.engine import (
+    base_rewrite as _base_rewrite,
+    rewrite_recovery_parks as _recovery_parks,
+    rewrite_recovery_readings as _readings,
+)
 
 log = logging.getLogger("orchestrator.base_sync")
 
@@ -124,7 +129,9 @@ def _sync_claimed_worktree(
     interrupted attempt left names a commit nothing here can read, so no
     comparison of what it did can be trusted -- and ending the sync would
     leave the anchor for a handler the dispatcher holds back while it stands.
-    So it is reset and parked on the coordinator's own gates instead.
+    So it is reset and parked on the coordinator's own gates instead. A count
+    that finds an anchor's checkout gone has that loss recorded, the tick held
+    (`rewrite_recovery_readings.RecordsALostCheckout`), however soon it returns.
     """
     issue = _selection._base_sync_issue(gh, issue_number)
     if issue is None:
@@ -144,9 +151,12 @@ def _sync_claimed_worktree(
         )
         return
 
-    behind = _worktree_behind_base(spec, worktree, issue_number)
+    held = _recovery_holds._held_anchor_context(gh, spec, issue, state, None)
+    behind = None
+    with _readings.RecordsALostCheckout(held, _recovery_parks.records_the_reset):
+        behind = _worktree_behind_base(spec, worktree, issue_number)
     if behind is None:
-        if pr_number is not None and state.get(_base_sync_state._PENDING_PUSH_SHA):
+        if pr_number is not None and state.get(_base_sync_state._PENDING_PUSH_SHA) and not state.withheld:
             # No lag to route on, so the request carries none.
             _base_rewrite._sync_unreadable_pr_worktree(_base_sync_models._AutoRebaseRequest(
                 gh, spec, issue, state, worktree, int(pr_number), 0,

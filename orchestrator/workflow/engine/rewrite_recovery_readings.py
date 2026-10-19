@@ -148,7 +148,11 @@ class RecordsALostCheckout(LosesTheCheckout):
     retires it, in writes of its own over the comment as the tick last read it,
     however soon the checkout returns; the tick's state is withheld, the road's
     caller holding the tick. Over a comment carrying neither, it goes on.
+    `records`, where handed, is the recorder in place of the one `context` carries.
     """
+
+    def __init__(self, context: _AutoRebaseRecoveryContext, records=None) -> None:
+        super().__init__(replace(context, records_before_a_reset=records) if records else context)
 
     def __exit__(self, kind, error, trace) -> bool:
         state = self._context.state

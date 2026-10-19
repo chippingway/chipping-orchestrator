@@ -20,19 +20,14 @@ may go on (`_proves_before_the_park`), so a transaction the workflow captured
 for the landed head, or evidence it settled for it, is proved again before the
 record a human's reply brings back is left standing.
 
-The reset itself is recorded first where the recovery context carries a
-recorder (`_resets`, `_AutoRebaseRecoveryContext.records_before_a_reset`), and
-every recovery park through the park it carries (`_parks_the_recovery`,
-`_AutoRebaseRecoveryContext.lands_a_park`) -- over the comment read afresh, so
-nothing another road wrote while the notice went out is put back. The workflow
-hands its park in on every recovery context it builds, and its recorder on
-every one whose road may reset; a refresh's own context, which carries neither,
-resets with nothing recorded and writes the tick's state whole. The finish of a
-rewrite that landed is the workflow's (`workflow/engine/rewrite_finish.py`),
-whichever road reached it, and so is the tail an interrupted finish leaves
-behind its evidence -- the announcement, the relabel, and the retirement --
-which none of these parks takes: a park that keeps the attempt keeps it for the
-reply that brings that finish back, with what the attempt still owes.
+The reset is recorded first through the recorder a recovery context carries
+(`_resets`, `_AutoRebaseRecoveryContext.records_before_a_reset`), and every
+recovery park through its park (`_parks_the_recovery`, `lands_a_park`) over the
+comment read afresh; the workflow hands both in on every recovery context it
+builds, and a refresh's own context, carrying neither, resets unrecorded and
+writes whole. The finish of a landed rewrite, and the tail an interrupted one
+leaves behind its evidence, are the workflow's (`workflow/engine/rewrite_finish.py`):
+a park that keeps the attempt keeps it for the reply that brings that back.
 """
 from __future__ import annotations
 

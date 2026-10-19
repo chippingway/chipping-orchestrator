@@ -234,15 +234,11 @@ def retires_unproved(
     go on while evidence still standing carries movement read only behind its
     own proof, both are asked again with it; a proof that reads movement
     retires what moved or answers False, so the asking stops there.
-    With no checkout on disk, gone before the proof or found gone by one of
-    its requests, nothing proves the landing, so the reset is recorded against
-    both and both retired as over it, each in its own write, by the recorder
-    `context` carries (`_AutoRebaseRecoveryContext.records_before_a_reset`,
-    `rewrite_recovery_parks.records_the_reset`, which hands it every proof it
-    and the proof before a park ask), its answer the proof's; with no recorder
-    both are retired on the state the park lands (`retires_over_the_reset`).
-    One back on disk by then is recorded alike, the recorder handed that loss.
-    False only where evidence still
+    A checkout gone before the proof or found gone by one of its requests,
+    however soon it returns, has nothing to prove the landing over, so the
+    recorder `context` carries (`records_before_a_reset`) records the reset and
+    retires both, its answer the proof's; with none both are retired on the
+    state the park lands (`retires_over_the_reset`). False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
     its history entry among it, its movement recorded instead -- or where the
     comment the proof read carries another attempt in place of the one

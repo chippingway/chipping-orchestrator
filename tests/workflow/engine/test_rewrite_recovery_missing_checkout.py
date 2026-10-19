@@ -9,18 +9,16 @@ relabelled to a stage the refresh does not drive, so the dispatcher's anchor
 hold answers it with the stranded park that keeps the attempt -- handed the
 workflow's proof and park by the dispatcher (`guarded_recovery_support`).
 
-With no checkout there is nothing to prove the landing over, so the movement is recorded against the run
-first, in a write of its own, by blanking the base tip the attempt recorded
-its replay as made onto, and the run is retired whole in another ahead of the park's record, whether that lands or not.
+With no checkout there is nothing to prove the landing over, so the movement is recorded against the run first, by
+blanking the base tip in a write of its own, and the run retired whole in another ahead of the park's record.
 
 The guarded hold recording a publication gate's hold of a recovery's push takes the proof, so with no checkout the reset
 is recorded ahead of the hold's record, and a hold record GitHub refuses
 leaves the run read moving once the checkout is back. A checkout that goes
 from disk only as a hold's or a park's record lands, or as a park's notice
 raises, leaves nothing behind it to prove the run over, so the reset is
-recorded against the run there instead, with the same effect. Nothing is run
-again, pushed, or launched, nor announced or relabelled before a route. A checkout gone from disk right behind the
-landed road's reading off the head leaves no park, so the run's retirement lands in its own record, as a hold's does.
+recorded against the run there instead. Nothing is run again, pushed, launched, announced, or relabelled before a route;
+a checkout gone right behind the landed road's reading off the head leaves no park, the retirement landing on its own.
 """
 from __future__ import annotations
 
@@ -32,6 +30,7 @@ from unittest.mock import patch
 from orchestrator.git.base_sync import persistence, rewrite_facts
 from orchestrator.git.verification import probes
 from orchestrator.workflow.engine import (
+    base_refresh,
     rewrite_landing_moved as _moved,
     rewrite_recovery_parks as _parks,
     verification_settlement_state as _settlement,
@@ -98,6 +97,9 @@ _AT_THE_RECORD = handoff.Boundary("at the record", _EDITS, _records)
 _AHEAD_OF_THE_PROOF = handoff.Boundary("ahead of the proof", "keeps_the_staging", lambda *_called, **_options: True)
 _FIRST_CALL = handoff.Boundary("at the first call", "", lambda *_called, **_options: True)
 _REMOVES = ("worktree", "remove", "--force")
+
+# The reads a checkout goes from disk under, back as the failure unwinds: the candidate's, and the lag's count.
+_UNWOUND_READS = ((rewrite_facts, "_reads_the_checkout"), (base_refresh, "_worktree_behind_base"))
 
 
 def _raises_behind(move, *_posted, **_options):
@@ -305,14 +307,13 @@ class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assert_routed(head)
 
     def test_a_loss_back_as_it_unwinds(self) -> None:
-        # The candidate's read finds the checkout gone, back before that failure unwinds: the run, captured or settled,
-        # is retired whole all the same, and the next poll routes the head with nothing current.
-        for captures in (False, True):
-            with self.subTest(captured=captures):
+        # The candidate's read, or the refresh's count of the base lag, finds the checkout gone, back as that failure
+        # unwinds: the run, captured or settled, is retired whole all the same, and the next poll routes the head.
+        for (owner, read), captures in product(_UNWOUND_READS, (False, True)):
+            with self.subTest(read=read, captured=captures):
                 self.setUp()
                 head, run = self.captures() if captures else self.settles_then_dies()
-                reads = partial(self._gone_while_read, rewrite_facts._reads_the_checkout)
-                with patch.object(rewrite_facts, "_reads_the_checkout", reads):
+                with patch.object(owner, read, partial(self._gone_while_read, getattr(owner, read))):
                     self.recovers()
                 (self.assert_abandoned if captures else self.assert_invalidated)(run)
                 self.recovers()
