@@ -977,8 +977,8 @@ orchestrator/
                         refused for what moved since it was read
       snapshot.py       the branch fetch, the local / remote head reads and divergence counts, the abort an
                         unreadable one takes, and the clears of an ineligible or unmoved anchor -- written whole, or
-                        landed through a context's guarded clear (`lands_a_clear`) where one is handed in, the
-                        ineligible clear then retiring what its reset answer names first, which none is yet
+                        landed through a context's guarded clear (`lands_a_clear`) where one is handed in, either
+                        clear then retiring what its reset answer names first, which none is yet
       recovery.py       the recovery context an interrupted attempt is resumed in: the refresh's inputs, the
                         anchor, and the attempt record read off the comment, for the workflow's recovery
                         coordinator (`workflow/engine/rewrite_recovery.py`) and the ineligible-label road in

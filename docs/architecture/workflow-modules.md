@@ -2567,8 +2567,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             all landed (`lands_a_hold`); no recovery road records its hold through it yet. A clear
                             would land as `CLEAR` (`lands_a_clear`), decided on the attempt and evidence records, so a
                             successor settled meanwhile refuses it with its floor kept; one that lands is followed by
-                            the comment read afresh, a successor or another attempt written right behind it holding the
-                            tick with its state withheld; one that does not land records the reset against the attempt
+                            the comment read afresh, a successor, another attempt, or any record a binding rests on --
+                            a revision floor raised alone among them -- written right behind it holding the tick with
+                            its state withheld; one that does not land records the reset against the attempt
                             as read and proves the evidence read afresh with its move off the landing under each
                             receipt held.
                             Asked ahead of a record, that proof keeps what the tick staged before it -- a gate's record
@@ -2620,11 +2621,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             dormant, as the proof it serves is: what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it
                             over the comment the tick read (`keeps_the_staging`) -- a field no strict edit of the
-                            proof's carried, landed or unconfirmed, an equal total another road wrote proving nothing --
+                            proof's carried, landed or may have, an equal total another road wrote proving nothing --
                             so the record behind lands it as the tick's own move or refuses it as a conflict, a field
                             the proof itself left staged keeping the proof's staging, and within the proof, what the
                             tick staged that an edit landed or sent with its answer lost taken in as that edit spelled
-                            it, so no later write of the proof sends it again; behind a record that did not land,
+                            it, so no later write of the proof sends it again -- save where the comment read afresh
+                            behind a lost answer still spells all the edit moved as before, an edit that never landed,
+                            its staging left for the writes behind; behind a record that did not land,
                             that staging is taken off the state for the proof, put back only where no proof edit
                             landed or may have; over a checkout gone from disk, what the tick holds for the landed head
                             retired as over a reset in its own guarded write (`lands_the_retirement`) -- the comment
