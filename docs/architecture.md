@@ -1066,9 +1066,11 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   reset recorded against captured or settled evidence before git moves the checkout, with every recovery park landed
   through the guarded commit over the comment read afresh and proving what it keeps once more behind its notice
   (`workflow/engine/rewrite_recovery_parks.py`), each an optional answer the git owner transports
-  (`records_before_a_reset`, `lands_a_park`) -- a park made again over a notice already said taking it in rather than
-  posting it twice (`workflow/engine/rewrite_recovery_notices.py`) -- beside the guarded hold a publication gate's
-  hold of a recovery's push would be recorded as (`lands_a_hold`). It runs under its caller's issue writer claim.
+  (`records_before_a_reset`, `lands_a_park`, and the guarded clear, `lands_a_clear`) -- a park made again over a
+  notice already said taking it in rather than posting it twice (`workflow/engine/rewrite_recovery_notices.py`), and a
+  checkout found gone before or during the proof having the reset recorded and the evidence retired in writes of their
+  own, a loss no write recorded owed to the next proof -- beside the guarded hold a publication gate's hold of a
+  recovery's push would be recorded as (`lands_a_hold`). It runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

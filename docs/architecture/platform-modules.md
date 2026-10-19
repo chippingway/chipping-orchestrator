@@ -884,7 +884,9 @@ orchestrator/
       eligibility.py    the label, park, open-PR, and clean-tree gates one PR sync clears, the clear or park an
                         anchor under a label the refresh does not drive takes -- handed what the workflow asks
                         before that park keeps the attempt, and the park it records it through where it hands
-                        one in (`lands_a_park`, which it does not yet) -- and whether a park a stage left
+                        one in (`lands_a_park`, which it does not yet), and the clear's guarded record and the
+                        retirement it asks first where it hands those in (`lands_a_clear`,
+                        `settles_over_a_release`, neither handed in yet) -- and whether a park a stage left
                         still owes a standing anchor its recovery -- which the workflow's recovery coordinator
                         runs; a terminal PR ends an anchored attempt's whole handoff through `terminal_handoff`
       pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
@@ -973,8 +975,10 @@ orchestrator/
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals the
                         workflow's publication ends an attempt with -- the last also for a candidate the git owner
                         refused for what moved since it was read
-      snapshot.py       the branch fetch, the local / remote head reads and divergence counts, and the abort an
-                        unreadable one takes
+      snapshot.py       the branch fetch, the local / remote head reads and divergence counts, the abort an
+                        unreadable one takes, and the clears of an ineligible or unmoved anchor -- written whole, or
+                        landed through a context's guarded clear (`lands_a_clear`) where one is handed in, the
+                        ineligible clear then retiring what its reset answer names first, which none is yet
       recovery.py       the recovery context an interrupted attempt is resumed in: the refresh's inputs, the
                         anchor, and the attempt record read off the comment, for the workflow's recovery
                         coordinator (`workflow/engine/rewrite_recovery.py`) and the ineligible-label road in
@@ -1065,8 +1069,9 @@ orchestrator/
       models.py         the frozen contexts, requests, snapshots, and decisions -- a recovery context carrying the
                         optional answers the workflow may hand it: what it records before a reset
                         (`records_before_a_reset`), what its reset is owed (`settles_over_a_reset`), the proof
-                        before a park that keeps the attempt (`proves_before_a_park`), and the park its every park
-                        is recorded through (`lands_a_park`)
+                        before a park that keeps the attempt (`proves_before_a_park`), the park its every park
+                        is recorded through (`lands_a_park`), the record of its clear (`lands_a_clear`), and the
+                        HEAD a road read ahead of that proof (`heads_read`)
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
       commits.py        the commits the orchestrator creates on a branch itself -- the squash, and the documenting

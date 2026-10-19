@@ -1568,9 +1568,19 @@ because there it is the claim that this stage has already rerouted rather than a
   the hold a publication gate's hold of a recovery's push would be recorded through, as `HOLD` over the comment read
   afresh, its proof taken first as before a park that keeps the attempt -- what the tick staged before that proof, the
   gate's own record among it, kept across every write the proof lands (`rewrite_recovery_staging.keeps_the_staging`) --
-  nothing recorded where that proof does not land
-  (`rewrite_recovery_parks.lands_a_hold`); and a checkout gone from disk only behind a park's or hold's record, or a
-  notice that raised, has the reset recorded there instead (`rewrite_recovery_parks.proves_before_a_park`).
+  nothing recorded where that proof does not land, and whether it all landed answered
+  (`rewrite_recovery_parks.lands_a_hold`); so is the clear an ineligible label's gate or an unmoved anchor would land
+  as `CLEAR` over the comment read afresh, retiring what a finish captured or settled for the head on the clear's own
+  state first, a successor settled meanwhile refusing it with its floor kept and a full history keeping the attempt
+  (`rewrite_recovery_parks.lands_a_clear`, `git/base_sync/snapshot.py`); and a checkout gone from disk -- ahead of a
+  park's or hold's record or behind one or a notice that raised, found gone by one of the proof's own git requests
+  (`rewrite_recovery_readings.LosesTheCheckout`), or read gone or off the evidence's head by its caller, however soon
+  it is back -- has the reset recorded and the evidence retired as over it, each in a guarded write of its own
+  (`rewrite_recovery_staging.lands_the_retirement`), evidence written back behind retired again and an attempt or
+  successor another road put in its place holding the tick unreset, and a loss no write recorded owed to the next
+  proof of that attempt (`workflow/engine/owed_events.py`) (`rewrite_recovery_parks.proves_before_a_park`). A tip the
+  tick read blank holds an unrecorded reset where another road put it back, and movement the reset's own record read
+  is retired before the reset goes on (`rewrite_recovery_parks.records_the_reset`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
