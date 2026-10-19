@@ -22,7 +22,7 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import attempts as _attempts, rewrite_facts
+from orchestrator.git.base_sync import attempts as _attempts, persistence, rewrite_facts
 from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import (
     owed_events as _owed_events,
@@ -425,24 +425,35 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
                 self.assertEqual(self.pinned_fields(*replacement), tuple(replacement.values()))
 
     def test_a_successor_behind_keeps_its_floor(self) -> None:
-        # Another road settles a newer run right behind the retirement over the checkout gone: the proof holds, and the
-        # tick's state, withheld, written whole behind it lowers no floor and puts no run back.
-        self._run = self.settles_then_dies()
-        self._written = None
-        context = self.loses_the_checkout()
-        with patch.object(self.gh, _EDITS, partial(self._settles_behind, self.gh.edit_pinned_state)):
-            self.assertFalse(_parks.proves_before_a_park(context))
-        self.gh.write_pinned_state(self.issue, context.state)
-        self.assertEqual(self.pinned_fields(readings.KEY_REVISION_FLOOR), (self._written.revision,))
-        self.assertEqual(readings.pinned_records(self)[1].receipt, self._written.receipt)
+        # Another road settles a newer run right behind the retirement over the checkout gone, or only records one
+        # pending there, and the checkout is put back: the proof holds, or the reset the git owner records directly
+        # is not made, the checkout left on the landed head, and the tick's state, withheld, written whole behind it
+        # lowers no floor and puts no run back.
+        for settles in (True, False):
+            with self.subTest(settled=settles):
+                self.setUp()
+                self._run = self.settles_then_dies()
+                self._written = None
+                self._settling = settles
+                context = self.loses_the_checkout()
+                asks = _parks.proves_before_a_park if settles else partial(persistence._resets, reset_sha=self.anchor)
+                with patch.object(self.gh, _EDITS, partial(self._settles_behind, self.gh.edit_pinned_state)):
+                    self.assertFalse(asks(context))
+                self.assertEqual(self._wt_head(), self._run[0])
+                self.gh.write_pinned_state(self.issue, context.state)
+                self.assertEqual(self.pinned_fields(readings.KEY_REVISION_FLOOR), (self._written.revision,))
+                standing = readings.pinned_records(self)[1 if settles else 0]
+                self.assertEqual(standing.receipt, self._written.receipt)
 
     def _settles_behind(self, live, issue, staged, **options):
-        """`live`, the pinned-comment edit, a newer run settled on the run's binding behind the first retiring it."""
+        """`live`, the pinned-comment edit, a newer run recorded on the run's binding behind the first retiring it --
+        settled where `_settling` -- and the checkout put back."""
         answered = live(issue, staged, **options)
         retired = answered is PinnedEdit.EDITED and _retires(staged, **options)
         if retired and self._written is None:
             binding = self._run[1].binding
-            self._written = settled_support.records_a_newer_run(self, settles=True, binding=binding)
+            self._written = settled_support.records_a_newer_run(self, settles=self._settling, binding=binding)
+            self._away.rename(self._wt)
         return answered
 
     def _assert_held_as_written(self, race: str) -> None:

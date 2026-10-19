@@ -91,6 +91,14 @@ _USAGE_ROADS = (
     (_LOST_ANSWER, 5), (_OVERWRITTEN, 7), (_UNSENT, 7), (_RECORDED, 5),
 )
 
+# Who a replacement attempt raced under the write landing the staged usage is asked of, and whether it was pinned as
+# that write read the comment and the attempt read put back right ahead of its edit, rather than pinned there.
+_REPLACING = (
+    (_parks.records_the_reset, False),
+    (_parks.proves_before_a_park, False),
+    (_parks.proves_before_a_park, True),
+)
+
 # How each lost-answer road answers the reset record's blank: whether it is sent, and whether another road writes
 # over the comment right then.
 _LOSES = MappingProxyType({
@@ -342,7 +350,7 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # The tick stages usage alone, taken off the state for the block, whose first write lands it in a write of
         # its own whose answer is lost: taken in as sent, the tick's state withheld, so the hold recorded behind adds
         # none of it again.
-        counted, context = self._stages_usage()[1:]
+        context, counted = self._stages_usage()[1:]
         with (
             patch.object(self.gh, _EDITS, partial(_answers_lost, self.gh.edit_pinned_state)),
             keeps_the_staging(context) as keeping,
@@ -355,28 +363,38 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(readings.pinned(self).get(_USAGE), counted + 5)
 
     def test_a_replacement_under_the_totals_holds(self) -> None:
-        # Another road pins a fresh attempt right ahead of the write landing the staged usage, the first the reset's
-        # record makes, or the proof before a park makes over a comment carrying no evidence left to prove: either
-        # reads that attempt behind it and holds, the tick's state withheld, so nothing written for the attempt it
-        # recovers lands over the one standing.
-        for asks in (_parks.records_the_reset, _parks.proves_before_a_park):
-            with self.subTest(asks=asks.__name__):
+        # Over a comment carrying no evidence left to prove, another road pins a fresh attempt right ahead of the
+        # write landing the staged usage, the first the reset's record or the proof before a park makes -- or has it
+        # pinned as that write reads the comment and puts the comment read before back right ahead of its edit:
+        # either reads that attempt and holds, the tick's state withheld, so nothing written for the attempt it
+        # recovers lands over what that road wrote last.
+        for asks, restores in _REPLACING:
+            with self.subTest(asks=asks.__name__, restores=restores):
                 self.setUp()
-                head, _, context = self._stages_usage(retired=asks is _parks.proves_before_a_park)
-                replacement = fixtures.attempt_record(head, head, git_support.PR_NUMBER, git_support.REVIEWING, head)
-                self._raced = ({**dict.fromkeys(readings.ATTEMPT_KEYS), **replacement}, False)
+                head, context = self._stages_usage(retired=True)[:2]
+                pinned = {
+                    **dict.fromkeys(readings.ATTEMPT_KEYS),
+                    **fixtures.attempt_record(head, head, git_support.PR_NUMBER, git_support.REVIEWING, head),
+                }
+                self._raced = (pinned, False)
+                if restores:
+                    self._raced = (self.gh.read_pinned_state(self.issue).data, False)
+                    self.gh.write_pinned_state(self.issue, PinnedState(
+                        comment_id=context.state.comment_id, state_data={**self._raced[0], **pinned},
+                    ))
                 with patch.object(self.gh, _EDITS, partial(self._races_the_totals, self.gh.edit_pinned_state)):
                     self.assertFalse(asks(context))
 
                 self.assertTrue(context.state.withheld)
                 self.gh.write_pinned_state(self.issue, context.state)
-                self.assertEqual(self.pinned_fields(*replacement), tuple(replacement.values()))
+                pinned = self._wrote
+                self.assertEqual(self.pinned_fields(*pinned), tuple(pinned.values()))
 
     def test_movement_under_the_totals_is_proved(self) -> None:
         # The report moves right ahead of the write landing the staged usage, the hold proof's first, and is put
         # back right behind it: that write read the run moving, so the proof invalidates it whole, and the hold's
         # record lands the usage that write did not.
-        counted, context = self._stages_usage()[1:]
+        context, counted = self._stages_usage()[1:]
         settled = readings.pinned_records(self)[1]
         report = self.pinned_fields(_REPORTED[0])[0]
         moved = {**report, "revision": report["revision"] + 1}
@@ -389,7 +407,7 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def _stages_usage(self, *, retired: bool = False) -> tuple:
         """Settle the run and kill its finish -- and retire it, where `retired` -- then stage 5 of usage on a context
-        read off the comment; the head, the usage before, and that context."""
+        read off the comment; the head, that context, and the usage before."""
         head = self.settles_then_dies()[0]
         if retired:
             state = self.gh.read_pinned_state(self.issue)
@@ -398,16 +416,17 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         context = self._over(self.gh.read_pinned_state(self.issue))
         counted = context.state.get(_USAGE) or 0
         context.state.set(_USAGE, counted + 5)
-        return head, counted, context
+        return head, context, counted
 
     def _races_the_totals(self, live, issue, staged, **options):
         """`live`, the pinned-comment edit; the first moving the usage total sent behind `_raced`'s fields, written
-        over the comment as another road would, and put back right behind it where `_raced` asks."""
+        over the comment as another road would, kept as `_wrote`, and put back right behind it where `_raced` asks."""
         fields, puts_back = self._raced
         spends = staged.get(_USAGE) != options["over"].get(_USAGE)
         if not (fields and spends):
             return live(issue, staged, **options)
         self._raced = ({}, False)
+        self._wrote = fields
         before = self.gh.read_pinned_state(issue)
         self.gh.write_pinned_state(
             issue, PinnedState(comment_id=before.comment_id, state_data={**before.data, **fields}),
