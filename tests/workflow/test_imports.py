@@ -142,6 +142,8 @@ _ENGINE_OWNERS = (
     "rewrite_retry",
     "review_findings",
     "review_findings_fences",
+    "review_findings_pytest",
+    "review_findings_summary",
     "run_budget",
     "run_circuit",
     "run_grant",
