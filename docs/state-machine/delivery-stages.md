@@ -1587,15 +1587,15 @@ because there it is the claim that this stage has already rerouted rather than a
   tick's state from every whole-state write, so a successor and the floor it raised are never written back over, and
   the usage the tick staged rides none of the proof's writes, or the reset record's asked directly: it lands first,
   ahead of them, in a guarded write of its own read like every other reading of theirs -- what it reads moving proved,
-  an attempt put in place holding them -- added to the total the comment then carries, never sent twice even where that
-  write's answer was lost, while the rest of the tick's staging, a gate's record among it, is sent again by the write
-  behind any whose answer was lost, nothing read into what survives on the comment
-  (`rewrite_recovery_staging.keeps_the_staging`). A tip the tick read blank holds an unrecorded reset where another road
-  put it back, movement the reset's own record read is retired before the reset goes on, evidence the reading behind
-  that retirement carries under a receipt read moving -- a successor, or the run put back -- retired in turn, and a tip
-  put back or an attempt pinned right behind that record, or behind the proof of what it read moving, holds the reset,
-  read off the comment afresh, the tick's state withheld, and a tick whose state carries another attempt by then -- one
-  a proof took in off the comment -- holds it with no blank written over that attempt's tip
+  an attempt put in place holding them, however little evidence they are left to prove -- added to the total the comment
+  then carries, never sent twice even where that write's answer was lost, while the rest of the tick's staging, a gate's
+  record among it, is sent again by the write behind any whose answer was lost, nothing read into what survives on the
+  comment (`rewrite_recovery_staging.keeps_the_staging`). A tip the tick read blank holds an unrecorded reset where
+  another road put it back, movement the reset's own record read is retired before the reset goes on, evidence the
+  reading behind that retirement carries under a receipt read moving -- a successor, or the run put back -- retired in
+  turn, and a tip put back or an attempt pinned right behind that record, or behind the proof of what it read moving,
+  holds the reset, read off the comment afresh, the tick's state withheld, and a tick whose state carries another
+  attempt by then -- one a proof took in off the comment -- holds it with no blank written over that attempt's tip
   (`rewrite_recovery_parks.records_the_reset`); so does a proof that reads another attempt in place of the one it
   recovers (`rewrite_landing_retirement.retires_unproved`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the

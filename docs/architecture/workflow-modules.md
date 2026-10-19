@@ -2618,7 +2618,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whether the tick's state still carries the attempt the recovery recovers
                             (`stands_as_recovered`); and a block a checkout gone from disk cuts short
                             (`LosesTheCheckout`), its git request there read as that loss, back by then or not, and
-                            recorded for a road (`RecordsALostCheckout`) over the comment as the tick last read it,
+                            recorded for a road (`RecordsALostCheckout`) over the tick's state staged with what the tick
+                            staged ahead of the road alone -- usage, a gate's record -- the road's own staging dropped,
                             and a checkout the last word reads off the landing owed as that loss, whatever refusal is
                             weighed ahead of it (`LosesTheCheckout.hears`); a remote read off the landing owes none
     rewrite_recovery_staging.py
@@ -2635,7 +2636,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proof's writes and lands first, ahead of every other write the proof or the reset's record
                             makes, in a guarded write of its own, decided on nothing and added to the total the comment
                             then carries, read through the client that asks every reading, so what it reads moving is
-                            proved and an attempt put in place holds the caller; a lost answer there taken as sent so it
+                            proved and an attempt put in place holds the caller, however little evidence it is left to
+                            prove; a lost answer there taken as sent so it
                             is never sent twice, a refusal staged again for the record behind (`adds_the_totals`), and a
                             context already kept handed back as it is, so
                             the reset's recorder keeps it alike asked inside a proof or directly by the git owner
