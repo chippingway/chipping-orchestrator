@@ -1411,7 +1411,9 @@ because there it is the claim that this stage has already rerouted rather than a
   report, or approval neither refuses it nor is written over, and a carry's own approval goes with it -- falling back
   to the tick's reading (`rewrite_finish_writes.ABANDONMENT`) where that write does not land, and held rather than
   written over an attempt another road put in place of the one read. With no room for its history entry the
-  transaction is dropped and the recorded base tip blanked, refusing it for good. Nothing put back revives it.
+  transaction is dropped and the recorded base tip blanked, refusing it for good. Nothing put back revives it. A
+  finish held to the dormant settled-evidence policy keeps the transaction recorded instead, only the base tip
+  blanked where one is recorded, and holds the route until room is made.
 - **Base-rewrite evidence, settled under the anchor**: a transaction the finish recorded for the landed head -- or a
   captured one a later finish proved again -- is published and settled by the finish itself before the announcement,
   the relabel, or the retirement, with the attempt still standing (`workflow/engine/rewrite_finish_settlement.py`),

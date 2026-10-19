@@ -1457,8 +1457,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             abandonment is guarded by the comment read afresh, falls back to the tick's own reading
                             (`rewrite_finish_writes.ABANDONMENT`), keeps what another road wrote, is refused over an
                             attempt another road put in place of the one read, and with no room for history drops the
-                            transaction and blanks the attempt's recorded base tip. Under the dormant settled-evidence
-                            policy a settlement another finish made of the transaction while its abandonment was asked
+                            transaction and blanks the attempt's recorded base tip -- under the dormant settled-evidence
+                            policy it keeps the transaction recorded instead, only the tip blanked where one is
+                            recorded, and holds the route until room is made. Under that policy a settlement another
+                            finish made of the transaction while its abandonment was asked
                             is invalidated instead (`rewrite_finish_unconfirmed.reconciles_the_abandonment`) -- and
                             so is one landed right behind an abandonment that did land, the comment read afresh
                             behind it -- a successor under another receipt kept and, where one came in beside that
