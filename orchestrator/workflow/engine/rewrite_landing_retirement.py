@@ -15,9 +15,10 @@ releases the attempt, and a park that keeps it -- and they are dormant: no
 recovery road, park, eligibility gate, or dispatcher hold is handed them yet,
 so every recovery context still carries the captured-only answers alone.
 
-- Over a reset that landed (`retires_over_the_reset`, the answer a recovery
-  context's `settles_over_a_reset` would carry): the transaction is abandoned
-  on the state the park lands, as the captured-only answer stages it
+- Over a reset that landed, or a guarded clear over a checkout back on the
+  anchor (`retires_over_the_reset`, the answer a recovery context's
+  `settles_over_a_reset` would carry): the transaction is abandoned on the
+  state the park or clear lands, as the captured-only answer stages it
   (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
   invalidated into history whole on that same state, its revision, binding,
   and provenance kept, so it goes with the attempt's release or neither goes.
@@ -29,7 +30,8 @@ so every recovery context still carries the captured-only answers alone.
   the comment has room, however the checkout is put back meanwhile -- and the
   answer is False, for the git owner to keep the attempt and hold the tick
   with nothing released or parked
-  (`git/base_sync/persistence._releases_over_the_reset`).
+  (`git/base_sync/persistence._releases_over_the_reset`,
+  `git/base_sync/snapshot._clear_ineligible_recovery`).
 - Before a park that keeps the attempt (`retires_unproved`): the transaction
   is proved again and abandoned where it moved
   (`rewrite_landing_moved.proves_captured`), and settled evidence is proved
@@ -48,11 +50,13 @@ so every recovery context still carries the captured-only answers alone.
   proof's finishes read -- their abandonment's, invalidation's, and rechecks'
   own readings among them -- is read through a client that hands it to the
   proof's classifier first (`rewrite_recovery_readings`), so movement any of
-  them read stands for every step behind. With no checkout on
-  disk there is nothing to prove the landing over, so both are retired as
-  over a reset, on the state the park lands; the movement is recorded against
-  them first, in a write of its own, by the proof that hands this one in
-  (`rewrite_recovery_parks.proves_before_a_park`).
+  them read stands for every step behind. A checkout gone from disk, before
+  the proof or under one of its own git requests however soon it returns,
+  leaves nothing to prove the landing over, so the recorder the context
+  carries records the reset and retires both in writes of their own
+  (`rewrite_recovery_parks.records_the_reset`); with none, both are retired as
+  over a reset, on the state the park lands. A proof whose rechecks laid
+  another attempt over the tick's state holds rather than park over it.
 
 The dormant guarded records a recovery park or hold lands behind that proof
 (`rewrite_recovery_parks`) read three more things here. The receipts of what
@@ -90,6 +94,7 @@ from orchestrator.git.base_sync import (
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    pinned_commit as _commit,
     report_commits as _commits,
     rewrite_finish_readiness as _readiness,
     rewrite_finish_writes as _writes,
@@ -98,10 +103,16 @@ from orchestrator.workflow.engine import (
     verification_durable as _durable,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit
+from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit, spelled
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_rechecks import invalidates_rechecked, lays
-from orchestrator.workflow.engine.rewrite_recovery_readings import asks_every_reading, owed_moves, tip_moves
+from orchestrator.workflow.engine.rewrite_recovery_readings import (
+    LosesTheCheckout,
+    asks_every_reading,
+    owed_moves,
+    stands_as_recovered,
+    tip_moves,
+)
 from orchestrator.workflow.engine.verification_records import (
     CURRENT_EVIDENCE,
     PENDING_EVIDENCE,
@@ -112,11 +123,13 @@ from orchestrator.workflow.engine.verification_records import (
 log = logging.getLogger("orchestrator.workflow")
 
 # The attempt's members a tip move is read against (`attempt_as_read`): every
-# one but the bookkeeping a finish of the landing puts down as it announces
-# and relabels -- the record of its event, the mark, and the record of its
-# relabel -- which advances the attempt rather than replacing it.
+# one but the bookkeeping a finish of the landing puts down as it records,
+# announces, and relabels -- its evidence receipt, the record of its event,
+# the mark, and the record of its relabel -- which advances the attempt rather
+# than replacing it, so a tip moved beside a successor's receipt moves it.
 _AS_READ = tuple(
     member for member in _attempts._ATTEMPT_KEYS if member not in {
+        _base_sync_state._PENDING_EVIDENCE_RECEIPT,
         _base_sync_state._PENDING_ANNOUNCED_EVENT,
         _base_sync_state._PENDING_ANNOUNCED_SHA,
         _base_sync_state._PENDING_RELABELLED,
@@ -138,8 +151,10 @@ def retires_over_the_reset(
 
     A recovery's answer to a reset that landed, asked by the git owner before
     the attempt is dropped from `context.state`: the reset took the checkout
-    off the landed head, which is movement under both. The transaction is
-    abandoned as the captured-only answer abandons it
+    off the landed head, movement under both, as is a checkout back on the
+    anchor under a label the refresh does not drive, whose guarded clear asks
+    it too (`git/base_sync/snapshot._clear_ineligible_recovery`). The
+    transaction is abandoned as the captured-only answer abandons it
     (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
     invalidated on the same state, into history whole, its revision and
     binding kept, so both land with the attempt's release or neither does.
@@ -219,37 +234,57 @@ def retires_unproved(
     go on while evidence still standing carries movement read only behind its
     own proof, both are asked again with it; a proof that reads movement
     retires what moved or answers False, so the asking stops there.
-    With no checkout on disk both are retired on the state
-    the park lands (`retires_over_the_reset`). False only where evidence still
+    A checkout gone before the proof or found gone by one of its requests,
+    however soon it returns, has nothing to prove the landing over, so the
+    recorder `context` carries (`records_before_a_reset`) records the reset and
+    retires both, its answer the proof's; with none both are retired on the
+    state the park lands (`retires_over_the_reset`). False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
-    its history entry among it, its movement recorded instead -- for the git
-    owner to hold the tick with nothing parked.
+    its history entry among it, its movement recorded instead -- or where the
+    comment the proof read carries another attempt in place of the one
+    `context` recovers, laid over the tick's state by its rechecks
+    (`rewrite_recovery_readings.stands_as_recovered`): either way for the git
+    owner to hold the tick with nothing reset, cleared, or parked over it.
     """
     moved = dict(moved or {})
     if not (moved or receipts(context.state)):
         return True
-    if not context.worktree.is_dir():
-        return retires_over_the_reset(context, _landing_moved._CHECKOUT_GONE)
-    branch = _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
-    unread = _base_sync_models._AutoRebaseRecoverySnapshot(branch=branch, local_head="")
+    unread = _base_sync_models._AutoRebaseRecoverySnapshot(
+        branch=_naming._resolve_branch_name(context.state, context.spec, context.issue.number), local_head="",
+    )
     asked = asks_every_reading(
         context, lambda reading: moved_under(reading, tick=context.state, into=moved),
     )
-    proved = (
-        _landing_moved.proves_captured(
-            asked,
-            unread,
-            moved.get(getattr(_landing_records.captured(context.state), "receipt", None)),
-            settled=True,
-            asks=lambda reading, receipt: (
-                moved_under(reading, tick=context.state, into=moved).get(receipt)
+    proved = None
+    with LosesTheCheckout(context):
+        proved = all((
+            _landing_moved.proves_captured(
+                asked,
+                unread,
+                moved.get(getattr(_landing_records.captured(context.state), "receipt", None)),
+                settled=True,
+                asks=lambda reading, receipt: (
+                    moved_under(reading, tick=context.state, into=moved).get(receipt)
+                ),
             ),
-        ),
-        _proves_settled(asked, unread, moved),
-    )
-    if all(proved) and moved.keys() & receipts(context.state):
+            _proves_settled(asked, unread, moved),
+        )) if context.worktree.is_dir() else None
+    if proved is None:
+        records = context.records_before_a_reset
+        return (
+            records(context, lost=(context.worktree,))
+            if records else retires_over_the_reset(context, _landing_moved._CHECKOUT_GONE)
+        )
+    if proved and moved.keys() & receipts(context.state):
         return retires_unproved(context, moved)
-    return all(proved)
+    if proved and not stands_as_recovered(context):
+        log.warning(
+            "issue=#%d another auto-rebase attempt stands in place of the one its recovery read; holding with "
+            "nothing reset, cleared, or parked, for the next tick to recover the attempt the comment carries",
+            context.issue.number,
+        )
+        return False
+    return bool(proved)
 
 
 def receipts(state) -> frozenset[str]:
@@ -295,8 +330,14 @@ def reconciles(
     it. A comment that would not read is read
     once more, so one failed request does not leave the proof behind it
     classifying the tick's older evidence while its own reading carries a
-    successor. Empty where nothing moved; `moved` alone, laying nothing,
-    where the comment would not read either time.
+    successor. Each attempt member the comment carries as `context.state`
+    staged it -- a record sent with its answer lost that landed the tick's own
+    staging, a base tip staged back behind a reset git refused among it -- is
+    taken in as read too, so the proof behind takes that attempt for this
+    tick's own, not one another road put in its place; the receipt on the
+    attempt is laid beside the evidence, so a successor settled under a
+    receipt of its own is the attempt's. Empty where nothing moved; `moved`
+    alone, laying nothing, where the comment would not read either time.
     """
     moved = dict(moved or {})
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
@@ -310,7 +351,11 @@ def reconciles(
         if reads(durable) is None and (
             getattr(reads(context.state), "receipt", None) in moved
         )
-    })
+    } | {_base_sync_state._PENDING_EVIDENCE_RECEIPT})
+    _commit.takes_in(context.state, durable.data, [
+        member for member in _attempts._ATTEMPT_KEYS
+        if spelled(durable.data, member) == spelled(context.state.data, member)
+    ])
     return moved
 
 
@@ -320,10 +365,10 @@ def attempt_as_read(state: PinnedState) -> PinnedCommit | None:
     As the comment carried it when the tick last read it, not as the tick
     holds it now: a tip the tick staged back over its own blank -- a reset git
     refused, whose recorded blank landed -- is no tip another road moved.
-    Captured without the announcement's bookkeeping (`_AS_READ`), so a comment
-    carrying a finish of the landing's event record, mark, or relabel record
-    beside the moved tip is still this attempt. None where that reading
-    records no tip, so names no base to move.
+    Captured without a finish's bookkeeping (`_AS_READ`), so a comment
+    carrying a finish of the landing's evidence receipt, event record, mark,
+    or relabel record beside the moved tip is still this attempt. None where
+    that reading records no tip, so names no base to move.
     """
     read = state
     if state.synced is not None:

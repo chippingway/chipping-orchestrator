@@ -105,10 +105,12 @@ from orchestrator.git.base_sync.rewrite_handoffs import _LandedRewrite, _PushOut
 from orchestrator.git.ref_transport import _RefRead
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import (
+    owed_events as _owed_events,
     rewrite_finish_captured as _captured,
     rewrite_landing_records as _landing_records,
     verification_carries as _carries,
     verification_records as _records,
+    verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING, Asks, last_word
@@ -260,8 +262,11 @@ def proves_captured(
     the attempt beside it taken in. `asks`, which that dormant proof hands in
     too, is asked of every comment the proof and the last word read, under
     the transaction's receipt, so a base tip read blank or repointed there
-    moves it however soon it is put back. Every production caller proves it
-    as the default does.
+    moves it however soon it is put back. Held to that policy, the run still
+    stands where another finish settled it under its receipt and the
+    invalidation did not land (`_stands`), and a checkout the finish reads off
+    the landing is owed as a loss (`_finish`). Every production caller proves
+    it as the default does.
     """
     pending = _landing_records.captured(context.state)
     if pending is None:
@@ -279,7 +284,27 @@ def proves_captured(
     if moved is None:
         return True
     _captured.stands_before_the_route(finish, proof=moved)
+    if settled:
+        return not _stands(finish, pending)
     return _captured.recorded(finish, logged=False) is None
+
+
+def _stands(finish: LandedFinish, pending: _records.PendingEvidence) -> bool:
+    """Whether anything of `pending` stands once the last word asked its abandonment; logged where it does.
+
+    Still recorded -- the abandonment not landed, a successor or an unread comment among the reasons -- or settled by
+    another finish meanwhile, its invalidation (`rewrite_finish_captured.stands_before_the_route`) not landed and the
+    movement recorded instead: either way the caller holds.
+    """
+    current = _settlement.read_current_evidence(finish.state)
+    settled = current is not None and current.receipt == pending.receipt
+    if not settled and _captured.recorded(finish, logged=False) is None:
+        return False
+    log.warning(
+        "issue=#%d verification evidence revision %d captured for %.8s still stands behind its abandonment",
+        finish.issue.number, pending.revision, finish.head,
+    )
+    return True
 
 
 def _finish(
@@ -292,9 +317,13 @@ def _finish(
 ) -> LandedFinish:
     """The finish of `head`'s landing as `snapshot` read it, over `candidate` or the checkout read now.
 
-    `settled` holds it to the dormant settled-evidence policy (`LandedFinish.proves_settled`), for dormant proofs.
+    `settled` holds it to the dormant settled-evidence policy (`LandedFinish.proves_settled`), for dormant proofs,
+    and notes a checkout it reads off `head` as a loss owed for the next proof (`owed_events.owes_a_loss`).
     """
     read = candidate or _recovery_push._recovered_candidate(context, snapshot)
+    stood = candidate is not None or read.checkout.head in {"", head}
+    if settled:
+        _owed_events.owes_a_loss(context, stood)
     return LandedFinish(
         gh=context.gh,
         spec=context.spec,

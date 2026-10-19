@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
+from functools import partial
 
 from github.PullRequest import PullRequest
 
@@ -50,6 +51,8 @@ def _auto_rebase_label_is_eligible(
     context: _AutoRebaseContext,
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
     lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None,
+    settles_over_a_release: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
+    lands_a_clear: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
 ) -> bool:
     """Clear stale recovery state and reject labels refresh does not drive.
 
@@ -61,17 +64,24 @@ def _auto_rebase_label_is_eligible(
     and `lands_a_park` the park it records it through
     (`_AutoRebaseRecoveryContext.lands_a_park`), which the workflow's
     coordinator does not hand in yet, so that park writes the state whole.
+    `lands_a_clear` is the guarded record of the clear
+    (`_AutoRebaseRecoveryContext.lands_a_clear`), and `settles_over_a_release`
+    what that clear retires first, asked of the gate's own context as its
+    `settles_over_a_reset`; neither is handed in yet, so the clear is written
+    whole with nothing retired, as it always was.
     """
     if context.label in _PR_REFRESH_DETOUR_LABELS:
         return True
     if context.pending_pre_rebase_sha:
-        _replay_cleanup._answers_an_ineligible_label(
-            replace(
-                recovery._recovery_context(context),
-                proves_before_a_park=proves_before_a_park,
-                lands_a_park=lands_a_park,
-            ),
+        recovering = replace(
+            recovery._recovery_context(context),
+            proves_before_a_park=proves_before_a_park,
+            lands_a_park=lands_a_park,
+            lands_a_clear=lands_a_clear,
         )
+        if settles_over_a_release is not None:
+            recovering = replace(recovering, settles_over_a_reset=partial(settles_over_a_release, recovering))
+        _replay_cleanup._answers_an_ineligible_label(recovering)
     log.debug(
         "issue=#%d behind %s/%s by %d but label=%r; not auto-rebasing",
         context.issue.number,

@@ -19,13 +19,19 @@ classifier (`rewrite_landing_retirement.moved_under`): blank or repointed
 beside the attempt as the tick read it, every evidence; blank beside an
 attempt still standing, evidence the tick never held. `owed_moves` reads
 what it records moving under a transaction captured for the head, as the
-complete dormant finish reads one still owed.
+finish held to the dormant settled-evidence policy reads one still owed.
+`stands_as_recovered` says whether the tick's state, the proof's rechecks laid
+over it, still carries the attempt the recovery recovers, not one another road
+put in its place. `LosesTheCheckout` lets the proof read a checkout gone from
+disk under one of its own requests as that loss, not raise it past the record
+it owes; `RecordsALostCheckout` records that loss for a road owing it.
 
-It is dormant, as that proof is: no recovery context the workflow builds
-reaches it.
+They are dormant, as that proof is: no recovery context or road the workflow
+builds reaches them.
 """
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterable
 from dataclasses import replace
 
@@ -35,15 +41,19 @@ from orchestrator.git.base_sync import attempt_records as _attempt_records, stat
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedEdit, PinnedState
-from orchestrator.workflow.engine import verification_proof as _proof, verification_records as _records
-from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit
+from orchestrator.workflow.engine import (
+    pinned_commit_models as _commit_models,
+    rewrite_landing_records as _landing_records,
+    verification_proof as _proof,
+    verification_records as _records,
+)
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.rewrite_finish_outranking import outranks_the_owed
 
 # The base tip the attempt recorded its replay as made onto, the one member of
 # the attempt a comment may read moved -- blanked, as a reset is recorded, or
-# repointed -- beside every other member as the tick read it, where any other
-# member moved is another attempt (`tip_moves`).
+# repointed -- beside every other member as the tick read it, a finish's
+# bookkeeping aside, where any other member moved is another attempt (`tip_moves`).
 _TIP_ALONE = (_base_sync_state._PENDING_REWRITE_BASE,)
 
 # What that move is under the evidence the comment carries for the landed
@@ -59,6 +69,10 @@ _TIP_MOVED_UNDER_THE_RECORD = ReportEvidence(
 _SETTLED_UNBASED = ReportEvidence(
     ReportEvidenceVerdict.DEFER, "evidence was read beside an attempt that records no base tip its head was made onto",
 )
+
+# A checkout read off the landing -- back on the anchor, or gone from disk --
+# under every evidence the tick held, however soon it is put back.
+LEFT_THE_CHECKOUT = ReportEvidence(ReportEvidenceVerdict.DEFER, "the checkout left the landing: on the anchor, or gone")
 
 # A readable revision read spent past a transaction captured for the head: it
 # outranks that transaction for good, however soon the floor is put back.
@@ -108,6 +122,59 @@ class AsksEveryReading:
                 self._asks(reading)
 
 
+class LosesTheCheckout:
+    """A block a checkout gone from disk cuts short: a request of it there answered by that loss, not raised.
+
+    For the recovery's proof (`rewrite_landing_retirement.retires_unproved`):
+    a git request in a checkout gone meanwhile fails with `FileNotFoundError`,
+    swallowed where the checkout is gone by then or the failure names it, for
+    the proof to record that loss however soon it returned. Any other goes on.
+    """
+
+    def __init__(self, context: _AutoRebaseRecoveryContext) -> None:
+        self._context = context
+
+    def __enter__(self) -> None:
+        """Enter the block, handing it nothing."""
+
+    def __exit__(self, kind, error, trace) -> bool:
+        worktree = self._context.worktree
+        named = str(getattr(error, "filename", None)) == str(worktree)
+        return isinstance(error, FileNotFoundError) and (named or not worktree.is_dir())
+
+
+class RecordsALostCheckout(LosesTheCheckout):
+    """A recovery road's block a checkout gone from disk cuts short, that loss recorded before the road unwinds.
+
+    The recorder `context` carries, or `records` where handed, records the reset against the evidence for the landed
+    head and retires it in writes of its own, however soon the checkout returns, the tick's state withheld for the
+    road's caller to hold; over a comment carrying neither, the failure goes on.
+    """
+
+    def __init__(self, context: _AutoRebaseRecoveryContext, records=None) -> None:
+        super().__init__(replace(context, records_before_a_reset=records) if records else context)
+
+    @classmethod
+    def as_read(cls, state: PinnedState) -> PinnedState:
+        """`state` as the tick last read it, nothing it staged since."""
+        read = PinnedState(comment_id=state.comment_id, state_data=json.loads(state.synced))
+        read.synced = state.synced
+        return read
+
+    def __exit__(self, kind, error, trace) -> bool:
+        state = self._context.state
+        records = self._context.records_before_a_reset
+        lost = super().__exit__(kind, error, trace)
+        if not lost or records is None or state.synced is None:
+            return False
+        read = self.as_read(state)
+        if _landing_records.captured(read) is None and _landing_records.settled(read) is None:
+            return False
+        records(replace(self._context, state=read), lost=(self._context.worktree,))
+        state.withheld = True
+        return True
+
+
 def asks_every_reading(
     context: _AutoRebaseRecoveryContext, asks: Callable[[PinnedState], object],
 ) -> _AutoRebaseRecoveryContext:
@@ -119,8 +186,19 @@ def asks_every_reading(
     return replace(context, gh=AsksEveryReading(context.gh, context.issue.number, asks))
 
 
+def stands_as_recovered(context: _AutoRebaseRecoveryContext) -> bool:
+    """Whether `context.state` still carries the attempt `context` recovers, rather than another in its place.
+
+    Named by the anchor and replay it records, for a caller to hold over an
+    attempt another road put in place; its base tip and bookkeeping never count.
+    """
+    state = context.state
+    read = (state.get(_base_sync_state._PENDING_PUSH_SHA), _attempt_records._pending_rewrite(state))
+    return read == (context.pending_pre_rebase_sha, context.pending_rewrite)
+
+
 def tip_moves(
-    comment: PinnedState, attempt: PinnedCommit | None,
+    comment: PinnedState, attempt: _commit_models.PinnedCommit | None,
 ) -> tuple[ReportEvidence | None, ReportEvidence | None]:
     """What `comment`'s base tip records moving: under evidence the tick held, then under evidence it never held.
 
@@ -145,7 +223,7 @@ def owed_moves(comment: PinnedState, pending: _records.PendingEvidence) -> tuple
 
     A review or report record off its binding (`verification_proof.recorded_verdict`)
     and a readable revision spent past it (`rewrite_finish_outranking.outranks_the_owed`),
-    as the complete dormant finish reads a transaction still owed
+    as a finish held to the dormant settled-evidence policy reads a transaction still owed
     (`rewrite_finish_settled.reads_moving`); None for each that holds.
     """
     spent = _SPENT_PAST_THE_OWED if outranks_the_owed(comment, pending) else None

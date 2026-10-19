@@ -187,7 +187,9 @@ class _AutoRebaseRecoveryContext:
     # What the workflow's recovery owes over a reset that takes the checkout
     # off the head the attempt landed, staged on `state` before the attempt is
     # dropped from it, so it rides the park's write with that release or not
-    # at all (`persistence._reset_clear_and_park`). False keeps the attempt
+    # at all (`persistence._reset_clear_and_park`) -- and, where the guarded
+    # clear is handed in (`lands_a_clear`), on the clear of a checkout back on
+    # the anchor (`snapshot._clear_ineligible_recovery`). False keeps the attempt
     # and holds, nothing dropped or parked: a record that cannot go with the
     # release. Any other answer releases it, so the captured-only answer the
     # workflow's recovery hands on every road's context, which answers None,
@@ -231,6 +233,16 @@ class _AutoRebaseRecoveryContext:
     # context the workflow builds does until it hands in that park, which is
     # dormant (`workflow/engine/rewrite_recovery_parks.lands_a_park`).
     lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None
+    # How a clear of the attempt is recorded (`snapshot._lands_the_clear`):
+    # over the comment read afresh, a successor settled meanwhile refusing it,
+    # True where it landed and False holding the tick. None writes the state
+    # whole, as every context the workflow builds does until it hands in that
+    # clear, which is dormant (`workflow/engine/rewrite_recovery_parks.lands_a_clear`).
+    lands_a_clear: Callable[[_AutoRebaseRecoveryContext], bool] | None = None
+    # The checkout's HEAD as a road read it ahead of the proof, which weighs it
+    # against the evidence's own head (`rewrite_recovery_parks.proves_before_a_park`).
+    # Empty, as every road the workflow builds leaves it, weighs nothing.
+    heads_read: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -13,12 +13,18 @@ recorded and unsettled, a stage's baseline, a squash's terms.
 The recovery clears the attempt and lets the tick go on, and the selection
 asked again holds the branch: nothing rebased or pushed, the park and the
 reply left as they stood. Once the record's owner spends it, the next refresh
-rebases, pushes once, and spends the reply.
+rebases, pushes once, and spends the reply. Handed the dormant guarded clear
+(`guarded_recovery_support`), the clear is decided on the evidence records as
+read, so a transaction another road records while the recovery fetches refuses
+it, keeping that transaction, its revision floor, and the attempt.
 """
 from __future__ import annotations
 
 import unittest
+from functools import partial
+from unittest.mock import patch
 
+from orchestrator.git import branch_transport
 from orchestrator.workflow.engine import (
     report_record_state as _report_state,
     report_records as _report_records,
@@ -26,10 +32,12 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import (
+    guarded_recovery_support as guarded,
     rewrite_finish_evidence_test_support as finish_support,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
+    settled_finish_support as settled,
 )
 
 _AWAITING_HUMAN = "awaiting_human"
@@ -45,6 +53,9 @@ _REPORT_PENDING = "developer_report_pending"
 # The records a recovery's clear leaves holding the branch, each spelled as
 # the owner that spends it reads it.
 _HOLDS = (_REPORT_PENDING, "read_only_baseline_sha", "late_collapse_head")
+
+# The branch transport's fetch, read before any case stands in for it.
+_FETCH = branch_transport._authed_fetch
 
 
 def _holds_beside_an_unstarted_attempt(case: support.VerificationRecoveryCase, hold: str) -> int:
@@ -71,6 +82,14 @@ def _holds_beside_an_unstarted_attempt(case: support.VerificationRecoveryCase, h
     reply = case.gh.comment(case.issue, "/orchestrator continue")
     reply.user.login = case.issue.user.login
     return reply.id
+
+
+def _records_while_fetching(case, recorded: list, spec, ref: str, **options):
+    """The branch's fetch, a newer transaction another road records behind its first answer, into `recorded`."""
+    fetched = _FETCH(spec, ref, **options)
+    if "issue-7" in ref and not recorded:
+        recorded.append(settled.records_a_newer_run(case))
+    return fetched
 
 
 def _spends(case: support.VerificationRecoveryCase, hold: str) -> None:
@@ -108,6 +127,20 @@ class UnstartedRecoveryHoldsTest(support.VerificationRecoveryCase, unittest.Test
                 _spends(self, hold)
                 self.recovers()
                 self._assert_rebased(reply)
+
+    def test_a_newer_transaction_refuses_the_clear(self) -> None:
+        # Another road records a transaction while the recovery fetches: the guarded clear, decided on the evidence
+        # records as read, is refused, so that transaction and its revision floor stand, the attempt kept for the next.
+        git_support.advances_the_base(self)
+        _holds_beside_an_unstarted_attempt(self, _HOLDS[1])
+        recorded: list = []
+        fetches = partial(_records_while_fetching, self, recorded)
+        with patch.object(branch_transport, "_authed_fetch", fetches), guarded.guarded_roads():
+            self.recovers()
+        pinned = readings.pinned(self)
+        floor, anchored = pinned[readings.KEY_REVISION_FLOOR], pinned[readings.KEY_PENDING_PUSH]
+        self.assertEqual(readings.records(pinned)[0], recorded[0])
+        self.assertEqual((floor, anchored), (recorded[0].revision, self.anchor))
 
     def _assert_held(self, hold: str, parked: tuple) -> None:
         """The attempt cleared and nothing rebased or pushed: `hold` standing, and the park and reply as `parked`."""
