@@ -17,14 +17,16 @@ so every recovery context still carries the captured-only answers alone.
 
 - Over a reset that landed, or a guarded clear over a checkout back on the
   anchor (`retires_over_the_reset`, the answer a recovery context's
-  `settles_over_a_reset` would carry): the transaction is abandoned on the
-  state the park or clear lands, as the captured-only answer stages it
-  (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
-  invalidated into history whole on that same state, its revision, binding,
-  and provenance kept, so it goes with the attempt's release or neither goes.
-  With no room for its history entry it is never dropped: it stays current and
-  whole beside the attempt that keeps every reader off it, the base tip the
-  attempt recorded its replay as made onto blanked in a write of its own, so
+  `settles_over_a_reset` would carry): the transaction is abandoned into
+  history on the state the park or clear lands, as the captured-only answer
+  stages it (`rewrite_landing_moved.abandons_over_the_reset`), and settled
+  evidence is invalidated into history whole on that same state, its
+  revision, binding, and provenance kept, so it goes with the attempt's
+  release or neither goes. With no room for either's history entry neither is
+  dropped, as the captured-only answer drops a transaction it cannot abandon:
+  it stays pending or current and whole beside the attempt that keeps every
+  reader off it, the base tip the attempt recorded its replay as made onto,
+  where it records one, blanked in a write of its own, so
   every later proof of it reads movement
   (`rewrite_evidence_proof.standing_refusal`) and invalidates it whole once
   the comment has room, however the checkout is put back meanwhile -- and the
@@ -157,43 +159,50 @@ def retires_over_the_reset(
     anchor -- under a label the refresh does not drive, or of an attempt that
     never started -- whose guarded clear asks it too
     (`git/base_sync/snapshot._lands_the_clear`). The
-    transaction is abandoned as the captured-only answer abandons it
+    transaction is abandoned into history as the captured-only answer abandons it
     (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
     invalidated on the same state, into history whole, its revision and
     binding kept, so both land with the attempt's release or neither does.
-    With no room for its history entry the settled evidence is not dropped:
-    it stays current, whole, beside the attempt that keeps every reader off
-    it, and the movement is recorded instead by blanking the base tip the
-    attempt recorded its replay as made onto, so every later proof of the
-    evidence reads movement (`rewrite_evidence_proof.standing_refusal`) and
-    invalidates it whole once the comment has room -- putting the checkout
-    back first revives nothing. A reset recorded ahead of it has that blank
-    landed already (`rewrite_recovery_parks.records_the_reset`); a checkout
-    gone from disk has it landed here. It only shrinks the comment, so it
-    lands at once, guarded as the finish's own abandonment is
-    (`rewrite_finish_writes.ABANDONMENT`), with whatever else this answer
-    staged. False then, for the git owner to keep the attempt and hold the
-    tick with nothing parked until room is made. `why` names the write it
-    rides, logged.
+    With no room for either's history entry neither is dropped -- as the
+    captured-only answer drops a transaction it cannot abandon: what has no
+    room stays pending or current, whole, beside the attempt that keeps every
+    reader off it, and the movement is recorded instead by blanking the base
+    tip the attempt recorded its replay as made onto, where it records one, so
+    every later proof of the evidence reads movement
+    (`rewrite_evidence_proof.standing_refusal`) and retires it whole once the
+    comment has room -- putting the checkout back first revives nothing. A
+    reset recorded ahead of it has that blank landed already
+    (`rewrite_recovery_parks.records_the_reset`); a checkout gone from disk has
+    it landed here. It only shrinks the comment, so it lands at once, guarded
+    as the finish's own abandonment is (`rewrite_finish_writes.ABANDONMENT`),
+    with whatever else this answer staged. False then, for the git owner to
+    keep the attempt and hold the tick with nothing parked until room is made.
+    `why` names the write it rides, logged.
     """
-    _landing_moved.abandons_over_the_reset(context, why)
-    settled = _landing_records.settled(context.state)
-    if settled is None:
-        return True
-    log.info(
-        "issue=#%d invalidating verification evidence revision %d settled for %.8s, %s",
-        context.issue.number, settled.revision, settled.binding.target.target_head, why,
+    pending = _landing_records.captured(context.state)
+    kept = pending is not None and not _settlement.retire_pending_evidence(
+        PinnedState(state_data=dict(context.state.data)), pending,
     )
-    if _settlement.retire_current_evidence(context.state):
+    if not kept:
+        _landing_moved.abandons_over_the_reset(context, why)
+    settled = _landing_records.settled(context.state)
+    if settled is not None:
+        log.info(
+            "issue=#%d invalidating verification evidence revision %d settled for %.8s, %s",
+            context.issue.number, settled.revision, settled.binding.target.target_head, why,
+        )
+        kept = not _settlement.retire_current_evidence(context.state) or kept
+    if not kept:
         return True
-    context.state.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+    if context.state.get(_base_sync_state._PENDING_REWRITE_BASE) is not None:
+        context.state.set(_base_sync_state._PENDING_REWRITE_BASE, None)
     recorded = _commits.ReportCommit(context.gh, context.issue, context.state).lands(
         context.state, _writes.ABANDONMENT,
     )
     log.error(
-        "issue=#%d the pinned comment has no room to retire verification evidence revision %d settled for %.8s; "
-        "keeping it current beside the attempt, its base tip blanked (%s), and holding until room is made",
-        context.issue.number, settled.revision, settled.binding.target.target_head, recorded.status.value,
+        "issue=#%d the pinned comment has no room to retire the verification evidence a finish captured or settled "
+        "for the landed head; keeping it beside the attempt, its base tip blanked (%s), and holding until room is made",
+        context.issue.number, recorded.status.value,
     )
     return False
 

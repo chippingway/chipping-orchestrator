@@ -366,9 +366,10 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     evidence it settled, or one another road recorded or settled since that
     reading, so evidence the tick never saw refuses the reset rather than
     being left for a checkout put back to revive, and evidence settled behind
-    the blank reads it as movement. A tip the tick read blank is held to the
-    fresh comment too: one another road put back refuses the record and the
-    reset; still blank, nothing is sent. True where the blank stood or
+    the blank reads it as movement. A tip the tick read blank -- null, or not
+    recorded at all -- is held to the fresh comment too: one another road put
+    back refuses the record and the reset; still blank, nothing is sent, and
+    no field is added to a comment that may have no room for it. True where the blank stood or
     landed; False, logged, where it was refused or went unconfirmed, for the
     git owner to hold with nothing reset or cleaned -- the tick's state
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
@@ -461,7 +462,8 @@ def _blanks_the_tip(
             return None
         commit = _commits.ReportCommit(asked.gh, context.issue, context.state)
         staged = commit.staging()
-        staged.set(_TIP, None)
+        if staged.get(_TIP) is not None:
+            staged.set(_TIP, None)
         landed = commit.lands(staged, _writes.INVALIDATION)
         if landed.status is not _commit_models.CommitStatus.COMMITTED:
             log.warning(

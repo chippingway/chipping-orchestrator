@@ -253,8 +253,9 @@ def _lands(
 ) -> bool:
     """Retire what `context.state` holds as over a reset, land it as `write`, and read the comment afresh behind it.
 
-    With no room for history, or a last asking refused, the evidence stays current, its base tip blanked in a shrinking
-    write a replacement or successor refuses. False on the last asking, or where the comment would not read afresh.
+    With no room for history, or a last asking refused, the evidence stays pending or current, its base tip -- where it
+    records one -- blanked in a shrinking write a replacement or successor refuses. False on the last asking, or where
+    the comment would not read afresh.
     """
     _retirement.retires_over_the_reset(context, _LAST if behind else _GONE)
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)
@@ -264,8 +265,9 @@ def _lands(
         staged = PinnedState(
             comment_id=context.state.comment_id, state_data=json.loads(context.state.synced),
         )
-        staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
-        commit.lands(staged, _writes.INVALIDATION)
+        if staged.get(_base_sync_state._PENDING_REWRITE_BASE) is not None:
+            staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+            commit.lands(staged, _writes.INVALIDATION)
     if behind:
         return False
     durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]

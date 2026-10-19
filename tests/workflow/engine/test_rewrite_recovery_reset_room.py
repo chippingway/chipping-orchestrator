@@ -22,7 +22,10 @@ attempt that keeps every reader off it, and nothing is released, parked, or
 noticed, however often the tick comes back. Put back on the landed head, the
 checkout still finds it moved, and once room is made it is invalidated whole
 into history, its revision and binding kept -- by the abort that then releases
-the attempt and parks, or by that proof.
+the attempt and parks, or by that proof. A captured run too short for its
+history entry to fit is kept recorded beside the attempt the same way, not
+dropped, and a base tip already blank -- null or not recorded at all -- needs
+no write, so a full comment holds back no reset over it.
 
 A blank GitHub refuses, or a process killed before it, holds the tick with
 nothing reset, and so does a run another road settles while the recovery's
@@ -46,9 +49,13 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.base_sync import outcomes
-from orchestrator.git.base_sync.models import _AutoRebaseRecoverySnapshot
+from orchestrator.git.base_sync import models as _base_sync_models, outcomes
 from orchestrator.github.pinned_state import PinnedEdit
+from orchestrator.workflow.engine import (
+    rewrite_landing_records as _landing_records,
+    rewrite_recovery_parks as _parks,
+    verification_settlement_state as _settlement,
+)
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
@@ -56,6 +63,7 @@ from tests.workflow.engine import (
     rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
+    rewrite_verification_recovery_support as support,
 )
 
 _FETCH = branch_transport._authed_fetch
@@ -161,6 +169,43 @@ class ResetRoomTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
         self.assert_invalidated(settled)
         self.assertEqual(readings.pinned(self)[readings.KEY_PENDING_PUSH], self.anchor)
+
+    def test_a_full_comment_keeps_a_captured_run(self) -> None:
+        # A captured run too short for its history entry to fit the full comment, the checkout gone: the proof
+        # before a park records the reset and keeps the run recorded whole beside the attempt, its tip blank, rather
+        # than drop it as the captured-only answer would, and holds the tick.
+        self.enterContext(patch("orchestrator.config.VERIFY_COMMANDS", ("true",)))
+        head = self.lands_a_reviewed_rebase()
+        self.dies_at(support.POST, partial(self.finishes, head))
+        finish_moves.fills_the_comment(self)
+        context = guarded.recovery_context(self)
+        captured = _landing_records.captured(context.state)
+        self.assertFalse(_settlement.retire_pending_evidence(self.gh.read_pinned_state(self.issue), captured))
+        self._wt.rename(self._wt.parent / "checkout-away")
+
+        self.assertFalse(_parks.proves_before_a_park(context))
+        self.assertEqual(_landing_records.captured(self.gh.read_pinned_state(self.issue)), captured)
+        standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
+        self.assertEqual(standing, (self.anchor, None))
+
+    def test_a_blank_tip_needs_no_room(self) -> None:
+        # Nothing left for the landed head, and the base tip blank -- recorded null, or not recorded at all -- on a
+        # full comment: the reset's record finds it blank and goes on, writing and growing nothing.
+        for absent in (False, True):
+            with self.subTest(absent=absent):
+                self.setUp()
+                self.settles_then_dies()
+                state = self.gh.read_pinned_state(self.issue)
+                self.assertTrue(_settlement.retire_current_evidence(state))
+                state.set(readings.KEY_REWRITE_BASE, None)
+                if absent:
+                    state.data.pop(readings.KEY_REWRITE_BASE)
+                self.gh.write_pinned_state(self.issue, state)
+                finish_moves.fills_the_comment(self)
+                context = guarded.recovery_context(self)
+                written = self.gh.read_pinned_state(self.issue).data
+                self.assertTrue(_parks.records_the_reset(context))
+                self.assertEqual(self.gh.read_pinned_state(self.issue).data, written)
 
     def _records_then_fills(self):
         """Settle a reviewed rebase's run, kill the finish, die behind a recorded reset, and fill the comment.
@@ -335,7 +380,7 @@ class UnconfirmedRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def _parks_the_dirty_checkout(self, head: str):
         """Take the git owner's park over a dirty checkout on `head`, which resets and cleans, guarded; its context."""
         context = guarded.recovery_context(self)
-        snapshot = _AutoRebaseRecoverySnapshot(branch=git_support.BRANCH, local_head=head)
+        snapshot = _base_sync_models._AutoRebaseRecoverySnapshot(branch=git_support.BRANCH, local_head=head)
         outcomes._park_dirty_recovery(context, snapshot, [_LEFTOVER])
         return context
 
