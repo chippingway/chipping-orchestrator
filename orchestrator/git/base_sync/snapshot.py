@@ -139,9 +139,7 @@ def _clear_unchanged_recovery(
 def _lands_the_clear(context: _AutoRebaseRecoveryContext) -> bool:
     """Clear the attempt through the context's guarded clear (`lands_a_clear`), or whole with none; whether it landed.
 
-    Guarded, a record another road wrote while the recovery read the checkout
-    or fetched -- a transaction, a successor, its revision floor -- refuses it
-    rather than being written over, and the caller holds the tick.
+    Guarded, a record another road wrote meanwhile refuses it, the caller holding the tick.
     """
     attempts._clears_the_attempt(context.state)
     lands = context.lands_a_clear

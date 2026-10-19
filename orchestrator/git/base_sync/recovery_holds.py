@@ -106,7 +106,8 @@ def _recovery_holds_dispatch(
     An operator's hard-skip releases on every label, since no handler runs
     under one. Asked of the label the dispatcher resolved rather than read
     again, so the handler this holds back and the stage this reads are one.
-    `seen`, where handed, keeps a checkout read gone for the answer behind.
+    `seen`, where handed, keeps a checkout read gone, or off the attempt's
+    replay (`_refresh_reaches`), for the answer behind.
     """
     if not state.get(_PENDING_PUSH_SHA) or _refresh_selection._hard_skipped(
         issue, int(issue.number),
@@ -120,11 +121,11 @@ def _recovery_holds_dispatch(
         if seen is not None:
             seen.append(worktree)
         return True
-    return _refresh_reaches(worktree, int(issue.number), state)
+    return _refresh_reaches(worktree, int(issue.number), state, seen)
 
 
 def _refresh_reaches(
-    worktree: Path, issue_number: int, state: PinnedState,
+    worktree: Path, issue_number: int, state: PinnedState, seen: list[Path] | None = None,
 ) -> bool:
     """Whether the hold waits on the refresh for a checkout that is on disk.
 
@@ -145,6 +146,9 @@ def _refresh_reaches(
     it is exactly that checkout whose lag the refresh cannot count.
     """
     head = _probes._head_sha(worktree)
+    replay = _attempt_records._pending_rewrite(state)
+    if head and replay.is_recorded and not replay.names(head) and seen is not None:
+        seen.append(worktree)
     if head and _probes._commit_present(worktree, head):
         return True
     if state.get(_AWAITING_HUMAN) and (
@@ -231,7 +235,8 @@ def _answers_a_held_anchor(
     context: _AutoRebaseRecoveryContext,
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
     lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None,
-    seen: list[Path] | None = None,
+    *,
+    seen: list[Path],
 ) -> None:
     """What an anchor the dispatcher holds a handler back for is owed.
 
@@ -268,18 +273,21 @@ def _answers_a_held_anchor(
     the park it records that one through (`_AutoRebaseRecoveryContext.lands_a_park`),
     both handed in by the workflow's answer to the dispatcher's hold
     (`workflow/engine/rewrite_recovery_parks.answers_a_held_anchor`), with
-    a clear's answers on `context`; a checkout read gone is added to `seen`.
+    a clear's answers on `context`; a checkout read gone is added to `seen`,
+    one read gone behind the proof proved again over that loss before it is
+    brought back.
     """
     context = replace(context, proves_before_a_park=proves_before_a_park, lands_a_park=lands_a_park)
     if context.label in _PR_REFRESH_DETOUR_LABELS:
         if _persistence._proves_before_the_park(context) and not context.worktree.is_dir():
-            _restores_the_checkout(context.spec, context.issue.number, context.state)
+            seen.append(context.worktree)
+            if _persistence._proves_before_the_park(context):
+                _restores_the_checkout(context.spec, context.issue.number, context.state)
         return
     if context.worktree.is_dir():
         _replay_cleanup._answers_an_ineligible_label(context)
         return
-    if seen is not None:
-        seen.append(context.worktree)
+    seen.append(context.worktree)
     _replay_publication_parks._park_stranded_recovery(context)
 
 

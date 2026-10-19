@@ -122,11 +122,10 @@ class AsksEveryReading:
 class LosesTheCheckout:
     """A block a checkout gone from disk cuts short: a request of it there answered by that loss, not raised.
 
-    For the recovery's proof (`rewrite_landing_retirement.retires_unproved`),
-    reading the checkout well after its caller found it on disk: a git request
-    in a checkout gone meanwhile fails with `FileNotFoundError`, swallowed
-    where the checkout is gone by then, or the failure names it however soon
-    it returned, for the proof to read and record that loss. Any other goes on.
+    For the recovery's proof (`rewrite_landing_retirement.retires_unproved`):
+    a git request in a checkout gone meanwhile fails with `FileNotFoundError`,
+    swallowed where the checkout is gone by then or the failure names it, for
+    the proof to record that loss however soon it returned. Any other goes on.
     """
 
     def __init__(self, context: _AutoRebaseRecoveryContext) -> None:
@@ -146,11 +145,9 @@ class RecordsALostCheckout(LosesTheCheckout):
 
     The recorder `context` carries (`records_before_a_reset`) records the
     reset against what a finish captured or settled for the landed head and
-    retires that as over it, each in its own write over the comment as the
-    tick last read it, so nothing the road staged rides them, that loss read as
-    movement under each however soon the checkout returns; the tick's state is
-    withheld from every whole-state write behind, the road's caller holding the
-    tick. Over a comment carrying neither, the failure goes on.
+    retires it, in writes of its own over the comment as the tick last read it,
+    however soon the checkout returns; the tick's state is withheld, the road's
+    caller holding the tick. Over a comment carrying neither, it goes on.
     """
 
     def __exit__(self, kind, error, trace) -> bool:

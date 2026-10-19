@@ -16,11 +16,9 @@ retire that evidence and put back the report it was superseded by beside it.
 These are the answers a recovery context carries for that
 (`_AutoRebaseRecoveryContext.lands_a_park`, `records_before_a_reset`,
 `proves_before_a_park`), handed in on every context the workflow builds: each
-recovery road's (`rewrite_recovery.recovers`: a reset's tail, both replay
-parks, a label the refresh does not drive), the uncounted lag's abort
-(`rewrite_recovery.answers_an_unreadable_checkout`), the eligibility gate's
-park of an ineligible label (`base_rewrite`), and the dispatcher's stranded
-park of a held anchor (`answers_a_held_anchor`), whose quiet holds ask it too.
+recovery road's (`rewrite_recovery.recovers`), the uncounted lag's abort, the
+eligibility gate's (`base_rewrite`), and the dispatcher's held anchor's
+(`answers_a_held_anchor`), its quiet holds included.
 A publication gate's holds of the landed road's leased no-op or the retry's
 reissued push land here (`lands_a_hold`): their proof taken first, as before a
 park that keeps the attempt, what the tick staged before that proof kept
@@ -90,11 +88,10 @@ disk has nothing to prove the landing over, so its evidence is retired as over
 the reset recorded against it, each in its own write (`records_the_reset`),
 ahead of a park or hold and behind one (`proves_before_a_park`): a quiet hold,
 a standing park, or a refused record carries no staged retirement. With no
-proof behind a quiet hold, the comment is read afresh behind the retirement:
-evidence another road wrote back is retired once more, the tick held, as over
-a successor or another attempt put in its place first, nothing reset. One gone
-mid-proof is recorded and retired alike, every proof here given the reset's
-recorder whatever the git owner's context -- the eligibility gate's has none.
+proof behind a quiet hold, the comment is reread behind the retirement:
+evidence written back is retired again, the tick held, as over a successor or
+another attempt, nothing reset. One read gone or off the landing, mid-proof or
+by the dispatcher, is recorded and retired alike however soon it is back.
 """
 from __future__ import annotations
 
@@ -243,14 +240,12 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> bool:
 def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
     """Record a clear the tick staged on `context.state` over the comment read afresh, as `CLEAR`; whether it landed.
 
-    Only what the tick staged lands; a successor settled while the checkout was
-    read refuses it, its revision floor kept, the tick's state withheld for the
-    next tick to answer. The checkout read off the landed head is movement all
-    the same, so a clear not landing records the reset against the attempt as
-    read (`records_the_reset`) and proves what the fresh comment carries with
-    that move under each receipt held (`proves_before_a_park`): another finish's
-    settlement of the run meanwhile invalidated whole, a successor under another
-    receipt proved on its own. A state nothing was read into is written whole.
+    Only what the tick staged lands; a successor settled meanwhile refuses it,
+    its revision floor kept, the tick's state withheld. The checkout read off
+    the landed head is movement all the same, so a clear not landing records
+    the reset (`records_the_reset`) and proves the fresh comment with that move
+    under each receipt held (`proves_before_a_park`), a successor on its own.
+    A state nothing was read into is written whole.
     """
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
@@ -303,7 +298,7 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> bool:
         )
         if holds:
             proves = partial(proves_before_a_park, lost=gone)
-            _recovery_holds._answers_a_held_anchor(owing, proves, lands_a_park, gone)
+            _recovery_holds._answers_a_held_anchor(owing, proves, lands_a_park, seen=gone)
     return holds
 
 
@@ -332,11 +327,11 @@ def proves_before_a_park(
     refused -- across every write it lands, for the record behind, save what
     a proof write already carried (`rewrite_recovery_staging.keeps_the_staging`).
     Behind a record its staging is kept out of every write the proof lands.
-    `lost`, where not empty, is a checkout the caller read gone from disk, the
-    reset recorded and the evidence retired over it however soon it returned.
+    `lost`, where not empty, is a checkout the caller read off the landing --
+    gone, or off the replay -- the evidence held retired over it all the same.
     """
     with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:
-        if proving.worktree.is_dir() and not lost:
+        if proving.worktree.is_dir() and not (lost and _retirement.receipts(proving.state)):
             return _retirement.retires_unproved(proving, moved)
         return records_the_reset(proving, lost=lost)
 
@@ -371,8 +366,8 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     blank landed or not, even over a tip another road put back behind it; True
     there only where both landed and the comment reread behind carries back
     none of what it retired, nor a successor or another attempt in its place --
-    over one `lost` names, its caller having read it gone, however soon it is
-    back. One gone as the record is asked is movement under every evidence held.
+    over one `lost` names, its caller having read it off the landing, however
+    soon it is back. One gone as the record is asked is movement under every evidence held.
     """
     moved: dict[str, ReportEvidence] = {}
     if not context.worktree.is_dir():

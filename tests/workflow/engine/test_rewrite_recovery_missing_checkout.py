@@ -29,7 +29,8 @@ from functools import partial
 from itertools import product
 from unittest.mock import patch
 
-from orchestrator.git.base_sync import rewrite_facts
+from orchestrator.git.base_sync import persistence, rewrite_facts
+from orchestrator.git.verification import probes
 from orchestrator.workflow.engine import (
     rewrite_recovery_parks as _parks,
     verification_settlement_state as _settlement,
@@ -91,8 +92,11 @@ def _refuses_the_record(refused: set, live, issue, state, **options):
 # A hold's or a park's record: the process killed before it, or the checkout going from disk right behind it.
 _AT_THE_RECORD = handoff.Boundary("at the record", _EDITS, _records)
 
-# The proof's staging guard, the checkout put back right behind it, before the proof reads the directory itself.
+# The proof's staging guard, the checkout put back right behind it, before the proof reads the directory itself; and
+# the hold's own reading -- its proof, or its read of HEAD -- a move is made right behind.
 _AHEAD_OF_THE_PROOF = handoff.Boundary("ahead of the proof", "keeps_the_staging", lambda *_called, **_options: True)
+_BEHIND_THE_READ = handoff.Boundary("behind the hold's read", "", lambda *_called, **_options: True)
+_REMOVES = ("worktree", "remove", "--force")
 
 
 def _raises_behind(move, *_posted, **_options):
@@ -282,6 +286,30 @@ class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 (self.assert_abandoned if captures else self.assert_invalidated)(run)
                 self.recovers()
                 self.assert_routed(head)
+
+    def test_a_move_the_hold_read_is_kept(self) -> None:
+        # The hold reads the checkout on the anchor, back on the head behind that read, or finds it gone behind its
+        # proof: the run, captured or settled, is retired whole before anything restores it, nothing left for the poll.
+        for behind, captures in product((False, True), (False, True)):
+            with self.subTest(behind_the_proof=behind, captured=captures):
+                self.setUp()
+                head, run = self.captures() if captures else self.settles_then_dies()
+                self._holds_over_a_move(head, behind=behind)
+                (self.assert_abandoned if captures else self.assert_invalidated)(run)
+                self.recovers()
+                self.assertEqual(readings.pinned_records(self)[:2], (None, None))
+
+    def _holds_over_a_move(self, head: str, *, behind: bool) -> None:
+        """The dispatcher's hold, the checkout gone right behind its proof, or read on the anchor and put back."""
+        owner, read = (persistence, "_proves_before_the_park") if behind else (probes, "_head_sha")
+        moves = partial(self._git, "reset", "--quiet", "--hard", head, cwd=self._wt)
+        if behind:
+            checkout = str(self._wt)
+            moves = partial(self._git, *_REMOVES, checkout, cwd=self._work)
+        else:
+            self._git("reset", "--quiet", "--hard", self.anchor, cwd=self._wt)
+        with patch.object(owner, read, _BEHIND_THE_READ.moving(getattr(owner, read), moves)):
+            guarded.answers_a_held_anchor(self)
 
     def _gone_while_read(self, live, *read, **options):
         """`live`, the checkout's reading, taken with the checkout away, put back as the failure it meets unwinds."""

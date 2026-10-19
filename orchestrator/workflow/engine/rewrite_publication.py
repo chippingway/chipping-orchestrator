@@ -182,16 +182,13 @@ class CandidatePush:
 def _records_the_hold(context: _AutoRebaseContext) -> None:
     """Record the hold the gate left on `context.state` over the comment read afresh, as `HOLD`.
 
-    The gate's answer is long enough for another road to write the comment --
-    settle a report, record evidence, spend a revision past it -- so only what
-    the tick staged since its reading lands, the park's flags as the gate left
-    them among it, decided on the attempt the hold keeps, every other field as
-    the fresh comment carries it (`rewrite_recovery_parks.HOLD`). The gate
-    held before any push, so no finish has evidence for the replay to prove
-    first, as the recovery's holds do (`rewrite_recovery_parks.lands_a_hold`).
-    A record refused or never confirmed withholds the tick's state
-    (`report_commits.ReportCommit.withholds`), for the next tick to answer the
-    comment as it then stands; a state nothing was read into is written whole.
+    Another road may write the comment while the gate answers, so only what
+    the tick staged since its reading lands, decided on the attempt the hold
+    keeps (`rewrite_recovery_parks.HOLD`). Held before any push, it has no
+    evidence to prove first, unlike the recovery's holds (`lands_a_hold`). A
+    record refused or never confirmed withholds the tick's state for the next
+    tick (`report_commits.ReportCommit.withholds`); a state nothing was read
+    into is written whole.
     """
     state = context.state
     if state.synced is None:

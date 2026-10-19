@@ -2274,20 +2274,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             finish of a head's landing they prove with (`_finish`), held to the settled-evidence policy
     rewrite_landing_moved.py
                             the recovery's helpers over a landing read moved: a captured transaction abandoned, unrun,
-                            and evidence a finish settled for the head (`rewrite_landing_records.settled`) invalidated
-                            into history whole, read afresh behind and retired again where put back, before any road
-                            reading the landing off that head -- a snapshot reading its checkout or remote on another
-                            head (`abandons_off_the_landing`) -- through the recovery's proof before a park
-                            (`rewrite_landing_retirement.retires_unproved`), handed that movement as already read under
-                            every receipt the tick holds, or asked unhanded where both heads stand on the landing but
-                            the attempt records no base tip beside the evidence, a blank read as the movement it is, so
-                            the landed road finishes over nothing it retired; a successor under another receipt proved
-                            on its own readings and any comment the proof's writes read; answering False where no write
-                            could retire either, so the road holds, and both kept where a head went unread, which moves
-                            nothing, for a reset that lands to retire. The landed road (`rewrite_landed.py`) asks the
-                            same retirement of a checkout or remote it reads leaving the head (`abandons`), the proof
-                            before a park (`rewrite_recovery_parks.proves_before_a_park`) landing it over a checkout
-                            gone from disk since, the reset recorded first, as that road writes nothing behind it
+                            and settled evidence (`rewrite_landing_records.settled`) invalidated whole, retired again
+                            where put back, before any road a snapshot reading a head off the landing takes
+                            (`abandons_off_the_landing`), through the recovery's proof
+                            (`rewrite_landing_retirement.retires_unproved`) handed that movement under every receipt
+                            held, or asked unhanded beside an attempt with no base tip; a successor proved on its own;
+                            False where no write could retire either, so the road holds; an unread head moves nothing.
+                            The landed road (`rewrite_landed.py`) asks the same of a checkout or remote leaving the head
+                            (`abandons`), over a checkout gone from disk through the proof before a park
     rewrite_landing_retirement.py
                             the settled-aware answers every recovery context the workflow builds carries -- each
                             recovery road's (`rewrite_recovery.recovers`), the abort over an unreadable checkout's,
