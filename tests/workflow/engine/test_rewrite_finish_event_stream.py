@@ -16,6 +16,8 @@ compressed beside it and truncated -- whose copy still carries the event. A
 log that would not read is no answer: the finish is held with nothing filed,
 relabelled, or retired, and the next tick, the log readable again, finds the
 event the same way. Nothing is run again, pushed, or launched.
+With no log, the attempt's record of the event is taken as the event filed -- another producer's too, where it
+refused this finish's own, leaving this process owing nothing.
 """
 from __future__ import annotations
 
@@ -157,6 +159,50 @@ class EventStreamRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         self.assertEqual(readings.attempt(readings.pinned(self)), readings.RETIRED)
         made = (self.runs(), self.pushes.call_count, self.developer.call_count)
         self.assertEqual(made, (1, 0, 0))
+
+
+class UnloggedEventRecoveryTest(support.CapturedRunCase, unittest.TestCase):
+    """With no audit log, a fresh process takes the attempt's record of the event as the event filed."""
+
+    def test_a_recorded_event_is_filed_once_at_most(self) -> None:
+        # The finish dies behind the event's record, ahead of the event or behind it, and the process restarts owing
+        # nothing: the record says the event may be out, so the head is routed with nothing filed again, once at most.
+        self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
+        for boundary, filed in ((handoff.BEFORE_THE_EVENT, 0), (handoff.BEFORE_THE_CHECKPOINT, 1)):
+            with self.subTest(boundary=boundary.name):
+                self.setUp()
+                head = self.lands_a_reviewed_rebase()
+                handoff.dies_at(self.gh, boundary, partial(self.finishes, head))
+                before = support.announced(self)
+                self.gh.recorded_events.clear()
+                self.gh.owed_events = set()
+                self.recovers()
+                announced = before + support.announced(self)
+                self.assertEqual(announced, [head][:filed])
+                self.assertEqual(readings.relabels(self), readings.ROUTED)
+
+    def test_a_refused_record_owes_nothing(self) -> None:
+        # Another producer records and files the head's event right as this finish's record of it is sent, refusing it:
+        # owing nothing for a record it never landed, this process's retry takes that as the event filed, filing none.
+        self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
+        self._head = self.lands_a_reviewed_rebase()
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, self._head))
+        self._raced = False
+        with patch.object(self.gh, "edit_pinned_state", partial(self._records_first, self.gh.edit_pinned_state)):
+            self.recovers()
+        self.recovers()
+        self.assertEqual((self._raced, support.announced(self)), (True, []))
+        self.assertEqual(readings.relabels(self), readings.ROUTED)
+
+    def _records_first(self, live, issue, staged, **options):
+        """`live`, the strict edit, another producer's record of the head's event written right ahead of this one's."""
+        records = staged.get(readings.KEY_ANNOUNCED_EVENT) == self._head
+        if records and not options["over"].get(readings.KEY_ANNOUNCED_EVENT) and not self._raced:
+            self._raced = True
+            state = self.gh.read_pinned_state(issue)
+            state.set(readings.KEY_ANNOUNCED_EVENT, self._head)
+            self.gh.write_pinned_state(issue, state)
+        return live(issue, staged, **options)
 
 
 if __name__ == "__main__":

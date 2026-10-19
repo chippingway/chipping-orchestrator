@@ -18,7 +18,8 @@ log's retention deleted, or a log truncated with no copy kept, no longer
 carries what it dropped. `durable` says whether a log is configured at all,
 for a caller that has to tell an absence the log vouches for from one only
 this process's tail can: the dormant relabel of a landed rewrite's route
-(`workflow/engine/rewrite_finish_announced.relabelled`).
+(`workflow/engine/rewrite_finish_announced.relabelled`), and an event a
+durable word says may be out (`workflow/engine/owed_events`).
 """
 from __future__ import annotations
 

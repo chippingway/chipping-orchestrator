@@ -223,7 +223,9 @@ checkpoint and the relabel, or between the relabel and the retirement -- leaves 
 recovery, which reads what was done off the mark, the pull request, the event stream, and the label
 (`workflow/engine/rewrite_finish_notices.py`, `workflow/engine/rewrite_finish_events.py`): no second notice,
 `base_rebased` or stage-entry event, round reset, relabel, evidence publication, or developer launch. A conversation or
-audit log the finish cannot read holds it with nothing filed.
+audit log the finish cannot read holds it with nothing filed. With no audit log, the attempt's record of its
+`base_rebased` counts as the event filed unless this process still owes it (`workflow/engine/owed_events.py`), so a
+restart files it at most once.
 A replay the size gate hands to an adjudication instead is handed to the late generation adjudicating it
 (`workflow/engine/rewrite_takeover.py`) by the publication and by the recovery's retry alike, and a park the gate takes
 keeps the attempt for its recovery: where the pinned record proves a whole attempt and a live generation late

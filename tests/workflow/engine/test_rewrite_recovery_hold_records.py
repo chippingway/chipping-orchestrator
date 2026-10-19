@@ -32,6 +32,7 @@ from unittest.mock import patch
 
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from orchestrator.workflow.engine import (
+    owed_events as _owed_events,
     report_commits as _commits,
     rewrite_landing_records as _landing_records,
     rewrite_recovery_parks as _parks,
@@ -74,7 +75,11 @@ _AHEAD_OF_THE_EDIT = "ahead of the edit"
 # The tip blanked under that edit beside the record of the `base_rebased`
 # event another finish of the landing is filing for the head, which advances
 # this very attempt rather than replacing it; the tip alone is put back.
+# That finish is this process's, so its event is noted owed as it notes it.
 _TIP_BESIDE_THE_EVENT = "the tip beside the event record under the edit"
+
+# The event that finish files.
+_REBASED = "base_rebased"
 
 # A record the tick staged since its reading, as a gate holding over a
 # reading of its own does, so the hold's record has an edit to send -- one
@@ -201,6 +206,7 @@ class _AroundTheHold:
         durable.set(readings.KEY_REWRITE_BASE, None)
         if self._failing == _TIP_BESIDE_THE_EVENT:
             durable.set(readings.KEY_ANNOUNCED_EVENT, self._head)
+            _owed_events.owes(case.gh, _REBASED, issue_number=case.issue.number, sha=self._head)
         case.gh.write_pinned_state(case.issue, durable)
 
     def _moves_under(self, live, issue, state, *, over: dict, **options):
@@ -449,13 +455,14 @@ class HeldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_an_announcement_keeps_the_hold_move(self) -> None:
         # Report 3 settles ahead of the hold's record and report 2 is put back
-        # right behind it, and another finish of the landing records its
-        # `base_rebased` event on the attempt right behind that record: the
+        # right behind it, and another finish of the landing, this process's,
+        # owes and records its `base_rebased` event on the attempt right behind that record: the
         # movement the record read invalidates the run over the attempt as
         # that finish advanced it, so the next poll routes the head with
         # nothing current.
         head, settled = self.settles_then_dies()
         around = _AroundTheHold(self, head, restores=True)
+        _owed_events.owes(self.gh, _REBASED, issue_number=self.issue.number, sha=head)
         announces = _WritesAtTheHold(self, {readings.KEY_ANNOUNCED_EVENT: head}, around=around)
         with patch.object(_commits.ReportCommit, _LANDING, side_effect=announces, autospec=True):
             _holds(self)

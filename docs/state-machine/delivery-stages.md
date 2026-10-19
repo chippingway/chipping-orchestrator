@@ -1563,7 +1563,8 @@ because there it is the claim that this stage has already rerouted rather than a
   (`rewrite_landing_retirement.reconciles`) -- and one settled only after that reading asked of its own binding and
   requirements in the proof's readings, retired whole or marked where it moved; and a park made again over a record that
   never landed taking in the notice the conversation already carries past the watermark, its `park_awaiting_human` event
-  filed only where the stream lacks the one naming that notice (`rewrite_recovery_notices.parks_awaiting_human`). So is
+  filed only where the stream lacks the one naming that notice (`rewrite_recovery_notices.parks_awaiting_human`) -- with
+  no audit log, only where this process still owes it (`workflow/engine/owed_events.py`). So is
   the hold a publication gate's hold of a recovery's push would be recorded through, as `HOLD` over the comment read
   afresh, its proof taken first as before a park that keeps the attempt -- what the tick staged before that proof, the
   gate's own record among it, kept across every write the proof lands (`rewrite_recovery_staging.keeps_the_staging`) --
@@ -1591,7 +1592,8 @@ because there it is the claim that this stage has already rerouted rather than a
     own (`pending_auto_base_rebase_announced_event`) so it goes out only for an attempt still standing. That record
     is no proof either way -- a finish from before it existed filed the event with none -- so the stream is asked
     whether or not the attempt carries it, and a tick lost on either side of the event, on this build or an earlier
-    one, files it once in all. A log the process cannot read holds the finish with nothing filed, relabelled, or
+    one, files it once in all; with no log the record counts as the event filed (`workflow/engine/owed_events.py`),
+    once at most, unless still owed. A log the process cannot read holds the finish with nothing filed, relabelled, or
     retired rather than counting as absent, and so does a conversation nobody could read, or a post that raised and
     does not show on the conversation read again. Both writes behind the notice are prepared over the comment read
     afresh before it is posted -- the checkpoint whole, the record staged on it too, and the record's own write over
@@ -1749,7 +1751,8 @@ because there it is the claim that this stage has already rerouted rather than a
     standing is reused unless a reply the watermark has not passed is handed in, and a park whose write never landed
     -- a first one, or one made again over a reply handed in once more -- lands over the notice the conversation
     carries past the watermark or that reply, its event filed only where the event stream lacks the one naming that
-    notice, the finish held where that conversation will not read; and a relabel is held where the comment read again
+    notice -- with no audit log, only where this process still owes it (`workflow/engine/owed_events.py`) -- the
+    finish held where that conversation will not read; and a relabel is held where the comment read again
     behind its proof carries another attempt, settled evidence that reading records moving invalidated first however
     soon it is put back -- a successor another road settled in its place asked on its own binding in that very
     reading, and beside a blank of the base tip, whatever was read current before it -- so repeated direct finishes
