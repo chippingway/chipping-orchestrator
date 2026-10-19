@@ -38,7 +38,6 @@ class LandedCheckout:
 
     def walked(self):
         """The refresh's git for one tick: a base fetch that lands, and the checkout and branch the push left.
-
         The remote stands the pull request's branch on the landed head, and
         the base on the tip the checkout was counted against.
         """

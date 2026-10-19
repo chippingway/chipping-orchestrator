@@ -418,7 +418,6 @@ class HeldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             self.issue.body = body
             with gate.holding():
                 self.recovers()
-
             self.assert_invalidated(settled)
             standing = self.pinned_fields(guarded.AWAITING, readings.KEY_PENDING_PUSH)
             self.assertEqual(standing, (None, self.anchor))

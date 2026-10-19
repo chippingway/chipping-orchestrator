@@ -1583,11 +1583,11 @@ because there it is the claim that this stage has already rerouted rather than a
   request of the recovery, the uncounted lag's abort, the dispatcher's hold, the eligibility gate, or the refresh's skip
   selection and lag count -- has the reset recorded and the evidence retired as over it, each in a write of its own, so
   a quiet hold, a standing park, or a refused record leaves it retired (`rewrite_recovery_parks.proves_before_a_park`);
-  one read gone or off the replay is recorded alike however soon it is back, before any restore. The comment is reread
-  behind that retirement, evidence written back retired again and the tick held, a successor or another attempt in its
-  place holding the tick with nothing reset; one refused for room or twice is asked again over the comment read whole,
-  blanking the base tip in a shrinking write where room still lacks or that retirement is refused
-  (`rewrite_recovery_staging.lands_the_retirement`).
+  one read gone or off the evidence's head is recorded alike however soon it is back, before any restore, and one no
+  write could record stays owed for the coordinator's next poll (`owed_events.owes_a_loss`). The comment is reread
+  behind that retirement, evidence written back retired again, a successor or another attempt in its place holding the
+  tick; one refused for room or twice is asked again over the comment read whole, blanking the base tip in a shrinking
+  write where room still lacks or that retirement is refused (`rewrite_recovery_staging.lands_the_retirement`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of

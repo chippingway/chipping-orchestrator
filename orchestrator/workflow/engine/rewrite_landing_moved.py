@@ -45,6 +45,7 @@ import logging
 from orchestrator.git.base_sync import attempt_records as _attempt_records
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext, _AutoRebaseRecoverySnapshot
 from orchestrator.workflow.engine import (
+    owed_events as _owed_events,
     rewrite_landing_records as _landing_records,
     rewrite_landing_retirement as _retirement,
     rewrite_recovery_parks as _recovery_parks,
@@ -57,19 +58,16 @@ log = logging.getLogger("orchestrator.workflow")
 def abandons_off_the_landing(context: _AutoRebaseRecoveryContext, snapshot: _AutoRebaseRecoverySnapshot) -> bool:
     """Retire what a finish captured or settled for the landed head where `snapshot` reads a head off it; may it go on.
 
-    Asked by the recovery's coordinator of every snapshot it reads, before
-    the road the snapshot chooses is taken; a remote and a checkout both on
-    the head the evidence answers for are the landed road's to finish. A head
-    read as "" establishes no movement, so the evidence is kept for a reset
-    that lands to retire (`rewrite_landing_retirement.retires_over_the_reset`).
-    Heads both on the landing beside an attempt recording no base tip prove no
-    base the head was replayed onto, so the proof is asked first, reading that
-    blank as movement (`abandons`, `read` False), and the landed road finishes
-    over nothing it retired, whichever policy that
-    finish selects. False only where evidence still stands that the
-    abandonment or invalidation could not retire, logged: the coordinator
-    holds the tick then rather than take a road that would leave it behind.
+    Asked by the recovery's coordinator of every snapshot before its road: heads both on the landing are the landed
+    road's to finish, a head read as "" moves nothing (the evidence kept for a landed reset to retire), and an attempt
+    recording no base tip beside the evidence has the proof asked first (`abandons`, `read` False). A loss an earlier
+    poll could not record (`owed_events.pays_a_loss`) is recorded first. False only where evidence still stands that no
+    write could retire, logged, the coordinator holding the tick.
     """
+    if _owed_events.pays_a_loss(context) and not _recovery_parks.proves_before_a_park(
+        context, lost=(context.worktree,),
+    ):
+        return False
     recorded = (_landing_records.captured(context.state), _landing_records.settled(context.state))
     heads = [record.binding.target.target_head for record in recorded if record is not None]
     read = {snapshot.local_head, snapshot.remote_head}
@@ -88,16 +86,10 @@ def abandons_off_the_landing(context: _AutoRebaseRecoveryContext, snapshot: _Aut
 def abandons(context: _AutoRebaseRecoveryContext, *, read: bool = True) -> bool:
     """Retire what an earlier finish recorded or settled for the head the landing was read leaving; whether none stands.
 
-    The recovery's proof (`rewrite_landing_retirement.retires_unproved`),
-    handed the landing's move as movement already read under every receipt
-    the tick holds (`LEFT_THE_LANDING`), so the heads back on the landing keep
-    nothing: a captured transaction abandoned unrun, or refused for good with
-    no room, settled evidence invalidated whole and retired again if put back.
-    A successor under its own receipt is proved on its own readings. False
-    where either still stands, or a successor's proof holds. `read` False
-    hands the proof no landing movement, for a caller that read none. A
-    checkout gone from disk takes the proof before a park instead
-    (`rewrite_recovery_parks.proves_before_a_park`), the reset recorded first.
+    The recovery's proof (`rewrite_landing_retirement.retires_unproved`), handed the landing's move under every receipt
+    held (`LEFT_THE_LANDING`), so heads put back keep nothing: a captured transaction abandoned unrun, settled evidence
+    invalidated whole, a successor proved on its own; False where either still stands. `read` False hands it no move.
+    A checkout gone from disk takes the proof before a park (`rewrite_recovery_parks.proves_before_a_park`) instead.
     """
     held = _retirement.receipts(context.state)
     if held and not context.worktree.is_dir():

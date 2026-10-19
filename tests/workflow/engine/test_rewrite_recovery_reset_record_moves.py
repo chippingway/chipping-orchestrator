@@ -306,5 +306,25 @@ class ReplacedAttemptTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         return answered
 
 
+
+class OwedLossTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """A checkout loss no write could record stays owed, so the next poll retires the run before its road goes on."""
+
+    def test_a_loss_every_write_refused(self) -> None:
+        # The hold finds the checkout gone with every write refused, and it is back before the refresh's next poll:
+        # that poll still retires the run, captured or settled, before anything routes it.
+        for captures in (False, True):
+            with self.subTest(captured=captures):
+                self.setUp()
+                run = (self.captures() if captures else self.settles_then_dies())[1]
+                away = self._wt.with_name(_AWAY)
+                self._wt.rename(away)
+                with patch.object(self.gh.pinned_failures, "refused", {self.issue.number}):
+                    guarded.answers_a_held_anchor(self)
+                away.rename(self._wt)
+                self.recovers()
+                retired = (run.receipt, readings.ABANDONED if captures else readings.INVALIDATED)
+                self.assertIn(retired, readings.pinned_records(self)[2])
+
 if __name__ == "__main__":
     unittest.main()

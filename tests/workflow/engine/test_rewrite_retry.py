@@ -161,11 +161,9 @@ class GatedRetryRecordTest(retry.RetryCase):
         for count, _relabelled, left, parked in holds.HOLDS:
             with self.subTest(count.__name__):
                 self._fresh()
-
                 behind = world.WritesBehindTheGate(self)
                 with count(), patch.object(_late_push, "_publishes", behind):
                     self._ticks()
-
                 self.assertEqual(behind.floor(), world.ANOTHER_ROADS_FLOOR)
                 self.assertEqual(holds.left_with(self.gh), left)
                 self.assertEqual(retry.parked(self.gh), parked)

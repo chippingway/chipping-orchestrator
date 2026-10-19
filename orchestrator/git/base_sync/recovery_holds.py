@@ -106,8 +106,8 @@ def _recovery_holds_dispatch(
     An operator's hard-skip releases on every label, since no handler runs
     under one. Asked of the label the dispatcher resolved rather than read
     again, so the handler this holds back and the stage this reads are one.
-    `seen`, where handed, keeps a checkout read gone, or off the attempt's
-    replay (`_refresh_reaches`), for the answer behind.
+    `seen`, where handed, keeps a checkout read gone, or the HEAD it read
+    (`_refresh_reaches`), for the answer behind to weigh.
     """
     if not state.get(_PENDING_PUSH_SHA) or _refresh_selection._hard_skipped(
         issue, int(issue.number),
@@ -146,9 +146,8 @@ def _refresh_reaches(
     it is exactly that checkout whose lag the refresh cannot count.
     """
     head = _probes._head_sha(worktree)
-    replay = _attempt_records._pending_rewrite(state)
-    if head and replay.is_recorded and not replay.names(head) and seen is not None:
-        seen.append(worktree)
+    if head and seen is not None:
+        seen.append(head)
     if head and _probes._commit_present(worktree, head):
         return True
     if state.get(_AWAITING_HUMAN) and (

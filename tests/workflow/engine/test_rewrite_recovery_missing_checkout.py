@@ -98,6 +98,10 @@ _AHEAD_OF_THE_PROOF = handoff.Boundary("ahead of the proof", "keeps_the_staging"
 _FIRST_CALL = handoff.Boundary("at the first call", "", lambda *_called, **_options: True)
 _REMOVES = ("worktree", "remove", "--force")
 
+# How the hold reads a move: the checkout gone behind its proof, or on the anchor, the replay recorded or not.
+_BEHIND, _UNRECORDED = "gone behind the proof", "on the anchor, its replay unrecorded"
+_MOVES = (_BEHIND, "on the anchor", _UNRECORDED)
+
 # The reads a checkout goes from disk under, back as the failure unwinds: the candidate's, and the lag's count.
 _UNWOUND_READS = ((rewrite_facts, "_reads_the_checkout"), (base_refresh, "_worktree_behind_base"))
 
@@ -318,26 +322,30 @@ class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assert_routed(head)
 
     def test_a_move_the_hold_read_is_kept(self) -> None:
-        # The hold reads the checkout on the anchor, back on the head behind that read, or finds it gone behind its
-        # proof: the run, captured or settled, is retired whole before anything restores it, nothing left for the poll.
-        for behind, captures in product((False, True), (False, True)):
-            with self.subTest(behind_the_proof=behind, captured=captures):
+        # The hold reads the checkout on the anchor, its replay recorded or not, back on the head behind that read, or
+        # finds it gone behind its proof: the run, captured or settled, is retired whole before anything restores it.
+        for move, captures in product(_MOVES, (False, True)):
+            with self.subTest(move=move, captured=captures):
                 self.setUp()
                 head, run = self.captures() if captures else self.settles_then_dies()
-                self._holds_over_a_move(head, behind=behind)
+                self._holds_over_a_move(head, move)
                 (self.assert_abandoned if captures else self.assert_invalidated)(run)
                 self.recovers()
                 self.assertEqual(readings.pinned_records(self)[:2], (None, None))
 
-    def _holds_over_a_move(self, head: str, *, behind: bool) -> None:
+    def _holds_over_a_move(self, head: str, move: str) -> None:
         """The dispatcher's hold, the checkout gone right behind its proof, or read on the anchor and put back."""
-        owner, read = (persistence, "_proves_before_the_park") if behind else (probes, "_head_sha")
+        owner, read = (persistence, "_proves_before_the_park") if move == _BEHIND else (probes, "_head_sha")
         moves = partial(self._git, "reset", "--quiet", "--hard", head, cwd=self._wt)
-        if behind:
+        if move == _BEHIND:
             checkout = str(self._wt)
             moves = partial(self._git, *_REMOVES, checkout, cwd=self._work)
         else:
             self._git("reset", "--quiet", "--hard", self.anchor, cwd=self._wt)
+        if move == _UNRECORDED:
+            unrecorded = self.gh.read_pinned_state(self.issue)
+            unrecorded.set(readings.KEY_REWRITE_SHA, None)
+            self.gh.write_pinned_state(self.issue, unrecorded)
         with patch.object(owner, read, _FIRST_CALL.moving(getattr(owner, read), moves)):
             guarded.answers_a_held_anchor(self)
 

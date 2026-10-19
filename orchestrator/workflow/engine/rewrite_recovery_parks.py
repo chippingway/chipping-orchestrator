@@ -239,11 +239,8 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> bool:
 def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
     """Record a clear the tick staged on `context.state` over the comment read afresh, as `CLEAR`; whether it landed.
 
-    Only what the tick staged lands; a successor settled meanwhile refuses it,
-    its revision floor kept, the tick's state withheld. The checkout read off
-    the landed head is movement all the same, so a clear not landing records
-    the reset (`records_the_reset`) and proves the fresh comment with that move
-    under each receipt held (`proves_before_a_park`), a successor on its own.
+    Only what the tick staged lands; a successor settled meanwhile refuses it, its floor kept. A clear not landing
+    records the reset (`records_the_reset`) and proves the fresh comment with that move (`proves_before_a_park`).
     A state nothing was read into is written whole.
     """
     if context.state.synced is None:
@@ -277,13 +274,9 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
 def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> bool:
     """Whether the dispatcher's hold of `held`'s anchor stops this tick, answered with the workflow's proof and park.
 
-    The git owner's question (`git/base_sync/recovery_holds._recovery_holds_dispatch`)
-    and answer (`_answers_a_held_anchor`) restore a checkout, clear the attempt,
-    or park it, each park or quiet hold proving first (`proves_before_a_park`,
-    `lands_a_park`, `lands_a_clear`). A checkout either reads gone or off the
-    replay is that loss to the proof however soon it returns -- held where a
-    release over it cannot record it -- and one a git request finds gone is
-    recorded (`RecordsALostCheckout`), the handler held.
+    The git owner's question and answer (`git/base_sync/recovery_holds`) restore a checkout, clear, or park, each park
+    or quiet hold proving first. A checkout either reads gone, or a HEAD off the evidence, is that loss to the proof
+    however soon it returns, held where a release cannot record it; one a git request finds gone is recorded too.
     """
     settles = partial(_retirement.retires_over_the_reset, held)
     owing = replace(held, settles_over_a_reset=settles, lands_a_clear=lands_a_clear)
@@ -327,8 +320,11 @@ def proves_before_a_park(
     a proof write already carried (`rewrite_recovery_staging.keeps_the_staging`).
     Behind a record its staging is kept out of every write the proof lands.
     `lost`, where not empty, is a checkout the caller read off the landing --
-    gone, or off the replay -- the evidence held retired over it all the same.
+    gone, or a HEAD other than the evidence's -- the evidence retired over it.
     """
+    recorded = (_landing_records.captured(context.state), _landing_records.settled(context.state))
+    landed = {record.binding.target.target_head for record in recorded if record}
+    lost = [read for read in lost if read not in landed]
     with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:
         if proving.worktree.is_dir() and not (lost and _retirement.receipts(proving.state)):
             return _retirement.retires_unproved(proving, moved)

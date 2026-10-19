@@ -126,7 +126,6 @@ class RestartedParkNoticeTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 settled = self.settles_then_dies()[1]
                 ledger = self.pinned_fields(_LEDGER)[0] or []
                 self._parks_over_a_lost_post(restarted=restarted)
-
                 self.assert_released()
                 self.assert_invalidated(settled)
                 self._assert_taken_in(ledger, filed)

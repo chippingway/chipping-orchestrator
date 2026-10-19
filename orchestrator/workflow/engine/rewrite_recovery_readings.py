@@ -143,12 +143,9 @@ class LosesTheCheckout:
 class RecordsALostCheckout(LosesTheCheckout):
     """A recovery road's block a checkout gone from disk cuts short, that loss recorded before the road unwinds.
 
-    The recorder `context` carries (`records_before_a_reset`) records the
-    reset against what a finish captured or settled for the landed head and
-    retires it, in writes of its own over the comment as the tick last read it,
-    however soon the checkout returns; the tick's state is withheld, the road's
-    caller holding the tick. Over a comment carrying neither, it goes on.
-    `records`, where handed, is the recorder in place of the one `context` carries.
+    The recorder `context` carries, or `records` where handed, records the reset against the evidence for the landed
+    head and retires it in writes of its own, however soon the checkout returns, the tick's state withheld for the
+    road's caller to hold; over a comment carrying neither, the failure goes on.
     """
 
     def __init__(self, context: _AutoRebaseRecoveryContext, records=None) -> None:

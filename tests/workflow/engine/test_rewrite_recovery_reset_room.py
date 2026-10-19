@@ -313,7 +313,6 @@ class UnconfirmedRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         with patch.object(branch_transport, _FETCHES, fetches), patch.object(self.gh, "read_pinned_state", reads):
             self.recovers()
         self.recovers()
-
         invalidated = (settled.receipt, readings.INVALIDATED)
         self.assertIsNone(readings.pinned_records(self)[1])
         self.assertIn(invalidated, readings.pinned_records(self)[2])

@@ -392,9 +392,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     owed_events.py          the events this process files behind a durable word that they may be out -- a landed
                             rewrite's `base_rebased` record, a park's notice -- owed until filed, so with no audit log
                             such a word counts as its event filed, at most once, unless still owed; the repository's
-                            client holds each, shared with every worker client it mints (`github/client.py`), under its
-                            notice's text, so a failed post never files another notice's event found said; a debt noted
-                            anew dropped again where its event's write was refused outright (`rewrite_finish_events.py`)
+                            client holds each, shared with its worker clients (`github/client.py`), under its notice's
+                            text, so a failed post never files another's event; a debt noted anew dropped where its write
+                            was refused outright (`rewrite_finish_events.py`); and a checkout loss no write recorded
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked

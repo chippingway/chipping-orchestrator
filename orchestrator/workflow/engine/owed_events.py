@@ -2,14 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """The events this process is filing behind a durable word that they may be out, for a caller with no log to ask.
 
-A caller that leaves such a word on GitHub -- a landed rewrite's record of its `base_rebased` event, a park's notice
-naming its `park_awaiting_human` -- asks the stream before filing the event again (`events.filed`). With no audit log
-that stream is this process's tail alone, so the word is taken as the event filed: once at most, an event a process was
-lost ahead of going unfiled. Only an event this process noted filing (`owes`) and never filed since (`pays`) is still
-its own to file (`unfiled`). The note lives on the repository's client, shared with every worker client it mints
-(`github/client.GitHubClient._for_worker_thread`) and never another repository's; it leaves out the notice's id
-(`notice_id`), owed before the post, but keeps what it says (`said`), so a debt one notice's failed post left never
-files the event of another found said.
+A caller that leaves such a word on GitHub -- a landed rewrite's `base_rebased` record, a park's notice -- asks the
+stream before filing the event again (`events.filed`); with no audit log that stream is this process's tail alone, so
+the word counts as the event filed, at most once, unless this process noted it owing (`owes`) and never filed it
+(`pays`). The note lives on the repository's client, shared with its worker clients
+(`github/client.GitHubClient._for_worker_thread`), keyed by what the notice says (`said`), not its id, so one notice's
+failed post never files another's event. A checkout loss no write recorded is owed the same way (`owes_a_loss`).
 """
 from __future__ import annotations
 
@@ -20,8 +18,9 @@ from orchestrator.github import events as _events
 # Where a client keeps the events its process noted owing, shared with every worker client it mints.
 _NOTED = "owed_events"
 
-# The notice an event names, which is posted after the event is owed.
+# The notice an event names, which is posted after the event is owed; and the record a checkout loss is owed.
 _NOTICE = "notice_id"
+_LOST = "checkout_lost"
 
 
 def owes(client: Any, event: str, *, issue_number: int, said: str = "", **identity: Any) -> bool:
@@ -64,3 +63,19 @@ def _owing(event: str, issue_number: int, said: str, identity: dict[str, Any]) -
     """The event `owes` notes, the text its notice says kept and the notice's id left out."""
     named = {field: field_value for field, field_value in identity.items() if field != _NOTICE}
     return (event, int(issue_number), said, tuple(sorted(named.items())))
+
+
+def owes_a_loss(context: Any, recorded: bool) -> bool:
+    """`recorded`, a checkout loss `context`'s recovery read noted owed for its attempt where it was not."""
+    owing = (_LOST, int(context.issue.number), context.pending_pre_rebase_sha)
+    if not recorded:
+        _noted(context.gh).add(owing)
+    return recorded
+
+
+def pays_a_loss(context: Any) -> bool:
+    """Whether `context`'s attempt owed a checkout loss no write recorded, dropped as asked for the asker to record."""
+    owing = (_LOST, int(context.issue.number), context.pending_pre_rebase_sha)
+    owed = owing in _noted(context.gh)
+    _noted(context.gh).discard(owing)
+    return owed

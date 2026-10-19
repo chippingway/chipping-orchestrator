@@ -189,7 +189,6 @@ class ParkProofRecoveryTest(support.CapturedRunCase, unittest.TestCase):
                 posted = len(self.gh.posted_comments)
                 with _failing_abort(*failing), _unwritable(self):
                     self.recovers()
-
                 pinned = readings.pinned(self)
                 self.assertEqual(len(self.gh.posted_comments), posted)
                 self.assertIsNone(pinned.get("awaiting_human"))

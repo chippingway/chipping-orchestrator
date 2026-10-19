@@ -132,7 +132,6 @@ class UnstartedRecoveryHoldsTest(support.VerificationRecoveryCase, unittest.Test
         recorded: list = []
         with patch.object(branch_transport, "_authed_fetch", partial(_records_while_fetching, self, recorded)):
             self.recovers()
-
         pinned = readings.pinned(self)
         floor, anchored = pinned[readings.KEY_REVISION_FLOOR], pinned[readings.KEY_PENDING_PUSH]
         self.assertEqual(readings.records(pinned)[0], recorded[0])

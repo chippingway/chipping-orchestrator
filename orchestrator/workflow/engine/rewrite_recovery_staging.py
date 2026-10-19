@@ -34,6 +34,7 @@ from orchestrator.git.base_sync import models as _base_sync_models, state as _ba
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedEdit, PinnedState
 from orchestrator.workflow.engine import (
+    owed_events as _owed_events,
     pinned_commit as _commit,
     pinned_commit_models as _commit_models,
     report_commits as _commits,
@@ -104,14 +105,10 @@ def lands_the_retirement(
 ) -> bool:
     """Retire what `context.state` holds for the landed head, its checkout read gone, as `write`; whether it did.
 
-    Retired as over a reset over the comment the tick read, then asked again
-    over the comment read afresh (`_lands`): behind a refusal, the fields
-    `write` is decided on laid from it; behind a landed write, evidence put
-    back retired again, and False; behind a refusal for room or a second one,
-    over that reading whole, and False. A successor, or another attempt than
-    the one `context` recovers, is left for its own proof or recovery, False
-    before anything is read as retired; True where nothing the tick held
-    stands. A state nothing was read into is staged only. `held` is the
+    Retired as over a reset, then asked again over the comment read afresh (`_lands`) -- its decided-on fields laid
+    behind a refusal, the whole reading behind one for room or a second -- evidence put back retired again, and False.
+    A successor or another attempt is left alone, False; True where nothing held stands. One the writes cannot land is
+    owed for the next poll (`owed_events.owes_a_loss`). A state nothing was read into is staged only. `held` is the
     receipts first asked over; `behind` marks the last asking.
     """
     asked = _retirement.receipts(context.state) if held is None else held
@@ -122,7 +119,8 @@ def lands_the_retirement(
         return False
     if not standing & asked:
         return True
-    return _lands(context, write, asked, again=held is None, behind=behind)
+    landed = _lands(context, write, asked, again=held is None, behind=behind)
+    return _owed_events.owes_a_loss(context, landed)
 
 
 def _lands(
@@ -131,11 +129,8 @@ def _lands(
 ) -> bool:
     """Retire what `context.state` holds as over a reset, land it as `write`, and read the comment afresh behind it.
 
-    With no room for its history, or a last asking refused, the evidence stays
-    current, its base tip blanked in a shrinking write decided on the attempt
-    and evidence records as read, which a replacement or successor refuses; a
-    tip put back behind a landed write is blanked again. False on the last
-    asking, or where the comment would not read afresh.
+    With no room for history, or a last asking refused, the evidence stays current, its base tip blanked in a shrinking
+    write a replacement or successor refuses. False on the last asking, or where the comment would not read afresh.
     """
     _retirement.retires_over_the_reset(context, _LAST if behind else _GONE)
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)
