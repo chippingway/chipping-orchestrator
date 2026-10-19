@@ -247,28 +247,38 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
 
     Only what the tick staged lands; a successor settled meanwhile refuses it, its floor kept. A clear not landing
     records the reset (`records_the_reset`) and proves the fresh comment with that move (`proves_before_a_park`).
-    A state nothing was read into is written whole.
+    One that landed is followed by the comment read afresh: a successor, another attempt, or anything else the clear
+    was decided on written right behind it -- or a comment that would not read -- holds the tick too, its state
+    withheld, so no write of it puts back what that road wrote. A state nothing was read into is written whole.
     """
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
         return True
     moved: dict[str, ReportEvidence] = {}
-    commit = _commits.ReportCommit(
+    landed = _commits.ReportCommit(
         asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved)).gh,
         context.issue,
         context.state,
-    )
-    landed = commit.lands(context.state, CLEAR)
+    ).lands(context.state, CLEAR)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
-        return True
+        durable = durable_comment(context.gh, context.issue, context.state)[0]
+        cleared = _commit_models.PinnedCommit.capture(context.state, prerequisites=CLEAR.decided_on)
+        if durable is not None and not cleared.moved(durable.data):
+            return True
+        log.warning(
+            "issue=#%d the clear of its auto-rebase attempt landed, but the comment read afresh behind it carries "
+            "another road's records; holding, for the next tick to answer the comment as it then stands",
+            context.issue.number,
+        )
+        context.state.withheld = True
+        return False
     log.warning(
         "issue=#%d the clear of its auto-rebase attempt did not land (%s); nothing is cleared, and the next "
         "tick answers the comment as it then stands",
         context.issue.number, (landed.refusal or landed.status).value,
     )
-    read = RecordsALostCheckout.as_read(context.state)
-    moved.update(dict.fromkeys(_retirement.receipts(read), LEFT_THE_CHECKOUT))
-    moving = replace(context, state=read)
+    moving = replace(context, state=RecordsALostCheckout.as_read(context.state))
+    moved.update(dict.fromkeys(_retirement.receipts(moving.state), LEFT_THE_CHECKOUT))
     records_the_reset(moving)
     proves_before_a_park(moving, _retirement.reconciles(moving, moved))
     return False
@@ -308,7 +318,7 @@ def proves_before_a_park(
     """
     recorded = (_landing_records.captured(context.state), _landing_records.settled(context.state))
     landed = {record.binding.target.target_head for record in recorded if record}
-    landed.add(context.pending_rewrite.sha)
+    landed = landed or {context.pending_rewrite.sha}
     lost = [read for read in (*lost, *context.heads_read) if read not in landed]
     lost += [context.worktree] if loss_owed(context) else []
     with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:

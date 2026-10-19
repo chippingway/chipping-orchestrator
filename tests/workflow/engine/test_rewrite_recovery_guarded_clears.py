@@ -10,7 +10,9 @@ clear and the settled-aware retirement it asks first (`rewrite_recovery_parks.la
 The write clearing the attempt retires the run with it, so reconciling the head put back revives nothing; a newer run
 settling as the clear reads HEAD refuses the clear and keeps its floor; another finish settling the run, or a newer run
 marked moved and unmarked, refuses the clear and the move read invalidates it; a usage write refusing the clear has the
-reset recorded by base tip; with no history room nothing is cleared, the run current beside its blanked tip.
+reset recorded by base tip; with no history room nothing is cleared, the run current beside its blanked tip. A newer
+run and another attempt written right behind a clear that landed hold the tick, its state withheld from writing over
+them.
 """
 from __future__ import annotations
 
@@ -19,11 +21,14 @@ from functools import partial
 from itertools import product
 from unittest.mock import patch
 
+from orchestrator.git.base_sync import snapshot as _snapshot
 from orchestrator.git.verification import probes as _probes
+from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
+    rewrite_finish_evidence_test_support as fixtures,
     rewrite_finish_git_support as git_support,
     rewrite_finish_moves as finish_moves,
     rewrite_finish_readings as readings,
@@ -194,6 +199,48 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         if head == self.anchor and not newer:
             newer.append(settled.records_a_newer_run(self, settles=True))
         return head
+
+
+class WrittenBehindTheClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """What another road writes right behind a guarded clear that landed holds the tick, the tick's state withheld."""
+
+    def test_a_successor_and_attempt_behind_the_clear(self) -> None:
+        # A newer run settles on the run's binding and another attempt is pinned right behind the clear's edit: the
+        # clear reads the comment afresh and holds, the tick's state withheld, so writing it whole keeps that newer
+        # run, the revision floor it raised, and that attempt.
+        head, run = self.settles_then_dies()
+        self._binding = run.binding
+        self._pinned = fixtures.attempt_record(head, None, git_support.PR_NUMBER, git_support.REVIEWING)
+        self._newer = None
+        context = self._unnamed_on_the_anchor()
+        with patch.object(self.gh, "edit_pinned_state", partial(self._writes_behind, self.gh.edit_pinned_state)):
+            _snapshot._clear_ineligible_recovery(context)
+        self.assertTrue(context.state.withheld)
+        self.gh.write_pinned_state(self.issue, context.state)
+        current = readings.pinned_records(self)[1]
+        self.assertEqual(current.receipt, self._newer.receipt)
+        kept = self.pinned_fields(readings.KEY_REVISION_FLOOR, *self._pinned)
+        self.assertEqual(kept, (self._newer.revision, *self._pinned.values()))
+
+    def _unnamed_on_the_anchor(self):
+        """Blank the replay the attempt names and put the checkout back on the anchor; the context read over that."""
+        state = self.gh.read_pinned_state(self.issue)
+        state.set(readings.KEY_REWRITE_SHA, None)
+        self.gh.write_pinned_state(self.issue, state)
+        self._git(*_PUTS_BACK, self.anchor, cwd=self._wt)
+        return guarded.recovery_context(self)
+
+    def _writes_behind(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, a newer run settled and another attempt pinned behind the clear's edit."""
+        answered = live(issue, staged, **options)
+        clears = answered is PinnedEdit.EDITED and not staged.get(readings.KEY_PENDING_PUSH)
+        if clears and self._newer is None:
+            self._newer = settled.records_a_newer_run(self, settles=True, binding=self._binding)
+            fresh = self.gh.read_pinned_state(issue)
+            for key, pinned in self._pinned.items():
+                fresh.set(key, pinned)
+            self.gh.write_pinned_state(issue, fresh)
+        return answered
 
 
 if __name__ == "__main__":

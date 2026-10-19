@@ -25,17 +25,21 @@ leaves the run read moving once the checkout is back. A checkout that goes
 from disk only as a hold's or a park's record lands, or as a park's notice
 raises, leaves nothing behind it to prove the run over, so the reset is
 recorded against the run there instead. A record of that retirement refused,
-or cut short, leaves the run read moving once the checkout is back. Nothing is
-run again, pushed, or launched, nor announced or relabelled before a route.
+or cut short, leaves the run read moving once the checkout is back. A head a
+caller hands the proof is weighed against the run's own head, not the replay
+the attempt names: off it, it is a loss owed and the run retired; on it, none.
+Nothing is run again, pushed, or launched, nor announced or relabelled before a
+route.
 """
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from functools import partial
 from itertools import product
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import rewrite_recovery_parks as _parks
+from orchestrator.workflow.engine import owed_events as _owed_events, rewrite_recovery_parks as _parks
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
@@ -265,6 +269,35 @@ class MissingCheckoutRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(standing, (self.anchor, None))
         self.assertTrue(self.proves())
         self.assert_invalidated(settled)
+
+
+class HandedHeadTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """A head a caller hands the proof is weighed against the evidence's own head, not the replay the attempt names."""
+
+    def test_a_head_off_the_evidence_is_a_loss(self) -> None:
+        # The attempt names the anchor as its replay while the run stands for the landed head: a head read on the
+        # anchor, handed as read or as lost, is a loss -- owed, and the run retired whole -- and one on the landed
+        # head is none, the run kept.
+        for as_lost, off in product((False, True), (False, True)):
+            with self.subTest(lost=as_lost, off=off):
+                self.setUp()
+                head = self.settles_then_dies()[0]
+                context = self._hands(self.anchor if off else head, as_lost=as_lost)
+                retired = readings.pinned_records(self)[1] is None
+                self.assertEqual((_owed_events.loss_owed(context), retired), (off, off))
+
+    def _hands(self, read: str, *, as_lost: bool):
+        """Name the anchor as the attempt's replay and hand the proof `read`, as lost or as a head read; the context."""
+        state = self.gh.read_pinned_state(self.issue)
+        state.set(readings.KEY_REWRITE_SHA, self.anchor)
+        self.gh.write_pinned_state(self.issue, state)
+        context = guarded.recovery_context(self)
+        if as_lost:
+            _parks.proves_before_a_park(context, lost=(read,))
+            return context
+        context = replace(context, heads_read=(read,))
+        _parks.proves_before_a_park(context)
+        return context
 
 
 if __name__ == "__main__":
