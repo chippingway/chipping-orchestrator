@@ -1578,9 +1578,11 @@ because there it is the claim that this stage has already rerouted rather than a
   it is back -- has the reset recorded and the evidence retired as over it, each in a guarded write of its own
   (`rewrite_recovery_staging.lands_the_retirement`), evidence written back behind retired again and an attempt or
   successor another road put in its place holding the tick unreset, and the loss owed by that attempt -- its anchor
-  and its replay -- to every later proof of it (`workflow/engine/owed_events.py`)
-  (`rewrite_recovery_parks.proves_before_a_park`); so is one the proof's own finish reads off the landing, recorded
-  before the proof answers. A tip the tick read blank holds an unrecorded reset where another road put it back, and
+  and its replay -- to every later proof of it from the moment it is read, ahead of any write
+  (`workflow/engine/owed_events.py`, `rewrite_recovery_parks.proves_before_a_park`); so is one the proof's own finish
+  reads off the landing, as its candidate or in the last word, recorded before the proof answers. A retirement that
+  does not land withholds the tick's state from every whole-state write, so a successor and the floor it raised are
+  never written back over. A tip the tick read blank holds an unrecorded reset where another road put it back, and
   movement the reset's own record read is retired before the reset goes on (`rewrite_recovery_parks.records_the_reset`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the

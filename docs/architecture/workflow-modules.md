@@ -2466,13 +2466,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             nothing current under that receipt and still the recovered attempt -- another road's attempt
                             in its place, in the comment the proof last read, holding the tick
                             (`rewrite_recovery_readings.stands_as_recovered`) with nothing reset, cleared, or parked,
-                            and a checkout one of its finishes read off the landing recorded before it answers
-                            (`rewrite_recovery_readings.LosesTheCheckout.proves`) -- a successor it carries there laid
-                            over the tick's state and proved the same way, what that reading records moving kept, a
-                            successor that reading takes in behind an invalidation that landed proved too -- each asked
-                            whatever the
-                            other's proof answered and every comment either reads -- the readings its abandonment,
-                            invalidation, and rechecks take of their own accord, and a comment a strict edit among them
+                            and a checkout one of its finishes read off the landing -- as its candidate, or in the
+                            last word (`rewrite_recovery_readings.LosesTheCheckout.reads`) -- owed and recorded before
+                            it answers (`rewrite_recovery_readings.LosesTheCheckout.proves`) -- a successor it carries
+                            there laid over the tick's state and proved the same way, what that reading records moving
+                            kept, a successor that reading takes in behind an invalidation that landed proved too --
+                            each asked whatever the other's proof answered and every comment either reads -- the
+                            readings its abandonment, invalidation, and rechecks take of their own accord, and a
+                            comment a strict edit among them
                             found moved, included, each through a client that asks it first
                             (`rewrite_recovery_readings.py`) -- asked what it records moving under any
                             receipt there, over what the tick holds, into the movement both share -- both asked again
@@ -2571,7 +2572,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             caller read gone or off the evidence's head (`lost`, `heads_read`), or a loss an earlier
                             proof owes (`owed_events.loss_owed`), however soon it is back -- has the reset recorded
                             and the evidence retired as over it, each in a write of its own (`proves_before_a_park`),
-                            the attempt owing that loss from then on, so evidence put back later is retired too.
+                            the attempt owing that loss from the moment it is read, ahead of any write, so evidence
+                            put back later is retired too, however soon the checkout returned before those writes.
                             Ahead of every reset whose attempt records a base tip -- or one the tick read blank,
                             confirmed blank over the comment read afresh, so a tip another road put back refuses the
                             reset -- that tip is blanked in a write of its own (`records_the_reset`, the answer
@@ -2582,6 +2584,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and what its commit read moving proved as read before the reset goes on, the reset held
                             where that retirement does not land; over a checkout read gone, the evidence retired as
                             over a reset in a `CLEAR` write of its own (`rewrite_recovery_staging.lands_the_retirement`)
+                            -- the loss owed as soon as it is read, the tick's state withheld where that does not land
     rewrite_recovery_readings.py
                             dormant, as the proof it serves is: the client the recovery's proof before a park that
                             keeps the attempt (`rewrite_landing_retirement.retires_unproved`) builds its finishes over,
@@ -2596,7 +2599,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whether the tick's state still carries the attempt the recovery recovers
                             (`stands_as_recovered`); and a block a checkout gone from disk cuts short
                             (`LosesTheCheckout`), its git request there read as that loss, back by then or not, and
-                            recorded for a road (`RecordsALostCheckout`) over the comment as the tick last read it
+                            recorded for a road (`RecordsALostCheckout`) over the comment as the tick last read it,
+                            and a landing the last word reads left owed as that loss (`LosesTheCheckout.reads`)
     rewrite_recovery_staging.py
                             dormant, as the proof it serves is: what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it
@@ -2608,8 +2612,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             landed or may have; over a checkout gone from disk, what the tick holds for the landed head
                             retired as over a reset in its own guarded write (`lands_the_retirement`), asked again over
                             the comment read afresh -- evidence another road wrote back retired again and the tick held,
-                            a successor or another attempt in its place holding it first -- the base tip blanked in a
-                            shrinking write where the history has no room
+                            a successor or another attempt in its place holding it first, every evidence record of that
+                            reading, a successor's floor and handoff among them, laid over the tick's state -- the base
+                            tip blanked in a shrinking write where the history has no room; a retirement that does not
+                            land withholds the tick's state from every whole-state write behind it
+                            (`rewrite_recovery_parks.records_the_reset`)
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written
                             only once it saw the push land: whether any record -- pending, current, retired, or a
