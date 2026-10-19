@@ -118,9 +118,8 @@ class RestartedParkNoticeTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._assert_taken_in(ledger, stream.files)
 
     def test_a_lost_post_still_owes_its_event(self) -> None:
-        # With no log, the first park's notice goes out with its answer lost, so nothing is filed or recorded. The
-        # next park takes the notice in: this process still owes the event and files it once, while a restarted
-        # one, owing nothing, takes the notice said as filed.
+        # With no log, the first park's notice goes out with its answer lost, nothing filed or recorded; the next park
+        # takes it in: this process still owes the event and files it once, a restarted one takes the notice as filed.
         for restarted, filed in ((False, 1), (True, 0)):
             with self.subTest(restarted=restarted):
                 self.setUp()

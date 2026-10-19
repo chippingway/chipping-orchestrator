@@ -65,6 +65,7 @@ def _recovery_holds_dispatch(
     label: str | None,
     state: PinnedState,
     worktree: Path,
+    seen: list[Path] | None = None,
 ) -> bool:
     """Whether an unfinished auto-rebase attempt holds this issue's handler.
 
@@ -105,6 +106,7 @@ def _recovery_holds_dispatch(
     An operator's hard-skip releases on every label, since no handler runs
     under one. Asked of the label the dispatcher resolved rather than read
     again, so the handler this holds back and the stage this reads are one.
+    `seen`, where handed, keeps a checkout read gone for the answer behind.
     """
     if not state.get(_PENDING_PUSH_SHA) or _refresh_selection._hard_skipped(
         issue, int(issue.number),
@@ -115,6 +117,8 @@ def _recovery_holds_dispatch(
     if _frozen._late_claims(state):
         return False
     if not worktree.is_dir():
+        if seen is not None:
+            seen.append(worktree)
         return True
     return _refresh_reaches(worktree, int(issue.number), state)
 
@@ -227,6 +231,7 @@ def _answers_a_held_anchor(
     context: _AutoRebaseRecoveryContext,
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
     lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None,
+    seen: list[Path] | None = None,
 ) -> None:
     """What an anchor the dispatcher holds a handler back for is owed.
 
@@ -263,7 +268,7 @@ def _answers_a_held_anchor(
     the park it records that one through (`_AutoRebaseRecoveryContext.lands_a_park`),
     both handed in by the workflow's answer to the dispatcher's hold
     (`workflow/engine/rewrite_recovery_parks.answers_a_held_anchor`), with
-    a clear's answers on `context`.
+    a clear's answers on `context`; a checkout read gone is added to `seen`.
     """
     context = replace(context, proves_before_a_park=proves_before_a_park, lands_a_park=lands_a_park)
     if context.label in _PR_REFRESH_DETOUR_LABELS:
@@ -272,8 +277,10 @@ def _answers_a_held_anchor(
         return
     if context.worktree.is_dir():
         _replay_cleanup._answers_an_ineligible_label(context)
-    else:
-        _replay_publication_parks._park_stranded_recovery(context)
+        return
+    if seen is not None:
+        seen.append(context.worktree)
+    _replay_publication_parks._park_stranded_recovery(context)
 
 
 def _restores_the_checkout(spec, issue_number: int, state) -> None:

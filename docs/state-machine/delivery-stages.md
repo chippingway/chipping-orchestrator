@@ -1586,8 +1586,9 @@ because there it is the claim that this stage has already rerouted rather than a
   proof reads it, under one of its own git requests or any other of the recovery's, the uncounted lag's abort, the
   dispatcher's hold, or the eligibility gate's, which hold the tick -- has the reset recorded and the evidence retired
   as over it, each in a write of its own, so a quiet hold, a park already standing, or a refused record leaves it
-  retired however soon the base tip is put back (`rewrite_recovery_parks.proves_before_a_park`). The comment is reread
-  behind that retirement, so evidence another road writes back right behind it is retired again and the tick held, and a
+  retired however soon the base tip is put back (`rewrite_recovery_parks.proves_before_a_park`); one the dispatcher's
+  hold reads gone, back by its proof, has the evidence retired over that loss all the same. The comment is reread behind
+  that retirement, so evidence another road writes back right behind it is retired again and the tick held, and a
   successor or another road's attempt in its place holds the tick with nothing reset; one refused for room or twice is
   asked again over the comment read whole, blanking the base tip in a shrinking write decided on what it read where
   there is still no room or that last retirement is refused too (`rewrite_recovery_staging.lands_the_retirement`).

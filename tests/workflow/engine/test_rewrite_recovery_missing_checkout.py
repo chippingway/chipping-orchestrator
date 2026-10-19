@@ -91,6 +91,9 @@ def _refuses_the_record(refused: set, live, issue, state, **options):
 # A hold's or a park's record: the process killed before it, or the checkout going from disk right behind it.
 _AT_THE_RECORD = handoff.Boundary("at the record", _EDITS, _records)
 
+# The proof's staging guard, the checkout put back right behind it, before the proof reads the directory itself.
+_AHEAD_OF_THE_PROOF = handoff.Boundary("ahead of the proof", "keeps_the_staging", lambda *_called, **_options: True)
+
 
 def _raises_behind(move, *_posted, **_options):
     """The issue-thread post of a park's notice, `move` made and then a raise as GitHub not answering."""
@@ -126,6 +129,26 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assertEqual(self.pinned_fields(readings.KEY_REWRITE_BASE), (None,))
                 self.recovers()
                 self._assert_routed_past(head, settled)
+
+    def test_a_loss_the_dispatcher_read_is_kept(self) -> None:
+        # The hold's question under a driven stage, or its answer under this one, reads the checkout gone, back by the
+        # proof: the run, captured or settled, is retired whole all the same, and the next poll finds nothing standing.
+        for label, captures in product((git_support.REVIEWING, _UNDRIVEN), (False, True)):
+            with self.subTest(label=label, captured=captures):
+                self.setUp()
+                run = (self.captures() if captures else self.settles_then_dies())[1]
+                away = self._wt.with_name(_AWAY)
+                self._wt.rename(away)
+                self.issue.labels = [FakeLabel(label)]
+                back = _AHEAD_OF_THE_PROOF.moving(_parks.keeps_the_staging, partial(away.rename, self._wt))
+                with patch.object(_parks, "keeps_the_staging", back):
+                    guarded.answers_a_held_anchor(self)
+
+                self.assertTrue(self._wt.is_dir())
+                (self.assert_abandoned if captures else self.assert_invalidated)(run)
+                self.issue.labels = [FakeLabel(git_support.REVIEWING)]
+                self.recovers()
+                self.assertEqual(readings.pinned_records(self)[:2], (None, None))
 
     def _assert_routed_past(self, head: str, settled) -> None:
         """`settled` invalidated whole into history, its revision and binding kept, and `head` routed past it."""

@@ -2,16 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Movement a reset's own record reads under the run, retired before the reset goes on, whatever git answers.
 
-The guarded recovery case (`guarded_recovery_support`): issue #7's reviewed run settled under the anchor, or captured
-with the finish dying at its artifact's post, its finish killed unannounced. The next fetch fails as another road moves
-the run's report. The abort's reset record blanks the base tip over the moved report, put back behind; git refuses the
-reset, staging the tip back for the park keeping the attempt. The run is retired first, abandoned or invalidated whole
-with revision and binding kept, so neither tip nor report put back revives it. Every write behind the blank refused,
-nothing is retired, reset, or parked; the next recovery reads the blank as the move and invalidates the run, releasing
-the attempt. A tip read blank, put back as the fetch fails, refuses the record read afresh, so no reset goes unrecorded;
-the next tick records and makes it. With the checkout gone, a lost-answer record over the moved report leaves no park,
-so a write of its own retires the run, and the restored checkout and label route the head, nothing current. An attempt
-another road pins right behind the retirement is kept as written, the recovery holding, nothing reset or cleared.
+The guarded recovery case (`guarded_recovery_support`), its run settled or captured and its finish killed unannounced,
+the next fetch failing as another road moves the run's report. Git refuses the abort's reset behind its record's blank:
+the run is retired whole first, so neither tip nor report put back revives it; every write behind the blank refused,
+the next recovery reads the blank and invalidates it. A tip read blank and put back refuses the record, so no reset goes
+unrecorded; a gone checkout's lost-answer record retires the run in its own write; an attempt pinned behind is kept.
 """
 from __future__ import annotations
 
@@ -96,10 +91,8 @@ class RecordedMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_released()
 
     def _recovers_over_a_moved_report(self, *, refusing: bool = False) -> None:
-        """A recovery over a failed fetch and a refused reset, the report moved behind the fetch, back behind the blank.
-
-        `refusing` has GitHub refuse every pinned-comment write behind the blank.
-        """
+        """A recovery over a failed fetch and a refused reset, the report moved behind the fetch, back behind the blank;
+        `refusing` has GitHub refuse every pinned-comment write behind the blank."""
         self._held = [self.pinned_fields(_REPORT)[0]]
         self._taken = False
         self._refusing = refusing

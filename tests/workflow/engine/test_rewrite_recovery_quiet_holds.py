@@ -2,12 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """An anchor the dispatcher holds with nothing parked or posted, proving the run it keeps first.
 
-A hold posting nothing over the real-git finish case's captured or settled run, its finish killed, proves the run first
-(`git/base_sync/persistence._proves_before_the_park`), under a driven label or beside its standing stranded park: an
-edited issue put back retires it whole, the head then routed with nothing current. A run settled mid-proof is
-invalidated, or recorded by base tip in a full comment; a newer run over it is kept. An undriven clear over a checkout
-back on the anchor retires the run as it clears the attempt, keeps the attempt with no history room, yields to a newer
-run, and records the reset by base tip if a usage write refuses it. Nothing is run again or pushed.
+A hold posting nothing over the real-git finish case's captured or settled run proves it first, under a driven label or
+beside a standing stranded park: an edit put back retires it whole, a run settled mid-proof is invalidated or recorded
+by base tip, a newer run kept. An undriven clear over a checkout back on the anchor retires the run with the attempt,
+keeps both with no history room, yields to a newer run, and records the reset by base tip past a refusing usage write.
 """
 from __future__ import annotations
 

@@ -366,10 +366,8 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._assert_held()
 
     def test_a_newer_run_survives_the_hold(self) -> None:
-        # While the publication gate answers, another road records a newer
-        # transaction for the head: the hold's record keeps it pending, with the
-        # revision floor it raised, beside the settled run the proof kept;
-        # the next poll settles it over that run and routes the head.
+        # While the gate answers, another road records a newer transaction for the head: the hold's record keeps it
+        # pending, its floor raised, beside the settled run the proof kept; the next poll settles it over that run.
         head, settled = self.settles_then_dies()
         recorded: list = []
         with gate.holding(partial(gate.holds_beside_a_newer_run, self, recorded)):

@@ -275,10 +275,7 @@ def retires_unproved(
         )) if context.worktree.is_dir() else None
     if not context.worktree.is_dir():
         records = context.records_before_a_reset
-        return (
-            retires_over_the_reset(context, _landing_captured._CHECKOUT_GONE)
-            if records is None else records(context)
-        )
+        return records(context) if records else retires_over_the_reset(context, _landing_captured._CHECKOUT_GONE)
     moved.update({
         receipt: LEFT_THE_CHECKOUT for receipt in receipts(context.state) if proved is None
     })

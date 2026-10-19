@@ -290,21 +290,26 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> bool:
     (`proves_before_a_park`), the park recorded as every recovery park is
     (`lands_a_park`); a clear retires the evidence first and lands guarded
     (`lands_a_clear`). A checkout the question or the answer finds gone from
-    disk has that loss recorded (`RecordsALostCheckout`), the handler held.
+    disk has that loss recorded (`RecordsALostCheckout`), the handler held,
+    and one either reads gone is that loss to the proof however soon it returns.
     """
     settles = partial(_retirement.retires_over_the_reset, held)
     owing = replace(held, settles_over_a_reset=settles, lands_a_clear=lands_a_clear)
     holds = True
+    gone: list = []
     with RecordsALostCheckout(replace(held, records_before_a_reset=records_the_reset)):
         holds = _recovery_holds._recovery_holds_dispatch(
-            held.issue, held.label or None, held.state, held.worktree,
+            held.issue, held.label or None, held.state, held.worktree, gone,
         )
         if holds:
-            _recovery_holds._answers_a_held_anchor(owing, proves_before_a_park, lands_a_park)
+            proves = partial(proves_before_a_park, lost=gone)
+            _recovery_holds._answers_a_held_anchor(owing, proves, lands_a_park, gone)
     return holds
 
 
-def proves_before_a_park(context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence] | None = None) -> bool:
+def proves_before_a_park(
+    context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence] | None = None, *, lost=(),
+) -> bool:
     """Whether a recovery park or hold that keeps the attempt may go on, what it keeps proved first.
 
     The proof is the recovery's (`rewrite_landing_retirement.retires_unproved`),
@@ -327,8 +332,14 @@ def proves_before_a_park(context: _AutoRebaseRecoveryContext, moved: dict[str, R
     refused -- across every write it lands, for the record behind, save what
     a proof write already carried (`rewrite_recovery_staging.keeps_the_staging`).
     Behind a record its staging is kept out of every write the proof lands.
+    `lost`, where not empty, is a checkout the caller read gone from disk: that
+    loss under every receipt held, so one back by now has the evidence retired.
     """
-    with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:
+    ahead = moved is None
+    if lost:
+        held = _retirement.receipts(context.state)
+        moved = dict.fromkeys(held, LEFT_THE_CHECKOUT) | (moved or {})
+    with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=ahead) as proving:
         if proving.worktree.is_dir():
             return _retirement.retires_unproved(proving, moved)
         return records_the_reset(proving)

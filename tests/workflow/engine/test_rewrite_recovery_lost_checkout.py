@@ -2,14 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """A settled run stays retired for good once a recovery finds its checkout gone from disk.
 
-The real-git finish case (`rewrite_verification_recovery_support`), issue #7's reviewed run settled under the anchor and
-its finish killed unannounced, loses its checkout under the landed road, the quiet hold, or a standing stranded park:
-ahead of the proof, as it is asked, behind an issue read, or as the landed road reads its candidate, the base tip the
-reset blanked perhaps written back behind. The reset and the retirement land in separate writes, so the head put back
-(label and reply too, for the park) routes with nothing current, nothing remade, pushed, or launched. A run written back
-with its attempt behind a quiet hold's retirement is retired again; a road retiring it just ahead, pinning another
-attempt or a newer run, holds the tick over what it wrote, the checkout unreset. A git request of the hold, gate, or
-abort finding it gone is recorded alike; a retirement a full comment or usage write refuses is asked again whole.
+The real-git finish case's settled run, its finish killed, loses its checkout under the landed road, a quiet hold, or a
+standing stranded park -- ahead of the proof, within it, or as the candidate is read -- the blanked tip perhaps written
+back. Reset and retirement land apart, so the head put back routes with nothing current, nothing remade or launched. A
+run written back behind a quiet hold's retirement retires again; one another road retires first holds the tick unreset;
+a refused retirement is asked again whole; a git request of the hold, gate, or abort finding it gone records it alike.
 """
 from __future__ import annotations
 

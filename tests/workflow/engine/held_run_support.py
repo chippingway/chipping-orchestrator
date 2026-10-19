@@ -24,12 +24,7 @@ from tests.workflow.interleaving import _RacesPastTheCall, _RacesPastTheStep
 EDITED_BODY = "Also cover a base that moved twice."
 
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
-MOVED_RECORDS = (
-    "developer_report_current",
-    "developer_report_handoff",
-    "review_subject",
-    "review_returned_subject",
-)
+MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
 
 # Room on the pinned comment for the run's history entry and the park behind
 # it, and short of the landing's report debt and the announcement it rides.
@@ -93,10 +88,8 @@ class HoldCase(route.SettledRouteCase):
     def settles_under_the_notice(
         self, head: str, *, raises: bool, restores: bool = False, recovered: bool = False,
     ) -> dict:
-        """Finish `head` with report 3 settled as a notice posts, lost where `raises`, put back where `restores`.
-
-        A whole recovery where `recovered`, which logs whatever its road raised.
-        """
+        """Finish `head` with report 3 settled as a notice posts, lost where `raises`, put back where `restores`;
+        a whole recovery where `recovered`, which logs whatever its road raised."""
         replaced: list = []
         moves = partial(settles_a_later_report, self, head, replaced)
         if raises:

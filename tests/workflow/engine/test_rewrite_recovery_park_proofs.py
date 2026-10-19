@@ -179,9 +179,8 @@ class ParkProofRecoveryTest(support.CapturedRunCase, unittest.TestCase):
                 self._continues_to(head, kept)
 
     def test_an_unrecorded_abandonment_parks_nothing(self) -> None:
-        # The configuration moves behind a failed fetch or an uncounted lag, and a failed reset, and no write
-        # to the comment lands: the run cannot be abandoned, so nothing is
-        # parked and the anchor still holds the run for the next recovery.
+        # The configuration moves behind a failed fetch or an uncounted lag and a failed reset, and no write lands:
+        # the run cannot be abandoned, so nothing is parked and the anchor still holds the run for the next recovery.
         for aborted, *failing in _ABORTS:
             with self.subTest(aborted=aborted):
                 self.setUp()

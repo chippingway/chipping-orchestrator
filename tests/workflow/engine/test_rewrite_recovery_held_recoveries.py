@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Settled evidence a whole recovery keeps the attempt over, proved ready before it holds or parks.
 
-The held-run case (`held_run_support`), its run settled -- or only captured -- and its finish killed: a whole recovery
-keeping the attempt over a candidate head nobody could prove, or a stranded park whose notice raised, proves the run
-first, so movement retires it whole and putting what moved back routes the head once with nothing current. A newer run
-settled right behind -- or, refusing it, ahead of -- the landed road's abandonment of a captured run is proved on its
-own readings, a mark of movement the refused edit read under it standing however soon it is put back.
+The held-run case (`held_run_support`), its run settled or captured and its finish killed: a whole recovery keeping the
+attempt over an unprovable candidate head, or a stranded park whose notice raised, proves the run first, so movement
+retires it whole and the head routes once, nothing current. A newer run settled behind -- or, refusing it, ahead of --
+the landed road's abandonment of a captured run is proved on its own readings, a mark its refused edit read standing.
 """
 from __future__ import annotations
 
@@ -41,10 +40,8 @@ def _unproved_first(original, calls: list, *args):
 
 
 class _SettlesBehindTheAbandonment:
-    """The checkout read off its head once, and `newer` settled right behind the edit abandoning `captured`.
-
-    `marks` settles it right ahead, refusing that edit, the mark of movement in its handoff's place (`handoff` kept).
-    """
+    """The checkout read off its head once, `newer` settled right behind the edit abandoning `captured` -- or, `marks`,
+    right ahead, refusing that edit, the mark of movement in its handoff's place (`handoff` kept)."""
 
     def __init__(self, case, captured, *, moves_again: bool = False, marks: bool = False) -> None:
         self._case = case

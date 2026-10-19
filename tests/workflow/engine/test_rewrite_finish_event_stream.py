@@ -165,9 +165,8 @@ class UnloggedEventRecoveryTest(support.CapturedRunCase, unittest.TestCase):
     """With no audit log, a fresh process takes the attempt's record of the event as the event filed."""
 
     def test_a_recorded_event_is_filed_once_at_most(self) -> None:
-        # The finish dies behind the event's record -- ahead of the event or behind it -- and the process restarts
-        # with no event in memory and none noted owing: the record says the event may be out, so the head is routed
-        # with nothing filed again, once at most.
+        # The finish dies behind the event's record, ahead of the event or behind it, and the process restarts owing
+        # nothing: the record says the event may be out, so the head is routed with nothing filed again, once at most.
         self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
         for boundary, filed in ((handoff.BEFORE_THE_EVENT, 0), (handoff.BEFORE_THE_CHECKPOINT, 1)):
             with self.subTest(boundary=boundary.name):
@@ -185,9 +184,8 @@ class UnloggedEventRecoveryTest(support.CapturedRunCase, unittest.TestCase):
                 self.assertEqual(readings.relabels(self), readings.ROUTED)
 
     def test_a_refused_record_owes_nothing(self) -> None:
-        # Another producer records the head's event, and files it on its own stream, right as this finish's record
-        # of it is sent, refusing it: this process owes nothing for a record it never landed, so its retry takes
-        # that record as the event filed and files none of its own.
+        # Another producer records and files the head's event right as this finish's record of it is sent, refusing it:
+        # owing nothing for a record it never landed, this process's retry takes that as the event filed, filing none.
         self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
         self._head = self.lands_a_reviewed_rebase()
         handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, self._head))
