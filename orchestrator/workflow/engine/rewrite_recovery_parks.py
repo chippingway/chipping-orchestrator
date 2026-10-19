@@ -101,13 +101,14 @@ the reset recorded against it, each in its own write (`records_the_reset`),
 ahead of a park or hold and behind one (`proves_before_a_park`), so a park or
 hold whose record is refused, or never made, leaves it retired all the same.
 The comment is reread behind that retirement: evidence written back is
-retired again, the tick held, as over a successor or another attempt, nothing
-reset. One a caller read gone or off the landing (`lost`, `heads_read`), one
-the proof found gone mid-request or read off the landing, and one an earlier
-proof read but no write recorded (`owed_events.loss_owed`) are recorded and
-retired alike, however soon the checkout is back, the attempt owing that loss
-to every later proof from the moment it is read. A retirement that does not
-land withholds the tick's state, which may hold a successor's floor stale.
+retired again, the tick held, as over a successor, another attempt, or the
+base tip put back, nothing reset. One a caller read gone or off the landing
+(`lost`, `heads_read`), one the proof found gone mid-request or read off the
+landing, and one an earlier proof read but no write recorded
+(`owed_events.loss_owed`) are recorded and retired alike, however soon the
+checkout is back, the attempt owing that loss to every later proof from the
+moment it is read. A retirement that does not land withholds the tick's
+state, which may hold a successor's floor stale.
 """
 from __future__ import annotations
 
@@ -399,7 +400,10 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     put back later retired over it; and the evidence is retired as over a
     reset in its own `CLEAR` write (`rewrite_recovery_staging.lands_the_retirement`),
     blank landed or not. True only where both landed and nothing it retired,
-    no successor or other attempt, is read back; where either does not land,
+    no successor or other attempt, is read back, and the comment read afresh
+    once more behind the retirement still carries the blank and the attempt --
+    a tip put back or an attempt pinned during it, the checkout back by then,
+    holds the reset with the tick's state withheld; where either does not land,
     the tick's state is withheld from every whole-state write behind, since
     the comment may carry a successor and its floor, or a tip put back, by then.
     """
@@ -422,7 +426,7 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
             if not (lands_the_retirement(recording, CLEAR) and recorded):
                 recording.state.withheld = True
                 return False
-            return True
+            return bool(_blanks_the_tip(recording, moved, again=True))
         pending = moved.keys()
         while pending:
             recorded = _retirement.retires_unproved(

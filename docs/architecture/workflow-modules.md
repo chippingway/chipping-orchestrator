@@ -2607,7 +2607,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             no proof keeps it already (`rewrite_recovery_staging.keeps_the_staging`); over a
                             checkout read gone, the evidence retired as over a reset in a `CLEAR` write of its own
                             (`rewrite_recovery_staging.lands_the_retirement`)
-                            -- the loss owed as soon as it is read, the tick's state withheld where that does not land
+                            -- the loss owed as soon as it is read, the tick's state withheld where that does not land,
+                            and the comment read afresh behind it, a tip put back or an attempt pinned during that
+                            retirement holding the reset with the tick's state withheld
     rewrite_recovery_readings.py
                             dormant, as the proof it serves is: the client the recovery's proof before a park that
                             keeps the attempt (`rewrite_landing_retirement.retires_unproved`) builds its finishes over,

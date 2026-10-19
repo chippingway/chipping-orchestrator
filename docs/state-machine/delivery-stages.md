@@ -1598,9 +1598,10 @@ because there it is the claim that this stage has already rerouted rather than a
   (`rewrite_recovery_staging.keeps_the_staging`). A tip the tick read blank holds an unrecorded reset where another road
   put it back, movement the reset's own record read is retired before the reset goes on, evidence the reading behind
   that retirement carries under a receipt read moving -- a successor, or the run put back -- retired in turn, and a tip
-  put back or an attempt pinned right behind that record, or behind the proof of what it read moving, holds the reset,
-  read off the comment afresh, the tick's state withheld, and a tick whose state carries another attempt by then -- one
-  a proof took in off the comment -- holds it with no blank written over that attempt's tip
+  put back or an attempt pinned right behind that record, behind the proof of what it read moving, or during the
+  retirement over a checkout read gone, holds the reset, read off the comment afresh, the tick's state withheld, and
+  a tick whose state carries another attempt by then -- one a proof took in off the comment -- holds it with no blank
+  written over that attempt's tip
   (`rewrite_recovery_parks.records_the_reset`); so does a proof that reads another attempt in place of the one it
   recovers (`rewrite_landing_retirement.retires_unproved`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the

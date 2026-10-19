@@ -6,12 +6,14 @@ The guarded recovery case (`guarded_recovery_support`), its run settled or captu
 the next fetch failing as another road moves the run's report, the git owner's abort handed the dormant recorder. Git
 refuses the abort's reset behind its record's blank: the run is retired whole first, so neither tip nor report put back
 revives it; every write behind the blank refused, the next recovery reads the blank and invalidates it. A tip read blank
-and put back refuses the record, so no reset goes unrecorded; a gone checkout's lost-answer record, under the
-dispatcher's stranded park, retires the run in its own write; an attempt pinned behind is kept, its base tip
-unblanked where the proof took it in beside a newer run before the checkout went.
+and put back refuses the record, so no reset goes unrecorded, and one put back behind the blank, or behind the
+retirement over a gone checkout come back, holds the reset; a gone checkout's lost-answer record, under the dispatcher's
+stranded park, retires the run in its own write; an attempt pinned behind is kept, its base tip unblanked where the
+proof took it in beside a newer run before the checkout went.
 """
 from __future__ import annotations
 
+import itertools
 import subprocess
 import unittest
 from functools import partial
@@ -37,8 +39,9 @@ from tests.workflow.engine import (
 _REPORT = "developer_report_current"
 _REVISION = "revision"
 
-# The current record a settled run stands in, which the write invalidating it drops.
+# The current record a settled run stands in, which the write invalidating it drops, and a captured run's pending one.
 _CURRENT = "verification_evidence_current"
+_PENDING = "verification_evidence_pending"
 _FETCHES = "_authed_fetch"
 _EDITS = "edit_pinned_state"
 _OVER = "over"
@@ -172,20 +175,27 @@ class BlankTipTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_released()
 
     def test_a_tip_put_back_behind_the_blank_holds(self) -> None:
-        # Another road puts the tip back right behind the reset record's blank: the record reads it afresh and holds
-        # the reset, the run, captured or settled, left on the landed head it was proved over and the tick's state
+        # Another road puts the tip back right behind the reset record's blank -- or, over a checkout gone, right behind
+        # the retirement that follows the blank, the checkout back with it: the record reads it afresh and holds the
+        # reset, the run, captured or settled, left on the landed head it was proved over and the tick's state
         # withheld, so no reset moves the checkout off evidence nothing records moved.
-        for captures in (False, True):
-            with self.subTest(captured=captures):
+        for captures, gone in itertools.product((False, True), repeat=2):
+            with self.subTest(captured=captures, gone=gone):
                 self.setUp()
                 head = (self.captures() if captures else self.settles_then_dies())[0]
                 context = guarded.recovery_context(self)
                 self._tip = [self.pinned_fields(readings.KEY_REWRITE_BASE)[0]]
+                self._behind = readings.KEY_REWRITE_BASE
+                if gone:
+                    self._wt.rename(self._wt.parent / _AWAY)
+                    self._behind = _PENDING if captures else _CURRENT
                 puts_back = partial(self._puts_the_tip_back_behind, self.gh.edit_pinned_state)
                 with patch.object(self.gh, _EDITS, puts_back):
                     self.assertIsNone(persistence._resets(context, self.anchor))
-                held = (self._tip, self._wt_head(), context.state.withheld)
-                self.assertEqual(held, ([], head, True))
+                self.assertEqual(
+                    (self._tip, self._wt_head(), context.state.withheld), ([], head, True),
+                    "the checkout was reset over the tip put back",
+                )
 
     def test_a_successor_behind_the_proof_holds(self) -> None:
         # The reset's record reads the run's report moved and retires the run; right behind that retirement another
@@ -213,12 +223,16 @@ class BlankTipTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         return answered
 
     def _puts_the_tip_back_behind(self, live, issue, staged, **options):
-        """`live`, the pinned-comment edit, the tip held written back right behind the first edit blanking it."""
+        """`live`, the pinned-comment edit, the tip held written back, and a checkout gone put back, right behind the
+        first edit taking the field held behind off the comment."""
         answered = live(issue, staged, **options)
-        tip = readings.KEY_REWRITE_BASE
-        blanks = options[_OVER].get(tip) and not staged.get(tip)
-        if blanks and self._tip:
+        field = self._behind
+        takes_off = options[_OVER].get(field) and not staged.get(field)
+        if takes_off and self._tip:
             self._writes_the_tip(self._tip.pop())
+            away = self._wt.parent / _AWAY
+            if away.is_dir():
+                away.rename(self._wt)
         return answered
 
     def _puts_the_tip_back(self, spec, ref: str, **options):
