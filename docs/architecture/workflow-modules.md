@@ -2608,8 +2608,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             checkout read gone, the evidence retired as over a reset in a `CLEAR` write of its own
                             (`rewrite_recovery_staging.lands_the_retirement`)
                             -- the loss owed as soon as it is read, the tick's state withheld where that does not land,
-                            and the comment read afresh behind it, a tip put back or an attempt pinned during that
-                            retirement holding the reset with the tick's state withheld
+                            and the comment read afresh behind it, a tip put back, an attempt pinned, or an evidence
+                            record moved during that retirement -- a successor recorded, a floor raised, laid over the
+                            tick's state -- holding the reset with the tick's state withheld
     rewrite_recovery_readings.py
                             dormant, as the proof it serves is: the client the recovery's proof before a park that
                             keeps the attempt (`rewrite_landing_retirement.retires_unproved`) builds its finishes over,
@@ -2644,8 +2645,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             then carries, read through the client that asks every reading, so what it reads moving is
                             proved and an attempt any reading of it carries in place of the one recovered holds the
                             caller, however soon it is put back and however little evidence is left to prove; a lost
-                            answer there taken as sent so it
-                            is never sent twice, a refusal staged again for the record behind (`adds_the_totals`), and a
+                            answer there taken as sent so it is never sent twice, save where the comment read afresh
+                            still spells each total as that write read it, which carries none of them, so they are
+                            staged again as a refusal's are, a refusal staged again for the record behind
+                            (`adds_the_totals`), and a
                             context already kept handed back as it is, so
                             the reset's recorder keeps it alike asked inside a proof or directly by the git owner
                             (`rewrite_recovery_parks.records_the_reset`); behind a record that did not land, that

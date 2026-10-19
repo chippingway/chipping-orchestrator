@@ -27,8 +27,10 @@ read through the client that asks every reading, so what it reads moving is
 proved and an attempt any of its readings carries in place of the one
 recovered holds the caller, however soon it is put back and however little
 evidence is left to prove; a lost answer there takes them as sent, so they
-are never sent twice, and a refusal stages them again behind the block, for
-the record behind it.
+are never sent twice -- save where the comment read afresh still spells each
+of them as that write read it, which carries none of what it added, landed
+or not -- and a refusal, or such a lost answer, stages them again behind the
+block, for the record behind it.
 
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
@@ -101,6 +103,7 @@ class _KeepsWhatItCarried:
         self._moves = frozenset(staging)
         self._staging = frozenset(staging if ahead else ())
         self._totals = frozenset(field for field in self._staging if self._adds_again(field))
+        self._lost: Mapping[str, Any] = {}
         self.carried: set[str] = set()
         _lays(self._tick, self._read, self._totals if ahead else staging)
 
@@ -108,12 +111,17 @@ class _KeepsWhatItCarried:
         return getattr(self._gh, name)
 
     def edit_pinned_state(self, issue: Issue, state: PinnedState, **options) -> PinnedEdit:
-        """The strict edit, sent through; what it moved over its comment kept where it landed, or may have."""
+        """The strict edit, sent through; what it moved over its comment kept where it landed, or may have.
+
+        The comment an edit whose answer was lost was decided over is kept too, for the totals' own write to read the
+        comment afresh against (`_never_landed`).
+        """
         edit = self._gh.edit_pinned_state(issue, state, **options)
         if issue.number != self._issue.number or edit not in _MAY_HAVE_LANDED:
             return edit
         moved = _moved(state.data, options.get("over") or {})
         if edit is PinnedEdit.UNCONFIRMED:
+            self._lost = options.get("over") or {}
             self.carried.update(moved - self._staging)
             return edit
         self.carried.update(moved)
@@ -140,9 +148,10 @@ class _KeepsWhatItCarried:
         Through `gh`, the block's caller's client that asks every reading, ahead of every other write of the block, so
         what that write reads moving is proved and an attempt put in place meanwhile holds whatever the block answers.
         Over the tick's reading, so the total another road reached meanwhile is added to rather than written over.
-        Landed, they are taken in as the comment then carries them; sent with the answer lost, as sent, the tick's
-        state withheld, so nothing sends them twice; refused, they are staged again behind the block, for the record
-        behind it.
+        Landed, they are taken in as the comment then carries them; refused, they are staged again behind the block,
+        for the record behind it, and so are those sent with the answer lost that the comment read afresh shows it
+        carries none of (`_never_landed`); any other sent with the answer lost is taken as sent, the tick's state
+        withheld, so nothing sends them twice.
         """
         tick = self._tick
         moving = sorted(self._totals - self.carried)
@@ -155,12 +164,25 @@ class _KeepsWhatItCarried:
         if landed not in _SENT:
             return
         if landed is _commit_models.CommitStatus.UNCONFIRMED:
+            if self._never_landed(gh, moving):
+                return
             _lays(tick, self._staged, moving)
             tick.withheld = True
         else:
             _lays(tick, reading.data, moving)
         _commit.takes_in(tick, tick.data, moving)
         self.carried.update(moving)
+
+    def _never_landed(self, gh, totals: Iterable[str]) -> bool:
+        """Whether the comment read afresh through `gh` spells each of `totals` as the edit whose answer was lost did.
+
+        Then the comment carries none of what that edit added, whether it never landed or another road wrote the
+        totals back over it, so they are sent again by a write behind. A comment carrying any of them otherwise -- as
+        sent, or moved on by another road -- cannot say which, and nor can one that would not read: the totals are
+        taken as sent there, so they are never added twice.
+        """
+        fresh = _durable.durable_comment(gh, self._issue, self._tick)[0]
+        return fresh is not None and _moved(fresh.data, self._lost).isdisjoint(totals)
 
     def _adds_again(self, field: str) -> bool:
         """Whether `field` as the tick staged it, sent again over a comment already carrying it, moves on: a total."""

@@ -101,8 +101,10 @@ the reset recorded against it, each in its own write (`records_the_reset`),
 ahead of a park or hold and behind one (`proves_before_a_park`), so a park or
 hold whose record is refused, or never made, leaves it retired all the same.
 The comment is reread behind that retirement: evidence written back is
-retired again, the tick held, as over a successor, another attempt, or the
-base tip put back, nothing reset. One a caller read gone or off the landing
+retired again, the tick held, as over a successor, another attempt, the base
+tip put back, or any evidence record moved since -- laid over the tick's
+state, so no write of it lowers a floor raised there -- nothing reset. One a
+caller read gone or off the landing
 (`lost`, `heads_read`), one the proof found gone mid-request or read off the
 landing, and one an earlier proof read but no write recorded
 (`owed_events.loss_owed`) are recorded and retired alike, however soon the
@@ -115,8 +117,7 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 
-from orchestrator.git.base_sync import attempts as _attempts, state as _base_sync_state
-from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
+from orchestrator.git.base_sync import attempts as _attempts, models as _base_sync_models, state as _base_sync_state
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
@@ -130,6 +131,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.owed_events import loss_owed, owes_a_loss
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
+from orchestrator.workflow.engine.rewrite_finish_rechecks import lays
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
     LEFT_THE_CHECKOUT,
     AsksEveryReading,
@@ -177,6 +179,10 @@ CLEAR = _commits.ReportWrite(
     },
 )
 
+# What a retirement over a checkout read gone leaves the tick's state carrying as its last reading did: the records
+# its write was decided on and every evidence record, which the comment read afresh behind it has to carry still.
+_RETIRED = (*CLEAR.decided_on, _evidence_records.EVIDENCE_HANDOFF, _evidence_records.REVISION_FLOOR)
+
 # A park's record, decided on the attempt it keeps or drops, the park's own
 # flags, and the evidence records a landed reset retires beside the attempt,
 # its strict edit keeping the comment a refusal read as the hold's does.
@@ -190,7 +196,7 @@ PARK = _commits.ReportWrite(
 ).reading_moves(True)
 
 
-def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str) -> None:
+def lands_a_park(context: _base_sync_models._AutoRebaseRecoveryContext, message: str, reason: str) -> None:
     """Park `context`'s issue for a human with `message` and `reason`, recorded through the guarded commit as `PARK`.
 
     The notice is posted and the park staged on the tick's state as every
@@ -232,7 +238,7 @@ def lands_a_park(context: _AutoRebaseRecoveryContext, message: str, reason: str)
     _lands_then_proves(context, PARK, "park")
 
 
-def lands_a_hold(context: _AutoRebaseRecoveryContext) -> bool:
+def lands_a_hold(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool:
     """Prove what a recovery hold keeps, then record the hold over the comment read afresh, as `HOLD`; whether it did.
 
     A publication gate that held a recovery's push -- the landed road's leased
@@ -263,7 +269,7 @@ def lands_a_hold(context: _AutoRebaseRecoveryContext) -> bool:
     return _lands_then_proves(context, HOLD, "hold")
 
 
-def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
+def lands_a_clear(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool:
     """Record a clear the tick staged on `context.state` over the comment read afresh, as `CLEAR`; whether it landed.
 
     Only what the tick staged lands; a successor settled meanwhile refuses it, its floor kept. A clear not landing
@@ -307,7 +313,7 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
 
 
 def proves_before_a_park(
-    context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence] | None = None, *, lost=(),
+    context: _base_sync_models._AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence] | None = None, *, lost=(),
 ) -> bool:
     """Whether a recovery park or hold that keeps the attempt may go on, what it keeps proved first.
 
@@ -355,7 +361,7 @@ def proves_before_a_park(
         return records_the_reset(proving, lost=lost or (proving.worktree,))
 
 
-def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
+def records_the_reset(context: _base_sync_models._AutoRebaseRecoveryContext, *, lost=()) -> bool:
     """Record a reset about to move the checkout against evidence for the landed head; may the reset go on.
 
     The recovery's answer ahead of every reset (`_AutoRebaseRecoveryContext.records_before_a_reset`):
@@ -401,9 +407,11 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     reset in its own `CLEAR` write (`rewrite_recovery_staging.lands_the_retirement`),
     blank landed or not. True only where both landed and nothing it retired,
     no successor or other attempt, is read back, and the comment read afresh
-    once more behind the retirement still carries the blank and the attempt --
-    a tip put back or an attempt pinned during it, the checkout back by then,
-    holds the reset with the tick's state withheld; where either does not land,
+    once more behind the retirement still carries the blank, the attempt, and
+    every evidence record as the retirement left them (`_RETIRED`) -- a tip put
+    back, an attempt pinned, or a successor recorded or floor raised during it,
+    the checkout back by then, holds the reset with the tick's state withheld,
+    what moved laid over it; where either does not land,
     the tick's state is withheld from every whole-state write behind, since
     the comment may carry a successor and its floor, or a tip put back, by then.
     """
@@ -426,7 +434,7 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
             if not (lands_the_retirement(recording, CLEAR) and recorded):
                 recording.state.withheld = True
                 return False
-            return bool(_blanks_the_tip(recording, moved, again=True))
+            return bool(_blanks_the_tip(recording, moved, again=True, held=_RETIRED))
         pending = moved.keys()
         while pending:
             recorded = _retirement.retires_unproved(
@@ -437,7 +445,8 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
 
 
 def _blanks_the_tip(
-    context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence], *, again: bool = False,
+    context: _base_sync_models._AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence], *, again: bool = False,
+    held: tuple[str, ...] = (),
 ) -> PinnedState | None:
     """Blank the attempt's base tip in a guarded write of its own; the comment read afresh behind it, or None to hold.
 
@@ -451,6 +460,9 @@ def _blanks_the_tip(
     pinned there, or a comment that would not read holds the reset too -- no reset moving the checkout off evidence
     nothing records moved -- the tick's state withheld rather than written back over what that road wrote. `again`
     writes nothing and asks only that reading, for a caller whose proof made requests of its own since the blank.
+    `held` names records the tick's state carries as the comment last read: any that reading spells otherwise -- a
+    successor recorded, a floor raised -- is laid over the state (`rewrite_finish_rechecks.lays`) and holds the reset
+    the same way, so no write of that state lowers or drops what another road wrote.
     """
     asked = asks_every_reading(
         context, lambda reading: _retirement.moved_under(reading, tick=context.state, into=moved),
@@ -477,19 +489,24 @@ def _blanks_the_tip(
             )
             return None
     durable = durable_comment(asked.gh, context.issue, context.state)[0]
-    if durable is not None and not durable.get(_TIP) and stands_as_recovered(context, durable):
+    if durable is not None and not durable.get(_TIP) and stands_as_recovered(
+        context, durable,
+    ) and not lays(context.state, durable, held):
         log.info("issue=#%d the reset stands recorded ahead of it, the attempt's base tip blank", context.issue.number)
         return durable
     log.warning(
-        "issue=#%d the reset was recorded, but the comment read afresh behind it carries its base tip back or no "
-        "attempt this recovery recovers; nothing is reset until a later tick answers the comment as it then stands",
+        "issue=#%d the reset was recorded, but the comment read afresh behind it carries its base tip back, no "
+        "attempt this recovery recovers, or evidence records moved behind their retirement; nothing is reset until a "
+        "later tick answers the comment as it then stands",
         context.issue.number,
     )
     context.state.withheld = True
     return None
 
 
-def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, named: str) -> bool:
+def _lands_then_proves(
+    context: _base_sync_models._AutoRebaseRecoveryContext, write: _commits.ReportWrite, named: str,
+) -> bool:
     """Land the tick's state as `write` over the comment read afresh, then prove once more what it keeps; both did.
 
     Whether the record landed or not, the proof behind it

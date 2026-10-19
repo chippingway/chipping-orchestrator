@@ -256,18 +256,20 @@ def _goes_on_over(finish: LandedFinish, durable: PinnedState, observed) -> bool:
     return invalidates_rechecked(finish, held)
 
 
-def lays(state: PinnedState, durable: PinnedState, fields: Collection[str] = _durable._EVIDENCE_RECORDS) -> None:
+def lays(state: PinnedState, durable: PinnedState, fields: Collection[str] = _durable._EVIDENCE_RECORDS) -> bool:
     """Lay each of `fields` over `state` as `durable`, a comment read afresh, spells it, every one taken in as read.
 
     The evidence records by default. A field `durable` lacks is dropped from `state`. Each is remembered as
     read (`pinned_commit.takes_in`), so a guarded write decided behind this
-    counts none of them as the tick's own move.
+    counts none of them as the tick's own move. Whether `durable` spelled any of them otherwise than `state` held it.
     """
+    moved = _commit_models.PinnedCommit.capture(state, prerequisites=fields).moved(durable.data)
     for field in fields:
         state.data.pop(field, None)
         if field in durable.data:
             state.set(field, durable.get(field))
     _commit.takes_in(state, durable.data, fields)
+    return bool(moved)
 
 
 def _revived(

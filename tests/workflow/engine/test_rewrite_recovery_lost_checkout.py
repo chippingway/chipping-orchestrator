@@ -84,6 +84,13 @@ def _blanks(_issue, staged, *, over: dict, **_options) -> bool:
 _BEHIND_THE_BLANK = handoff.Boundary("behind the blank", _EDITS, _blanks)
 _FIRST_CALL = handoff.Boundary("at the first call", "", lambda *_called, **_options: True)
 
+# Where another road records a newer run on the run's binding: right behind the first edit retiring the run, or behind
+# the retirement over the checkout gone answering, ahead of the reset's last reading of the comment.
+_BEHIND_THE_EDIT = handoff.Boundary(
+    "behind the retiring edit", _EDITS, lambda _issue, staged, **options: _retires(staged, **options),
+)
+_BEHIND_THE_ANSWER = handoff.Boundary("behind the retirement's answer", "lands_the_retirement", _FIRST_CALL.kills)
+
 # How a case moves the checkout's HEAD, onto the anchor and back onto the landed head; and the file a newer base adds.
 _PUTS_BACK = ("reset", "--quiet", "--hard")
 _NEWER_BASE = "newer-base.txt"
@@ -426,35 +433,36 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
 
     def test_a_successor_behind_keeps_its_floor(self) -> None:
         # Another road settles a newer run right behind the retirement over the checkout gone, or only records one
-        # pending there, and the checkout is put back: the proof holds, or the reset the git owner records directly
-        # is not made, the checkout left on the landed head, and the tick's state, withheld, written whole behind it
-        # lowers no floor and puts no run back.
-        for settles in (True, False):
-            with self.subTest(settled=settles):
+        # pending there or behind that retirement's answer, and the checkout is put back: the proof holds, or the
+        # reset the git owner records directly is not made, the checkout left on the landed head, and the tick's
+        # state, withheld, written whole behind it lowers no floor and puts no run back.
+        for settles, behind in ((True, _BEHIND_THE_EDIT), (False, _BEHIND_THE_EDIT), (False, _BEHIND_THE_ANSWER)):
+            with self.subTest(settled=settles, behind=behind.name):
                 self.setUp()
                 self._run = self.settles_then_dies()
                 self._written = None
                 self._settling = settles
                 context = self.loses_the_checkout()
-                asks = _parks.proves_before_a_park if settles else partial(persistence._resets, reset_sha=self.anchor)
-                with patch.object(self.gh, _EDITS, partial(self._settles_behind, self.gh.edit_pinned_state)):
-                    self.assertFalse(asks(context))
+                owner = self.gh if behind is _BEHIND_THE_EDIT else _parks
+                with patch.object(
+                    owner, behind.step, behind.moving(getattr(owner, behind.step), self._settles_behind),
+                ):
+                    self.assertFalse(
+                        _parks.proves_before_a_park(context) if settles else persistence._resets(context, self.anchor),
+                    )
                 self.assertEqual(self._wt_head(), self._run[0])
+                self.assertTrue(context.state.withheld)
                 self.gh.write_pinned_state(self.issue, context.state)
                 self.assertEqual(self.pinned_fields(readings.KEY_REVISION_FLOOR), (self._written.revision,))
                 standing = readings.pinned_records(self)[1 if settles else 0]
                 self.assertEqual(standing.receipt, self._written.receipt)
 
-    def _settles_behind(self, live, issue, staged, **options):
-        """`live`, the pinned-comment edit, a newer run recorded on the run's binding behind the first retiring it --
-        settled where `_settling` -- and the checkout put back."""
-        answered = live(issue, staged, **options)
-        retired = answered is PinnedEdit.EDITED and _retires(staged, **options)
-        if retired and self._written is None:
-            binding = self._run[1].binding
-            self._written = settled_support.records_a_newer_run(self, settles=self._settling, binding=binding)
-            self._away.rename(self._wt)
-        return answered
+    def _settles_behind(self) -> None:
+        """Record a newer run on the run's binding, settled where `_settling`, as another road would, kept as
+        `_written`; and put the checkout back."""
+        binding = self._run[1].binding
+        self._written = settled_support.records_a_newer_run(self, settles=self._settling, binding=binding)
+        self._away.rename(self._wt)
 
     def _assert_held_as_written(self, race: str) -> None:
         """What another road wrote ahead of the retirement standing as it wrote it, the checkout left on the head."""

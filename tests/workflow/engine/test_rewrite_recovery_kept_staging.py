@@ -21,11 +21,12 @@ read off the comment handed straight to the dormant guarded hold or park
   that blank landing with its answer lost.
 - On a state alone (`KeepsTheStagingTest`): what the tick staged is staged
   again over its own reading, what the block staged or an edit carried is
-  left, and usage whose own write lost its answer is never sent twice. That
-  write is the first the reset's record or the hold's proof makes, so an
-  attempt pinned right ahead of it holds either -- a proof holding no evidence
-  left to prove among them -- and the report moved and put back around it is
-  read moving, the run invalidated whole.
+  left, and usage whose own write lost its answer is never sent twice, nor
+  lost where that write was never sent. That write is the first the reset's
+  record or the hold's proof makes, so an attempt pinned right ahead of it
+  holds either -- a proof holding no evidence left to prove among them -- and
+  the report moved and put back around it is read moving, the run invalidated
+  whole.
 
 Nothing is run again, pushed, or launched.
 """
@@ -126,9 +127,10 @@ def _settles_report_three(case, head: str, beside: dict) -> None:
     case.gh.write_pinned_state(case.issue, case.state)
 
 
-def _answers_lost(live, issue, staged, **options) -> PinnedEdit:
-    """`live`, the pinned-comment edit, sent as it is and answered lost."""
-    live(issue, staged, **options)
+def _answers_lost(live, issue, staged, *, sends: bool = True, **options) -> PinnedEdit:
+    """`live`, the pinned-comment edit, sent as it is where `sends`, and answered lost either way."""
+    if sends:
+        live(issue, staged, **options)
     return PinnedEdit.UNCONFIRMED
 
 
@@ -348,19 +350,23 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_lost_totals_are_sent_once(self) -> None:
         # The tick stages usage alone, taken off the state for the block, whose first write lands it in a write of
-        # its own whose answer is lost: taken in as sent, the tick's state withheld, so the hold recorded behind adds
-        # none of it again.
-        context, counted = self._stages_usage()[1:]
-        with (
-            patch.object(self.gh, _EDITS, partial(_answers_lost, self.gh.edit_pinned_state)),
-            keeps_the_staging(context) as keeping,
-        ):
-            self.assertEqual(context.state.get(_USAGE) or 0, counted)
-            adds_the_totals(keeping, {})
-        self.assertTrue(context.state.withheld)
-        self.assertTrue(_parks.lands_a_hold(context))
+        # its own whose answer is lost: sent, it is taken in as sent, the tick's state withheld, so the hold recorded
+        # behind adds none of it again; never sent, the comment read afresh carries none of it, so it is staged again
+        # for that hold, which adds it once.
+        for sends in (True, False):
+            with self.subTest(sent=sends):
+                self.setUp()
+                context, counted = self._stages_usage()[1:]
+                with (
+                    patch.object(self.gh, _EDITS, partial(_answers_lost, self.gh.edit_pinned_state, sends=sends)),
+                    keeps_the_staging(context) as keeping,
+                ):
+                    self.assertEqual(context.state.get(_USAGE) or 0, counted)
+                    adds_the_totals(keeping, {})
+                self.assertEqual(context.state.withheld, sends)
+                self.assertTrue(_parks.lands_a_hold(context))
 
-        self.assertEqual(readings.pinned(self).get(_USAGE), counted + 5)
+                self.assertEqual(readings.pinned(self).get(_USAGE), counted + 5)
 
     def test_a_replacement_under_the_totals_holds(self) -> None:
         # Over a comment carrying no evidence left to prove, another road pins a fresh attempt right ahead of the
