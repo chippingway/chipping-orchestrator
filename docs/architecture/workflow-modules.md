@@ -1396,7 +1396,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             every shared helper the finish calls reads before taking any of its proofs, write
                             profiles, adoptions, or retirements; and whether a finish's route lands a record of its
                             own relabel -- held to that dormant policy and routing, not continuing, its head
-                            (`routes_a_relabel`)
+                            (`routes_a_relabel`); and, for the recovery's dormant proof alone, what each last word
+                            reads of the checkout is handed to (`hears_the_checkout`), every other finish leaving it
+                            None
     rewrite_finish_debt.py  the debt a landed rewrite leaves, staged only where both the announcement write it rides
                             -- the notice's ledger entry reserved at the widest id, the record of the event, the
                             reset round, and the mark, and for a dormant finish routing its head
@@ -1846,7 +1848,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the configuration -- and the first movement and first hold answered side by side, a
                             local base nobody could count against holding; where `records` is asked over a head the
                             base advanced past again, the base readings that made its continuation (`ADVANCED`) are
-                            dropped first, a tip blanked to record movement never among them
+                            dropped first, a tip blanked to record movement never among them; the checkout's own verdict
+                            handed first to a finish that carries `hears_the_checkout`, however it is weighed after
     rewrite_evidence_models.py
                             the policy's decision (`RewriteEvidence`): its route (`RewriteEvidenceRoute`: fresh,
                             carried, reviewer, failed, or moved), whether the current evidence is invalidated, the
@@ -2467,7 +2470,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             in its place, in the comment the proof last read, holding the tick
                             (`rewrite_recovery_readings.stands_as_recovered`) with nothing reset, cleared, or parked,
                             and a checkout one of its finishes read off the landing -- as its candidate, or in the
-                            last word (`rewrite_recovery_readings.LosesTheCheckout.reads`) -- owed and recorded before
+                            last word (`rewrite_recovery_readings.LosesTheCheckout.hears`) -- owed and recorded before
                             it answers (`rewrite_recovery_readings.LosesTheCheckout.proves`) -- a successor it carries
                             there laid over the tick's state and proved the same way, what that reading records moving
                             kept, a successor that reading takes in behind an invalidation that landed proved too --
@@ -2600,14 +2603,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stands_as_recovered`); and a block a checkout gone from disk cuts short
                             (`LosesTheCheckout`), its git request there read as that loss, back by then or not, and
                             recorded for a road (`RecordsALostCheckout`) over the comment as the tick last read it,
-                            and a landing the last word reads left owed as that loss (`LosesTheCheckout.reads`)
+                            and a checkout the last word reads off the landing owed as that loss, whatever refusal is
+                            weighed ahead of it (`LosesTheCheckout.hears`); a remote read off the landing owes none
     rewrite_recovery_staging.py
                             dormant, as the proof it serves is: what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it
                             over the comment the tick read (`keeps_the_staging`) -- a field no strict edit of the
                             proof's carried, landed or unconfirmed, an equal total another road wrote proving nothing --
                             so the record behind lands it as the tick's own move or refuses it as a conflict, a field
-                            the proof itself left staged keeping the proof's staging; behind a record that did not land,
+                            the proof itself left staged keeping the proof's staging, and within the proof, what the
+                            tick staged that an edit landed or sent with its answer lost taken in as that edit spelled
+                            it, so no later write of the proof sends it again; behind a record that did not land,
                             that staging is taken off the state for the proof, put back only where no proof edit
                             landed or may have; over a checkout gone from disk, what the tick holds for the landed head
                             retired as over a reset in its own guarded write (`lands_the_retirement`), asked again over
