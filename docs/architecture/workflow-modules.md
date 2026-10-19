@@ -573,7 +573,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             text, so a failed post never files another's event; a debt noted anew dropped where its
                             write was refused outright (`rewrite_finish_events.py`); and, for the dormant recovery
                             proof alone, a checkout loss no write recorded, owed under the attempt's anchor
-                            (`owes_a_loss`) until the next proof of that attempt takes it up once (`pays_a_loss`)
+                            (`owes_a_loss`), asked by every later proof of that attempt without being dropped
+                            (`loss_owed`), until a reset record and a retirement over it both land
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked
@@ -2463,10 +2464,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that evidence put back current right behind is retired again -- asked once more where that
                             reading cannot say the route is free, and going on only over a comment read afresh carrying
                             nothing current under that receipt and still the recovered attempt -- another road's attempt
-                            in its place holding the tick (`rewrite_recovery_readings.stands_as_recovered`) with nothing
-                            reset, cleared, or parked -- a successor it carries there laid over the tick's state
-                            and proved the same way, what that reading records moving kept, a successor that reading
-                            takes in behind an invalidation that landed proved too -- each asked whatever the
+                            in its place, in the comment the proof last read, holding the tick
+                            (`rewrite_recovery_readings.stands_as_recovered`) with nothing reset, cleared, or parked,
+                            and a checkout one of its finishes read off the landing recorded before it answers
+                            (`rewrite_recovery_readings.LosesTheCheckout.proves`) -- a successor it carries there laid
+                            over the tick's state and proved the same way, what that reading records moving kept, a
+                            successor that reading takes in behind an invalidation that landed proved too -- each asked
+                            whatever the
                             other's proof answered and every comment either reads -- the readings its abandonment,
                             invalidation, and rechecks take of their own accord, and a comment a strict edit among them
                             found moved, included, each through a client that asks it first
@@ -2565,8 +2569,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             every write it lands (`rewrite_recovery_staging.py`), and behind one keeps it out of them. A
                             checkout gone from disk, ahead of a record or behind one or a notice that raised -- or one a
                             caller read gone or off the evidence's head (`lost`, `heads_read`), or a loss an earlier
-                            proof owes (`owed_events.pays_a_loss`), however soon it is back -- has the reset recorded
-                            and the evidence retired as over it, each in a write of its own (`proves_before_a_park`).
+                            proof owes (`owed_events.loss_owed`), however soon it is back -- has the reset recorded
+                            and the evidence retired as over it, each in a write of its own (`proves_before_a_park`),
+                            the debt kept where nothing stands to retire and dropped only once both writes land.
                             Ahead of every reset whose attempt records a base tip -- or one the tick read blank,
                             confirmed blank over the comment read afresh, so a tip another road put back refuses the
                             reset -- that tip is blanked in a write of its own (`records_the_reset`, the answer
@@ -2604,7 +2609,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retired as over a reset in its own guarded write (`lands_the_retirement`), asked again over
                             the comment read afresh -- evidence another road wrote back retired again and the tick held,
                             a successor or another attempt in its place holding it first -- the base tip blanked in a
-                            shrinking write where the history has no room, and the loss owed where nothing lands
+                            shrinking write where the history has no room
     rewrite_landing_records.py
                             what the evidence records say a finish already did for the head it published, written
                             only once it saw the push land: whether any record -- pending, current, retired, or a

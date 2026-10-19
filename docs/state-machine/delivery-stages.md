@@ -1577,10 +1577,11 @@ because there it is the claim that this stage has already rerouted rather than a
   (`rewrite_recovery_readings.LosesTheCheckout`), or read gone or off the evidence's head by its caller, however soon
   it is back -- has the reset recorded and the evidence retired as over it, each in a guarded write of its own
   (`rewrite_recovery_staging.lands_the_retirement`), evidence written back behind retired again and an attempt or
-  successor another road put in its place holding the tick unreset, and a loss no write recorded owed to the next
-  proof of that attempt (`workflow/engine/owed_events.py`) (`rewrite_recovery_parks.proves_before_a_park`). A tip the
-  tick read blank holds an unrecorded reset where another road put it back, and movement the reset's own record read
-  is retired before the reset goes on (`rewrite_recovery_parks.records_the_reset`).
+  successor another road put in its place holding the tick unreset, and a loss no write recorded owed to every later
+  proof of that attempt until one does (`workflow/engine/owed_events.py`)
+  (`rewrite_recovery_parks.proves_before_a_park`); so is one the proof's own finish reads off the landing, recorded
+  before the proof answers. A tip the tick read blank holds an unrecorded reset where another road put it back, and
+  movement the reset's own record read is retired before the reset goes on (`rewrite_recovery_parks.records_the_reset`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
