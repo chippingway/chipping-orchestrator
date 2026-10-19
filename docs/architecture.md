@@ -1090,8 +1090,10 @@ file-backed trajectory viewer, which reads its JSONL directly (usage and cost in
 None of them feed back into dispatch — workflow correctness keys off the pinned state JSON and the workflow label —
 save one read of the audit log: a base-rewrite finish asks it, and the rotated copies beside it, whether its
 `base_rebased` is already filed before filing one, and holds while they will not read
-([`observability/event-streams.md`](observability/event-streams.md#audit-event-log-event_log_path)). So every surface
-is observation-only and safe to truncate, rotate, or delete, short of that one event's once-only filing.
+([`observability/event-streams.md`](observability/event-streams.md#audit-event-log-event_log_path)); with no log
+configured, the attempt's record of that event answers in its place unless this process still owes it
+(`workflow/engine/owed_events.py`). So every surface is observation-only and safe to truncate, rotate, or delete,
+short of that one event's once-only filing.
 
 They are not all owned in one place. The audit sink belongs to `github/events.py`, since `GitHubClient.emit_event` is
 the single chokepoint it is appended from, and so does its one read-back (`events.filed`, over the reader of the log

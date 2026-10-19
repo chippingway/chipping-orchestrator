@@ -3,11 +3,12 @@
 """Authenticated repository client and canonical repository identity.
 
 The concrete client resolves credentials, opens the PyGithub connection,
-creates independent worker clients whose repository is fetched on its first
-metadata read, and pairs stage-entry records across the audit and analytics
-sinks. Repository identity comes from the API object: the name with the
-configured slug as fallback and case-insensitive ownership checks, and the
-numeric id, which survives a rename, with none.
+creates worker clients whose repository is fetched on its first metadata
+read -- each on a requester of its own, sharing only the ledger of events its
+process owes (`workflow/engine/owed_events`) -- and pairs stage-entry records
+across the audit and analytics sinks. Repository identity comes from the API
+object: the name with the configured slug as fallback and case-insensitive
+ownership checks, and the numeric id, which survives a rename, with none.
 """
 from __future__ import annotations
 
