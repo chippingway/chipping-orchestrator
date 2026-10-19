@@ -16,16 +16,17 @@ abandons a run the finish captured and never settled rather than keep it for a
 finish to settle.
 
 Where another road filled the pinned comment behind that record, the settled
-run has no room for its history entry, so it is neither dropped nor left
-behind a released attempt: it stays current, its binding whole, beside the
-attempt that keeps every reader off it, and nothing is released, parked, or
-noticed, however often the tick comes back. Put back on the landed head, the
-checkout still finds it moved, and once room is made it is invalidated whole
-into history, its revision and binding kept -- by the abort that then releases
-the attempt and parks, or by that proof. A captured run too short for its
-history entry to fit is kept recorded beside the attempt the same way, not
-dropped, and a base tip already blank -- null or not recorded at all -- needs
-no write, so a full comment holds back no reset over it.
+run has no room for its history entry, so it is neither dropped nor left behind
+a released attempt: it stays current, its binding whole, beside the attempt
+that keeps every reader off it, and nothing is released, parked, or noticed,
+however often the tick comes back. Put back on the landed head, the checkout
+still finds it moved, and once room is made it is invalidated whole into
+history, its revision and binding kept -- by the abort that then releases the
+attempt and parks, or by that proof. A captured run too short for its history
+entry to fit is kept recorded beside the attempt the same way, not dropped,
+whether its checkout is gone or its base tip reads blank, and a base tip
+already blank -- null or not recorded at all -- needs no write, so a full
+comment holds back no reset over it.
 
 A blank GitHub refuses, or a process killed before it, holds the tick with
 nothing reset, and so does a run another road settles while the recovery's
@@ -171,22 +172,38 @@ class ResetRoomTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(readings.pinned(self)[readings.KEY_PENDING_PUSH], self.anchor)
 
     def test_a_full_comment_keeps_a_captured_run(self) -> None:
-        # A captured run too short for its history entry to fit the full comment, the checkout gone: the proof
-        # before a park records the reset and keeps the run recorded whole beside the attempt, its tip blank, rather
-        # than drop it as the captured-only answer would, and holds the tick.
-        self.enterContext(patch("orchestrator.config.VERIFY_COMMANDS", ("true",)))
-        head = self.lands_a_reviewed_rebase()
-        self.dies_at(support.POST, partial(self.finishes, head))
-        finish_moves.fills_the_comment(self)
-        context = guarded.recovery_context(self)
-        captured = _landing_records.captured(context.state)
-        self.assertFalse(_settlement.retire_pending_evidence(self.gh.read_pinned_state(self.issue), captured))
-        self._wt.rename(self._wt.parent / "checkout-away")
+        # A captured run too short for its history entry to fit the full comment, its checkout gone or its base tip
+        # read blank beside the checkout on the landed head: the proof before a park records the reset or reads that
+        # movement, and keeps the run recorded whole beside the attempt, its tip blank, rather than drop it as the
+        # captured-only answer would, and holds the tick.
+        for gone in (True, False):
+            with self.subTest(checkout_gone=gone):
+                self.setUp()
+                self.enterContext(patch("orchestrator.config.VERIFY_COMMANDS", ("true",)))
+                head = self.lands_a_reviewed_rebase()
+                self.dies_at(support.POST, partial(self.finishes, head))
+                reading = self.gh.read_pinned_state(self.issue)
+                if gone:
+                    self._wt.rename(self._wt.parent / "checkout-away")
+                else:
+                    reading.data[readings.KEY_REWRITE_BASE] = None
+                    self.gh.write_pinned_state(self.issue, reading)
+                finish_moves.fills_the_comment(self)
+                context = guarded.recovery_context(self)
+                captured = _landing_records.captured(context.state)
+                reading = self.gh.read_pinned_state(self.issue)
+                self.assertFalse(_settlement.retire_pending_evidence(reading, captured))
 
-        self.assertFalse(_parks.proves_before_a_park(context))
-        self.assertEqual(_landing_records.captured(self.gh.read_pinned_state(self.issue)), captured)
-        standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
-        self.assertEqual(standing, (self.anchor, None))
+                self.assertFalse(_parks.proves_before_a_park(context))
+                reading = self.gh.read_pinned_state(self.issue)
+                self.assertEqual(
+                    (
+                        _landing_records.captured(reading),
+                        reading.get(readings.KEY_PENDING_PUSH),
+                        reading.get(readings.KEY_REWRITE_BASE),
+                    ),
+                    (captured, self.anchor, None),
+                )
 
     def test_a_blank_tip_needs_no_room(self) -> None:
         # Nothing left for the landed head, and the base tip blank -- recorded null, or not recorded at all -- on a

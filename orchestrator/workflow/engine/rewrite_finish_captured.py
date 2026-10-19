@@ -316,7 +316,9 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     (`rewrite_evidence_proof.standing_refusal`, UNPROVEN), so no finish of
     this landing runs or carries the evidence again or routes a transaction
     over it, however the base, the landing, or the issue reads by then. The
-    route is held behind that write.
+    route is held behind that write. A finish held to the dormant
+    settled-evidence policy keeps the transaction recorded instead, only the
+    base tip blanked where one is recorded, and holds the route all the same.
     """
     fits = None
     # The bound records another road moved are no refusal here; only the attempt is.
@@ -348,6 +350,10 @@ def _abandons(finish: LandedFinish, staged: PinnedState, pending: _records.Pendi
     Through the abandonment every transaction that will never settle takes
     (`verification_carries.abandons`), so a carry takes the approval of
     exactly the review it answers for with it, as the reconciliation's would.
+    A finish held to the dormant settled-evidence policy (`LandedFinish.proves_settled`)
+    drops nothing for want of room: the transaction stays recorded, whole,
+    beside the attempt, its movement recorded instead by blanking the base tip
+    where one is recorded, so every later proof refuses it until room is made.
     """
     if _carries.abandons(staged, pending):
         log.info(
@@ -355,6 +361,15 @@ def _abandons(finish: LandedFinish, staged: PinnedState, pending: _records.Pendi
             finish.issue.number, pending.revision, finish.head, why,
         )
         return True
+    if finish.proves_settled:
+        log.error(
+            "issue=#%d holding the route of %.8s: the pinned comment has no room to abandon verification evidence "
+            "revision %d (%s); keeping it recorded, the base tip it rests on blanked, until room is made",
+            finish.issue.number, finish.head, pending.revision, why,
+        )
+        if staged.get(_base_sync_state._PENDING_REWRITE_BASE) is not None:
+            staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
+        return False
     log.error(
         "issue=#%d holding the route of %.8s: the pinned comment has no room to abandon "
         "verification evidence revision %d (%s); dropping it with the base tip it rests on instead",

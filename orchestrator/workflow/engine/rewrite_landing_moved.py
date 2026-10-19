@@ -250,7 +250,9 @@ def proves_captured(
     the last word beside it (`rewrite_evidence_proof.last_word`), neither of
     which needs the fetch a failed abort could not take; where either reads
     movement, the transaction is abandoned unrun -- or, with no room, refused
-    for good -- through the last word with that movement as its proof.
+    for good, or kept recorded with the base tip blanked where `settled` holds
+    the finish to the dormant policy -- through the last word with that
+    movement as its proof.
     `moved` is movement the caller already read under the transaction -- a
     record a park's own commit adopted while its notice was posted -- which
     stands as that proof in place of the proof read again, so no reading taken

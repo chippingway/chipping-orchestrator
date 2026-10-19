@@ -200,7 +200,8 @@ def reconciles_the_abandonment(
     the comment carries it current, is taken in and invalidated whole over
     what the abandonment read (`retires_the_settled`); None still where it
     carries none. Where the abandonment landed -- `landed` True, or False for
-    a drop that holds the route -- its strict edit answered over the comment
+    a transaction dropped, or kept for want of room, that holds the route --
+    its strict edit answered over the comment
     it read, and another finish's settlement of `pending`, made over a reading
     taken before it, may land right behind it, or another road may record a
     newer transaction or put another attempt in place there: that settlement
