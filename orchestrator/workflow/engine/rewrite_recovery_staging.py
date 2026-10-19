@@ -14,12 +14,14 @@ record behind lands it as the tick's own move, refuses it as a conflict where
 the comment moved it, and never adds a carried counter twice. A field the
 proof itself left staged keeps the proof's staging. Within the proof, a
 write whose answer was lost lays nothing over the state, so the comment is
-read afresh behind it: one still spelling every field the edit moved as the
-comment it was decided on did never took that edit, and the tick's staging
-stays staged for the writes behind, a gate's record and usage among it.
-Otherwise each field of the tick's staging such an edit carried is taken in
-as it spelled it, and no later write of the proof sends it -- usage among
-it -- a second time; so too where the comment would not read, even once more.
+read afresh behind it, that reading asked by the proof as every other is
+(`rewrite_recovery_readings.AsksEveryReading`). An edit lands whole: a
+comment carrying none of the fields it moved as it sent them never took it,
+however another road moved those fields since, and the tick's staging stays
+staged for the writes behind, a gate's record and usage among it. Otherwise
+each field of the tick's staging such an edit carried is taken in as it
+spelled it, and no later write of the proof sends it -- usage among it -- a
+second time; so too where the comment would not read, even once more.
 
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
@@ -68,7 +70,8 @@ class _KeepsWhatItCarried:
 
     `staging` is what the tick staged on `context.state` before the proof: each of those an edit landed, or may have,
     is taken in on that state as the edit spelled it, so no later write of the proof sends it again, a counter added
-    twice among it. An edit whose answer was lost and that the comment read afresh shows never landed carried nothing.
+    twice among it. An edit whose answer was lost and that the comment read afresh shows never landed carried nothing,
+    whatever another road wrote of the fields it sent meanwhile.
     """
 
     def __init__(
@@ -88,21 +91,24 @@ class _KeepsWhatItCarried:
         edit = self._gh.edit_pinned_state(issue, state, **options)
         if issue.number != self._issue_number or edit not in _MAY_HAVE_LANDED:
             return edit
-        over = options.get("over") or {}
-        moved = _moved(state.data, over)
-        if edit is PinnedEdit.UNCONFIRMED and self._never_landed(issue, over, moved):
+        if edit is PinnedEdit.UNCONFIRMED and self._never_landed(issue, state, options):
             return edit
+        moved = _moved(state.data, options.get("over") or {})
         self._carried.update(moved)
         _lays(self._tick, state.data, moved & self._staging)
         _commit.takes_in(self._tick, state.data, moved & self._staging)
         return edit
 
-    def _never_landed(self, issue: Issue, over: Mapping[str, Any], moved: set[str]) -> bool:
-        """Whether the comment read afresh, once more where it would not read, spells each of `moved` as `over` does.
+    def _never_landed(self, issue: Issue, sent: PinnedState, options: Mapping[str, Any]) -> bool:
+        """Whether the comment read afresh, once more where it would not read, carries no field `sent` moved as sent.
 
-        So an edit whose answer was lost moved none of what it sent: it never landed, whatever another road wrote of
-        any other field since. A comment that would not read either time says nothing, and the edit may have landed.
+        An edit lands whole, so one whose answer was lost and none of whose fields reads as it sent them never landed,
+        however another road moved those fields since -- a usage total it added to among them. One carrying any of
+        them as sent reads as landed, another road's equal write too, and so does a comment that would not read either
+        time. Each reading is put in the `seen` the edit was handed, where it was handed one, so a proof that asks every
+        reading (`rewrite_recovery_readings.AsksEveryReading`) reads what moved there as well.
         """
+        over = options.get("over") or {}
         reading = PinnedState(
             comment_id=self._tick.comment_id, state_data=dict(over), parsed=self._tick.parsed,
         )
@@ -110,7 +116,12 @@ class _KeepsWhatItCarried:
         fresh = _commit.reread(self._gh, issue, guard)
         if not isinstance(fresh, PinnedState):
             fresh = _commit.reread(self._gh, issue, guard)
-        return isinstance(fresh, PinnedState) and not _moved(fresh.data, over) & moved
+        if not isinstance(fresh, PinnedState):
+            return False
+        seen = options.get("seen")
+        if seen is not None:
+            seen.append(fresh)
+        return _moved(sent.data, over) <= _moved(fresh.data, sent.data)
 
 
 @contextmanager

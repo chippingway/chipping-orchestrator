@@ -27,8 +27,11 @@ on, while the captured run, gone from the comment, is kept from the tick's
 reading for its own proof. So is a newer run another road settles in the
 captured run's place and marks moved in its handoff's place right ahead of
 the reading the proof takes it in from, the handoff put back right behind:
-the mark that reading read invalidates it. Nothing is parked, run again,
-pushed, or launched.
+the mark that reading read invalidates it. So is a newer run another road
+settles on the captured run's binding as the proof's abandonment of that run
+is lost unsent, the report moved under it only in the comment read to confirm
+that edit, and put back right behind. Nothing is parked, run again, pushed, or
+launched.
 """
 from __future__ import annotations
 
@@ -37,12 +40,14 @@ from functools import partial
 from itertools import product
 from unittest.mock import patch
 
+from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import (
     rewrite_recovery_parks as _parks,
     verification_durable as _durable,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.rewrite_evidence_proof import LEFT_THE_LANDING
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
     rewrite_finish_git_support as git_support,
@@ -179,6 +184,49 @@ class _MarksBehindTheReading:
         return durable
 
 
+class _LosesTheAbandonment:
+    """The client's strict edit and reading: the abandonment of `run` lost unsent, a newer run settled in its place.
+
+    Another road settles the newer run, kept as `successor`, on the binding of
+    `run` as the edit abandoning `run` goes out, and that edit is never sent,
+    its answer lost. The reading behind it is taken with the report's
+    revision moved under the newer run, the report put back right behind it.
+    """
+
+    def __init__(self, case, run) -> None:
+        self._case = case
+        self._run = run
+        self._edit = case.gh.edit_pinned_state
+        self._read = case.gh.read_pinned_state
+        self._armed = False
+        self.successor = None
+
+    def edits(self, issue, staged, **options):
+        """Answer the edit; the first that drops the run's pending record lost unsent, the newer run settled instead."""
+        pending = _records.PENDING_EVIDENCE
+        abandons = options["over"].get(pending) and not staged.get(pending)
+        if not abandons or self.successor is not None:
+            return self._edit(issue, staged, **options)
+        self.successor = settled_support.records_a_newer_run(self._case, settles=True, binding=self._run.binding)
+        self._armed = True
+        return PinnedEdit.UNCONFIRMED
+
+    def reads(self, issue):
+        """The comment, read; the first reading behind the lost edit taken with the report's revision moved."""
+        if not self._armed:
+            return self._read(issue)
+        self._armed = False
+        report = _MOVED_RECORDS[0]
+        before = self._read(issue)
+        moved = self._read(issue)
+        recorded = moved.get(report)
+        moved.set(report, {**recorded, "revision": recorded["revision"] + 1})
+        self._case.gh.write_pinned_state(issue, moved)
+        reading = self._read(issue)
+        self._case.gh.write_pinned_state(issue, before)
+        return reading
+
+
 class CapturedSettlementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """A captured run's abandonment behind a dormant record retires a settlement another finish made of it."""
 
@@ -273,6 +321,26 @@ class CapturedSettlementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual((entry.revision, entry.binding), (run.revision, run.binding))
         self.assertFalse(self.pinned_fields(guarded.AWAITING)[0])
         self.assert_made_once()
+
+
+class LostAbandonmentTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """A captured run's abandonment lost unsent behind a newer run settled in its place, movement read confirming it."""
+
+    def test_a_confirming_read_retires_the_successor(self) -> None:
+        # The proof, handed the run moved off the landing, abandons it; that edit is lost unsent as another road
+        # settles a newer run on the run's binding. The comment read to confirm the edit -- the only reading of the
+        # report moved under the newer run, put back right behind -- is asked like every reading of the proof's, so
+        # the newer run is invalidated whole and the next proof finds nothing current.
+        run = self.captures()[1]
+        loses = _LosesTheAbandonment(self, run)
+        context = guarded.recovery_context(self)
+        with patch.multiple(self.gh, edit_pinned_state=loses.edits, read_pinned_state=loses.reads):
+            self.assertFalse(_parks.proves_before_a_park(context, {run.receipt: LEFT_THE_LANDING}))
+        self.assertTrue(self.proves())
+
+        records = readings.pinned_records(self)
+        self.assertEqual(records[:2], (None, None))
+        self.assertIn((loses.successor.receipt, readings.INVALIDATED), records[2])
 
 
 if __name__ == "__main__":

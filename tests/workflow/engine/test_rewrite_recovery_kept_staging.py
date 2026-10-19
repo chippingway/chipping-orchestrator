@@ -14,8 +14,9 @@ read off the comment handed straight to the dormant guarded hold or park
 - Behind a refused park, its staging rides no write of the proof's; usage a
   proof write carried counts once -- its answer lost too, no later write of
   the proof sending it again -- and an equal increment another road wrote twice;
-  a proof write whose answer was lost and that never landed leaves the usage
-  and the gate's record to the writes behind it, still counted once.
+  a proof write whose answer was lost and that never landed, another road
+  adding usage right then, leaves the usage and the gate's record to the
+  writes behind it, both roads' usage counted.
 - On a state alone (`KeepsTheStagingTest`): what the tick staged is staged
   again over its own reading, what the block staged or an edit carried is left.
 
@@ -68,12 +69,13 @@ _REASON = "auto_base_rebase_push_failed"
 _PARKS = partial(_parks.lands_a_park, message="The auto rebase needs a human.", reason=_REASON)
 
 # The roads staged usage is held down, and how much the comment's total gains on each: another road adding as much
-# beside report 3, a checkout gone, and that checkout's reset record landing, or never sent, with its answer lost.
+# beside report 3, a checkout gone, and that checkout's reset record landing with its answer lost, or never sent
+# with its answer lost as another road adds 2 of its own.
 _CONCURRENT, _GONE, _LOST_ANSWER = "concurrent", "gone", "gone, the blank's answer lost"
-_UNSENT = "gone, the blank never sent, its answer lost"
+_UNSENT = "gone, the blank never sent, its answer lost, another road adding usage"
 _USAGE_ROADS = (
     (_CONCURRENT, 10), (_GONE, 5),
-    (_LOST_ANSWER, 5), (_UNSENT, 5),
+    (_LOST_ANSWER, 5), (_UNSENT, 7),
 )
 
 
@@ -106,13 +108,17 @@ def _loses_the_blank(lost: list, live, issue, staged, **options):
 
 
 def _drops_the_blank(lost: list, live, issue, staged, **options):
-    """`live`, the pinned-comment edit, the first one blanking the base tip never sent, its answer lost into `lost`."""
+    """`live`, the pinned-comment edit, the first one blanking the base tip never sent, its answer lost into `lost`,
+    another road's own edit adding 2 of usage over the comment it was decided on right then."""
+    over = options["over"]
     tip = readings.KEY_REWRITE_BASE
-    blanks = options["over"].get(tip) and not staged.get(tip)
-    if blanks and not lost:
-        lost.append(None)
-        return PinnedEdit.UNCONFIRMED
-    return live(issue, staged, **options)
+    if lost or not over.get(tip) or staged.get(tip):
+        return live(issue, staged, **options)
+    lost.append(None)
+    total = (over.get(_USAGE) or 0) + 2
+    spent = PinnedState(comment_id=staged.comment_id, state_data={**over, _USAGE: total}, parsed=True)
+    live(issue, spent, over=over)
+    return PinnedEdit.UNCONFIRMED
 
 
 # How the lost-answer roads answer the reset record's blank.
@@ -237,7 +243,8 @@ class KeptStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # Another road adds as much usage beside report 3, the proof's invalidation landing over it: the hold
         # still adds the tick's own. Usage that rides the reset recorded over a checkout gone is added once --
         # that record's answer lost too, the retirement asked again behind it sending none of it a second time,
-        # or sending all of it where that record never landed. The gate's record lands down every road.
+        # or sending all of it beside another road's own where that record never landed. The gate's record lands
+        # down every road.
         for road, added in _USAGE_ROADS:
             with self.subTest(road=road):
                 self.setUp()
