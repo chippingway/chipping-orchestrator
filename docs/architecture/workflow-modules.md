@@ -2585,10 +2585,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the tick read them (`rewrite_finish_writes.INVALIDATION`), so evidence settled since refuses
                             it, and a blank refused or never confirmed holds with nothing reset or cleaned, the tick's
                             state withheld so its stale tip is never written back over a blank that landed unconfirmed;
-                            a blank that landed is followed by the comment read afresh, an attempt another road pinned
-                            right behind it -- or a comment that would not read -- holding the reset with the tick's
-                            state withheld; and what its commit read moving proved as read before the reset goes on,
-                            the reset held where that retirement does not land; over a checkout read gone, the evidence
+                            a blank that landed is followed by the comment read afresh, a tip another road put back or
+                            an attempt it pinned right behind it -- or a comment that would not read -- holding the
+                            reset with the tick's state withheld; and what its commit read moving proved as read
+                            before the reset goes on, the reset held where that retirement does not land; over a
+                            checkout read gone, the evidence
                             retired as
                             over a reset in a `CLEAR` write of its own (`rewrite_recovery_staging.lands_the_retirement`)
                             -- the loss owed as soon as it is read, the tick's state withheld where that does not land
