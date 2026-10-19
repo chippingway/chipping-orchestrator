@@ -107,8 +107,9 @@ def lands_the_retirement(
 ) -> bool:
     """Retire what `context.state` holds for the landed head, its checkout read gone, as `write`; whether it did.
 
-    Retired as over a reset, then asked again over the comment read afresh (`_lands`) -- its decided-on fields laid
-    behind a refusal, the whole reading behind one for room or a second -- evidence put back retired again, and False.
+    Retired as over a reset, then asked again over the comment read afresh (`_lands`) -- its decided-on fields and
+    every evidence record, a successor's floor and handoff among them, laid behind a write, the whole reading behind
+    a refusal for room or a second -- evidence put back retired again, and False.
     A successor or another attempt is left alone, False; True where nothing held stands. A state nothing was read into
     is staged only. `held` is the receipts first asked over; `behind` marks the last asking.
     """
@@ -149,8 +150,8 @@ def _lands(
         return False
     if not (landed or again) or outcome.refusal in _commits._ROOM:
         return lands_the_retirement(replace(context, state=durable), write, asked, behind=True)
-    _lays(context.state, durable.data, write.decided_on)
-    _commit.takes_in(context.state, durable.data, write.decided_on)
+    _lays(context.state, durable.data, write.decided_on | _durable._EVIDENCE_RECORDS)
+    _commit.takes_in(context.state, durable.data, write.decided_on | _durable._EVIDENCE_RECORDS)
     return lands_the_retirement(context, write, asked, behind=landed)
 
 

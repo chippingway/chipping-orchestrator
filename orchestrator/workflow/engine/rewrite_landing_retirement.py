@@ -501,6 +501,7 @@ def _proves_settled(
         settled,
         lambda reading, receipt: moved_under(reading, tick=context.state, into=moved).get(receipt),
     )[0]
+    LosesTheCheckout.reads(context, word)
     if word is None:
         return True
     if any(invalidates_rechecked(finish, settled) for _asked in range(2)):

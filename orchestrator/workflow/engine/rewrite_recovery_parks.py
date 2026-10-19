@@ -91,9 +91,11 @@ hold whose record is refused, or never made, leaves it retired all the same.
 The comment is reread behind that retirement: evidence written back is
 retired again, the tick held, as over a successor or another attempt, nothing
 reset. One a caller read gone or off the landing (`lost`, `heads_read`), one
-the proof found gone mid-request, and one an earlier proof read but no write
-recorded (`owed_events.loss_owed`) are recorded and retired alike, however
-soon the checkout is back, the attempt owing that loss to every later proof.
+the proof found gone mid-request or read off the landing, and one an earlier
+proof read but no write recorded (`owed_events.loss_owed`) are recorded and
+retired alike, however soon the checkout is back, the attempt owing that loss
+to every later proof from the moment it is read. A retirement that does not
+land withholds the tick's state, which may hold a successor's floor stale.
 """
 from __future__ import annotations
 
@@ -326,16 +328,44 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     Movement the record's commit read (`rewrite_landing_retirement.moved_under`)
     is proved as read first, so what moved is retired before the reset goes on,
     False where that does not land. Over a checkout gone from disk, or one
-    `lost` names however soon it is back, the evidence is retired as over a
+    `lost` names however soon it is back, the loss is owed by the attempt the
+    moment it is read, ahead of every write (`owed_events.owes_a_loss`), so a
+    checkout back by the time those writes are refused still leaves evidence
+    put back later retired over it; and the evidence is retired as over a
     reset in its own `CLEAR` write (`rewrite_recovery_staging.lands_the_retirement`),
-    blank landed or not; True only where both landed and nothing it retired,
-    no successor or other attempt, is read back -- the loss owed by the
-    attempt either way (`owed_events.owes_a_loss`), so evidence absent now
-    and put back later is retired over it too.
+    blank landed or not. True only where both landed and nothing it retired,
+    no successor or other attempt, is read back; where the retirement does
+    not land, the tick's state is withheld from every whole-state write
+    behind, since the comment may carry a successor and its floor by then.
     """
     moved: dict[str, ReportEvidence] = {}
-    if not context.worktree.is_dir():
+    gone = bool(lost) or not context.worktree.is_dir()
+    if gone:
+        owes_a_loss(context)
         moved.update(dict.fromkeys(_retirement.receipts(context.state), LEFT_THE_CHECKOUT))
+    recorded = _blanks_the_tip(context, moved)
+    if gone or not context.worktree.is_dir():
+        owes_a_loss(context)
+        log.warning(
+            "issue=#%d the checkout is gone from disk; retiring what a finish captured or settled for the landed "
+            "head as over a reset, in a write of its own", context.issue.number,
+        )
+        if not lands_the_retirement(context, CLEAR):
+            context.state.withheld = True
+            return False
+        return recorded
+    if moved:
+        recorded = _retirement.retires_unproved(
+            replace(context, records_before_a_reset=records_the_reset), _retirement.reconciles(context, moved),
+        ) and recorded
+    return recorded
+
+
+def _blanks_the_tip(context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence]) -> bool:
+    """Blank the attempt's base tip in a guarded write of its own, what each reading it takes moves kept in `moved`.
+
+    Whether it landed, logged either way; refused or unconfirmed, the commit withholds the tick's state.
+    """
     commit = _commits.ReportCommit(
         asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved)).gh,
         context.issue,
@@ -344,27 +374,15 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     staged = commit.staging()
     staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
     landed = commit.lands(staged, _writes.INVALIDATION)
-    recorded = landed.status is _commit_models.CommitStatus.COMMITTED
-    if recorded:
+    if landed.status is _commit_models.CommitStatus.COMMITTED:
         log.info("issue=#%d recorded the reset ahead of it by blanking the attempt's base tip", context.issue.number)
-    else:
-        log.warning(
-            "issue=#%d the reset could not be recorded ahead of it over the evidence records the tick read (%s); "
-            "nothing is reset until a later tick records it",
-            context.issue.number, (landed.refusal or landed.status).value,
-        )
-    if lost or not context.worktree.is_dir():
-        log.warning(
-            "issue=#%d the checkout is gone from disk; retiring what a finish captured or settled for the landed "
-            "head as over a reset, in a write of its own", context.issue.number,
-        )
-        owes_a_loss(context)
-        return lands_the_retirement(context, CLEAR) and recorded
-    if moved:
-        recorded = _retirement.retires_unproved(
-            replace(context, records_before_a_reset=records_the_reset), _retirement.reconciles(context, moved),
-        ) and recorded
-    return recorded
+        return True
+    log.warning(
+        "issue=#%d the reset could not be recorded ahead of it over the evidence records the tick read (%s); "
+        "nothing is reset until a later tick records it",
+        context.issue.number, (landed.refusal or landed.status).value,
+    )
+    return False
 
 
 def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, named: str) -> bool:

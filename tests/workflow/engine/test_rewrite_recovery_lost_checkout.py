@@ -15,12 +15,13 @@ usage writes -- what it wrote stands and the checkout is not reset over it. Noth
 from __future__ import annotations
 
 import copy
+import itertools
 import unittest
 from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import attempts as _attempts, recovery_push
+from orchestrator.git.base_sync import attempts as _attempts, rewrite_facts
 from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import (
     owed_events as _owed_events,
@@ -42,10 +43,12 @@ from tests.workflow.engine import (
 
 _EDITS = "edit_pinned_state"
 _CURRENT = "verification_evidence_current"
+_REFUSED = "refused"
+_NTH_READ = "at the checkout's nth reading"
 
 # Where the checkout goes, and what keeps a retirement over its loss from landing: a refusal, or a full history.
 _AWAY = "checkout-away"
-_CROWDS = (("refused", False), ("refused", True), ("full", False))
+_CROWDS = ((_REFUSED, False), (_REFUSED, True), ("full", False))
 
 # The usage total another road's write moves, crowding a retirement out of its first askings.
 _USAGE_TOTAL = "issue_total_tokens"
@@ -108,17 +111,33 @@ class _LostCheckoutCase(guarded.GuardedRecoveryCase):
 
     def proves_unrecorded(self, *, full: bool) -> None:
         """Prove over the checkout gone, every write refused or, where `full`, the history with no room until after."""
-        context = guarded.recovery_context(self)
-        self._wt.rename(self._away)
+        context = self.loses_the_checkout()
         refused = set() if full else {self.issue.number}
         edits = self.gh.edit_pinned_state
         if full:
             edits = _BEHIND_THE_BLANK.moving(edits, partial(moves.fills_the_comment, self))
-        refusing = patch.object(self.gh.pinned_failures, "refused", refused)
+        refusing = patch.object(self.gh.pinned_failures, _REFUSED, refused)
         with refusing, patch.object(self.gh, _EDITS, edits):
             self.assertFalse(_parks.proves_before_a_park(context))
         if full:
             moves.makes_room(self)
+
+    def loses_the_checkout(self):
+        """The recovery context read off the comment as it stands, the checkout then gone from disk; that context."""
+        context = guarded.recovery_context(self)
+        self._wt.rename(self._away)
+        return context
+
+    def reads_the_anchor(self, head: str, *, at: int):
+        """The checkout's `at`-th reading taken over HEAD on the anchor, put back on `head` right behind that read."""
+        picks = itertools.chain(itertools.repeat(False, at - 1), [True])
+        nth = handoff.Boundary(_NTH_READ, "", lambda *_called, **_options: next(picks))
+        reads = nth.racing(
+            rewrite_facts._reads_the_checkout,
+            partial(self._git, *_PUTS_BACK, self.anchor, cwd=self._wt),
+            partial(self._git, *_PUTS_BACK, head, cwd=self._wt),
+        )
+        return patch.object(rewrite_facts, "_reads_the_checkout", reads)
 
     def assert_retired(self, run, *, captured: bool) -> None:
         """`run` retired whole with the checkout away, and nothing standing for the checkout put back to prove."""
@@ -148,8 +167,7 @@ class LostCheckoutTest(_LostCheckoutCase, unittest.TestCase):
         # A road's git request finding the checkout gone has that loss recorded and the run retired, the tick's state
         # withheld from any write behind; over a comment with nothing for the head the failure goes on.
         run = self.settles_then_dies()[1]
-        context = guarded.recovery_context(self)
-        self._wt.rename(self._away)
+        context = self.loses_the_checkout()
         with _readings.RecordsALostCheckout(context, _parks.records_the_reset):
             self._git("status", cwd=self._wt)
         self.assertTrue(context.state.withheld)
@@ -179,13 +197,39 @@ class LostCheckoutTest(_LostCheckoutCase, unittest.TestCase):
         # read afresh, and the proof holds the tick rather than let a park go on over them.
         run = self.settles_then_dies()[1]
         self._written = copy.deepcopy(readings.pinned(self))
-        context = guarded.recovery_context(self)
-        self._wt.rename(self._away)
+        context = self.loses_the_checkout()
         with patch.object(self.gh, _EDITS, partial(self._writes_back_behind, self.gh.edit_pinned_state)):
             self.assertFalse(_parks.proves_before_a_park(context))
         self.assertIsNone(self._written)
         self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (self.anchor,))
         self.assert_retired(run, captured=False)
+
+    def test_a_loss_the_recorder_read(self) -> None:
+        # The reset's recorder finds the checkout gone, back before its refused writes are answered: the loss it read
+        # stays owed, so the next proof, over the checkout on the head, still retires the run.
+        run = self.settles_then_dies()[1]
+        context = self.loses_the_checkout()
+        back = partial(self._away.rename, self._wt)
+        returns = _FIRST_CALL.racing(self.gh.edit_pinned_state, back, lambda: None)
+        refusing = patch.object(self.gh.pinned_failures, _REFUSED, {self.issue.number})
+        with refusing, patch.object(self.gh, _EDITS, returns):
+            self.assertFalse(_parks.records_the_reset(context))
+        self.assertTrue(self.proves())
+        self.assert_invalidated(run)
+
+    def test_a_move_the_last_word_reads(self) -> None:
+        # The proof's last word reads the checkout on the anchor, put back on the head right behind, every write
+        # refused: that move stays owed, so the next proof still retires the run, captured or settled.
+        for captures in (False, True):
+            with self.subTest(captured=captures):
+                self.setUp()
+                head, run = self.captures() if captures else self.settles_then_dies()
+                context = guarded.recovery_context(self)
+                refusing = patch.object(self.gh.pinned_failures, _REFUSED, {self.issue.number})
+                with refusing, self.reads_the_anchor(head, at=2):
+                    self.assertFalse(_parks.proves_before_a_park(context))
+                self.assertTrue(self.proves())
+                (self.assert_abandoned if captures else self.assert_invalidated)(run)
 
     def _writes_back_behind(self, live, issue, staged, **options):
         """`live`, the pinned-comment edit, the run and its attempt written back right behind the first to retire it."""
@@ -223,7 +267,7 @@ class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
                 self.setUp()
                 head, run = self.captures() if captures else self.settles_then_dies()
                 context = guarded.recovery_context(self)
-                with self._reads_the_anchor(head):
+                with self.reads_the_anchor(head, at=1):
                     self.assertTrue(_parks.proves_before_a_park(context))
                 (self.assert_abandoned if captures else self.assert_invalidated)(run)
                 self.assertTrue(_owed_events.loss_owed(context))
@@ -241,13 +285,6 @@ class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
         self.assertNotEqual(replayed[1], lost[1])
         self.assertTrue(self.proves())
         self.assertEqual(readings.pinned_records(self)[1], fresh)
-
-    def _reads_the_anchor(self, head: str):
-        """The candidate's read finding the checkout on the anchor, put back on `head` right behind that read."""
-        self._git(*_PUTS_BACK, self.anchor, cwd=self._wt)
-        back = partial(self._git, *_PUTS_BACK, head, cwd=self._wt)
-        reads = _FIRST_CALL.moving(recovery_push._recovered_candidate, back)
-        return patch.object(recovery_push, "_recovered_candidate", reads)
 
     def _proves_over_absent_evidence(self, *, returned: bool) -> None:
         """Prove over the checkout gone under refused writes, then with the run off the comment -- the checkout back
@@ -320,6 +357,27 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
         replacement = self._replaces_the_attempt(self)
         self.assertFalse(_parks.proves_before_a_park(context))
         self.assertEqual(self.pinned_fields(*replacement), tuple(replacement.values()))
+
+    def test_a_successor_behind_keeps_its_floor(self) -> None:
+        # Another road settles a newer run right behind the retirement over the checkout gone: the proof holds, and the
+        # tick's state, withheld, written whole behind it lowers no floor and puts no run back.
+        self._run = self.settles_then_dies()
+        self._written = None
+        context = self.loses_the_checkout()
+        with patch.object(self.gh, _EDITS, partial(self._settles_behind, self.gh.edit_pinned_state)):
+            self.assertFalse(_parks.proves_before_a_park(context))
+        self.gh.write_pinned_state(self.issue, context.state)
+        self.assertEqual(self.pinned_fields(readings.KEY_REVISION_FLOOR), (self._written.revision,))
+        self.assertEqual(readings.pinned_records(self)[1].receipt, self._written.receipt)
+
+    def _settles_behind(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, a newer run settled on the run's binding behind the first retiring it."""
+        answered = live(issue, staged, **options)
+        retired = answered is PinnedEdit.EDITED and _retires(staged, **options)
+        if retired and self._written is None:
+            binding = self._run[1].binding
+            self._written = settled_support.records_a_newer_run(self, settles=True, binding=binding)
+        return answered
 
     def _assert_held_as_written(self, race: str) -> None:
         """What another road wrote ahead of the retirement standing as it wrote it, the checkout left on the head."""

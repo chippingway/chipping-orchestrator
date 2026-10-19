@@ -265,8 +265,9 @@ def proves_captured(
     moves it however soon it is put back. Held to that policy, the run still
     stands where another finish settled it under its receipt and the
     invalidation did not land (`_stands`), and a checkout the finish reads off
-    the landing is owed as a loss for that proof to record (`_finish`). Every
-    production caller proves it as the default does.
+    the landing, as its candidate (`_finish`) or in the last word, is owed as
+    a loss for that proof to record. Every production caller proves it as the
+    default does.
     """
     pending = _landing_records.captured(context.state)
     if pending is None:
@@ -281,6 +282,8 @@ def proves_captured(
             lambda state, _issue: (asks(state, pending.receipt),)
         ),
     )[0]
+    if settled and moved is LEFT_THE_LANDING:
+        _owed_events.owes_a_loss(context)
     if moved is None:
         return True
     _captured.stands_before_the_route(finish, proof=moved)

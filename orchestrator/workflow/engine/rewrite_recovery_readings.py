@@ -25,7 +25,8 @@ tick's state, where it read none -- still carries the attempt the recovery
 recovers, not one another road put in its place. `LosesTheCheckout` lets the
 proof read a checkout gone from disk under one of its own requests as that
 loss, not raise it past the record it owes, and answers a proof whose finish
-read the checkout off the landing as that loss too (`proves`);
+read the checkout off the landing as that loss too (`proves`), a landing its
+last word reads left owed the same way (`reads`);
 `RecordsALostCheckout` records that loss for a road owing it.
 
 They are dormant, as that proof is: no recovery context or road the workflow
@@ -46,6 +47,7 @@ from orchestrator.github.pinned_state import PinnedEdit, PinnedState
 from orchestrator.workflow.engine import (
     owed_events as _owed_events,
     pinned_commit_models as _commit_models,
+    rewrite_evidence_proof as _evidence_proof,
     rewrite_landing_records as _landing_records,
     verification_proof as _proof,
     verification_records as _records,
@@ -167,6 +169,16 @@ class LosesTheCheckout:
         if proved and held and _owed_events.loss_owed(self._context):
             return None
         return proved
+
+    @classmethod
+    def reads(cls, context: _AutoRebaseRecoveryContext, word: ReportEvidence | None) -> None:
+        """Owe a landing `word` reads left -- the checkout read off the head by the last word -- as `context`'s loss.
+
+        So the proof's own later readings of the checkout count as its first does (`owed_events.owes_a_loss`), and a
+        retirement over them refused, the head put back, still leaves the evidence read moving to the next proof.
+        """
+        if word is _evidence_proof.LEFT_THE_LANDING:
+            _owed_events.owes_a_loss(context)
 
 
 class RecordsALostCheckout(LosesTheCheckout):
