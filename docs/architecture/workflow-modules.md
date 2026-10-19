@@ -319,32 +319,34 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             none, a section's traceback being free to print an exception's message of its shape
     review_findings_summary.py
                             a line of pytest's short summary, read for the failure it reports (`SummaryLine`): dormant,
-                            no production road reading it yet, beside `review_findings_pytest`. Besides `FAILED`,
-                            `ERROR`, and `SUBFAILED` lines, a line saying pytest refused the run before running any test
-                            -- `ERROR:` and the error, its usage line aside, or its argument parser's -- reads as
-                            reporting no node, the error its message (`SummaryLine.refused`). A summary line reads as
-                            its outcome -- `SUBFAILED` with the subtest's description, its message in brackets and its
-                            parameters in parentheses, either holding anything, the line's dash too, parted from the
-                            node ID after it the way whose ID the caller names surest, then the way pytest writes one,
-                            no group's bracket or parenthesis closing before the group's end, then the longest -- the
-                            node ID, whatever file it names -- its path may hold blanks, brackets, and the dash, ending
-                            at any of the line's test separators, its test's name blanks, and only a bracket past that
-                            name opens parameters -- or, for an error, the path whose collection failed, ending on a
-                            dash or the line's end short of any separator, and the message after a dash. A parameter may
-                            hold the dash that parts an ID from its message and text of a message's shape after it, and
-                            a message a bracket and a dash of its own, so the caller names the ID: its callback, handed
-                            each ID the line may end on with the message after it, answers how surely that ID is the
-                            line's as a key, the greatest surest and empty for none, as `review_findings_pytest`'s
-                            sections can -- one of the line's run showing the exception the message opens, the first no
-                            line took yet, as where two tests' IDs overlap, or a title pytest gave a section of that
-                            run. The ID is the longest named surest -- a doctest's offered too where its test, repeating
-                            its text file's name, holds the dash; else a doctest's ends past that name, no other test's
-                            name repeating its file's, and any other ends on the first split leaving a message of
-                            pytest's shape -- a rewritten assertion's `assert` or an exception's name, never a file's or
-                            a separator, a bare name's class opening on a capital as no file's suffix does, the repr of
-                            a group's one exception, or a strict XPASS's `[XPASS(strict)]` -- so the message is never
-                            cut short, the line marked unsure where a later split leaves one too (`unsure`); else,
-                            pytest having given no message, on the last
+                            no production road reading it yet -- it is written, beside `review_findings_pytest`, for the
+                            lead that is to name, above each check a reviewer's findings show failing, the failures the
+                            check's output reports. Besides `FAILED`, `ERROR`, and `SUBFAILED` lines, a line saying
+                            pytest refused the run before running any test -- `ERROR:` and the error, its usage line
+                            aside, or its argument parser's -- reads as reporting no node, the error its message
+                            (`SummaryLine.refused`). A summary line reads as its outcome -- `SUBFAILED` with the
+                            subtest's description, its message in brackets and its parameters in parentheses, either
+                            holding anything, the line's dash too, parted from the node ID after it the way whose ID the
+                            caller names surest, then the way pytest writes one, no group's bracket or parenthesis
+                            closing before the group's end, then the longest -- the node ID, whatever file it names --
+                            its path may hold blanks, brackets, and the dash, ending at any of the line's test
+                            separators, its test's name blanks, and only a bracket past that name opens parameters --
+                            or, for an error, the path whose collection failed, ending on a dash or the line's end short
+                            of any separator, and the message after a dash. A parameter may hold the dash that parts an
+                            ID from its message and text of a message's shape after it, and a message a bracket and a
+                            dash of its own, so the caller names the ID: its callback, handed each ID the line may end
+                            on with the message after it, answers how surely that ID is the line's as a key, the
+                            greatest surest and empty for none, as `review_findings_pytest`'s sections can -- one of the
+                            line's run showing the exception the message opens, the first no line took yet, as where two
+                            tests' IDs overlap, or a title pytest gave a section of that run. The ID is the longest
+                            named surest -- a doctest's offered too where its test, repeating its text file's name,
+                            holds the dash; else a doctest's ends past that name, no other test's name repeating its
+                            file's, and any other ends on the first split leaving a message of pytest's shape -- a
+                            rewritten assertion's `assert` or an exception's name, never a file's or a separator, a bare
+                            name's class opening on a capital as no file's suffix does, the repr of a group's one
+                            exception, or a strict XPASS's `[XPASS(strict)]` -- so the message is never cut short, the
+                            line marked unsure where a later split leaves one too (`unsure`); else, pytest having given
+                            no message, on the last
     stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call
                             (the settled-report reader the verification-evidence proof reuses among them);
                             the unlabeled target reaches pickup through the same resolver. Named here too, though
