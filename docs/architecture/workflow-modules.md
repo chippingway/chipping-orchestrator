@@ -2640,8 +2640,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proof's writes and lands first, ahead of every other write the proof or the reset's record
                             makes, in a guarded write of its own, decided on nothing and added to the total the comment
                             then carries, read through the client that asks every reading, so what it reads moving is
-                            proved and an attempt put in place holds the caller, however little evidence it is left to
-                            prove; a lost answer there taken as sent so it
+                            proved and an attempt any reading of it carries in place of the one recovered holds the
+                            caller, however soon it is put back and however little evidence is left to prove; a lost
+                            answer there taken as sent so it
                             is never sent twice, a refusal staged again for the record behind (`adds_the_totals`), and a
                             context already kept handed back as it is, so
                             the reset's recorder keeps it alike asked inside a proof or directly by the git owner
@@ -2652,7 +2653,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             read afresh first where the tick holds none, so evidence put back since is retired and
                             another attempt holds -- asked again over the comment read afresh, evidence another road
                             wrote back retired again and the tick held,
-                            a successor or another attempt in its place holding it first, every evidence record of that
+                            a successor or another attempt in its place holding it first -- a transaction another road
+                            recorded pending under a receipt the attempt does not name among them, its floor kept --
+                            every evidence record of that
                             reading, a successor's floor and handoff among them, laid over the tick's state -- the base
                             tip blanked in a shrinking write where the history has no room; a retirement that does not
                             land withholds the tick's state from every whole-state write behind it
