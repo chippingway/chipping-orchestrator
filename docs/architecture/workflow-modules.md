@@ -2468,7 +2468,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading cannot say the route is free, and going on only over a comment read afresh carrying
                             nothing current under that receipt and still the recovered attempt -- another road's attempt
                             in its place, in the comment the proof last read, holding the tick
-                            (`rewrite_recovery_readings.stands_as_recovered`) with nothing reset, cleared, or parked,
+                            (`rewrite_recovery_readings.stands_as_recovered`) with nothing reset, cleared, or parked
+                            and the tick's state withheld,
                             and a checkout one of its finishes read off the landing -- as its candidate, or in the
                             last word (`rewrite_recovery_readings.LosesTheCheckout.hears`) -- owed and recorded before
                             it answers (`rewrite_recovery_readings.LosesTheCheckout.proves`) -- a successor it carries
@@ -2583,9 +2584,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `records_before_a_reset` would carry), decided on every evidence record and the attempt as
                             the tick read them (`rewrite_finish_writes.INVALIDATION`), so evidence settled since refuses
                             it, and a blank refused or never confirmed holds with nothing reset or cleaned, the tick's
-                            state withheld so its stale tip is never written back over a blank that landed unconfirmed,
-                            and what its commit read moving proved as read before the reset goes on, the reset held
-                            where that retirement does not land; over a checkout read gone, the evidence retired as
+                            state withheld so its stale tip is never written back over a blank that landed unconfirmed;
+                            a blank that landed is followed by the comment read afresh, an attempt another road pinned
+                            right behind it -- or a comment that would not read -- holding the reset with the tick's
+                            state withheld; and what its commit read moving proved as read before the reset goes on,
+                            the reset held where that retirement does not land; over a checkout read gone, the evidence
+                            retired as
                             over a reset in a `CLEAR` write of its own (`rewrite_recovery_staging.lands_the_retirement`)
                             -- the loss owed as soon as it is read, the tick's state withheld where that does not land
     rewrite_recovery_readings.py

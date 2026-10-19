@@ -1585,8 +1585,10 @@ because there it is the claim that this stage has already rerouted rather than a
   tick's state from every whole-state write, so a successor and the floor it raised are never written back over, and
   usage the tick staged that a proof write landed, or sent with its answer lost, is never sent again by a later one
   (`rewrite_recovery_staging.keeps_the_staging`). A tip the tick read blank holds an unrecorded reset where another
-  road put it back, and movement the reset's own record read is retired before the reset goes on
-  (`rewrite_recovery_parks.records_the_reset`).
+  road put it back, movement the reset's own record read is retired before the reset goes on, and an attempt another
+  road pins right behind that record holds the reset, read off the comment afresh, the tick's state withheld
+  (`rewrite_recovery_parks.records_the_reset`); so does a proof that reads another attempt in place of the one it
+  recovers (`rewrite_landing_retirement.retires_unproved`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
   relabel to `workflow:validating`, and the write retiring the attempt -- and a tick can die between any two of
