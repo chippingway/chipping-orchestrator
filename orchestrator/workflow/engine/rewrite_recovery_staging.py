@@ -24,9 +24,10 @@ proof and land first, ahead of every other write the proof or the reset's
 record makes (`adds_the_totals`), in a guarded write of their own, decided
 on nothing and added to the total the comment carries then. That write is
 read through the client that asks every reading, so what it reads moving is
-proved and an attempt put in place meanwhile holds the caller; a lost answer
-there takes them as sent, so they are never sent twice, and a refusal stages
-them again behind the block, for the record behind it.
+proved and an attempt put in place meanwhile holds the caller, however little
+evidence it is left to prove; a lost answer there takes them as sent, so they
+are never sent twice, and a refusal stages them again behind the block, for
+the record behind it.
 
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
@@ -189,20 +190,28 @@ def keeps_the_staging(
         keeper.restages()
 
 
-def adds_the_totals(kept: _base_sync_models._AutoRebaseRecoveryContext, into: dict[str, ReportEvidence]) -> None:
-    """Land the totals `kept`'s block took off the tick's state, as that block's first write; movement read in `into`.
+def adds_the_totals(kept: _base_sync_models._AutoRebaseRecoveryContext, into: dict[str, ReportEvidence]) -> bool:
+    """Land the totals `kept`'s block took off the tick's state, as the block's first write; whether its attempt stands.
 
     For the caller of a block ahead of a record (`keeps_the_staging`), before any other request it makes, through a
     client that asks every reading (`rewrite_recovery_readings.AsksEveryReading`), so each comment that write reads
     is read for movement under the evidence the tick holds (`rewrite_landing_retirement.moved_under`), kept in
-    `into` for the caller's proof. A context nothing keeps took no totals off, and lands none.
+    `into` for the caller's proof. False where the last comment it read carries another attempt in place of the one
+    `kept` recovers, the tick's state withheld, for the caller to hold whatever evidence it holds. A context nothing
+    keeps took no totals off, and lands none.
     """
     keeper = kept.gh
-    if isinstance(keeper, _KeepsWhatItCarried):
-        asked = _readings.asks_every_reading(
-            kept, lambda reading: _retirement.moved_under(reading, tick=kept.state, into=into),
-        )
-        keeper.adds_the_totals(asked.gh)
+    if not isinstance(keeper, _KeepsWhatItCarried):
+        return True
+    asked = _readings.asks_every_reading(
+        kept, lambda reading: _retirement.moved_under(reading, tick=kept.state, into=into),
+    )
+    keeper.adds_the_totals(asked.gh)
+    read = asked.gh.last_read
+    if read is None or _readings.stands_as_recovered(kept, read):
+        return True
+    kept.state.withheld = True
+    return False
 
 
 def lands_the_retirement(

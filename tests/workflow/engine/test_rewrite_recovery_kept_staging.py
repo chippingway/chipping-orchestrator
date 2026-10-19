@@ -23,8 +23,9 @@ read off the comment handed straight to the dormant guarded hold or park
   again over its own reading, what the block staged or an edit carried is
   left, and usage whose own write lost its answer is never sent twice. That
   write is the first the reset's record or the hold's proof makes, so an
-  attempt pinned right ahead of it holds the reset, and the report moved and
-  put back around it is read moving, the run invalidated whole.
+  attempt pinned right ahead of it holds either -- a proof holding no evidence
+  left to prove among them -- and the report moved and put back around it is
+  read moving, the run invalidated whole.
 
 Nothing is run again, pushed, or launched.
 """
@@ -43,6 +44,7 @@ from orchestrator.workflow.engine import (
     pinned_commit as _commit,
     rewrite_recovery_parks as _parks,
     verification_records as _records,
+    verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.rewrite_recovery_staging import adds_the_totals, keeps_the_staging
 from tests.workflow.engine import (
@@ -353,17 +355,22 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(readings.pinned(self).get(_USAGE), counted + 5)
 
     def test_a_replacement_under_the_totals_holds(self) -> None:
-        # Another road pins a fresh attempt right ahead of the write landing the staged usage, the reset record's
-        # first: the record reads that attempt behind it and holds the reset, the tick's state withheld, so nothing
-        # written for the attempt it recovers lands over the one standing.
-        head, _, context = self._stages_usage()
-        replacement = fixtures.attempt_record(head, head, git_support.PR_NUMBER, git_support.REVIEWING, head)
-        self._raced = ({**dict.fromkeys(readings.ATTEMPT_KEYS), **replacement}, False)
-        with patch.object(self.gh, _EDITS, partial(self._races_the_totals, self.gh.edit_pinned_state)):
-            self.assertFalse(_parks.records_the_reset(context))
+        # Another road pins a fresh attempt right ahead of the write landing the staged usage, the first the reset's
+        # record makes, or the proof before a park makes over a comment carrying no evidence left to prove: either
+        # reads that attempt behind it and holds, the tick's state withheld, so nothing written for the attempt it
+        # recovers lands over the one standing.
+        for asks in (_parks.records_the_reset, _parks.proves_before_a_park):
+            with self.subTest(asks=asks.__name__):
+                self.setUp()
+                head, _, context = self._stages_usage(retired=asks is _parks.proves_before_a_park)
+                replacement = fixtures.attempt_record(head, head, git_support.PR_NUMBER, git_support.REVIEWING, head)
+                self._raced = ({**dict.fromkeys(readings.ATTEMPT_KEYS), **replacement}, False)
+                with patch.object(self.gh, _EDITS, partial(self._races_the_totals, self.gh.edit_pinned_state)):
+                    self.assertFalse(asks(context))
 
-        self.assertTrue(context.state.withheld)
-        self.assertEqual(self.pinned_fields(*replacement), tuple(replacement.values()))
+                self.assertTrue(context.state.withheld)
+                self.gh.write_pinned_state(self.issue, context.state)
+                self.assertEqual(self.pinned_fields(*replacement), tuple(replacement.values()))
 
     def test_movement_under_the_totals_is_proved(self) -> None:
         # The report moves right ahead of the write landing the staged usage, the hold proof's first, and is put
@@ -380,10 +387,14 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assert_invalidated(settled)
         self.assertEqual(self.pinned_fields(_USAGE), (counted + 5,))
 
-    def _stages_usage(self) -> tuple:
-        """Settle the run and kill its finish, then stage 5 of usage on a context read off the comment; the head, the
-        usage before, and that context."""
+    def _stages_usage(self, *, retired: bool = False) -> tuple:
+        """Settle the run and kill its finish -- and retire it, where `retired` -- then stage 5 of usage on a context
+        read off the comment; the head, the usage before, and that context."""
         head = self.settles_then_dies()[0]
+        if retired:
+            state = self.gh.read_pinned_state(self.issue)
+            self.assertTrue(_settlement.retire_current_evidence(state))
+            self.gh.write_pinned_state(self.issue, state)
         context = self._over(self.gh.read_pinned_state(self.issue))
         counted = context.state.get(_USAGE) or 0
         context.state.set(_USAGE, counted + 5)

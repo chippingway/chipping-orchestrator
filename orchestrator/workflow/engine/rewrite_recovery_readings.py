@@ -27,7 +27,8 @@ proof read a checkout gone from disk under one of its own requests as that
 loss, not raise it past the record it owes, and answers a proof whose finish
 read the checkout off the landing as that loss too (`proves`), a checkout
 its last word reads off the landing owed the same way (`hears`);
-`RecordsALostCheckout` records that loss for a road owing it.
+`RecordsALostCheckout` records that loss for a road owing it, over the
+tick's state staged with what the tick staged ahead of the road alone.
 
 They are dormant, as that proof is: no recovery context or road the workflow
 builds reaches them.
@@ -187,11 +188,21 @@ class RecordsALostCheckout(LosesTheCheckout):
 
     The recorder `context` carries, or `records` where handed, records the reset against the evidence for the landed
     head and retires it in writes of its own, however soon the checkout returns, the tick's state withheld for the
-    road's caller to hold; over a comment carrying neither, the failure goes on.
+    road's caller to hold; over a comment carrying neither, the failure goes on. Those writes are made over the tick's
+    state staged with what the tick staged ahead of the block alone -- usage, a gate's record -- so the recorder
+    carries it, taken in where it lands, and nothing the block staged itself before the loss cut it short.
     """
 
     def __init__(self, context: _AutoRebaseRecoveryContext, records=None) -> None:
         super().__init__(replace(context, records_before_a_reset=records) if records else context)
+        self._staged: dict = {}
+        self._read: dict | None = None
+
+    def __enter__(self) -> None:
+        """Enter the block, what the tick's state stages as it does kept for a loss to be recorded with."""
+        state = self._context.state
+        self._staged = json.loads(json.dumps(state.data))
+        self._read = None if state.synced is None else json.loads(state.synced)
 
     @classmethod
     def as_read(cls, state: PinnedState) -> PinnedState:
@@ -210,9 +221,28 @@ class RecordsALostCheckout(LosesTheCheckout):
         read = self.as_read(state)
         if _landing_records.captured(read) is None and _landing_records.settled(read) is None:
             return False
-        records(replace(self._context, state=read), lost=(self._context.worktree,))
+        self._stages_the_ticks_own(state)
+        records(self._context, lost=(self._context.worktree,))
         state.withheld = True
         return True
+
+    def _stages_the_ticks_own(self, state: PinnedState) -> None:
+        """Lay `state` as the comment it last read, staging over it what the tick staged ahead of the block alone.
+
+        Each field the tick staged then that no write of the block has landed since is staged again as the tick
+        staged it; whatever the block staged itself is dropped.
+        """
+        synced = json.loads(state.synced)
+        before = synced if self._read is None else self._read
+        own = {
+            field for field in self._staged.keys() | before.keys()
+            if _commit_models.spelled(self._staged, field) != _commit_models.spelled(before, field)
+            and _commit_models.spelled(synced, field) == _commit_models.spelled(before, field)
+        }
+        state.data = {
+            **{field: written for field, written in synced.items() if field not in own},
+            **{field: written for field, written in self._staged.items() if field in own},
+        }
 
 
 def asks_every_reading(

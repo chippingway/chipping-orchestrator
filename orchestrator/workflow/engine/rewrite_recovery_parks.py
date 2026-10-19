@@ -150,6 +150,12 @@ _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PAR
 # The base tip the attempt recorded its replay as made onto, which the reset's record blanks.
 _TIP = _base_sync_state._PENDING_REWRITE_BASE
 
+# What a proof or a reset's record logs holding over another attempt the write landing its usage read.
+_REPLACED = (
+    "issue=#%d the comment read landing the tick's staged usage carries another auto-rebase attempt in place of "
+    "the one its recovery read; holding with nothing reset, cleared, or parked, for the next tick to recover it"
+)
+
 # What a recovery hold records: whatever the tick staged since its reading --
 # a publication gate's own record of the no-op it held -- decided on the
 # attempt it keeps, so every evidence record stays as the comment carries it.
@@ -341,7 +347,9 @@ def proves_before_a_park(
     with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:
         if proving.worktree.is_dir() and not lost:
             read = dict(moved or {})
-            adds_the_totals(proving, read)
+            if not adds_the_totals(proving, read):
+                log.warning(_REPLACED, proving.issue.number)
+                return False
             return _retirement.retires_unproved(proving, read)
         return records_the_reset(proving, lost=lost or (proving.worktree,))
 
@@ -400,7 +408,9 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
         if gone:
             owes_a_loss(recording)
             moved.update(dict.fromkeys(_retirement.receipts(recording.state), LEFT_THE_CHECKOUT))
-        adds_the_totals(recording, moved)
+        if not adds_the_totals(recording, moved):
+            log.warning(_REPLACED, recording.issue.number)
+            return False
         recorded = _blanks_the_tip(recording, moved)
         if gone or not recording.worktree.is_dir():
             owes_a_loss(recording)

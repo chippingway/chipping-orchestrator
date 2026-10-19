@@ -2,15 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """A run the dormant proof before a park retires for good once it finds the checkout gone from disk.
 
-The guarded recovery case (`guarded_recovery_support`): issue #7's run captured, or settled and its finish killed
-before its announcement, the recovery context read off the comment handed straight to the dormant proof before a park
+The guarded recovery case (`guarded_recovery_support`): issue #7's run captured, or settled and its finish killed before
+its announcement, the recovery context read off the comment handed straight to the dormant proof before a park
 (`rewrite_recovery_parks.proves_before_a_park`), or the git owner's abort taken over it. The checkout goes from disk
 under one of the proof's own git requests, or a road's (`RecordsALostCheckout`), so that loss is recorded and the run
-retired whole however soon it is back; every write refused, the loss stays owed, so the next proof over the checkout
-put back still retires the run; with no history room the run and its attempt stand beside the blanked tip until room
-is made. A run written back behind its retirement is retired again over the comment read afresh, the proof holding;
-and where another road pins a fresh attempt or settles a newer run ahead of the retirement -- at once, or past two
-usage writes -- what it wrote stands and the checkout is not reset over it. Nothing is run again, pushed, or launched.
+retired whole however soon it is back, what the tick staged ahead of the road landing with it; every write refused, the
+loss stays owed, so the next proof over the checkout put back still retires the run; with no history room the run and
+its attempt stand beside the blanked tip until room is made. A run written back behind its retirement is retired again
+over the comment read afresh, the proof holding; and where another road pins a fresh attempt or settles a newer run
+ahead of the retirement -- at once, or past two usage writes -- what it wrote stands and the checkout is not reset over
+it. Nothing is run again, pushed, or launched.
 """
 from __future__ import annotations
 
@@ -62,6 +63,10 @@ _CROWDS = ((_REFUSED, False), (_REFUSED, True), ("full", False))
 
 # The usage total another road's write moves, crowding a retirement out of its first askings.
 _USAGE_TOTAL = "issue_total_tokens"
+
+# A record a gate staged on the tick's state ahead of a road, and one the road stages itself before its loss.
+_GATE = "late_gate_hold"
+_ROADS_OWN = "a_roads_own_record"
 
 
 def _retires(staged, *, over: dict, **_options) -> bool:
@@ -182,12 +187,19 @@ class LostCheckoutTest(_LostCheckoutCase, unittest.TestCase):
 
     def test_a_road_records_its_loss(self) -> None:
         # A road's git request finding the checkout gone has that loss recorded and the run retired, the tick's state
-        # withheld from any write behind; over a comment with nothing for the head the failure goes on.
+        # withheld from any write behind, the usage and gate's record the tick staged ahead of the road landing with
+        # it and nothing the road staged itself; over a comment with nothing for the head the failure goes on.
         run = self.settles_then_dies()[1]
         context = self.loses_the_checkout()
+        counted = context.state.get(_USAGE_TOTAL) or 0
+        context.state.set(_USAGE_TOTAL, counted + 5)
+        context.state.set(_GATE, run.receipt)
         with _readings.RecordsALostCheckout(context, _parks.records_the_reset):
+            context.state.set(_ROADS_OWN, run.receipt)
             self._git("status", cwd=self._wt)
         self.assertTrue(context.state.withheld)
+        landed = self.pinned_fields(_USAGE_TOTAL, _GATE, _ROADS_OWN)
+        self.assertEqual(landed, (counted + 5, run.receipt, None))
         self.assert_retired(run, captured=False)
         self._wt.rename(self._away)
         bare = _readings.RecordsALostCheckout(guarded.recovery_context(self), _parks.records_the_reset)
