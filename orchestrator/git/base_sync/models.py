@@ -188,8 +188,8 @@ class _AutoRebaseRecoveryContext:
     # off the head the attempt landed, staged on `state` before the attempt is
     # dropped from it, so it rides the park's write with that release or not
     # at all (`persistence._reset_clear_and_park`) -- and, where the guarded
-    # clear is handed in (`lands_a_clear`), on the clear of a checkout back on
-    # the anchor (`snapshot._clear_ineligible_recovery`). False keeps the attempt
+    # clear is handed in (`lands_a_clear`), on either clear of a checkout back
+    # on the anchor (`snapshot._lands_the_clear`). False keeps the attempt
     # and holds, nothing dropped or parked: a record that cannot go with the
     # release. Any other answer releases it, so the captured-only answer the
     # workflow's recovery hands on every road's context, which answers None,

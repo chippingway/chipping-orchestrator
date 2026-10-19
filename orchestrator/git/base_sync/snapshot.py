@@ -54,24 +54,10 @@ def _abort_recovery_unverified(
 def _clear_ineligible_recovery(
     context: _AutoRebaseRecoveryContext,
 ) -> bool:
-    """Clear an interrupted-rebase anchor after an operator relabel.
+    """Clear an interrupted-rebase anchor after an operator relabel; the clear guarded where one is handed in.
 
-    The checkout stands back on the anchor, off the landed head. A context
-    carrying the guarded clear (`lands_a_clear`) has what a finish captured or
-    settled for that head retired on the clear's state first
-    (`settles_over_a_reset`) -- an answer of False keeping the attempt, any
-    other going on -- and the clear landed guarded; one carrying none clears
-    and writes the state whole, retiring nothing.
+    The checkout stands back on the anchor, off the landed head (`_lands_the_clear`).
     """
-    settles = context.settles_over_a_reset if context.lands_a_clear else None
-    if settles is not None and settles() is False:
-        log.warning(
-            "issue=#%d auto-rebase recovery: the verification evidence settled for the landed head could not be "
-            "retired with the attempt; keeping the attempt rather than clearing it under label %r",
-            context.issue.number,
-            context.label,
-        )
-        return True
     if not _lands_the_clear(context):
         return True
     log.info(
@@ -140,13 +126,29 @@ def _clear_unchanged_recovery(
 def _lands_the_clear(context: _AutoRebaseRecoveryContext) -> bool:
     """Clear the attempt through the context's guarded clear (`lands_a_clear`), or whole with none; whether it landed.
 
-    Guarded, a record another road wrote meanwhile refuses it, the caller holding the tick.
+    Either clear leaves the checkout on the anchor, off the head the attempt
+    landed -- relabelled out of the refresh, or never started. Guarded, what a
+    finish captured or settled for that head is retired on the clear's state
+    first (`settles_over_a_reset`) -- an answer of False keeping the attempt,
+    nothing cleared, any other going on -- and a record another road wrote
+    meanwhile refuses the clear; either way the caller holds the tick. With
+    none, the state is cleared and written whole, retiring nothing.
     """
-    attempts._clears_the_attempt(context.state)
     lands = context.lands_a_clear
     if lands is None:
+        attempts._clears_the_attempt(context.state)
         context.gh.write_pinned_state(context.issue, context.state)
         return True
+    settles = context.settles_over_a_reset
+    if settles is not None and settles() is False:
+        log.warning(
+            "issue=#%d auto-rebase recovery: the verification evidence for the landed head could not be retired "
+            "with the attempt; keeping the attempt rather than clearing it under label %r",
+            context.issue.number,
+            context.label,
+        )
+        return False
+    attempts._clears_the_attempt(context.state)
     return lands(context)
 
 

@@ -8,14 +8,18 @@ already staged on -- a gate's record of the hold, or the tip the git owner
 stages back behind a reset git refused -- and each write it lands lays what
 landed over that state whole (`report_commits.ReportCommit.lands`).
 `keeps_the_staging` stages again behind the proof each such field no strict
-edit of the proof's carried, landed or unconfirmed, over the comment as the
+edit of the proof's carried, landed or may have, over the comment as the
 tick read it before -- an equal total another road wrote proves nothing: the
 record behind lands it as the tick's own move, refuses it as a conflict where
 the comment moved it, and never adds a carried counter twice. A field the
 proof itself left staged keeps the proof's staging. Within the proof, a
-write whose answer was lost lays nothing over the state, so each field of
-the tick's staging such an edit carried is taken in as it spelled it, and no
-later write of the proof sends it -- usage among it -- a second time.
+write whose answer was lost lays nothing over the state, so the comment is
+read afresh behind it: one still spelling every field the edit moved as the
+comment it was decided on did never took that edit, and the tick's staging
+stays staged for the writes behind, a gate's record and usage among it.
+Otherwise each field of the tick's staging such an edit carried is taken in
+as it spelled it, and no later write of the proof sends it -- usage among
+it -- a second time; so too where the comment would not read, even once more.
 
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
@@ -62,9 +66,9 @@ _LAST = f"{_GONE}, asked once more over the comment read afresh, holding"
 class _KeepsWhatItCarried:
     """`gh` for one proof: every call passed through, the fields each edit of the issue's comment moved kept.
 
-    `staging` is what the tick staged on `context.state` before the proof: each of those an edit may have landed --
-    one whose answer was lost included -- is taken in on that state as the edit spelled it, so no later write of the
-    proof sends it again, a counter added twice among it.
+    `staging` is what the tick staged on `context.state` before the proof: each of those an edit landed, or may have,
+    is taken in on that state as the edit spelled it, so no later write of the proof sends it again, a counter added
+    twice among it. An edit whose answer was lost and that the comment read afresh shows never landed carried nothing.
     """
 
     def __init__(
@@ -80,15 +84,33 @@ class _KeepsWhatItCarried:
         return getattr(self._gh, name)
 
     def edit_pinned_state(self, issue: Issue, state: PinnedState, **options) -> PinnedEdit:
-        """The strict edit, sent through; what it moved over its comment kept where it may have landed."""
+        """The strict edit, sent through; what it moved over its comment kept where it landed or may have."""
         edit = self._gh.edit_pinned_state(issue, state, **options)
-        if issue.number == self._issue_number and edit in _MAY_HAVE_LANDED:
-            over = options.get("over") or {}
-            moved = _moved(state.data, over)
-            self._carried.update(moved)
-            _lays(self._tick, state.data, moved & self._staging)
-            _commit.takes_in(self._tick, state.data, moved & self._staging)
+        if issue.number != self._issue_number or edit not in _MAY_HAVE_LANDED:
+            return edit
+        over = options.get("over") or {}
+        moved = _moved(state.data, over)
+        if edit is PinnedEdit.UNCONFIRMED and self._never_landed(issue, over, moved):
+            return edit
+        self._carried.update(moved)
+        _lays(self._tick, state.data, moved & self._staging)
+        _commit.takes_in(self._tick, state.data, moved & self._staging)
         return edit
+
+    def _never_landed(self, issue: Issue, over: Mapping[str, Any], moved: set[str]) -> bool:
+        """Whether the comment read afresh, once more where it would not read, spells each of `moved` as `over` does.
+
+        So an edit whose answer was lost moved none of what it sent: it never landed, whatever another road wrote of
+        any other field since. A comment that would not read either time says nothing, and the edit may have landed.
+        """
+        reading = PinnedState(
+            comment_id=self._tick.comment_id, state_data=dict(over), parsed=self._tick.parsed,
+        )
+        guard = _commit_models.PinnedCommit.capture(reading)
+        fresh = _commit.reread(self._gh, issue, guard)
+        if not isinstance(fresh, PinnedState):
+            fresh = _commit.reread(self._gh, issue, guard)
+        return isinstance(fresh, PinnedState) and not _moved(fresh.data, over) & moved
 
 
 @contextmanager

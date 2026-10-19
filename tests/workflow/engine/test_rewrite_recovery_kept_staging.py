@@ -13,7 +13,9 @@ read off the comment handed straight to the dormant guarded hold or park
   reset git refused still lands with the park.
 - Behind a refused park, its staging rides no write of the proof's; usage a
   proof write carried counts once -- its answer lost too, no later write of
-  the proof sending it again -- and an equal increment another road wrote twice.
+  the proof sending it again -- and an equal increment another road wrote twice;
+  a proof write whose answer was lost and that never landed leaves the usage
+  and the gate's record to the writes behind it, still counted once.
 - On a state alone (`KeepsTheStagingTest`): what the tick staged is staged
   again over its own reading, what the block staged or an edit carried is left.
 
@@ -66,9 +68,13 @@ _REASON = "auto_base_rebase_push_failed"
 _PARKS = partial(_parks.lands_a_park, message="The auto rebase needs a human.", reason=_REASON)
 
 # The roads staged usage is held down, and how much the comment's total gains on each: another road adding as much
-# beside report 3, a checkout gone, and that checkout's reset record landing with its answer lost.
+# beside report 3, a checkout gone, and that checkout's reset record landing, or never sent, with its answer lost.
 _CONCURRENT, _GONE, _LOST_ANSWER = "concurrent", "gone", "gone, the blank's answer lost"
-_USAGE_ROADS = ((_CONCURRENT, 10), (_GONE, 5), (_LOST_ANSWER, 5))
+_UNSENT = "gone, the blank never sent, its answer lost"
+_USAGE_ROADS = (
+    (_CONCURRENT, 10), (_GONE, 5),
+    (_LOST_ANSWER, 5), (_UNSENT, 5),
+)
 
 
 def _read(carried: Mapping, *, synced: bool = True) -> PinnedState:
@@ -97,6 +103,20 @@ def _loses_the_blank(lost: list, live, issue, staged, **options):
         lost.append(answered)
         return PinnedEdit.UNCONFIRMED
     return answered
+
+
+def _drops_the_blank(lost: list, live, issue, staged, **options):
+    """`live`, the pinned-comment edit, the first one blanking the base tip never sent, its answer lost into `lost`."""
+    tip = readings.KEY_REWRITE_BASE
+    blanks = options["over"].get(tip) and not staged.get(tip)
+    if blanks and not lost:
+        lost.append(None)
+        return PinnedEdit.UNCONFIRMED
+    return live(issue, staged, **options)
+
+
+# How the lost-answer roads answer the reset record's blank.
+_LOSES = MappingProxyType({_LOST_ANSWER: _loses_the_blank, _UNSENT: _drops_the_blank})
 
 
 class _RefusesThePark:
@@ -216,32 +236,37 @@ class KeptStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def test_staged_usage_is_counted_once(self) -> None:
         # Another road adds as much usage beside report 3, the proof's invalidation landing over it: the hold
         # still adds the tick's own. Usage that rides the reset recorded over a checkout gone is added once --
-        # that record's answer lost too, the retirement asked again behind it sending none of it a second time.
+        # that record's answer lost too, the retirement asked again behind it sending none of it a second time,
+        # or sending all of it where that record never landed. The gate's record lands down every road.
         for road, added in _USAGE_ROADS:
             with self.subTest(road=road):
                 self.setUp()
-                counted, lost = self._holds_over_staged_usage(road)
+                counted, lost, head = self._holds_over_staged_usage(road)
 
                 self.assertEqual(readings.pinned(self).get(_USAGE), counted + added)
-                self.assertEqual(len(lost), int(road == _LOST_ANSWER))
+                self.assertEqual(readings.pinned(self).get(_GATE), head)
+                self.assertEqual(len(lost), int(road in {_LOST_ANSWER, _UNSENT}))
 
-    def _holds_over_staged_usage(self, road: str) -> tuple[int, list]:
-        """Stage 5 of usage on the tick's state and hold over it down `road`; the usage before, the answers lost."""
+    def _holds_over_staged_usage(self, road: str) -> tuple[int, list, str]:
+        """Stage 5 of usage and the gate's record on the tick's state and hold over it down `road`; the usage before,
+        the answers lost, and the head."""
         head = self.settles_then_dies()[0]
         context = guarded.recovery_context(self)
         counted = context.state.get(_USAGE) or 0
         context.state.set(_USAGE, counted + 5)
+        context.state.set(_GATE, head)
         if road == _CONCURRENT:
             _settles_report_three(self, head, {_USAGE: counted + 5})
         else:
             self._wt.rename(self._wt.parent / "checkout-away")
         lost: list = []
-        edits = self.gh.edit_pinned_state
-        if road == _LOST_ANSWER:
-            edits = partial(_loses_the_blank, lost, edits)
-        with patch.object(self.gh, "edit_pinned_state", edits):
+        losing = _LOSES.get(road)
+        if losing is None:
             _parks.lands_a_hold(context)
-        return counted, lost
+        else:
+            with patch.object(self.gh, "edit_pinned_state", partial(losing, lost, self.gh.edit_pinned_state)):
+                _parks.lands_a_hold(context)
+        return counted, lost, head
 
 class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """The keeper on a tick's state alone: what it stages again behind its block, over which reading, and when not."""

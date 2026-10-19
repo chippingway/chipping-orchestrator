@@ -30,7 +30,9 @@ saying it twice (`rewrite_recovery_notices`). A clear of the attempt -- under
 a label the refresh does not drive, or of one whose checkout never left the
 anchor -- is recorded as `CLEAR` over the comment read afresh
 (`lands_a_clear`), so a successor another road settled while the checkout was
-read refuses it, its revision floor kept.
+read refuses it, its revision floor kept; and one written right behind a
+clear that landed -- another attempt, or any record a binding rests on, a
+revision floor raised alone among them -- holds the tick, its state withheld.
 
 The park (`lands_a_park`) lands through the guarded commit
 (`report_commits.ReportCommit`) as `PARK`: owning every field the tick staged
@@ -251,8 +253,9 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
     Only what the tick staged lands; a successor settled meanwhile refuses it, its floor kept. A clear not landing
     records the reset (`records_the_reset`) and proves the fresh comment with that move (`proves_before_a_park`).
     One that landed is followed by the comment read afresh: a successor, another attempt, or anything else the clear
-    was decided on written right behind it -- or a comment that would not read -- holds the tick too, its state
-    withheld, so no write of it puts back what that road wrote. A state nothing was read into is written whole.
+    was decided on written right behind it -- a revision floor raised, or any other record a binding rests on moved,
+    among them (`verification_durable.durable_comment`) -- or a comment that would not read holds the tick too, its
+    state withheld, so no write of it puts back what that road wrote. A state nothing was read into is written whole.
     """
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
@@ -264,9 +267,8 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
         context.state,
     ).lands(context.state, CLEAR)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
-        durable = durable_comment(context.gh, context.issue, context.state)[0]
-        cleared = _commit_models.PinnedCommit.capture(context.state, prerequisites=CLEAR.decided_on)
-        if durable is not None and not cleared.moved(durable.data):
+        refused = durable_comment(context.gh, context.issue, context.state, CLEAR.decided_on)[1]
+        if refused is None:
             return True
         log.warning(
             "issue=#%d the clear of its auto-rebase attempt landed, but the comment read afresh behind it carries "

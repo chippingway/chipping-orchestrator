@@ -31,7 +31,7 @@ so every recovery context still carries the captured-only answers alone.
   answer is False, for the git owner to keep the attempt and hold the tick
   with nothing released or parked
   (`git/base_sync/persistence._releases_over_the_reset`,
-  `git/base_sync/snapshot._clear_ineligible_recovery`).
+  `git/base_sync/snapshot._lands_the_clear`).
 - Before a park that keeps the attempt (`retires_unproved`): the transaction
   is proved again and abandoned where it moved
   (`rewrite_landing_moved.proves_captured`), and settled evidence is proved
@@ -154,8 +154,9 @@ def retires_over_the_reset(
     A recovery's answer to a reset that landed, asked by the git owner before
     the attempt is dropped from `context.state`: the reset took the checkout
     off the landed head, movement under both, as is a checkout back on the
-    anchor under a label the refresh does not drive, whose guarded clear asks
-    it too (`git/base_sync/snapshot._clear_ineligible_recovery`). The
+    anchor -- under a label the refresh does not drive, or of an attempt that
+    never started -- whose guarded clear asks it too
+    (`git/base_sync/snapshot._lands_the_clear`). The
     transaction is abandoned as the captured-only answer abandons it
     (`rewrite_landing_moved.abandons_over_the_reset`), and settled evidence is
     invalidated on the same state, into history whole, its revision and
