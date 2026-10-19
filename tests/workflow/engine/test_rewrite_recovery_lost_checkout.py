@@ -37,6 +37,7 @@ from tests.workflow.engine import (
     rewrite_finish_readings as readings,
     rewrite_handoff_test_support as handoff,
     settled_finish_support as settled_support,
+    verification_report_fixture as _report,
 )
 
 _EDITS = "edit_pinned_state"
@@ -65,8 +66,30 @@ def _blanks(_issue, staged, *, over: dict, **_options) -> bool:
 _BEHIND_THE_BLANK = handoff.Boundary("behind the blank", _EDITS, _blanks)
 _FIRST_CALL = handoff.Boundary("at the first call", "", lambda *_called, **_options: True)
 
-# How a case moves the checkout's HEAD, onto the anchor and back onto the landed head.
+# How a case moves the checkout's HEAD, onto the anchor and back onto the landed head; and the file a newer base adds.
 _PUTS_BACK = ("reset", "--quiet", "--hard")
+_NEWER_BASE = "newer-base.txt"
+
+# The run and its base tip another road takes off and puts back; and the attempt's anchor and replay.
+_RUN_AND_TIP = (_CURRENT, readings.KEY_REWRITE_BASE)
+_ATTEMPT = (readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_SHA)
+
+
+def _rebases_from_the_anchor(case) -> str:
+    """Put the branch back on the anchor, move the base again, rebase afresh, and settle report 3 of it; that head."""
+    branch = case.pull_request.head_branch
+    case._git(*_PUTS_BACK, case.anchor, cwd=case._wt)
+    case._git("push", "--force", "origin", f"HEAD:{branch}", cwd=case._wt)
+    case.pull_request.head.sha = case.anchor
+    (case._work / _NEWER_BASE).write_text("another base change\n")
+    case._git("add", _NEWER_BASE, cwd=case._work)
+    case._git("commit", "-m", "Newer base", cwd=case._work, env_extra=case._author_env)
+    case._git("push", "origin", "main", cwd=case._work)
+    head = case.rebases_by_hand()
+    case.state = case.gh.read_pinned_state(case.issue)
+    _report.settles_report(case, 3, "Covered the newer base as well.", head=head)
+    case.gh.write_pinned_state(case.issue, case.state)
+    return head
 
 
 class _LostCheckoutCase(guarded.GuardedRecoveryCase):
@@ -177,26 +200,24 @@ class LostCheckoutTest(_LostCheckoutCase, unittest.TestCase):
 
 
 class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
-    """A loss the proof reads is recorded before it lets a park go on, or stays owed until a write records it."""
+    """A loss the proof reads is recorded before it lets a park go on, and stays owed by that attempt alone."""
 
     def test_a_loss_outlives_absent_evidence(self) -> None:
         # Every write refused over the checkout gone, the loss stays owed while another road has the run off the
-        # comment, proofs meanwhile going on over nothing; put back, the run is retired before a park could keep it.
-        run = self.settles_then_dies()[1]
-        saved = self.pinned_fields(_CURRENT)[0]
-        self.proves_unrecorded(full=False)
-        self._away.rename(self._wt)
-        self._writes_current(None)
-        self.assertTrue(self.proves())
-        self._writes_current(saved)
-        self.assertTrue(self.proves())
-        records = readings.pinned_records(self)
-        self.assertIsNone(records[1])
-        self.assertIn((run.receipt, readings.INVALIDATED), records[2])
+        # comment, proofs meanwhile going on over nothing -- the checkout back, or still gone so the tip's blank lands
+        # over nothing -- and with the run and its tip put back, the run is retired before a park could keep it.
+        for returned in (True, False):
+            with self.subTest(returned=returned):
+                self.setUp()
+                run = self.settles_then_dies()[1]
+                self._proves_over_absent_evidence(returned=returned)
+                records = readings.pinned_records(self)
+                self.assertIsNone(records[1])
+                self.assertIn((run.receipt, readings.INVALIDATED), records[2])
 
     def test_a_move_the_proof_reads(self) -> None:
         # The proof's own finish reads the checkout on the anchor, put back on the head right behind that read: the
-        # run, captured or settled, is retired before the proof answers, and nothing is left owed.
+        # run, captured or settled, is retired before the proof answers, the attempt owing that loss from then on.
         for captures in (False, True):
             with self.subTest(captured=captures):
                 self.setUp()
@@ -205,7 +226,21 @@ class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
                 with self._reads_the_anchor(head):
                     self.assertTrue(_parks.proves_before_a_park(context))
                 (self.assert_abandoned if captures else self.assert_invalidated)(run)
-                self.assertFalse(_owed_events.loss_owed(context))
+                self.assertTrue(_owed_events.loss_owed(context))
+
+    def test_a_replay_from_the_anchor_owes_nothing(self) -> None:
+        # The loss an attempt owes is not the next one's: another road retires its run and clears it, and a rebase
+        # made afresh from the same anchor onto a newer base settles its own run, which stands through the proof.
+        self.settles_then_dies()
+        lost = self.pinned_fields(*_ATTEMPT)
+        self.proves_unrecorded(full=False)
+        fresh = self._replays_from_the_anchor()
+        self.assertIsNotNone(fresh)
+        replayed = self.pinned_fields(*_ATTEMPT)
+        self.assertEqual(replayed[0], lost[0])
+        self.assertNotEqual(replayed[1], lost[1])
+        self.assertTrue(self.proves())
+        self.assertEqual(readings.pinned_records(self)[1], fresh)
 
     def _reads_the_anchor(self, head: str):
         """The candidate's read finding the checkout on the anchor, put back on `head` right behind that read."""
@@ -214,10 +249,37 @@ class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
         reads = _FIRST_CALL.moving(recovery_push._recovered_candidate, back)
         return patch.object(recovery_push, "_recovered_candidate", reads)
 
-    def _writes_current(self, current) -> None:
-        """Write `current` as the comment's current evidence, as another road would."""
+    def _proves_over_absent_evidence(self, *, returned: bool) -> None:
+        """Prove over the checkout gone under refused writes, then with the run off the comment -- the checkout back
+        where `returned` -- then with the run and its tip put back, and the checkout too."""
+        written = dict(zip(_RUN_AND_TIP, self.pinned_fields(*_RUN_AND_TIP), strict=True))
+        self.proves_unrecorded(full=False)
+        if returned:
+            self._away.rename(self._wt)
+        self._writes({_CURRENT: None})
+        self.assertTrue(self.proves())
+        self._writes(written)
+        if not returned:
+            self._away.rename(self._wt)
+        self.assertTrue(self.proves())
+
+    def _replays_from_the_anchor(self):
+        """Retire the run and clear its attempt as another road would, then rebase afresh from the anchor onto a newer
+        base, its run settled and its finish killed before the announcement; that run."""
         state = self.gh.read_pinned_state(self.issue)
-        state.set(_CURRENT, current)
+        self.assertTrue(_settlement.retire_current_evidence(state))
+        _attempts._clears_the_attempt(state)
+        self.gh.write_pinned_state(self.issue, state)
+        self._away.rename(self._wt)
+        head = _rebases_from_the_anchor(self)
+        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
+        return readings.pinned_records(self)[1]
+
+    def _writes(self, fields: dict) -> None:
+        """Write each of `fields` onto the comment as it stands, as another road would."""
+        state = self.gh.read_pinned_state(self.issue)
+        for key, field_value in fields.items():
+            state.set(key, field_value)
         self.gh.write_pinned_state(self.issue, state)
 
 

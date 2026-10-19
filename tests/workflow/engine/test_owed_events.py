@@ -5,8 +5,8 @@
 With an audit log every absence is the log's to vouch for and the event filed; with none, only one this process owes
 unpaid is, whatever its notice's id, noted by any worker of its repository's client, not another repository's, and only
 for a notice saying what the owing post said: an earlier notice found said is not refiled over another's failed post.
-A checkout loss no write recorded is owed the same way, to every later proof of that attempt alone, until one records
-it.
+A checkout loss a recovery read is owed the same way, to every later proof of that very attempt -- its anchor and its
+replay -- and of no other, whatever a write records.
 """
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from types import MappingProxyType, SimpleNamespace
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.git.base_sync.models import _PendingRewrite
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import owed_events, rewrite_recovery_notices as _notices
 from tests.support.fakes import FakeGitHubClient, FakeIssue, FakeLabel
@@ -32,9 +33,14 @@ _SLUGS = ("owner/repo", "owner/other")
 _TOKEN = "tok"
 _BOT = "bot"
 
-# The anchors of two attempts of one issue, the second pinned after the first was cleared.
+# The anchors and replays of an issue's attempts, a later one pinned after the first was cleared.
 _ANCHOR = "0123456789abcdef0123456789abcdef01234567"
 _LATER_ANCHOR = "fedcba9876543210fedcba9876543210fedcba98"
+_REPLAY = _PendingRewrite(sha="1111111111111111111111111111111111111111")
+_LATER_REPLAY = _PendingRewrite(sha="2222222222222222222222222222222222222222")
+
+# Attempts the first one's loss is not owed by: another anchor, and the same anchor replayed afresh.
+_MOVED_ON = ((_LATER_ANCHOR, _REPLAY), (_ANCHOR, _LATER_REPLAY))
 
 # Two recovery park notices of one issue, parked for the same reason.
 _SAID = "Reset failed; inspect the checkout."
@@ -50,10 +56,10 @@ def _minted(workers: int) -> tuple:
     return (*minted, other)
 
 
-def _loses_on(client, anchor: str = _ANCHOR) -> SimpleNamespace:
-    """A recovery of issue 7's attempt anchored on `anchor`, through `client`, as the loss ledger reads one."""
+def _loses_on(client, anchor: str = _ANCHOR, replay: _PendingRewrite = _REPLAY) -> SimpleNamespace:
+    """A recovery of issue 7's attempt on `anchor` that made `replay`, through `client`, as the loss ledger reads it."""
     issue = SimpleNamespace(number=_NAMED["issue_number"])
-    return SimpleNamespace(gh=client, issue=issue, pending_pre_rebase_sha=anchor)
+    return SimpleNamespace(gh=client, issue=issue, pending_pre_rebase_sha=anchor, pending_rewrite=replay)
 
 
 def _parks(gh: FakeGitHubClient, issue: FakeIssue, message: str) -> None:
@@ -88,18 +94,17 @@ class OwedEventTest(unittest.TestCase):
         owed_events.pays(replacing, _PARKED, **_NAMED)
         self.assertFalse(owed_events.unfiled(later, _PARKED, **_NAMED))
 
-    def test_a_lost_checkout_is_owed_until_recorded(self) -> None:
-        # A loss a write recorded owes nothing; one none recorded stays owed to every later worker's proof of that
-        # attempt, asking it dropping nothing, not to another repository's or attempt's, until a write records it.
+    def test_a_lost_checkout_is_owed_by_its_attempt(self) -> None:
+        # A loss one worker read stays owed to every later worker's proof of that attempt, asking it dropping nothing,
+        # and to no other repository's, no attempt on another anchor, and none replayed afresh on the same anchor.
         lost, replacing, later, other = map(_loses_on, _minted(3))
-        next_attempt = _loses_on(replacing.gh, _LATER_ANCHOR)
-        self.assertTrue(owed_events.owes_a_loss(lost, recorded=True))
         self.assertFalse(owed_events.loss_owed(replacing))
-        self.assertFalse(owed_events.owes_a_loss(lost, recorded=False))
-        self.assertFalse(owed_events.loss_owed(other) or owed_events.loss_owed(next_attempt))
-        self.assertTrue(owed_events.loss_owed(replacing) and owed_events.loss_owed(later))
-        self.assertTrue(owed_events.owes_a_loss(replacing, recorded=True))
-        self.assertFalse(owed_events.loss_owed(later))
+        owed_events.owes_a_loss(lost)
+        self.assertTrue(owed_events.loss_owed(replacing))
+        self.assertTrue(owed_events.loss_owed(later))
+        self.assertFalse(owed_events.loss_owed(other))
+        for moved_on in _MOVED_ON:
+            self.assertFalse(owed_events.loss_owed(_loses_on(later.gh, *moved_on)))
 
     def test_another_notices_debt_files_nothing(self) -> None:
         # A restart owing a failed notice's event takes an earlier notice found saying something else as filed.

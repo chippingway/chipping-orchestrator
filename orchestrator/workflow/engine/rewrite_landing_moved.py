@@ -324,7 +324,7 @@ def _finish(
     read = candidate or _recovery_push._recovered_candidate(context, snapshot)
     off_the_landing = candidate is None and read.checkout.head not in {"", head}
     if settled and off_the_landing:
-        _owed_events.owes_a_loss(context, recorded=False)
+        _owed_events.owes_a_loss(context)
     return LandedFinish(
         gh=context.gh,
         spec=context.spec,

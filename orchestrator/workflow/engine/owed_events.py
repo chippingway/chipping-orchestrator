@@ -7,8 +7,9 @@ stream before filing the event again (`events.filed`); with no audit log that st
 the word counts as the event filed, at most once, unless this process noted it owing (`owes`) and never filed it
 (`pays`). The note lives on the repository's client, shared with its worker clients
 (`github/client.GitHubClient._for_worker_thread`), keyed by what the notice says (`said`), not its id, so one notice's
-failed post never files another's event. A checkout loss the dormant recovery proof read is owed the same way until
-a write records it (`owes_a_loss`), asked without being dropped (`loss_owed`).
+failed post never files another's event. A checkout loss the dormant recovery proof read is owed the same way, to
+that very attempt for as long as this process runs (`owes_a_loss`, `loss_owed`): another road putting the evidence,
+the base tip, or the checkout back can undo any record a write lands, so no write pays it.
 """
 from __future__ import annotations
 
@@ -66,22 +67,18 @@ def _owing(event: str, issue_number: int, said: str, identity: dict[str, Any]) -
     return (event, int(issue_number), said, tuple(sorted(named.items())))
 
 
-def owes_a_loss(context: Any, recorded: bool) -> bool:
-    """`recorded`: a checkout loss `context`'s recovery read, owed for its attempt until a write records it.
+def owes_a_loss(context: Any) -> None:
+    """Note a checkout loss `context`'s recovery read as owed by its attempt -- its anchor and the replay it recorded.
 
-    Noted where `recorded` is False; dropped only where it is True -- the reset recorded against the attempt and what
-    stood for the landed head retired over it -- so evidence absent meanwhile and put back later is still owed it.
+    Scoped to that attempt, so another pinned later on the same anchor, its replay made afresh, owes none of it.
     """
-    owing = (_LOST, int(context.issue.number), context.pending_pre_rebase_sha)
-    noted = _noted(context.gh)
-    if recorded:
-        noted.discard(owing)
-    else:
-        noted.add(owing)
-    return recorded
+    attempt = (context.pending_pre_rebase_sha, context.pending_rewrite)
+    owing = (_LOST, int(context.issue.number), attempt)
+    _noted(context.gh).add(owing)
 
 
 def loss_owed(context: Any) -> bool:
-    """Whether `context`'s attempt still owes a checkout loss no write recorded, left owed until one does."""
-    owing = (_LOST, int(context.issue.number), context.pending_pre_rebase_sha)
+    """Whether `context`'s attempt owes a checkout loss this process read, asked without dropping it."""
+    attempt = (context.pending_pre_rebase_sha, context.pending_rewrite)
+    owing = (_LOST, int(context.issue.number), attempt)
     return owing in _noted(context.gh)
