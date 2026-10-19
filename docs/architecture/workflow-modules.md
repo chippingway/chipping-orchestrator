@@ -2596,7 +2596,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             an attempt it pinned right behind it -- or a comment that would not read -- holding the
                             reset with the tick's state withheld; and what its commit read moving proved as read
                             before the reset goes on, the comment read afresh once more behind that proof and the reset
-                            held where that retirement does not land or the blank no longer stands; over a
+                            held where that retirement does not land or the blank no longer stands, a successor that
+                            reading reads moving proved in turn until a reading reads none new; the record keeping
+                            what the tick staged as a proof keeps it, its usage landing once in a write of its own,
+                            wherever no proof keeps it already (`rewrite_recovery_staging.keeps_the_staging`); over a
                             checkout read gone, the evidence retired as over a reset in a `CLEAR` write of its own
                             (`rewrite_recovery_staging.lands_the_retirement`)
                             -- the loss owed as soon as it is read, the tick's state withheld where that does not land
@@ -2630,9 +2633,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a comment already carrying it -- save a total that adds up, usage, which rides none of the
                             proof's writes and lands once behind it in a guarded write of its own, decided on nothing
                             and added to the total the comment then carries, a lost answer there taken as sent so it is
-                            never sent twice (`adds_the_totals`); behind a record that did not land, that staging is
-                            taken off the state for the proof, put back only where no proof edit landed or may have;
-                            over a checkout gone from disk, what the tick holds for the landed head
+                            never sent twice (`adds_the_totals`), and a context already kept handed back as it is, so
+                            the reset's recorder keeps it alike asked inside a proof or directly by the git owner
+                            (`rewrite_recovery_parks.records_the_reset`); behind a record that did not land, that
+                            staging is taken off the state for the proof, put back only where no proof edit landed or
+                            may have; over a checkout gone from disk, what the tick holds for the landed head
                             retired as over a reset in its own guarded write (`lands_the_retirement`) -- the comment
                             read afresh first where the tick holds none, so evidence put back since is retired and
                             another attempt holds -- asked again over the comment read afresh, evidence another road
