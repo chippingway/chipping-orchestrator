@@ -416,7 +416,7 @@ class _FenceReading:
         fence a quote, even one holding protocol lines alone: a failing test
         may print a fixture that is nothing else, and the diagnostic below it
         stays that check's. Where the check is dropped instead, the steps the
-        quote holds are re-read then (`_Check.shown`).
+        quote holds are re-read then (`_Check.failing`).
         """
         kinds = frozenset(held)
         if kinds.isdisjoint(_PROTOCOL_LETTERS):

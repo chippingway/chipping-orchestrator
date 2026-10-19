@@ -32,6 +32,9 @@ closes it. pytest pads every title, rule, and heading of a run to its
 terminal's width, so a line of a section's or a heading's shape narrower than
 the last heading pytest printed is one a test printed, and stays captured; any
 other ends what is read as captured there, being one pytest might print next.
+Below a heading reporting what did not fail -- tests that passed (`-rP`),
+passed unexpectedly, or failed as expected (`--xfail-tb`) -- every line reads
+as captured up to the next heading, its sections titled as a failure's are.
 pytest prints one short summary for a run, last, so of the summary headings in
 one run only the last is pytest's, any above it one a test printed. Outside
 anything captured a run opens on its opening, or, with `-q`, where a run
@@ -107,6 +110,11 @@ _SUMMARY = "short test summary info"
 # The headings a run reporting no progress opens on with `-q`, those pytest
 # prints above its short summary.
 _SUMMARISED_BELOW = frozenset((_FAILURES, "ERRORS"))
+
+# The headings pytest reports what did not fail under -- tests that passed
+# (`-rP`), passed unexpectedly, or failed as expected (`--xfail-tb`) -- each
+# with sections titled as a failure's are: nothing under them is read.
+_UNFAILED = frozenset(("PASSES", "XPASSES", "XFAILURES"))
 
 # What opens a run of pytest's: its session's heading, or, with `-q`, the
 # progress line its first tests report on, by percentage or count, a letter
@@ -190,8 +198,10 @@ class _Where:
     anything captured above it shows; `run` counts the session headings at or
     above the line outside anything captured, and `summaries` the short
     summary headings; `closed` says a line of statistics closed the run
-    above the line, no section or heading opening since; and `width` is that
-    of the last heading pytest printed, 0 before any.
+    above the line, no section or heading opening since; `width` is that of
+    the last heading pytest printed, 0 before any; and `heading` that
+    heading's title, "" for none -- the line stands as captured below one
+    reporting what did not fail.
     """
 
     region: str = _ELSEWHERE
@@ -203,6 +213,7 @@ class _Where:
     nests: bool = True
     closed: bool = False
     width: int = 0
+    heading: str = ""
 
     @classmethod
     def of(cls, lines: Sequence[str]) -> tuple[_Where, ...]:
@@ -305,19 +316,26 @@ class _Where:
         heading or title below one opens a run of its own: a run's progress
         letters, printed with `-q -s`, carry no percentage to open it by. So
         does the errors or failures heading where it stands in a short
-        summary, which pytest prints below it in any one run.
+        summary, which pytest prints below it in any one run. Below a heading
+        reporting what did not fail, every section -- its title among them --
+        reads as captured, up to the next heading.
         """
         if opened.group("rule"):
             return replace(self, captured=True)
         named = opened.group("heading") or ""
         region = _HEADED.get(named, _ELSEWHERE)
+        heading = named if opened.group("equals") else self.heading
         reopens = self.closed or (named in _SUMMARISED_BELOW and self.stands(_SUMMARISED))
-        run = self.run + 1 if reopens else self.run
-        summaries = self.summaries + 1 if region == _SUMMARISED else self.summaries
         return _Where(
-            region, shown=self.shown, run=run, summaries=summaries, nests=self.nests,
+            region,
+            captured=heading in _UNFAILED,
+            shown=self.shown,
+            run=self.run + int(reopens),
+            summaries=self.summaries + int(region == _SUMMARISED),
+            nests=self.nests,
             closed=_STATS_RE.fullmatch(opened.string) is not None,
             width=len(opened.group("line")) if opened.group("equals") else self.width,
+            heading=heading,
         )
 
 

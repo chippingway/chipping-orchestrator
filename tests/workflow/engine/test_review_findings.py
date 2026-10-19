@@ -1031,6 +1031,36 @@ _PLUGIN_UNIMPORTED_LEAD = (
     "Failure: plugin `missing_plugin`, which pytest could not load before running any test\n"
     'Error: `ImportError: Error importing plugin "missing_plugin": No module named \'missing_plugin\'`\n'
 )
+# A run printed with `-rP --xfail-tb`: the sections pytest prints for an
+# expected failure and a pass, titled as a failure's are, stand below the
+# headings reporting what did not fail and are read as nothing. And a failure
+# printed with `--color=yes`, a terminal's colors among its title, its marked
+# line, and its summary line, the node ID's among them.
+_UNFAILED_SECTIONS = (
+    ".Fx                                                                      [100%]\n"
+    "=================================== FAILURES ===================================\n"
+    "___________________________________ test_bad ___________________________________\n"
+    "E   AssertionError: bad\n"
+    "================================== XFAILURES ===================================\n"
+    "____________________________ test_expected_failure _____________________________\n"
+    "E   AssertionError: expected failure\n"
+    "==================================== PASSES ====================================\n"
+    "___________________________________ test_ok ____________________________________\n"
+    "----------------------------- Captured stdout call -----------------------------\n"
+    "ok output\n"
+    "1 failed, 1 passed, 1 xfailed in 0.01s"
+)
+_UNFAILED_SECTIONS_LEAD = f"{_TITLED_ONLY.format(title='test_bad')}Error: `AssertionError: bad`\n"
+_COLORED = (
+    "\x1b[31mF\x1b[0m\x1b[31m                                                                        [100%]\x1b[0m\n"
+    "=================================== FAILURES ===================================\n"
+    "\x1b[31m\x1b[1m___________________________________ test_bad ___________________________________\x1b[0m\n"
+    "\x1b[1m\x1b[31mE   AssertionError: bad\x1b[0m\n"
+    "\x1b[36m\x1b[1m=========================== short test summary info ============================\x1b[0m\n"
+    "\x1b[31mFAILED\x1b[0m test_probe.py::\x1b[1mtest_bad\x1b[0m - AssertionError: bad\n"
+    "\x1b[31m\x1b[31m\x1b[1m1 failed\x1b[0m\x1b[31m in 0.02s\x1b[0m\x1b[0m"
+)
+_COLORED_LEAD = "Failure: `test_probe.py::test_bad`\nError: `AssertionError: bad`\n"
 _PHASES_UNSUMMARISED = (
     "E.EF                                                                     [100%]\n"
     f"{_ERRORS_HEADING}"
@@ -1661,6 +1691,10 @@ class FailureNamesTest(unittest.TestCase):
             # And where a summary leaves a failure out, as `-rE` does, its
             # section leads it, no line reporting a test that took none.
             (_ERRORS_ONLY, "", _ERRORS_ONLY_LEAD),
+            # What did not fail leads nothing, though titled as a failure is.
+            (_UNFAILED_SECTIONS, "", _UNFAILED_SECTIONS_LEAD),
+            # A terminal's colors hide nothing pytest printed.
+            (_COLORED, "", _COLORED_LEAD),
             # A conftest or a plugin pytest could not load before running any
             # test leads by that, with the exception its traceback shows.
             (_CONFTEST_UNLOADED, "", _CONFTEST_UNLOADED_LEAD),
@@ -1802,14 +1836,17 @@ class FailureNamesTest(unittest.TestCase):
     def test_previous_layout_leads_as_live_checks_do(self) -> None:
         # A check that layout showed leads as a live round's does: a failure
         # the summary leaves out, a node ID whose path holds the dash, a
-        # conftest pytest could not load, and runs of one check each leading
-        # their own failures, by their own sections.
+        # conftest pytest could not load, runs of one check each leading
+        # their own failures by their own sections, what did not fail leading
+        # nothing, and output a terminal colored.
         led = (
             (_ERRORS_ONLY, _ERRORS_ONLY_LEAD),
             (_DASHED, _DASHED_LEAD),
             (_CONFTEST_UNLOADED, _CONFTEST_UNLOADED_LEAD),
             (_QUIET_UNPROGRESSED, _QUIET_UNPROGRESSED_LEAD),
             (_BORROWED, _BORROWED_LEAD),
+            (_UNFAILED_SECTIONS, _UNFAILED_SECTIONS_LEAD),
+            (_COLORED, _COLORED_LEAD),
         )
         for output, lead in led:
             unled = f"`uv run pytest tests` exited with status 1:\n\n```\n{output}\n```"

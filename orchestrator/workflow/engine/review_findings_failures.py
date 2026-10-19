@@ -7,55 +7,57 @@ diagnostic a developer acts on, and leads it with the lines written here
 (`lead`), so the developer reads what failed before the command that ran it
 and how it ended, which follow as supporting details over the output quoted.
 
-A check's output names its failures where pytest's short summary reports them
--- below the last summary heading of its run, where the output holds one, and
-never in what pytest captured from a test, which may print lines of the
-summary's shape or a whole run of pytest's (`review_findings_pytest`), each
-line read as `review_findings_summary` reads it: a `FAILED` line names a test
-by its exact node ID, parameters included and a file path holding blanks,
-brackets, or the dash that parts the line's message, or a test name holding
-blanks, too, a `SUBFAILED` line a subtest by its test's node ID and pytest's
-description of it, and an `ERROR` line a node by its ID, or a path. A path
-names a collection that failed before any test in it ran -- the check that
-failed, not a test -- whatever file it is and whether it holds blanks or
-brackets, though words naming no Python file are one only where pytest says
-so; and a collection, a setup, or a teardown a section pytest printed says
-failed that no summary line reports -- a run printed with `-rN` reports none
--- leads by that section alone, as does a conftest or a plugin pytest could
-not load before running any test, and each test's own section no line took, by
-its title -- save one a summary line reporting a test that took no section
-pairs with, as a doctest's line does -- no test ID said. A node ID names the
-setup or teardown of a test where a section pytest printed says that failed --
-where both did, the one whose section raised the error the line gives; a
-collection where a section of its run says pytest failed collecting the node
-or its path, or its run says collection was interrupted, since a class pytest
-could not collect is reported by its ID; and, nothing saying which, an error
-outside any test body, in one of the three. An ID is the longest whose section
-shows the exception the line's message opens -- the first such no line took
-yet, as pytest prints them in one order -- else the longest an entry of the
-findings names whole, or pytest titled a section by; where nothing names one,
-it ends where the line's message may first begin, so the message is never cut
-short, and where a later split could end it too the lead says where the ID
-ends is unavailable. Each failure leads with its name and the error the line
-gives. Where the line gives none -- pytest drops it from a line too long for
-the terminal -- the exception the section pytest printed for it shows gives
-it, each section going to one summary line, so tests of two modules sharing a
-name each take their own (`review_findings_pytest`); or else the error of the
-reviewer's entry naming it. Where none is found the lead says so. No name is
-ever made up: a check pytest's summary names nothing in is led by the failure
-entries (`review_findings_entries`) the reviewer wrote for it in the findings,
-each named as the reviewer named it, or by a line saying nothing names it. An
-entry is a check's where the check's output shows the entry's error -- never
-because the two name one command, since one stdin command, such as
-`.venv/bin/python -`, may run several scenarios, each a check of its own. A
-lead says too where the check quoted no output to show an error by, and --
-whatever names its failures -- where its command reads its code from stdin --
-a `-` argument, split as a shell splits it, that no argument before it gave a
-program inline, by module, or as a script and no entry it backs gives the
-snippet it read, as a code block holding code below its `Reproduce:` line:
-such a command reproduces nothing alone, however an entry names it. A lead
-names every failure pytest's summary reports, each with its error, as a lead
-by entries names every entry the output backs.
+A check's output, read without the colors a terminal shows it in, names its
+failures where pytest's short summary reports them -- below the last summary
+heading of its run, where the output holds one, and never in what pytest
+captured from a test or reports under a heading for what did not fail, which
+may print lines of the summary's shape or a whole run of pytest's
+(`review_findings_pytest`), each line read as `review_findings_summary` reads
+it: a `FAILED` line names a test by its exact node ID, parameters included and
+a file path holding blanks, brackets, or the dash that parts the line's
+message, or a test name holding blanks, too, a `SUBFAILED` line a subtest by
+its test's node ID and pytest's description of it, and an `ERROR` line a node
+by its ID, or a path. A path names a collection that failed before any test in
+it ran -- the check that failed, not a test -- whatever file it is and whether
+it holds blanks or brackets, though words naming no Python file are one only
+where pytest says so; and a collection, a setup, or a teardown a section
+pytest printed says failed that no summary line reports -- a run printed with
+`-rN` reports none -- leads by that section alone, as does a conftest or a
+plugin pytest could not load before running any test, and each test's own
+section no line took, by its title -- save one a summary line reporting a test
+that took no section pairs with, as a doctest's line does -- no test ID said.
+A node ID names the setup or teardown of a test where a section pytest printed
+says that failed -- where both did, the one whose section raised the error the
+line gives; a collection where a section of its run says pytest failed
+collecting the node or its path, or its run says collection was interrupted,
+since a class pytest could not collect is reported by its ID; and, nothing
+saying which, an error outside any test body, in one of the three. An ID is
+the longest whose section shows the exception the line's message opens -- the
+first such no line took yet, as pytest prints them in one order -- else the
+longest an entry of the findings names whole, or pytest titled a section by;
+where nothing names one, it ends where the line's message may first begin, so
+the message is never cut short, and where a later split could end it too the
+lead says where the ID ends is unavailable. Each failure leads with its name
+and the error the line gives. Where the line gives none -- pytest drops it
+from a line too long for the terminal -- the exception the section pytest
+printed for it shows gives it, each section going to one summary line, so
+tests of two modules sharing a name each take their own
+(`review_findings_pytest`); or else the error of the reviewer's entry naming
+it. Where none is found the lead says so. No name is ever made up: a check
+pytest's summary names nothing in is led by the failure entries
+(`review_findings_entries`) the reviewer wrote for it in the findings, each
+named as the reviewer named it, or by a line saying nothing names it. An entry
+is a check's where the check's output shows the entry's error -- never because
+the two name one command, since one stdin command, such as `.venv/bin/python
+-`, may run several scenarios, each a check of its own. A lead says too where
+the check quoted no output to show an error by, and -- whatever names its
+failures -- where its command reads its code from stdin -- a `-` argument,
+split as a shell splits it, that no argument before it gave a program inline,
+by module, or as a script and no entry it backs gives the snippet it read, as
+a code block holding code below its `Reproduce:` line: such a command
+reproduces nothing alone, however an entry names it. A lead names every
+failure pytest's summary reports, each with its error, as a lead by entries
+names every entry the output backs.
 
 The reviewer's own text is shown through here too (`said`): each entry with
 what it leaves out said, and each check the concise layout before leads
@@ -101,6 +103,10 @@ _BLANKS = " \t\r"
 _BACKTICK = "`"
 
 _BACKTICK_RUNS_RE = re.compile(f"{_BACKTICK}+")
+
+# A terminal's control sequence -- the colors pytest prints with
+# `--color=yes` -- which output is read without, though it is quoted with it.
+_CONTROL_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 # A code span needs a run its content never repeats.
 _SPAN_RUN = 1
@@ -195,17 +201,18 @@ def lead(command: str, output: str, entries: _Entries) -> tuple[str, ...]:
 
     The failures pytest's summary reports lead it, else the entries it backs,
     else a line saying nothing names it; and either way a check whose command
-    reads stdin says where no entry it backs gives the snippet it read.
+    reads stdin says where no entry it backs gives the snippet it read. The
+    output is read without the colors a terminal shows it in.
     """
-    backed = [entry for entry in entries if entry.backs(output)]
-    reported = tuple(dict.fromkeys(_Reported.of(output, entries)))
+    plain = _CONTROL_RE.sub("", output)
+    backed = [entry for entry in entries if entry.backs(plain)]
+    reported = tuple(dict.fromkeys(_Reported.of(plain, entries)))
     named = dict.fromkeys(entry.name for entry in backed if entry.name)
     said = list(_Reported.leading(reported))
     said = said or [f"{_NAME}: {name}" for name in named] or [_UNNAMED]
     if not output:
         said.append(_NO_OUTPUT)
-    snippet = any(entry.snippet for entry in backed)
-    if not snippet and _reads_stdin(command):
+    if not any(entry.snippet for entry in backed) and _reads_stdin(command):
         said.append(_UNREPRODUCED.format(command=span(command)))
     return tuple(said)
 
