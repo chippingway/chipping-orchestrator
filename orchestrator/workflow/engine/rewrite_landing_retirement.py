@@ -123,11 +123,13 @@ from orchestrator.workflow.engine.verification_records import (
 log = logging.getLogger("orchestrator.workflow")
 
 # The attempt's members a tip move is read against (`attempt_as_read`): every
-# one but the bookkeeping a finish of the landing puts down as it announces
-# and relabels -- the record of its event, the mark, and the record of its
-# relabel -- which advances the attempt rather than replacing it.
+# one but the bookkeeping a finish of the landing puts down as it records,
+# announces, and relabels -- its evidence receipt, the record of its event,
+# the mark, and the record of its relabel -- which advances the attempt rather
+# than replacing it, so a tip moved beside a successor's receipt moves it.
 _AS_READ = tuple(
     member for member in _attempts._ATTEMPT_KEYS if member not in {
+        _base_sync_state._PENDING_EVIDENCE_RECEIPT,
         _base_sync_state._PENDING_ANNOUNCED_EVENT,
         _base_sync_state._PENDING_ANNOUNCED_SHA,
         _base_sync_state._PENDING_RELABELLED,
@@ -370,10 +372,10 @@ def attempt_as_read(state: PinnedState) -> PinnedCommit | None:
     As the comment carried it when the tick last read it, not as the tick
     holds it now: a tip the tick staged back over its own blank -- a reset git
     refused, whose recorded blank landed -- is no tip another road moved.
-    Captured without the announcement's bookkeeping (`_AS_READ`), so a comment
-    carrying a finish of the landing's event record, mark, or relabel record
-    beside the moved tip is still this attempt. None where that reading
-    records no tip, so names no base to move.
+    Captured without a finish's bookkeeping (`_AS_READ`), so a comment
+    carrying a finish of the landing's evidence receipt, event record, mark,
+    or relabel record beside the moved tip is still this attempt. None where
+    that reading records no tip, so names no base to move.
     """
     read = state
     if state.synced is not None:

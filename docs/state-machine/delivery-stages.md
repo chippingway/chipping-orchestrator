@@ -1559,9 +1559,10 @@ because there it is the claim that this stage has already rerouted rather than a
   any comment the record's commit reads, the one a refusal for room takes to say whether the comment moved among them, a
   report or review record moved off the binding of the evidence it is asked of -- a record no binding rests on no
   movement -- a mark of movement under settled evidence's receipt or a revision spent past it, or the
-  attempt's base tip blanked or repointed beside the rest of the attempt as read -- this landing's announcement
-  bookkeeping set aside -- kept as read under whichever evidence it was read under, a comment carrying no captured
-  transaction or no settled evidence for the head asked of what the tick held there
+  attempt's base tip blanked or repointed beside the rest of the attempt as read -- a finish's evidence receipt and
+  announcement bookkeeping set aside, so a tip moved beside a successor's receipt moves that successor -- kept as read
+  under whichever evidence it was read under, a comment carrying no captured transaction or no settled evidence for the
+  head asked of what the tick held there
   (`rewrite_landing_retirement.moved_under`); behind a notice that raised, or a record refused or sent with its answer
   lost, the evidence the comment carries now laid over the tick's state first, so a successor another road settled
   meanwhile is proved on its own binding, movement that very reading records kept for the proof however soon it is put

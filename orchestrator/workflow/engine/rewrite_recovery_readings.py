@@ -49,8 +49,8 @@ from orchestrator.workflow.engine.rewrite_finish_outranking import outranks_the_
 
 # The base tip the attempt recorded its replay as made onto, the one member of
 # the attempt a comment may read moved -- blanked, as a reset is recorded, or
-# repointed -- beside every other member as the tick read it, where any other
-# member moved is another attempt (`tip_moves`).
+# repointed -- beside every other member as the tick read it, a finish's
+# bookkeeping aside, where any other member moved is another attempt (`tip_moves`).
 _TIP_ALONE = (_base_sync_state._PENDING_REWRITE_BASE,)
 
 # What that move is under the evidence the comment carries for the landed

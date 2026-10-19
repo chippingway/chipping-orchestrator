@@ -85,6 +85,9 @@ _TIP_BESIDE_THE_EVENT = "the tip beside the event record under the edit"
 # The event that finish files.
 _REBASED = "base_rebased"
 
+# The tip repointed under that edit beside a newer run another road settled under its own receipt on the attempt.
+_TIP_BESIDE_A_SUCCESSOR = "the tip beside a successor under the edit"
+
 # A record the tick staged since its reading, as a gate holding over a
 # reading of its own does, so the hold's record has an edit to send -- one
 # that fails as a case asks.
@@ -105,7 +108,8 @@ _FILLER = "another_road_filler"
 _ELSEWHERE = "0123456789abcdef0123456789abcdef01234567"
 
 # The modes whose movement races the record's strict edit itself.
-_AT_THE_EDIT = frozenset((_UNDER_THE_EDIT, _TIP_UNDER_THE_EDIT, _TIP_BESIDE_THE_EVENT, _AHEAD_OF_THE_EDIT))
+_TIP_MODES = frozenset((_TIP_UNDER_THE_EDIT, _TIP_BESIDE_THE_EVENT, _TIP_BESIDE_A_SUCCESSOR))
+_AT_THE_EDIT = _TIP_MODES | {_UNDER_THE_EDIT, _AHEAD_OF_THE_EDIT}
 
 # The guarded records a case races -- the hold's, and the park's -- and how a recovery context lands each.
 _RECORDS = frozenset((_parks.HOLD, _parks.PARK))
@@ -203,11 +207,16 @@ class _AroundTheHold:
         case.gh.write_pinned_state(case.issue, case.state)
 
     def _blanks(self) -> None:
-        """Blank the base tip the attempt recorded its replay as made onto, keeping it to put back."""
+        """Blank the base tip the attempt recorded its replay as made onto, or repoint it by a successor; keep it."""
         case = self._case
+        if self._failing == _TIP_BESIDE_A_SUCCESSOR:
+            self.successor = settled_support.records_a_newer_run(case, settles=True)
         durable = case.gh.read_pinned_state(case.issue)
         self._replaced = {readings.KEY_REWRITE_BASE: durable.get(readings.KEY_REWRITE_BASE)}
         durable.set(readings.KEY_REWRITE_BASE, None)
+        if self.successor:
+            durable.set(readings.KEY_EVIDENCE_RECEIPT, self.successor.receipt)
+            durable.set(readings.KEY_REWRITE_BASE, _ELSEWHERE)
         if self._failing == _TIP_BESIDE_THE_EVENT:
             durable.set(readings.KEY_ANNOUNCED_EVENT, self._head)
             _owed_events.owes(case.gh, _REBASED, issue_number=case.issue.number, sha=self._head)
@@ -222,7 +231,7 @@ class _AroundTheHold:
         if self._failing == _AHEAD_OF_THE_EDIT:
             self.puts_back()
             return live(issue, state, over=over, **options)
-        if self._failing in {_TIP_UNDER_THE_EDIT, _TIP_BESIDE_THE_EVENT}:
+        if self._failing in _TIP_MODES:
             self._blanks()
         else:
             self._settles()
@@ -339,8 +348,10 @@ class HoldRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # the hold's record -- which lands it, loses its answer, or is refused
         # -- then puts report 2 back right behind it: the newer run is the
         # evidence the proof behind the record takes, on its own binding, and
-        # is invalidated whole over report 2 rather than left current.
-        for failing in ("", "lost", "refused"):
+        # is invalidated whole over report 2 rather than left current. So is
+        # one settled under the strict edit, its receipt on the attempt beside
+        # the base tip repointed there, which is put back behind the refusal.
+        for failing in ("", "lost", "refused", _TIP_BESIDE_A_SUCCESSOR):
             with self.subTest(record=failing or "landed"):
                 self.setUp()
                 head = self.settles_then_dies()[0]
