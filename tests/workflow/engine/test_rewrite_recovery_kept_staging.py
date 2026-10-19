@@ -17,7 +17,8 @@ read off the comment handed straight to the dormant guarded hold or park
   reset record's blank lost its answer -- landed, landed and written over by
   another road adding usage of its own, or never sent while another road
   blanks the tip -- and the gate's record, sent again behind a lost answer,
-  still lands.
+  still lands. So it is where the git owner asks the reset's record directly,
+  that blank landing with its answer lost.
 - On a state alone (`KeepsTheStagingTest`): what the tick staged is staged
   again over its own reading, what the block staged or an edit carried is
   left, and usage whose own write lost its answer is never sent twice.
@@ -76,9 +77,10 @@ _PARKS = partial(_parks.lands_a_park, message="The auto rebase needs a human.", 
 _CONCURRENT, _GONE, _LOST_ANSWER = "concurrent", "gone", "gone, the blank's answer lost"
 _OVERWRITTEN = "gone, the blank landed with its answer lost, another road writing over it"
 _UNSENT = "gone, the blank never sent, its answer lost, another road blanking the tip"
+_RECORDED = "gone, the reset recorded directly, the blank's answer lost"
 _USAGE_ROADS = (
     (_CONCURRENT, 10), (_GONE, 5),
-    (_LOST_ANSWER, 5), (_OVERWRITTEN, 7), (_UNSENT, 7),
+    (_LOST_ANSWER, 5), (_OVERWRITTEN, 7), (_UNSENT, 7), (_RECORDED, 5),
 )
 
 # How each lost-answer road answers the reset record's blank: whether it is sent, and whether another road writes
@@ -87,6 +89,7 @@ _LOSES = MappingProxyType({
     _LOST_ANSWER: (True, False),
     _OVERWRITTEN: (True, True),
     _UNSENT: (False, True),
+    _RECORDED: (True, False),
 })
 
 
@@ -273,7 +276,8 @@ class KeptStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # still adds the tick's own. Over a checkout gone the usage rides none of the proof's writes, so however
         # the reset record's blank lost its answer -- landed, written over by another road adding 2, or never sent
         # as another road blanks the tip and adds 2 -- it is added once behind the proof beside what that road
-        # added. The gate's record, sent again behind a lost answer, lands down every road.
+        # added. The gate's record, sent again behind a lost answer, lands down every road -- the git owner's own
+        # ask of the reset's record among them.
         for road, added in _USAGE_ROADS:
             with self.subTest(road=road):
                 self.setUp()
@@ -297,7 +301,7 @@ class KeptStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             self._wt.rename(self._wt.parent / "checkout-away")
         losing = _LosesTheBlank(self.gh.edit_pinned_state, _LOSES.get(road))
         with patch.object(self.gh, "edit_pinned_state", losing):
-            _parks.lands_a_hold(context)
+            (_parks.records_the_reset if road == _RECORDED else _parks.lands_a_hold)(context)
         return counted, losing.lost, head
 
 class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):

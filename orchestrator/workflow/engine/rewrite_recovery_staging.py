@@ -165,9 +165,10 @@ def keeps_the_staging(
     Ahead of a record, the totals among that staging are taken off the state for the block, so no write of the
     proof's sends them, and land once it is done in a write of their own (`_KeepsWhatItCarried.adds_the_totals`).
     Behind a record that did not land, all of it is taken off the state for the block, so no write of the proof's
-    carries it, and put back only where no edit of the proof's landed or may have.
+    carries it, and put back only where no edit of the proof's landed or may have. A context whose client already
+    keeps the tick's staging -- a block asked inside another -- is handed back as it is.
     """
-    if context.state.synced is None:
+    if context.state.synced is None or isinstance(context.gh, _KeepsWhatItCarried):
         yield context
         return
     keeper = _KeepsWhatItCarried(context, ahead=ahead)

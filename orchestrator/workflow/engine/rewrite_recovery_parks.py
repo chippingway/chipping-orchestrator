@@ -72,7 +72,11 @@ landed is followed by the comment read afresh, and a tip put back or another
 attempt pinned right behind it holds the reset the same way. A tick whose
 state carries another attempt by then -- one a proof took in off the comment
 -- blanks nothing and holds the same way, so no reset is recorded over the
-tip a replacement attempt records. A reset git
+tip a replacement attempt records. Movement the record reads is proved
+before the reset goes on, and the comment read again behind each proof, a
+successor read moving there proved in turn until a reading reads none new.
+The record keeps what the tick staged as a proof keeps it, its usage landing
+once in a write of its own, wherever no proof keeps it already. A reset git
 refused moved nothing, and the git owner
 stages the tip back for the park that keeps the attempt, so the evidence
 stands for that park's proof as it did before.
@@ -363,7 +367,13 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     is proved as read first, so what moved is retired before the reset goes on,
     False where that does not land -- and the comment is read afresh once more
     behind that proof, so a tip put back or another attempt pinned while it made
-    its own requests holds the reset as well, the tick's state withheld. Over a checkout gone from disk, or one
+    its own requests holds the reset as well, the tick's state withheld; movement
+    that reading reads under a receipt the proof was never handed -- a successor
+    settled right behind it -- is proved in turn, the comment read again behind
+    each such proof until a reading reads none new. What the tick staged is kept
+    across these writes as a proof keeps it (`rewrite_recovery_staging.keeps_the_staging`),
+    its usage landing once in a write of its own, where no proof keeps it already.
+    Over a checkout gone from disk, or one
     `lost` names however soon it is back, the loss is owed by the attempt the
     moment it is read, ahead of every write (`owed_events.owes_a_loss`), so a
     checkout back by the time those writes are refused still leaves evidence
@@ -374,28 +384,30 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     the tick's state is withheld from every whole-state write behind, since
     the comment may carry a successor and its floor, or a tip put back, by then.
     """
-    moved: dict[str, ReportEvidence] = {}
-    gone = bool(lost) or not context.worktree.is_dir()
-    if gone:
-        owes_a_loss(context)
-        moved.update(dict.fromkeys(_retirement.receipts(context.state), LEFT_THE_CHECKOUT))
-    recorded = _blanks_the_tip(context, moved)
-    if gone or not context.worktree.is_dir():
-        owes_a_loss(context)
-        log.warning(
-            "issue=#%d the checkout is gone from disk; retiring what a finish captured or settled for the landed "
-            "head as over a reset, in a write of its own", context.issue.number,
-        )
-        if not (lands_the_retirement(context, CLEAR) and recorded):
-            context.state.withheld = True
-            return False
-        return True
-    if moved:
-        proved = _retirement.retires_unproved(
-            replace(context, records_before_a_reset=records_the_reset), _retirement.reconciles(context, moved),
-        )
-        recorded = proved and recorded and _blanks_the_tip(context, moved, again=True)
-    return recorded
+    with keeps_the_staging(context) as recording:
+        moved: dict[str, ReportEvidence] = {}
+        gone = bool(lost) or not recording.worktree.is_dir()
+        if gone:
+            owes_a_loss(recording)
+            moved.update(dict.fromkeys(_retirement.receipts(recording.state), LEFT_THE_CHECKOUT))
+        recorded = _blanks_the_tip(recording, moved)
+        if gone or not recording.worktree.is_dir():
+            owes_a_loss(recording)
+            log.warning(
+                "issue=#%d the checkout is gone from disk; retiring what a finish captured or settled for the landed "
+                "head as over a reset, in a write of its own", recording.issue.number,
+            )
+            if not (lands_the_retirement(recording, CLEAR) and recorded):
+                recording.state.withheld = True
+                return False
+            return True
+        proved: set[str] = set()
+        while moved.keys() - proved:
+            proved.update(moved)
+            recorded = _retirement.retires_unproved(
+                replace(recording, records_before_a_reset=records_the_reset), _retirement.reconciles(recording, moved),
+            ) and recorded and _blanks_the_tip(recording, moved, again=True)
+        return recorded
 
 
 def _blanks_the_tip(

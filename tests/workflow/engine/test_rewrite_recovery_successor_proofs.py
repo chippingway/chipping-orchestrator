@@ -39,6 +39,9 @@ or to the proof before a park that keeps the attempt
   comment moved, is invalidated whole, nothing of the tick's state written.
   So is a captured run read outranked by a revision spent past it in the
   proof's own reading, the floor put back right behind: it is abandoned whole.
+  And a newer run another road settles right as the reset record's proof
+  answers, the tip left blank, is read moving in the comment that record
+  reads behind its proof, and invalidated whole before the reset goes on.
 
 Nothing is run again, pushed, or launched.
 """
@@ -49,9 +52,11 @@ from dataclasses import replace
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator.git.base_sync import persistence
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
 from orchestrator.workflow.engine import (
     report_commits as _commits,
+    rewrite_landing_retirement as _retirement,
     rewrite_recovery_parks as _parks,
     verification_durable as _durable,
     verification_records as _records,
@@ -64,6 +69,7 @@ from tests.workflow.engine import (
     settled_finish_support as settled_support,
     verification_report_fixture as _report,
 )
+from tests.workflow.interleaving import _RacesPastTheCall
 
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
@@ -107,6 +113,13 @@ def _writes(case, records: dict) -> None:
     for key, recorded in records.items():
         state.set(key, recorded)
     case.gh.write_pinned_state(case.issue, state)
+
+
+def _moves_the_report(case) -> None:
+    """Move the report the run is bound to a revision on, over `case`'s comment as it stands, as another road would."""
+    report = readings.pinned(case).get(_MOVED_RECORDS[0])
+    moved = {**report, "revision": report["revision"] + 1}
+    _writes(case, {_MOVED_RECORDS[0]: moved})
 
 
 class _SettlesBehindTheReading:
@@ -336,6 +349,24 @@ class LateMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.recovers()
                 self.assertIsNone(readings.pinned_records(self)[1])
 
+    def test_a_successor_read_behind_the_reset_proof(self) -> None:
+        # The reset's record reads the run's report moved and its proof retires the run; right as that proof answers,
+        # another road settles a newer run on the run's binding, the tip left blank. The comment the record reads
+        # behind its proof shows the report moved under the newer run, which is proved in turn and invalidated whole
+        # before the reset goes on, so nothing stands current over the checkout put back on the anchor.
+        run = self.settles_then_dies()[1]
+        _moves_the_report(self)
+        settles = partial(settled_support.records_a_newer_run, self, settles=True, binding=run.binding)
+        races = _RacesPastTheCall(_retirement.retires_unproved, 1, settles)
+        with patch.object(_retirement, "retires_unproved", races):
+            self._holds(partial(persistence._resets, reset_sha=self.anchor))
+
+        self.assertEqual(self._wt_head(), self.anchor)
+        self.assertIsNone(readings.pinned_records(self)[1])
+        retired = readings.pinned_records(self)[2][-1]
+        self.assertEqual(retired[1], readings.INVALIDATED)
+        self.assertNotEqual(retired[0], run.receipt, "the newer run was left standing")
+
     def test_a_blank_behind_a_refusal_for_room(self) -> None:
         # The tick's state is too long for the comment, so a hold's record is
         # refused for room, and the base tip reads blank in the reading the
@@ -353,12 +384,13 @@ class LateMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertNotIn(_FILLER, readings.pinned(self))
         self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH)[0], self.anchor)
 
-    def _holds(self, *, overflows: bool = False):
-        """Hand the dormant hold the context read off the comment, its state too long for it where `overflows`; it."""
+    def _holds(self, asks=_parks.lands_a_hold, *, overflows: bool = False):
+        """Hand `asks`, the dormant hold where none is named, the context read off the comment -- its state too long
+        for it where `overflows`; that state."""
         context = guarded.recovery_context(self)
         if overflows:
             context.state.set(_FILLER, "x" * MAX_PINNED_BODY)
-        _parks.lands_a_hold(context)
+        asks(context)
         return context.state
 
     def _spends_past(self, live, revision: int, reads: list, issue):
