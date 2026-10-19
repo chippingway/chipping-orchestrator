@@ -35,8 +35,9 @@ _CURRENT = "verification_evidence_current"
 _FETCHES = "_authed_fetch"
 _GIT = "_git_hardened"
 
-# Where the checkout goes from disk, and a label the refresh does not drive: the dispatcher's hold strands the attempt.
+# Where the checkout goes, a HEAD naming no commit, and a label the refresh does not drive, stranding the attempt.
 _AWAY = "checkout-away"
+_MISSING_HEAD = "ffffffffffffffffffffffffffffffffffffffff\n"
 _UNDRIVEN = "workflow:resolving_conflict"
 
 
@@ -65,7 +66,6 @@ class RecordedMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.setUp()
                 run = (self.captures() if captures else self.settles_then_dies())[1]
                 self._recovers_over_a_moved_report()
-
                 if captures:
                     self.assert_abandoned(run)
                 else:
@@ -76,7 +76,6 @@ class RecordedMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # Every write behind the blank refused, nothing lands; with writes landing, the next recovery reads the blank.
         settled = self.settles_then_dies()[1]
         self._recovers_over_a_moved_report(refusing=True)
-
         standing = self.pinned_fields(guarded.AWAITING, readings.KEY_REWRITE_BASE)
         self.assertEqual((standing, self._resets), ((None, None), []))
         self.assertEqual(readings.pinned_records(self)[1], settled)
@@ -144,7 +143,6 @@ class BlankTipTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             self.assertEqual((resets, self._tip), ([], []))
             self.assertIsNotNone(self.pinned_fields(readings.KEY_REWRITE_BASE)[0])
             self.recovers()
-
         self.assertEqual(resets, ["reset"])
         self.assert_invalidated(settled)
         self.assert_released()
@@ -174,7 +172,6 @@ class GoneCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.setUp()
                 head, run = self.captures() if captures else self.settles_then_dies()
                 away = self._strands_over_a_moved_report()
-
                 if captures:
                     self.assert_abandoned(run)
                 else:
@@ -198,8 +195,34 @@ class GoneCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._held = []
                 with patch.object(commands, _GIT, partial(self._gone_at_the_head, commands._git_hardened)):
                     self.recovers()
-
                 (self.assert_abandoned if captures else self.assert_invalidated)(run)
+
+    def test_a_parked_head_off_the_replay(self) -> None:
+        # Under a standing park the dispatcher reads HEAD naming a missing commit and releases the handler: that read
+        # still retires the run, captured or settled, so HEAD put back and a reply route nothing current.
+        for captures in (False, True):
+            with self.subTest(captured=captures):
+                self.setUp()
+                run = (self.captures() if captures else self.settles_then_dies())[1]
+                self._parks_over_a_missing_head()
+                (self.assert_abandoned if captures else self.assert_invalidated)(run)
+                self.continues()
+                self.recovers()
+                self.assertEqual(readings.pinned_records(self)[:2], (None, None))
+
+    def _parks_over_a_missing_head(self) -> None:
+        """Stand a recovery park, and have the dispatcher hold the anchor over HEAD naming no commit, put back."""
+        parked = self.gh.read_pinned_state(self.issue)
+        parked.set(guarded.AWAITING, True)
+        parked.set("park_reason", "auto_base_rebase_push_failed")
+        parked.set("last_action_comment_id", self.gh.latest_comment_id(self.issue))
+        self.gh.write_pinned_state(self.issue, parked)
+        named = self._git("rev-parse", "--git-path", "HEAD", cwd=self._wt).strip()
+        head = self._wt / named
+        original = head.read_bytes()
+        head.write_text(_MISSING_HEAD)
+        guarded.answers_a_held_anchor(self)
+        head.write_bytes(original)
 
     def _gone_at_the_head(self, live, verb, *asked, **options):
         """`live`, the hardened git call, the checkout away for its first `rev-parse` there, back as that unwinds."""
@@ -254,7 +277,6 @@ class ReplacedAttemptTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             patch.object(commands, _GIT, partial(_notes_the_reset, getattr(commands, _GIT), resets)),
         ):
             self.recovers()
-
         pinned = readings.pinned(self)
         self.assertEqual((self._replaced, resets), (True, []))
         standing = {key: pinned.get(key) for key in self._pinned}

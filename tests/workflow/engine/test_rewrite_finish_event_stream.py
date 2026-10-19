@@ -176,9 +176,7 @@ class UnloggedEventRecoveryTest(support.CapturedRunCase, unittest.TestCase):
                 before = support.announced(self)
                 self.gh.recorded_events.clear()
                 self.gh.owed_events = set()
-
                 self.recovers()
-
                 announced = before + support.announced(self)
                 self.assertEqual(announced, [head][:filed])
                 self.assertEqual(readings.relabels(self), readings.ROUTED)
@@ -193,7 +191,6 @@ class UnloggedEventRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         with patch.object(self.gh, "edit_pinned_state", partial(self._records_first, self.gh.edit_pinned_state)):
             self.recovers()
         self.recovers()
-
         self.assertEqual((self._raced, support.announced(self)), (True, []))
         self.assertEqual(readings.relabels(self), readings.ROUTED)
 

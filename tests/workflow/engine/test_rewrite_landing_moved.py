@@ -177,9 +177,7 @@ class SettledLandingMovedTest(unittest.TestCase, captured_support.SettledEvidenc
             with self.subTest(read=read):
                 self.setUp()
                 snapshot = _snapshot(local, remote)
-
                 self.assertTrue(self.asks(_landing_moved.abandons_off_the_landing, _recovery(self), snapshot))
-
                 if retires:
                     self.assert_invalidated()
                 else:
@@ -190,9 +188,7 @@ class SettledLandingMovedTest(unittest.TestCase, captured_support.SettledEvidenc
         # tick's own reading lands: the road holds with the evidence current.
         self.gh.pinned_failures.refused.add(self.issue.number)
         unmoved = _snapshot(ANCHOR, ANCHOR)
-
         self.assertFalse(self.asks(_landing_moved.abandons_off_the_landing, _recovery(self), unmoved))
-
         self.assert_dormant()
 
 

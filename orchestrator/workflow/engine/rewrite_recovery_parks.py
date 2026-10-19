@@ -281,8 +281,9 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> bool:
     and answer (`_answers_a_held_anchor`) restore a checkout, clear the attempt,
     or park it, each park or quiet hold proving first (`proves_before_a_park`,
     `lands_a_park`, `lands_a_clear`). A checkout either reads gone or off the
-    replay is that loss to the proof however soon it returns, and one a git
-    request finds gone is recorded (`RecordsALostCheckout`), the handler held.
+    replay is that loss to the proof however soon it returns -- held where a
+    release over it cannot record it -- and one a git request finds gone is
+    recorded (`RecordsALostCheckout`), the handler held.
     """
     settles = partial(_retirement.retires_over_the_reset, held)
     owing = replace(held, settles_over_a_reset=settles, lands_a_clear=lands_a_clear)
@@ -295,6 +296,8 @@ def answers_a_held_anchor(held: _AutoRebaseRecoveryContext) -> bool:
         if holds:
             proves = partial(proves_before_a_park, lost=gone)
             _recovery_holds._answers_a_held_anchor(owing, proves, lands_a_park, seen=gone)
+        elif gone:
+            holds = not proves_before_a_park(owing, lost=gone)
     return holds
 
 

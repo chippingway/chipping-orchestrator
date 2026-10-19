@@ -117,11 +117,9 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
         unproved = partial(_unproved_first, rewrite_facts._reads_the_checkout, [])
         with patch.object(rewrite_facts, "_reads_the_checkout", side_effect=unproved):
             self.recovers()
-
         self.assert_invalidated(standing=self.anchor)
         self.issue.body = written
         self.recovers()
-
         self.assert_invalidated(standing=None)
         self.assert_routed_once(head)
 
@@ -130,13 +128,11 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
         head = self.settles_then_dies()
         self.issue.labels = [FakeLabel("workflow:resolving_conflict")]
         replaced = self.settles_under_the_notice(head, raises=True, recovered=True)
-
         self.assert_invalidated(standing=self.anchor)
         self.assertFalse(readings.pinned(self).get("awaiting_human"))
         self.puts_back_records(replaced)
         self.issue.labels = [FakeLabel(git_support.REVIEWING)]
         self.recovers()
-
         self.assert_invalidated(standing=None)
         self.assert_routed_once(head)
 
@@ -148,7 +144,6 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
                 captured = self.captures()[1]
                 races = _SettlesBehindTheAbandonment(self, captured, moves_again=moves_again)
                 races.recovers()
-
                 self._assert_proved_on_its_own(captured, races.newer, moved=moves_again)
 
     def test_a_marked_successor_behind_a_refusal(self) -> None:
@@ -162,7 +157,6 @@ class RecoveryHoldProofTest(held.HoldCase, unittest.TestCase):
                 races.recovers()
                 self.puts_back_records({_HANDOFF: races.handoff})
                 self.recovers()
-
                 self._assert_proved_on_its_own(captured, races.newer, moved=True)
 
     def _assert_proved_on_its_own(self, captured, newer, *, moved: bool) -> None:

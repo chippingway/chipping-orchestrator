@@ -150,7 +150,6 @@ class MissingCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 back = _AHEAD_OF_THE_PROOF.moving(_parks.keeps_the_staging, partial(away.rename, self._wt))
                 with patch.object(_parks, "keeps_the_staging", back):
                     guarded.answers_a_held_anchor(self)
-
                 self.assertTrue(self._wt.is_dir())
                 (self.assert_abandoned if captures else self.assert_invalidated)(run)
                 self.issue.labels = [FakeLabel(git_support.REVIEWING)]
@@ -230,7 +229,6 @@ class MissingCheckoutRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.setUp()
                 run = (self.captures() if captures else self.settles_then_dies())[1]
                 self._answers_a_loss_back(delegates=delegates)
-
                 (self.assert_abandoned if captures else self.assert_invalidated)(run)
                 self.recovers()
                 self.assertEqual(readings.pinned_records(self)[:2], (None, None))

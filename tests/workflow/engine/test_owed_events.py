@@ -57,10 +57,8 @@ class OwedEventTest(unittest.TestCase):
         client = SimpleNamespace()
         self.enterContext(patch.object(config, _LOG, None))
         self.assertFalse(owed_events.unfiled(client, _PARKED, **_NAMED))
-
         owed_events.owes(client, _PARKED, **_NAMED)
         self.assertTrue(owed_events.unfiled(client, _PARKED, notice_id=9, **_NAMED))
-
         owed_events.pays(client, _PARKED, notice_id=9, **_NAMED)
         self.assertFalse(owed_events.unfiled(client, _PARKED, **_NAMED))
 
@@ -75,7 +73,6 @@ class OwedEventTest(unittest.TestCase):
         owed_events.owes(lost, _PARKED, **_NAMED)
         owing = [owed_events.unfiled(client, _PARKED, **_NAMED) for client in (replacing, other)]
         self.assertEqual(owing, [True, False])
-
         owed_events.pays(replacing, _PARKED, **_NAMED)
         self.assertFalse(owed_events.unfiled(later, _PARKED, **_NAMED))
 
@@ -91,7 +88,6 @@ class OwedEventTest(unittest.TestCase):
         with patch.object(gh, "comment", side_effect=RuntimeError("post failed before sending")):
             self.assertRaises(RuntimeError, parks, _OTHER)
         parks(_SAID)
-
         self.assertEqual(gh.recorded_events, [])
 
 

@@ -150,11 +150,9 @@ class QuietHoldProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.setUp()
                 head, run = self.captures() if captures else self.settles_then_dies()
                 self._holds_over_an_edit(road)
-
                 self._assert_retired(run, captured=captures)
                 road.releases(self)
                 self.recovers()
-
                 self.assert_routed(head)
 
     def test_a_refused_record_keeps_the_checkout_away(self) -> None:
@@ -294,7 +292,6 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 clears(self)
                 self._git(*_PUTS_BACK, head, cwd=self._wt)
                 self.reconciles()
-
                 self.assertEqual(self.pinned_fields(guarded.AWAITING, readings.KEY_PENDING_PUSH), (None, None))
                 if captures:
                     self.assert_abandoned(run)
@@ -311,7 +308,6 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 newer: list = []
                 with patch.object(_probes, "_head_sha", partial(self._settles_on_the_anchor, newer)):
                     clears(self)
-
                 self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (self.anchor,))
                 clears(self)
                 kept = (
@@ -347,7 +343,6 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._unnamed_on_the_anchor()
                 with patch.object(self.gh, "edit_pinned_state", _ChargesTheClear(self)):
                     clears(self)
-
                 fields = (readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
                 self.assertEqual(self.pinned_fields(*fields), (self.anchor, None))
                 self._git(*_PUTS_BACK, head, cwd=self._wt)
@@ -363,7 +358,6 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self._unnamed_on_the_anchor()
                 finish_moves.fills_the_comment(self)
                 clears(self)
-
                 standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
                 self.assertEqual(standing, (self.anchor, None))
                 self.assertEqual(readings.pinned_records(self)[1], run)

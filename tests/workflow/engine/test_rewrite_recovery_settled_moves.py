@@ -90,13 +90,11 @@ class SettledRunMoveTest(support.CapturedRunCase, unittest.TestCase):
                 self.setUp()
                 head, settled = self._settles_then_dies(boundary)
                 move.moves(self, head)
-
                 self.recovers()
                 self._assert_invalidated(settled)
                 move.restores(self, head)
                 self.continues()
                 self.recovers()
-
                 self._assert_invalidated(settled)
 
     def _settles_then_dies(self, boundary: handoff.Boundary) -> tuple:
@@ -127,7 +125,6 @@ class PutBackMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         snapshot = _AutoRebaseRecoverySnapshot(branch=git_support.BRANCH, local_head=self.anchor, remote_head=head)
         with patch.object(self.gh, _EDITS, partial(self._puts_back_behind, self.gh.edit_pinned_state)):
             self.assertTrue(_landing_moved.abandons_off_the_landing(guarded.recovery_context(self), snapshot))
-
         self.assertEqual(self._held, [])
         self._assert_routed_past(head, settled)
 
@@ -139,7 +136,6 @@ class PutBackMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self._writes_the_report(None)
         with patch.object(self.gh, _EDITS, partial(self._answers_lost_once, self.gh.edit_pinned_state)):
             self.assertFalse(context.records_before_a_reset(context))
-
         self._assert_routed_past(head, settled)
 
     def test_a_rollback_the_no_op_read(self) -> None:
