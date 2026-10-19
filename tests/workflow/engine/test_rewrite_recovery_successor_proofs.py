@@ -40,8 +40,9 @@ or to the proof before a park that keeps the attempt
   So is a captured run read outranked by a revision spent past it in the
   proof's own reading, the floor put back right behind: it is abandoned whole.
   And a newer run another road settles right as the reset record's proof
-  answers, the tip left blank, is read moving in the comment that record
-  reads behind its proof, and invalidated whole before the reset goes on.
+  answers, the tip left blank -- or the run itself and its report put back
+  there -- is read standing in the comment that record reads behind its
+  proof, and invalidated whole before the reset goes on.
 
 Nothing is run again, pushed, or launched.
 """
@@ -73,6 +74,9 @@ from tests.workflow.interleaving import _RacesPastTheCall
 
 # The report and review records report 3's settlement moves, as the pinned comment spells them.
 _MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review_subject", "review_returned_subject")
+
+# What another road puts back to restore a run its proof retired: the run itself, and the report it is bound to.
+_RESTORED = (_records.CURRENT_EVIDENCE, _MOVED_RECORDS[0])
 
 # The park a case hands the dormant guarded park.
 _PARKS = partial(_parks.lands_a_park, message="The auto rebase needs a human.", reason="auto_base_rebase_push_failed")
@@ -113,6 +117,14 @@ def _writes(case, records: dict) -> None:
     for key, recorded in records.items():
         state.set(key, recorded)
     case.gh.write_pinned_state(case.issue, state)
+
+
+def _writes_behind(case, run, standing: dict, *, restores: bool) -> None:
+    """Put `standing` back on `case`'s comment where `restores`, or else settle a newer run on `run`'s binding."""
+    if restores:
+        _writes(case, standing)
+    else:
+        settled_support.records_a_newer_run(case, settles=True, binding=run.binding)
 
 
 def _moves_the_report(case) -> None:
@@ -351,21 +363,27 @@ class LateMovementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_a_successor_read_behind_the_reset_proof(self) -> None:
         # The reset's record reads the run's report moved and its proof retires the run; right as that proof answers,
-        # another road settles a newer run on the run's binding, the tip left blank. The comment the record reads
-        # behind its proof shows the report moved under the newer run, which is proved in turn and invalidated whole
-        # before the reset goes on, so nothing stands current over the checkout put back on the anchor.
-        run = self.settles_then_dies()[1]
-        _moves_the_report(self)
-        settles = partial(settled_support.records_a_newer_run, self, settles=True, binding=run.binding)
-        races = _RacesPastTheCall(_retirement.retires_unproved, 1, settles)
-        with patch.object(_retirement, "retires_unproved", races):
-            self._holds(partial(persistence._resets, reset_sha=self.anchor))
+        # another road settles a newer run on the run's binding, or puts the run and its report back, the tip left
+        # blank. The comment the record reads behind its proof shows that run standing under a receipt it read moving,
+        # which is proved again and invalidated whole before the reset goes on, so nothing stands current over the
+        # checkout put back on the anchor.
+        for restores in (False, True):
+            with self.subTest(restores=restores):
+                self.setUp()
+                run = self.settles_then_dies()[1]
+                standing = dict(zip(_RESTORED, self.pinned_fields(*_RESTORED), strict=True))
+                races = _RacesPastTheCall(
+                    _retirement.retires_unproved, 1, partial(_writes_behind, self, run, standing, restores=restores),
+                )
+                _moves_the_report(self)
+                with patch.object(_retirement, "retires_unproved", races):
+                    self._holds(partial(persistence._resets, reset_sha=self.anchor))
 
-        self.assertEqual(self._wt_head(), self.anchor)
-        self.assertIsNone(readings.pinned_records(self)[1])
-        retired = readings.pinned_records(self)[2][-1]
-        self.assertEqual(retired[1], readings.INVALIDATED)
-        self.assertNotEqual(retired[0], run.receipt, "the newer run was left standing")
+                self.assertEqual(self._wt_head(), self.anchor)
+                self.assertIsNone(readings.pinned_records(self)[1])
+                retired = readings.pinned_records(self)[2][-1]
+                self.assertEqual(retired[1], readings.INVALIDATED)
+                self.assertEqual(retired[0] == run.receipt, restores)
 
     def test_a_blank_behind_a_refusal_for_room(self) -> None:
         # The tick's state is too long for the comment, so a hold's record is

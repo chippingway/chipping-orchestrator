@@ -73,10 +73,11 @@ attempt pinned right behind it holds the reset the same way. A tick whose
 state carries another attempt by then -- one a proof took in off the comment
 -- blanks nothing and holds the same way, so no reset is recorded over the
 tip a replacement attempt records. Movement the record reads is proved
-before the reset goes on, and the comment read again behind each proof, a
-successor read moving there proved in turn until a reading reads none new.
-The record keeps what the tick staged as a proof keeps it, its usage landing
-once in a write of its own, wherever no proof keeps it already. A reset git
+before the reset goes on, and the comment read again behind each proof:
+evidence standing there under a receipt read moving -- a successor, or the
+run put back -- is proved again, until a reading carries none. The record
+keeps what the tick staged as a proof keeps it, its usage landing in a write
+of its own ahead of the record's own, wherever no proof keeps it already. A reset git
 refused moved nothing, and the git owner
 stages the tip back for the park that keeps the attempt, so the evidence
 stands for that park's proof as it did before.
@@ -112,10 +113,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
-from functools import partial
 
 from orchestrator.git.base_sync import attempts as _attempts, state as _base_sync_state
 from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     prompt_delivery as _prompt_delivery,
@@ -135,7 +136,11 @@ from orchestrator.workflow.engine.rewrite_recovery_readings import (
     asks_every_reading,
     stands_as_recovered,
 )
-from orchestrator.workflow.engine.rewrite_recovery_staging import keeps_the_staging, lands_the_retirement
+from orchestrator.workflow.engine.rewrite_recovery_staging import (
+    adds_the_totals,
+    keeps_the_staging,
+    lands_the_retirement,
+)
 from orchestrator.workflow.engine.verification_durable import durable_comment
 
 log = logging.getLogger("orchestrator.workflow")
@@ -265,10 +270,11 @@ def lands_a_clear(context: _AutoRebaseRecoveryContext) -> bool:
         context.gh.write_pinned_state(context.issue, context.state)
         return True
     moved: dict[str, ReportEvidence] = {}
+    asked = asks_every_reading(
+        context, lambda reading: _retirement.moved_under(reading, tick=context.state, into=moved),
+    )
     landed = _commits.ReportCommit(
-        asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved)).gh,
-        context.issue,
-        context.state,
+        asked.gh, context.issue, context.state,
     ).lands(context.state, CLEAR)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
         refused = durable_comment(context.gh, context.issue, context.state, CLEAR.decided_on)[1]
@@ -317,8 +323,8 @@ def proves_before_a_park(
     -- a gate's record of a hold, or a tip staged back behind a reset git
     refused -- across every write it lands, for the record behind, save what
     a proof write already carried, and save the totals among it -- usage --
-    which ride none of the proof's writes and land once behind it in a write of
-    their own (`rewrite_recovery_staging.keeps_the_staging`).
+    which ride none of the proof's writes and land first, in a write of their
+    own read like every other the proof takes (`rewrite_recovery_staging.adds_the_totals`).
     Behind a record its staging is kept out of every write the proof lands.
     `lost` -- with `heads_read` and a loss still owed (`owed_events.loss_owed`)
     -- names a checkout read gone or off the evidence's head, or the replay's
@@ -334,7 +340,9 @@ def proves_before_a_park(
     lost += [context.worktree] if loss_owed(context) else []
     with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:
         if proving.worktree.is_dir() and not lost:
-            return _retirement.retires_unproved(proving, moved)
+            read = dict(moved or {})
+            adds_the_totals(proving, read)
+            return _retirement.retires_unproved(proving, read)
         return records_the_reset(proving, lost=lost or (proving.worktree,))
 
 
@@ -367,12 +375,14 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     is proved as read first, so what moved is retired before the reset goes on,
     False where that does not land -- and the comment is read afresh once more
     behind that proof, so a tip put back or another attempt pinned while it made
-    its own requests holds the reset as well, the tick's state withheld; movement
-    that reading reads under a receipt the proof was never handed -- a successor
-    settled right behind it -- is proved in turn, the comment read again behind
-    each such proof until a reading reads none new. What the tick staged is kept
-    across these writes as a proof keeps it (`rewrite_recovery_staging.keeps_the_staging`),
-    its usage landing once in a write of its own, where no proof keeps it already.
+    its own requests holds the reset as well, the tick's state withheld; evidence
+    that reading carries under a receipt movement was read under -- a successor
+    settled, or the run put back, right behind the proof -- is proved again, the
+    comment read again behind each such proof until a reading carries none. What
+    the tick staged is kept across these writes as a proof keeps it
+    (`rewrite_recovery_staging.keeps_the_staging`), its usage landing first, in
+    a write of its own whose readings the record proves, where no proof keeps
+    it already.
     Over a checkout gone from disk, or one
     `lost` names however soon it is back, the loss is owed by the attempt the
     moment it is read, ahead of every write (`owed_events.owes_a_loss`), so a
@@ -390,6 +400,7 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
         if gone:
             owes_a_loss(recording)
             moved.update(dict.fromkeys(_retirement.receipts(recording.state), LEFT_THE_CHECKOUT))
+        adds_the_totals(recording, moved)
         recorded = _blanks_the_tip(recording, moved)
         if gone or not recording.worktree.is_dir():
             owes_a_loss(recording)
@@ -401,19 +412,22 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
                 recording.state.withheld = True
                 return False
             return True
-        proved: set[str] = set()
-        while moved.keys() - proved:
-            proved.update(moved)
+        pending = moved.keys()
+        while pending:
             recorded = _retirement.retires_unproved(
                 replace(recording, records_before_a_reset=records_the_reset), _retirement.reconciles(recording, moved),
             ) and recorded and _blanks_the_tip(recording, moved, again=True)
-        return recorded
+            pending = recorded and _retirement.receipts(recorded) & moved.keys()
+        return bool(recorded)
 
 
 def _blanks_the_tip(
     context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence], *, again: bool = False,
-) -> bool:
-    """Blank the attempt's base tip in a guarded write of its own, what each reading it takes moves kept in `moved`.
+) -> PinnedState | None:
+    """Blank the attempt's base tip in a guarded write of its own; the comment read afresh behind it, or None to hold.
+
+    What each reading it takes moves is kept in `moved`. The reading answered is the one the reset stands recorded
+    on, for a caller to ask what still stands there.
 
     Whether it landed, logged either way; refused or unconfirmed, the commit withholds the tick's state. A tick whose
     state carries another attempt in place of the one `context` recovers writes nothing and holds, its state withheld,
@@ -423,7 +437,9 @@ def _blanks_the_tip(
     nothing records moved -- the tick's state withheld rather than written back over what that road wrote. `again`
     writes nothing and asks only that reading, for a caller whose proof made requests of its own since the blank.
     """
-    asked = asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved))
+    asked = asks_every_reading(
+        context, lambda reading: _retirement.moved_under(reading, tick=context.state, into=moved),
+    )
     if not again:
         if not stands_as_recovered(context):
             log.warning(
@@ -432,7 +448,7 @@ def _blanks_the_tip(
                 context.issue.number,
             )
             context.state.withheld = True
-            return False
+            return None
         commit = _commits.ReportCommit(asked.gh, context.issue, context.state)
         staged = commit.staging()
         staged.set(_TIP, None)
@@ -443,18 +459,18 @@ def _blanks_the_tip(
                 "nothing is reset until a later tick records it",
                 context.issue.number, (landed.refusal or landed.status).value,
             )
-            return False
+            return None
     durable = durable_comment(asked.gh, context.issue, context.state)[0]
     if durable is not None and not durable.get(_TIP) and stands_as_recovered(context, durable):
         log.info("issue=#%d the reset stands recorded ahead of it, the attempt's base tip blank", context.issue.number)
-        return True
+        return durable
     log.warning(
         "issue=#%d the reset was recorded, but the comment read afresh behind it carries its base tip back or no "
         "attempt this recovery recovers; nothing is reset until a later tick answers the comment as it then stands",
         context.issue.number,
     )
     context.state.withheld = True
-    return False
+    return None
 
 
 def _lands_then_proves(context: _AutoRebaseRecoveryContext, write: _commits.ReportWrite, named: str) -> bool:

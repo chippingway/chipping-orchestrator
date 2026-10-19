@@ -21,7 +21,10 @@ read off the comment handed straight to the dormant guarded hold or park
   that blank landing with its answer lost.
 - On a state alone (`KeepsTheStagingTest`): what the tick staged is staged
   again over its own reading, what the block staged or an edit carried is
-  left, and usage whose own write lost its answer is never sent twice.
+  left, and usage whose own write lost its answer is never sent twice. That
+  write is the first the reset's record or the hold's proof makes, so an
+  attempt pinned right ahead of it holds the reset, and the report moved and
+  put back around it is read moving, the run invalidated whole.
 
 Nothing is run again, pushed, or launched.
 """
@@ -41,9 +44,11 @@ from orchestrator.workflow.engine import (
     rewrite_recovery_parks as _parks,
     verification_records as _records,
 )
-from orchestrator.workflow.engine.rewrite_recovery_staging import keeps_the_staging
+from orchestrator.workflow.engine.rewrite_recovery_staging import adds_the_totals, keeps_the_staging
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
+    rewrite_finish_evidence_test_support as fixtures,
+    rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
     verification_report_fixture as _report,
 )
@@ -57,8 +62,9 @@ _ANOTHER_GATE = "another road's gate"
 # A record the tick and the block a keeper guards both stage, and the base tip neither does, on a state alone.
 _PENDING = "pending"
 
-# A counter of the issue's usage the tick adds to, which a write carrying it must add once.
+# A counter of the issue's usage the tick adds to, which a write carrying it must add once; and the strict edit.
 _USAGE = "issue_total_tokens"
+_EDITS = "edit_pinned_state"
 _TIP = MappingProxyType({"tip": "onto"})
 
 # The report and review records report 3 moves, as the pinned comment spells them.
@@ -300,12 +306,12 @@ class KeptStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         else:
             self._wt.rename(self._wt.parent / "checkout-away")
         losing = _LosesTheBlank(self.gh.edit_pinned_state, _LOSES.get(road))
-        with patch.object(self.gh, "edit_pinned_state", losing):
+        with patch.object(self.gh, _EDITS, losing):
             (_parks.records_the_reset if road == _RECORDED else _parks.lands_a_hold)(context)
         return counted, losing.lost, head
 
 class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
-    """The keeper on a tick's state alone: what it stages again behind its block, over which reading, and when not."""
+    """The keeper on a tick's state: what it stages again behind its block, over which reading, and its totals."""
 
     def test_the_staging_is_kept(self) -> None:
         # The tick stages a gate record, a pending record, and usage. In the block an edit through the
@@ -318,7 +324,7 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         state.set(_USAGE, 5)
         landed = {_PENDING: "another road's", _USAGE: 8, **_TIP}
         with (
-            patch.object(self.gh, "edit_pinned_state", return_value=PinnedEdit.EDITED),
+            patch.object(self.gh, _EDITS, return_value=PinnedEdit.EDITED),
             keeps_the_staging(self._over(state)) as proving,
         ):
             carrying = _read({_USAGE: 5})
@@ -331,22 +337,74 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(json.loads(state.synced), landed)
 
     def test_lost_totals_are_sent_once(self) -> None:
-        # The tick stages usage alone, taken off the state for a block that writes nothing. Behind it the usage
-        # lands in a write of its own whose answer is lost: taken in as sent, the tick's state withheld, so the hold
-        # recorded behind adds none of it again.
-        self.settles_then_dies()
-        context = self._over(self.gh.read_pinned_state(self.issue))
-        counted = context.state.get(_USAGE) or 0
-        context.state.set(_USAGE, counted + 5)
+        # The tick stages usage alone, taken off the state for the block, whose first write lands it in a write of
+        # its own whose answer is lost: taken in as sent, the tick's state withheld, so the hold recorded behind adds
+        # none of it again.
+        counted, context = self._stages_usage()[1:]
         with (
-            patch.object(self.gh, "edit_pinned_state", partial(_answers_lost, self.gh.edit_pinned_state)),
-            keeps_the_staging(context),
+            patch.object(self.gh, _EDITS, partial(_answers_lost, self.gh.edit_pinned_state)),
+            keeps_the_staging(context) as keeping,
         ):
             self.assertEqual(context.state.get(_USAGE) or 0, counted)
+            adds_the_totals(keeping, {})
         self.assertTrue(context.state.withheld)
         self.assertTrue(_parks.lands_a_hold(context))
 
         self.assertEqual(readings.pinned(self).get(_USAGE), counted + 5)
+
+    def test_a_replacement_under_the_totals_holds(self) -> None:
+        # Another road pins a fresh attempt right ahead of the write landing the staged usage, the reset record's
+        # first: the record reads that attempt behind it and holds the reset, the tick's state withheld, so nothing
+        # written for the attempt it recovers lands over the one standing.
+        head, _, context = self._stages_usage()
+        replacement = fixtures.attempt_record(head, head, git_support.PR_NUMBER, git_support.REVIEWING, head)
+        self._raced = ({**dict.fromkeys(readings.ATTEMPT_KEYS), **replacement}, False)
+        with patch.object(self.gh, _EDITS, partial(self._races_the_totals, self.gh.edit_pinned_state)):
+            self.assertFalse(_parks.records_the_reset(context))
+
+        self.assertTrue(context.state.withheld)
+        self.assertEqual(self.pinned_fields(*replacement), tuple(replacement.values()))
+
+    def test_movement_under_the_totals_is_proved(self) -> None:
+        # The report moves right ahead of the write landing the staged usage, the hold proof's first, and is put
+        # back right behind it: that write read the run moving, so the proof invalidates it whole, and the hold's
+        # record lands the usage that write did not.
+        counted, context = self._stages_usage()[1:]
+        settled = readings.pinned_records(self)[1]
+        report = self.pinned_fields(_REPORTED[0])[0]
+        moved = {**report, "revision": report["revision"] + 1}
+        self._raced = ({_REPORTED[0]: moved}, True)
+        with patch.object(self.gh, _EDITS, partial(self._races_the_totals, self.gh.edit_pinned_state)):
+            self.assertTrue(_parks.lands_a_hold(context))
+
+        self.assert_invalidated(settled)
+        self.assertEqual(self.pinned_fields(_USAGE), (counted + 5,))
+
+    def _stages_usage(self) -> tuple:
+        """Settle the run and kill its finish, then stage 5 of usage on a context read off the comment; the head, the
+        usage before, and that context."""
+        head = self.settles_then_dies()[0]
+        context = self._over(self.gh.read_pinned_state(self.issue))
+        counted = context.state.get(_USAGE) or 0
+        context.state.set(_USAGE, counted + 5)
+        return head, counted, context
+
+    def _races_the_totals(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit; the first moving the usage total sent behind `_raced`'s fields, written
+        over the comment as another road would, and put back right behind it where `_raced` asks."""
+        fields, puts_back = self._raced
+        spends = staged.get(_USAGE) != options["over"].get(_USAGE)
+        if not (fields and spends):
+            return live(issue, staged, **options)
+        self._raced = ({}, False)
+        before = self.gh.read_pinned_state(issue)
+        self.gh.write_pinned_state(
+            issue, PinnedState(comment_id=before.comment_id, state_data={**before.data, **fields}),
+        )
+        answered = live(issue, staged, **options)
+        if puts_back:
+            self.gh.write_pinned_state(issue, before)
+        return answered
 
     def _over(self, state: PinnedState):
         """The recovery context of this case's issue, holding `state` as the tick's."""

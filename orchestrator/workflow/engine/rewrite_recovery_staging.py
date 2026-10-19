@@ -20,10 +20,13 @@ next write again, which the guarded commit takes over a comment already
 carrying it as over one that never did -- every field of it, save a total
 that adds up. Sent again over itself, such a total -- usage -- would count
 twice, so the proof's writes send none: they are taken off the state for the
-proof and land once it is done, in a guarded write of their own, decided on
-nothing and added to the total the comment carries then, whatever the proof
-answered; a lost answer there takes them as sent, so they are never sent
-twice.
+proof and land first, ahead of every other write the proof or the reset's
+record makes (`adds_the_totals`), in a guarded write of their own, decided
+on nothing and added to the total the comment carries then. That write is
+read through the client that asks every reading, so what it reads moving is
+proved and an attempt put in place meanwhile holds the caller; a lost answer
+there takes them as sent, so they are never sent twice, and a refusal stages
+them again behind the block, for the record behind it.
 
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
@@ -57,6 +60,7 @@ from orchestrator.workflow.engine import (
     rewrite_recovery_readings as _readings,
     verification_durable as _durable,
 )
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 
 # The edits that may have carried what they sent onto the comment: landed, or sent with the answer lost; and the
 # commits that did.
@@ -68,8 +72,8 @@ _GONE = "in a write of its own, the checkout it was captured on gone"
 
 _LAST = f"{_GONE}, asked once more over the comment read afresh, holding"
 
-# The write the totals the tick staged land in once the proof is done: decided on nothing, since a total another
-# road moved meanwhile is added to rather than refused, and owning nothing besides them.
+# The write the totals the tick staged land in ahead of the proof: decided on nothing, since a total another road
+# moved meanwhile is added to rather than refused, and owning nothing besides them.
 _TOTALS = _commits.ReportWrite(owned=frozenset(), decided_on=frozenset())
 
 
@@ -127,27 +131,33 @@ class _KeepsWhatItCarried:
         _lays(tick, self._staged, left)
         _commit.takes_in(tick, self._read, left)
 
-    def adds_the_totals(self) -> None:
-        """Land the totals the tick stages, taken off for the proof, in a guarded write of their own; sent once.
+    def adds_the_totals(self, gh) -> None:
+        """Land the totals the tick staged, taken off its state for the block, in a guarded write of their own, once.
 
+        Through `gh`, the block's caller's client that asks every reading, ahead of every other write of the block, so
+        what that write reads moving is proved and an attempt put in place meanwhile holds whatever the block answers.
         Over the tick's reading, so the total another road reached meanwhile is added to rather than written over.
         Landed, they are taken in as the comment then carries them; sent with the answer lost, as sent, the tick's
-        state withheld, so nothing sends them twice; refused, they stay staged for the record behind.
+        state withheld, so nothing sends them twice; refused, they are staged again behind the block, for the record
+        behind it.
         """
         tick = self._tick
-        reading = _readings.RecordsALostCheckout.as_read(tick)
-        moving = sorted(self._totals & _moved(tick.data, reading.data))
+        moving = sorted(self._totals - self.carried)
         if not moving:
             return
-        _lays(reading, tick.data, moving)
-        commit = _commits.ReportCommit(self._gh, self._issue, reading)
+        reading = _readings.RecordsALostCheckout.as_read(tick)
+        _lays(reading, self._staged, moving)
+        commit = _commits.ReportCommit(gh, self._issue, reading)
         landed = commit.lands(reading, _TOTALS).status
-        if landed is _commit_models.CommitStatus.COMMITTED:
-            _lays(tick, reading.data, moving)
-        if landed in _SENT:
-            _commit.takes_in(tick, tick.data, moving)
+        if landed not in _SENT:
+            return
         if landed is _commit_models.CommitStatus.UNCONFIRMED:
+            _lays(tick, self._staged, moving)
             tick.withheld = True
+        else:
+            _lays(tick, reading.data, moving)
+        _commit.takes_in(tick, tick.data, moving)
+        self.carried.update(moving)
 
     def _adds_again(self, field: str) -> bool:
         """Whether `field` as the tick staged it, sent again over a comment already carrying it, moves on: a total."""
@@ -163,7 +173,8 @@ def keeps_the_staging(
     """The context to prove over, what the tick staged kept for a record `ahead` of it, and out of it behind one.
 
     Ahead of a record, the totals among that staging are taken off the state for the block, so no write of the
-    proof's sends them, and land once it is done in a write of their own (`_KeepsWhatItCarried.adds_the_totals`).
+    proof's sends them: the block's caller lands them first, in a write of their own (`adds_the_totals`), and
+    those that did not land are staged again behind the block.
     Behind a record that did not land, all of it is taken off the state for the block, so no write of the proof's
     carries it, and put back only where no edit of the proof's landed or may have. A context whose client already
     keeps the tick's staging -- a block asked inside another -- is handed back as it is.
@@ -176,7 +187,22 @@ def keeps_the_staging(
         yield replace(context, gh=keeper)
     finally:
         keeper.restages()
-    keeper.adds_the_totals()
+
+
+def adds_the_totals(kept: _base_sync_models._AutoRebaseRecoveryContext, into: dict[str, ReportEvidence]) -> None:
+    """Land the totals `kept`'s block took off the tick's state, as that block's first write; movement read in `into`.
+
+    For the caller of a block ahead of a record (`keeps_the_staging`), before any other request it makes, through a
+    client that asks every reading (`rewrite_recovery_readings.AsksEveryReading`), so each comment that write reads
+    is read for movement under the evidence the tick holds (`rewrite_landing_retirement.moved_under`), kept in
+    `into` for the caller's proof. A context nothing keeps took no totals off, and lands none.
+    """
+    keeper = kept.gh
+    if isinstance(keeper, _KeepsWhatItCarried):
+        asked = _readings.asks_every_reading(
+            kept, lambda reading: _retirement.moved_under(reading, tick=kept.state, into=into),
+        )
+        keeper.adds_the_totals(asked.gh)
 
 
 def lands_the_retirement(
