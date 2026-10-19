@@ -34,6 +34,7 @@ finish selecting it explicitly and hands it to the coordinator
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -113,6 +114,10 @@ class LandedFinish:
     retirement, and its guarded writes among them -- reads it before taking
     any of that policy's proofs, write profiles, adoptions, retries, marks, or
     retirements, and answers as it always has where it is False.
+    `hears_the_checkout` is handed what each last word reads of the checkout
+    (`rewrite_evidence_proof._landing_refusals`) -- however that reading is
+    weighed against the rest -- where a caller hands one in; only the
+    recovery's dormant proof does, every other finish leaving it None.
     """
 
     gh: GitHubClient
@@ -125,6 +130,7 @@ class LandedFinish:
     lag: int = 0
     retry: int | None = None
     proves_settled: bool = False
+    hears_the_checkout: Callable[[object], object] | None = None
 
     @property
     def head(self) -> str:

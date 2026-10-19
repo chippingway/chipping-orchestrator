@@ -25,8 +25,8 @@ tick's state, where it read none -- still carries the attempt the recovery
 recovers, not one another road put in its place. `LosesTheCheckout` lets the
 proof read a checkout gone from disk under one of its own requests as that
 loss, not raise it past the record it owes, and answers a proof whose finish
-read the checkout off the landing as that loss too (`proves`), a landing its
-last word reads left owed the same way (`reads`);
+read the checkout off the landing as that loss too (`proves`), a checkout
+its last word reads off the landing owed the same way (`hears`);
 `RecordsALostCheckout` records that loss for a road owing it.
 
 They are dormant, as that proof is: no recovery context or road the workflow
@@ -170,15 +170,16 @@ class LosesTheCheckout:
             return None
         return proved
 
-    @classmethod
-    def reads(cls, context: _AutoRebaseRecoveryContext, word: ReportEvidence | None) -> None:
-        """Owe a landing `word` reads left -- the checkout read off the head by the last word -- as `context`'s loss.
+    def hears(self, checkout: object) -> None:
+        """Owe a checkout the last word read off the landed head as the loss of the attempt the proof recovers.
 
-        So the proof's own later readings of the checkout count as its first does (`owed_events.owes_a_loss`), and a
-        retirement over them refused, the head put back, still leaves the evidence read moving to the next proof.
+        Handed every such reading as it is taken (`rewrite_finish_models.LandedFinish.hears_the_checkout`), however a
+        refusal read ahead of it is weighed, so the proof's own later readings count as its first does
+        (`owed_events.owes_a_loss`), and a retirement over them refused, the head put back, still leaves the evidence
+        read moving to the next proof.
         """
-        if word is _evidence_proof.LEFT_THE_LANDING:
-            _owed_events.owes_a_loss(context)
+        if checkout is _evidence_proof.LEFT_THE_LANDING:
+            _owed_events.owes_a_loss(self._context)
 
 
 class RecordsALostCheckout(LosesTheCheckout):

@@ -12,7 +12,10 @@ edit of the proof's carried, landed or unconfirmed, over the comment as the
 tick read it before -- an equal total another road wrote proves nothing: the
 record behind lands it as the tick's own move, refuses it as a conflict where
 the comment moved it, and never adds a carried counter twice. A field the
-proof itself left staged keeps the proof's staging.
+proof itself left staged keeps the proof's staging. Within the proof, a
+write whose answer was lost lays nothing over the state, so each field of
+the tick's staging such an edit carried is taken in as it spelled it, and no
+later write of the proof sends it -- usage among it -- a second time.
 
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
@@ -34,7 +37,6 @@ from typing import Any
 from github.Issue import Issue
 
 from orchestrator.git.base_sync import models as _base_sync_models, state as _base_sync_state
-from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedEdit, PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit as _commit,
@@ -56,12 +58,21 @@ _LAST = f"{_GONE}, asked once more over the comment read afresh, holding"
 
 
 class _KeepsWhatItCarried:
-    """`gh` for one proof: every call passed through, the fields each edit of the issue's comment moved kept."""
+    """`gh` for one proof: every call passed through, the fields each edit of the issue's comment moved kept.
 
-    def __init__(self, gh: GitHubClient, issue_number: int, carried: set[str]) -> None:
-        self._gh = gh
-        self._issue_number = issue_number
+    `staging` is what the tick staged on `context.state` before the proof: each of those an edit may have landed --
+    one whose answer was lost included -- is taken in on that state as the edit spelled it, so no later write of the
+    proof sends it again, a counter added twice among it.
+    """
+
+    def __init__(
+        self, context: _base_sync_models._AutoRebaseRecoveryContext, carried: set[str], staging: frozenset[str],
+    ) -> None:
+        self._gh = context.gh
+        self._issue_number = context.issue.number
+        self._tick = context.state
         self._carried = carried
+        self._staging = staging
 
     def __getattr__(self, name: str):
         return getattr(self._gh, name)
@@ -71,7 +82,10 @@ class _KeepsWhatItCarried:
         edit = self._gh.edit_pinned_state(issue, state, **options)
         if issue.number == self._issue_number and edit in _MAY_HAVE_LANDED:
             over = options.get("over") or {}
-            self._carried.update(_moved(state.data, over))
+            moved = _moved(state.data, over)
+            self._carried.update(moved)
+            _lays(self._tick, state.data, moved & self._staging)
+            _commit.takes_in(self._tick, state.data, moved & self._staging)
         return edit
 
 
@@ -92,10 +106,11 @@ def keeps_the_staging(
     staged = copy.deepcopy(state.data)
     read = json.loads(state.synced)
     carried: set[str] = set()
+    staging = frozenset(_moved(staged, read) if ahead else ())
     if not ahead:
         _lays(state, read, _moved(staged, read))
     try:
-        yield replace(context, gh=_KeepsWhatItCarried(context.gh, context.issue.number, carried))
+        yield replace(context, gh=_KeepsWhatItCarried(context, carried, staging))
     finally:
         if ahead or not carried:
             _restages(state, staged, read, carried)

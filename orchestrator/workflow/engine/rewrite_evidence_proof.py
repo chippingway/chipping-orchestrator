@@ -356,7 +356,10 @@ def _landing_refusals(
     replay made onto has moved: advanced past the head (`BASE_MOVED`), or
     rewound or repointed under it (`_BaseStanding.DROPPED`). A local base
     nobody could count against holds, as a remote base nobody could read does,
-    since the base reading before the requests says nothing about it now.
+    since the base reading before the requests says nothing about it now. The
+    checkout's verdict is handed to the finish's `hears_the_checkout` first,
+    where it carries one, so a move read here stands for the caller however
+    another refusal comes to be weighed ahead of it.
     """
     reading = _rewrite_facts._reads_the_checkout(
         finish.spec, _worktree_paths._worktree_path(finish.spec, finish.issue.number),
@@ -371,6 +374,8 @@ def _landing_refusals(
     # did not happen holds, and any other head is the landing left.
     branch = {None: _UNREAD_REMOTE, finish.head: None}.get(remote, LEFT_THE_LANDING)
     checkout = {"": _UNREAD_CHECKOUT, finish.head: None}.get(reading.head, LEFT_THE_LANDING)
+    if finish.hears_the_checkout is not None:
+        finish.hears_the_checkout(checkout)
     return branch, checkout, base
 
 

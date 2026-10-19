@@ -44,6 +44,8 @@ from tests.workflow.engine import (
 _EDITS = "edit_pinned_state"
 _CURRENT = "verification_evidence_current"
 _REFUSED = "refused"
+_REPORT = "developer_report_current"
+_BOTH = (False, True)
 _NTH_READ = "at the checkout's nth reading"
 
 # Where the checkout goes, and what keeps a retirement over its loss from landing: a refusal, or a full history.
@@ -139,6 +141,13 @@ class _LostCheckoutCase(guarded.GuardedRecoveryCase):
         )
         return patch.object(rewrite_facts, "_reads_the_checkout", reads)
 
+    def writes_back(self, fields: dict) -> None:
+        """Write each of `fields` onto the comment as it stands, as another road would."""
+        state = self.gh.read_pinned_state(self.issue)
+        for key, field_value in fields.items():
+            state.set(key, field_value)
+        self.gh.write_pinned_state(self.issue, state)
+
     def assert_retired(self, run, *, captured: bool) -> None:
         """`run` retired whole with the checkout away, and nothing standing for the checkout put back to prove."""
         self.assertFalse(self._wt.is_dir())
@@ -220,7 +229,7 @@ class LostCheckoutTest(_LostCheckoutCase, unittest.TestCase):
     def test_a_move_the_last_word_reads(self) -> None:
         # The proof's last word reads the checkout on the anchor, put back on the head right behind, every write
         # refused: that move stays owed, so the next proof still retires the run, captured or settled.
-        for captures in (False, True):
+        for captures in _BOTH:
             with self.subTest(captured=captures):
                 self.setUp()
                 head, run = self.captures() if captures else self.settles_then_dies()
@@ -286,6 +295,27 @@ class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
         self.assertTrue(self.proves())
         self.assertEqual(readings.pinned_records(self)[1], fresh)
 
+    def test_a_move_read_behind_a_report_stays_owed(self) -> None:
+        # A report moved under the run is weighed ahead of the checkout the last word reads on the anchor, put back on
+        # the head right behind, every write refused: the checkout's move stays owed all the same, so with the report
+        # put back too, the next proof still retires the run, captured or settled.
+        for captures in _BOTH:
+            with self.subTest(captured=captures):
+                self.setUp()
+                head, run = self.captures() if captures else self.settles_then_dies()
+                self._proves_behind_a_moved_report(head)
+                self.assertTrue(self.proves())
+                (self.assert_abandoned if captures else self.assert_invalidated)(run)
+
+    def _proves_behind_a_moved_report(self, head: str) -> None:
+        """Prove, every write refused, over the run's report moved and the checkout read on the anchor; report back."""
+        report = self.pinned_fields(_REPORT)[0]
+        self.writes_back({_REPORT: {**report, "revision": report["revision"] + 1}})
+        refusing = patch.object(self.gh.pinned_failures, _REFUSED, {self.issue.number})
+        with refusing, self.reads_the_anchor(head, at=2):
+            self.assertFalse(self.proves())
+        self.writes_back({_REPORT: report})
+
     def _proves_over_absent_evidence(self, *, returned: bool) -> None:
         """Prove over the checkout gone under refused writes, then with the run off the comment -- the checkout back
         where `returned` -- then with the run and its tip put back, and the checkout too."""
@@ -293,9 +323,9 @@ class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
         self.proves_unrecorded(full=False)
         if returned:
             self._away.rename(self._wt)
-        self._writes({_CURRENT: None})
+        self.writes_back({_CURRENT: None})
         self.assertTrue(self.proves())
-        self._writes(written)
+        self.writes_back(written)
         if not returned:
             self._away.rename(self._wt)
         self.assertTrue(self.proves())
@@ -311,13 +341,6 @@ class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
         head = _rebases_from_the_anchor(self)
         handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, partial(self.finishes, head))
         return readings.pinned_records(self)[1]
-
-    def _writes(self, fields: dict) -> None:
-        """Write each of `fields` onto the comment as it stands, as another road would."""
-        state = self.gh.read_pinned_state(self.issue)
-        for key, field_value in fields.items():
-            state.set(key, field_value)
-        self.gh.write_pinned_state(self.issue, state)
 
 
 class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):

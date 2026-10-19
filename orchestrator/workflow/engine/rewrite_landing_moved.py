@@ -108,6 +108,7 @@ from orchestrator.workflow.engine import (
     owed_events as _owed_events,
     rewrite_finish_captured as _captured,
     rewrite_landing_records as _landing_records,
+    rewrite_recovery_readings as _readings,
     verification_carries as _carries,
     verification_records as _records,
     verification_settlement_state as _settlement,
@@ -282,8 +283,6 @@ def proves_captured(
             lambda state, _issue: (asks(state, pending.receipt),)
         ),
     )[0]
-    if settled and moved is LEFT_THE_LANDING:
-        _owed_events.owes_a_loss(context)
     if moved is None:
         return True
     _captured.stands_before_the_route(finish, proof=moved)
@@ -321,7 +320,8 @@ def _finish(
     """The finish of `head`'s landing as `snapshot` read it, over `candidate` or the checkout read now.
 
     `settled` holds it to the dormant settled-evidence policy (`LandedFinish.proves_settled`), for dormant proofs,
-    and notes a checkout it reads off `head` as a loss owed (`owed_events.owes_a_loss`), which the proof it serves
+    and notes a checkout it reads off `head` -- as its candidate here, or in any last word it is asked
+    (`LandedFinish.hears_the_checkout`) -- as a loss owed (`owed_events.owes_a_loss`), which the proof it serves
     records before it answers (`rewrite_recovery_readings.LosesTheCheckout.proves`).
     """
     read = candidate or _recovery_push._recovered_candidate(context, snapshot)
@@ -341,4 +341,5 @@ def _finish(
         label=_replay_evidence._recovered_stage(context.label),
         road=FinishRoad.RECOVERY,
         proves_settled=settled,
+        hears_the_checkout=_readings.LosesTheCheckout(context).hears if settled else None,
     )
