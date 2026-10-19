@@ -937,6 +937,67 @@ _UNSUMMARISED_COLLECTION = (
     "E   ModuleNotFoundError: No module named 'missing'\n"
     f"{_INTERRUPTED}\n1 error in 0.07s"
 )
+# A run printed with `-rE`, its summary reporting the setup error alone: the
+# failure only its section shows leads by that section's title. Node IDs
+# whose file path holds the dash that parts a summary line's message, one too
+# long to carry it, and a module pytest could not collect, reported with
+# `--tb=no` and no message. pytest failing before it ran any test: a conftest
+# it could not load, its traceback below, and a plugin it could not import,
+# its traceback's last line.
+_ERRORS_ONLY = (
+    "FE                                                                       [100%]\n"
+    f"{_ERRORS_HEADING}"
+    "______________________ ERROR at setup of test_setup_error ______________________\n"
+    "test_partial_summary.py:6: in broken_setup\n"
+    "    raise RuntimeError('setup failed')\n"
+    "E   RuntimeError: setup failed\n"
+    "=================================== FAILURES ===================================\n"
+    "_____________________________ test_primary_failure _____________________________\n"
+    "test_partial_summary.py:3: in test_primary_failure\n"
+    "    assert False, 'primary failure'\n"
+    "E   AssertionError: primary failure\n"
+    "E   assert False\n"
+    f"{_SUMMARY_HEADING}"
+    "ERROR test_partial_summary.py::test_setup_error\n"
+    "1 failed, 1 error in 0.01s"
+)
+_ERRORS_ONLY_LEAD = (
+    "Failure: `test_partial_summary.py::test_setup_error`, whose setup failed\n"
+    "Error: `RuntimeError: setup failed`\n"
+    f"{_TITLED_ONLY.format(title='test_primary_failure')}Error: `AssertionError: primary failure`\n"
+)
+_DASHED = (
+    f"{_SUMMARY_HEADING}"
+    "FAILED test - named.py::test_value[left - right] - assert 0 == 1\n"
+    "FAILED sub/test - named.py::test_value[left - right]\n"
+    "ERROR test - broken.py\n"
+    "2 failed, 1 error in 0.01s"
+)
+_DASHED_LEAD = (
+    "Failure: `test - named.py::test_value[left - right]`\nError: `assert 0 == 1`\n"
+    f"Failure: `sub/test - named.py::test_value[left - right]`\n{_UNSTATED}"
+    f"Failure: collection of `test - broken.py`, before any test in it ran\n{_UNSTATED}"
+)
+_CONFTEST_UNLOADED = (
+    "ImportError while loading conftest '/tmp/run/conftest.py'.\n"
+    "/tmp/run/conftest.py:1: in <module>\n"
+    "    import missing_dependency\n"
+    "E   ModuleNotFoundError: No module named 'missing_dependency'"
+)
+_CONFTEST_UNLOADED_LEAD = (
+    "Failure: conftest `/tmp/run/conftest.py`, which pytest could not load before running any test\n"
+    "Error: `ModuleNotFoundError: No module named 'missing_dependency'`\n"
+)
+_PLUGIN_UNIMPORTED = (
+    "Traceback (most recent call last):\n"
+    '  File "/venv/lib/python3.12/site-packages/_pytest/config/__init__.py", line 913, in import_plugin\n'
+    "    mod = importlib.import_module(importspec)\n"
+    'ImportError: Error importing plugin "missing_plugin": No module named \'missing_plugin\''
+)
+_PLUGIN_UNIMPORTED_LEAD = (
+    "Failure: plugin `missing_plugin`, which pytest could not load before running any test\n"
+    'Error: `ImportError: Error importing plugin "missing_plugin": No module named \'missing_plugin\'`\n'
+)
 _PHASES_UNSUMMARISED = (
     "E.EF                                                                     [100%]\n"
     f"{_ERRORS_HEADING}"
@@ -1563,6 +1624,13 @@ class FailureNamesTest(unittest.TestCase):
             (_PHASES_UNSUMMARISED, "", _PHASES_UNSUMMARISED_LEAD),
             (_FAILURES_SUMMARISED, "", _FAILURES_SUMMARISED_LEAD),
             (_DOCTEST_TITLED, "", f"Failure: `sample.txt::sample.txt`\n{_UNSTATED}"),
+            # And where a summary leaves a failure out, as `-rE` does, its
+            # section leads it, no line reporting a test that took none.
+            (_ERRORS_ONLY, "", _ERRORS_ONLY_LEAD),
+            # A conftest or a plugin pytest could not load before running any
+            # test leads by that, with the exception its traceback shows.
+            (_CONFTEST_UNLOADED, "", _CONFTEST_UNLOADED_LEAD),
+            (_PLUGIN_UNIMPORTED, "", _PLUGIN_UNIMPORTED_LEAD),
             # Its path may hold blanks, as the doctest a file's path holding
             # blanks names may; words naming no Python file are a collection
             # only where pytest says so.
@@ -1606,6 +1674,9 @@ class FailureNamesTest(unittest.TestCase):
             # Two such lines alike each take the first section left, in
             # pytest's order, so each test keeps its own ID.
             ("", _IDENTICAL, _IDENTICAL_LEAD),
+            # A file path may hold the dash too, an ID running on to its test,
+            # and a path alone to the line's end where no message follows.
+            ("", _DASHED, _DASHED_LEAD),
             # A test's file path may hold blanks, and brackets that open no
             # parameters.
             ("", _SPACED, _SPACED_LEAD),
@@ -1691,6 +1762,20 @@ class FailureNamesTest(unittest.TestCase):
         for written in kept:
             with self.subTest(written=written):
                 _assert_shown(self, written, written)
+
+    def test_previous_layout_leads_as_live_checks_do(self) -> None:
+        # A check that layout showed leads as a live round's does: a failure
+        # the summary leaves out, a node ID whose path holds the dash, and a
+        # conftest pytest could not load.
+        led = (
+            (_ERRORS_ONLY, _ERRORS_ONLY_LEAD),
+            (_DASHED, _DASHED_LEAD),
+            (_CONFTEST_UNLOADED, _CONFTEST_UNLOADED_LEAD),
+        )
+        for output, lead in led:
+            unled = f"`uv run pytest tests` exited with status 1:\n\n```\n{output}\n```"
+            with self.subTest(output=output):
+                _assert_shown(self, unled, f"{lead}{unled}")
 
 
 class FailureEntriesTest(unittest.TestCase):

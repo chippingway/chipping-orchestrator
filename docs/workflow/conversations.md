@@ -650,51 +650,54 @@ there is shown with what it leaves out said too.
 
 Each check shown leads with what failed (`workflow/engine/review_findings_failures.py`), its command and exit status
 following as supporting details, in the entries' own labels. A test pytest's short summary reports in the check's output
-leads by its exact node ID, its file path holding blanks or brackets or not and its test name holding blanks or not — as
-a doctest's text file and the doctest it names may, and a module in a directory named with brackets — and its parameters
-included, and a subtest pytest reports as `SUBFAILED` by its test's node ID and pytest's description of it — even a
-parameter holding the dash that parts an ID from its message, and text of a message's shape after it: the ID is the
-longest whose section of the line's run — or line traceback, as `--tb=line` prints one — shows the exception the message
-after it opens — the first such no line took yet, in pytest's order — so tests whose IDs overlap each keep their own,
-identical summary lines included, else the longest an entry names whole or pytest titled a section by — its classes
-dotted, its parameters as they are, a subtest's description after them — and otherwise ends where a message of pytest's
-shape, a rewritten assertion's `assert` or an exception's name, may first begin, so the message is never cut short, an
-`Unavailable:` line saying where the ID ends is uncertain when a later split leaves such a message too — with the error
-its summary line gives. A path pytest could not collect leads as that collection, never under a test ID nobody reported
-— whatever its shape, as a doctest's text file, its path holding blanks or not, where pytest's output says it failed
-collecting it — by its section alone where no summary line reports it, as with `-rN`, as is a setup or teardown a
-section says failed, by its phase and its test's name; and where a run printed no short summary at all, each test's own
-section leads by the name pytest titled it, each such lead saying no summary line gives its test ID — while words of a
-check's own `ERROR` line naming no Python file are no collection without that — and so does a node ID where its own run
-says pytest failed collecting it or its path — however the section and the summary line each spell that path — or that
-collection was interrupted, as for a class it could not collect; a node ID whose setup or teardown a section says failed
-leads as that — where both did, each summary line as the phase whose section raised its error — and one nothing explains
-as an error in its collection, setup, or teardown. Where a summary line carries no error — pytest drops it from a line
-too long for the terminal — the section pytest printed for it gives one: the first line set out least in its last run of
-lines marked `E`, past an assertion's explanation or diff hint, and past an exception another was raised handling, never
-a local `--showlocals` printed. Each section goes to one summary line of its own run, in pytest's order, so tests of two
-modules sharing a name each take their own, and where no section gives an error the entry naming the failure does. A
-section's title may be padded by a single underscore each side; a section holding Python's own traceback, as
-`--tb=native` prints it and as pytest prints an exception group in any mode, gives the exception at that traceback's
-margin — for a group its own, not those it holds — and `--tb=line`, which prints a failure as one line of the file it
-crashed at — its path holding blanks or not — and its exception, gives that line's exception to its summary line in
-turn. What pytest captured from a test, printed under a rule of dashes below its traceback, is never read as pytest's
-own — not as a section's exception, a line traceback, or a summary line, which are read below the short summary's
-heading where the output holds one — so a test printing lines of those shapes neither replaces its exception nor adds a
-failure; and a title, rule, or heading a test prints there, narrower than pytest pads its own to its run's width, opens
-no section either. A whole run of pytest's a test printed there, from its session's heading or `-q` progress line to its
-line of statistics, is captured too, and only the last short summary of a run is read, any above it being one a test
-printed; each of several runs in one check's output, `-q` ones included, leads with its own failures. Otherwise the
-check leads with each entry whose error its output shows — matched by that error, never by the command, so two runs of
-`.venv/bin/python -` each lead with their own scenario and are never merged — or with a line saying no test ID or
-scenario name was recorded for it. Whatever is missing stays visible as such: a check that quoted no output says no
-error was recorded, and one whose command reads its code from stdin — a `-` argument, split as a shell splits it, after
-no program given inline (`-c`, `-e`), by module (`-m`), or as a script; whatever names its failures — with no entry
-giving the snippet as a code block holding code below its `Reproduce:` line, says none was recorded, whatever the entry
-names as its command. A lead names every failure pytest's summary reports, each with its error, however many there are,
-as a lead by entries names every entry its output backs. No lead line opens on a declaration keyword, so formatting the
-shown feedback again changes nothing, and what a lead says is read from the text alone: the evidence, statuses, and
-provenance stay those the declaration recorded.
+leads by its exact node ID, its file path holding blanks, brackets, or the dash that parts a summary line's message, or
+not and its test name holding blanks or not — as a doctest's text file and the doctest it names may, and a module in a
+directory named with brackets — and its parameters included, and a subtest pytest reports as `SUBFAILED` by its test's
+node ID and pytest's description of it — even a parameter holding the dash that parts an ID from its message, and text
+of a message's shape after it: the ID is the longest whose section of the line's run — or line traceback, as `--tb=line`
+prints one — shows the exception the message after it opens — the first such no line took yet, in pytest's order — so
+tests whose IDs overlap each keep their own, identical summary lines included, else the longest an entry names whole or
+pytest titled a section by — its classes dotted, its parameters as they are, a subtest's description after them — and
+otherwise ends where a message of pytest's shape, a rewritten assertion's `assert` or an exception's name, may first
+begin, so the message is never cut short, an `Unavailable:` line saying where the ID ends is uncertain when a later
+split leaves such a message too — with the error its summary line gives. A path pytest could not collect leads as that
+collection, never under a test ID nobody reported — whatever its shape, as a doctest's text file, its path holding
+blanks or not, where pytest's output says it failed collecting it — by its section alone where no summary line reports
+it, as with `-rN`, as is a setup or teardown a section says failed, by its phase and its test's name; each test's own
+section no summary line took leads by the name pytest titled it — as with `-rN`, or `-rE`, which leaves failures out —
+save one a summary line reporting a test that took no section pairs with, as a doctest's line does, in the order pytest
+printed both; and a conftest or a plugin pytest could not load before running any test leads by its path or name, with
+the exception its traceback shows; each such lead saying no summary line gives its test ID, none naming a test it never
+ran — while words of a check's own `ERROR` line naming no Python file are no collection without that — and so does a
+node ID where its own run says pytest failed collecting it or its path — however the section and the summary line each
+spell that path — or that collection was interrupted, as for a class it could not collect; a node ID whose setup or
+teardown a section says failed leads as that — where both did, each summary line as the phase whose section raised its
+error — and one nothing explains as an error in its collection, setup, or teardown. Where a summary line carries no
+error — pytest drops it from a line too long for the terminal — the section pytest printed for it gives one: the first
+line set out least in its last run of lines marked `E`, past an assertion's explanation or diff hint, and past an
+exception another was raised handling, never a local `--showlocals` printed. Each section goes to one summary line of
+its own run, in pytest's order, so tests of two modules sharing a name each take their own, and where no section gives
+an error the entry naming the failure does. A section's title may be padded by a single underscore each side; a section
+holding Python's own traceback, as `--tb=native` prints it and as pytest prints an exception group in any mode, gives
+the exception at that traceback's margin — for a group its own, not those it holds — and `--tb=line`, which prints a
+failure as one line of the file it crashed at — its path holding blanks or not — and its exception, gives that line's
+exception to its summary line in turn. What pytest captured from a test, printed under a rule of dashes below its
+traceback, is never read as pytest's own — not as a section's exception, a line traceback, or a summary line, which are
+read below the short summary's heading where the output holds one — so a test printing lines of those shapes neither
+replaces its exception nor adds a failure; and a title, rule, or heading a test prints there, narrower than pytest pads
+its own to its run's width, opens no section either. A whole run of pytest's a test printed there, from its session's
+heading or `-q` progress line to its line of statistics, is captured too, and only the last short summary of a run is
+read, any above it being one a test printed; each of several runs in one check's output, `-q` ones included, leads with
+its own failures. Otherwise the check leads with each entry whose error its output shows — matched by that error, never
+by the command, so two runs of `.venv/bin/python -` each lead with their own scenario and are never merged — or with a
+line saying no test ID or scenario name was recorded for it. Whatever is missing stays visible as such: a check that
+quoted no output says no error was recorded, and one whose command reads its code from stdin — a `-` argument, split as
+a shell splits it, after no program given inline (`-c`, `-e`), by module (`-m`), or as a script; whatever names its
+failures — with no entry giving the snippet as a code block holding code below its `Reproduce:` line, says none was
+recorded, whatever the entry names as its command. A lead names every failure pytest's summary reports, each with its
+error, however many there are, as a lead by entries names every entry its output backs. No lead line opens on a
+declaration keyword, so formatting the shown feedback again changes nothing, and what a lead says is read from the text
+alone: the evidence, statuses, and provenance stay those the declaration recorded.
 
 Findings that are a declaration and nothing else read as a sentence saying the reviewer stated none, never as the raw
 message they sit in. The transaction keeps every command, exit status, and output exactly, and the formatting decides

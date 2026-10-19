@@ -234,77 +234,82 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             collection, never a test ID -- one of any shape, a doctest's text file too, its path holding
                             blanks or not, where pytest says it failed collecting it or the run was interrupted
                             collecting -- by its section alone where no summary line reports it, as with `-rN`, as is a
-                            setup or teardown a section says failed, and, where the run printed no short summary, a
-                            test's own section by its title, none said to give a test ID -- words naming no Python file
-                            being no collection without that -- each with the error its line gives, else -- a line too
-                            long for the terminal carries none -- the exception of the section pytest printed for it
-                            (`review_findings_pytest`), else the error of the entry naming it, else a line saying the
-                            summary gave none; every one of them, however many. A check pytest's summary names nothing
-                            in is led by every `Failure:` entry of the findings, however many, whose `Error:` -- or the
-                            code block's last line below an empty one -- its output shows, matched by that error and
-                            never by command, so two runs of one stdin command each lead with their own scenario; else
-                            by a line saying no test ID or scenario name was recorded. A lead says too where the check
-                            quoted no output, and, whatever names its failures, where its command reads its code from
-                            stdin -- a `-` argument, split as a shell splits it, after no program given inline (`-c`,
-                            `-e`), by module (`-m`), or as a script -- and no entry it backs gives the snippet as a code
-                            block holding code below its `Reproduce:` line, however the line names the command. No lead
-                            line opens on a declaration keyword, and the names and errors it takes from output stand in
-                            code spans. The reviewer's own text is shown through here too (`said`): its entries with
-                            what each leaves out said, and each check the concise layout before leads showed -- a
-                            sentence opening a paragraph at the margin, outside any code block, closing it on a period
-                            or on a colon over a bare backtick fence holding the output -- led as a check read off a
-                            declaration is, since that layout's feedback holds no declaration to read its checks from
-                            again
+                            setup or teardown a section says failed, a conftest or a plugin pytest could not load before
+                            running any test, and a test's own section no line took by its title -- save one a summary
+                            line reporting a test that took no section pairs with, as a doctest's does -- none said to
+                            give a test ID -- words naming no Python file being no collection without that -- each with
+                            the error its line gives, else -- a line too long for the terminal carries none -- the
+                            exception of the section pytest printed for it (`review_findings_pytest`), else the error of
+                            the entry naming it, else a line saying the summary gave none; every one of them, however
+                            many. A check pytest's summary names nothing in is led by every `Failure:` entry of the
+                            findings, however many, whose `Error:` -- or the code block's last line below an empty one
+                            -- its output shows, matched by that error and never by command, so two runs of one stdin
+                            command each lead with their own scenario; else by a line saying no test ID or scenario name
+                            was recorded. A lead says too where the check quoted no output, and, whatever names its
+                            failures, where its command reads its code from stdin -- a `-` argument, split as a shell
+                            splits it, after no program given inline (`-c`, `-e`), by module (`-m`), or as a script --
+                            and no entry it backs gives the snippet as a code block holding code below its `Reproduce:`
+                            line, however the line names the command. No lead line opens on a declaration keyword, and
+                            the names and errors it takes from output stand in code spans. The reviewer's own text is
+                            shown through here too (`said`): its entries with what each leaves out said, and each check
+                            the concise layout before leads showed -- a sentence opening a paragraph at the margin,
+                            outside any code block, closing it on a period or on a colon over a bare backtick fence
+                            holding the output -- led as a check read off a declaration is, since that layout's feedback
+                            holds no declaration to read its checks from again
     review_findings_summary.py
                             a line of pytest's short summary, read for the failure it reports, for
                             `review_findings_failures` (`SummaryLine`): its outcome -- `FAILED`, `ERROR`, or `SUBFAILED`
                             and the subtest's description, its message in brackets and its parameters in parentheses,
                             read up to the first closing one a node ID free of blanks follows, else to the last of its
                             message and the first of its parameters that a node ID holding blanks follows -- the node
-                            ID, whatever file it names -- its path may hold blanks and brackets, its test's name blanks,
-                            and only a bracket past that name opens parameters -- or the path whose collection failed,
-                            and the message after a dash. A parameter may hold the dash that parts an ID from its
-                            message and text of a message's shape after it, and a message a bracket and a dash of its
-                            own, so the ID is the longest whose section of the line's run -- or `--tb=line` line
-                            traceback -- shows the exception the message after it opens, the first no line took yet, as
-                            where two tests' IDs overlap, else the longest an entry of the findings names whole or
-                            pytest titled a section by; else it ends on the first split leaving a message of pytest's
-                            shape -- a rewritten assertion's `assert` or an exception's name -- so the message is never
-                            cut short, the line marked unsure where a later split leaves one too; else on the first
-                            split
+                            ID, whatever file it names -- its path may hold blanks, brackets, and the dash, ending at
+                            any of the line's test separators, its test's name blanks, and only a bracket past that name
+                            opens parameters -- or, for an error, the path whose collection failed, ending on a dash or
+                            the line's end short of any separator, and the message after a dash. A parameter may hold
+                            the dash that parts an ID from its message and text of a message's shape after it, and a
+                            message a bracket and a dash of its own, so the ID is the longest whose section of the
+                            line's run -- or `--tb=line` line traceback -- shows the exception the message after it
+                            opens, the first no line took yet, as where two tests' IDs overlap, else the longest an
+                            entry of the findings names whole or pytest titled a section by; else it ends on the first
+                            split leaving a message of pytest's shape -- a rewritten assertion's `assert` or an
+                            exception's name, never a file's or a separator -- so the message is never cut short, the
+                            line marked unsure where a later split leaves one too; else, pytest having given no message,
+                            on the last
     review_findings_pytest.py
-                            what pytest's output says beside its short summary, for `review_findings_failures`: each
-                            section it printed, titled between underscores -- one each side at least -- by a failed
-                            test's name, its node ID past the path with classes dotted and parameters as written, by
-                            `ERROR at setup of` or `ERROR at teardown of` and that name, or by `ERROR collecting` and
-                            what it collected, a line of spaced underscores parting frames and titling nothing. A
-                            section's exception is the first line set out least in its last run of lines marked `E`, not
-                            an explanation, diff hint, or source line set out further, nor an exception another was
-                            raised handling, nor the line `--showlocals` prints for a local named `E`; one marking no
-                            line holds Python's own traceback -- as `--tb=native` prints it, and as pytest prints an
-                            exception group in any mode -- its exception the first line at the margin below the last
-                            header, for a group the margin its rail sets, the exceptions it holds standing further in.
-                            With `--tb=line` a failure has no section: each line under the failures heading giving a
-                            `path:line:` -- its path holding blanks or not -- and the exception is a section titled by
-                            nothing, which a summary line naming a test takes in turn. Each summary line takes a section
-                            of its own run alone -- a run printed with `--tb=no` borrows none of the next run's -- the
-                            first it may be that no line before it took, the one whose exception the line's error opens
-                            where it gives one, since pytest prints both in one order and tests of two modules may share
-                            a title. A rule of dashes ends a section's traceback: below it stands what pytest captured
-                            from the test, or a plugin added, up to the next title, rule, or heading as wide as the last
-                            heading pytest printed -- it pads each to its terminal's width, so a narrower one is a
-                            test's -- and nothing there is read as pytest's own -- no marked line, line traceback, or
-                            summary line, the summary lines read below the short summary's heading where the output
-                            holds one -- save the `--tb=line` line closing it, which gives the exception the failure's
-                            last marked line showed. A run's opening there -- the session's heading, or a `-q` progress
-                            line -- opens a whole run a test printed, captured up to the line of statistics closing it
-                            -- each count naming its outcome in a word or more, as `1 subtests passed` does -- unless
-                            only the output's last such line, or none, closes it, the test having cut it short; and only
-                            the last short summary of a run is read, any above it in the run being one a test printed.
-                            Outside anything captured a run opens on the session's heading or a `-q` progress line, or
-                            -- a `-q` run failing collection alone reports no progress -- on the errors or failures
-                            heading standing in the summary of the run before it or below the line of statistics closing
-                            that run, so each of several runs leads with its own failures
+                            what pytest's output says beside its short summary, for `review_findings_failures`: a
+                            conftest or a plugin it could not load before running any test, as a section titled by the
+                            line saying so, and each section it printed, titled between underscores -- one each side at
+                            least -- by a failed test's name, its node ID past the path with classes dotted and
+                            parameters as written, by `ERROR at setup of` or `ERROR at teardown of` and that name, or by
+                            `ERROR collecting` and what it collected, a line of spaced underscores parting frames and
+                            titling nothing. A section's exception is the first line set out least in its last run of
+                            lines marked `E`, not an explanation, diff hint, or source line set out further, nor an
+                            exception another was raised handling, nor the line `--showlocals` prints for a local named
+                            `E`; one marking no line holds Python's own traceback -- as `--tb=native` prints it, and as
+                            pytest prints an exception group in any mode -- its exception the first line at the margin
+                            below the last header, for a group the margin its rail sets, the exceptions it holds
+                            standing further in. With `--tb=line` a failure has no section: each line under the failures
+                            heading giving a `path:line:` -- its path holding blanks or not -- and the exception is a
+                            section titled by nothing, which a summary line naming a test takes in turn. Each summary
+                            line takes a section of its own run alone -- a run printed with `--tb=no` borrows none of
+                            the next run's -- the first it may be that no line before it took, the one whose exception
+                            the line's error opens where it gives one, since pytest prints both in one order and tests
+                            of two modules may share a title. A rule of dashes ends a section's traceback: below it
+                            stands what pytest captured from the test, or a plugin added, up to the next title, rule, or
+                            heading as wide as the last heading pytest printed -- it pads each to its terminal's width,
+                            so a narrower one is a test's -- and nothing there is read as pytest's own -- no marked
+                            line, line traceback, or summary line, the summary lines read below the short summary's
+                            heading where the output holds one -- save the `--tb=line` line closing it, which gives the
+                            exception the failure's last marked line showed. A run's opening there -- the session's
+                            heading, or a `-q` progress line -- opens a whole run a test printed, captured up to the
+                            line of statistics closing it -- each count naming its outcome in a word or more, as `1
+                            subtests passed` does -- unless only the output's last such line, or none, closes it, the
+                            test having cut it short; and only the last short summary of a run is read, any above it in
+                            the run being one a test printed. Outside anything captured a run opens on the session's
+                            heading or a `-q` progress line, or -- a `-q` run failing collection alone reports no
+                            progress -- on the errors or failures heading standing in the summary of the run before it
+                            or below the line of statistics closing that run, so each of several runs leads with its own
+                            failures
     review_findings_entries.py
                             the failure entries a reviewer writes in its findings, for `review_findings_failures` and
                             `review_findings`: an entry runs from one `Failure:` line to the next, or to the next

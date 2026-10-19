@@ -3,15 +3,19 @@
 """What pytest's output says beside its short summary: the sections it printed, for `review_findings_failures`.
 
 pytest closes a run on a short summary naming each failure on a line of its
-own, and above it prints a section for each, titled between underscores --
-as few as one each side where the title is long: a failed test's section by
-the test's name, one whose fixture failed by `ERROR at setup of` or `ERROR at
+own, and above it prints a section for each, titled between underscores -- as
+few as one each side where the title is long: a failed test's section by the
+test's name, one whose fixture failed by `ERROR at setup of` or `ERROR at
 teardown of` and that name, and one pytest failed collecting by `ERROR
-collecting` and what it collected. A test's name is its node ID past the
-path, a dot parting each class from what it holds, the parameters as written
-(`PytestOutput.name`). Inside a section a line of underscores and blanks
-alone parts a traceback's frames, titling nothing, and a line of equals
-signs, a heading inside or not, opens the summary.
+collecting` and what it collected. A test's name is its node ID past the path,
+a dot parting each class from what it holds, the parameters as written
+(`PytestOutput.name`). Inside a section a line of underscores and blanks alone
+parts a traceback's frames, titling nothing, and a line of equals signs, a
+heading inside or not, opens the summary. A run may fail before running any
+test -- a conftest pytest could not load, its traceback below the line saying
+so, or a plugin it could not import, the last line of its traceback -- and
+each is read as a section of its own, titled by the line saying so
+(`Section.failed`).
 
 Below a section's traceback, pytest prints what it captured from the test --
 its output, its log -- and what a plugin added to its report, each under a
@@ -136,6 +140,17 @@ _PHASE_TITLE_RE = re.compile(r"ERROR at (?P<phase>setup|teardown) of (?P<name>.+
 _COLLECTING_TITLE_RE = re.compile(r"ERROR collecting (?P<subject>.+)")
 COLLECTION = "collection"
 
+# What may make up a blank, a CRLF line's carriage return included.
+_BLANKS = " \t\r"
+
+# What pytest prints failing before it runs any test: a conftest it could not
+# load, its traceback below the line saying so; and a plugin it could not
+# import, the last line of its traceback.
+_LOADING_RE = re.compile(r"ImportError while loading conftest '(?P<subject>.+)'\.")
+_IMPORTING_RE = re.compile(r'ImportError: Error importing plugin "(?P<subject>.+?)": .+')
+CONFTEST = "conftest"
+PLUGIN = "plugin"
+
 # What a section says failed where its title says nothing of a phase: the
 # test it names, or -- untitled -- nothing.
 _IN_TEST = ""
@@ -199,7 +214,12 @@ class _Where:
         run's own summary.
         """
         wheres = tuple(accumulate(lines, cls.below, initial=cls()))
-        if _unclosed(lines, wheres):
+        # A nested run is unclosed where it runs on into the output's last
+        # line of statistics, or its end; the first of `wheres` stands above
+        # the lines.
+        stats = [number for number, line in enumerate(lines) if _STATS_RE.fullmatch(line)]
+        last = stats[-1] if stats else len(lines)
+        if wheres[last].nested or wheres[-1].nested:
             wheres = tuple(accumulate(lines, cls.below, initial=cls(nests=False)))
         return wheres[1:]
 
@@ -318,16 +338,23 @@ class Section:
         """What this section says failed, by its title: the phase, and what failed in it.
 
         A collection pytest failed is said with the path it collected, a
-        fixture's setup or teardown with the name of its test, and a test's
-        own failure with its name and no phase ("") -- one `--tb=line`
-        printed untitled names nothing.
+        fixture's setup or teardown with the name of its test, a conftest or
+        a plugin pytest could not load before running any test with its path
+        or name, and a test's own failure with its name and no phase ("") --
+        one `--tb=line` printed untitled names nothing.
         """
         collecting = _COLLECTING_TITLE_RE.fullmatch(self.title)
         phased = _PHASE_TITLE_RE.fullmatch(self.title)
+        loading = _LOADING_RE.fullmatch(self.title)
+        importing = _IMPORTING_RE.fullmatch(self.title)
         if collecting is not None:
             return COLLECTION, collecting.group("subject")
         if phased is not None:
             return phased.group("phase", "name")
+        if loading is not None:
+            return CONFTEST, loading.group("subject")
+        if importing is not None:
+            return PLUGIN, importing.group("subject")
         return _IN_TEST, self.title
 
     def opens(self, shown: str) -> bool:
@@ -377,19 +404,19 @@ class Section:
 class PytestOutput:
     """A check's output read for the sections pytest printed, each taken by one summary line at most.
 
-    `sections` are those sections, in order; `titled` what each says failed
+    `sections` are those sections, in order, a failure pytest printed before
+    running any test first; and `titled` what each says failed
     (`Section.failed`) -- the name of each test pytest printed one for, its
-    failure's or its fixture's, among them; and `summarised` each run whose
-    short summary pytest printed.
+    failure's or its fixture's, among them.
     """
 
     def __init__(self, lines: Sequence[str]) -> None:
         self.lines = lines
         self._wheres = _Where.of(lines)
-        self.sections = tuple(self._read())
+        unstarted = _unstarted(lines, self._wheres)
+        self.sections = tuple(chain(unstarted, self._read()))
         self.titled = frozenset(section.failed[1] for section in self.sections)
         summarised = _Where.summary(lines, self._wheres)
-        self.summarised = frozenset(run for _, run in summarised)
         # The lines pytest's short summary lines may stand on, each with the
         # run it closes. The summary's heading stands in it, so none does
         # only where the output holds none.
@@ -522,15 +549,21 @@ def _uncaptured(lines: Sequence[str], wheres: Sequence[_Where]) -> list[_Summari
     ]
 
 
-def _unclosed(lines: Sequence[str], wheres: Sequence[_Where]) -> bool:
-    """Whether a run a test printed runs on into the output's last line of statistics, or its end.
+def _unstarted(lines: Sequence[str], wheres: Sequence[_Where]) -> Iterator[Section]:
+    """Each failure pytest printed before it ran any test, outside anything captured, as a section of its own.
 
-    `wheres` says where each of `lines` stands, the first where the line above
-    them does.
+    A conftest it could not load is titled by the line saying so, its
+    exception the one the traceback below it shows; a plugin it could not
+    import by the last line of its traceback, which is its exception too.
     """
-    stats = [number for number, line in enumerate(lines) if _STATS_RE.fullmatch(line)]
-    last = stats[-1] if stats else len(lines)
-    return wheres[last].nested or wheres[-1].nested
+    for number, where in enumerate(wheres):
+        line = "" if where.captured else lines[number].strip(_BLANKS)
+        loading = _LOADING_RE.fullmatch(line)
+        importing = _IMPORTING_RE.fullmatch(line)
+        if loading is not None:
+            yield Section.read(line, _held_below(lines, number), where.run)
+        if importing is not None:
+            yield Section(line, line, where.run)
 
 
 def _held_below(lines: Sequence[str], number: int) -> Iterator[str]:
