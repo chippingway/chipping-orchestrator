@@ -39,13 +39,9 @@ from tests.workflow.engine import (
 
 # A label the refresh does not drive, under which the dispatcher's hold strands the attempt.
 _UNDRIVEN = "workflow:resolving_conflict"
-
 _READS = "_reads_the_checkout"
-
 _PROVES = "retires_unproved"
-
 _EDITS = "edit_pinned_state"
-
 _CURRENT = "verification_evidence_current"
 
 # The usage total, and what crowds a retirement over the restored tip: a full comment, or a usage write once or always.

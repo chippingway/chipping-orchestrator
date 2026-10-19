@@ -34,9 +34,7 @@ from tests.workflow.engine import (
 
 # A settled run's current record, the report record it is bound to, and the edit another road's writes race.
 _CURRENT = "verification_evidence_current"
-
 _REPORT = "developer_report_current"
-
 _EDITS = "edit_pinned_state"
 
 

@@ -1580,12 +1580,12 @@ because there it is the claim that this stage has already rerouted rather than a
   meanwhile -- an evidence record, a report, a revision floor -- kept. The ordinary publication's gate hold lands as
   `HOLD` too, with no proof first, since nothing was pushed for a finish to hold evidence for (`rewrite_publication`). A
   checkout gone from disk -- ahead of a park's or hold's record or behind one, while a proof reads it, or under any git
-  request of the recovery, the uncounted lag's abort, the dispatcher's hold, the eligibility gate, or the refresh's
-  count of the lag -- has the reset recorded and the evidence retired as over it, each in a write of its own, so a quiet
-  hold, a standing park, or a refused record leaves it retired (`rewrite_recovery_parks.proves_before_a_park`); one read
-  gone or off the replay is recorded alike however soon it is back, before any restore. The comment is reread behind
-  that retirement, evidence written back retired again and the tick held, a successor or another attempt in its place
-  holding the tick with nothing reset; one refused for room or twice is asked again over the comment read whole,
+  request of the recovery, the uncounted lag's abort, the dispatcher's hold, the eligibility gate, or the refresh's skip
+  selection and lag count -- has the reset recorded and the evidence retired as over it, each in a write of its own, so
+  a quiet hold, a standing park, or a refused record leaves it retired (`rewrite_recovery_parks.proves_before_a_park`);
+  one read gone or off the replay is recorded alike however soon it is back, before any restore. The comment is reread
+  behind that retirement, evidence written back retired again and the tick held, a successor or another attempt in its
+  place holding the tick with nothing reset; one refused for room or twice is asked again over the comment read whole,
   blanking the base tip in a shrinking write where room still lacks or that retirement is refused
   (`rewrite_recovery_staging.lands_the_retirement`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the

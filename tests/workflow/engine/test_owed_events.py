@@ -23,19 +23,15 @@ _PARKED = "park_awaiting_human"
 
 # The audit log's setting, unset where no log vouches for an absence.
 _LOG = "EVENT_LOG_PATH"
-
 _NAMED = MappingProxyType({"issue_number": 7, "reason": "auto_base_rebase_push_failed"})
 
 # Two repositories' clients, each minting its own workers, and what they are built with.
 _SLUGS = ("owner/repo", "owner/other")
-
 _TOKEN = "tok"
-
 _BOT = "bot"
 
 # Two recovery park notices of one issue, parked for the same reason.
 _SAID = "Reset failed; inspect the checkout."
-
 _OTHER = "Reset succeeded; continue after repair."
 
 

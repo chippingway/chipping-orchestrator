@@ -36,23 +36,17 @@ _HEAD_SHA = _probes._head_sha
 
 # The checkout leaves behind the proof's issue read or reading client, back at that loss's reading or the block's end.
 _BEHIND_A_READ = handoff.Boundary("behind an issue read", "get_issue", lambda *_called: True)
-
 _EXITS = "__exit__"
-
 _AT_ITS_LOSS = handoff.Boundary("at its loss", _EXITS, lambda _held, kind, *_rest: kind is FileNotFoundError)
-
 _BEHIND_THE_CLIENT = handoff.Boundary("behind the proof's client", "asks_every_reading", lambda *_called: True)
-
 _BEHIND_THE_BLOCK = handoff.Boundary("behind the proof's block", _EXITS, lambda *_called: True)
 
 # The handoff a movement mark takes the place of, and the usage total another road's write moves.
 _HANDOFF = "verification_evidence_handoff"
-
 _USAGE = "issue_total_tokens"
 
 # How a case resets the checkout, and the undriven label under which the dispatcher's hold strands the attempt.
 _PUTS_BACK = ("reset", "--quiet", "--hard")
-
 _UNDRIVEN = "workflow:resolving_conflict"
 
 
@@ -117,7 +111,6 @@ class _ChargesTheClear:
 
 # The dispatcher's hold of an anchor, and what answers one under an undriven label: that hold or the eligibility gate.
 _HOLDS = guarded.answers_a_held_anchor
-
 _CLEARS = (
     ("the dispatcher's hold", guarded.answers_a_held_anchor),
     ("the eligibility gate", lambda case: case.recovers()),

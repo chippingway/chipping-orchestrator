@@ -28,19 +28,15 @@ from tests.workflow.engine import (
 
 # The report record the run is bound to, the revision another road moves it to, and the seams a case stands in for.
 _REPORT = "developer_report_current"
-
 _REVISION = "revision"
 
 # The current record a settled run stands in, which the write invalidating it drops.
 _CURRENT = "verification_evidence_current"
-
 _FETCHES = "_authed_fetch"
-
 _GIT = "_git_hardened"
 
 # Where the checkout goes from disk, and a label the refresh does not drive: the dispatcher's hold strands the attempt.
 _AWAY = "checkout-away"
-
 _UNDRIVEN = "workflow:resolving_conflict"
 
 
@@ -187,6 +183,35 @@ class GoneCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.issue.labels = [FakeLabel(git_support.REVIEWING)]
                 self.recovers()
                 self.assert_routed(head)
+
+    def test_a_loss_the_skip_selection_reads(self) -> None:
+        # The refresh's skip selection reads HEAD for a decided commit and finds the checkout gone, back as that failure
+        # unwinds: the run, captured or settled, is still retired whole before anything routes the head.
+        for captures in (False, True):
+            with self.subTest(captured=captures):
+                self.setUp()
+                run = (self.captures() if captures else self.settles_then_dies())[1]
+                decided = self.gh.read_pinned_state(self.issue)
+                decided.set("implementing_published_sha", self.anchor)
+                self.gh.write_pinned_state(self.issue, decided)
+                self.issue.labels = [FakeLabel("workflow:implementing")]
+                self._held = []
+                with patch.object(commands, _GIT, partial(self._gone_at_the_head, commands._git_hardened)):
+                    self.recovers()
+
+                (self.assert_abandoned if captures else self.assert_invalidated)(run)
+
+    def _gone_at_the_head(self, live, verb, *asked, **options):
+        """`live`, the hardened git call, the checkout away for its first `rev-parse` there, back as that unwinds."""
+        if self._held or verb != "rev-parse" or options.get("cwd") != self._wt:
+            return live(verb, *asked, **options)
+        self._held.append(self._wt.with_name(_AWAY))
+        self._wt.rename(self._held[0])
+        try:
+            return live(verb, *asked, **options)
+        except FileNotFoundError:
+            self._held[0].rename(self._wt)
+            raise
 
     def _strands_over_a_moved_report(self):
         """Move the report and the checkout away, and hold the anchor, the first record's answer lost; where it went."""

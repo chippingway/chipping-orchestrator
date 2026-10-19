@@ -83,11 +83,8 @@ def abandons_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCon
 
 
 def proves_captured(
-    context: _AutoRebaseRecoveryContext,
-    snapshot: _AutoRebaseRecoverySnapshot,
-    moved: ReportEvidence | None = None,
-    *,
-    asks: Asks | None = None,
+    context: _AutoRebaseRecoveryContext, snapshot: _AutoRebaseRecoverySnapshot, moved: ReportEvidence | None = None,
+    *, asks: Asks | None = None,
 ) -> bool:
     """Prove the transaction a finish captured for the landed head, abandoning it where it moved; whether none stands.
 
@@ -104,10 +101,7 @@ def proves_captured(
     finish = _finish(context, pending.binding.target.target_head, snapshot, None)
     proof = moved or _captured.proved_again(finish, pending, asks)
     moved = last_word(
-        finish,
-        pending.binding,
-        earlier=proof,
-        records=None if asks is None else (
+        finish, pending.binding, earlier=proof, records=None if asks is None else (
             lambda state, _issue: (asks(state, pending.receipt),)
         ),
     )[0]
@@ -136,24 +130,18 @@ def _stands(finish: LandedFinish, pending: _records.PendingEvidence) -> bool:
 
 
 def _finish(
-    context: _AutoRebaseRecoveryContext,
-    head: str,
-    snapshot: _AutoRebaseRecoverySnapshot,
+    context: _AutoRebaseRecoveryContext, head: str, snapshot: _AutoRebaseRecoverySnapshot,
     candidate: _RewriteCandidate | None,
 ) -> LandedFinish:
     """The finish of `head`'s landing as `snapshot` read it, over `candidate` or the checkout read now."""
     read = candidate or _recovery_push._recovered_candidate(context, snapshot)
     return LandedFinish(
-        gh=context.gh,
-        spec=context.spec,
-        issue=context.issue,
-        state=context.state,
+        gh=context.gh, spec=context.spec, issue=context.issue, state=context.state,
         landed=_LandedRewrite(
             candidate=replace(read, checkout=replace(read.checkout, head=head)),
             outcome=_PushOutcome.OBSERVED,
             remote=_RefRead(sha=snapshot.remote_head),
         ),
         label=_replay_evidence._recovered_stage(context.label),
-        road=FinishRoad.RECOVERY,
-        proves_settled=True,
+        road=FinishRoad.RECOVERY, proves_settled=True,
     )

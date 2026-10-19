@@ -2363,17 +2363,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             With no audit log the notice said is taken as its event filed unless this process owes it
                             (`owed_events.py`), so a restart between a park's notice and record files it at most once
     rewrite_recovery_parks.py
-                            the answers every recovery context carries -- each recovery road's, a reset's tail, both
-                            replay parks, and an ineligible label among them (`rewrite_recovery.recovers`), the abort's
-                            over an uncountable lag (`rewrite_recovery.answers_an_unreadable_checkout`), the eligibility
-                            gate's park of an ineligible label (`base_rewrite.py`), the dispatcher's stranded park of an
-                            anchor it holds a handler back for (`answers_a_held_anchor`, which asks the hold itself and
-                            records a checkout its question or answer finds gone), whose quiet holds ask the same proof
-                            every poll: the park every recovery park is recorded through (`lands_a_park`, the
-                            answer `git/base_sync/persistence._parks_the_recovery` transports): the notice posted
-                            and the park staged as every auto-rebase park is -- or a notice already said taken in
-                            instead (`rewrite_recovery_notices.py`) -- then landed through the guarded commit
-                            (`report_commits.ReportCommit`) as `PARK` -- owning what the tick staged since its
+                            the answers every recovery context carries -- each recovery road's
+                            (`rewrite_recovery.recovers`), the uncountable lag's abort's, the eligibility gate's
+                            (`base_rewrite.py`), and the dispatcher's held anchor's (`answers_a_held_anchor`, its quiet
+                            holds proving every poll): the park every recovery park is recorded through (`lands_a_park`,
+                            transported by `git/base_sync/persistence._parks_the_recovery`): the notice posted and the
+                            park staged -- or a notice already said taken in (`rewrite_recovery_notices.py`) -- then
+                            landed through the guarded commit (`report_commits.ReportCommit`) as `PARK` -- owning what
+                            the tick staged since its
                             reading, the attempt a landed reset drops and the evidence retired beside it included,
                             decided on the attempt, the park's flags, and the evidence records, and keeping every
                             other field as the fresh comment carries it -- so a report another road settled or a
@@ -2415,13 +2412,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the context's `records_before_a_reset`), decided on every evidence record and the attempt as
                             the tick read them (`rewrite_finish_writes.INVALIDATION`), so evidence settled since refuses
                             it, and a blank refused or never confirmed holds with nothing reset or cleaned, the tick's
-                            state withheld so its stale tip is never written back over a blank that landed unconfirmed,
-                            and what its commit read moving under the evidence proved as read, so putting that back
-                            revives nothing -- behind a landed blank too, before the reset goes on, since a reset git
-                            refuses stages the tip back, the reset held where that retirement does not land -- and over
-                            a checkout gone from disk, where no landing proves it, retired as over a reset in a `CLEAR`
-                            write of its own whether or not the blank landed, over a tip another road put back behind it
-                            among the rest (`rewrite_recovery_staging.lands_the_retirement`)
+                            state withheld, and what its commit read moving proved as read before the reset goes on, the
+                            reset held where that retirement does not land; over a checkout read gone, however soon it
+                            returns, retired as over a reset in a `CLEAR` write of its own
+                            (`rewrite_recovery_staging.lands_the_retirement`)
     rewrite_recovery_readings.py
                             the client the recovery's proof before a park or hold that
                             keeps the attempt (`rewrite_landing_retirement.retires_unproved`) builds its finishes over,

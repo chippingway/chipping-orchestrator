@@ -29,7 +29,6 @@ MOVED_RECORDS = ("developer_report_current", "developer_report_handoff", "review
 # Room on the pinned comment for the run's history entry and the park behind
 # it, and short of the landing's report debt and the announcement it rides.
 SHORT_OF_THE_DEBT = 250
-
 QUIET = "--quiet"
 
 

@@ -47,7 +47,6 @@ REWOUND_BASE = "0bad0bad" * 5
 
 # The revision floor another road records behind the gate's answer, and what it records.
 FLOOR = "verification_evidence_revision"
-
 ANOTHER_ROADS_FLOOR = 17
 
 
