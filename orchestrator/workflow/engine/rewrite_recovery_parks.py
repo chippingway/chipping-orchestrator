@@ -333,7 +333,7 @@ def proves_before_a_park(
     with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:
         if proving.worktree.is_dir() and not (lost and _retirement.receipts(proving.state)):
             return _retirement.retires_unproved(proving, moved)
-        return records_the_reset(proving, lost=lost)
+        return records_the_reset(proving, lost=lost or (proving.worktree,))
 
 
 def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
@@ -356,18 +356,12 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
     never written back over a blank that landed unconfirmed.
     Movement the record's commit read (`rewrite_landing_retirement.moved_under`)
-    -- landed, refused, or sent with its answer lost -- is proved as read first,
-    so a report moved or a tip blanked and put back under it revives nothing:
-    behind a landed blank what moved is retired before the reset goes on, as a
-    reset git then refuses stages the tip back, and a retirement not landing
-    answers False, the blank recording that movement. Over a checkout gone from
-    disk, nothing to prove it over, the evidence is retired as over a reset
-    (`rewrite_recovery_staging.lands_the_retirement`) in its own `CLEAR` write,
-    blank landed or not, even over a tip another road put back behind it; True
-    there only where both landed and the comment reread behind carries back
-    none of what it retired, nor a successor or another attempt in its place --
-    over one `lost` names, its caller having read it off the landing, however
-    soon it is back. One gone as the record is asked is movement under every evidence held.
+    is proved as read first, so what moved is retired before the reset goes on,
+    False where that does not land. Over a checkout gone from disk, or one
+    `lost` names however soon it is back, the evidence is retired as over a
+    reset in its own `CLEAR` write (`rewrite_recovery_staging.lands_the_retirement`),
+    blank landed or not; True only where both landed and nothing it retired,
+    no successor or other attempt, is read back.
     """
     moved: dict[str, ReportEvidence] = {}
     if not context.worktree.is_dir():

@@ -142,17 +142,11 @@ def answers_an_unreadable_checkout(context: _AutoRebaseContext, consumed_comment
     No road below can classify that checkout, so the refresh takes the abort
     directly (`git/base_sync/recovery_holds._answers_an_unreadable_checkout`).
     Its reset is movement like any recovery road's, so it is handed the same
-    answers to it: recorded ahead of the reset as every recovery reset is
-    (`rewrite_recovery_parks.records_the_reset`), and once it landed, the
-    verification transaction a finish of the attempt captured -- the one under
-    the receipt on the attempt, announced or not -- and evidence one settled
-    go in the write that releases the attempt, or neither does
-    (`rewrite_landing_retirement.retires_over_the_reset`). That park, and the
-    one a reset that did not land takes over the proof it asks first
-    (`rewrite_recovery_parks.proves_before_a_park`), land as every recovery
-    park does (`rewrite_recovery_parks.lands_a_park`). A checkout the abort's
-    git requests find gone from disk has that loss recorded
-    (`RecordsALostCheckout`), and the abort owns the tick.
+    answers to it: recorded first (`rewrite_recovery_parks.records_the_reset`),
+    then what a finish captured or settled released with the attempt or kept
+    (`rewrite_landing_retirement.retires_over_the_reset`), each park proved
+    and landed as every recovery park is; a checkout its git requests find
+    gone has that loss recorded (`RecordsALostCheckout`), the abort owning it.
     """
     recovering = _recovery._recovery_context(context, consumed_comment_id)
     owns = True
@@ -186,17 +180,11 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     Every road that resets the checkout drops the attempt in one write, and
     the recovery's answer to that movement rides it: the context the roads
     are handed carries `rewrite_landing_retirement.retires_over_the_reset`,
-    asked by the git owner once a reset landed and before the drop, keeping the
-    attempt where settled evidence has no room to retire into history -- and
-    the proof every park keeping the attempt asks first
-    (`rewrite_recovery_parks.proves_before_a_park`). Every reset is recorded
-    before it moves the checkout against evidence a finish captured or settled
-    for the landed head (`rewrite_recovery_parks.records_the_reset`), decided
-    on the evidence records as read, so evidence settled since holds it. Every
-    park, that drop's included, and an ineligible label's clear land over the
-    comment read afresh (`rewrite_recovery_parks.lands_a_park`,
-    `rewrite_recovery_parks.lands_a_clear`), a park keeping what another road
-    wrote while its notice went out and proving what it keeps again behind it.
+    keeping the attempt where settled evidence has no history room, and the
+    proof every park keeping it asks (`rewrite_recovery_parks.proves_before_a_park`).
+    Every reset is recorded first (`rewrite_recovery_parks.records_the_reset`),
+    and every park and ineligible clear lands over the comment read afresh
+    (`rewrite_recovery_parks.lands_a_park`, `rewrite_recovery_parks.lands_a_clear`).
     """
     owing = replace(
         context,

@@ -179,10 +179,8 @@ def asks_every_reading(
 def stands_as_recovered(context: _AutoRebaseRecoveryContext) -> bool:
     """Whether `context.state` still carries the attempt `context` recovers, rather than another in its place.
 
-    The proof's rechecks lay an attempt another road put in place over the
-    tick's state as read, for the caller to hold over, not route past. The
-    anchor and replay the attempt records name it; its base tip and a finish's
-    bookkeeping of its landing move under the same attempt, so neither counts.
+    Named by the anchor and replay it records, for a caller to hold over an
+    attempt another road put in place; its base tip and bookkeeping never count.
     """
     state = context.state
     read = (state.get(_base_sync_state._PENDING_PUSH_SHA), _attempt_records._pending_rewrite(state))

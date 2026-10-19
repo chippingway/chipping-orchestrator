@@ -1524,16 +1524,13 @@ because there it is the claim that this stage has already rerouted rather than a
   reset that failed keeps both, save a transaction the snapshot already read the landing move under. Publishing and
   settling the recorded transaction is the finish's own, under the anchor (the bullet above). Evidence a finish
   already settled for the head is held to the same readings on every recovery context the workflow builds -- each
-  recovery road's (`rewrite_recovery.recovers`), the abort's (`rewrite_recovery.answers_an_unreadable_checkout`), the
-  eligibility gate's park of an ineligible label (`workflow/engine/base_rewrite.py`), and the dispatcher's answer to a
-  held anchor (`rewrite_recovery_parks.answers_a_held_anchor`). It is invalidated whole wherever a snapshot reads the
-  landing off its head (`rewrite_landing_moved`); the reset is recorded first by blanking the attempt's base tip in a
-  write decided on the evidence records as the tick read them (`rewrite_recovery_parks.records_the_reset`), so no reset
-  or clean moves the checkout before that record is confirmed landed and evidence it read moving retired, a tip a reset
-  git refused stages back reviving none of it; settled evidence is invalidated whole in the write releasing the attempt
-  (`rewrite_landing_retirement.retires_over_the_reset`), or kept whole beside it with nothing released where history has
+  recovery road's, the abort's, the eligibility gate's, and the dispatcher's held anchor's. It is invalidated whole
+  wherever a snapshot reads the landing off its head (`rewrite_landing_moved`); the reset is recorded first by blanking
+  the attempt's base tip (`rewrite_recovery_parks.records_the_reset`), so no reset or clean moves the checkout before
+  that record lands and what it read moving is retired; settled evidence is invalidated whole in the write releasing the
+  attempt (`rewrite_landing_retirement.retires_over_the_reset`), or kept whole with nothing released where history has
   no room; and the proof before a park (`rewrite_recovery_parks.proves_before_a_park`) is asked ahead of every park or
-  hold keeping the attempt on every poll, the dispatcher's quiet holds and a stranded park already standing included --
+  hold keeping the attempt on every poll, quiet holds and standing stranded parks included --
   a captured run and settled evidence proved there by a finish built for the proof alone (the policy bullet below), each
   whatever the other's proof answered, evidence another road settled for the head beside a captured run alone, or under
   a receipt movement was already read under -- the tick holding no evidence at all among it -- taken in from the comment
@@ -1587,7 +1584,7 @@ because there it is the claim that this stage has already rerouted rather than a
   dispatcher's hold, or the eligibility gate's, which hold the tick -- has the reset recorded and the evidence retired
   as over it, each in a write of its own, so a quiet hold, a park already standing, or a refused record leaves it
   retired however soon the base tip is put back (`rewrite_recovery_parks.proves_before_a_park`); one the dispatcher's
-  hold reads gone or off the replay, ahead of its proof or behind, or a git request's failure names, is recorded and
+  hold, the landed road, or a proof reads gone or off the replay, or a git request's failure names, is recorded and
   retired alike however soon it is back, before any restore. The comment is reread behind that retirement, so evidence
   written back behind it is retired again and the tick held, and a successor or another road's attempt in its place
   holds the tick with nothing reset; one refused for room or twice is asked again over the comment read whole, blanking

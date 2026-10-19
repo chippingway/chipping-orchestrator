@@ -32,6 +32,7 @@ from unittest.mock import patch
 from orchestrator.git.base_sync import persistence, rewrite_facts
 from orchestrator.git.verification import probes
 from orchestrator.workflow.engine import (
+    rewrite_landing_moved as _moved,
     rewrite_recovery_parks as _parks,
     verification_settlement_state as _settlement,
 )
@@ -93,9 +94,9 @@ def _refuses_the_record(refused: set, live, issue, state, **options):
 _AT_THE_RECORD = handoff.Boundary("at the record", _EDITS, _records)
 
 # The proof's staging guard, the checkout put back right behind it, before the proof reads the directory itself; and
-# the hold's own reading -- its proof, or its read of HEAD -- a move is made right behind.
+# any step's first call, a move made right ahead of it or behind.
 _AHEAD_OF_THE_PROOF = handoff.Boundary("ahead of the proof", "keeps_the_staging", lambda *_called, **_options: True)
-_BEHIND_THE_READ = handoff.Boundary("behind the hold's read", "", lambda *_called, **_options: True)
+_FIRST_CALL = handoff.Boundary("at the first call", "", lambda *_called, **_options: True)
 _REMOVES = ("worktree", "remove", "--force")
 
 
@@ -219,6 +220,36 @@ class MissingCheckoutRecordTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
                 self._assert_read_moving(settled)
 
+    def test_a_loss_back_before_the_record(self) -> None:
+        # The landed road hands the proof a checkout it read gone, or the proof reads it gone itself, back before the
+        # proof or its record reads it again, the first blank refused: the run is still retired whole.
+        for delegates, captures in product((True, False), (False, True)):
+            with self.subTest(delegated=delegates, captured=captures):
+                self.setUp()
+                run = (self.captures() if captures else self.settles_then_dies())[1]
+                self._answers_a_loss_back(delegates=delegates)
+
+                (self.assert_abandoned if captures else self.assert_invalidated)(run)
+                self.recovers()
+                self.assertEqual(readings.pinned_records(self)[:2], (None, None))
+
+    def _answers_a_loss_back(self, *, delegates: bool) -> None:
+        """The landed road delegating, or the proof reading, a checkout gone, back ahead of the proof or its record."""
+        context = guarded.recovery_context(self)
+        away = self._wt.with_name(_AWAY)
+        self._wt.rename(away)
+        back = partial(away.rename, self._wt)
+        races = ("records_the_reset", _FIRST_CALL.racing(_parks.records_the_reset, back, lambda: None))
+        if delegates:
+            races = ("keeps_the_staging", _AHEAD_OF_THE_PROOF.moving(_parks.keeps_the_staging, back))
+        blank = _FIRST_CALL.racing(
+            self.gh.edit_pinned_state,
+            partial(self.gh.pinned_failures.refused.add, self.issue.number),
+            partial(self.gh.pinned_failures.refused.discard, self.issue.number),
+        )
+        with patch.object(_parks, *races), patch.object(self.gh, _EDITS, blank):
+            (_moved.abandons if delegates else _parks.proves_before_a_park)(context)
+
     def _holds_unrecorded(self, context, failing: str) -> None:
         """Hand the guarded hold `context`, its record refused or the process killed before it."""
         if failing == _KILLED:
@@ -308,7 +339,7 @@ class MovedCandidateTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             moves = partial(self._git, *_REMOVES, checkout, cwd=self._work)
         else:
             self._git("reset", "--quiet", "--hard", self.anchor, cwd=self._wt)
-        with patch.object(owner, read, _BEHIND_THE_READ.moving(getattr(owner, read), moves)):
+        with patch.object(owner, read, _FIRST_CALL.moving(getattr(owner, read), moves)):
             guarded.answers_a_held_anchor(self)
 
     def _gone_while_read(self, live, *read, **options):

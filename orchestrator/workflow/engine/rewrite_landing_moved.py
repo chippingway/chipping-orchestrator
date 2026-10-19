@@ -101,5 +101,5 @@ def abandons(context: _AutoRebaseRecoveryContext, *, read: bool = True) -> bool:
     """
     held = _retirement.receipts(context.state)
     if held and not context.worktree.is_dir():
-        return _recovery_parks.proves_before_a_park(context)
+        return _recovery_parks.proves_before_a_park(context, lost=(context.worktree,))
     return _retirement.retires_unproved(context, dict.fromkeys(held, LEFT_THE_LANDING) if read else None)

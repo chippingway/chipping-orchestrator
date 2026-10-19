@@ -1063,17 +1063,14 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   and beside a label the issue already wore against the audit log where one is configured. The recovery's guarded
   operations are built on the same readiness primitives, and every recovery context the workflow builds carries those
   its road asks (`workflow/engine/rewrite_recovery.py`, `base_rewrite.py`, `dispatch_guards.py`): the settled-aware
-  answer to a landed reset and the proof before a park or hold that keeps the attempt
-  (`workflow/engine/rewrite_landing_retirement.py`), which retire settled evidence whole beside a captured run and
-  refuse the attempt's release where history has no room for it; and the reset recorded against captured or settled
-  evidence before git moves the checkout, with every recovery park landed through the guarded commit over the comment
-  read afresh and proving what it keeps once more behind its notice (`workflow/engine/rewrite_recovery_parks.py`), each
-  an answer the git owner transports (`settles_over_a_reset`, `records_before_a_reset`, `proves_before_a_park`,
-  `lands_a_park`) -- a park made again over a notice already said taking it in rather than posting it twice
-  (`workflow/engine/rewrite_recovery_notices.py`). A publication gate's hold of the landed road's leased no-op or of the
-  retry's reissued push is recorded through the guarded hold, its proof taken first (`lands_a_hold`), and the ordinary
-  publication's gate hold lands as the same `HOLD` write over the comment read afresh, with nothing pushed for a proof
-  to answer (`workflow/engine/rewrite_publication.py`). The finish runs under its caller's issue writer claim.
+  answer to a landed reset and the proof before a park or hold (`workflow/engine/rewrite_landing_retirement.py`),
+  retiring settled evidence whole or refusing the release where history has no room; and the reset recorded before git
+  moves the checkout, every recovery park landed guarded over the comment read afresh and proved again behind its notice
+  (`workflow/engine/rewrite_recovery_parks.py`) -- answers the git owner transports (`settles_over_a_reset`,
+  `records_before_a_reset`, `proves_before_a_park`, `lands_a_park`), a park made again over a notice already said taking
+  it in (`workflow/engine/rewrite_recovery_notices.py`). A gate's hold of the landed road's no-op or the retry's push is
+  recorded through the guarded hold, proof first (`lands_a_hold`), and the ordinary publication's as the same `HOLD`
+  write (`workflow/engine/rewrite_publication.py`). The finish runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from
