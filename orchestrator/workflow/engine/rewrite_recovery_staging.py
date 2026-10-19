@@ -20,7 +20,9 @@ later write of the proof sends it -- usage among it -- a second time.
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
 (`rewrite_landing_retirement.retires_over_the_reset`) in a guarded write of
-its own (`lands_the_retirement`), asked again over the comment read afresh.
+its own (`lands_the_retirement`), asked again over the comment read afresh --
+read first where the tick holds nothing, so evidence put back since its
+reading is retired too, not left current behind an empty answer.
 
 Both are dormant, as that proof is: no recovery context the workflow builds
 reaches them.
@@ -125,12 +127,22 @@ def lands_the_retirement(
     Retired as over a reset, then asked again over the comment read afresh (`_lands`) -- its decided-on fields and
     every evidence record, a successor's floor and handoff among them, laid behind a write, the whole reading behind
     a refusal for room or a second -- evidence put back retired again, and False.
-    A successor or another attempt is left alone, False; True where nothing held stands. A state nothing was read into
-    is staged only. `held` is the receipts first asked over; `behind` marks the last asking.
+    A successor or another attempt is left alone, False; True where nothing held stands. Where the tick holds nothing
+    at the first asking, the comment is read afresh and laid over its state first, so evidence another road put back
+    since the tick's reading is retired rather than left current behind an answer of True; a comment that would not
+    read is False. A state nothing was read into is staged only. `held` is the receipts first asked over; `behind`
+    marks the last asking.
     """
     asked = _retirement.receipts(context.state) if held is None else held
     if context.state.synced is None:
         return _retirement.retires_over_the_reset(context, _GONE)
+    if held is None and not asked:
+        durable = _durable.durable_comment(context.gh, context.issue, context.state)[0]
+        if durable is not None:
+            _lays(context.state, durable.data, write.decided_on | _durable._EVIDENCE_RECORDS)
+            _commit.takes_in(context.state, durable.data, write.decided_on | _durable._EVIDENCE_RECORDS)
+        fresh = _retirement.receipts(context.state)
+        return durable is not None and lands_the_retirement(context, write, fresh)
     standing = _retirement.receipts(context.state)
     if standing - asked or not _readings.stands_as_recovered(context):
         return False

@@ -19,6 +19,7 @@ from unittest.mock import patch
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.base_sync import attempts as _attempts
 from orchestrator.github.pinned_state import PinnedEdit
+from orchestrator.workflow.engine import rewrite_recovery_parks as _parks
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
     guarded_recovery_support as guarded,
@@ -34,12 +35,26 @@ _REVISION = "revision"
 # The current record a settled run stands in, which the write invalidating it drops.
 _CURRENT = "verification_evidence_current"
 _FETCHES = "_authed_fetch"
+_EDITS = "edit_pinned_state"
 _GIT = "_git_hardened"
 _RESET = "reset"
+
+# The run's current record and its base tip, as another road takes them off and puts them back.
+_RUN_AND_TIP = (_CURRENT, readings.KEY_REWRITE_BASE)
 
 # Where the checkout goes, and a label the refresh does not drive, stranding the attempt.
 _AWAY = "checkout-away"
 _UNDRIVEN = "workflow:resolving_conflict"
+
+
+def _writes(case, fields: dict, *, clears: bool = False) -> None:
+    """Write each of `fields` onto `case`'s comment, its attempt cleared first where `clears`, as another road would."""
+    state = case.gh.read_pinned_state(case.issue)
+    if clears:
+        _attempts._clears_the_attempt(state)
+    for key, field_value in fields.items():
+        state.set(key, field_value)
+    case.gh.write_pinned_state(case.issue, state)
 
 
 def _refuses_the_reset(live, asked: list, verb: str, *args, **options) -> subprocess.CompletedProcess:
@@ -95,7 +110,7 @@ class RecordedMoveTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self._resets = []
         with (
             patch.object(branch_transport, _FETCHES, self._moves_the_report),
-            patch.object(self.gh, "edit_pinned_state", partial(self._puts_the_report_back, self.gh.edit_pinned_state)),
+            patch.object(self.gh, _EDITS, partial(self._puts_the_report_back, self.gh.edit_pinned_state)),
             patch.object(commands, _GIT, partial(_refuses_the_reset, getattr(commands, _GIT), self._resets)),
         ):
             self.recovers()
@@ -183,6 +198,50 @@ class GoneCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assert_recovered(head)
                 self.assertEqual(readings.pinned_records(self)[:2], (None, None))
 
+    def test_a_run_put_back_behind_the_blank(self) -> None:
+        # The tick reads no run current over a checkout gone, and another road puts the run and its base tip back right
+        # behind the reset record's blank: the retirement reads the comment afresh and retires the run whole before
+        # the proof goes on.
+        run = self.settles_then_dies()[1]
+        written = dict(zip(_RUN_AND_TIP, self.pinned_fields(*_RUN_AND_TIP), strict=True))
+        answered = self._proves_over_nothing_held(partial(_writes, self, written))
+        self.assertEqual(answered, (True, False))
+        records = readings.pinned_records(self)
+        self.assertIsNone(records[1])
+        self.assertIn((run.receipt, readings.INVALIDATED), records[2])
+
+    def test_an_attempt_pinned_behind_the_blank_holds(self) -> None:
+        # Another road pins a fresh attempt right behind that blank instead: the retirement reads it afresh and holds,
+        # the tick's state withheld, so nothing it carries is written back over that attempt.
+        head = self.settles_then_dies()[0]
+        pinned = fixtures.attempt_record(head, "", git_support.PR_NUMBER, git_support.REVIEWING)
+        answered = self._proves_over_nothing_held(partial(_writes, self, pinned, clears=True))
+        self.assertEqual(answered, (False, True))
+        standing = readings.pinned(self)
+        self.assertEqual({key: standing.get(key) for key in pinned}, pinned)
+
+    def _proves_over_nothing_held(self, behind) -> tuple[bool, bool]:
+        """Prove over the run taken off and the checkout gone, `behind` made right behind the reset record's blank; the
+        proof's answer, and whether the tick's state is withheld."""
+        _writes(self, {_CURRENT: None})
+        context = guarded.recovery_context(self)
+        self._wt.rename(self._wt.parent / _AWAY)
+        self._behind = [behind]
+        makes = partial(self._makes_behind_the_blank, self.gh.edit_pinned_state)
+        with patch.object(self.gh, _EDITS, makes):
+            proved = _parks.proves_before_a_park(context)
+        self.assertEqual(self._behind, [])
+        return proved, context.state.withheld
+
+    def _makes_behind_the_blank(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, what is held behind made right behind the first edit blanking the tip."""
+        answered = live(issue, staged, **options)
+        tip = readings.KEY_REWRITE_BASE
+        read = options["over"].get(tip)
+        if read and not staged.get(tip) and self._behind:
+            self._behind.pop()()
+        return answered
+
     def _strands_over_a_moved_report(self):
         """Move the report and the checkout away, and hold the anchor, the first record's answer lost; where it went."""
         report = self.pinned_fields(_REPORT)[0]
@@ -193,7 +252,7 @@ class GoneCheckoutTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         away = self._wt.parent / _AWAY
         self._wt.rename(away)
         self.issue.labels = [FakeLabel(_UNDRIVEN)]
-        with patch.object(self.gh, "edit_pinned_state", partial(self._answers_lost_once, self.gh.edit_pinned_state)):
+        with patch.object(self.gh, _EDITS, partial(self._answers_lost_once, self.gh.edit_pinned_state)):
             guarded.answers_a_held_anchor(self)
         self.assertEqual(self._held, [])
         return away
@@ -220,7 +279,7 @@ class ReplacedAttemptTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         resets: list = []
         with (
             patch.object(branch_transport, _FETCHES, self._takes_the_report_off),
-            patch.object(self.gh, "edit_pinned_state", partial(self._replaces_behind, self.gh.edit_pinned_state)),
+            patch.object(self.gh, _EDITS, partial(self._replaces_behind, self.gh.edit_pinned_state)),
             patch.object(commands, _GIT, partial(_notes_the_reset, getattr(commands, _GIT), resets)),
         ):
             self.recovers()
