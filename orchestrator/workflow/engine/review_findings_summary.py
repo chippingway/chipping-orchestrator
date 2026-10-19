@@ -13,15 +13,16 @@ A parameter may hold the very dash that parts a node ID from its message, and
 even text of a message's shape after it, while a message may hold a bracket
 and a dash of its own; so where the ID ends is read beside what names one. It
 is the longest whose section -- one of the line's run pytest printed for that
-test, or a failure `--tb=line` printed untitled -- shows the exception the
-message after it opens, since one test's ID may run on into another's where
-parameters overlap; else the longest an entry of the findings names whole, or
-pytest titled a section by. Where nothing names one, it ends on the first
-split leaving a message of the shape pytest gives -- a rewritten assertion's
-`assert`, or the name of the exception, a colon after it unless it says
-nothing more -- so the message is never cut short, and where a later split
-leaves one too the line says so (`SummaryLine.unsure`): the ID may run on into
-what is read as its message. Where no split leaves one, it ends on the first.
+test, or a failure `--tb=line` printed untitled, the first no line took yet --
+shows the exception the message after it opens, since one test's ID may run on
+into another's where parameters overlap; else the longest an entry of the
+findings names whole, or pytest titled a section by. Where nothing names one,
+it ends on the first split leaving a message of the shape pytest gives -- a
+rewritten assertion's `assert`, or the name of the exception, a colon after it
+unless it says nothing more -- so the message is never cut short, and where a
+later split leaves one too the line says so (`SummaryLine.unsure`): the ID may
+run on into what is read as its message. Where no split leaves one, it ends on
+the first.
 """
 from __future__ import annotations
 
@@ -74,9 +75,9 @@ _ERRORED = "ERROR"
 # Where a node ID ends, and whether a later split could end it as well.
 _End = tuple[int, bool]
 
-# How surely a node ID is a summary line's, given the message after it:
-# higher is surer, 0 where nothing names it.
-_Naming = Callable[[str, str], int]
+# How surely a node ID is a summary line's, given the message after it: a
+# key, the greatest surest, empty where nothing names it.
+_Naming = Callable[[str, str], tuple[int, ...]]
 
 
 @dataclass(frozen=True)
@@ -102,8 +103,8 @@ class SummaryLine:
 
         `named` says how surely a node ID is the line's, given the message
         after it: by a section pytest printed for it showing that message's
-        exception, or by its title, or by an entry of the findings naming it
-        whole.
+        exception -- the first such no line took yet -- or by its title, or by
+        an entry of the findings naming it whole.
         """
         summary = _SUMMARY_RE.fullmatch(line)
         if summary is None:

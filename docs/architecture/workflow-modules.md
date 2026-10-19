@@ -233,26 +233,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             interrupted, and otherwise as an error in any of the three, and an `ERROR` path as its
                             collection, never a test ID -- one of any shape, a doctest's text file too, its path holding
                             blanks or not, where pytest says it failed collecting it or the run was interrupted
-                            collecting -- by its section alone where no summary line reports it, as with `-rN` -- words
-                            naming no Python file being no collection without that -- each with the error its line
-                            gives, else -- a line too long for the terminal carries none -- the exception of the section
-                            pytest printed for it (`review_findings_pytest`), else the error of the entry naming it,
-                            else a line saying the summary gave none; every one of them, however many. A check pytest's
-                            summary names nothing in is led by every `Failure:` entry of the findings, however many,
-                            whose `Error:` -- or the code block's last line below an empty one -- its output shows,
-                            matched by that error and never by command, so two runs of one stdin command each lead with
-                            their own scenario; else by a line saying no test ID or scenario name was recorded. A lead
-                            says too where the check quoted no output, and, whatever names its failures, where its
-                            command reads its code from stdin -- a `-` argument, split as a shell splits it, after no
-                            program given inline (`-c`, `-e`), by module (`-m`), or as a script -- and no entry it backs
-                            gives the snippet as a code block holding code below its `Reproduce:` line, however the line
-                            names the command. No lead line opens on a declaration keyword, and the names and errors it
-                            takes from output stand in code spans. The reviewer's own text is shown through here too
-                            (`said`): its entries with what each leaves out said, and each check the concise layout
-                            before leads showed -- a sentence opening a paragraph at the margin, outside any code block,
-                            closing it on a period or on a colon over a bare backtick fence holding the output -- led as
-                            a check read off a declaration is, since that layout's feedback holds no declaration to read
-                            its checks from again
+                            collecting -- by its section alone where no summary line reports it, as with `-rN`, as is a
+                            setup or teardown a section says failed, and, where the run printed no short summary, a
+                            test's own section by its title, none said to give a test ID -- words naming no Python file
+                            being no collection without that -- each with the error its line gives, else -- a line too
+                            long for the terminal carries none -- the exception of the section pytest printed for it
+                            (`review_findings_pytest`), else the error of the entry naming it, else a line saying the
+                            summary gave none; every one of them, however many. A check pytest's summary names nothing
+                            in is led by every `Failure:` entry of the findings, however many, whose `Error:` -- or the
+                            code block's last line below an empty one -- its output shows, matched by that error and
+                            never by command, so two runs of one stdin command each lead with their own scenario; else
+                            by a line saying no test ID or scenario name was recorded. A lead says too where the check
+                            quoted no output, and, whatever names its failures, where its command reads its code from
+                            stdin -- a `-` argument, split as a shell splits it, after no program given inline (`-c`,
+                            `-e`), by module (`-m`), or as a script -- and no entry it backs gives the snippet as a code
+                            block holding code below its `Reproduce:` line, however the line names the command. No lead
+                            line opens on a declaration keyword, and the names and errors it takes from output stand in
+                            code spans. The reviewer's own text is shown through here too (`said`): its entries with
+                            what each leaves out said, and each check the concise layout before leads showed -- a
+                            sentence opening a paragraph at the margin, outside any code block, closing it on a period
+                            or on a colon over a bare backtick fence holding the output -- led as a check read off a
+                            declaration is, since that layout's feedback holds no declaration to read its checks from
+                            again
     review_findings_summary.py
                             a line of pytest's short summary, read for the failure it reports, for
                             `review_findings_failures` (`SummaryLine`): its outcome -- `FAILED`, `ERROR`, or `SUBFAILED`
@@ -264,11 +266,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the message after a dash. A parameter may hold the dash that parts an ID from its
                             message and text of a message's shape after it, and a message a bracket and a dash of its
                             own, so the ID is the longest whose section of the line's run -- or `--tb=line` line
-                            traceback -- shows the exception the message after it opens, as where two tests' IDs
-                            overlap, else the longest an entry of the findings names whole or pytest titled a section
-                            by; else it ends on the first split leaving a message of pytest's shape -- a rewritten
-                            assertion's `assert` or an exception's name -- so the message is never cut short, the line
-                            marked unsure where a later split leaves one too; else on the first split
+                            traceback -- shows the exception the message after it opens, the first no line took yet, as
+                            where two tests' IDs overlap, else the longest an entry of the findings names whole or
+                            pytest titled a section by; else it ends on the first split leaving a message of pytest's
+                            shape -- a rewritten assertion's `assert` or an exception's name -- so the message is never
+                            cut short, the line marked unsure where a later split leaves one too; else on the first
+                            split
     review_findings_pytest.py
                             what pytest's output says beside its short summary, for `review_findings_failures`: each
                             section it printed, titled between underscores -- one each side at least -- by a failed

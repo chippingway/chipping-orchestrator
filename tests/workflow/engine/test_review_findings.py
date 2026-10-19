@@ -530,6 +530,20 @@ _OVERLAPPING_LINES = (
     "E   RuntimeError: second\n"
     f"/tmp/run/test_p.py:6: RuntimeError: second\n{_OVERLAPPING_SUMMARY}"
 )
+_IDENTICAL_SUMMARY = "FAILED test_probe.py::test_p[x] - ValueError: [y] - TypeError: boom"
+_IDENTICAL = (
+    "=================================== FAILURES ===================================\n"
+    "__________________________________ test_p[x] ___________________________________\n"
+    "E   ValueError: [y] - TypeError: boom\n"
+    "__________________________ test_p[x] - ValueError: [y] __________________________\n"
+    "E   TypeError: boom\n"
+    "=========================== short test summary info ============================\n"
+    f"{_IDENTICAL_SUMMARY}\n{_IDENTICAL_SUMMARY}"
+)
+_IDENTICAL_LEAD = (
+    "Failure: `test_probe.py::test_p[x]`\nError: `ValueError: [y] - TypeError: boom`\n"
+    "Failure: `test_probe.py::test_p[x] - ValueError: [y]`\nError: `TypeError: boom`\n"
+)
 _OVERLAPPING_LEAD = (
     "Failure: `test_p.py::test_v[a]`\nError: `ValueError: b] - RuntimeError: first`\n"
     "Failure: `test_p.py::test_v[a] - ValueError: b]`\nError: `RuntimeError: second`\n"
@@ -628,6 +642,9 @@ _CAPTURED_SUMMARY = (
 )
 _CAPTURED_SUMMARY_LEAD = "Failure: `tests/test_outer.py::test_outer`\nError: `RuntimeError: outer test failed`\n"
 _CAPTURED_UNSUMMARISED = f"{_OUTER_SECTION}1 failed in 0.01s"
+# A test's section leads by its title where its run printed no short summary.
+_TITLED_ONLY = "Failure: `{title}`, as pytest titled its section; no summary line gives its test ID\n"
+_CAPTURED_UNSUMMARISED_LEAD = f"{_TITLED_ONLY.format(title='test_outer')}Error: `RuntimeError: outer test failed`\n"
 _CAPTURED_LINES = (
     "=================================== FAILURES ===================================\n"
     "E   RuntimeError: actual failure\n"
@@ -684,6 +701,10 @@ _NESTED_SUMMARISED = (
 )
 _NESTED_SUMMARISED_LEAD = f"{_OUTER_LEAD}Failure: `{_LINE_MODULE}::test_plain`\nError: `assert 1 == 2`\n"
 _NESTED_UNSUMMARISED = f"{_NESTED_RUN}{_OUTER_STATS}"
+_NESTED_UNSUMMARISED_LEAD = (
+    f"{_TITLED_ONLY.format(title='test_outer')}Error: `RuntimeError: outer failure`\n"
+    f"{_TITLED_ONLY.format(title='test_plain')}Error: `assert 1 == 2`\n"
+)
 _CUT_RUN = (
     f"{_OUTER_OPENING}{_SESSION_HEADING}collected 1 item\n{_SUMMARY_HEADING}FAILED {_LINE_MODULE}::test_outer\n"
     "============================== 1 failed in 0.01s ==============================="
@@ -915,6 +936,46 @@ _UNSUMMARISED_COLLECTION = (
     "ImportError while importing test module '/tmp/run/test_broken.py'.\n"
     "E   ModuleNotFoundError: No module named 'missing'\n"
     f"{_INTERRUPTED}\n1 error in 0.07s"
+)
+_PHASES_UNSUMMARISED = (
+    "E.EF                                                                     [100%]\n"
+    f"{_ERRORS_HEADING}"
+    "_________________________ ERROR at setup of test_setup _________________________\n"
+    "test_probe.py:5: in broken\n"
+    '    raise RuntimeError("fixture exploded")\n'
+    "E   RuntimeError: fixture exploded\n"
+    "______________________ ERROR at teardown of test_teardown ______________________\n"
+    "E   KeyError: 'teardown broke'\n"
+    "=================================== FAILURES ===================================\n"
+    "__________________________________ test_fails __________________________________\n"
+    "E   assert 1 == 2\n"
+    "1 failed, 1 passed, 2 errors in 0.01s"
+)
+_SETUP_ONLY = (
+    "Failure: setup of `test_setup`, as pytest titled its section; no summary line gives its test ID\n"
+    "Error: `RuntimeError: fixture exploded`\n"
+)
+_PHASES_UNSUMMARISED_LEAD = (
+    f"{_SETUP_ONLY}"
+    "Failure: teardown of `test_teardown`, as pytest titled its section; no summary line gives its test ID\n"
+    "Error: `KeyError: 'teardown broke'`\n"
+    f"{_TITLED_ONLY.format(title='test_fails')}Error: `assert 1 == 2`\n"
+)
+_FAILURES_SUMMARISED = _PHASES_UNSUMMARISED.replace(
+    "1 failed, 1 passed, 2 errors in 0.01s",
+    f"{_SUMMARY_HEADING}FAILED test_probe.py::test_fails - assert 1 == 2\n1 failed, 1 passed, 2 errors in 0.01s",
+)
+_FAILURES_SUMMARISED_LEAD = (
+    "Failure: `test_probe.py::test_fails`\nError: `assert 1 == 2`\n"
+    f"{_SETUP_ONLY}"
+    "Failure: teardown of `test_teardown`, as pytest titled its section; no summary line gives its test ID\n"
+    "Error: `KeyError: 'teardown broke'`\n"
+)
+_DOCTEST_TITLED = (
+    "=================================== FAILURES ===================================\n"
+    "____________________________ [doctest] sample.txt _____________________________\n"
+    "001 >>> 1\nExpected:\n    2\nGot:\n    1\n\n/tmp/run/sample.txt:1: DocTestFailure\n"
+    f"{_SUMMARY_HEADING}FAILED sample.txt::sample.txt\n1 failed in 0.01s"
 )
 _UNSUMMARISED_COLLECTION_LEAD = (
     "Failure: collection of `test_broken.py`, before any test in it ran\n"
@@ -1448,7 +1509,7 @@ class FailureNamesTest(unittest.TestCase):
             # as a section's exception, a summary line, or a line traceback.
             (_CAPTURED_MARKED, "", _CAPTURED_MARKED_LEAD),
             (_CAPTURED_SUMMARY, "", _CAPTURED_SUMMARY_LEAD),
-            (_CAPTURED_UNSUMMARISED, "", _UNNAMED),
+            (_CAPTURED_UNSUMMARISED, "", _CAPTURED_UNSUMMARISED_LEAD),
             (_CAPTURED_LINES, "", _CAPTURED_LINES_LEAD),
             # Nor is a title a test printed narrower than pytest pads its own,
             # which would give another test's section its error.
@@ -1459,7 +1520,7 @@ class FailureNamesTest(unittest.TestCase):
             # which hides nothing below it.
             (_PRINTED_SUMMARY, "", _OUTER_LEAD),
             (_NESTED_SUMMARISED, "", _NESTED_SUMMARISED_LEAD),
-            (_NESTED_UNSUMMARISED, "", _UNNAMED),
+            (_NESTED_UNSUMMARISED, "", _NESTED_UNSUMMARISED_LEAD),
             (_CUT_RUN, "", _OUTER_LEAD),
             (_TWO_RUNS, "", _TWO_RUNS_LEAD),
             (_NESTED_TITLES, "", _NESTED_TITLES_LEAD),
@@ -1495,6 +1556,13 @@ class FailureNamesTest(unittest.TestCase):
             # A collection pytest's section says failed leads, with its
             # exception, though no summary line reports it.
             (_UNSUMMARISED_COLLECTION, "", _UNSUMMARISED_COLLECTION_LEAD),
+            # So does a setup or teardown a section says failed, and, where
+            # the run printed no short summary, a test's own failure by its
+            # section's title -- one a summary line names otherwise leading
+            # once, by that line.
+            (_PHASES_UNSUMMARISED, "", _PHASES_UNSUMMARISED_LEAD),
+            (_FAILURES_SUMMARISED, "", _FAILURES_SUMMARISED_LEAD),
+            (_DOCTEST_TITLED, "", f"Failure: `sample.txt::sample.txt`\n{_UNSTATED}"),
             # Its path may hold blanks, as the doctest a file's path holding
             # blanks names may; words naming no Python file are a collection
             # only where pytest says so.
@@ -1535,6 +1603,9 @@ class FailureNamesTest(unittest.TestCase):
             # line traceback, shows the exception its message opens.
             ("", _OVERLAPPING, _OVERLAPPING_LEAD),
             ("", _OVERLAPPING_LINES, _OVERLAPPING_LEAD),
+            # Two such lines alike each take the first section left, in
+            # pytest's order, so each test keeps its own ID.
+            ("", _IDENTICAL, _IDENTICAL_LEAD),
             # A test's file path may hold blanks, and brackets that open no
             # parameters.
             ("", _SPACED, _SPACED_LEAD),

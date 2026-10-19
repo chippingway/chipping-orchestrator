@@ -18,22 +18,26 @@ its test's node ID and pytest's description of it, and an `ERROR` line a node
 by its ID, or a path. A path names a collection that failed before any test in
 it ran -- the check that failed, not a test -- whatever file it is and whether
 it holds blanks or brackets, though words naming no Python file are one only
-where pytest says so; and a collection a section pytest printed says failed
-that no summary line reports -- a run printed with `-rN` reports none -- leads
-by that section alone. A node ID names the setup or teardown of a test where a
-section pytest printed says that failed -- where both did, the one whose
-section raised the error the line gives; a collection where a section of its
-run says pytest failed collecting the node or its path, or its run says
-collection was interrupted, since a class pytest could not collect is reported
-by its ID; and, nothing saying which, an error outside any test body, in one
-of the three. An ID is the longest an entry of the findings names whole, or
-pytest titled a section by; where nothing names one, it ends where the line's
-message may first begin, so the message is never cut short, and where a later
-split could end it too the lead says where the ID ends is unavailable. Each
-failure leads with its name and the error the line gives. Where the line gives
-none -- pytest drops it from a line too long for the terminal -- the exception
-the section pytest printed for it shows gives it, each section going to one
-summary line, so tests of two modules sharing a name each take their own
+where pytest says so; and a collection, a setup, or a teardown a section
+pytest printed says failed that no summary line reports -- a run printed with
+`-rN` reports none -- leads by that section alone, as, in a run that printed
+no short summary, does each test's own section, by its title, no test ID said.
+A node ID names the setup or teardown of a test where a section pytest printed
+says that failed -- where both did, the one whose section raised the error the
+line gives; a collection where a section of its run says pytest failed
+collecting the node or its path, or its run says collection was interrupted,
+since a class pytest could not collect is reported by its ID; and, nothing
+saying which, an error outside any test body, in one of the three. An ID is
+the longest whose section shows the exception the line's message opens -- the
+first such no line took yet, as pytest prints them in one order -- else the
+longest an entry of the findings names whole, or pytest titled a section by;
+where nothing names one, it ends where the line's message may first begin, so
+the message is never cut short, and where a later split could end it too the
+lead says where the ID ends is unavailable. Each failure leads with its name
+and the error the line gives. Where the line gives none -- pytest drops it
+from a line too long for the terminal -- the exception the section pytest
+printed for it shows gives it, each section going to one summary line, so
+tests of two modules sharing a name each take their own
 (`review_findings_pytest`); or else the error of the reviewer's entry naming
 it. Where none is found the lead says so. No name is ever made up: a check
 pytest's summary names nothing in is led by the failure entries
@@ -79,6 +83,7 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from functools import partial
 from itertools import chain
+from types import MappingProxyType
 
 from orchestrator.workflow.engine import (
     review_findings_entries as _entries,
@@ -140,7 +145,13 @@ _UNSURE = (
 
 _UNREPRODUCED = f"{_REPRODUCTION}: not recorded; {{command}} reads its code from stdin, and no snippet was given"
 
-_UNCOLLECTED = "collection of {path}, before any test in it ran"
+_UNCOLLECTED = "collection of {subject}, before any test in it ran"
+
+# How a lead names what a section alone says failed, no summary line giving
+# its test ID: by the phase that failed, a test's own failure by no phase.
+_UNSUMMARISED_PHASE = "{phase} of {subject}, as pytest titled its section; no summary line gives its test ID"
+_UNSUMMARISED_TEST = "{subject}, as pytest titled its section; no summary line gives its test ID"
+_SECTIONED = MappingProxyType({_pytest.COLLECTION: _UNCOLLECTED, "": _UNSUMMARISED_TEST})
 
 _ERRED = "{node}, which errored outside any test body: in its collection, setup, or teardown"
 
@@ -160,12 +171,14 @@ _UNTAKEN = _pytest.Section(_UNTITLED, "", -1)
 # A lead, by the number of the line it goes above.
 _Lead = tuple[int, tuple[str, ...]]
 
-# How surely a summary line's node ID ends where it is read to
-# (`review_findings_summary`): its section shows the line's error, it titles a
+# How surely a summary line's node ID ends where it is read to, as a key the
+# greatest of which is surest (`review_findings_summary`): its section shows
+# the line's error -- the earlier the section, the surer -- it titles a
 # section or an entry names it, or nothing names it.
+_Key = tuple[int, ...]
 _SHOWN = 2
 _TITLED = 1
-_NOT_NAMED = 0
+_NOT_NAMED: _Key = ()
 
 
 def lead(command: str, output: str, entries: _Entries) -> tuple[str, ...]:
@@ -268,30 +281,46 @@ class _Reported:
 
     @classmethod
     def _unsummarised(cls, read: _Pytest) -> Iterator[_Reported]:
-        """Each collection a section of `read` says pytest failed that no summary line took, with its exception.
+        """Each failure a section of `read` names that no summary line took, with its exception.
 
-        A run printed with `-rN`, or with a summary leaving errors out, reports
-        none on a summary line, while its section still names the path and
-        the error; a test it may have held never ran, so no test ID is said.
+        A collection, a setup, or a teardown a section says failed leads by
+        that section wherever no summary line reports it -- a run printed with
+        `-rN`, or with a summary leaving errors out, reports none -- and a
+        test's own failure by its section's title where its run printed no
+        short summary, a summary line otherwise naming it by an ID its section
+        may title otherwise. A section printed untitled names nothing. No test
+        ID is said: none was given.
         """
-        collected = (section for section in read.sections if section.collected)
-        for section in collected:
+        for section in read.sections:
+            phase, subject = section.failed
+            if not subject or (not phase and section.run in read.summarised):
+                continue
+            said = _SECTIONED.get(phase, _UNSUMMARISED_PHASE)
             taken = read.take({section.title}, "", section.run)
             if taken is not None:
-                yield cls(_UNCOLLECTED.format(path=span(taken.collected)), taken.raised)
+                yield cls(
+                    said.format(phase=phase, subject=span(subject)),
+                    taken.raised,
+                )
 
     @classmethod
-    def _named(cls, read: _Pytest, entries: _Entries, run: int, node: str, error: str) -> int:
-        """How surely `node` is the ID a summary line of `read`'s `run` reports, `error` after it.
+    def _named(cls, read: _Pytest, entries: _Entries, run: int, node: str, error: str) -> _Key:
+        """How surely `node` is the ID a summary line of `read`'s `run` reports, `error` after it: the greatest surest.
 
-        Surest where a section of that run shows the exception `error` opens;
-        less where pytest titled a section by it, or an entry of the findings
-        names it whole; not at all otherwise.
+        Surest where a section of that run no line took yet shows the
+        exception `error` opens (`PytestOutput.showing`), the earlier the
+        surer: pytest prints its sections in its summary's order, so two lines
+        alike each take their own. Less where pytest titled a section by it,
+        or an entry of the findings names it whole; not at all, an empty key,
+        otherwise.
         """
-        if read.sectioned(node, error, run):
-            return _SHOWN
-        if read.sectioned(node) or _entries.FailureEntry.naming(entries, node):
-            return _TITLED
+        number = read.showing(node, error, run)
+        if number is not None:
+            return _SHOWN, -number
+        name = read.name(node)
+        titled = bool(name) and name in read.titled
+        if titled or _entries.FailureEntry.naming(entries, node):
+            return (_TITLED,)
         return _NOT_NAMED
 
     @classmethod
@@ -361,7 +390,7 @@ class _Reported:
             return cls(failed, summary.error or named, summary.unsure)
         if collected is None and not _PATH_RE.fullmatch(node):
             return None
-        failed = _UNCOLLECTED.format(path=span(node))
+        failed = _UNCOLLECTED.format(subject=span(node))
         return cls(failed, summary.error or collected or named, summary.unsure)
 
 
