@@ -51,12 +51,13 @@ so every recovery context still carries the captured-only answers alone.
   own readings among them -- is read through a client that hands it to the
   proof's classifier first (`rewrite_recovery_readings`), so movement any of
   them read stands for every step behind. A checkout gone from disk, before
-  the proof or under one of its own git requests however soon it returns,
+  the proof or under one of its own git requests however soon it returns --
+  or read off the landing by one of its finishes while evidence stands --
   leaves nothing to prove the landing over, so the recorder the context
   carries records the reset and retires both in writes of their own
   (`rewrite_recovery_parks.records_the_reset`); with none, both are retired as
-  over a reset, on the state the park lands. A proof whose rechecks laid
-  another attempt over the tick's state holds rather than park over it.
+  over a reset, on the state the park lands. A proof whose last reading of the
+  comment carries another attempt holds rather than park over it.
 
 The dormant guarded records a recovery park or hold lands behind that proof
 (`rewrite_recovery_parks`) read three more things here. The receipts of what
@@ -82,8 +83,8 @@ Nothing here posts, parks, resets, or routes anything.
 """
 from __future__ import annotations
 
-import json
 import logging
+from functools import partial
 
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
@@ -108,6 +109,7 @@ from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_rechecks import invalidates_rechecked, lays
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
     LosesTheCheckout,
+    RecordsALostCheckout,
     asks_every_reading,
     owed_moves,
     stands_as_recovered,
@@ -235,16 +237,18 @@ def retires_unproved(
     own proof, both are asked again with it; a proof that reads movement
     retires what moved or answers False, so the asking stops there.
     A checkout gone before the proof or found gone by one of its requests,
-    however soon it returns, has nothing to prove the landing over, so the
+    however soon it returns -- or read off the landing by one of its finishes
+    while evidence still stands (`rewrite_recovery_readings.LosesTheCheckout.proves`)
+    -- has nothing to prove the landing over, so the
     recorder `context` carries (`records_before_a_reset`) records the reset and
     retires both, its answer the proof's; with none both are retired on the
     state the park lands (`retires_over_the_reset`). False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
     its history entry among it, its movement recorded instead -- or where the
-    comment the proof read carries another attempt in place of the one
-    `context` recovers, laid over the tick's state by its rechecks
-    (`rewrite_recovery_readings.stands_as_recovered`): either way for the git
-    owner to hold the tick with nothing reset, cleared, or parked over it.
+    comment the proof last read carries another attempt in place of the one
+    `context` recovers (`rewrite_recovery_readings.stands_as_recovered`),
+    however the tick's state still names it: either way for the git owner to
+    hold the tick with nothing reset, cleared, or parked over it.
     """
     moved = dict(moved or {})
     if not (moved or receipts(context.state)):
@@ -255,20 +259,19 @@ def retires_unproved(
     asked = asks_every_reading(
         context, lambda reading: moved_under(reading, tick=context.state, into=moved),
     )
-    proved = None
-    with LosesTheCheckout(context):
-        proved = all((
-            _landing_moved.proves_captured(
-                asked,
-                unread,
-                moved.get(getattr(_landing_records.captured(context.state), "receipt", None)),
-                settled=True,
-                asks=lambda reading, receipt: (
-                    moved_under(reading, tick=context.state, into=moved).get(receipt)
-                ),
+    proved = LosesTheCheckout(context).proves(
+        partial(
+            _landing_moved.proves_captured,
+            asked,
+            unread,
+            moved.get(getattr(_landing_records.captured(context.state), "receipt", None)),
+            settled=True,
+            asks=lambda reading, receipt: (
+                moved_under(reading, tick=context.state, into=moved).get(receipt)
             ),
-            _proves_settled(asked, unread, moved),
-        )) if context.worktree.is_dir() else None
+        ),
+        partial(_proves_settled, asked, unread, moved),
+    )
     if proved is None:
         records = context.records_before_a_reset
         return (
@@ -277,7 +280,7 @@ def retires_unproved(
         )
     if proved and moved.keys() & receipts(context.state):
         return retires_unproved(context, moved)
-    if proved and not stands_as_recovered(context):
+    if proved and not stands_as_recovered(context, asked.gh.last_read):
         log.warning(
             "issue=#%d another auto-rebase attempt stands in place of the one its recovery read; holding with "
             "nothing reset, cleared, or parked, for the next tick to recover the attempt the comment carries",
@@ -370,10 +373,7 @@ def attempt_as_read(state: PinnedState) -> PinnedCommit | None:
     or relabel record beside the moved tip is still this attempt. None where
     that reading records no tip, so names no base to move.
     """
-    read = state
-    if state.synced is not None:
-        synced = json.loads(state.synced)
-        read = PinnedState(comment_id=state.comment_id, state_data=synced, parsed=state.parsed)
+    read = state if state.synced is None else RecordsALostCheckout.as_read(state)
     if not _attempt_records._recorded_onto(read):
         return None
     return PinnedCommit.capture(read, prerequisites=_AS_READ)

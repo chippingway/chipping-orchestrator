@@ -7,7 +7,8 @@ stream before filing the event again (`events.filed`); with no audit log that st
 the word counts as the event filed, at most once, unless this process noted it owing (`owes`) and never filed it
 (`pays`). The note lives on the repository's client, shared with its worker clients
 (`github/client.GitHubClient._for_worker_thread`), keyed by what the notice says (`said`), not its id, so one notice's
-failed post never files another's event. A checkout loss no write recorded is owed the same way (`owes_a_loss`).
+failed post never files another's event. A checkout loss the dormant recovery proof read is owed the same way until
+a write records it (`owes_a_loss`), asked without being dropped (`loss_owed`).
 """
 from __future__ import annotations
 
@@ -66,16 +67,21 @@ def _owing(event: str, issue_number: int, said: str, identity: dict[str, Any]) -
 
 
 def owes_a_loss(context: Any, recorded: bool) -> bool:
-    """`recorded`, a checkout loss `context`'s recovery read noted owed for its attempt where it was not."""
+    """`recorded`: a checkout loss `context`'s recovery read, owed for its attempt until a write records it.
+
+    Noted where `recorded` is False; dropped only where it is True -- the reset recorded against the attempt and what
+    stood for the landed head retired over it -- so evidence absent meanwhile and put back later is still owed it.
+    """
     owing = (_LOST, int(context.issue.number), context.pending_pre_rebase_sha)
-    if not recorded:
-        _noted(context.gh).add(owing)
+    noted = _noted(context.gh)
+    if recorded:
+        noted.discard(owing)
+    else:
+        noted.add(owing)
     return recorded
 
 
-def pays_a_loss(context: Any) -> bool:
-    """Whether `context`'s attempt owed a checkout loss no write recorded, dropped for the asker to record."""
+def loss_owed(context: Any) -> bool:
+    """Whether `context`'s attempt still owes a checkout loss no write recorded, left owed until one does."""
     owing = (_LOST, int(context.issue.number), context.pending_pre_rebase_sha)
-    owed = owing in _noted(context.gh)
-    _noted(context.gh).discard(owing)
-    return owed
+    return owing in _noted(context.gh)

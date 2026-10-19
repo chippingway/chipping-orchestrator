@@ -5,7 +5,8 @@
 With an audit log every absence is the log's to vouch for and the event filed; with none, only one this process owes
 unpaid is, whatever its notice's id, noted by any worker of its repository's client, not another repository's, and only
 for a notice saying what the owing post said: an earlier notice found said is not refiled over another's failed post.
-A checkout loss no write recorded is owed the same way, to the next worker's proof of that attempt alone, once.
+A checkout loss no write recorded is owed the same way, to every later proof of that attempt alone, until one records
+it.
 """
 from __future__ import annotations
 
@@ -87,18 +88,18 @@ class OwedEventTest(unittest.TestCase):
         owed_events.pays(replacing, _PARKED, **_NAMED)
         self.assertFalse(owed_events.unfiled(later, _PARKED, **_NAMED))
 
-    def test_a_lost_checkout_is_owed_once_per_attempt(self) -> None:
-        # A loss a write recorded owes nothing; one none recorded passes to the next worker's proof of that attempt,
-        # not another repository's or a later attempt's, and is taken up there once.
+    def test_a_lost_checkout_is_owed_until_recorded(self) -> None:
+        # A loss a write recorded owes nothing; one none recorded stays owed to every later worker's proof of that
+        # attempt, asking it dropping nothing, not to another repository's or attempt's, until a write records it.
         lost, replacing, later, other = map(_loses_on, _minted(3))
         next_attempt = _loses_on(replacing.gh, _LATER_ANCHOR)
         self.assertTrue(owed_events.owes_a_loss(lost, recorded=True))
-        self.assertFalse(owed_events.pays_a_loss(replacing))
+        self.assertFalse(owed_events.loss_owed(replacing))
         self.assertFalse(owed_events.owes_a_loss(lost, recorded=False))
-        self.assertFalse(owed_events.pays_a_loss(other))
-        self.assertFalse(owed_events.pays_a_loss(next_attempt))
-        self.assertTrue(owed_events.pays_a_loss(replacing))
-        self.assertFalse(owed_events.pays_a_loss(later))
+        self.assertFalse(owed_events.loss_owed(other) or owed_events.loss_owed(next_attempt))
+        self.assertTrue(owed_events.loss_owed(replacing) and owed_events.loss_owed(later))
+        self.assertTrue(owed_events.owes_a_loss(replacing, recorded=True))
+        self.assertFalse(owed_events.loss_owed(later))
 
     def test_another_notices_debt_files_nothing(self) -> None:
         # A restart owing a failed notice's event takes an earlier notice found saying something else as filed.

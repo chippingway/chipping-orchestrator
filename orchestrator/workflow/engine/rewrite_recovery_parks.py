@@ -92,8 +92,8 @@ The comment is reread behind that retirement: evidence written back is
 retired again, the tick held, as over a successor or another attempt, nothing
 reset. One a caller read gone or off the landing (`lost`, `heads_read`), one
 the proof found gone mid-request, and one an earlier proof read but no write
-recorded (`owed_events.pays_a_loss`) are recorded and retired alike, however
-soon the checkout is back.
+recorded (`owed_events.loss_owed`) are recorded and retired alike, however
+soon the checkout is back, that debt dropped only once both writes land.
 """
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ from orchestrator.workflow.engine import (
     rewrite_recovery_notices as _notices,
     verification_records as _evidence_records,
 )
-from orchestrator.workflow.engine.owed_events import pays_a_loss
+from orchestrator.workflow.engine.owed_events import loss_owed, owes_a_loss
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
     LEFT_THE_CHECKOUT,
@@ -290,13 +290,14 @@ def proves_before_a_park(
     refused -- across every write it lands, for the record behind, save what
     a proof write already carried (`rewrite_recovery_staging.keeps_the_staging`).
     Behind a record its staging is kept out of every write the proof lands.
-    `lost` -- with `heads_read` and a loss still owed (`owed_events.pays_a_loss`)
-    -- names a checkout read gone or off the evidence's head, retired over it.
+    `lost` -- with `heads_read` and a loss still owed (`owed_events.loss_owed`)
+    -- names a checkout read gone or off the evidence's head, retired over it;
+    a debt with nothing standing to retire stays owed for evidence put back.
     """
     recorded = (_landing_records.captured(context.state), _landing_records.settled(context.state))
     landed = {record.binding.target.target_head for record in recorded if record}
     lost = [read for read in (*lost, *context.heads_read) if read not in landed]
-    lost += [context.worktree] if pays_a_loss(context) else []
+    lost += [context.worktree] if loss_owed(context) else []
     with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:
         if proving.worktree.is_dir() and not (lost and _retirement.receipts(proving.state)):
             return _retirement.retires_unproved(proving, moved)
@@ -328,7 +329,8 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     `lost` names however soon it is back, the evidence is retired as over a
     reset in its own `CLEAR` write (`rewrite_recovery_staging.lands_the_retirement`),
     blank landed or not; True only where both landed and nothing it retired,
-    no successor or other attempt, is read back.
+    no successor or other attempt, is read back -- the loss owed until then,
+    and dropped then (`owed_events.owes_a_loss`).
     """
     moved: dict[str, ReportEvidence] = {}
     if not context.worktree.is_dir():
@@ -355,7 +357,7 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
             "issue=#%d the checkout is gone from disk; retiring what a finish captured or settled for the landed "
             "head as over a reset, in a write of its own", context.issue.number,
         )
-        return lands_the_retirement(context, CLEAR) and recorded
+        return owes_a_loss(context, lands_the_retirement(context, CLEAR) and recorded)
     if moved:
         recorded = _retirement.retires_unproved(
             replace(context, records_before_a_reset=records_the_reset), _retirement.reconciles(context, moved),

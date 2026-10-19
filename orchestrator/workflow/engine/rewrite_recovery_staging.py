@@ -37,7 +37,6 @@ from orchestrator.git.base_sync import models as _base_sync_models, state as _ba
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedEdit, PinnedState
 from orchestrator.workflow.engine import (
-    owed_events as _owed_events,
     pinned_commit as _commit,
     pinned_commit_models as _commit_models,
     report_commits as _commits,
@@ -110,9 +109,8 @@ def lands_the_retirement(
 
     Retired as over a reset, then asked again over the comment read afresh (`_lands`) -- its decided-on fields laid
     behind a refusal, the whole reading behind one for room or a second -- evidence put back retired again, and False.
-    A successor or another attempt is left alone, False; True where nothing held stands. One the writes cannot land is
-    owed for the next poll (`owed_events.owes_a_loss`). A state nothing was read into is staged only. `held` is the
-    receipts first asked over; `behind` marks the last asking.
+    A successor or another attempt is left alone, False; True where nothing held stands. A state nothing was read into
+    is staged only. `held` is the receipts first asked over; `behind` marks the last asking.
     """
     asked = _retirement.receipts(context.state) if held is None else held
     if context.state.synced is None:
@@ -122,8 +120,7 @@ def lands_the_retirement(
         return False
     if not standing & asked:
         return True
-    landed = _lands(context, write, asked, again=held is None, behind=behind)
-    return _owed_events.owes_a_loss(context, landed)
+    return _lands(context, write, asked, again=held is None, behind=behind)
 
 
 def _lands(

@@ -20,11 +20,13 @@ beside the attempt as the tick read it, every evidence; blank beside an
 attempt still standing, evidence the tick never held. `owed_moves` reads
 what it records moving under a transaction captured for the head, as the
 finish held to the dormant settled-evidence policy reads one still owed.
-`stands_as_recovered` says whether the tick's state, the proof's rechecks laid
-over it, still carries the attempt the recovery recovers, not one another road
-put in its place. `LosesTheCheckout` lets the proof read a checkout gone from
-disk under one of its own requests as that loss, not raise it past the record
-it owes; `RecordsALostCheckout` records that loss for a road owing it.
+`stands_as_recovered` says whether the comment the proof last read -- or the
+tick's state, where it read none -- still carries the attempt the recovery
+recovers, not one another road put in its place. `LosesTheCheckout` lets the
+proof read a checkout gone from disk under one of its own requests as that
+loss, not raise it past the record it owes, and answers a proof whose finish
+read the checkout off the landing as that loss too (`proves`);
+`RecordsALostCheckout` records that loss for a road owing it.
 
 They are dormant, as that proof is: no recovery context or road the workflow
 builds reaches them.
@@ -42,6 +44,7 @@ from orchestrator.git.base_sync.models import _AutoRebaseRecoveryContext
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedEdit, PinnedState
 from orchestrator.workflow.engine import (
+    owed_events as _owed_events,
     pinned_commit_models as _commit_models,
     rewrite_landing_records as _landing_records,
     verification_proof as _proof,
@@ -82,12 +85,16 @@ _SPENT_PAST_THE_OWED = ReportEvidence(
 
 
 class AsksEveryReading:
-    """`gh` for one issue's dormant recovery proof: every call passed through, each reading of its comment asked."""
+    """`gh` for one issue's dormant recovery proof: every call passed through, each reading of its comment asked.
+
+    `last_read` is the latest of those readings, None until one is taken.
+    """
 
     def __init__(self, gh: GitHubClient, issue_number: int, asks: Callable[[PinnedState], object]) -> None:
         self._gh = gh
         self._issue_number = issue_number
         self._asks = asks
+        self.last_read: PinnedState | None = None
 
     def __getattr__(self, name: str):
         return getattr(self._gh, name)
@@ -119,6 +126,7 @@ class AsksEveryReading:
             return
         for reading in readings:
             if reading.parsed:
+                self.last_read = reading
                 self._asks(reading)
 
 
@@ -142,6 +150,24 @@ class LosesTheCheckout:
         named = str(getattr(error, "filename", None)) == str(worktree)
         return isinstance(error, FileNotFoundError) and (named or not worktree.is_dir())
 
+    def proves(self, *proofs: Callable[[], bool]) -> bool | None:
+        """Whether every one of `proofs` answers inside the block, each asked; None for the loss the checkout is.
+
+        None where the checkout was gone before them or a request of theirs found it gone, and where one of their own
+        finishes read it off the landing (`owed_events.loss_owed`) while what a finish captured or settled for the head
+        still stands, so the caller records that loss before it answers, however soon the checkout was put back.
+        """
+        state = self._context.state
+        proved = None
+        if self._context.worktree.is_dir():
+            with self:
+                answers = [proof() for proof in proofs]
+                proved = all(answers)
+        held = _landing_records.captured(state) or _landing_records.settled(state)
+        if proved and held and _owed_events.loss_owed(self._context):
+            return None
+        return proved
+
 
 class RecordsALostCheckout(LosesTheCheckout):
     """A recovery road's block a checkout gone from disk cuts short, that loss recorded before the road unwinds.
@@ -157,7 +183,8 @@ class RecordsALostCheckout(LosesTheCheckout):
     @classmethod
     def as_read(cls, state: PinnedState) -> PinnedState:
         """`state` as the tick last read it, nothing it staged since."""
-        read = PinnedState(comment_id=state.comment_id, state_data=json.loads(state.synced))
+        synced = json.loads(state.synced)
+        read = PinnedState(comment_id=state.comment_id, state_data=synced, parsed=state.parsed)
         read.synced = state.synced
         return read
 
@@ -186,13 +213,15 @@ def asks_every_reading(
     return replace(context, gh=AsksEveryReading(context.gh, context.issue.number, asks))
 
 
-def stands_as_recovered(context: _AutoRebaseRecoveryContext) -> bool:
-    """Whether `context.state` still carries the attempt `context` recovers, rather than another in its place.
+def stands_as_recovered(context: _AutoRebaseRecoveryContext, read: PinnedState | None = None) -> bool:
+    """Whether `read`, or `context.state` where none is handed, carries the attempt `context` recovers.
 
     Named by the anchor and replay it records, for a caller to hold over an
     attempt another road put in place; its base tip and bookkeeping never count.
+    A caller hands the comment as it last read it, since the tick's state keeps
+    the attempt it was read with however the comment was rewritten since.
     """
-    state = context.state
+    state = context.state if read is None else read
     read = (state.get(_base_sync_state._PENDING_PUSH_SHA), _attempt_records._pending_rewrite(state))
     return read == (context.pending_pre_rebase_sha, context.pending_rewrite)
 

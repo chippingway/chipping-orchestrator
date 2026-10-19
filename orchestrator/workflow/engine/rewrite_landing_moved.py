@@ -265,8 +265,8 @@ def proves_captured(
     moves it however soon it is put back. Held to that policy, the run still
     stands where another finish settled it under its receipt and the
     invalidation did not land (`_stands`), and a checkout the finish reads off
-    the landing is owed as a loss (`_finish`). Every production caller proves
-    it as the default does.
+    the landing is owed as a loss for that proof to record (`_finish`). Every
+    production caller proves it as the default does.
     """
     pending = _landing_records.captured(context.state)
     if pending is None:
@@ -318,12 +318,13 @@ def _finish(
     """The finish of `head`'s landing as `snapshot` read it, over `candidate` or the checkout read now.
 
     `settled` holds it to the dormant settled-evidence policy (`LandedFinish.proves_settled`), for dormant proofs,
-    and notes a checkout it reads off `head` as a loss owed for the next proof (`owed_events.owes_a_loss`).
+    and notes a checkout it reads off `head` as a loss owed (`owed_events.owes_a_loss`), which the proof it serves
+    records before it answers (`rewrite_recovery_readings.LosesTheCheckout.proves`).
     """
     read = candidate or _recovery_push._recovered_candidate(context, snapshot)
-    stood = candidate is not None or read.checkout.head in {"", head}
-    if settled:
-        _owed_events.owes_a_loss(context, stood)
+    off_the_landing = candidate is None and read.checkout.head not in {"", head}
+    if settled and off_the_landing:
+        _owed_events.owes_a_loss(context, recorded=False)
     return LandedFinish(
         gh=context.gh,
         spec=context.spec,
