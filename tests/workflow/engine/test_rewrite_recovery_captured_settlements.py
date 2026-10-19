@@ -29,9 +29,9 @@ captured run's place and marks moved in its handoff's place right ahead of
 the reading the proof takes it in from, the handoff put back right behind:
 the mark that reading read invalidates it. So is a newer run another road
 settles on the captured run's binding as the proof's abandonment of that run
-is lost unsent, the report moved under it only in the comment read to confirm
-that edit, and put back right behind. Nothing is parked, run again, pushed, or
-launched.
+is lost unsent, the report moved under it only in the reading the proof takes
+right behind that edit, and put back right behind it. Nothing is parked, run
+again, pushed, or launched.
 """
 from __future__ import annotations
 
@@ -324,13 +324,13 @@ class CapturedSettlementTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
 
 class LostAbandonmentTest(guarded.GuardedRecoveryCase, unittest.TestCase):
-    """A captured run's abandonment lost unsent behind a newer run settled in its place, movement read confirming it."""
+    """A captured run's abandonment lost unsent behind a newer run settled in its place, movement read behind it."""
 
-    def test_a_confirming_read_retires_the_successor(self) -> None:
+    def test_a_reading_behind_retires_the_successor(self) -> None:
         # The proof, handed the run moved off the landing, abandons it; that edit is lost unsent as another road
-        # settles a newer run on the run's binding. The comment read to confirm the edit -- the only reading of the
-        # report moved under the newer run, put back right behind -- is asked like every reading of the proof's, so
-        # the newer run is invalidated whole and the next proof finds nothing current.
+        # settles a newer run on the run's binding. The reading the proof takes right behind the edit -- the only one
+        # of the report moved under the newer run, put back right behind it -- is asked like every reading of the
+        # proof's, so the newer run is invalidated whole and the next proof finds nothing current.
         run = self.captures()[1]
         loses = _LosesTheAbandonment(self, run)
         context = guarded.recovery_context(self)

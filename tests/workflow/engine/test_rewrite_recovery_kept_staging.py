@@ -11,14 +11,16 @@ read off the comment handed straight to the dormant guarded hold or park
   still lands with the hold -- or is refused as a conflict where another road
   spelled it its own way -- and the tip the git owner stages back behind a
   reset git refused still lands with the park.
-- Behind a refused park, its staging rides no write of the proof's; usage a
-  proof write carried counts once -- its answer lost too, no later write of
-  the proof sending it again -- and an equal increment another road wrote twice;
-  a proof write whose answer was lost and that never landed, another road
-  adding usage right then, leaves the usage and the gate's record to the
-  writes behind it, both roads' usage counted.
+- Behind a refused park, its staging rides no write of the proof's. Ahead of
+  the hold, the usage the tick staged rides none either and is added once
+  behind the proof, beside an equal increment another road wrote, however the
+  reset record's blank lost its answer -- landed, landed and written over by
+  another road adding usage of its own, or never sent while another road
+  blanks the tip -- and the gate's record, sent again behind a lost answer,
+  still lands.
 - On a state alone (`KeepsTheStagingTest`): what the tick staged is staged
-  again over its own reading, what the block staged or an edit carried is left.
+  again over its own reading, what the block staged or an edit carried is
+  left, and usage whose own write lost its answer is never sent twice.
 
 Nothing is run again, pushed, or launched.
 """
@@ -69,14 +71,23 @@ _REASON = "auto_base_rebase_push_failed"
 _PARKS = partial(_parks.lands_a_park, message="The auto rebase needs a human.", reason=_REASON)
 
 # The roads staged usage is held down, and how much the comment's total gains on each: another road adding as much
-# beside report 3, a checkout gone, and that checkout's reset record landing with its answer lost, or never sent
-# with its answer lost as another road adds 2 of its own.
+# beside report 3, a checkout gone, and that checkout's reset record answered lost -- landed, landed and written over
+# by another road adding 2 of its own, or never sent as another road blanks the tip and adds 2.
 _CONCURRENT, _GONE, _LOST_ANSWER = "concurrent", "gone", "gone, the blank's answer lost"
-_UNSENT = "gone, the blank never sent, its answer lost, another road adding usage"
+_OVERWRITTEN = "gone, the blank landed with its answer lost, another road writing over it"
+_UNSENT = "gone, the blank never sent, its answer lost, another road blanking the tip"
 _USAGE_ROADS = (
     (_CONCURRENT, 10), (_GONE, 5),
-    (_LOST_ANSWER, 5), (_UNSENT, 7),
+    (_LOST_ANSWER, 5), (_OVERWRITTEN, 7), (_UNSENT, 7),
 )
+
+# How each lost-answer road answers the reset record's blank: whether it is sent, and whether another road writes
+# over the comment right then.
+_LOSES = MappingProxyType({
+    _LOST_ANSWER: (True, False),
+    _OVERWRITTEN: (True, True),
+    _UNSENT: (False, True),
+})
 
 
 def _read(carried: Mapping, *, synced: bool = True) -> PinnedState:
@@ -96,33 +107,51 @@ def _settles_report_three(case, head: str, beside: dict) -> None:
     case.gh.write_pinned_state(case.issue, case.state)
 
 
-def _loses_the_blank(lost: list, live, issue, staged, **options):
-    """`live`, the pinned-comment edit, the first one blanking the base tip landed with its answer lost into `lost`."""
-    answered = live(issue, staged, **options)
-    tip = readings.KEY_REWRITE_BASE
-    blanks = options["over"].get(tip) and not staged.get(tip)
-    if blanks and answered is PinnedEdit.EDITED and not lost:
-        lost.append(answered)
-        return PinnedEdit.UNCONFIRMED
-    return answered
-
-
-def _drops_the_blank(lost: list, live, issue, staged, **options):
-    """`live`, the pinned-comment edit, the first one blanking the base tip never sent, its answer lost into `lost`,
-    another road's own edit adding 2 of usage over the comment it was decided on right then."""
-    over = options["over"]
-    tip = readings.KEY_REWRITE_BASE
-    if lost or not over.get(tip) or staged.get(tip):
-        return live(issue, staged, **options)
-    lost.append(None)
-    total = (over.get(_USAGE) or 0) + 2
-    spent = PinnedState(comment_id=staged.comment_id, state_data={**over, _USAGE: total}, parsed=True)
-    live(issue, spent, over=over)
+def _answers_lost(live, issue, staged, **options) -> PinnedEdit:
+    """`live`, the pinned-comment edit, sent as it is and answered lost."""
+    live(issue, staged, **options)
     return PinnedEdit.UNCONFIRMED
 
 
-# How the lost-answer roads answer the reset record's blank.
-_LOSES = MappingProxyType({_LOST_ANSWER: _loses_the_blank, _UNSENT: _drops_the_blank})
+class _LosesTheBlank:
+    """The pinned-comment edit, its first one blanking the base tip answered lost as `answers` says, into `lost`.
+
+    `answers` is whether that edit is sent, landing, and whether another road then writes over what the comment
+    carries: the comment the edit was decided on, with 2 more of usage than the total standing there, and its base
+    tip blanked where the edit was never sent -- so nothing of the edit left standing says whether it landed. None
+    answers every edit as it is.
+    """
+
+    def __init__(self, live, answers: tuple[bool, bool] | None) -> None:
+        self._live = live
+        self._answers = answers
+        self.lost: list = []
+
+    def __call__(self, issue, staged, **options):
+        """Answer the edit; the first blanking the tip answered lost, another road writing over it where asked."""
+        over = options["over"]
+        tip = readings.KEY_REWRITE_BASE
+        blanks = over.get(tip) and not staged.get(tip)
+        if self._answers is None or self.lost or not blanks:
+            return self._live(issue, staged, **options)
+        sends = self._answers[0]
+        answered = self._live(issue, staged, **options) if sends else None
+        self.lost.append(answered)
+        if self._answers[1]:
+            self._rewrites(issue, staged, over)
+        return PinnedEdit.UNCONFIRMED
+
+    def _rewrites(self, issue, staged, over: dict) -> None:
+        """Write `over` back over the comment as it stands, as another road would, 2 more of usage beside its total.
+
+        Its base tip as `over` records it where the lost edit landed and blanked it, and blanked where it never did.
+        """
+        tip = readings.KEY_REWRITE_BASE
+        landed = self._answers[0]
+        standing = staged.data if landed else over
+        rewritten = {**over, _USAGE: (standing.get(_USAGE) or 0) + 2}
+        rewritten[tip] = over.get(tip) if landed else None
+        self._live(issue, PinnedState(comment_id=staged.comment_id, state_data=rewritten), over=standing)
 
 
 class _RefusesThePark:
@@ -241,10 +270,10 @@ class KeptStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_staged_usage_is_counted_once(self) -> None:
         # Another road adds as much usage beside report 3, the proof's invalidation landing over it: the hold
-        # still adds the tick's own. Usage that rides the reset recorded over a checkout gone is added once --
-        # that record's answer lost too, the retirement asked again behind it sending none of it a second time,
-        # or sending all of it beside another road's own where that record never landed. The gate's record lands
-        # down every road.
+        # still adds the tick's own. Over a checkout gone the usage rides none of the proof's writes, so however
+        # the reset record's blank lost its answer -- landed, written over by another road adding 2, or never sent
+        # as another road blanks the tip and adds 2 -- it is added once behind the proof beside what that road
+        # added. The gate's record, sent again behind a lost answer, lands down every road.
         for road, added in _USAGE_ROADS:
             with self.subTest(road=road):
                 self.setUp()
@@ -252,7 +281,7 @@ class KeptStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
                 self.assertEqual(readings.pinned(self).get(_USAGE), counted + added)
                 self.assertEqual(readings.pinned(self).get(_GATE), head)
-                self.assertEqual(len(lost), int(road in {_LOST_ANSWER, _UNSENT}))
+                self.assertEqual(len(lost), int(road in _LOSES))
 
     def _holds_over_staged_usage(self, road: str) -> tuple[int, list, str]:
         """Stage 5 of usage and the gate's record on the tick's state and hold over it down `road`; the usage before,
@@ -266,14 +295,10 @@ class KeptStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             _settles_report_three(self, head, {_USAGE: counted + 5})
         else:
             self._wt.rename(self._wt.parent / "checkout-away")
-        lost: list = []
-        losing = _LOSES.get(road)
-        if losing is None:
+        losing = _LosesTheBlank(self.gh.edit_pinned_state, _LOSES.get(road))
+        with patch.object(self.gh, "edit_pinned_state", losing):
             _parks.lands_a_hold(context)
-        else:
-            with patch.object(self.gh, "edit_pinned_state", partial(losing, lost, self.gh.edit_pinned_state)):
-                _parks.lands_a_hold(context)
-        return counted, lost, head
+        return counted, losing.lost, head
 
 class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     """The keeper on a tick's state alone: what it stages again behind its block, over which reading, and when not."""
@@ -300,6 +325,24 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
         self.assertEqual(state.data, {**landed, _PENDING: "the block's", _GATE: "head"})
         self.assertEqual(json.loads(state.synced), landed)
+
+    def test_lost_totals_are_sent_once(self) -> None:
+        # The tick stages usage alone, taken off the state for a block that writes nothing. Behind it the usage
+        # lands in a write of its own whose answer is lost: taken in as sent, the tick's state withheld, so the hold
+        # recorded behind adds none of it again.
+        self.settles_then_dies()
+        context = self._over(self.gh.read_pinned_state(self.issue))
+        counted = context.state.get(_USAGE) or 0
+        context.state.set(_USAGE, counted + 5)
+        with (
+            patch.object(self.gh, "edit_pinned_state", partial(_answers_lost, self.gh.edit_pinned_state)),
+            keeps_the_staging(context),
+        ):
+            self.assertEqual(context.state.get(_USAGE) or 0, counted)
+        self.assertTrue(context.state.withheld)
+        self.assertTrue(_parks.lands_a_hold(context))
+
+        self.assertEqual(readings.pinned(self).get(_USAGE), counted + 5)
 
     def _over(self, state: PinnedState):
         """The recovery context of this case's issue, holding `state` as the tick's."""

@@ -8,20 +8,22 @@ already staged on -- a gate's record of the hold, or the tip the git owner
 stages back behind a reset git refused -- and each write it lands lays what
 landed over that state whole (`report_commits.ReportCommit.lands`).
 `keeps_the_staging` stages again behind the proof each such field no strict
-edit of the proof's carried, landed or may have, over the comment as the
-tick read it before -- an equal total another road wrote proves nothing: the
-record behind lands it as the tick's own move, refuses it as a conflict where
-the comment moved it, and never adds a carried counter twice. A field the
-proof itself left staged keeps the proof's staging. Within the proof, a
-write whose answer was lost lays nothing over the state, so the comment is
-read afresh behind it, that reading asked by the proof as every other is
-(`rewrite_recovery_readings.AsksEveryReading`). An edit lands whole: a
-comment carrying none of the fields it moved as it sent them never took it,
-however another road moved those fields since, and the tick's staging stays
-staged for the writes behind, a gate's record and usage among it. Otherwise
-each field of the tick's staging such an edit carried is taken in as it
-spelled it, and no later write of the proof sends it -- usage among it -- a
-second time; so too where the comment would not read, even once more.
+edit of the proof's landed, over the comment as the tick read it before --
+an equal total another road wrote proves nothing: the record behind lands it
+as the tick's own move, refuses it as a conflict where the comment moved it,
+and never adds a carried counter twice. A field the proof itself left staged
+keeps the proof's staging. Within the proof, each field of the tick's staging
+an edit landed is taken in as it spelled it. A write whose answer was lost
+lays nothing over the state, and what survives on the comment cannot say
+whether it landed, so nothing is read into it: what the tick staged rides the
+next write again, which the guarded commit takes over a comment already
+carrying it as over one that never did -- every field of it, save a total
+that adds up. Sent again over itself, such a total -- usage -- would count
+twice, so the proof's writes send none: they are taken off the state for the
+proof and land once it is done, in a guarded write of their own, decided on
+nothing and added to the total the comment carries then, whatever the proof
+answered; a lost answer there takes them as sent, so they are never sent
+twice.
 
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
@@ -56,72 +58,102 @@ from orchestrator.workflow.engine import (
     verification_durable as _durable,
 )
 
-# The edits that may have carried what they sent onto the comment: landed, or sent with the answer lost.
+# The edits that may have carried what they sent onto the comment: landed, or sent with the answer lost; and the
+# commits that did.
 _MAY_HAVE_LANDED = frozenset((PinnedEdit.EDITED, PinnedEdit.UNCONFIRMED))
+_SENT = frozenset((_commit_models.CommitStatus.COMMITTED, _commit_models.CommitStatus.UNCONFIRMED))
 
 # The write a retirement over a checkout gone from disk rides, logged, and the last one asked over a fresh reading.
 _GONE = "in a write of its own, the checkout it was captured on gone"
 
 _LAST = f"{_GONE}, asked once more over the comment read afresh, holding"
 
+# The write the totals the tick staged land in once the proof is done: decided on nothing, since a total another
+# road moved meanwhile is added to rather than refused, and owning nothing besides them.
+_TOTALS = _commits.ReportWrite(owned=frozenset(), decided_on=frozenset())
+
 
 class _KeepsWhatItCarried:
-    """`gh` for one proof: every call passed through, the fields each edit of the issue's comment moved kept.
+    """`gh` for one proof, every call passed through, and what the tick staged before it, kept across its edits.
 
-    `staging` is what the tick staged on `context.state` before the proof: each of those an edit landed, or may have,
-    is taken in on that state as the edit spelled it, so no later write of the proof sends it again, a counter added
-    twice among it. An edit whose answer was lost and that the comment read afresh shows never landed carried nothing,
-    whatever another road wrote of the fields it sent meanwhile.
+    That staging is what `context.state` moved off the comment as the tick read it. Ahead of a record it stays on the
+    state for the proof, save the totals among it that add up again sent over themselves (`_TOTALS`), which are taken
+    off; each field of it an edit of the issue's comment landed is taken in on the state as the edit spelled it, so
+    no later write of the proof sends it again, and one whose answer was lost takes in nothing, for the next write to
+    send it again. Behind a record all of it is taken off, and `carried` names every field an edit landed or may have.
     """
 
-    def __init__(
-        self, context: _base_sync_models._AutoRebaseRecoveryContext, carried: set[str], staging: frozenset[str],
-    ) -> None:
+    def __init__(self, context: _base_sync_models._AutoRebaseRecoveryContext, *, ahead: bool) -> None:
         self._gh = context.gh
-        self._issue_number = context.issue.number
+        self._issue = context.issue
         self._tick = context.state
-        self._carried = carried
-        self._staging = staging
+        self._ahead = ahead
+        self._staged = copy.deepcopy(context.state.data)
+        self._read = json.loads(context.state.synced)
+        staging = _moved(self._staged, self._read)
+        self._moves = frozenset(staging)
+        self._staging = frozenset(staging if ahead else ())
+        self._totals = frozenset(field for field in self._staging if self._adds_again(field))
+        self.carried: set[str] = set()
+        _lays(self._tick, self._read, self._totals if ahead else staging)
 
     def __getattr__(self, name: str):
         return getattr(self._gh, name)
 
     def edit_pinned_state(self, issue: Issue, state: PinnedState, **options) -> PinnedEdit:
-        """The strict edit, sent through; what it moved over its comment kept where it landed or may have."""
+        """The strict edit, sent through; what it moved over its comment kept where it landed, or may have."""
         edit = self._gh.edit_pinned_state(issue, state, **options)
-        if issue.number != self._issue_number or edit not in _MAY_HAVE_LANDED:
-            return edit
-        if edit is PinnedEdit.UNCONFIRMED and self._never_landed(issue, state, options):
+        if issue.number != self._issue.number or edit not in _MAY_HAVE_LANDED:
             return edit
         moved = _moved(state.data, options.get("over") or {})
-        self._carried.update(moved)
+        if edit is PinnedEdit.UNCONFIRMED:
+            self.carried.update(moved - self._staging)
+            return edit
+        self.carried.update(moved)
         _lays(self._tick, state.data, moved & self._staging)
         _commit.takes_in(self._tick, state.data, moved & self._staging)
         return edit
 
-    def _never_landed(self, issue: Issue, sent: PinnedState, options: Mapping[str, Any]) -> bool:
-        """Whether the comment read afresh, once more where it would not read, carries no field `sent` moved as sent.
+    def restages(self) -> None:
+        """Stage again on the state, over the tick's reading, each field it staged that nothing carried or stages now.
 
-        An edit lands whole, so one whose answer was lost and none of whose fields reads as it sent them never landed,
-        however another road moved those fields since -- a usage total it added to among them. One carrying any of
-        them as sent reads as landed, another road's equal write too, and so does a comment that would not read either
-        time. Each reading is put in the `seen` the edit was handed, where it was handed one, so a proof that asks every
-        reading (`rewrite_recovery_readings.AsksEveryReading`) reads what moved there as well.
+        Ahead of a record always; behind one only where no edit of the proof's landed or may have.
         """
-        over = options.get("over") or {}
-        reading = PinnedState(
-            comment_id=self._tick.comment_id, state_data=dict(over), parsed=self._tick.parsed,
-        )
-        guard = _commit_models.PinnedCommit.capture(reading)
-        fresh = _commit.reread(self._gh, issue, guard)
-        if not isinstance(fresh, PinnedState):
-            fresh = _commit.reread(self._gh, issue, guard)
-        if not isinstance(fresh, PinnedState):
-            return False
-        seen = options.get("seen")
-        if seen is not None:
-            seen.append(fresh)
-        return _moved(sent.data, over) <= _moved(fresh.data, sent.data)
+        if self.carried and not self._ahead:
+            return
+        tick = self._tick
+        stages_now = _moved(tick.data, json.loads(tick.synced))
+        left = sorted(self._moves - self.carried - stages_now)
+        _lays(tick, self._staged, left)
+        _commit.takes_in(tick, self._read, left)
+
+    def adds_the_totals(self) -> None:
+        """Land the totals the tick stages, taken off for the proof, in a guarded write of their own; sent once.
+
+        Over the tick's reading, so the total another road reached meanwhile is added to rather than written over.
+        Landed, they are taken in as the comment then carries them; sent with the answer lost, as sent, the tick's
+        state withheld, so nothing sends them twice; refused, they stay staged for the record behind.
+        """
+        tick = self._tick
+        reading = _readings.RecordsALostCheckout.as_read(tick)
+        moving = sorted(self._totals & _moved(tick.data, reading.data))
+        if not moving:
+            return
+        _lays(reading, tick.data, moving)
+        commit = _commits.ReportCommit(self._gh, self._issue, reading)
+        landed = commit.lands(reading, _TOTALS).status
+        if landed is _commit_models.CommitStatus.COMMITTED:
+            _lays(tick, reading.data, moving)
+        if landed in _SENT:
+            _commit.takes_in(tick, tick.data, moving)
+        if landed is _commit_models.CommitStatus.UNCONFIRMED:
+            tick.withheld = True
+
+    def _adds_again(self, field: str) -> bool:
+        """Whether `field` as the tick staged it, sent again over a comment already carrying it, moves on: a total."""
+        staged = _commit_models.loaded(_commit_models.spelled(self._staged, field))
+        read = _commit_models.loaded(_commit_models.spelled(self._read, field))
+        return _commits._both_moves(field, staged, read, staged) != staged
 
 
 @contextmanager
@@ -130,25 +162,20 @@ def keeps_the_staging(
 ) -> Iterator[_base_sync_models._AutoRebaseRecoveryContext]:
     """The context to prove over, what the tick staged kept for a record `ahead` of it, and out of it behind one.
 
-    Behind a record that did not land, that staging is taken off the state for
-    the block, so no write of the proof's carries it, and put back only where
-    no edit of the proof's landed or may have.
+    Ahead of a record, the totals among that staging are taken off the state for the block, so no write of the
+    proof's sends them, and land once it is done in a write of their own (`_KeepsWhatItCarried.adds_the_totals`).
+    Behind a record that did not land, all of it is taken off the state for the block, so no write of the proof's
+    carries it, and put back only where no edit of the proof's landed or may have.
     """
-    state = context.state
-    if state.synced is None:
+    if context.state.synced is None:
         yield context
         return
-    staged = copy.deepcopy(state.data)
-    read = json.loads(state.synced)
-    carried: set[str] = set()
-    staging = frozenset(_moved(staged, read) if ahead else ())
-    if not ahead:
-        _lays(state, read, _moved(staged, read))
+    keeper = _KeepsWhatItCarried(context, ahead=ahead)
     try:
-        yield replace(context, gh=_KeepsWhatItCarried(context, carried, staging))
+        yield replace(context, gh=keeper)
     finally:
-        if ahead or not carried:
-            _restages(state, staged, read, carried)
+        keeper.restages()
+    keeper.adds_the_totals()
 
 
 def lands_the_retirement(
@@ -213,22 +240,6 @@ def _lands(
     _lays(context.state, durable.data, write.decided_on | _durable._EVIDENCE_RECORDS)
     _commit.takes_in(context.state, durable.data, write.decided_on | _durable._EVIDENCE_RECORDS)
     return lands_the_retirement(context, write, asked, behind=landed)
-
-
-def _restages(
-    state: PinnedState,
-    staged: Mapping[str, Any],
-    read: Mapping[str, Any],
-    carried: set[str],
-) -> None:
-    """Stage again on `state`, over `read`, each field `staged` moved that nothing carried or stages now."""
-    if state.synced is None:
-        return
-    synced = json.loads(state.synced)
-    left = _moved(staged, read) - carried - _moved(state.data, synced)
-    fields = sorted(left)
-    _lays(state, staged, fields)
-    _commit.takes_in(state, read, fields)
 
 
 def _lays(state: PinnedState, spelled: Mapping[str, Any], fields: Iterable[str]) -> None:

@@ -10,10 +10,9 @@ A successor read beside a blanked tip there, the tip put back behind it, is
 movement no later proof would read. So those finishes, and a park's or hold's
 record (`rewrite_recovery_parks`), read through `AsksEveryReading`
 (`asks_every_reading`): every call passes through, and each parsed reading of
-the issue's comment -- the comment a strict edit found moved, the reread
-behind a refusal for room, and the one read to confirm an edit whose answer
-was lost (`rewrite_recovery_staging`), among them -- is handed to the proof's
-classifier first.
+the issue's comment -- the comment a strict edit found moved, and the reread
+behind a refusal for room, among them -- is handed to the proof's classifier
+first.
 
 `tip_moves` reads what a reading's base tip records moving for that
 classifier (`rewrite_landing_retirement.moved_under`): blank or repointed
@@ -109,7 +108,7 @@ class AsksEveryReading:
         return read
 
     def edit_pinned_state(self, issue: Issue, state: PinnedState, **options) -> PinnedEdit:
-        """The strict edit, sent through, each comment put in `seen` asked: one it found moved, or read to confirm it.
+        """The strict edit, sent through, the comment it found moved asked.
 
         The edit keeps the comment its walk read where it answers MOVED only
         in a `seen` it is handed, so one is handed where the caller's guard

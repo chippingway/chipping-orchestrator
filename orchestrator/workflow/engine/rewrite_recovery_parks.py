@@ -312,7 +312,9 @@ def proves_before_a_park(
     Asked ahead of a record, the proof keeps what the tick staged before it
     -- a gate's record of a hold, or a tip staged back behind a reset git
     refused -- across every write it lands, for the record behind, save what
-    a proof write already carried (`rewrite_recovery_staging.keeps_the_staging`).
+    a proof write already carried, and save the totals among it -- usage --
+    which ride none of the proof's writes and land once behind it in a write of
+    their own (`rewrite_recovery_staging.keeps_the_staging`).
     Behind a record its staging is kept out of every write the proof lands.
     `lost` -- with `heads_read` and a loss still owed (`owed_events.loss_owed`)
     -- names a checkout read gone or off the evidence's head, or the replay's
