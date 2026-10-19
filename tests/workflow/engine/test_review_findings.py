@@ -775,6 +775,39 @@ _QUIET_UNCOLLECTED = (
 _QUIET_UNCOLLECTED_LEAD = (
     f"{_QUIET_FIRST_LEAD}{_UNCOLLECTED_NAME}Error: `ModuleNotFoundError: No module named 'nowhere'`\n"
 )
+# Runs `-q -s --tb=no` printed one after another, their progress letters
+# carrying no percentage: each opens below the statistics closing the one
+# before. And a run printing no section before one titling a section by an ID
+# the first's summary line could end on as well: the first keeps its own
+# error, where its ID ends unavailable, borrowing no title of another run.
+_QUIET_UNPROGRESSED = (
+    "F\n"
+    f"{_SUMMARY_HEADING}"
+    "FAILED test_first.py::test_first - ValueError: first failure\n"
+    "1 failed in 0.00s\n"
+    "\n"
+    "F\n"
+    f"{_SUMMARY_HEADING}"
+    "FAILED test_second.py::test_second - ValueError: second failure\n"
+    "1 failed in 0.00s"
+)
+_QUIET_UNPROGRESSED_LEAD = (
+    "Failure: `test_first.py::test_first`\nError: `ValueError: first failure`\n"
+    "Failure: `test_second.py::test_second`\nError: `ValueError: second failure`\n"
+)
+_BORROWED_SUMMARY = "FAILED test_probe.py::test_p[x] - ValueError: [y] - TypeError: boom"
+_BORROWED = (
+    "F                                                                        [100%]\n"
+    f"{_SUMMARY_HEADING}{_BORROWED_SUMMARY}\n1 failed in 0.00s\n\n"
+    "F                                                                        [100%]\n"
+    "=================================== FAILURES ===================================\n"
+    "__________________________ test_p[x] - ValueError: [y] __________________________\n"
+    f"E   TypeError: boom\n{_SUMMARY_HEADING}{_BORROWED_SUMMARY}\n1 failed in 0.01s"
+)
+_BORROWED_LEAD = (
+    f"Failure: `test_probe.py::test_p[x]`\nError: `ValueError: [y] - TypeError: boom`\n{_UNSURE}"
+    "Failure: `test_probe.py::test_p[x] - ValueError: [y]`\nError: `TypeError: boom`\n"
+)
 _QUIET_SKIPPED = (
     f"{_QUIET_FIRST}"
     ".s                                                                       [100%]\n"
@@ -1591,6 +1624,7 @@ class FailureNamesTest(unittest.TestCase):
             # statistics printed as a heading too.
             (_HEADED_THEN_UNCOLLECTED, "", _QUIET_UNCOLLECTED_LEAD),
             (_QUIET_SKIPPED, "", _QUIET_FIRST_LEAD),
+            (_QUIET_UNPROGRESSED, "", _QUIET_UNPROGRESSED_LEAD),
             # Each collection a summary line reports takes the section of its
             # own run, however the two spell its path; and only that run's
             # interruption makes a node ID a collection.
@@ -1677,6 +1711,8 @@ class FailureNamesTest(unittest.TestCase):
             # A file path may hold the dash too, an ID running on to its test,
             # and a path alone to the line's end where no message follows.
             ("", _DASHED, _DASHED_LEAD),
+            # Only a section of its own run names a summary line's ID.
+            ("", _BORROWED, _BORROWED_LEAD),
             # A test's file path may hold blanks, and brackets that open no
             # parameters.
             ("", _SPACED, _SPACED_LEAD),
@@ -1765,12 +1801,15 @@ class FailureNamesTest(unittest.TestCase):
 
     def test_previous_layout_leads_as_live_checks_do(self) -> None:
         # A check that layout showed leads as a live round's does: a failure
-        # the summary leaves out, a node ID whose path holds the dash, and a
-        # conftest pytest could not load.
+        # the summary leaves out, a node ID whose path holds the dash, a
+        # conftest pytest could not load, and runs of one check each leading
+        # their own failures, by their own sections.
         led = (
             (_ERRORS_ONLY, _ERRORS_ONLY_LEAD),
             (_DASHED, _DASHED_LEAD),
             (_CONFTEST_UNLOADED, _CONFTEST_UNLOADED_LEAD),
+            (_QUIET_UNPROGRESSED, _QUIET_UNPROGRESSED_LEAD),
+            (_BORROWED, _BORROWED_LEAD),
         )
         for output, lead in led:
             unled = f"`uv run pytest tests` exited with status 1:\n\n```\n{output}\n```"

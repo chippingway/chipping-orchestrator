@@ -30,16 +30,16 @@ pytest's: below a rule, where pytest itself never opens a run, a run's opening
 `-q` -- opens one a test printed, captured up to the line of statistics that
 closes it. pytest pads every title, rule, and heading of a run to its
 terminal's width, so a line of a section's or a heading's shape narrower than
-the last heading pytest printed is one a test printed, and stays captured;
-any other ends what is read as captured there, being one pytest might print
-next. pytest prints one short summary for a run, last, so of the summary
-headings in one run only the last is pytest's, any above it one a test
-printed. Outside
+the last heading pytest printed is one a test printed, and stays captured; any
+other ends what is read as captured there, being one pytest might print next.
+pytest prints one short summary for a run, last, so of the summary headings in
+one run only the last is pytest's, any above it one a test printed. Outside
 anything captured a run opens on its opening, or, with `-q`, where a run
 reporting no progress -- one failing collection alone -- opens: on the errors
 or failures heading, which pytest prints before a run's summary, standing in
-the summary of the run before it or below the line of statistics closing
-that run.
+the summary of the run before it; and on any heading or title below the line
+of statistics closing a run, below which pytest prints nothing of that run's
+-- with `-q -s` a run's progress letters carry no percentage to open it by.
 
 A section marks the exception it shows with `E` (`Section`). An assertion's
 explanation, a diff hint, or a syntax error's source sets its lines out
@@ -300,16 +300,18 @@ class _Where:
     def _opening(self, opened: re.Match[str]) -> _Where:
         """Where the line `opened` reads as opening a section stands: in what pytest captured, or the region it opens.
 
-        The errors or failures heading opens a run of its own where it stands
-        in a short summary, which pytest prints below it in any one run, or
-        below a line of statistics, which closes a run -- printed as a heading
-        or, with `-q`, not.
+        A line of statistics closes a run -- printed as a heading or, with
+        `-q`, not -- and pytest prints nothing of a run's below it, so any
+        heading or title below one opens a run of its own: a run's progress
+        letters, printed with `-q -s`, carry no percentage to open it by. So
+        does the errors or failures heading where it stands in a short
+        summary, which pytest prints below it in any one run.
         """
         if opened.group("rule"):
             return replace(self, captured=True)
         named = opened.group("heading") or ""
         region = _HEADED.get(named, _ELSEWHERE)
-        reopens = named in _SUMMARISED_BELOW and (self.closed or self.stands(_SUMMARISED))
+        reopens = self.closed or (named in _SUMMARISED_BELOW and self.stands(_SUMMARISED))
         run = self.run + 1 if reopens else self.run
         summaries = self.summaries + 1 if region == _SUMMARISED else self.summaries
         return _Where(
@@ -407,7 +409,8 @@ class PytestOutput:
     `sections` are those sections, in order, a failure pytest printed before
     running any test first; and `titled` what each says failed
     (`Section.failed`) -- the name of each test pytest printed one for, its
-    failure's or its fixture's, among them.
+    failure's or its fixture's, among them -- with the run it stands in, a
+    run's summary lines naming only its own.
     """
 
     def __init__(self, lines: Sequence[str]) -> None:
@@ -415,12 +418,14 @@ class PytestOutput:
         self._wheres = _Where.of(lines)
         unstarted = _unstarted(lines, self._wheres)
         self.sections = tuple(chain(unstarted, self._read()))
-        self.titled = frozenset(section.failed[1] for section in self.sections)
-        summarised = _Where.summary(lines, self._wheres)
+        failed = ((section.failed[1], section.run) for section in self.sections)
+        self.titled = frozenset(failed)
         # The lines pytest's short summary lines may stand on, each with the
         # run it closes. The summary's heading stands in it, so none does
         # only where the output holds none.
-        self.summary = summarised or _uncaptured(lines, self._wheres)
+        self.summary = (
+            _Where.summary(lines, self._wheres) or _uncaptured(lines, self._wheres)
+        )
         interrupted = (run for line, run in self.summary if _INTERRUPTED_RE.search(line))
         self._interrupted = frozenset(interrupted)
         self._taken: set[int] = set()

@@ -326,15 +326,15 @@ class _Reported:
         Surest where a section of that run no line took yet shows the
         exception `error` opens (`PytestOutput.showing`), the earlier the
         surer: pytest prints its sections in its summary's order, so two lines
-        alike each take their own. Less where pytest titled a section by it,
-        or an entry of the findings names it whole; not at all, an empty key,
-        otherwise.
+        alike each take their own. Less where pytest titled a section of that
+        run by it, or an entry of the findings names it whole; not at all, an
+        empty key, otherwise.
         """
         number = read.showing(node, error, run)
         if number is not None:
             return _SHOWN, -number
         name = read.name(node)
-        titled = bool(name) and name in read.titled
+        titled = bool(name) and (name, run) in read.titled
         if titled or _entries.FailureEntry.naming(entries, node):
             return (_TITLED,)
         return _NOT_NAMED

@@ -270,11 +270,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             message a bracket and a dash of its own, so the ID is the longest whose section of the
                             line's run -- or `--tb=line` line traceback -- shows the exception the message after it
                             opens, the first no line took yet, as where two tests' IDs overlap, else the longest an
-                            entry of the findings names whole or pytest titled a section by; else it ends on the first
-                            split leaving a message of pytest's shape -- a rewritten assertion's `assert` or an
-                            exception's name, never a file's or a separator -- so the message is never cut short, the
-                            line marked unsure where a later split leaves one too; else, pytest having given no message,
-                            on the last
+                            entry of the findings names whole or pytest titled a section of the line's run by; else it
+                            ends on the first split leaving a message of pytest's shape -- a rewritten assertion's
+                            `assert` or an exception's name, never a file's or a separator -- so the message is never
+                            cut short, the line marked unsure where a later split leaves one too; else, pytest having
+                            given no message, on the last
     review_findings_pytest.py
                             what pytest's output says beside its short summary, for `review_findings_failures`: a
                             conftest or a plugin it could not load before running any test, as a section titled by the
@@ -307,9 +307,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             test having cut it short; and only the last short summary of a run is read, any above it in
                             the run being one a test printed. Outside anything captured a run opens on the session's
                             heading or a `-q` progress line, or -- a `-q` run failing collection alone reports no
-                            progress -- on the errors or failures heading standing in the summary of the run before it
-                            or below the line of statistics closing that run, so each of several runs leads with its own
-                            failures
+                            progress -- on the errors or failures heading standing in the summary of the run before it,
+                            or on any heading or title below the line of statistics closing a run -- with `-q -s`
+                            progress letters carry no percentage -- so each of several runs leads with its own failures
     review_findings_entries.py
                             the failure entries a reviewer writes in its findings, for `review_findings_failures` and
                             `review_findings`: an entry runs from one `Failure:` line to the next, or to the next
