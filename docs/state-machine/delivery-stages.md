@@ -5375,7 +5375,8 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      subject, so a moved subject drops the verdict with no checkout restored; one that may have started -- a run ledger
      whose record of that launch no reader takes included -- is never made again. The owed launch resumes its developer
      on the record's feedback as `engine/review_findings.py` shows it, so a request handed before findings were
-     formatted is answered on the concise findings, while the post it was handed over with stays as it was posted --
+     formatted is answered on the concise findings, and one handed before leads on its checks led, while the post it
+     was handed over with stays as it was posted --
      the `/orchestrator continue` replaying it quotes its findings formatted too (`validating/feedback_posts.py`). One
      that may have started is held to the subject resolved
      again, the evidence its request claims, and the branch: a move, a commit the pull request has not got, loose work
@@ -5442,7 +5443,8 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      the park, and **replay the preserved feedback batch** (`_reconstruct_pending_fix_batch`) — the validating route's
      anchor quoted as `validating/feedback_posts.ShownPost` shows it, its findings formatted and everything else, its
      id included, the posted comment's, so a post made before findings were formatted reaches the fresh developer
-     concise while it stays on the pull request as posted, and the batch settles exactly as over it — carrying the fresh
+     concise, and one made before leads led, while it stays on the pull request as posted, and the batch settles
+     exactly as over it — carrying the fresh
      feedback that says something (`_carried_fresh_feedback`) — any guidance posted with or beside the command,
      verbatim — but NEVER the bare command itself: a replay renders what it is handed as PR feedback to implement, so
      the command line would read as work to do. The rebuilt issue-thread half is cut from the SCAN's own read of that
