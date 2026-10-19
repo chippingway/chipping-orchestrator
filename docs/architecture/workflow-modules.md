@@ -2454,10 +2454,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and left current behind a tail cut short (`rewrite_landing_records.settled`). Over a
                             reset that landed, or a guarded clear of the attempt over a checkout back on the anchor
                             (`retires_over_the_reset`, the answer `settles_over_a_reset` would carry) a captured run
-                            is abandoned as `abandons_over_the_reset` stages it and settled
+                            is abandoned into history as `abandons_over_the_reset` stages it and settled
                             evidence invalidated into history whole on the same state, so both go with the attempt's
-                            release or neither does; with no room for its history entry the settled evidence is
-                            kept current and whole beside the attempt, its base tip blanked in a write of its own
+                            release or neither does; with no room for either's history entry neither is dropped, as
+                            the captured-only answer drops a run it cannot abandon: it is kept pending or current and
+                            whole beside the attempt, its base tip, where it records one, blanked in a write of its own
                             (`rewrite_finish_writes.ABANDONMENT`) so every later proof reads movement, and the
                             answer is False, for the git owner to keep the attempt with nothing released or parked.
                             Before a park that keeps the attempt (`retires_unproved`) the captured run is proved again
@@ -2583,12 +2584,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             not the tick holds any evidence, the comment read afresh for evidence put back since -- so
                             evidence put back later is retired too, however soon the checkout returned before those
                             writes; a head read is weighed against the replay's own where the tick holds none.
-                            Ahead of every reset whose attempt records a base tip -- or one the tick read blank,
-                            confirmed blank over the comment read afresh, so a tip another road put back refuses the
-                            reset -- that tip is blanked in a write of its own (`records_the_reset`, the answer
-                            `records_before_a_reset` would carry), decided on every evidence record and the attempt as
-                            the tick read them (`rewrite_finish_writes.INVALIDATION`), so evidence settled since refuses
-                            it, and a blank refused or never confirmed holds with nothing reset or cleaned, the tick's
+                            Ahead of every reset whose attempt records a base tip -- or one the tick read blank, null
+                            or absent, confirmed blank over the comment read afresh with no field added to it, so a tip
+                            another road put back refuses the reset -- that tip is blanked in a write of its own
+                            (`records_the_reset`, the answer `records_before_a_reset` would carry), decided on every
+                            evidence record and the attempt as the tick read them
+                            (`rewrite_finish_writes.INVALIDATION`), so evidence settled since refuses it, and a blank
+                            refused or never confirmed holds with nothing reset or cleaned, the tick's
                             state withheld so its stale tip is never written back over a blank that landed unconfirmed;
                             a tick whose state carries another attempt by then, one a proof took in, writes no blank
                             and holds the same way, so a replacement's tip is never blanked;
