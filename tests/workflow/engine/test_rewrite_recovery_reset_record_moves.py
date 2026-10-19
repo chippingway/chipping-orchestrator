@@ -26,6 +26,7 @@ from tests.workflow.engine import (
     rewrite_finish_evidence_test_support as fixtures,
     rewrite_finish_git_support as git_support,
     rewrite_finish_readings as readings,
+    settled_finish_support as settled,
 )
 
 # The report record the run is bound to, the revision another road moves it to, and the seams a case stands in for.
@@ -40,8 +41,10 @@ _OVER = "over"
 _GIT = "_git_hardened"
 _RESET = "reset"
 
-# The run's current record and its base tip, as another road takes them off and puts them back.
+# The run's current record and its base tip, and that tip and the run's report, as another road takes them off and
+# puts them back.
 _RUN_AND_TIP = (_CURRENT, readings.KEY_REWRITE_BASE)
+_TIP_AND_REPORT = (readings.KEY_REWRITE_BASE, _REPORT)
 
 # Where the checkout goes, and a label the refresh does not drive, stranding the attempt.
 _AWAY = "checkout-away"
@@ -179,6 +182,31 @@ class BlankTipTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                     self.assertIsNone(persistence._resets(context, self.anchor))
                 held = (self._tip, self._wt_head(), context.state.withheld)
                 self.assertEqual(held, ([], head, True))
+
+    def test_a_successor_behind_the_proof_holds(self) -> None:
+        # The reset's record reads the run's report moved and retires the run; right behind that retirement another
+        # road settles a newer run on its binding and puts the tip and the report back: the record reads the comment
+        # once more behind its proof and holds the reset, the checkout left on the head and the tick's state withheld.
+        self._run = self.settles_then_dies()
+        context = guarded.recovery_context(self)
+        held_back = self.pinned_fields(*_TIP_AND_REPORT)
+        self._tip = [dict(zip(_TIP_AND_REPORT, held_back, strict=True))]
+        report = held_back[1]
+        _writes(self, {_REPORT: {**report, _REVISION: report[_REVISION] + 1}})
+        settles = partial(self._settles_behind_the_retirement, self.gh.edit_pinned_state)
+        with patch.object(self.gh, _EDITS, settles):
+            self.assertIsNone(persistence._resets(context, self.anchor))
+        held = (self._tip, self._wt_head(), context.state.withheld)
+        self.assertEqual(held, ([], self._run[0], True))
+
+    def _settles_behind_the_retirement(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, a newer run settled and the fields held put back behind the run retired."""
+        answered = live(issue, staged, **options)
+        retires = options[_OVER].get(_CURRENT) and not staged.get(_CURRENT)
+        if retires and self._tip:
+            settled.records_a_newer_run(self, settles=True, binding=self._run[1].binding)
+            _writes(self, self._tip.pop())
+        return answered
 
     def _puts_the_tip_back_behind(self, live, issue, staged, **options):
         """`live`, the pinned-comment edit, the tip held written back right behind the first edit blanking it."""

@@ -300,15 +300,19 @@ def proves_before_a_park(
     a proof write already carried (`rewrite_recovery_staging.keeps_the_staging`).
     Behind a record its staging is kept out of every write the proof lands.
     `lost` -- with `heads_read` and a loss still owed (`owed_events.loss_owed`)
-    -- names a checkout read gone or off the evidence's head, retired over it;
-    the debt stays owed by the attempt, so evidence put back is retired too.
+    -- names a checkout read gone or off the evidence's head, or the replay's
+    where the tick holds none, retired over it: recorded by the attempt's debt
+    first, whatever the tick holds, and asked of the comment read afresh, so
+    evidence absent from the tick's reading and put back meanwhile or later is
+    retired too.
     """
     recorded = (_landing_records.captured(context.state), _landing_records.settled(context.state))
     landed = {record.binding.target.target_head for record in recorded if record}
+    landed.add(context.pending_rewrite.sha)
     lost = [read for read in (*lost, *context.heads_read) if read not in landed]
     lost += [context.worktree] if loss_owed(context) else []
     with keeps_the_staging(replace(context, records_before_a_reset=records_the_reset), ahead=moved is None) as proving:
-        if proving.worktree.is_dir() and not (lost and _retirement.receipts(proving.state)):
+        if proving.worktree.is_dir() and not lost:
             return _retirement.retires_unproved(proving, moved)
         return records_the_reset(proving, lost=lost or (proving.worktree,))
 
@@ -337,7 +341,9 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     the checkout off evidence nothing records moved, or under another attempt.
     Movement the record's commit read (`rewrite_landing_retirement.moved_under`)
     is proved as read first, so what moved is retired before the reset goes on,
-    False where that does not land. Over a checkout gone from disk, or one
+    False where that does not land -- and the comment is read afresh once more
+    behind that proof, so a tip put back or another attempt pinned while it made
+    its own requests holds the reset as well, the tick's state withheld. Over a checkout gone from disk, or one
     `lost` names however soon it is back, the loss is owed by the attempt the
     moment it is read, ahead of every write (`owed_events.owes_a_loss`), so a
     checkout back by the time those writes are refused still leaves evidence
@@ -365,44 +371,47 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
             return False
         return True
     if moved:
-        recorded = _retirement.retires_unproved(
+        proved = _retirement.retires_unproved(
             replace(context, records_before_a_reset=records_the_reset), _retirement.reconciles(context, moved),
-        ) and recorded
+        )
+        recorded = proved and recorded and _blanks_the_tip(context, moved, again=True)
     return recorded
 
 
-def _blanks_the_tip(context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence]) -> bool:
+def _blanks_the_tip(
+    context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence], *, again: bool = False,
+) -> bool:
     """Blank the attempt's base tip in a guarded write of its own, what each reading it takes moves kept in `moved`.
 
     Whether it landed, logged either way; refused or unconfirmed, the commit withholds the tick's state. A blank that
     landed is followed by the comment read afresh, so a tip another road put back right behind it, an attempt it
     pinned there, or a comment that would not read holds the reset too -- no reset moving the checkout off evidence
-    nothing records moved -- the tick's state withheld rather than written back over what that road wrote.
+    nothing records moved -- the tick's state withheld rather than written back over what that road wrote. `again`
+    writes nothing and asks only that reading, for a caller whose proof made requests of its own since the blank.
     """
     asked = asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved))
-    commit = _commits.ReportCommit(asked.gh, context.issue, context.state)
-    staged = commit.staging()
-    staged.set(_TIP, None)
-    landed = commit.lands(staged, _writes.INVALIDATION)
-    if landed.status is _commit_models.CommitStatus.COMMITTED:
-        durable = durable_comment(asked.gh, context.issue, context.state)[0]
-        if durable is not None and not durable.get(_TIP) and stands_as_recovered(context, durable):
-            log.info(
-                "issue=#%d recorded the reset ahead of it by blanking the attempt's base tip", context.issue.number,
+    if not again:
+        commit = _commits.ReportCommit(asked.gh, context.issue, context.state)
+        staged = commit.staging()
+        staged.set(_TIP, None)
+        landed = commit.lands(staged, _writes.INVALIDATION)
+        if landed.status is not _commit_models.CommitStatus.COMMITTED:
+            log.warning(
+                "issue=#%d the reset could not be recorded ahead of it over the evidence records the tick read (%s); "
+                "nothing is reset until a later tick records it",
+                context.issue.number, (landed.refusal or landed.status).value,
             )
-            return True
-        log.warning(
-            "issue=#%d the reset was recorded, but the comment read afresh behind it carries its base tip back or no "
-            "attempt this recovery recovers; nothing is reset until a later tick answers the comment as it then stands",
-            context.issue.number,
-        )
-        context.state.withheld = True
-        return False
+            return False
+    durable = durable_comment(asked.gh, context.issue, context.state)[0]
+    if durable is not None and not durable.get(_TIP) and stands_as_recovered(context, durable):
+        log.info("issue=#%d the reset stands recorded ahead of it, the attempt's base tip blank", context.issue.number)
+        return True
     log.warning(
-        "issue=#%d the reset could not be recorded ahead of it over the evidence records the tick read (%s); "
-        "nothing is reset until a later tick records it",
-        context.issue.number, (landed.refusal or landed.status).value,
+        "issue=#%d the reset was recorded, but the comment read afresh behind it carries its base tip back or no "
+        "attempt this recovery recovers; nothing is reset until a later tick answers the comment as it then stands",
+        context.issue.number,
     )
+    context.state.withheld = True
     return False
 
 

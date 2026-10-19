@@ -46,6 +46,13 @@ _CURRENT = "verification_evidence_current"
 _REFUSED = "refused"
 _REPORT = "developer_report_current"
 _BOTH = (False, True)
+
+# How a loss outlives the run taken off the comment: read under refused writes, the checkout back or still gone, or
+# handed by a caller over the checkout on disk, the run put back before that proof or after it.
+_REFUSED_BACK, _REFUSED_GONE = "refused, the checkout back", "refused, the checkout still gone"
+_HANDED_AFTER, _HANDED_MEANWHILE = "handed, the run put back after", "handed, the run put back meanwhile"
+_HANDED_MODES = (_HANDED_AFTER, _HANDED_MEANWHILE)
+_ABSENT_MODES = (_REFUSED_BACK, _REFUSED_GONE, *_HANDED_MODES)
 _NTH_READ = "at the checkout's nth reading"
 
 # Where the checkout goes, and what keeps a retirement over its loss from landing: a refusal, or a full history.
@@ -258,12 +265,18 @@ class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
     def test_a_loss_outlives_absent_evidence(self) -> None:
         # Every write refused over the checkout gone, the loss stays owed while another road has the run off the
         # comment, proofs meanwhile going on over nothing -- the checkout back, or still gone so the tip's blank lands
-        # over nothing -- and with the run and its tip put back, the run is retired before a park could keep it.
-        for returned in (True, False):
-            with self.subTest(returned=returned):
+        # over nothing -- and with the run and its tip put back, the run is retired before a park could keep it. So is
+        # a loss a caller hands the proof over the run taken off, owed at once whatever the tick holds -- and a run put
+        # back after the tick's reading is retired by that very proof, read off the comment afresh.
+        for mode in _ABSENT_MODES:
+            with self.subTest(mode=mode):
                 self.setUp()
                 run = self.settles_then_dies()[1]
-                self._proves_over_absent_evidence(returned=returned)
+                written = dict(zip(_RUN_AND_TIP, self.pinned_fields(*_RUN_AND_TIP), strict=True))
+                if mode in _HANDED_MODES:
+                    self._hands_a_loss(written, meanwhile=mode == _HANDED_MEANWHILE)
+                else:
+                    self._proves_over_absent_evidence(written, returned=mode == _REFUSED_BACK)
                 records = readings.pinned_records(self)
                 self.assertIsNone(records[1])
                 self.assertIn((run.receipt, readings.INVALIDATED), records[2])
@@ -303,23 +316,30 @@ class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
             with self.subTest(captured=captures):
                 self.setUp()
                 head, run = self.captures() if captures else self.settles_then_dies()
-                self._proves_behind_a_moved_report(head)
+                report = self.pinned_fields(_REPORT)[0]
+                self.writes_back({_REPORT: {**report, "revision": report["revision"] + 1}})
+                refusing = patch.object(self.gh.pinned_failures, _REFUSED, {self.issue.number})
+                with refusing, self.reads_the_anchor(head, at=2):
+                    self.assertFalse(self.proves())
+                self.writes_back({_REPORT: report})
                 self.assertTrue(self.proves())
                 (self.assert_abandoned if captures else self.assert_invalidated)(run)
 
-    def _proves_behind_a_moved_report(self, head: str) -> None:
-        """Prove, every write refused, over the run's report moved and the checkout read on the anchor; report back."""
-        report = self.pinned_fields(_REPORT)[0]
-        self.writes_back({_REPORT: {**report, "revision": report["revision"] + 1}})
-        refusing = patch.object(self.gh.pinned_failures, _REFUSED, {self.issue.number})
-        with refusing, self.reads_the_anchor(head, at=2):
-            self.assertFalse(self.proves())
-        self.writes_back({_REPORT: report})
+    def _hands_a_loss(self, written: dict, *, meanwhile: bool) -> None:
+        """Hand the proof a loss over the run taken off the comment and the checkout on disk -- the run put back after
+        the tick read it, where `meanwhile` -- then put `written` back for the next proof."""
+        self.writes_back({_CURRENT: None})
+        context = guarded.recovery_context(self)
+        if meanwhile:
+            self.writes_back(written)
+        _parks.proves_before_a_park(context, lost=(context.worktree,))
+        self.assertTrue(_owed_events.loss_owed(context))
+        self.writes_back(written)
+        self.assertTrue(self.proves())
 
-    def _proves_over_absent_evidence(self, *, returned: bool) -> None:
+    def _proves_over_absent_evidence(self, written: dict, *, returned: bool) -> None:
         """Prove over the checkout gone under refused writes, then with the run off the comment -- the checkout back
-        where `returned` -- then with the run and its tip put back, and the checkout too."""
-        written = dict(zip(_RUN_AND_TIP, self.pinned_fields(*_RUN_AND_TIP), strict=True))
+        where `returned` -- then with the run and its tip, as `written`, put back, and the checkout too."""
         self.proves_unrecorded(full=False)
         if returned:
             self._away.rename(self._wt)
