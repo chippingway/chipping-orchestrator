@@ -23,25 +23,26 @@ it holds blanks or brackets, though words naming no Python file are one only
 where pytest says so; and a collection, a setup, or a teardown a section
 pytest printed says failed that no summary line reports -- a run printed with
 `-rN` reports none -- leads by that section alone, as does a conftest or a
-plugin pytest could not load before running any test, and each test's own
-section no line took, by its title -- save one a summary line reporting a test
-that took no section pairs with, as a doctest's line does -- no test ID said.
-A node ID names the setup or teardown of a test where a section pytest printed
-says that failed -- where both did, the one whose section raised the error the
-line gives; a collection where a section of its run says pytest failed
-collecting the node or its path, or its run says collection was interrupted,
-since a class pytest could not collect is reported by its ID; and, nothing
-saying which, an error outside any test body, in one of the three. An ID is
-the longest whose section shows the exception the line's message opens -- the
-first such no line took yet, as pytest prints them in one order -- else the
-longest an entry of the findings names whole, or pytest titled a section by;
-where nothing names one, it ends where the line's message may first begin, so
-the message is never cut short, and where a later split could end it too the
-lead says where the ID ends is unavailable. Each failure leads with its name
-and the error the line gives. Where the line gives none -- pytest drops it
-from a line too long for the terminal -- the exception the section pytest
-printed for it shows gives it, each section going to one summary line, so
-tests of two modules sharing a name each take their own
+plugin pytest could not load before running any test, and a run pytest refused
+before running any test -- as the check's run itself, with the error pytest
+printed -- and each test's own section no line took, by its title -- save one
+a summary line reporting a test that took no section pairs with, as a
+doctest's line does -- no test ID said. A node ID names the setup or teardown
+of a test where a section pytest printed says that failed -- where both did,
+the one whose section raised the error the line gives; a collection where a
+section of its run says pytest failed collecting the node or its path, or its
+run says collection was interrupted, since a class pytest could not collect is
+reported by its ID; and, nothing saying which, an error outside any test body,
+in one of the three. An ID is the longest whose section shows the exception
+the line's message opens -- the first such no line took yet, as pytest prints
+them in one order -- else the longest an entry of the findings names whole, or
+pytest titled a section by; where nothing names one, it ends where the line's
+message may first begin, so the message is never cut short, and where a later
+split could end it too the lead says where the ID ends is unavailable. Each
+failure leads with its name and the error the line gives. Where the line gives
+none -- pytest drops it from a line too long for the terminal -- the exception
+the section pytest printed for it shows gives it, each section going to one
+summary line, so tests of two modules sharing a name each take their own
 (`review_findings_pytest`); or else the error of the reviewer's entry naming
 it. Where none is found the lead says so. No name is ever made up: a check
 pytest's summary names nothing in is led by the failure entries
@@ -53,11 +54,12 @@ the two name one command, since one stdin command, such as `.venv/bin/python
 the check quoted no output to show an error by, and -- whatever names its
 failures -- where its command reads its code from stdin -- a `-` argument,
 split as a shell splits it, that no argument before it gave a program inline,
-by module, or as a script and no entry it backs gives the snippet it read, as
-a code block holding code below its `Reproduce:` line: such a command
-reproduces nothing alone, however an entry names it. A lead names every
-failure pytest's summary reports, each with its error, as a lead by entries
-names every entry the output backs.
+by module, or as a script and an entry it backs gives no snippet of the code
+it read, as a code block holding code below its `Reproduce:` line -- of each
+such entry, by its name, one entry's snippet being no other's, or of the check
+where no entry backs it: such a command reproduces nothing alone, however an
+entry names it. A lead names every failure pytest's summary reports, each with
+its error, as a lead by entries names every entry the output backs.
 
 The reviewer's own text is shown through here too (`said`): each entry with
 what it leaves out said, and each check the concise layout before leads
@@ -84,7 +86,7 @@ from __future__ import annotations
 import re
 import shlex
 from collections import Counter
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from functools import partial
 from itertools import chain
@@ -152,7 +154,17 @@ _UNSURE = (
     " dash too, the ID running on into the error shown"
 )
 
-_UNREPRODUCED = f"{_REPRODUCTION}: not recorded; {{command}} reads its code from stdin, and no snippet was given"
+_UNREPRODUCED = (
+    f"{_REPRODUCTION}: not recorded; {{command}} reads its code from stdin, and no snippet was given{{scenario}}"
+)
+
+# Which of the entries a check's output backs gives no snippet: each by its
+# name, one naming nothing as that.
+_FOR = " for {name}"
+_NAMELESS = "an entry naming nothing"
+
+# What a run pytest refused before running any test leads by: the run itself.
+_REFUSED = "the check's run itself, which reported this error before naming any test or scenario"
 
 _UNCOLLECTED = "collection of {subject}, before any test in it ran"
 
@@ -201,19 +213,27 @@ def lead(command: str, output: str, entries: _Entries) -> tuple[str, ...]:
 
     The failures pytest's summary reports lead it, else the entries it backs,
     else a line saying nothing names it; and either way a check whose command
-    reads stdin says where no entry it backs gives the snippet it read. The
-    output is read without the colors a terminal shows it in.
+    reads stdin says, of each entry it backs, where that entry gives no
+    snippet of the code it read -- one entry's snippet is no other's -- or
+    that none was given, where no entry backs it. The output is read without
+    the colors a terminal shows it in.
     """
     plain = _CONTROL_RE.sub("", output)
     backed = [entry for entry in entries if entry.backs(plain)]
-    reported = tuple(dict.fromkeys(_Reported.of(plain, entries)))
     named = dict.fromkeys(entry.name for entry in backed if entry.name)
-    said = list(_Reported.leading(reported))
+    said = list(_Reported.leading(_Reported.of(plain, entries)))
     said = said or [f"{_NAME}: {name}" for name in named] or [_UNNAMED]
     if not output:
         said.append(_NO_OUTPUT)
-    if not any(entry.snippet for entry in backed) and _reads_stdin(command):
-        said.append(_UNREPRODUCED.format(command=span(command)))
+    if _reads_stdin(command):
+        unsnipped = [
+            _FOR.format(name=entry.name or _NAMELESS)
+            for entry in backed if not entry.snippet
+        ] if backed else [""]
+        said.extend(
+            _UNREPRODUCED.format(command=span(command), scenario=scenario)
+            for scenario in unsnipped
+        )
     return tuple(said)
 
 
@@ -292,10 +312,10 @@ class _Reported:
         yield from cls._unsummarised(read, unsectioned)
 
     @classmethod
-    def leading(cls, reported: Sequence[_Reported]) -> tuple[str, ...]:
-        """The lines naming each of `reported` and its error."""
+    def leading(cls, reported: Iterable[_Reported]) -> tuple[str, ...]:
+        """The lines naming each of `reported` and its error, each failure reported alike once."""
         said: list[str] = []
-        for failure in reported:
+        for failure in dict.fromkeys(reported):
             error = f"{_ERROR}: {span(failure.error)}" if failure.error else _UNSTATED
             said.extend((f"{_NAME}: {failure.name}", error))
             said.extend((_UNSURE,) if failure.unsure else ())
@@ -357,6 +377,8 @@ class _Reported:
         summary = _Summary.read(line, partial(cls._named, read, entries, run))
         if summary is None:
             return None
+        if not summary.node:
+            return cls(_REFUSED, summary.error)
         named = _entries.FailureEntry.error_naming(entries, summary.node)
         if summary.errored:
             return cls._erred(summary, named, read, run)

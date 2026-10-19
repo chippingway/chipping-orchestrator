@@ -235,21 +235,23 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             doctest's text file too, its path holding blanks or not, where pytest says it failed
                             collecting it or the run was interrupted collecting -- by its section alone where no summary
                             line reports it, as with `-rN`, as is a setup or teardown a section says failed, a conftest
-                            or a plugin pytest could not load before running any test, and a test's own section no line
-                            took by its title -- save one a summary line reporting a test that took no section pairs
-                            with, as a doctest's does -- none said to give a test ID -- words naming no Python file
-                            being no collection without that -- each with the error its line gives, else -- a line too
-                            long for the terminal carries none -- the exception of the section pytest printed for it
-                            (`review_findings_pytest`), else the error of the entry naming it, else a line saying the
-                            summary gave none; every one of them, however many. A check pytest's summary names nothing
-                            in is led by every `Failure:` entry of the findings, however many, whose `Error:` -- or the
-                            code block's last line below an empty one -- its output shows, matched by that error and
-                            never by command, so two runs of one stdin command each lead with their own scenario; else
-                            by a line saying no test ID or scenario name was recorded. A lead says too where the check
-                            quoted no output, and, whatever names its failures, where its command reads its code from
-                            stdin -- a `-` argument, split as a shell splits it, after no program given inline (`-c`,
-                            `-e`), by module (`-m`), or as a script -- and no entry it backs gives the snippet as a code
-                            block holding code below its `Reproduce:` line, however the line names the command. No lead
+                            or a plugin pytest could not load before running any test, a run pytest refused before
+                            running any test -- as the check's run itself, with the error pytest printed -- and a test's
+                            own section no line took by its title -- save one a summary line reporting a test that took
+                            no section pairs with, as a doctest's does -- none said to give a test ID -- words naming no
+                            Python file being no collection without that -- each with the error its line gives, else --
+                            a line too long for the terminal carries none -- the exception of the section pytest printed
+                            for it (`review_findings_pytest`), else the error of the entry naming it, else a line saying
+                            the summary gave none; every one of them, however many. A check pytest's summary names
+                            nothing in is led by every `Failure:` entry of the findings, however many, whose `Error:` --
+                            or the code block's last line below an empty one -- its output shows, matched by that error
+                            and never by command, so two runs of one stdin command each lead with their own scenario;
+                            else by a line saying no test ID or scenario name was recorded. A lead says too where the
+                            check quoted no output, and, whatever names its failures, where its command reads its code
+                            from stdin -- a `-` argument, split as a shell splits it, after no program given inline
+                            (`-c`, `-e`), by module (`-m`), or as a script -- and an entry it backs gives no snippet as
+                            a code block holding code below its `Reproduce:` line, however the line names the command,
+                            saying so of each such entry by its name, or, no entry backing it, of the check. No lead
                             line opens on a declaration keyword, and the names and errors it takes from output stand in
                             code spans. The reviewer's own text is shown through here too (`said`): its entries with
                             what each leaves out said, and each check the concise layout before leads showed -- a
@@ -259,23 +261,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             again
     review_findings_summary.py
                             a line of pytest's short summary, read for the failure it reports, for
-                            `review_findings_failures` (`SummaryLine`): its outcome -- `FAILED`, `ERROR`, or `SUBFAILED`
-                            and the subtest's description, its message in brackets and its parameters in parentheses,
-                            read up to the first closing one a node ID free of blanks follows, else to the last of its
-                            message and the first of its parameters that a node ID holding blanks follows -- the node
-                            ID, whatever file it names -- its path may hold blanks, brackets, and the dash, ending at
-                            any of the line's test separators, its test's name blanks, and only a bracket past that name
-                            opens parameters -- or, for an error, the path whose collection failed, ending on a dash or
-                            the line's end short of any separator, and the message after a dash. A parameter may hold
-                            the dash that parts an ID from its message and text of a message's shape after it, and a
-                            message a bracket and a dash of its own, so the ID is the longest whose section of the
-                            line's run -- or `--tb=line` line traceback -- shows the exception the message after it
-                            opens, the first no line took yet, as where two tests' IDs overlap, else the longest an
-                            entry of the findings names whole or pytest titled a section of the line's run by; else it
-                            ends on the first split leaving a message of pytest's shape -- a rewritten assertion's
-                            `assert` or an exception's name, never a file's or a separator -- so the message is never
-                            cut short, the line marked unsure where a later split leaves one too; else, pytest having
-                            given no message, on the last
+                            `review_findings_failures` (`SummaryLine`) -- or a line saying pytest refused the run before
+                            running any test, `ERROR:` and the error, or its argument parser's, reporting no node: its
+                            outcome -- `FAILED`, `ERROR`, or `SUBFAILED` and the subtest's description, its message in
+                            brackets and its parameters in parentheses, read up to the first closing one a node ID free
+                            of blanks follows, else to the last of its message and the first of its parameters that a
+                            node ID holding blanks follows -- the node ID, whatever file it names -- its path may hold
+                            blanks, brackets, and the dash, ending at any of the line's test separators, its test's name
+                            blanks, and only a bracket past that name opens parameters -- or, for an error, the path
+                            whose collection failed, ending on a dash or the line's end short of any separator, and the
+                            message after a dash. A parameter may hold the dash that parts an ID from its message and
+                            text of a message's shape after it, and a message a bracket and a dash of its own, so the ID
+                            is the longest whose section of the line's run -- or `--tb=line` line traceback -- shows the
+                            exception the message after it opens, the first no line took yet, as where two tests' IDs
+                            overlap, else the longest an entry of the findings names whole or pytest titled a section of
+                            the line's run by; else it ends on the first split leaving a message of pytest's shape -- a
+                            rewritten assertion's `assert` or an exception's name, never a file's or a separator -- so
+                            the message is never cut short, the line marked unsure where a later split leaves one too;
+                            else, pytest having given no message, on the last
     review_findings_pytest.py
                             what pytest's output says beside its short summary, for `review_findings_failures`: a
                             conftest or a plugin it could not load before running any test, as a section titled by the

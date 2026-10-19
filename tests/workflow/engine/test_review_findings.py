@@ -309,6 +309,35 @@ _UNREPRODUCED_SHOWN = _UNREPRODUCED_ENTRY.replace(
 )
 _COMMAND_ONLY_ENTRY = f"Failure: A probe\nError: {_RELABEL_ERROR}\nReproduce: `.venv/bin/python -`\n\n"
 _PROBE_FAILED = f"`.venv/bin/python -` exited with status 1:\n\n```\n{_RELABEL_ERROR}\n```"
+# A stdin check backed by an entry giving no snippet, which its line names;
+# and by two named probes, the first giving its snippet and the second none,
+# which the second's line says whatever the first gives.
+_PROBE_UNREPRODUCED = _STDIN_UNREPRODUCED.replace("was given\n", "was given for A probe\n")
+_PAIRED_PROBES = (
+    "Failure: First named probe\nError: AssertionError: first\n"
+    "Reproduce: `.venv/bin/python -`\n\n"
+    "```python\nraise AssertionError('first')\n```\n\n"
+    "Failure: Second named probe\nError: AssertionError: second\n"
+    "Reproduce: `.venv/bin/python -`\n\n"
+)
+_PAIRED_OUTPUT = "AssertionError: first\nAssertionError: second"
+_PAIRED_PROBES_SHOWN = (
+    f"{_PAIRED_PROBES}Failure: First named probe\nFailure: Second named probe\n"
+    f"{_STDIN_UNREPRODUCED.replace('was given', 'was given for Second named probe')}"
+    f"`.venv/bin/python -` exited with status 1:\n\n```\n{_PAIRED_OUTPUT}\n```"
+)
+# pytest refusing a run before it ran any test: a path it could not find, and
+# an argument its parser could not read, the usage line above it aside.
+_REFUSED_LEAD = "Failure: the check's run itself, which reported this error before naming any test or scenario\n"
+_UNFOUND_PATH = "ERROR: file or directory not found: __missing__.py\n\nno tests ran in 0.00s"
+_UNFOUND_PATH_LEAD = f"{_REFUSED_LEAD}Error: `file or directory not found: __missing__.py`\n"
+_UNPARSED_ARGUMENT = (
+    "ERROR: usage: python -m pytest [options] [file_or_dir] [file_or_dir] [...]\n"
+    "python -m pytest: error: unrecognized arguments: --bogus-flag\n"
+    "  inifile: None\n"
+    "  rootdir: /tmp/run"
+)
+_UNPARSED_ARGUMENT_LEAD = f"{_REFUSED_LEAD}Error: `unrecognized arguments: --bogus-flag`\n"
 # Entries for the module pytest could not collect, and for a test in it, which is another failure.
 _COLLECTED_ERROR = (
     "Error: ImportError: cannot import name 'thing'\nReproduce: .venv/bin/python -m pytest tests/test_b.py"
@@ -1699,6 +1728,10 @@ class FailureNamesTest(unittest.TestCase):
             # test leads by that, with the exception its traceback shows.
             (_CONFTEST_UNLOADED, "", _CONFTEST_UNLOADED_LEAD),
             (_PLUGIN_UNIMPORTED, "", _PLUGIN_UNIMPORTED_LEAD),
+            # A run pytest refused before running any test leads as the run
+            # itself, with the error pytest gave.
+            (_UNFOUND_PATH, "", _UNFOUND_PATH_LEAD),
+            (_UNPARSED_ARGUMENT, "", _UNPARSED_ARGUMENT_LEAD),
             # Its path may hold blanks, as the doctest a file's path holding
             # blanks names may; words naming no Python file are a collection
             # only where pytest says so.
@@ -1772,24 +1805,26 @@ class FailureNamesTest(unittest.TestCase):
             (
                 _UNREPRODUCED_ENTRY,
                 _RELABEL_ERROR,
-                f"{_UNREPRODUCED_SHOWN}Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}",
+                f"{_UNREPRODUCED_SHOWN}Failure: A probe\n{_PROBE_UNREPRODUCED}{_PROBE_FAILED}",
             ),
             (
                 _COMMAND_ONLY_ENTRY,
                 _RELABEL_ERROR,
-                f"{_COMMAND_ONLY_ENTRY}Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}",
+                f"{_COMMAND_ONLY_ENTRY}Failure: A probe\n{_PROBE_UNREPRODUCED}{_PROBE_FAILED}",
             ),
             # A stdin check pytest names the failure of says no snippet too.
             ("", _STDIN_PYTEST, _STDIN_PYTEST_SHOWN),
+            # One entry's snippet is no other's.
+            (_PAIRED_PROBES, _PAIRED_OUTPUT, _PAIRED_PROBES_SHOWN),
             (
                 _EMPTY_FENCE_ENTRY,
                 _RELABEL_ERROR,
-                f"{_EMPTY_FENCE_ENTRY}Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}",
+                f"{_EMPTY_FENCE_ENTRY}Failure: A probe\n{_PROBE_UNREPRODUCED}{_PROBE_FAILED}",
             ),
             (
                 _BLANK_FENCE_ENTRY,
                 _RELABEL_ERROR,
-                f"{_BLANK_FENCE_ENTRY}Failure: A probe\n{_STDIN_UNREPRODUCED}{_PROBE_FAILED}",
+                f"{_BLANK_FENCE_ENTRY}Failure: A probe\n{_PROBE_UNREPRODUCED}{_PROBE_FAILED}",
             ),
             (
                 _UNREPRODUCED_ENTRY,
@@ -1838,7 +1873,7 @@ class FailureNamesTest(unittest.TestCase):
         # the summary leaves out, a node ID whose path holds the dash, a
         # conftest pytest could not load, runs of one check each leading
         # their own failures by their own sections, what did not fail leading
-        # nothing, and output a terminal colored.
+        # nothing, output a terminal colored, and a run pytest refused.
         led = (
             (_ERRORS_ONLY, _ERRORS_ONLY_LEAD),
             (_DASHED, _DASHED_LEAD),
@@ -1847,6 +1882,8 @@ class FailureNamesTest(unittest.TestCase):
             (_BORROWED, _BORROWED_LEAD),
             (_UNFAILED_SECTIONS, _UNFAILED_SECTIONS_LEAD),
             (_COLORED, _COLORED_LEAD),
+            (_UNFOUND_PATH, _UNFOUND_PATH_LEAD),
+            (_UNPARSED_ARGUMENT, _UNPARSED_ARGUMENT_LEAD),
         )
         for output, lead in led:
             unled = f"`uv run pytest tests` exited with status 1:\n\n```\n{output}\n```"

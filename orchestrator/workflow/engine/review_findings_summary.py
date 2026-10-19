@@ -66,6 +66,11 @@ _SUMMARY_RE = re.compile(
     rf"[ \t]*(?:(?P<outcome>FAILED|ERROR)|SUBFAILED(?P<subtest>{_DESCRIBED}))"
     r" (?P<reported>\S.*?)[ \t\r]*",
 )
+# A run pytest refused before running any test: the error it prints for a
+# usage it refuses -- `ERROR:` and the message, its usage line aside -- or
+# for an argument it cannot parse, on the line its parser prints naming it.
+# Such a line reports no node.
+_REFUSED_RE = re.compile(r"[ \t]*(?:ERROR: (?!usage: )|[^:]*pytest[^:]*: error: )(?P<message>\S.*?)[ \t\r]*")
 _NODE_SEPARATOR = "::"
 _SEPARATOR_RE = re.compile(_NODE_SEPARATOR)
 _TEST_RE = re.compile(r"::(?:(?! - |\[).)+?(?=\[| - |\Z)")
@@ -93,7 +98,9 @@ class SummaryLine:
     what follows it on the line, "" where pytest gives nothing. `errored` says
     the line reports an error outside any test body; `subtest` is the
     description of the subtest it reports, "" for none; and `unsure` says
-    nothing named the ID and a later split could have ended it too.
+    nothing named the ID and a later split could have ended it too. A line
+    saying pytest refused the run before running any test reports no node,
+    "", its message the error.
     """
 
     node: str
@@ -113,7 +120,7 @@ class SummaryLine:
         """
         summary = _SUMMARY_RE.fullmatch(line)
         if summary is None:
-            return None
+            return cls._refused(line)
         reported = summary.group("reported")
         found = cls._end(reported, named, summary.group("outcome") == _ERRORED)
         if found is None:
@@ -126,6 +133,14 @@ class SummaryLine:
             subtest=summary.group("subtest") or "",
             unsure=unsure,
         )
+
+    @classmethod
+    def _refused(cls, line: str) -> SummaryLine | None:
+        """The run `line` says pytest refused before running any test, with its error; None where it says none."""
+        refused = _REFUSED_RE.fullmatch(line)
+        if refused is None:
+            return None
+        return cls("", refused.group("message"), errored=True)
 
     @classmethod
     def _end(cls, reported: str, named: _Naming, errored: bool) -> _End | None:

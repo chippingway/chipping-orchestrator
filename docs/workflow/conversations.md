@@ -667,9 +667,11 @@ it, as with `-rN`, as is a setup or teardown a section says failed, by its phase
 section no summary line took leads by the name pytest titled it — as with `-rN`, or `-rE`, which leaves failures out —
 save one a summary line reporting a test that took no section pairs with, as a doctest's line does, in the order pytest
 printed both; and a conftest or a plugin pytest could not load before running any test leads by its path or name, with
-the exception its traceback shows; each such lead saying no summary line gives its test ID, none naming a test it never
-ran — while words of a check's own `ERROR` line naming no Python file are no collection without that — and so does a
-node ID where its own run says pytest failed collecting it or its path — however the section and the summary line each
+the exception its traceback shows, and a run pytest refused before running any test — a path it could not find, an
+argument or a configuration it could not read, printed as `ERROR:` and the error, or by its argument parser — leads as
+the check's run itself, with that error; each such lead saying no summary line gives its test ID, none naming a test it
+never ran — while words of a check's own `ERROR` line naming no Python file are no collection without that — and so does
+a node ID where its own run says pytest failed collecting it or its path — however the section and the summary line each
 spell that path — or that collection was interrupted, as for a class it could not collect; a node ID whose setup or
 teardown a section says failed leads as that — where both did, each summary line as the phase whose section raised its
 error — and one nothing explains as an error in its collection, setup, or teardown. Where a summary line carries no
@@ -696,11 +698,12 @@ whose error its output shows — matched by that error, never by the command, so
 lead with their own scenario and are never merged — or with a line saying no test ID or scenario name was recorded for
 it. Whatever is missing stays visible as such: a check that quoted no output says no error was recorded, and one whose
 command reads its code from stdin — a `-` argument, split as a shell splits it, after no program given inline (`-c`,
-`-e`), by module (`-m`), or as a script; whatever names its failures — with no entry giving the snippet as a code block
-holding code below its `Reproduce:` line, says none was recorded, whatever the entry names as its command. A lead names
-every failure pytest's summary reports, each with its error, however many there are, as a lead by entries names every
-entry its output backs. No lead line opens on a declaration keyword, so formatting the shown feedback again changes
-nothing, and what a lead says is read from the text alone: the evidence, statuses, and provenance stay those the
+`-e`), by module (`-m`), or as a script; whatever names its failures — says, of each entry its output backs that gives
+no snippet as a code block holding code below its `Reproduce:` line, that none was recorded for it, whatever the entry
+names as its command, one entry's snippet being no other's, and, where no entry backs it, that none was recorded. A lead
+names every failure pytest's summary reports, each with its error, however many there are, as a lead by entries names
+every entry its output backs. No lead line opens on a declaration keyword, so formatting the shown feedback again
+changes nothing, and what a lead says is read from the text alone: the evidence, statuses, and provenance stay those the
 declaration recorded.
 
 Findings that are a declaration and nothing else read as a sentence saying the reviewer stated none, never as the raw

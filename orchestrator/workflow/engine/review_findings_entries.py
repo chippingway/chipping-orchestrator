@@ -80,7 +80,7 @@ _LEAD_LINE_RE = re.compile(
     rf"{_NAME}: \S.*"
     rf"|{_ERROR}: (?:`.*`|not on pytest's summary line; see the output below|not recorded; the check quoted no output)"
     r"|Unavailable: where the test ID ends; .*"
-    rf"|{_REPRODUCTION}: not recorded; `.*` reads its code from stdin, and no snippet was given",
+    rf"|{_REPRODUCTION}: not recorded; `.*` reads its code from stdin, and no snippet was given(?: for .+)?",
 )
 
 # What the findings' parts around their declarations are read whole as
