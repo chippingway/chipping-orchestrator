@@ -2605,8 +2605,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             keeps the attempt (`rewrite_landing_retirement.retires_unproved`) builds its finishes over,
                             and a park's or hold's record commits through (`asks_every_reading`, `AsksEveryReading`),
                             every call passed through and each parsed reading of the issue's comment -- the comment a
-                            strict edit found moved, and the reread behind a refusal for room, among them -- handed to
-                            that proof's classifier first, so movement any helper read there stands however soon it is
+                            strict edit found moved, the reread behind a refusal for room, and the one confirming an
+                            edit whose answer was lost, among them -- handed to that proof's classifier first, so
+                            movement any helper read there stands however soon it is
                             put back; and what a reading's base tip records moving (`tip_moves`) -- blank or repointed
                             beside the attempt as the tick read it, every evidence there, or blank beside an attempt
                             still standing, evidence the tick never held; and under a captured transaction a revision
@@ -2626,9 +2627,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the proof itself left staged keeping the proof's staging, and within the proof, what the
                             tick staged that an edit landed or sent with its answer lost taken in as that edit spelled
                             it, so no later write of the proof sends it again -- save where the comment read afresh
-                            behind a lost answer still spells all the edit moved as before, an edit that never landed,
-                            its staging left for the writes behind; behind a record that did not land,
-                            that staging is taken off the state for the proof, put back only where no proof edit
+                            behind a lost answer, a reading the proof asks as it asks every other, carries none of the
+                            fields the edit moved as it sent them, an edit that never landed however another road moved
+                            those fields since, its staging left for the writes behind; behind a record that did not
+                            land, that staging is taken off the state for the proof, put back only where no proof edit
                             landed or may have; over a checkout gone from disk, what the tick holds for the landed head
                             retired as over a reset in its own guarded write (`lands_the_retirement`) -- the comment
                             read afresh first where the tick holds none, so evidence put back since is retired and
