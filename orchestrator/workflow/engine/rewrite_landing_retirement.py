@@ -247,10 +247,11 @@ def retires_unproved(
     its history entry among it, its movement recorded instead -- or where the
     comment the proof last read carries another attempt in place of the one
     `context` recovers (`rewrite_recovery_readings.stands_as_recovered`),
-    however the tick's state still names it -- that state withheld from every
-    whole-state write behind, so nothing it carries is put back over the
-    attempt in place: either way for the git owner to hold the tick with
-    nothing reset, cleared, or parked over it.
+    however the tick's state still names it and whether or not the proof's own
+    writes landed -- that state withheld from every whole-state write behind,
+    so nothing it carries is put back over the attempt in place: either way
+    for the git owner to hold the tick with nothing reset, cleared, or parked
+    over it.
     """
     moved = dict(moved or {})
     if not (moved or receipts(context.state)):
@@ -280,9 +281,7 @@ def retires_unproved(
             records(context, lost=(context.worktree,))
             if records else retires_over_the_reset(context, _landing_moved._CHECKOUT_GONE)
         )
-    if proved and moved.keys() & receipts(context.state):
-        return retires_unproved(context, moved)
-    if proved and not stands_as_recovered(context, asked.gh.last_read):
+    if not stands_as_recovered(context, asked.gh.last_read):
         log.warning(
             "issue=#%d another auto-rebase attempt stands in place of the one its recovery read; holding with "
             "nothing reset, cleared, or parked, for the next tick to recover the attempt the comment carries",
@@ -290,6 +289,8 @@ def retires_unproved(
         )
         context.state.withheld = True
         return False
+    if proved and moved.keys() & receipts(context.state):
+        return retires_unproved(context, moved)
     return bool(proved)
 
 

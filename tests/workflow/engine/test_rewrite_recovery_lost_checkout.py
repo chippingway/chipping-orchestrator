@@ -45,6 +45,7 @@ _EDITS = "edit_pinned_state"
 _CURRENT = "verification_evidence_current"
 _REFUSED = "refused"
 _REPORT = "developer_report_current"
+_REVISION = "revision"
 _BOTH = (False, True)
 
 # How a loss outlives the run taken off the comment: read under refused writes, the checkout back or still gone, or
@@ -317,7 +318,7 @@ class OwedLossTest(_LostCheckoutCase, unittest.TestCase):
                 self.setUp()
                 head, run = self.captures() if captures else self.settles_then_dies()
                 report = self.pinned_fields(_REPORT)[0]
-                self.writes_back({_REPORT: {**report, "revision": report["revision"] + 1}})
+                self.writes_back({_REPORT: {**report, _REVISION: report[_REVISION] + 1}})
                 refusing = patch.object(self.gh.pinned_failures, _REFUSED, {self.issue.number})
                 with refusing, self.reads_the_anchor(head, at=2):
                     self.assertFalse(self.proves())
@@ -391,17 +392,25 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
                 self._assert_held_as_written(race)
 
     def test_a_replacement_read_afresh_holds(self) -> None:
-        # Another road retires the run and pins a fresh attempt after the tick read the comment: the proof reads that
-        # attempt with nothing current and holds, rather than let a park go on over the tick's stale one, and the
-        # tick's state, withheld, written whole behind it puts nothing back over that attempt.
-        self._run = self.settles_then_dies()
-        self._onto = self.pinned_fields(readings.KEY_REWRITE_BASE)[0]
-        self._spent = 0
-        context = guarded.recovery_context(self)
-        replacement = self._replaces_the_attempt(self)
-        self.assertFalse(_parks.proves_before_a_park(context))
-        self.gh.write_pinned_state(self.issue, context.state)
-        self.assertEqual(self.pinned_fields(*replacement), tuple(replacement.values()))
+        # Another road pins a fresh attempt after the tick read the comment -- the run retired with it, or left current
+        # with its report moved and every write refused, so the proof's retirement fails: the proof reads that attempt
+        # and holds either way, and the tick's state, withheld, written whole behind it puts nothing back over it.
+        for refused in _BOTH:
+            with self.subTest(refused=refused):
+                self.setUp()
+                self._run = self.settles_then_dies()
+                self._onto = self.pinned_fields(readings.KEY_REWRITE_BASE)[0]
+                self._spent = 0
+                context = guarded.recovery_context(self)
+                replacement = self._replaces_the_attempt(self, retires=not refused)
+                report = self.pinned_fields(_REPORT)[0]
+                if refused:
+                    self.writes_back({_REPORT: {**report, _REVISION: report[_REVISION] + 1}})
+                failing = {self.issue.number} if refused else set()
+                with patch.object(self.gh.pinned_failures, _REFUSED, failing):
+                    self.assertFalse(_parks.proves_before_a_park(context))
+                self.gh.write_pinned_state(self.issue, context.state)
+                self.assertEqual(self.pinned_fields(*replacement), tuple(replacement.values()))
 
     def test_a_successor_behind_keeps_its_floor(self) -> None:
         # Another road settles a newer run right behind the retirement over the checkout gone: the proof holds, and the
@@ -452,8 +461,9 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
             self._wt.rename(self._away)
         return answered
 
-    def _replaces_the_attempt(self, _case, spends: int = 0) -> dict | None:
-        """Retire the run and pin another attempt, as another road would; it, or None for its first `spends` calls."""
+    def _replaces_the_attempt(self, _case, spends: int = 0, *, retires: bool = True) -> dict | None:
+        """Retire the run, where `retires`, and pin another attempt, as another road would; it, or None for its first
+        `spends` calls."""
         state = self.gh.read_pinned_state(self.issue)
         if self._spent < spends:
             self._spent += 1
@@ -463,7 +473,7 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
         replacement = fixtures.attempt_record(
             self._run[0], None, git_support.PR_NUMBER, git_support.REVIEWING, self._onto,
         )
-        self.assertTrue(_settlement.retire_current_evidence(state))
+        self.assertTrue(not retires or _settlement.retire_current_evidence(state))
         _attempts._clears_the_attempt(state)
         for key, member in replacement.items():
             state.set(key, member)
