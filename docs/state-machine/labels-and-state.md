@@ -2562,9 +2562,10 @@ The keys that matter for the state machine fall into a few groups:
 - **Returned reviewer verdict.** `review_returned_verdict` is the verdict a returned reviewer left and nothing has
   disposed of yet (`stages/validating/review_verdicts.py`): `round` (the round it ran as), `verdict` (`approved` or
   `changes_requested`), `subject` (exactly as `review_subject` spells it), `feedback` (the words a change request hands
-  the developer and posts on the pull request: a live round's findings with their verification declaration set aside
-  (`workflow/engine/review_findings.py`) -- a record persisted before that formatting carries the declaration raw and
-  is kept as written, its recovery formatting only the words it posts and hands on (`review_handoffs.py`); `""` for an
+  the developer and posts on the pull request: a live round's findings with their verification declaration set aside,
+  each check not shown passing led by what failed (`workflow/engine/review_findings.py`) -- a record persisted before
+  that formatting carries the declaration raw, and one persisted before leads its checks unled, each kept as written,
+  its recovery formatting only the words it posts and hands on (`review_handoffs.py`); `""` for an
   approval, and neither an approval carrying any nor words UTF-8 cannot carry read),
   `evidence`, and `handed`. `evidence` is `null` where the reviewer's declaration earned none, and otherwise the one
   claim the verdict relies on (`review_claims.py`): its `use` -- `published` for a reviewer-reported transaction
@@ -3061,7 +3062,8 @@ The keys that matter for the state machine fall into a few groups:
   exact comment by id — onto the PR conversation, the surface it was posted on, and outside `filter_trusted`, since it
   is the orchestrator's own reviewer output the author allowlist would otherwise drop — as the validating-route replay
   anchor, quoted with the findings it carries formatted (`validating/feedback_posts.py`), so a post made before
-  findings were formatted is replayed concise while the comment and its id stay as posted. The rebuilt batch is what
+  findings were formatted is replayed concise, and one made before leads replayed led, while the comment and its id
+  stay as posted. The rebuilt batch is what
   the `/orchestrator continue` operator command replays when retrying a session-failure park (see
   [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing)); the anchor is cleared on a
   pushed fix and inside `_clear_pending_fix_bookmarks`. A persisted change request's handoff stages it only in the
