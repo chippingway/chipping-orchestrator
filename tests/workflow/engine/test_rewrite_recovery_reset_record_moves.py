@@ -17,7 +17,7 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.base_sync import attempts as _attempts
+from orchestrator.git.base_sync import attempts as _attempts, persistence
 from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import rewrite_recovery_parks as _parks
 from tests.support.fakes import FakeLabel
@@ -288,6 +288,22 @@ class ReplacedAttemptTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         standing = {key: pinned.get(key) for key in self._pinned}
         self.assertEqual(standing, self._pinned)
 
+    def test_a_replacement_behind_the_blank_holds(self) -> None:
+        # The checkout on disk and nothing read moving, another road pins an attempt right behind the reset record's
+        # blank: the record reads the comment afresh and holds the reset, the checkout left on the landed head and
+        # the tick's state withheld, so writing it whole puts nothing back over that attempt.
+        head = self.settles_then_dies()[0]
+        self._pinned = fixtures.attempt_record(head, "", git_support.PR_NUMBER, git_support.REVIEWING)
+        self._replaced = False
+        context = guarded.recovery_context(self)
+        replaces = partial(self._replaces_behind_the_blank, self.gh.edit_pinned_state)
+        with patch.object(self.gh, _EDITS, replaces):
+            self.assertIsNone(persistence._resets(context, self.anchor))
+        self.gh.write_pinned_state(self.issue, context.state)
+        self.assertEqual((self._replaced, self._wt_head()), (True, head))
+        standing = self.pinned_fields(*self._pinned)
+        self.assertEqual(standing, tuple(self._pinned.values()))
+
     def _takes_the_report_off(self, spec, ref: str, **options):
         """The branch's fetch, failing, the run's report taken off the comment behind it the first time."""
         fetched = guarded.unfetched(spec, ref, **options)
@@ -297,6 +313,16 @@ class ReplacedAttemptTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             state.set(_REPORT, None)
             self.gh.write_pinned_state(self.issue, state)
         return fetched
+
+    def _replaces_behind_the_blank(self, live, issue, staged, **options):
+        """`live`, the pinned-comment edit, another road's attempt pinned right behind the first that blanks the tip."""
+        answered = live(issue, staged, **options)
+        tip = readings.KEY_REWRITE_BASE
+        blanks = options["over"].get(tip) and not staged.get(tip)
+        if blanks and not self._replaced:
+            self._replaced = True
+            _writes(self, self._pinned, clears=True)
+        return answered
 
     def _replaces_behind(self, live, issue, staged, **options):
         """`live`, the pinned-comment edit, another road's attempt pinned right behind the first that drops the run."""

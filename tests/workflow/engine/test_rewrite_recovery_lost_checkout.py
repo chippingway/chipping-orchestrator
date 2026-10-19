@@ -372,13 +372,15 @@ class RacedRetirementTest(_LostCheckoutCase, unittest.TestCase):
 
     def test_a_replacement_read_afresh_holds(self) -> None:
         # Another road retires the run and pins a fresh attempt after the tick read the comment: the proof reads that
-        # attempt with nothing current and holds, rather than let a park go on over the tick's stale one.
+        # attempt with nothing current and holds, rather than let a park go on over the tick's stale one, and the
+        # tick's state, withheld, written whole behind it puts nothing back over that attempt.
         self._run = self.settles_then_dies()
         self._onto = self.pinned_fields(readings.KEY_REWRITE_BASE)[0]
         self._spent = 0
         context = guarded.recovery_context(self)
         replacement = self._replaces_the_attempt(self)
         self.assertFalse(_parks.proves_before_a_park(context))
+        self.gh.write_pinned_state(self.issue, context.state)
         self.assertEqual(self.pinned_fields(*replacement), tuple(replacement.values()))
 
     def test_a_successor_behind_keeps_its_floor(self) -> None:

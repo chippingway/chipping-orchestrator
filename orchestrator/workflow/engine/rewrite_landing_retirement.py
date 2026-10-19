@@ -247,8 +247,10 @@ def retires_unproved(
     its history entry among it, its movement recorded instead -- or where the
     comment the proof last read carries another attempt in place of the one
     `context` recovers (`rewrite_recovery_readings.stands_as_recovered`),
-    however the tick's state still names it: either way for the git owner to
-    hold the tick with nothing reset, cleared, or parked over it.
+    however the tick's state still names it -- that state withheld from every
+    whole-state write behind, so nothing it carries is put back over the
+    attempt in place: either way for the git owner to hold the tick with
+    nothing reset, cleared, or parked over it.
     """
     moved = dict(moved or {})
     if not (moved or receipts(context.state)):
@@ -286,6 +288,7 @@ def retires_unproved(
             "nothing reset, cleared, or parked, for the next tick to recover the attempt the comment carries",
             context.issue.number,
         )
+        context.state.withheld = True
         return False
     return bool(proved)
 

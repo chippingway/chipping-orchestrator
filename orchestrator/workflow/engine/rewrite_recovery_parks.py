@@ -65,7 +65,9 @@ settled behind it reads it as movement; a tip put back over one the tick read
 blank refuses an unrecorded reset. A blank refused or never confirmed
 holds the tick with nothing reset or cleaned, and the tick's state, which
 still carries the tip, is withheld from every whole-state write behind it, so
-a blank that landed with its answer lost is never put back. A reset git
+a blank that landed with its answer lost is never put back. A blank that
+landed is followed by the comment read afresh, and another attempt pinned
+right behind it holds the reset the same way. A reset git
 refused moved nothing, and the git owner
 stages the tip back for the park that keeps the attempt, so the evidence
 stands for that park's proof as it did before.
@@ -122,8 +124,10 @@ from orchestrator.workflow.engine.rewrite_recovery_readings import (
     AsksEveryReading,
     RecordsALostCheckout,
     asks_every_reading,
+    stands_as_recovered,
 )
 from orchestrator.workflow.engine.rewrite_recovery_staging import keeps_the_staging, lands_the_retirement
+from orchestrator.workflow.engine.verification_durable import durable_comment
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -324,7 +328,9 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
     landed; False, logged, where it was refused or went unconfirmed, for the
     git owner to hold with nothing reset or cleaned -- the tick's state
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
-    never written back over a blank that landed unconfirmed.
+    never written back over a blank that landed unconfirmed. False and
+    withheld too where the comment read afresh behind a landed blank carries
+    another attempt, or would not read, so no reset moves the checkout under it.
     Movement the record's commit read (`rewrite_landing_retirement.moved_under`)
     is proved as read first, so what moved is retired before the reset goes on,
     False where that does not land. Over a checkout gone from disk, or one
@@ -364,19 +370,28 @@ def records_the_reset(context: _AutoRebaseRecoveryContext, *, lost=()) -> bool:
 def _blanks_the_tip(context: _AutoRebaseRecoveryContext, moved: dict[str, ReportEvidence]) -> bool:
     """Blank the attempt's base tip in a guarded write of its own, what each reading it takes moves kept in `moved`.
 
-    Whether it landed, logged either way; refused or unconfirmed, the commit withholds the tick's state.
+    Whether it landed, logged either way; refused or unconfirmed, the commit withholds the tick's state. A blank that
+    landed is followed by the comment read afresh, so an attempt another road pinned right behind it -- or a comment
+    that would not read -- holds the reset too, the tick's state withheld rather than written back over that attempt.
     """
-    commit = _commits.ReportCommit(
-        asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved)).gh,
-        context.issue,
-        context.state,
-    )
+    asked = asks_every_reading(context, partial(_retirement.moved_under, tick=context.state, into=moved))
+    commit = _commits.ReportCommit(asked.gh, context.issue, context.state)
     staged = commit.staging()
     staged.set(_base_sync_state._PENDING_REWRITE_BASE, None)
     landed = commit.lands(staged, _writes.INVALIDATION)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
-        log.info("issue=#%d recorded the reset ahead of it by blanking the attempt's base tip", context.issue.number)
-        return True
+        durable = durable_comment(asked.gh, context.issue, context.state)[0]
+        if durable is not None and stands_as_recovered(context, durable):
+            log.info(
+                "issue=#%d recorded the reset ahead of it by blanking the attempt's base tip", context.issue.number,
+            )
+            return True
+        log.warning(
+            "issue=#%d the reset was recorded, but the comment read afresh behind it carries no attempt this recovery "
+            "recovers; nothing is reset until a later tick answers the comment as it then stands", context.issue.number,
+        )
+        context.state.withheld = True
+        return False
     log.warning(
         "issue=#%d the reset could not be recorded ahead of it over the evidence records the tick read (%s); "
         "nothing is reset until a later tick records it",
