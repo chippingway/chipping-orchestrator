@@ -9,10 +9,11 @@ The orchestrator emits three independent JSONL sinks plus an optional Postgres a
 keys off the pinned `<!--orchestrator-state ...-->` JSON comment on the issue (and the workflow label), never off
 these. The one read-back is the audit log's: before a base-rewrite finish files its `base_rebased`, it asks the log and
 its rotated copies whether that event is already there, so a lost finish files it once, and a log it cannot read holds
-that finish until it reads. Every other surface here is observation-only and safe to truncate, rotate, or delete at
-any time. The audit log is safe to rotate too, but deleting a rotated copy, or truncating the log with no copy kept,
-while a lost finish is still to retry can let that retry file its `base_rebased` again
-([below](#audit-event-log-event_log_path)).
+that finish until it reads. With no log configured, the attempt's record of that event is taken as the event filed
+unless this process still owes it, so it is filed once at most. Every other surface here is observation-only and safe
+to truncate, rotate, or delete at any time. The audit log is safe to rotate too, but deleting a rotated copy, or
+truncating the log with no copy kept, while a lost finish is still to retry can let that retry file its `base_rebased`
+again ([below](#audit-event-log-event_log_path)).
 
 This page is the map over those surfaces. Each one has a reference page of its own, and the section for it below is a
 summary that names that page — so a link written against this page still lands beside the material it pointed at:

@@ -95,8 +95,9 @@ _PENDING_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
 # attempt still stands, and carried by the mark's own write as well. It says
 # the event may be out; its absence says nothing, since a finish from before
 # this record existed filed the event with none, so every finish asks the
-# event stream before filing until the mark is down. Additive: an attempt from
-# before this record existed carries none.
+# event stream before filing until the mark is down; with no audit log to ask,
+# it is taken as the event filed unless this process still owes it. Additive:
+# an attempt from before this record existed carries none.
 _PENDING_ANNOUNCED_EVENT = "pending_auto_base_rebase_announced_event"
 
 # The receipt of the verification transaction a finish of this attempt

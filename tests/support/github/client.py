@@ -99,6 +99,9 @@ class FakeGitHubClient(_IssueClient, _PullClient, _CommentIdAllocator):
         self._event_history = _FakeEventHistory()
         self._pull_history = _FakePullHistory()
         self._pull_state = _FakePullState()
+        # The events this client's process noted owing, as the real client keeps them (`workflow/engine/owed_events`);
+        # a test restarting the process empties it.
+        self.owed_events: set[tuple] = set()
 
     @property
     def repo_slug(self) -> str:

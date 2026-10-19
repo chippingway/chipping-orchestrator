@@ -280,7 +280,10 @@ file is the durable record.
   recovery finds already landed (`workflow/engine/rewrite_landed.py`) -- never twice for one publication, since until
   the announcement mark is down every finish asks this stream before filing it (`github/events.filed`: the client's
   in-memory tail, then the whole audit log and its rotated copies), whatever the attempt records -- a finish from
-  before `pending_auto_base_rebase_announced_event` existed filed it with no record; a log or copy the process cannot
+  before `pending_auto_base_rebase_announced_event` existed filed it with no record, and with no log configured that
+  record is taken as the event filed unless this process still owes it (`workflow/engine/owed_events.py`), so a
+  restart between the record and the event files it at most once, and a record another producer landed in place of one
+  this finish's write had refused owes this process nothing; a log or copy the process cannot
   read holds that finish with nothing filed, relabelled, or retired, and only a copy deleted, or a log truncated with
   no copy kept, between a lost finish and its retry can let it file a second one -- and only once the landed head's
   verification evidence is resolved (settled, retired, or left to the fresh reviewer), so a tick whose evidence post
@@ -348,12 +351,14 @@ until it reads again; a path where no file exists yet reads as an empty log.
 **Pinned state is authoritative.** The event log is append-only, and the orchestrator reads it back in one place only:
 before a base-rewrite finish files `base_rebased`, it asks the log and its rotated copies whether that event is already
 there (`github/events.filed`), so a process lost behind the event -- on this build, or on one from before the attempt
-recorded its events -- files it once. That read gates the route: a finish files nothing, and is neither relabelled nor
-retired, while the log will not read, and the next tick asks again. Every other dispatch decision keys off the pinned
-`<!--orchestrator-state ...-->` JSON comment on the issue (and the issue's workflow label). If the two disagree, trust
-pinned state. Truncating, rotating, or deleting the log never moves a decision the pinned state records; a rotation that
-keeps its copy beside the log costs nothing, while deleting that copy or truncating the log with none kept, done while a
-lost finish is still to retry, can let that retry file its `base_rebased` a second time. No production road reads it
+recorded its events -- files it once; with no log configured, the attempt's record of the event answers in its place
+unless this process still owes the event (`workflow/engine/owed_events.py`). That read gates the route: a finish
+files nothing, and is neither relabelled nor retired, while the log will not read, and the next tick asks again. Every
+other dispatch decision keys off the pinned `<!--orchestrator-state ...-->` JSON comment on the issue (and the issue's
+workflow label). If the two disagree, trust pinned state. Truncating, rotating, or deleting the log never moves a
+decision the pinned state records; a rotation that keeps its copy beside the log costs nothing, while deleting that
+copy or truncating the log with none kept, done while a lost finish is still to retry, can let that retry file its
+`base_rebased` a second time. No production road reads it
 anywhere else: a finish handed to the coordinator directly under the dormant settled-evidence policy also asks it
 whether the `park_awaiting_human` of a debt park whose notice it finds already said is filed -- matched on the issue,
 the `reason`, the landed head such a park names as `sha`, and the id of that notice it names as `notice_id`, which the
@@ -364,9 +369,11 @@ with none the record alone answers. The dormant guarded recovery park (`workflow
 `lands_a_park`) names its notice the same way, and, made again over a notice of its own it finds said past the
 watermark, asks for its event matched on the issue, the `reason`, and that `notice_id`
 (`workflow/engine/rewrite_recovery_notices.py`), filing it only where the stream lacks it and nothing while the log
-will not read. With no log configured it asks only the process's in-memory tail, so a restart between that event and
-the park's record files the event once more, though never the notice; a conversation that will not read raises
-before anything is filed or parked.
+will not read. With no log configured either dormant park takes its notice already said as its event filed unless
+this process noted that event owing ahead of a notice saying the same and never filed it -- a ledger the repository's
+client shares with its worker clients (`workflow/engine/owed_events.py`) -- so a restart between a park's notice and
+its record files the event at most once, never twice, and a failed post of another notice files no earlier one's event
+again; a recovery park whose conversation will not read raises before anything is filed or parked.
 
 ## Analytics sink (`ANALYTICS_LOG_PATH`)
 

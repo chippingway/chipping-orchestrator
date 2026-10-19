@@ -28,6 +28,7 @@ import unittest
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.github.pinned_state import PinnedEdit
 from orchestrator.workflow.engine import report_settlement_state as _report_settlement, verification_records as _records
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad
@@ -48,6 +49,9 @@ _AWAITING = "awaiting_human"
 _PARKED = "park_awaiting_human"
 
 _FOR_THE_DEBT = "auto_base_rebase_unrecorded_debt"
+
+# The reason and head the event of a debt park this issue took earlier names: no head.
+_EARLIER_PARK = (_FOR_THE_DEBT, None)
 
 _WATERMARK = "last_action_comment_id"
 
@@ -244,22 +248,40 @@ class DebtParkPolicyTest(_DebtParkCase, unittest.TestCase):
         # sent. The next finish parks over that notice and files the missing
         # event once, naming the landed head, the earlier park counting for
         # nothing; the one behind it finds the park standing and makes nothing.
+        # With no audit log, a process restarted there owes nothing and takes the notice said as its event filed.
+        self.enterContext(patch.object(config, "EVENT_LOG_PATH", None))
+        for restarted, filed in ((False, 2), (True, 0)):
+            with self.subTest(restarted=restarted):
+                self.setUp()
+                head = self._loses_a_notice(restarted=restarted)
+
+                retries = (self.finalizes(head), self.finalizes(head))
+                self.assertEqual(retries, (FinishOutcome.PARKED, FinishOutcome.PARKED))
+
+                named = [
+                    (event.get("reason"), event.get("sha"))
+                    for event in self.gh.recorded_events if event.get("event") == _PARKED
+                ]
+                self.assertEqual(named, [_EARLIER_PARK, (_FOR_THE_DEBT, head)][:filed])
+                self.assertEqual(self._parks()[1], 1)
+                self.assertTrue(self.pinned_fields(_AWAITING)[0])
+                self.assert_made()
+
+    def _loses_a_notice(self, *, restarted: bool) -> str:
+        """The run captured beside an earlier debt park of the issue, then the park notice's answer lost; the head.
+
+        `restarted` restarts the process behind it, nothing on its tail and nothing owed.
+        """
         head = self.captures()[0]
         self.gh.emit_event(_PARKED, issue_number=self.issue.number, stage="validating", reason=_FOR_THE_DEBT)
         finish_moves.fills_the_comment(self, _SHORT_OF_THE_DEBT)
         with patch.object(self.gh, "comment", _RacesPastTheCall(self.gh.comment, 1, _loses_the_answer)):
             self.assertRaises(RuntimeError, self.finalizes, head)
         self.assertEqual(self._parks(), (1, 1))
-
-        retries = (self.finalizes(head), self.finalizes(head))
-        self.assertEqual(retries, (FinishOutcome.PARKED, FinishOutcome.PARKED))
-
-        filed = [event for event in self.gh.recorded_events if event.get("event") == _PARKED]
-        named = [(event.get("reason"), event.get("sha")) for event in filed]
-        self.assertEqual(named, [(_FOR_THE_DEBT, None), (_FOR_THE_DEBT, head)])
-        self.assertEqual(self._parks(), (2, 1))
-        self.assertTrue(self.pinned_fields(_AWAITING)[0])
-        self.assert_made()
+        if restarted:
+            self.gh.recorded_events.clear()
+            self.gh.owed_events = set()
+        return head
 
 
 

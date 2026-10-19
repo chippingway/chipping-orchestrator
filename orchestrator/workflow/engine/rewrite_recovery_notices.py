@@ -17,10 +17,11 @@ comment entered in the ledger, so the park lands over it with nothing posted
 again. Its event is filed only where the event stream carries none naming
 that notice, which every park recorded this way names (`notice_id`); a stream
 that would not read files nothing, so nothing is filed twice. With no audit
-log the stream is this process's tail alone, so a process lost between the
-event and the park's record, and restarted, files that event once more,
-though never the notice. A conversation that would not read raises, as a post
-that raised does, and nothing is parked.
+log the stream is this process's tail alone, so the notice said is taken as
+its event filed -- once at most, never twice: a process lost between the
+notice and its event files none once restarted, while the process whose post
+raised still owes it (`owed_events`). A conversation that would not read
+raises, as a post that raised does, and nothing is parked.
 """
 from __future__ import annotations
 
@@ -33,6 +34,7 @@ from orchestrator.github.comments import authored_by_us
 from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
+    owed_events as _owed_events,
     prompt_delivery as _prompt_delivery,
 )
 from orchestrator.workflow.state import stage_name
@@ -62,7 +64,7 @@ def parks_awaiting_human(context: _AutoRebaseRecoveryContext, message: str, reas
     state.set(_base_sync_state._PARK_REASON, None)
     state.set(_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, said)
     _comments._track_orchestrator_comment(state, said)
-    _files_the_event(context, said, reason)
+    _files_the_event(context, said, reason, message)
 
 
 def _said(context: _AutoRebaseRecoveryContext, message: str) -> int | None:
@@ -75,8 +77,12 @@ def _said(context: _AutoRebaseRecoveryContext, message: str) -> int | None:
     return said[-1] if said else None
 
 
-def _files_the_event(context: _AutoRebaseRecoveryContext, notice: int, reason: str) -> None:
-    """File the `park_awaiting_human` event of the park whose notice `notice` was said, where the stream lacks it."""
+def _files_the_event(context: _AutoRebaseRecoveryContext, notice: int, reason: str, message: str) -> None:
+    """File the `park_awaiting_human` event of the park whose notice `notice` was said, where the stream lacks it.
+
+    With no audit log the notice said is taken as its event filed, once at
+    most, save one this process owes over `message` (`owed_events.unfiled`).
+    """
     issue_number = context.issue.number
     named = {"reason": reason, "notice_id": notice}
     found = _github_events.filed(context.gh, _PARKED, issue_number=issue_number, **named)
@@ -87,8 +93,13 @@ def _files_the_event(context: _AutoRebaseRecoveryContext, notice: int, reason: s
             issue_number, notice,
         )
         return
-    if found:
-        log.info("issue=#%d recovery park notice %d already said and filed; posting nothing", issue_number, notice)
+    owing = {**named, "said": message}
+    if found or not _owed_events.unfiled(context.gh, _PARKED, issue_number=issue_number, **owing):
+        log.info(
+            "issue=#%d recovery park notice %d already said, its event filed or, with no audit log, taken as filed; "
+            "posting nothing", issue_number, notice,
+        )
         return
     stage = stage_name(context.gh.workflow_label(context.issue))
     context.gh.emit_event(_PARKED, issue_number=issue_number, stage=stage, **named)
+    _owed_events.pays(context.gh, _PARKED, issue_number=issue_number, **owing)

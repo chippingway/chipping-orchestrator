@@ -19,6 +19,11 @@ read is nobody's answer: the finish is held with nothing filed, relabelled, or
 retired, for the next tick to ask again -- so an audit log the process cannot
 read holds every landed rewrite's route until it reads. Once the mark is down,
 no later finish announces the head at all.
+With no audit log the stream is this process's tail alone, so the attempt's
+record of the event is taken as the event filed -- once at most, never twice:
+a process lost between record and event files none, while this process's
+finish cut short there still owes it (`owed_events`), and one whose record was
+refused outright for another producer's owes nothing it noted for that write.
 
 The attempt records the event ahead of filing it, in a guarded write of its
 own (`rewrite_finish_writes.ANNOUNCED_EVENT`), decided on the attempt: the
@@ -53,7 +58,11 @@ from dataclasses import replace
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github import events as _github_events
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import pinned_commit as _commit, rewrite_finish_writes as _writes
+from orchestrator.workflow.engine import (
+    owed_events as _owed_events,
+    pinned_commit as _commit,
+    rewrite_finish_writes as _writes,
+)
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.engine.verification_proof import ProofReading
 from orchestrator.workflow.state import stage_name
@@ -80,32 +89,38 @@ def files(finish: LandedFinish, staged: PinnedState, observed: ProofReading | No
 
     The event stream is asked first, whatever the attempt records, and
     nothing is filed where it carries the event; HELD where it would not read.
+    With no audit log, an attempt recording the event is taken as having
+    filed it, save where this process owes it (`owed_events.unfiled`).
     `staged` is the checkpoint's own state, which carries the record too. The
     outcome of the record's own write where that did not land, the movement
     its refusal read collected on `observed` (`rewrite_finish_writes.lands`).
     """
-    issue_number = finish.issue.number
-    found = _github_events.filed(finish.gh, _REBASED, issue_number=issue_number, sha=finish.head)
+    named = {"issue_number": finish.issue.number, "sha": finish.head}
+    found = _github_events.filed(finish.gh, _REBASED, **named)
     if found is None:
         log.warning(
             "issue=#%d could not read the event stream back for the base_rebased event of %.8s, which may "
             "already be filed; holding the finish with nothing filed",
-            issue_number, finish.head,
+            finish.issue.number, finish.head,
         )
         return FinishOutcome.HELD
-    if found:
+    recorded = finish.state.get(_FILED) == finish.head
+    if found or (recorded and not _owed_events.unfiled(finish.gh, _REBASED, **named)):
         log.info(
-            "issue=#%d finds the base_rebased event of %.8s already on the event stream; not filing it again",
-            issue_number, finish.head,
+            "issue=#%d finds the base_rebased event of %.8s already on the event stream, or recorded with no "
+            "audit log to ask; not filing it again",
+            finish.issue.number, finish.head,
         )
         return None
-    if finish.state.get(_FILED) != finish.head:
-        stopped = _records(finish, staged, observed)
-        if stopped is not None:
-            return stopped
+    anew = _owed_events.owes(finish.gh, _REBASED, **named)
+    stopped = None if recorded else _records(finish, staged, observed)
+    if stopped is FinishOutcome.REFUSED and anew:
+        _owed_events.pays(finish.gh, _REBASED, **named)
+    if stopped is not None:
+        return stopped
     finish.gh.emit_event(
         _REBASED,
-        issue_number=issue_number,
+        issue_number=finish.issue.number,
         stage=stage_name(finish.label),
         pr_number=finish.pr_number,
         sha=finish.head,
@@ -113,6 +128,7 @@ def files(finish: LandedFinish, staged: PinnedState, observed: ProofReading | No
         review_round=0,
         retry_count=finish.state.get("retry_count"),
     )
+    _owed_events.pays(finish.gh, _REBASED, **named)
     return None
 
 

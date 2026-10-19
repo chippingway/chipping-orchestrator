@@ -3309,8 +3309,9 @@ The keys that matter for the state machine fall into a few groups:
   the event stream first, member or no member (`github/events.filed`: the client's in-memory tail, then the whole
   audit log, however much it grew since, and every rotated copy of it beside it), and files the event only where
   the stream does not carry it; a log or copy the process cannot read is no answer, and holds the finish -- nothing
-  filed, relabelled, or retired -- for the next tick to ask again. With no audit log configured, an event a lost
-  process filed went nowhere durable, so the live tail is all there is to ask; a copy the log's retention deleted,
+  filed, relabelled, or retired -- for the next tick to ask again. With no audit log configured the live tail is all
+  there is to ask, so this member is taken as the event filed unless this process noted it owing and never filed it
+  (`workflow/engine/owed_events.py`): once at most, never twice; a copy the log's retention deleted,
   or a log truncated with no copy kept, no longer carries what it dropped. The tick
   that writes it takes in that member alone, so the mark behind it is still decided on every other record as the
   tick read it. Additive: an attempt from before this member existed carries none.

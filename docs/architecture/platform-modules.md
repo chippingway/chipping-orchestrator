@@ -449,7 +449,8 @@ orchestrator/
     client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records -- a
                         caller's correlation on a relabel riding the audit one alone -- and canonical
                         repository identity; a clone reuses the parent's token and bot login on a requester of its
-                        own and fetches its repository only on the first read of repository metadata, while
+                        own, shares the parent's ledger of events its process owes (`workflow/engine/owed_events.py`),
+                        and fetches its repository only on the first read of repository metadata, while
                         number, label, and commit operations stay eager at the call; ownership checks complete that
                         repository first, use GitHub's repository name case-insensitively, and reject a head with no
                         repository; `repo_id` answers the numeric id no rename changes, completing a clone's
@@ -488,7 +489,9 @@ orchestrator/
                         caller may already have filed is on the stream -- the client's in-memory tail, then the
                         whole sink and its rotated copies (`event_log.py`) -- with a sink that would not read
                         answered as no answer rather than as an absence (`filed`), and whether a sink is
-                        configured at all, so an absence outlives the process (`durable`)
+                        configured at all, so an absence outlives the process (`durable`) -- with none, a durable
+                        word that an event may be out counts as that event filed unless still owed
+                        (`workflow/engine/owed_events.py`)
     issue_polling.py    the one walk over a repository's issues a tick is served from: the open poll, the
                         cadenced closed sweep beside it, and the shared number set both filter through so an
                         issue two queries return is dispatched once, and which drops the pull requests those

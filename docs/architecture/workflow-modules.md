@@ -386,7 +386,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             ordinary park only appends to that ledger, so a malformed legacy entry parks it all the
                             same. `names_the_notice=True`, popped the same way, has the event carry the id of the
                             notice it posted as `notice_id`; only the dormant debt park of a landed rewrite and the
-                            dormant guarded recovery parks (`rewrite_recovery_notices.py`) ask for it
+                            dormant guarded recovery parks (`rewrite_recovery_notices.py`) ask for it, its event noted
+                            owed ahead of the post until it is filed (`owed_events.py`)
+    owed_events.py          the events this process files behind a durable word that they may be out -- a landed
+                            rewrite's `base_rebased` record, a park's notice -- owed until filed, so with no audit log
+                            such a word counts as its event filed, at most once, unless still owed; the repository's
+                            client holds each, shared with its worker clients (`github/client.py`), under its notice's
+                            text, so a failed post never files another's event; a debt noted anew dropped where its
+                            write was refused outright (`rewrite_finish_events.py`)
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked
@@ -1223,7 +1230,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             on the park as a fresh post would be, the finish held where the conversation would not
                             read (`noticed`), and that park's `park_awaiting_human` event filed only where the event
                             stream lacks one naming that very notice, as such a finish's park does, so no earlier
-                            park of the issue, of the same head or another, counts for it (`files_the_park`)
+                            park of the issue, of the same head or another, counts for it (`files_the_park`) -- with
+                            no audit log, only where this process owes it over that notice's text (`owed_events.py`)
     rewrite_finish_evidence.py
                             the finish's evidence step for a head it routes: asks the policy (`rewrite_evidence.py`)
                             and lands what the decision requires in one guarded commit before the announcement -- the
@@ -1559,7 +1567,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `rewrite_finish_writes.ANNOUNCED_EVENT`) so it goes out only for an attempt still
                             standing -- that write prepared ahead of the notice too (`prepares_the_record`), over the
                             round the checkpoint has yet to reset; an unreadable log holds the finish with nothing
-                            filed. The movement a refusal of that record reads is collected for the coordinator's
+                            filed. With no audit log the record counts as the event filed unless this process still
+                            owes it (`owed_events.py`), a debt noted anew dropped where the record was refused
+                            outright. The movement a refusal of that record reads is collected for the coordinator's
                             stops, which the notice's announcement (`rewrite_finish_notices.announces`) hands through
     rewrite_finish_writes.py
                             the guarded commits the finish writes through, under the tick-state guard
@@ -2318,8 +2328,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `park_awaiting_human` event filed only where the stream lacks the one naming that notice
                             (`notice_id`, which every park recorded this way carries), nothing filed where the stream
                             will not read; a conversation that will not read raises, as a post that raised does.
-                            With no audit log the stream is the process's tail, so a restart between a park's event
-                            and its record files that event once more, never the notice
+                            With no audit log the notice said is taken as its event filed unless this process owes it
+                            (`owed_events.py`), so a restart between a park's notice and record files it at most once
     rewrite_recovery_parks.py
                             dormant -- handed to no recovery road, eligibility gate, or dispatcher hold yet: the
                             park a recovery context would record every recovery park through (`lands_a_park`, the
