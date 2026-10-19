@@ -2616,8 +2616,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it, so no later write of the proof sends it again; behind a record that did not land,
                             that staging is taken off the state for the proof, put back only where no proof edit
                             landed or may have; over a checkout gone from disk, what the tick holds for the landed head
-                            retired as over a reset in its own guarded write (`lands_the_retirement`), asked again over
-                            the comment read afresh -- evidence another road wrote back retired again and the tick held,
+                            retired as over a reset in its own guarded write (`lands_the_retirement`) -- the comment
+                            read afresh first where the tick holds none, so evidence put back since is retired and
+                            another attempt holds -- asked again over the comment read afresh, evidence another road
+                            wrote back retired again and the tick held,
                             a successor or another attempt in its place holding it first, every evidence record of that
                             reading, a successor's floor and handoff among them, laid over the tick's state -- the base
                             tip blanked in a shrinking write where the history has no room; a retirement that does not
