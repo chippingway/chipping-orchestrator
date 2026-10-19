@@ -2589,6 +2589,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the tick read them (`rewrite_finish_writes.INVALIDATION`), so evidence settled since refuses
                             it, and a blank refused or never confirmed holds with nothing reset or cleaned, the tick's
                             state withheld so its stale tip is never written back over a blank that landed unconfirmed;
+                            a tick whose state carries another attempt by then, one a proof took in, writes no blank
+                            and holds the same way, so a replacement's tip is never blanked;
                             a blank that landed is followed by the comment read afresh, a tip another road put back or
                             an attempt it pinned right behind it -- or a comment that would not read -- holding the
                             reset with the tick's state withheld; and what its commit read moving proved as read
