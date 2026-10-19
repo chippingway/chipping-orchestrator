@@ -1069,8 +1069,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   (`records_before_a_reset`, `lands_a_park`, and the guarded clear, `lands_a_clear`) -- a park made again over a
   notice already said taking it in rather than posting it twice (`workflow/engine/rewrite_recovery_notices.py`), and a
   checkout found gone, or read off the landing, before or during the proof having the reset recorded and the evidence
-  retired in writes of their own before it answers, a loss no write recorded owed until one does -- beside the guarded
-  hold a publication gate's hold of a recovery's push would be recorded as (`lands_a_hold`). It runs under its
+  retired in writes of their own before it answers, the attempt owing that loss to every later proof -- beside the
+  guarded hold a publication gate's hold of a recovery's push would be recorded as (`lands_a_hold`). It runs under its
   caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road

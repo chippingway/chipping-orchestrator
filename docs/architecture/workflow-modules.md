@@ -572,9 +572,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             client holds each, shared with its worker clients (`github/client.py`), under its notice's
                             text, so a failed post never files another's event; a debt noted anew dropped where its
                             write was refused outright (`rewrite_finish_events.py`); and, for the dormant recovery
-                            proof alone, a checkout loss no write recorded, owed under the attempt's anchor
-                            (`owes_a_loss`), asked by every later proof of that attempt without being dropped
-                            (`loss_owed`), until a reset record and a retirement over it both land
+                            proof alone, a checkout loss the proof read, owed by that very attempt -- its anchor and
+                            the replay it recorded (`owes_a_loss`) -- and asked by every later proof of it without
+                            being dropped (`loss_owed`), since a write recording it can be undone by another road
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked
@@ -2571,7 +2571,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             caller read gone or off the evidence's head (`lost`, `heads_read`), or a loss an earlier
                             proof owes (`owed_events.loss_owed`), however soon it is back -- has the reset recorded
                             and the evidence retired as over it, each in a write of its own (`proves_before_a_park`),
-                            the debt kept where nothing stands to retire and dropped only once both writes land.
+                            the attempt owing that loss from then on, so evidence put back later is retired too.
                             Ahead of every reset whose attempt records a base tip -- or one the tick read blank,
                             confirmed blank over the comment read afresh, so a tip another road put back refuses the
                             reset -- that tip is blanked in a write of its own (`records_the_reset`, the answer
