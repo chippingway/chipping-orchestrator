@@ -449,9 +449,9 @@ def records_the_reset(context: _base_sync_models._AutoRebaseRecoveryContext, *, 
     every evidence record as the retirement left them (`_RETIRED`) -- a tip put
     back, an attempt pinned, or a successor recorded or floor raised during it,
     the checkout back by then, holds the reset with the tick's state withheld,
-    what moved laid over it; where either does not land,
-    the tick's state is withheld from every whole-state write behind, since
-    the comment may carry a successor and its floor, or a tip put back, by then.
+    what moved laid over it. Every False answer withholds the tick's state from
+    every whole-state write behind -- whatever proof write landed meanwhile --
+    since the comment may carry a successor, its floor, or usage by then.
     """
     with keeps_the_staging(context) as recording:
         moved: dict[str, ReportEvidence] = {}
@@ -479,6 +479,7 @@ def records_the_reset(context: _base_sync_models._AutoRebaseRecoveryContext, *, 
                 replace(recording, records_before_a_reset=records_the_reset), _retirement.reconciles(recording, moved),
             ) and recorded and _blanks_the_tip(recording, moved, again=True)
             pending = recorded and _retirement.receipts(recorded) & moved.keys()
+        recording.state.withheld |= not recorded
         return bool(recorded)
 
 
@@ -498,11 +499,8 @@ def _blanks_the_tip(
     pinned there, or a comment that would not read holds the reset too -- no reset moving the checkout off evidence
     nothing records moved -- the tick's state withheld rather than written back over what that road wrote. `again`
     writes nothing and asks only that reading, for a caller whose proof made requests of its own since the blank.
-    Whatever that reading carries that another road moved since the tick's reading -- a usage total added to, a
-    floor raised, a transaction recorded -- is laid over the tick's state, the tick's own staging kept
-    (`rewrite_recovery_rereads.lays_what_moved`), so no write of that state puts back what that road wrote; a
-    transaction recorded pending there under a receipt the attempt does not name holds the reset the same way, and so
-    does a move of any of `held`, the records a caller's retirement left the state carrying as the comment then read.
+    What another road moved there is laid over the tick's state (`rewrite_recovery_rereads.lays_what_moved`); a
+    transaction it recorded pending under a receipt the attempt does not name, or a move of any of `held`, holds too.
     """
     asked = asks_every_reading(
         context, lambda reading: _retirement.moved_under(reading, tick=context.state, into=moved),
@@ -564,13 +562,10 @@ def _lands_then_proves(
     carries by then is kept for the proof rather than laid away. Every
     comment the commit itself reads, the reread behind a refusal for room
     among them, is asked as it is read (`rewrite_recovery_readings.AsksEveryReading`).
-    Behind a record that landed and the proof behind it -- whatever evidence was left to prove, none among it -- the
-    comment is read afresh once more (`rewrite_recovery_rereads.stands_behind`): movement it reads under evidence the
-    tick holds is proved again first, and the comment read again behind that proof, until a reading carries none;
-    what else another road moved there is laid over the tick's state, and any attempt member moved, another attempt
-    pinned among it, or a transaction pending under a receipt the attempt does not name that the tick did not hold
-    before the record -- however the record took it in -- holds the tick, its state withheld, as does a comment that
-    would not read. `named` is the record, logged where it did not land.
+    Behind a record that landed and the proof behind it, whatever evidence is left, the comment is read afresh once
+    more (`rewrite_recovery_rereads.stands_behind`), what moved there proved again first; a moved attempt, an unnamed
+    pending transaction the tick did not hold, or a comment that would not read holds the tick. Any False answer
+    leaves the tick's state withheld. `named` is the record, logged where it did not land.
     """
     state = context.state
     read = (
@@ -598,6 +593,7 @@ def _lands_then_proves(
         )
         moved = _retirement.reconciles(context, moved)
     if not (proves_before_a_park(context, moved) and landed.status is _commit_models.CommitStatus.COMMITTED):
+        state.withheld = True
         return False
     if stands_behind(context, lambda behind: proves_before_a_park(context, behind), durable_comment, pending):
         return True

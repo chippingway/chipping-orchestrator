@@ -1,23 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The comment a dormant recovery reads last behind its writes, laid over the tick's state where another road moved it.
+"""The comment a dormant recovery reads behind its writes, laid over the tick's state where another road moved it.
 
-The reset's record (`rewrite_recovery_parks.records_the_reset`) lets the reset go on over the comment it reads
-afresh behind its own writes, and a landed hold's, park's, or clear's record answers over the one read behind it;
-the tick's state is written behind them -- whole, by a recovery context that hands in no park of its own. A usage
-total another road added to by then, a revision floor it raised, or a transaction it recorded would be put back by
-that write. So `lays_what_moved` lays that reading over the state for every field another road moved since the
-tick's own reading, each taken in as read (`rewrite_finish_rechecks.lays`), so a guarded write behind counts none of
-it as the tick's own move either; a field the tick staged itself stays staged, for the write behind to merge or
-refuse as the guarded commit does. A move of a field the caller holds the reading to, or a transaction another road
-recorded pending under a receipt the attempt does not name, holds the caller. Behind a landed hold's or park's record
-the reading is asked for movement first (`stands_behind`): movement under evidence the tick holds is proved again by
-the caller's proof, the comment read again behind it, so it stands however soon it is put back; and a transaction the
-record itself took in pending under such a receipt holds the caller all the same. Behind a landed clear, which took
-the attempt guarding the evidence it retired with it, evidence that reading carries put back under a receipt the clear
-retired is retired again over it, in a write of its own (`retires_again`); the clear's own write spent a revision past
-each run it retired (`outranks_the_retired`), as a park's that releases the attempt does, so a run written back after
-that, or past a retirement refused, stays outranked for every reader with no attempt left to guard it.
+The reset's record (`rewrite_recovery_parks.records_the_reset`) and a landed hold's, park's, or clear's record answer
+over the comment read afresh behind them, and the tick's state may be written whole behind that. So the reading is laid
+over the state for every field another road moved since the tick's own, its staging kept (`lays_what_moved`); behind a
+hold or park, movement it shows under evidence the tick holds is proved again first (`stands_behind`); and a run a clear
+or a releasing park retires with its attempt is outranked in that very write (`outranks_the_retired`), and retired again
+behind a clear where written back (`retires_again`).
 
 Dormant, as those records are: no recovery context the workflow builds reaches it.
 """
@@ -48,10 +38,9 @@ from orchestrator.workflow.engine.rewrite_finish_rechecks import lays
 def lays_what_moved(state: PinnedState, reading: PinnedState, held: Collection[str] = ()) -> bool:
     """Lay over `state` each field `reading` spells otherwise than the reading `state` was synced with; whether to hold.
 
-    `reading` is the comment read afresh. A field `state` itself spells otherwise than that reading is the tick's own
-    staging and is left as it is. True where any field laid is one of `held`, or where another road recorded a
-    transaction pending there under a receipt the attempt `reading` carries does not name -- a successor the reset
-    would otherwise go on under. A state nothing was read into has no reading to measure moves from, and lays nothing.
+    A field `state` itself moved off that reading is the tick's own staging and is kept. True where a field laid is one
+    of `held`, or a transaction another road recorded pending under a receipt the attempt does not name. A state nothing
+    was read into lays nothing.
     """
     if state.synced is None:
         return False
@@ -73,14 +62,11 @@ def stands_behind(
 ) -> bool:
     """Whether a record that landed may answer over the comment read afresh behind it, what moved there proved first.
 
-    The comment is read through `reads` -- `verification_durable.durable_comment`, as the caller resolves it -- and
-    asked what it records moving under each evidence the tick's state holds (`rewrite_landing_retirement.moved_under`).
-    Movement under a receipt that state holds is handed to `proves`, the caller's proof, which retires or marks what
-    moved, so that movement stands however soon it is put back; the comment is read again behind it, until a reading
-    carries none. That reading is laid over the state (`lays_what_moved`). False where `proves` does not land, where a
-    reading would not read, where an attempt member moved, and where the reading carries a transaction pending under
-    a receipt the attempt does not name that the tick did not hold, as `pending` spells its pending record before the
-    record -- however that record took it in.
+    Read through `reads` (`verification_durable.durable_comment`, as the caller resolves it), the comment is asked what
+    it records moving under evidence the tick holds (`rewrite_landing_retirement.moved_under`), handed to `proves` and
+    read again until it carries none, then laid over the state (`lays_what_moved`). False where `proves` does not land,
+    a reading would not read, an attempt member moved, or the reading carries a transaction pending under a receipt the
+    attempt does not name that the tick did not hold before the record, as `pending` spells it.
     """
     moved: dict[str, ReportEvidence] = {}
     asks = partial(_retirement.moved_under, tick=context.state, into=moved)
@@ -101,11 +87,9 @@ def stands_behind(
 def outranks_the_retired(state: PinnedState, read: PinnedState) -> None:
     """Stage on `state` a revision spent past each run `read` carries for the landed head that `state` no longer does.
 
-    For a clear, or a park releasing the attempt over a landed reset, whose write retires a run -- captured, or
-    settled -- with the attempt that guarded it: the revision floor raised past that run in the very write
-    (`rewrite_finish_outranking.spends_past`), so every reader reads it outranked however soon another road writes it
-    back, and whatever later write of the caller's own is refused. `read` is the comment as the tick read it; a run
-    `state` still carries -- a park that keeps the attempt and its evidence -- is left as it is.
+    For a clear, or a park releasing the attempt, whose write retires a run with the attempt guarding it: the floor
+    raised past it in that write (`rewrite_finish_outranking.spends_past`) keeps it outranked for every reader however
+    another road writes it back. `read` is the comment as the tick read it.
     """
     standing = {
         getattr(record, "receipt", None)
@@ -125,12 +109,9 @@ def retires_again(
 ) -> bool:
     """Retire again what a landed write retired that `reading` carries put back; whether none of it stands then.
 
-    For a write that took the attempt guarding that evidence with it -- a clear -- so evidence another road put back
-    right behind it under one of `retired`, the receipts it retired, stands guarded by nothing for the next proof to
-    take up again. It is abandoned or invalidated again, staged on `reading` itself, and landed as `write` over it;
-    where that does not land, the comment is read again through `reads` -- `verification_durable.durable_comment`, as
-    the caller resolves it -- and asked once more. False where it still stands: a comment that would not read, writes
-    that did not land, or no room for the history entry.
+    For a clear, which took the attempt guarding that evidence with it: evidence under one of `retired` is retired
+    again, staged on `reading` and landed as `write`, and asked once more over the comment read again through `reads`
+    where that does not land. False where it still stands.
     """
     if reading is None:
         return False

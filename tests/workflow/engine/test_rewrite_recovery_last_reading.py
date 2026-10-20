@@ -2,19 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """What another road writes right behind a dormant recovery's last proof, retirement, or record, kept on its state.
 
-The guarded recovery case (`guarded_recovery_support`): issue #7's run settled and its finish killed before its
-announcement, the recovery context read off the comment handed straight to the dormant reset record
-(`rewrite_recovery_parks.records_the_reset`), the proof before a park, or the hold. Another road writes right as the
-record's proof of the run's moved report answers -- a newer run recorded pending on the run's binding, or the revision
-floor raised alone -- right as its retirement over a checkout gone answers, a usage total added to, or right behind a
-hold's record with nothing left to prove, a fresh attempt pinned or a usage total added to. The comment read last is
-laid over the tick's state (`rewrite_recovery_rereads.lays_what_moved`), so that state written whole behind puts none
-of it back, and the pending successor holds the reset, the fresh attempt the hold. Movement the reread behind a
-hold's record reads is retired before the hold answers; a successor that record took in holds it; a run written back
-behind a park's record releasing the attempt stands outranked; another attempt the proof read and saw put back holds
-it, a checkout lost behind that reading recorded first; and a checkout the readiness proof reads gone from this host
-stays owed under refused writes. On a state alone, what the tick staged itself is kept over another road's move of it.
-Nothing is run again, pushed, or launched.
+The guarded recovery case (`guarded_recovery_support`): issue #7's run settled and its finish killed unannounced, the
+context read off the comment handed straight to the dormant reset record, proof before a park, hold, or park. Whatever
+another road writes behind them -- a successor, a floor, usage, a fresh attempt, the run put back, the report moved and
+put back, a checkout lost or read absent -- is laid over the tick's state (`rewrite_recovery_rereads`), retired, or
+outranked, or holds the caller with its state withheld; on a state alone, what the tick staged is kept. Nothing is run
+again, pushed, or launched.
 """
 from __future__ import annotations
 
@@ -25,7 +18,7 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git.base_sync import attempts as _attempts, rewrite_facts as _rewrite_facts, snapshot as _snapshot
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import PinnedEdit, PinnedState
 from orchestrator.workflow.engine import (
     owed_events as _owed_events,
     pinned_commit as _commit,
@@ -63,14 +56,14 @@ _FLOOR_AND_PENDING = (readings.KEY_REVISION_FLOOR, _PENDING)
 # What a write behind a hold's record is measured on: the usage total, the attempt's anchor, and the gate's record.
 _HELD = (_USAGE, readings.KEY_PENDING_PUSH, _GATE)
 
-# Right behind the reset record's proof answering, behind its retirement over a checkout gone answering, and behind
-# the hold's record, the first edit carrying the gate's record.
+# Right behind the reset record's proof answering, and behind its retirement over a checkout gone answering; and the
+# first edit carrying the gate's record -- a hold's record, or a reset's blank sent with it.
 _BEHIND_THE_PROOF = handoff.Boundary("behind the reset proof", "retires_unproved", lambda *_called, **_options: True)
 _BEHIND_THE_RETIREMENT = handoff.Boundary(
     "behind the retirement", "lands_the_retirement", lambda *_called, **_options: True,
 )
-_BEHIND_THE_HOLD = handoff.Boundary(
-    "behind the hold's record", "edit_pinned_state", lambda _issue, staged, **_options: staged.get(_GATE) is not None,
+_THE_GATED_RECORD = handoff.Boundary(
+    "at the gate's record", "edit_pinned_state", lambda _issue, staged, **_options: staged.get(_GATE) is not None,
 )
 
 # The park's record that releases the attempt, the first edit carrying no anchor.
@@ -102,12 +95,12 @@ def _writes(case, fields: dict) -> None:
     case.gh.write_pinned_state(case.issue, state)
 
 
-def _holds_retired(case) -> tuple:
-    """Settle `case`'s run, kill its finish, and retire it as another road would, then stage the gate's record on a
-    context read off the comment; the head, the run, and that context."""
+def _gated(case, *, retired: bool = True) -> tuple:
+    """Settle `case`'s run, kill its finish, and retire it as another road would where `retired`, then stage the gate's
+    record on a context read off the comment; the head, the run, and that context."""
     head, run = case.settles_then_dies()
     state = case.gh.read_pinned_state(case.issue)
-    case.assertTrue(_settlement.retire_current_evidence(state))
+    case.assertTrue(not retired or _settlement.retire_current_evidence(state))
     case.gh.write_pinned_state(case.issue, state)
     context = guarded.recovery_context(case)
     context.state.set(_GATE, head)
@@ -158,8 +151,8 @@ class LastReadingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             with self.subTest(replaces=replaces):
                 self.setUp()
                 context, behind = self._holds_over_nothing(replaces=replaces)
-                holds = _BEHIND_THE_HOLD.moving(self.gh.edit_pinned_state, behind)
-                with patch.object(self.gh, _BEHIND_THE_HOLD.step, holds):
+                holds = _THE_GATED_RECORD.moving(self.gh.edit_pinned_state, behind)
+                with patch.object(self.gh, _THE_GATED_RECORD.step, holds):
                     self.assertEqual(_parks.lands_a_hold(context), not replaces)
                 self.assertEqual(context.state.withheld, replaces)
                 written = self.pinned_fields(*_HELD)
@@ -170,7 +163,7 @@ class LastReadingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         """Settle the run, kill its finish, and retire it as another road would, then stage the gate's record on a
         context read off the comment; that context, and the write another road makes behind the hold's record -- a
         fresh attempt pinned where `replaces`, 2 of usage added otherwise."""
-        head, _run, context = _holds_retired(self)
+        head, _run, context = _gated(self)
         if replaces:
             return context, partial(self._replaces_the_attempt, head)
         return context, partial(_adds, self, _USAGE, 2)
@@ -211,9 +204,7 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # The run settled current, the comment read afresh behind the hold's record has the run's report moved, put
         # back right behind that reading: the hold proves the run again with that movement before it answers, so it is
         # invalidated whole, and the next proof, over the report put back, keeps nothing current.
-        head, run = self.settles_then_dies()
-        context = guarded.recovery_context(self)
-        context.state.set(_GATE, head)
+        run, context = _gated(self, retired=False)[1:]
         report = self.pinned_fields(_REPORT)[0]
         rereads = _AT_THE_REREAD.racing(
             _parks.durable_comment,
@@ -230,7 +221,7 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # comment, under a receipt the attempt does not name, and the hold's record takes it in as it lands: the
         # comment read afresh behind the record carries a successor the tick never held, so the hold holds, the tick's
         # state withheld, and that successor stands pending with the floor it raised.
-        run, context = _holds_retired(self)[1:]
+        run, context = _gated(self)[1:]
         newer = settled.records_a_newer_run(self, binding=run.binding)
         self.assertFalse(_parks.lands_a_hold(context))
         self.assertTrue(context.state.withheld)
@@ -270,6 +261,43 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             self.assertFalse(_parks.proves_before_a_park(context))
         self.assertTrue(context.state.withheld)
         self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (standing,))
+
+    def test_a_lost_record_stays_withheld(self) -> None:
+        # The reset's blank, over the run's report moved, or the hold's record, the report moving as it goes out, is
+        # sent with its answer lost; the proof behind retires the run only past two unread edits, another road adding
+        # 2 of usage right behind it: the record answers False, its state withheld still, so no write of it puts that
+        # usage back.
+        for asks in (_parks.records_the_reset, _parks.lands_a_hold):
+            with self.subTest(asks=asks.__name__):
+                self.setUp()
+                context = _gated(self, retired=False)[2]
+                report = self.pinned_fields(_REPORT)[0]
+                self._moved = {_REPORT: {**report, _REVISION: report[_REVISION] + 1}}
+                self._losing = True
+                self._unread = 2
+                if asks is _parks.records_the_reset:
+                    _writes(self, self._moved)
+                with patch.object(self.gh, "edit_pinned_state", partial(self._loses, self.gh.edit_pinned_state)):
+                    self.assertFalse(asks(context))
+                self.assertTrue(context.state.withheld)
+                self.assertEqual(self.pinned_fields(_USAGE), (2,))
+
+    def _loses(self, live, issue, staged, **options):
+        """`live`, the strict edit: the first carrying the gate's record lost unsent, the report moved right then; the
+        first two retiring the run left unread; 2 of usage added right behind the next."""
+        retires = options["over"].get(_CURRENT) and not staged.get(_CURRENT)
+        if self._losing and staged.get(_GATE):
+            self._losing = False
+            _writes(self, self._moved)
+            return PinnedEdit.UNCONFIRMED
+        if retires and self._unread:
+            self._unread -= 1
+            return PinnedEdit.UNREAD
+        answered = live(issue, staged, **options)
+        if retires and self._unread == 0:
+            self._unread = -1
+            _adds(self, _USAGE, 2)
+        return answered
 
     def _puts_the_run_back(self, record: dict, head: str) -> None:
         """Write `record` back as the current one, as another road would, and put the checkout back on `head`."""
