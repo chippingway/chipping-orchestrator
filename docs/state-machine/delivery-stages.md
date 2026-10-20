@@ -1572,9 +1572,10 @@ because there it is the claim that this stage has already rerouted rather than a
   afresh, its proof taken first as before a park that keeps the attempt -- what the tick staged before that proof, the
   gate's own record among it, kept across every write the proof lands (`rewrite_recovery_staging.keeps_the_staging`) --
   nothing recorded where that proof does not land, and whether it all landed answered -- behind a hold's or park's
-  record that landed, whatever evidence is left, the comment read afresh once more and laid over the tick's state,
-  another attempt or a moved one, or a transaction recorded pending under a receipt the attempt does not name,
-  holding the tick with its state withheld
+  record that landed, whatever evidence is left, the comment read afresh once more -- movement it reads under the
+  evidence the tick holds proved again first, so it stands however soon it is put back -- and laid over the tick's
+  state, another attempt or a moved one, or a transaction pending under a receipt the attempt does not name that the
+  tick never held, however the record took it in, holding the tick with its state withheld
   (`rewrite_recovery_parks.lands_a_hold`); so is the clear an ineligible label's gate or an unmoved anchor would land
   as `CLEAR` over the comment read afresh, retiring what a finish captured or settled for the head on the clear's own
   state first, a successor settled meanwhile refusing it with its floor kept, a successor, another attempt, or a

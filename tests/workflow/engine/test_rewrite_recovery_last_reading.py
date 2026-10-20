@@ -64,12 +64,36 @@ _BEHIND_THE_HOLD = handoff.Boundary(
     "behind the hold's record", "edit_pinned_state", lambda _issue, staged, **_options: staged.get(_GATE) is not None,
 )
 
+# The comment read afresh behind a hold's record, and the first reading a proof before a park takes.
+_AT_THE_REREAD = handoff.Boundary("at the reread behind the record", "durable_comment", lambda *_called: True)
+_AT_THE_FIRST_READ = handoff.Boundary("at the proof's first reading", "read_pinned_state", lambda *_called: True)
+
 
 def _adds(case, field: str, more: int) -> None:
     """Add `more` to the counter `case`'s comment carries under `field`, as another road would."""
     state = case.gh.read_pinned_state(case.issue)
     state.set(field, (state.get(field) or 0) + more)
     case.gh.write_pinned_state(case.issue, state)
+
+
+def _writes(case, fields: dict) -> None:
+    """Write each of `fields` over `case`'s comment as it stands, as another road would."""
+    state = case.gh.read_pinned_state(case.issue)
+    for field, written in fields.items():
+        state.set(field, written)
+    case.gh.write_pinned_state(case.issue, state)
+
+
+def _holds_retired(case) -> tuple:
+    """Settle `case`'s run, kill its finish, and retire it as another road would, then stage the gate's record on a
+    context read off the comment; the head, the run, and that context."""
+    head, run = case.settles_then_dies()
+    state = case.gh.read_pinned_state(case.issue)
+    case.assertTrue(_settlement.retire_current_evidence(state))
+    case.gh.write_pinned_state(case.issue, state)
+    context = guarded.recovery_context(case)
+    context.state.set(_GATE, head)
+    return head, run, context
 
 
 class LastReadingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
@@ -128,12 +152,7 @@ class LastReadingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         """Settle the run, kill its finish, and retire it as another road would, then stage the gate's record on a
         context read off the comment; that context, and the write another road makes behind the hold's record -- a
         fresh attempt pinned where `replaces`, 2 of usage added otherwise."""
-        head = self.settles_then_dies()[0]
-        state = self.gh.read_pinned_state(self.issue)
-        self.assertTrue(_settlement.retire_current_evidence(state))
-        self.gh.write_pinned_state(self.issue, state)
-        context = guarded.recovery_context(self)
-        context.state.set(_GATE, head)
+        head, _run, context = _holds_retired(self)
         if replaces:
             return context, partial(self._replaces_the_attempt, head)
         return context, partial(_adds, self, _USAGE, 2)
@@ -165,6 +184,57 @@ class LastReadingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         """Add 2 to the usage the comment carries, as another road would, and put the checkout back."""
         _adds(self, _USAGE, 2)
         (self._wt.parent / _AWAY).rename(self._wt)
+
+
+class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """What a hold's or a proof's readings show holds or proves, however soon another road puts back what they read."""
+
+    def test_movement_behind_the_record_is_retired(self) -> None:
+        # The run settled current, the comment read afresh behind the hold's record has the run's report moved, put
+        # back right behind that reading: the hold proves the run again with that movement before it answers, so it is
+        # invalidated whole, and the next proof, over the report put back, keeps nothing current.
+        head, run = self.settles_then_dies()
+        context = guarded.recovery_context(self)
+        context.state.set(_GATE, head)
+        report = self.pinned_fields(_REPORT)[0]
+        rereads = _AT_THE_REREAD.racing(
+            _parks.durable_comment,
+            partial(_writes, self, {_REPORT: {**report, _REVISION: report[_REVISION] + 1}}),
+            partial(_writes, self, {_REPORT: report}),
+        )
+        with patch.object(_parks, _AT_THE_REREAD.step, rereads):
+            self.assertTrue(_parks.lands_a_hold(context))
+        self.assertTrue(self.proves())
+        self.assert_invalidated(run)
+
+    def test_a_successor_the_record_took_in_holds(self) -> None:
+        # The run already retired, another road records a newer run pending on its binding after the tick read the
+        # comment, under a receipt the attempt does not name, and the hold's record takes it in as it lands: the
+        # comment read afresh behind the record carries a successor the tick never held, so the hold holds, the tick's
+        # state withheld, and that successor stands pending with the floor it raised.
+        run, context = _holds_retired(self)[1:]
+        newer = settled.records_a_newer_run(self, binding=run.binding)
+        self.assertFalse(_parks.lands_a_hold(context))
+        self.assertTrue(context.state.withheld)
+        self.assertEqual(readings.pinned_records(self)[0], newer)
+        self.assertEqual(self.pinned_fields(readings.KEY_REVISION_FLOOR), (newer.revision,))
+
+    def test_a_replacement_in_the_proof_holds(self) -> None:
+        # Another road pins the landed head as a fresh anchor as the proof before a park first reads the comment, and
+        # puts the attempt back right behind that reading: the proof read another attempt in place of the one it
+        # recovers, so it holds, the tick's state withheld, however that attempt stands again by its last reading.
+        head = self.settles_then_dies()[0]
+        context = guarded.recovery_context(self)
+        standing = self.pinned_fields(readings.KEY_PENDING_PUSH)[0]
+        reads = _AT_THE_FIRST_READ.racing(
+            self.gh.read_pinned_state,
+            partial(_writes, self, {readings.KEY_PENDING_PUSH: head}),
+            partial(_writes, self, {readings.KEY_PENDING_PUSH: standing}),
+        )
+        with patch.object(self.gh, _AT_THE_FIRST_READ.step, reads):
+            self.assertFalse(_parks.proves_before_a_park(context))
+        self.assertTrue(context.state.withheld)
+        self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (standing,))
 
 
 class LaysWhatMovedTest(unittest.TestCase):

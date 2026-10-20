@@ -2470,7 +2470,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that evidence put back current right behind is retired again -- asked once more where that
                             reading cannot say the route is free, and going on only over a comment read afresh carrying
                             nothing current under that receipt and still the recovered attempt -- another road's attempt
-                            in its place, in the comment the proof last read, holding the tick
+                            in its place, in any comment the proof read however soon it was put back, holding the tick
                             (`rewrite_recovery_readings.stands_as_recovered`) with nothing reset, cleared, or parked
                             and the tick's state withheld,
                             and a checkout one of its finishes read off the landing -- as its candidate, or in the
@@ -2564,10 +2564,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             behind a record that did not land, so evidence it read moving that the comment carries
                             nothing in place of by then is kept -- unless the record took in evidence under another
                             receipt, which is proved on its own readings; behind a record that landed and the proof
-                            behind it, whatever evidence is left, the comment is read afresh once more and laid over
+                            behind it, whatever evidence is left, the comment is read afresh once more, movement it
+                            reads under evidence the tick holds proved again until a reading carries none, and laid over
                             the tick's state (`rewrite_recovery_rereads.py`), another attempt, the attempt moved, or a
-                            transaction recorded pending under a receipt the attempt does not name holding the tick
-                            with its state withheld. The hold behind a publication gate that held a
+                            transaction pending under a receipt the attempt does not name that the tick never held --
+                            however the record took it in -- holding the tick with its state withheld. The hold behind
+                            a publication gate that held a
                             recovery's push would land the same way, as `HOLD`, decided on the attempt alone and its
                             proof taken first as before a park that keeps the attempt, recording nothing where that
                             proof does not land, and answering whether the proof, the record, and the proof behind it
@@ -2626,12 +2628,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and a park's or hold's record commits through (`asks_every_reading`, `AsksEveryReading`),
                             every call passed through and each parsed reading of the issue's comment -- the comment a
                             strict edit found moved, and the reread behind a refusal for room, among them -- handed to
-                            that proof's classifier first, so movement any helper read there stands however soon it is
-                            put back; and what a reading's base tip records moving (`tip_moves`) -- blank or repointed
-                            beside the attempt as the tick read it, every evidence there, or blank beside an attempt
-                            still standing, evidence the tick never held; and under a captured transaction a revision
-                            read spent past it (`owed_moves`), as the complete dormant finish reads one still owed;
-                            whether the tick's state still carries the attempt the recovery recovers
+                            that proof's classifier first and kept, so another attempt any of them carried holds the
+                            proof (`AsksEveryReading.every`), and movement any helper read there stands however soon it
+                            is put back; and what a reading's base tip records moving (`tip_moves`) -- blank or
+                            repointed beside the attempt as the tick read it, every evidence there, or blank beside an
+                            attempt still standing, evidence the tick never held; and under a captured transaction a
+                            revision read spent past it (`owed_moves`), as the complete dormant finish reads one still
+                            owed; whether the tick's state still carries the attempt the recovery recovers
                             (`stands_as_recovered`); and a block a checkout gone from disk cuts short
                             (`LosesTheCheckout`), its git request there read as that loss, back by then or not, and
                             recorded for a road (`RecordsALostCheckout`) over the tick's state staged with what the tick
@@ -2647,7 +2650,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded -- each taken in as read, so a whole-state write behind the reset puts none of it
                             back, the tick's own staging kept for the write behind to merge or refuse; a move of a
                             field the caller holds that reading to, or a transaction recorded pending there under a
-                            receipt the attempt does not name, holding the reset
+                            receipt the attempt does not name, holding the reset; behind a landed hold's or park's
+                            record that reading asked for movement first, what moved under evidence the tick holds
+                            proved again by the caller's proof (`stands_behind`), and a transaction that record took in
+                            pending under such a receipt holding the caller all the same
     rewrite_recovery_staging.py
                             dormant, as the proof it serves is: what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it

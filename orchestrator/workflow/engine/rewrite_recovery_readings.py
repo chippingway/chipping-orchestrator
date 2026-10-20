@@ -20,9 +20,11 @@ beside the attempt as the tick read it, every evidence; blank beside an
 attempt still standing, evidence the tick never held. `owed_moves` reads
 what it records moving under a transaction captured for the head, as the
 finish held to the dormant settled-evidence policy reads one still owed.
-`stands_as_recovered` says whether the comment the proof last read -- or the
-tick's state, where it read none -- still carries the attempt the recovery
-recovers, not one another road put in its place. `LosesTheCheckout` lets the
+`stands_as_recovered` says whether a comment the proof read -- or the tick's
+state, where it read none -- still carries the attempt the recovery
+recovers, not one another road put in its place, which the proof asks of
+every reading it kept (`AsksEveryReading.every`), so an attempt put in place
+and put back between two readings holds it all the same. `LosesTheCheckout` lets the
 proof read a checkout gone from disk under one of its own requests as that
 loss, not raise it past the record it owes, and answers a proof whose finish
 read the checkout off the landing as that loss too (`proves`), a checkout
@@ -90,14 +92,14 @@ _SPENT_PAST_THE_OWED = ReportEvidence(
 class AsksEveryReading:
     """`gh` for one issue's dormant recovery proof: every call passed through, each reading of its comment asked.
 
-    `last_read` is the latest of those readings, None until one is taken.
+    `readings` are those readings, in the order they were taken.
     """
 
     def __init__(self, gh: GitHubClient, issue_number: int, asks: Callable[[PinnedState], object]) -> None:
         self._gh = gh
         self._issue_number = issue_number
         self._asks = asks
-        self.last_read: PinnedState | None = None
+        self.readings: list[PinnedState] = []
 
     def __getattr__(self, name: str):
         return getattr(self._gh, name)
@@ -123,13 +125,17 @@ class AsksEveryReading:
         self._hears(issue, seen[before:])
         return edit
 
+    def every(self, check: Callable[[PinnedState | None], bool]) -> bool:
+        """Whether `check` holds of every reading taken, however soon what one read was put back; of None with none."""
+        return all(check(reading) for reading in self.readings or [None])
+
     def _hears(self, issue: Issue, readings: Iterable[PinnedState]) -> None:
         """Hand each of `readings` that parsed to the classifier, where it is this proof's issue's comment."""
         if issue.number != self._issue_number:
             return
         for reading in readings:
             if reading.parsed:
-                self.last_read = reading
+                self.readings.append(reading)
                 self._asks(reading)
 
 

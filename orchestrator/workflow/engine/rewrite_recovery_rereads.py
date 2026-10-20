@@ -10,23 +10,31 @@ that write. So `lays_what_moved` lays that reading over the state for every fiel
 tick's own reading, each taken in as read (`rewrite_finish_rechecks.lays`), so a guarded write behind counts none of
 it as the tick's own move either; a field the tick staged itself stays staged, for the write behind to merge or
 refuse as the guarded commit does. A move of a field the caller holds the reading to, or a transaction another road
-recorded pending under a receipt the attempt does not name, holds the caller.
+recorded pending under a receipt the attempt does not name, holds the caller. Behind a landed hold's or park's record
+the reading is asked for movement first (`stands_behind`): movement under evidence the tick holds is proved again by
+the caller's proof, the comment read again behind it, so it stands however soon it is put back; and a transaction the
+record itself took in pending under such a receipt holds the caller all the same.
 
 Dormant, as those records are: no recovery context the workflow builds reaches it.
 """
 from __future__ import annotations
 
 import json
-from collections.abc import Collection, Mapping
+from collections.abc import Callable, Collection, Mapping
+from functools import partial
 from typing import Any
 
+from orchestrator.git.base_sync import attempts as _attempts, models as _base_sync_models
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     rewrite_landing_records as _landing_records,
+    rewrite_landing_retirement as _retirement,
+    rewrite_recovery_readings as _readings,
     verification_record_state as _record_state,
     verification_records as _evidence_records,
 )
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_rechecks import lays
 
 
@@ -46,6 +54,37 @@ def lays_what_moved(state: PinnedState, reading: PinnedState, held: Collection[s
     if not moved.isdisjoint(held):
         return True
     return _evidence_records.PENDING_EVIDENCE in moved and _unnamed(reading)
+
+
+def stands_behind(
+    context: _base_sync_models._AutoRebaseRecoveryContext,
+    proves: Callable[[dict[str, ReportEvidence]], bool],
+    reads: Callable[..., tuple],
+    pending: str | None,
+) -> bool:
+    """Whether a record that landed may answer over the comment read afresh behind it, what moved there proved first.
+
+    The comment is read through `reads` -- `verification_durable.durable_comment`, as the caller resolves it -- and
+    asked what it records moving under each evidence the tick's state holds (`rewrite_landing_retirement.moved_under`).
+    Movement under a receipt that state holds is handed to `proves`, the caller's proof, which retires or marks what
+    moved, so that movement stands however soon it is put back; the comment is read again behind it, until a reading
+    carries none. That reading is laid over the state (`lays_what_moved`). False where `proves` does not land, where a
+    reading would not read, where an attempt member moved, and where the reading carries a transaction pending under
+    a receipt the attempt does not name that the tick did not hold, as `pending` spells its pending record before the
+    record -- however that record took it in.
+    """
+    moved: dict[str, ReportEvidence] = {}
+    asks = partial(_retirement.moved_under, tick=context.state, into=moved)
+    asked = _readings.asks_every_reading(context, asks)
+    durable = reads(asked.gh, context.issue, context.state)[0]
+    if durable is None:
+        return False
+    if moved.keys() & _retirement.receipts(context.state):
+        return proves(moved) and stands_behind(context, proves, reads, pending)
+    arrived = _commit_models.spelled(durable.data, _evidence_records.PENDING_EVIDENCE) != pending
+    if lays_what_moved(context.state, durable, _attempts._ATTEMPT_KEYS):
+        return False
+    return not (arrived and _unnamed(durable))
 
 
 def _unnamed(reading: PinnedState) -> bool:

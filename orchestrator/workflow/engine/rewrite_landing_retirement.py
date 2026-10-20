@@ -254,10 +254,11 @@ def retires_unproved(
     retires both, its answer the proof's; with none both are retired on the
     state the park lands (`retires_over_the_reset`). False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
-    its history entry among it, its movement recorded instead -- or where the
-    comment the proof last read carries another attempt in place of the one
+    its history entry among it, its movement recorded instead -- or where any
+    comment the proof read carries another attempt in place of the one
     `context` recovers (`rewrite_recovery_readings.stands_as_recovered`),
-    however the tick's state still names it and whether or not the proof's own
+    however soon the attempt was put back, however the tick's state still names
+    it, and whether or not the proof's own
     writes landed -- that state withheld from every whole-state write behind,
     so nothing it carries is put back over the attempt in place: either way
     for the git owner to hold the tick with nothing reset, cleared, or parked
@@ -291,7 +292,7 @@ def retires_unproved(
             records(context, lost=(context.worktree,))
             if records else retires_over_the_reset(context, _landing_moved._CHECKOUT_GONE)
         )
-    if not stands_as_recovered(context, asked.gh.last_read):
+    if not asked.gh.every(partial(stands_as_recovered, context)):
         log.warning(
             "issue=#%d another auto-rebase attempt stands in place of the one its recovery read; holding with "
             "nothing reset, cleared, or parked, for the next tick to recover the attempt the comment carries",

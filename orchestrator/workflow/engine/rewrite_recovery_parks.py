@@ -92,8 +92,11 @@ brings the recovery back, so that evidence is proved before the park
 (`proves_before_a_park`), and once more behind its notice and record
 (`lands_a_park`) -- landed, refused, or raised -- since the notice is long
 enough for another road to settle a later report. Behind a record that
-landed the comment is read afresh once more, whatever evidence is left, and
-what another road moved there laid over the tick's state, another attempt
+landed the comment is read afresh once more, whatever evidence is left:
+movement it reads under evidence the tick holds is proved again first, so it
+stands however soon it is put back, and what else another road moved there is
+laid over the tick's state, another attempt, or a transaction recorded
+pending under a receipt the attempt does not name that the tick never held,
 holding the tick. Movement the record's
 commit read -- in the record it sent, the comment its strict edit found moved,
 or the fresh reading behind that edit -- is read against each evidence's own
@@ -146,7 +149,7 @@ from orchestrator.workflow.engine.rewrite_recovery_readings import (
     asks_every_reading,
     stands_as_recovered,
 )
-from orchestrator.workflow.engine.rewrite_recovery_rereads import lays_what_moved
+from orchestrator.workflow.engine.rewrite_recovery_rereads import lays_what_moved, stands_behind
 from orchestrator.workflow.engine.rewrite_recovery_staging import (
     adds_the_totals,
     keeps_the_staging,
@@ -543,16 +546,19 @@ def _lands_then_proves(
     comment the commit itself reads, the reread behind a refusal for room
     among them, is asked as it is read (`rewrite_recovery_readings.AsksEveryReading`).
     Behind a record that landed and the proof behind it -- whatever evidence was left to prove, none among it -- the
-    comment is read afresh once more and what another road moved there laid over the tick's state
-    (`rewrite_recovery_rereads.lays_what_moved`): any attempt member moved, another attempt pinned among it, or a
-    transaction recorded pending under a receipt the attempt does not name holds the tick, its state withheld, and so
-    does a comment that would not read. `named` is the record, logged where it did not land.
+    comment is read afresh once more (`rewrite_recovery_rereads.stands_behind`): movement it reads under evidence the
+    tick holds is proved again first, and the comment read again behind that proof, until a reading carries none;
+    what else another road moved there is laid over the tick's state, and any attempt member moved, another attempt
+    pinned among it, or a transaction pending under a receipt the attempt does not name that the tick did not hold
+    before the record -- however the record took it in -- holds the tick, its state withheld, as does a comment that
+    would not read. `named` is the record, logged where it did not land.
     """
     state = context.state
     read = (
         _retirement.attempt_as_read(state),
         (_landing_records.captured(state), _landing_records.settled(state)),
     )
+    pending = _commit_models.spelled(state.data, _evidence_records.PENDING_EVIDENCE)
     moved: dict[str, ReportEvidence] = {}
     landed = _commits.ReportCommit(
         AsksEveryReading(
@@ -574,13 +580,12 @@ def _lands_then_proves(
         moved = _retirement.reconciles(context, moved)
     if not (proves_before_a_park(context, moved) and landed.status is _commit_models.CommitStatus.COMMITTED):
         return False
-    durable = durable_comment(context.gh, context.issue, state)[0]
-    if durable is not None and not lays_what_moved(state, durable, _attempts._ATTEMPT_KEYS):
+    if stands_behind(context, lambda behind: proves_before_a_park(context, behind), durable_comment, pending):
         return True
     log.warning(
         "issue=#%d the %s of its auto-rebase recovery landed, but the comment read afresh behind it carries another "
-        "attempt, the attempt moved, or a transaction another road recorded, or would not read; holding, for the next "
-        "tick to answer the comment as it then stands",
+        "attempt, the attempt moved, or a transaction another road recorded, would not read, or moved what could "
+        "not be retired; holding, for the next tick to answer the comment as it then stands",
         context.issue.number, named,
     )
     state.withheld = True
