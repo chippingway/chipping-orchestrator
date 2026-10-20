@@ -620,8 +620,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             carries or invalidates, the failed squash's park, what it posted where its records
                             moved, and the handoff's end behind the label (`stages/validating/squash_writes.py`) --
                             commit so far, with the finish of a base rewrite the tick published itself
-                            (`rewrite_finish_writes.py`) landing through it too, while every other road still writes
-                            its whole state: a candidate derived
+                            (`rewrite_finish_writes.py`) and every auto-rebase park and a recovery's clear and record
+                            of a gate's hold (`git/base_sync/checkpoints.py`) landing through it too, while every other
+                            road still writes its whole state: a candidate derived
                             over a fresh reading of the
                             captured comment rather than written from the caller's state. A
                             write the caller did not declare refuses before anything is read; an unreadable,
@@ -690,7 +691,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recovery of one an earlier tick left waiting (`stages/validating/review_handoffs.py`,
                             `review_launch_park.py`, `review_resume.py`) and every write of an approval's tail
                             (`stages/validating/squash_writes.py`), and the finish of a landed base rewrite
-                            declares its writes over it (`rewrite_finish_writes.py`)
+                            declares its writes over it (`rewrite_finish_writes.py`), as every auto-rebase park and a
+                            recovery's clear and record of a gate's hold does its checkpoint
+                            (`git/base_sync/checkpoints.py`)
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL
@@ -2348,9 +2351,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             decision the coordinator takes ahead of any rebase (a recovery that answered the anchor
                             owns the tick, and a reply it spent is not spent again by the rebase behind it); a label
                             the refresh does not drive cleared or parked, and a checkout still on the anchor cleared
-                            or parked, both before any comparison (`git/base_sync/replay_cleanup.py`); the fetch and
+                            or parked, both before any comparison (`git/base_sync/replay_cleanup.py`) -- the rebase
+                            going on behind a clear only once that clear landed; the fetch and
                             the remote comparison (`git/base_sync/snapshot.py`) and the transfer the attempt left
-                            (`git/base_sync/transfers.py`); the transaction a finish of the attempt captured --
+                            (`git/base_sync/transfers.py`), every road off that comparison taken only once the
+                            comment still spells the attempt and its evidence as the tick last confirmed them
+                            (`git/base_sync/checkpoints._still_owns_the_attempt`), since the retry's gate, a settled
+                            transfer's report, and the push open on whole-state writes; the transaction a finish of the
+                            attempt captured --
                             the one under the receipt it put on the attempt, found before any announcement mark is
                             down (`rewrite_landing_records.captured`) -- abandoned before any road a snapshot
                             reading the landing off its head takes -- the
@@ -2378,9 +2386,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             gate measures as the publication would have; an ordinary replay measured; the
                             exact candidate pushed under the anchor's lease through `rewrite_publication.py`'s
                             transport, a refused or unlanded push reset and parked `auto_base_rebase_push_failed`, a
-                            gate's hold written as it left it, the reply that brought the attempt back recorded read
-                            in that write where it only asked for the retry (`rewrite_replies.py`), and offered to
-                            the adjudication it may have left (`rewrite_takeover.py`), and a landing whose verdict
+                            gate's hold landed as it left it as the attempt's checkpoint, the reply that brought the
+                            attempt back recorded read in that write where it only asked for the retry
+                            (`rewrite_replies.py`), and offered to the adjudication it may have left
+                            (`rewrite_takeover.py`) only once that write landed, and a landing whose verdict
                             did not rotate parked with
                             HEAD and the anchor kept; and every other landing handed to `rewrite_finish.py` on its
                             recovery road with the reply that brought the attempt back, a head the base advanced
@@ -2399,10 +2408,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stages/implementing/late_transfer_telemetry.py`); a permission still outstanding settled
                             by the permit-only leased no-op -- the permit asked before the gate, the candidate proved
                             at the remote through `rewrite_publication.py`'s transport, and a refusal, a no-op that
-                            did not land, or a rotation the gate did not make parked with HEAD and the anchor kept;
+                            did not land, or a rotation the gate did not make parked with HEAD and the anchor kept,
+                            and a gate's hold landed as the attempt's checkpoint behind a proof of what was captured
+                            for the head, nothing written where that proof's abandonment did not land;
                             and anything else observed where the remote stands (`git/base_sync/rewrite_transport.py`),
                             which is how an accepted push whose answer was lost is finished without a second one, a
-                            captured transaction abandoned first where the remote reads off the head.
+                            captured transaction abandoned first where the remote reads off the head, and the tick held
+                            with nothing finished where that abandonment did not land.
                             What the proof or the observation found goes to `rewrite_finish.py` on its recovery road,
                             which resolves the evidence -- a transaction an earlier finish recorded, found by the
                             receipt on the attempt, published and settled under the anchor -- before anything is
@@ -2415,9 +2427,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             other as the road that recorded it wrote it --
                             abandoned, unrun, before any road that reads the landing
                             off that head -- a snapshot reading its checkout or remote on another head
-                            (`abandons_off_the_landing`, through `rewrite_finish_captured.py`'s last word with the
-                            movement already read), answering False where no write could retire it so the road
-                            holds, and keeping it where a head went unread, which moves nothing; the same
+                            (`abandons_off_the_landing`, over the movement already read, in a write landed as the
+                            attempt's checkpoint, `git/base_sync/checkpoints.py`, which carries what the tick staged
+                            since once and is decided on the attempt and its evidence), answering False where that
+                            write was refused, lost its answer, or met an attempt or evidence record moved without
+                            the recovery, so the road holds, and keeping it where a head went unread, which moves
+                            nothing; the same
                             transaction proved again before every recovery park that keeps the attempt, which the
                             git owner asks for (`abandons_unproved`, behind `git/base_sync/persistence.py`), and
                             abandoned where its proof or the last word reads movement, a checkout gone from disk

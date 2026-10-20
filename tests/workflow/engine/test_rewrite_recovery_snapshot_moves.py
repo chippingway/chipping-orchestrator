@@ -113,8 +113,10 @@ class SnapshotMoveRecoveryTest(support.CapturedRunCase, unittest.TestCase):
 
     def test_a_snapshot_off_the_landing_abandons(self) -> None:
         # Whatever moved, the recovery abandons the run before the road the
-        # snapshot chose. Both heads put back on the landed head, the
-        # reconciliation finds nothing pending, so the run is never settled.
+        # snapshot chose, and that road's park lands behind the abandonment's
+        # own write -- the recovery's earlier checkpoint, not a move under it.
+        # Both heads put back on the landed head, the reconciliation finds
+        # nothing pending, so the run is never settled.
         for move in _MOVES:
             with self.subTest(moved=move[0]):
                 self.setUp()
@@ -123,13 +125,14 @@ class SnapshotMoveRecoveryTest(support.CapturedRunCase, unittest.TestCase):
 
                 self.recovers()
 
+                parked = bool(readings.pinned(self).get("awaiting_human"))
                 self.assert_abandoned(captured)
                 _puts_the_remote_on(self, head)
                 _puts_the_checkout_on(self, head)
                 self.reconciles()
                 self.assert_abandoned(captured)
-                said = (support.announced(self), self.pushes.call_count, self.developer.call_count)
-                self.assertEqual(said, ([], 0, 0))
+                said = (support.announced(self), self.pushes.call_count, self.developer.call_count, parked)
+                self.assertEqual(said, ([], 0, 0, True))
 
     def test_an_unread_snapshot_reset_abandons(self) -> None:
         # The snapshot could not be taken, so the abort resets the checkout

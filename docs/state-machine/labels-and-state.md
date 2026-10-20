@@ -500,8 +500,9 @@ see [Pinned state](#pinned-state)): a `question_*` / `discussion_*` park, the tw
 keeps back, so a freeze on any of them as well would leave neither side able to move. None of
 them is holding a branch still against a rebase any more — the anchor says one already ran — so the recovery reaches
 the checkout, pushes the replay its record names or puts the branch back on the anchor and asks a human, and leaves
-each record for its owner. A recovery that takes the anchor down and lets the tick go on — the clear of an attempt
-that never started, or a landed head the base advanced past again, retired unrouted — has the whole selection asked
+each record for its owner. A recovery that takes the anchor down and lets the tick go on — the landed clear of an
+attempt that never started, or a landed head the base advanced past again, retired unrouted — has the whole selection
+asked
 again, over the comment as the recovery left it, before the rebase behind it (`workflow/engine/base_rewrite.py`).
 That rebase is a new rewrite with no anchor beside it, so every one of those freezes holds it as it holds an
 unanchored branch: a developer report recorded and not yet settled holds it until the report reconciliation settles
@@ -735,7 +736,9 @@ twice for one landing.
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
 a PR the next handler would finalize; an attempt still anchored to a PR that merged or closed has its whole handoff
-ended there first, through `terminal_handoff`. A `gh.get_pr` failure is treated as "leave alone"; where an anchor is
+ended there first, through `terminal_handoff`, in a write landed as the attempt's checkpoint once the comment still
+spells the attempt and its evidence as the tick last confirmed them; the transfer it settles is reported only behind a
+write that landed. A `gh.get_pr` failure is treated as "leave alone"; where an anchor is
 pinned the dispatcher then holds the stage handler until a later refresh reaches the recovery. A base lag that cannot be
 counted ends the sync the same way, except over a pinned anchor, where the checkout is reset and parked instead.
 
@@ -857,7 +860,8 @@ place, or as a new comment where none is named or the named one is gone. A **gua
 reconciliation's retirements, `validating`'s invalidation of an unanswered carry, the developer report's writes, a
 reviewer round's launch, return, verdict, and park writes, a change request's handoff and its recovery's writes, and
 every write of an approval's tail commit through, and which the finish of a base rewrite the base refresh published
-itself and the retirement of a failed developer conversation land through) is never written from its caller's state.
+itself, every auto-rebase park and a recovery's clear and record of a gate's hold, and the retirement of a failed
+developer conversation land through) is never written from its caller's state.
 It is captured from the reading the caller decided on —
 the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent
 one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
@@ -3354,10 +3358,14 @@ The keys that matter for the state machine fall into a few groups:
   refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
   unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand, save a
   verification transaction a finish captured for the landed head, which every recovery park that keeps the attempt
-  has proved again first and abandoned where anything it rests on moved (`proves_before_a_park`). Each park writes
-  the tick's state whole: the recovery read it under the issue writer claim its caller -- the base refresh, or the
-  dispatch whose anchor hold answers it -- takes before reading the issue and holds through that write, so no other
-  orchestrator writer moves the comment in between.
+  has proved again first and abandoned where anything it rests on moved (`proves_before_a_park`). Each park, each
+  clear, and a recovery's record of a gate's hold lands as the attempt's checkpoint
+  (`checkpoints._lands_the_checkpoint`): through the tick-state guarded commit over the reading the recovery took under
+  the issue writer claim its caller -- the base refresh, or the dispatch whose anchor hold answers it -- takes before
+  reading the issue, as every write of the recovery's since moved that reading on, decided on the attempt and its
+  evidence. A clear lets the tick's rebase go on only once it landed. A record refused, one whose answer was lost,
+  and an attempt or evidence record found moved without the recovery -- no other orchestrator writer touches either
+  while the claim is held -- go no further and put nothing back, and the next tick reads what the comment carries.
   **The post-publication route is live too.** The recovery hands every head the pull request already carries, beside
   how far the transfer got, to the workflow's landed road (`workflow/engine/rewrite_landed.py`), which asks
   `landed_recovery` why it may not finish one, and eligibility's open-PR gate hands `terminal_handoff` every

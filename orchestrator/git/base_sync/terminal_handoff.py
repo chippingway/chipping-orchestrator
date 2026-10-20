@@ -8,10 +8,17 @@ attempt, the debt the gate recorded for a push no terminal pull request can
 receive, and the permission beside it -- settled from the head the pull request
 ended on where that head is the rewrite the permission names, and dropped on
 the rollback's own rule everywhere else.
+
+That write is the attempt's checkpoint (`checkpoints._lands_the_checkpoint`),
+and nothing is written ahead of it -- a settled transfer's overdue report
+included -- until the comment, read afresh, still spells the attempt and its
+evidence as the tick last confirmed them (`checkpoints._still_owns_the_attempt`).
+A comment that does not, or a write that did not land, ends nothing: the
+comment stands as it is for the next tick to read.
 """
 from __future__ import annotations
 
-from orchestrator.git.base_sync import attempts
+from orchestrator.git.base_sync import attempts, checkpoints
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseRecoveryContext,
@@ -21,8 +28,8 @@ from orchestrator.git.base_sync.models import (
 def _retires_the_terminal_handoff(
     context: _AutoRebaseContext | _AutoRebaseRecoveryContext,
     published: str,
-) -> None:
-    """Settle or drop what an attempt owed a pull request that is over.
+) -> bool:
+    """Settle or drop what an attempt owed a pull request that is over; whether the write ending it landed.
 
     Cleared one at a time, the records that stay are what stop the issue
     finishing: the reconciliation ahead of every handler reads a standing debt
@@ -37,8 +44,11 @@ def _retires_the_terminal_handoff(
     dropped, the verdict stays on the commit the rewrite replaced and the one
     that shipped is covered by nothing. So that transfer settles exactly as a
     landed push settles it, with the receipt beside the move, and the record
-    it owes the sinks is made once the whole of it is durable. A settlement an
-    earlier tick made and never reported is reported first, on the same terms.
+    it owes the sinks is made once the whole of it is durable: behind a write
+    that landed, and not behind one refused or never confirmed, whose proof the
+    comment then still carries for the dispatcher's reconciliation to report
+    once a later tick reads it there (`late_reconcile`). A settlement an earlier
+    tick made and never reported is reported first, on the same terms.
     """
     # Lazy for the reason every upward reach in this package is: the debt,
     # the settlement, and the record it owes sit in the workflow layer above.
@@ -47,6 +57,10 @@ def _retires_the_terminal_handoff(
         late_records as _records,
         late_transfer_telemetry as _transfer_telemetry,
     )
+    if not checkpoints._still_owns_the_attempt(
+        context.gh, context.issue, context.state, "ending the handoff of a pull request that is over",
+    ):
+        return False
     gate = _records._gate(
         context.gh, context.spec, context.issue, context.state,
         context.worktree,
@@ -58,8 +72,10 @@ def _retires_the_terminal_handoff(
     )
     _late_approval_state._forget_approval(context.state)
     attempts._clears_the_attempt(context.state)
-    context.gh.write_pinned_state(context.issue, context.state)
+    if not checkpoints._lands_the_checkpoint(context.gh, context.issue, context.state, "ending the handoff"):
+        return False
     _transfer_telemetry._reports_the_transfer(gate, rotation)
+    return True
 
 
 def _settles_or_drops(gate, published: str, anchor: str, pr_number: int):

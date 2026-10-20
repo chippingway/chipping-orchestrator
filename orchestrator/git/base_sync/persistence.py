@@ -19,11 +19,21 @@ may go on (`_proves_before_the_park`), so a transaction the workflow captured
 for the landed head is proved again before the record a human's reply brings
 back is left standing.
 
-Every park here writes the tick's state whole. The recovery runs under the
-issue's writer claim, taken before the issue and its pinned comment are read
-and held until the route ends (`workflow/engine/base_refresh.py`, and the
-dispatcher's anchor hold under its dispatch claim), so no other orchestrator
-writer can move the comment between the tick's reading and the park's write.
+Every park's record lands as the attempt's checkpoint
+(`checkpoints._lands_the_checkpoint`). The recovery runs under the issue's writer
+claim, taken before the issue and its pinned comment are read and held until
+the route ends (`workflow/engine/base_refresh.py`, and the dispatcher's anchor
+hold under its dispatch claim), so no other orchestrator writer moves the
+comment between the tick's reading and the park, and the tick's own earlier
+writes are checkpoints that reading moves on with. The record is decided on the
+attempt and its evidence as that reading spells them: one refused, one whose
+answer was lost, and one over an attempt or evidence record that moved without
+this road all leave the comment as it stands, logged, for the next tick to read.
+The tail's hard reset is decided on the same records and moves the checkout
+ahead of every write, so it is made only once the comment, read afresh, still
+spells them as the tick last confirmed them
+(`checkpoints._still_owns_the_attempt`), and nothing is reset, cleaned, or
+parked where it does not.
 The finish of a rewrite that landed is the workflow's
 (`workflow/engine/rewrite_finish.py`), whichever road reached it.
 """
@@ -35,7 +45,7 @@ from types import MappingProxyType
 from github.Issue import Issue
 
 from orchestrator.git import commands
-from orchestrator.git.base_sync import attempts
+from orchestrator.git.base_sync import attempts, checkpoints
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseRecoveryContext,
@@ -88,8 +98,13 @@ def _park_auto_rebase_failure(
     scan reads from the issue), `last_action_comment_id` is ratcheted
     forward by `_park_awaiting_human`, and the durable
     `park_reason` is re-set after the helper clears it by contract.
-    `gh.write_pinned_state` is called here so the caller can return
-    immediately.
+    The record is landed here so the caller can return immediately, as the
+    attempt's checkpoint (`checkpoints._lands_the_checkpoint`): over the reading
+    the tick last confirmed, with everything the tick staged for the park
+    riding it, and decided on the attempt and its evidence as that reading
+    spells them. One that moved without this road, a write refused, and an
+    answer lost are logged with nothing put back over the comment, and the
+    next tick reads whether the park stands.
 
     `reason` must be one of `_AUTO_REBASE_PARK_REASONS` -- the refresh
     recovery branch keys off the same set to decide whether a new
@@ -105,7 +120,7 @@ def _park_auto_rebase_failure(
     )
     _guards._park_awaiting_human(gh, issue, state, message, reason=reason)
     state.set(_PARK_REASON, reason)
-    gh.write_pinned_state(issue, state)
+    checkpoints._lands_the_checkpoint(gh, issue, state, "recording its park")
 
 
 def _reset_clear_and_park(
@@ -178,8 +193,17 @@ def _reset_clear_and_park(
     transaction a finish captured for a landed head -- so the recovery is
     asked to settle it on the same state first (`_releases_over_the_reset`):
     it rides this one write with the attempt's drop, or neither lands.
+
+    The reset is decided on the attempt -- its anchor is what the checkout
+    goes back to -- and it moves the checkout ahead of every write behind it,
+    so the comment is asked first whether it still spells the attempt and its
+    evidence as the tick last confirmed them (`_resets`). One that does not
+    has nothing reset, cleaned, or parked: the tail goes no further, and the
+    record stands as the comment carries it for the next tick to read.
     """
     reset = _resets(context, reset_sha)
+    if reset is None:
+        return
     cleaned = None
     if clean:
         cleaning = commands._git_hardened("clean", "-fd", cwd=context.worktree)
@@ -288,8 +312,17 @@ def _releases_over_the_reset(context: _AutoRebaseContext | _AutoRebaseRecoveryCo
     )
 
 
-def _resets(context: _AutoRebaseContext | _AutoRebaseRecoveryContext, reset_sha: str) -> subprocess.CompletedProcess:
-    """Hard-reset `context`'s checkout to `reset_sha`; git's answer, logged where it failed."""
+def _resets(
+    context: _AutoRebaseContext | _AutoRebaseRecoveryContext, reset_sha: str,
+) -> subprocess.CompletedProcess | None:
+    """Hard-reset `context`'s checkout to `reset_sha`; git's answer, logged where it failed.
+
+    None, with nothing reset, where the comment no longer spells the attempt
+    and its evidence as the tick last confirmed them
+    (`checkpoints._still_owns_the_attempt`).
+    """
+    if not checkpoints._still_owns_the_attempt(context.gh, context.issue, context.state, "resetting the checkout"):
+        return None
     reset = commands._git_hardened("reset", "--hard", reset_sha, cwd=context.worktree)
     if reset.returncode:
         log.error(

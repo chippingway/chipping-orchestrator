@@ -1,6 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
 """An attempt a terminal pull request ended settles or drops its whole handoff in one write.
+
+That write is the attempt's checkpoint, and the transfer it settles is reported
+only behind one that landed: a write refused reports nothing and leaves the
+handoff standing, and one whose answer was lost leaves the settled transfer's
+proof on the comment for a later tick's reconciliation to report there.
 """
 from __future__ import annotations
 
@@ -22,6 +27,11 @@ from tests.git.base_sync import (
 )
 
 LATE_TRANSFER = "late_transfer"
+
+# How the write ending the handoff goes wrong, as the client names it, beside
+# the anchor the comment then carries and whether it carries the shipped
+# transfer's proof still owed its report.
+_UNLANDED = (("refused", fixtures.PRE_REBASE_SHA, False), ("lost", None, True))
 
 
 class TerminalHandoffTest(seed.TransferCase):
@@ -74,6 +84,22 @@ class TerminalHandoffTest(seed.TransferCase):
 
         self.assertTrue(_exemption_reading.is_exempt(durable, seed.REPLAYED_SHA))
         self.assertEqual([record["transfer_proof"] for record in self._reports()], ["pushed"])
+
+    def test_an_unlanded_end_reports_nothing(self) -> None:
+        for failure, anchored, owes_a_report in _UNLANDED:
+            with self.subTest(failure=failure):
+                self._fresh()
+                self.state.set(fixtures.KEY_PENDING_PUSH_SHA, fixtures.PRE_REBASE_SHA)
+                seed.granted(self.state)
+                self.context.gh.write_pinned_state(self.context.issue, self.state)
+                getattr(self.context.gh.pinned_failures, failure).add(self.context.issue.number)
+
+                self.assertFalse(_terminal_handoff._retires_the_terminal_handoff(self.context, seed.REPLAYED_SHA))
+
+                durable = self.context.gh.read_pinned_state(self.context.issue)
+                self.assertEqual(self._reports(), [])
+                self.assertEqual(durable.get(fixtures.KEY_PENDING_PUSH_SHA), anchored)
+                self.assertIs(_rewrite_reading.unreported_transfer(durable) is not None, owes_a_report)
 
     def _retires(self, published: str):
         """End the attempt over a pull request that closed on this head."""

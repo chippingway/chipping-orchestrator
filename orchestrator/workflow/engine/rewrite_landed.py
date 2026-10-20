@@ -49,12 +49,13 @@ decision is made here, in the order the recovery has always kept:
   A refusal, a no-op that did not land, or a rotation the gate did not make
   parks with HEAD and the anchor where they stand, and a hold writes only
   what the gate left, a transaction captured for the head proved again
-  first.
+  first -- and nothing at all where that proof's abandonment did not land.
 - Anything else is observed (`git/base_sync/rewrite_transport.py`): the remote
   read as it stands, with no push at all, which is how an accepted push whose
   answer was lost is finished without a second one. A remote read off the
   landed head abandons a transaction captured for it first, as a checkout
-  that left the head does; one nobody could read keeps it.
+  that left the head does, and an abandonment that did not land holds the
+  tick with nothing finished; one nobody could read keeps it.
 
 What the proof or the observation found is handed to the one finish every
 landing gets (`rewrite_finish.finishes_the_recovery`): the debt and the room
@@ -98,6 +99,7 @@ from orchestrator.git.base_sync import (
     transfer_permits as _transfer_permits,
     transfers as _transfers,
 )
+from orchestrator.git.base_sync.checkpoints import _lands_the_checkpoint
 from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoveryContext,
     _AutoRebaseRecoverySnapshot,
@@ -179,7 +181,7 @@ def _left_the_fetched_head(
             "finished (it now reads %.8s); finishing nothing until a later tick classifies it again",
             context.issue.number, completed.head, context.pr_number, reads,
         )
-        _landing_moved.abandons(context, completed, candidate)
+        _landing_moved.abandons(context)
     else:
         log.warning(
             "issue=#%d the checkout's head could not be proved against %.8s, the head PR #%d was fetched standing "
@@ -201,13 +203,18 @@ def _finishes_the_observation(
     branch at all -- is a landing the finish refuses, and movement under a
     transaction an earlier finish captured for that head, which is abandoned
     first (`rewrite_landing_moved.abandons`) so that no later route takes it,
-    even one finding the branch back on the head. A remote nobody could read
+    even one finding the branch back on the head. An abandonment that did not
+    land -- refused, an attempt or evidence record moved by no write of this
+    recovery's among the reasons, or sent with its answer lost -- holds the
+    tick before the finish is entered, so nothing it would abandon or write
+    over the comment as it then reads is made. A remote nobody could read
     established nothing: the finish refuses the landing all the same, and the
     transaction waits for the next tick to prove it again.
     """
     landing = _rewrite_transport._observes_the_landing(context.spec, context.worktree, candidate)
-    if landing.remote.sha is not None and not landing.landed:
-        _landing_moved.abandons(context, completed, candidate)
+    left = landing.remote.sha is not None and not landing.landed
+    if left and not _landing_moved.abandons(context):
+        return True
     return _finish.finishes_the_recovery(context, landing)
 
 
@@ -231,7 +238,11 @@ def _settles(
     the permit, and the permit decides whether the permission may be spent.
     A hold the gate takes keeps the attempt for a later tick, so a transaction
     an earlier finish captured for the head is proved again ahead of the
-    hold's write (`rewrite_landing_moved.abandons_unproved`).
+    hold's write (`rewrite_landing_moved.abandons_unproved`), and one whose
+    abandonment no write could land writes no hold: the next tick asks the
+    gate again. The hold's write is the attempt's checkpoint
+    (`git/base_sync/checkpoints._lands_the_checkpoint`): what the gate staged
+    rides the first of the proof's abandonment and that write to land, once.
     """
     landed = completed.head
     if not _transfer_permits._permits_the_publication(context, landed):
@@ -248,8 +259,8 @@ def _settles(
         transport=push,
     )
     if published.held and not published.refused:
-        _landing_moved.abandons_unproved(context)
-        context.gh.write_pinned_state(context.issue, context.state)
+        if _landing_moved.abandons_unproved(context):
+            _lands_the_checkpoint(context.gh, context.issue, context.state, "recording the gate's hold")
         return True
     unsettled = _unsettled(context, landed, published, push)
     if unsettled:

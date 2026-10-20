@@ -14,7 +14,10 @@ bound to moved -- the configuration, the pull request -- so putting that back
 and continuing routes the head with nothing the run carried, and the
 reconciliation settles nothing. A run that still proves is kept, and routed
 exactly as recorded once continued. Where no write could record the
-abandonment, nothing is parked and the anchor still holds the run. Nothing
+abandonment, nothing is parked and the anchor still holds the run. A landed
+abandonment is a checkpoint the park's own record lands behind; where that
+record is refused or lands with its answer lost, the next tick reads the
+comment afresh and says the park again only where it is not standing. Nothing
 runs, pushes, or announces again, and no developer is launched.
 """
 from __future__ import annotations
@@ -34,12 +37,15 @@ from tests.workflow.engine import (
     rewrite_finish_readings as readings,
     rewrite_verification_recovery_support as support,
 )
+from tests.workflow.interleaving import _RacesPastTheCall
 
 _GIT = "_git_hardened"
 
 _FETCH = "_authed_fetch"
 
 _RESOLVING = "workflow:resolving_conflict"
+
+_AWAITING = "awaiting_human"
 
 _MOVED_COMMAND = "echo another"
 
@@ -75,15 +81,11 @@ def _refuses(original, refused, *called, **options):
     return original(*called, **options)
 
 
-def _resets(called: tuple) -> bool:
-    """Whether a git call resets the checkout."""
-    return called[0] == "reset"
-
-
 @contextlib.contextmanager
 def _failing_abort(owner, step: str, answered):
     """Have `owner`'s `step` answer `answered`, failing into an abort, and that abort's reset fail, while entered."""
-    reset = partial(_refuses, getattr(commands, _GIT), _resets)
+    hardened = getattr(commands, _GIT)
+    reset = partial(_refuses, hardened, lambda called: called[0] == "reset")
     with (
         patch.object(owner, step, return_value=answered),
         patch.object(commands, _GIT, side_effect=reset),
@@ -117,6 +119,11 @@ def _held_by_the_dispatcher(case: support.CapturedRunCase) -> None:
     state = case.gh.read_pinned_state(case.issue)
     dispatch_guards._anchor_holds_the_tick(case.gh, case._spec, case.issue, label, state)
 
+
+# How the stranded park's record goes wrong behind its notice, as the client
+# names it, beside whether the record landed and how many notices the next
+# tick posts: refused outright, or landed with its answer lost.
+_UNLANDED_PARKS = (("refused", False, 1), ("lost", True, 0))
 
 # Who answers an anchor under a label the refresh does not drive: the refresh,
 # and the dispatcher's hold.
@@ -190,7 +197,7 @@ class ParkProofRecoveryTest(support.CapturedRunCase, unittest.TestCase):
 
         pinned = readings.pinned(self)
         self.assertEqual(len(self.gh.posted_comments), posted)
-        self.assertIsNone(pinned.get("awaiting_human"))
+        self.assertIsNone(pinned.get(_AWAITING))
         self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
         self.assertEqual(readings.records(pinned)[0], run)
 
@@ -214,7 +221,7 @@ class ParkProofRecoveryTest(support.CapturedRunCase, unittest.TestCase):
     def _assert_parked(self, run, kept) -> None:
         """The issue parked with its anchor standing, the run `kept` pending -- or, kept None, abandoned unrun."""
         pinned = readings.pinned(self)
-        self.assertTrue(pinned.get("awaiting_human"))
+        self.assertTrue(pinned.get(_AWAITING))
         recorded = readings.records(pinned)
         self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
         self.assertEqual(recorded[0], kept)
@@ -231,6 +238,56 @@ class ParkProofRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         self.reconciles()
         current = readings.pinned_records(self)[1]
         self.assertEqual(current and current.receipt, kept and kept.receipt)
+
+
+class UnlandedParkRecordTest(support.CapturedRunCase, unittest.TestCase):
+    """A stranded park whose record did not land is read back by the next tick, and said again only where it is not."""
+
+    def test_the_next_tick_reads_the_park(self) -> None:
+        # The run is abandoned in a write of its own, and the stranded park's
+        # record behind its notice is refused or lands with its answer lost.
+        # The abandonment stands either way. The next tick reads the comment
+        # afresh: a park that landed is not said again, and one that did not
+        # is said and recorded once more over the abandoned run.
+        for failure, lands, said_again in _UNLANDED_PARKS:
+            with self.subTest(failure=failure):
+                run = self._strands(failure)
+                posted = len(self.gh.posted_comments)
+                self.assertIs(self._awaits(), lands)
+
+                self.recovers()
+
+                self.assertEqual(len(self.gh.posted_comments), posted + said_again)
+                self.assertTrue(self._awaits())
+                self._assert_abandoned(run)
+
+    def _strands(self, failure: str):
+        """A fresh case's captured run, its stranded park's record answered with the client's `failure`; that run.
+
+        The configuration moves under the run and the issue is relabelled off
+        the stages the refresh drives before the recovery.
+        """
+        self.setUp()
+        run = self.captures()[1]
+        self.configures(_MOVED_COMMAND)
+        self.issue.labels = [FakeLabel(_RESOLVING)]
+        failing = getattr(self.gh.pinned_failures, failure)
+        noticed = partial(failing.add, self.issue.number)
+        with patch.object(self.gh, "comment", _RacesPastTheCall(self.gh.comment, 1, noticed)):
+            self.recovers()
+        failing.discard(self.issue.number)
+        return run
+
+    def _awaits(self) -> bool:
+        """Whether the issue's comment records it awaiting a human."""
+        return bool(readings.pinned(self).get(_AWAITING))
+
+    def _assert_abandoned(self, run) -> None:
+        """The anchor still standing, and `run` the latest record retired, as abandoned."""
+        pinned = readings.pinned(self)
+        retired = readings.records(pinned)[2]
+        self.assertEqual(pinned[readings.KEY_PENDING_PUSH], self.anchor)
+        self.assertEqual(retired[-1], (run.receipt, readings.ABANDONED))
 
 
 if __name__ == "__main__":

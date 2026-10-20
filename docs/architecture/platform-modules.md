@@ -36,7 +36,11 @@ last is held by the loader itself rather than by a check.
   `persistence` reaches `workflow/engine/guards.py` for the park every failure takes and
   `workflow/stages/implementing/late_approval_reading.py`, `late_approval_state.py`, `late_records.py`, and
   `late_transfer.py`, to read and drop the debt and the permission a rollback abandons when a refused push sends the
-  branch back to where it started; `base_sync/terminal_handoff.py` ends an attempt a closed pull request strands;
+  branch back to where it started; `base_sync/checkpoints.py` reaches `workflow/engine/report_commits.py`,
+  `pinned_commit.py`, `pinned_commit_models.py`, and `verification_records.py` to land every auto-rebase park, and a
+  recovery's clear, abandonment, and record of a gate's hold, through the tick-state guarded commit, decided on the
+  attempt and the evidence it guards, and to ask the comment for those records before a park's reset;
+  `base_sync/terminal_handoff.py` ends an attempt a closed pull request strands;
   `base_sync/attempt_records.py` reaches `workflow/late_split/formats.py`, for the
   shape a recorded commit is held to, which spelled twice would let a pinned comment accept what every other reader
   refuses; `replay_publication_parks.py` reads `workflow/stages/decomposition/late_relabel.py`'s answer for whether
@@ -903,6 +907,16 @@ orchestrator/
                         workflow's handoff of an unpublished replay to a late generation
                         (`workflow/engine/rewrite_takeover.py`) retires the whole record through the same clear,
                         and with it any `auto_base_rebase_*` park the attempt's own road left (`_retires_its_park`)
+      checkpoints.py    the checkpoints an attempt's road makes over the reading its tick last confirmed: every
+                        auto-rebase park, and a recovery's clear, abandonment of a captured transaction, and record
+                        of a gate's hold, landed through the tick-state guarded commit
+                        (`workflow/engine/report_commits.py`), what the tick staged since riding it once, decided on
+                        the attempt and its evidence (`_lands_the_checkpoint`) -- True only where it landed, and
+                        otherwise logged with the tick's state withheld and nothing put back -- and the same records
+                        asked of the comment read afresh, with nothing written, ahead of any step whose first effect
+                        no guarded write precedes: the hard reset a park's tail makes, every road the workflow's
+                        recovery takes off a completed comparison, and a terminal handoff's end
+                        (`_still_owns_the_attempt`)
       attempt_records.py
                           validate interrupted replay terms and head as absent, declared, recorded, or damaged,
   sharing the replay
@@ -972,8 +986,10 @@ orchestrator/
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals the
                         workflow's publication ends an attempt with -- the last also for a candidate the git owner
                         refused for what moved since it was read
-      snapshot.py       the branch fetch, the local / remote head reads and divergence counts, and the abort an
-                        unreadable one takes
+      snapshot.py       the branch fetch, the local / remote head reads and divergence counts, the abort an
+                        unreadable one takes, and the two clears -- an ineligible label's and an unmoved head's --
+                        staged on a copy of the tick's state and landed as the attempt's checkpoint, the unmoved
+                        head's letting the tick's rebase go on only once its clear landed
       recovery.py       the recovery context an interrupted attempt is resumed in: the refresh's inputs, the
                         anchor, and the attempt record read off the comment, for the workflow's recovery
                         coordinator (`workflow/engine/rewrite_recovery.py`) and the ineligible-label road in
@@ -993,9 +1009,13 @@ orchestrator/
       terminal_handoff.py
                         the end of an attempt whose PR merged or closed: the attempt and its debt dropped, a
                         shipped rewrite's permission settled with its receipt, any other dropped on the rollback's
-                        rule, in one write
+                        rule, in one write landed as the attempt's checkpoint -- nothing written, an overdue
+                        transfer report included, until the comment still spells the attempt and its evidence as
+                        the tick last confirmed them, and the settled transfer reported only behind a write that
+                        landed, its proof otherwise left on the comment for the dispatcher's reconciliation
       replay_cleanup.py the clear-or-park decision for an ineligible label or a checkout back on the anchor. Records
-                        that describe a replay, announcement, or unspent transfer prevent a silent clear
+                        that describe a replay, announcement, or unspent transfer prevent a silent clear, and a
+                        clear that did not land holds the tick
       replay_evidence.py
                         pure readings tying the checkout and recorded publication to this attempt, including the
                         grant-vouched window before a replay head was recorded and the finish's own relabel
@@ -1042,9 +1062,14 @@ orchestrator/
                         foreign-publication, and unfinished parks -- first asks the answer the recovery context
                         carries (`proves_before_a_park`, which the workflow hands in on every recovery context)
                         to prove a captured verification transaction again (`_proves_before_the_park`), and holds
-                        the tick with nothing parked where its abandonment could not land. Every park writes the
-                        tick's state whole, under the issue writer claim its caller took before reading the issue
-                        and holds through that write. The finish of a landing -- its report debt,
+                        the tick with nothing parked where its abandonment could not land. Every park's record
+                        lands as the attempt's checkpoint (`checkpoints._lands_the_checkpoint`), under the issue
+                        writer claim its caller took before reading the issue and holds through that write: refused,
+                        its answer lost, or over an attempt or evidence record that moved without it, it is logged
+                        and puts nothing back for the next tick to read; the tail's reset is made only once the
+                        comment still spells those records as the tick last confirmed them
+                        (`checkpoints._still_owns_the_attempt`), with nothing reset, cleaned, or parked otherwise.
+                        The finish of a landing -- its report debt,
                         notice, event, announcement mark, and route -- is the workflow's
                         (`workflow/engine/rewrite_finish.py`)
       recovery_notices.py
