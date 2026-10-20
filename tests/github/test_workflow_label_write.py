@@ -5,8 +5,7 @@
 `Issue.set_labels` sends the PUT and keeps nothing of the answer, while the
 in-memory double rewrites its own labels whatever it is asked -- so only a
 real issue shows whether a read after the write, the transition guard of the
-next one included, sees what the write put on GitHub. A write's correlation
-rides its audit `stage_enter` event alone, never the analytics row beside it.
+next one included, sees what the write put on GitHub.
 """
 from __future__ import annotations
 
@@ -34,8 +33,6 @@ _HTTP_UNPROCESSABLE = 422
 _UNRELATED_LABEL = "bug"
 _GUARD_SETTING = "WORKFLOW_TRANSITION_GUARD"
 _STATE_MACHINE_LOG = "orchestrator.state_machine"
-_ANALYTICS_APPEND = "orchestrator.observability.analytics.recording.events.append_record"
-_HEAD = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
 
 
 class _GitHubApi:
@@ -82,11 +79,10 @@ class _GitHubApi:
         client: GitHubClient,
         issue: Issue,
         new_label: WorkflowLabel | None,
-        **correlation: Any,
     ) -> None:
-        """Relabel through the client, `correlation` on its event, with this stub answering the wire."""
+        """Relabel through the client, with this stub answering the wire."""
         with patch("requests.Session.request", self):
-            client.set_workflow_label(issue, new_label, **correlation)
+            client.set_workflow_label(issue, new_label)
 
 
 class SetWorkflowLabelTest(unittest.TestCase):
@@ -133,25 +129,6 @@ class SetWorkflowLabelTest(unittest.TestCase):
         self.assertEqual(len(api.sent), 1)
         self.assertEqual(client.workflow_label(issue), WorkflowLabel.DECOMPOSING)
         self.assertEqual(client.recorded_events, [])
-
-    def test_correlation_rides_the_audit_event_alone(self) -> None:
-        # The dormant finish of a landed rewrite names the head it relabels for,
-        # to find that relabel on the audit stream again; the analytics row keeps
-        # the shape every reader of the sink already knows.
-        api = _GitHubApi()
-        client = self._client()
-        rows: list[dict] = []
-
-        with patch(_ANALYTICS_APPEND, rows.append):
-            issue = api.issue(_UNRELATED_LABEL, WorkflowLabel.RESOLVING_CONFLICT)
-            api.write(client, issue, WorkflowLabel.VALIDATING, sha=_HEAD)
-
-        self.assertEqual(len(client.recorded_events), 1)
-        self.assertEqual(len(rows), 1)
-        for entered in (*client.recorded_events, *rows):
-            self.assertEqual((entered["event"], entered["stage"]), ("stage_enter", "validating"))
-        self.assertEqual(client.recorded_events[0]["sha"], _HEAD)
-        self.assertNotIn("sha", rows[0])
 
     def _assert_decomposed_in_one_tick(self, mode: str) -> None:
         api = _GitHubApi()

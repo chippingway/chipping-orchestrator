@@ -17,8 +17,8 @@ that park was answered with recorded read
 validates interrupted replay evidence and defines the field group that the
 clear includes beside the anchor, the base tip the replay was made onto, the
 receipt of the evidence a finish recorded, the record of the `base_rebased`
-event a finish filed, the announcement mark, and the record of the relabel a
-finish made.
+event a finish filed, the announcement mark, and the relabel member no road
+sets.
 """
 from __future__ import annotations
 
@@ -45,8 +45,8 @@ def _clears_the_attempt(state: PinnedState) -> None:
 
     The anchor, the terms it was made under, the head the replay produced, the
     receipt of the evidence a finish recorded for it, the record of the event a
-    finish filed, the mark a finish left, and the record of its relabel are one
-    record and are dropped as one: the anchor
+    finish filed, the mark a finish left, and the relabel member no road sets
+    are one record and are dropped as one: the anchor
     alone would bring a later tick back to an attempt it cannot prove the
     checkout belongs to, and the rest names a commit and a pull request
     nothing is leased to publish onto. Every step that ends an attempt goes

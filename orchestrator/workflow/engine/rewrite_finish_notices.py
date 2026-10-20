@@ -55,7 +55,6 @@ from orchestrator.workflow.engine import (
     rewrite_finish_events as _filing,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
-from orchestrator.workflow.engine.verification_proof import ProofReading
 from orchestrator.workflow.stages.validating import verify as _verify
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -68,7 +67,7 @@ _SHORT_SHA = 8
 _ANNOUNCES = ":mag:"
 
 
-def announces(finish: LandedFinish, staged: PinnedState, observed: ProofReading | None = None) -> FinishOutcome | None:
+def announces(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
     """Say `finish`'s landing once -- its notice, then its `base_rebased` event; None to land the checkpoint.
 
     The notice's comment is recorded on `staged`, the state the announcement
@@ -77,8 +76,7 @@ def announces(finish: LandedFinish, staged: PinnedState, observed: ProofReading 
     it is not posted again. The event is filed behind it, once
     (`rewrite_finish_events.files`). HELD, with nothing filed, where the
     conversation would not read, or where the post raised and the
-    conversation read again does not show it; the event's outcome otherwise,
-    the movement a refusal of its record read collected on `observed`.
+    conversation read again does not show it; the event's outcome otherwise.
     """
     readable, found = _found(finish)
     if readable and found is None:
@@ -93,7 +91,7 @@ def announces(finish: LandedFinish, staged: PinnedState, observed: ProofReading 
             if found is None:
                 return FinishOutcome.HELD
             _comments._track_orchestrator_comment(staged, found)
-        return _filing.files(finish, staged, observed)
+        return _filing.files(finish, staged)
     if not readable:
         return FinishOutcome.HELD
     _comments._track_orchestrator_comment(staged, found)
@@ -101,7 +99,7 @@ def announces(finish: LandedFinish, staged: PinnedState, observed: ProofReading 
         "issue=#%d finds the notice of its landed base rewrite of %.8s already on PR #%d; not posting it again",
         finish.issue.number, finish.head, finish.pr_number,
     )
-    return _filing.files(finish, staged, observed)
+    return _filing.files(finish, staged)
 
 
 def notice(finish: LandedFinish) -> str:

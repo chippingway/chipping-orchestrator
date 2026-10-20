@@ -5,6 +5,8 @@ description: >-
 ---
 # Agents — roles and command specs
 
+Read [Contracts and invariants](contracts.md) for the project-wide agent, review, and human-control rules.
+
 This area documents who runs an issue: which stage invokes which agent role, what that role's prompt grants and
 forbids, how the role command specs (`DEV_AGENT` / `REVIEW_AGENT` / `DECOMPOSE_AGENT`) are parsed, and how the spec an
 in-flight issue runs under is pinned for the life of its session. Label semantics, transitions, and per-handler

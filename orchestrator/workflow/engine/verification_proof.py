@@ -43,11 +43,8 @@ no request at all -- the recorded subject, the settled report pair as a
 reviewer's reader judges it before reading anything, that report named by the
 subject, and the reader's own rules for handing it beside that subject -- for
 a caller whose whole proof stopped at a reading nobody could take and that
-still has to hear what those records say moved. Its readers are the evidence
-proof of a landed base rewrite (`rewrite_evidence_proof`) and the readiness
-proof of the evidence such a rewrite's finish settled
-(`rewrite_finish_readiness`), which is dormant: only the dormant
-settled-evidence finish policy asks it, and no production road selects it.
+still has to hear what those records say moved. Its reader is the evidence
+proof of a landed base rewrite (`rewrite_evidence_proof`).
 
 `configured_context_revision` is the context both witnesses are held to: the
 configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, minted by the verify
@@ -97,22 +94,13 @@ class ProofReading:
     reading of the whole proof, and `rests_on` the records that attempt is
     pinned as, which every guarded write answering the transaction is decided
     on beside the evidence's own bound records (`verification_durable.guarded`)
-    -- so an attempt another road put in its place refuses the post, the
-    settlement, and any retirement rather than being adopted by them. Neither
+    -- so an attempt that no longer reads as that finish holds it refuses the
+    post, the settlement, and any retirement rather than being adopted by
+    them. Neither
     is set for any reading but that finish's. `observed`, where that finish
     hands one, collects every refusal of the binding the answer reads, a bound
     record read moved among them (`observes`), so a movement read once and put
     back before anything reads the comment again is still the movement it was.
-    `classifies_a_move`, set only by that finish held to the dormant
-    settled-evidence policy, reads a comment the answer read or took in for
-    the movement it records under the transaction answered (`reads`) -- the
-    comment a refusal of moved bound records was read over among them
-    (`observes`): its guarded writes keep that comment
-    (`pinned_commit_models.PinnedCommit.reads_a_move`), and a settlement
-    whose edit found the comment moved under it names the bound records the
-    comment that edit read spells otherwise, so a record moved there is
-    observed too -- and what it moved to -- however soon it is put back; and
-    a pull request the answer read ended is kept beside them (`keeps`).
     """
 
     gh: GitHubClient
@@ -122,58 +110,15 @@ class ProofReading:
     anchored: Callable[[], _evidence_models.ReportEvidence | None] | None = None
     rests_on: tuple[str, ...] = ()
     observed: list[_evidence_models.ReportEvidence] | None = None
-    classifies_a_move: Callable[[PinnedState], _evidence_models.ReportEvidence | None] | None = None
 
     def anchor_verdict(self) -> _evidence_models.ReportEvidence | None:
         """What the anchored proof refuses, or None -- where it proves, or where no anchor stands over this reading."""
         return None if self.anchored is None else self.anchored()
 
-    def observes(self, refused: _evidence_models.ReportEvidence | None, over: PinnedState | None = None) -> None:
-        """Keep `refused` -- a refusal of the binding this reading's answer read -- where the caller collects them.
-
-        `over` is the comment a refusal of moved bound records was read over,
-        where the caller has it, which is read behind `refused` (`reads`).
-        """
-        if self.observed is None or refused is None:
-            return
-        self.observed.append(refused)
-        if over is not None:
-            self.reads(over)
-
-    def reads(self, comment: PinnedState) -> None:
-        """Keep the movement `classifies_a_move` reads on `comment`, a comment this reading's answer read or took in."""
-        if self.classifies_a_move is not None:
-            self.observes(self.classifies_a_move(comment))
-
-    def reads_afresh(
-        self, durable: PinnedState | None, refused: _evidence_models.ReportEvidence | None,
-    ) -> None:
-        """Keep what a retirement's own reading of the comment afresh refused and records, where moves count.
-
-        `durable` is that reading, None where it would not read, and `refused`
-        what its records earned (`verification_durable.durable_comment`). The
-        retirement stands down on a refusal rather than refusing the
-        transaction, so the policy every road selects observes neither; a
-        reading that `classifies_a_move` keeps the refusal (`keeps`) and asks
-        the comment what it records (`reads`), so a record moved there and put
-        back before anything reads the comment again is the movement it is.
-        """
-        self.keeps(refused)
-        if durable is not None:
-            self.reads(durable)
-
-    def keeps(self, refused: _evidence_models.ReportEvidence | None) -> None:
-        """Keep `refused`, which the answer retires its transaction over rather than refusing it, where moves count.
-
-        A pull request read ENDED retires the transaction with nothing
-        observed under the policy every road selects, which proves it again
-        before routing it. A reading that `classifies_a_move` keeps it as the
-        movement it is, so a settlement another road makes of that very
-        transaction once the pull request reopens is invalidated over it all
-        the same.
-        """
-        if self.classifies_a_move is not None:
-            self.observes(refused)
+    def observes(self, refused: _evidence_models.ReportEvidence | None) -> None:
+        """Keep `refused` -- a refusal of the binding this reading's answer read -- where the caller collects them."""
+        if self.observed is not None and refused is not None:
+            self.observed.append(refused)
 
 
 def rest_verdict(

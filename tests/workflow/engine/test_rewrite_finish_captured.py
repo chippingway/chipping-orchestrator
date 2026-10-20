@@ -9,11 +9,12 @@ review -- abandons it into history, a reading nobody could take beside the
 movement included, and nothing put back revives it. A reading nobody could
 take alone holds it for a later proof. The last word reads the pinned records
 alone, so a settled report rewritten at its location moves the run only under
-a word asked whole, which proves it again first. The abandonment keeps what
-another road wrote, falls back to the tick's own reading where the comment
-would not read again, refuses the run for good where the comment has no room
-for it, and is held rather than written over an attempt another road put in
-its place.
+a word asked whole, which proves it again first. The abandonment is a
+checkpoint over the reading the tick last confirmed: it keeps every record it
+does not own as the comment carries it, holds where the comment would not
+read, refuses the run for good where the comment has no room for it, and is
+held rather than written over an attempt that no longer reads as the finish
+holds it.
 Nothing is ever run again, no developer is launched, and nothing is routed.
 """
 from __future__ import annotations
@@ -236,8 +237,13 @@ class CapturedRouteTest(captured_support.CapturedEvidenceCase, unittest.TestCase
         return self.asks(_captured.stands_before_the_route, finish, proof=proof)
 
 
+# A usage total the tick staged and has not written, and what it staged it as.
+_STAGED_USAGE = "issue_total_tokens"
+_STAGED_TOKENS = 4242
+
+
 class AbandonmentWriteTest(unittest.TestCase, captured_support.CapturedEvidenceCase):
-    """The abandonment is a write of its own, kept off every record another road wrote."""
+    """The abandonment is a write of its own, kept off every record it does not retire."""
 
     def setUp(self) -> None:
         captured_support.CapturedEvidenceCase.setUp(self)
@@ -256,6 +262,21 @@ class AbandonmentWriteTest(unittest.TestCase, captured_support.CapturedEvidenceC
         self.assertEqual(kept, (written[_UNKNOWN], written[_SUBJECT]))
         self.assert_dormant(self.abandoned())
 
+    def test_it_lands_what_the_tick_staged(self) -> None:
+        # The tick staged a usage total it has not written when the checkout
+        # left the landed head: the abandonment lands it once beside the
+        # retired run, and the tick goes on holding it as written.
+        finish = self.landed()
+        finish.state.set(_STAGED_USAGE, _STAGED_TOKENS)
+        self.world.checkout_head = _world.STRAY_SHA
+
+        self.assertEqual(self.asks(_captured.stands_before_the_route, finish), _HELD)
+
+        durable = readings.pinned(self)
+        staged = (finish.state.get(_STAGED_USAGE), durable.get(_STAGED_USAGE))
+        self.assertEqual(staged, (_STAGED_TOKENS, _STAGED_TOKENS))
+        self.assert_dormant(self.abandoned())
+
     def test_a_replaced_attempt_keeps_its_records(self) -> None:
         # Another road replaced the attempt once the finish read the comment,
         # which has no room for the abandonment: the stale run is held rather
@@ -271,13 +292,15 @@ class AbandonmentWriteTest(unittest.TestCase, captured_support.CapturedEvidenceC
         self.assertEqual(readings.pinned(self), written)
         self.assert_dormant()
 
-    def test_a_failed_reread_falls_back(self) -> None:
-        # A head the base advanced past is set aside over the comment read
-        # afresh; that reading fails once, so the tick's own reading carries it.
+    def test_an_unread_comment_holds_until_it_reads(self) -> None:
+        # A head the base advanced past is set aside in a checkpoint whose
+        # reading of the comment fails once: the continuation holds with the
+        # run kept as recorded, and the next finish sets it aside.
         finish = self.landed()
         self.gh.read_pinned_state = captured_support.FailsOnce(self.gh.read_pinned_state)
 
-        self.assertIsNone(self.asks(_captured.sets_aside, finish))
+        self.assertEqual(self.asks(_captured.sets_aside, finish), _HELD)
+        self.assert_dormant()
 
         self.assertIsNone(self.asks(_captured.sets_aside, self.landed()))
         self.assert_dormant(self.abandoned())

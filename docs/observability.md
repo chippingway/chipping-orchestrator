@@ -5,6 +5,9 @@ description: >-
 ---
 # Observability
 
+The authority of these surfaces and the audit recovery exception are recorded in
+[Contracts and invariants](contracts.md#c-12-observation-and-the-audit-recovery-exception).
+
 The orchestrator emits three independent JSONL sinks plus an optional Postgres aggregation target. Workflow correctness
 keys off the pinned `<!--orchestrator-state ...-->` JSON comment on the issue (and the workflow label), never off
 these. The one read-back is the audit log's: before a base-rewrite finish files its `base_rebased`, it asks the log and

@@ -1,24 +1,23 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A captured transaction's abandonment over a pinned comment short of room, or written by another road meanwhile.
+"""A captured transaction's abandonment over a pinned comment short of room, or edited from outside meanwhile.
 
-A run captured for the landed head the base advanced past again is abandoned
-before its attempt retires in the same write, staged on the comment as it
-then reads, so an approval another road wrote meanwhile is kept rather than
-refusing it, and the tick's rebase goes on. An exact tree's carry an earlier
-finish captured is proved again under a
-configuration that moved, over a comment with no room to invalidate the
-current evidence, or one another road wrote the carry's approval onto after
-the recovery read it, refusing the write that invalidates the current
-evidence: the route is held either way, but behind the last word, so the carry
-is still abandoned durably -- its history entry takes less room than the
-transaction it retires, and the approval it answers for goes with it -- and
-once the configuration is back the head is routed with nothing carried or
-run. A run captured for the landed head whose requirements move while it is
-proved is abandoned even where another road writes an approval onto the
-comment meanwhile: the abandonment is staged on the comment as it then reads,
-so that approval is kept rather than refusing it, and putting the
-requirements back routes nothing the run carried.
+The abandonment is a checkpoint of the finish's own over the reading the tick
+last confirmed, owning only the records it retires, so a record it never read
+-- an approval written onto the comment from outside the orchestrator after
+the recovery read it -- is kept exactly as the comment carries it, neither
+refusing the abandonment nor written away by it. A run captured for the landed
+head the base advanced past again is abandoned before its attempt retires, and
+the tick's rebase goes on. An exact tree's carry an earlier finish captured is
+proved again under a configuration that moved, over a comment with no room to
+invalidate the current evidence, or one whose approval moved after the
+recovery read it, refusing the write that invalidates the current evidence:
+the route is held either way, but behind the last word, so the carry is still
+abandoned durably -- its history entry takes less room than the transaction it
+retires -- and once the configuration is back the head is routed with nothing
+carried or run. A run captured for the landed head whose requirements move
+while it is proved is abandoned even where its approval is written meanwhile,
+and putting the requirements back routes nothing the run carried.
 """
 from __future__ import annotations
 
@@ -40,7 +39,7 @@ _CLASSIFIED = "_made_for_another_publication"
 
 
 def _approves_and_edits(case: support.VerificationRecoveryCase, approval, approved) -> None:
-    """Record `approved` as `approval` on `case`'s comment as another road would, and edit the issue's requirements."""
+    """Record `approved` as `approval` on `case`'s comment from outside, and edit the issue's requirements."""
     written = case.gh.read_pinned_state(case.issue)
     written.set(approval, approved)
     case.gh.write_pinned_state(case.issue, written)
@@ -48,7 +47,7 @@ def _approves_and_edits(case: support.VerificationRecoveryCase, approval, approv
 
 
 def _approves_once(case: support.VerificationRecoveryCase, approved, done: list) -> None:
-    """Record `approved` as the approval on `case`'s comment as another road would, the first time only."""
+    """Record `approved` as the approval on `case`'s comment from outside, the first time only."""
     if done:
         return
     done.append(approved)
@@ -58,14 +57,14 @@ def _approves_once(case: support.VerificationRecoveryCase, approved, done: list)
 
 
 def _approves_behind_the_classification(case: support.VerificationRecoveryCase, captured) -> None:
-    """Have another road write `captured`'s approval once `case`'s next recovery has classified what it fetched."""
+    """Write `captured`'s approval from outside once `case`'s next recovery has classified what it fetched."""
     approves = partial(_approves_once, case, captured.binding.target.subject, [])
     racing = _RacesPastTheStep(getattr(replay_evidence, _CLASSIFIED), approves)
     case.enterContext(patch.object(replay_evidence, _CLASSIFIED, side_effect=racing))
 
 
 class CommentWritesRecoveryTest(support.CapturedRunCase, unittest.TestCase):
-    """A captured transaction something moved under is abandoned whatever room the comment has or who wrote it."""
+    """A captured transaction something moved under is abandoned whatever room the comment has or what was edited."""
 
     def test_no_room_to_invalidate_still_abandons(self) -> None:
         # The configuration moves under the captured carry, which would
@@ -84,28 +83,29 @@ class CommentWritesRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         self.assert_recovered(head)
 
     def test_a_refused_invalidation_still_abandons(self) -> None:
-        # The configuration moves under the captured carry, and another road
-        # writes the approval the carry answers for once the recovery has
-        # read the comment, so the write invalidating the current evidence is
-        # refused. The carry is abandoned behind that refusal all the same,
-        # its approval with it, and with the configuration back the head is
-        # routed with nothing carried or run.
+        # The configuration moves under the captured carry, and the approval
+        # the carry answers for is written once the recovery has read the
+        # comment, so the write invalidating the current evidence is refused.
+        # The carry is abandoned behind that refusal all the same, the
+        # approval it never read kept as written, and with the configuration
+        # back the head is routed with nothing carried or run.
         head, captured = self._holds_a_moved_carry(_approves_behind_the_classification)
 
         self._assert_retired(captured)
-        self.assertIsNone(readings.pinned(self).get(APPROVED_SUBJECT))
+        approved = readings.pinned(self).get(APPROVED_SUBJECT)
+        self.assertEqual(approved, captured.binding.target.subject)
         self.configures(support.CONFIGURED)
         self.recovers()
         self.assertEqual(self.runs(), 0)
         self.assert_recovered(head)
 
     def test_an_advanced_base_keeps_the_approval(self) -> None:
-        # The base advances again past the landed head, and another road
-        # writes an approval once the recovery has read the comment: the
-        # captured run is still abandoned before the attempt retires -- in a
-        # write staged on the comment as it then reads, so the approval is
-        # kept rather than refusing it -- and the tick's rebase publishes the
-        # next head with nothing run again.
+        # The base advances again past the landed head, and an approval is
+        # written once the recovery has read the comment: the captured run is
+        # still abandoned before the attempt retires -- in a write that owns
+        # only what it retires, so the approval is kept rather than refusing
+        # it -- and the tick's rebase publishes the next head with nothing run
+        # again.
         head, captured = self.captures()
         support.advances_the_base_again(self)
         _approves_behind_the_classification(self, captured)
@@ -119,11 +119,11 @@ class CommentWritesRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         self.assertEqual(said, ([head, git_support.remote_head(self)], 1, 1))
 
     def test_another_roads_approval_is_kept(self) -> None:
-        # Another road writes an approval while the recovery re-reads the
-        # settled report the captured run is bound to, and the requirements
-        # are edited at that moment: the run is abandoned unrun, and the
-        # approval stands as that road wrote it. Put back, the requirements
-        # route nothing the run carried.
+        # An approval is written while the recovery re-reads the settled
+        # report the captured run is bound to, and the requirements are
+        # edited at that moment: the run is abandoned unrun, and the approval
+        # stands as written. Put back, the requirements route nothing the run
+        # carried.
         head, captured, body = self._recovers_beside_an_approval()
         subject = captured.binding.target.subject
 

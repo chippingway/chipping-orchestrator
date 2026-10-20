@@ -38,7 +38,7 @@ and holds over any record another road left pending beside it.
 already settled or retired -- current, or in the history -- which the
 settlement step (`rewrite_finish_settlement`) asks before it lets any other
 pending record beside that evidence go unanswered, whether it routes the head
-or continues it.
+or continues it; `out_of_step` is what it holds the route over there.
 """
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ from orchestrator.workflow.engine import (
     verification_record_state as _record_state,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.verification_records import PendingEvidence
+from orchestrator.workflow.engine.verification_records import CurrentEvidence, PendingEvidence
 
 
 def saw_land(state: PinnedState, head: str) -> bool:
@@ -67,6 +67,29 @@ def resolved(state: PinnedState, head: str) -> bool:
     settled = (_settlement.read_current_evidence(state), *(_settlement.read_evidence_history(state) or ()))
     heads = (record.binding.target.target_head for record in settled if record is not None)
     return head in heads
+
+
+def out_of_step(state: PinnedState, current: CurrentEvidence | None) -> str:
+    """Why a record beside evidence a finish of the attempt already resolved holds its route over `current`, or "".
+
+    Any pending record, and -- beside `current`, the evidence current for the
+    head, where there is one -- a handoff that does not name it, a revision
+    floor nobody can read, or a revision spent past it. Nobody can say what
+    was owed beside any of them, so no route goes on over one; a newer
+    transaction recorded for the head supersedes `current` once it settles.
+    """
+    if _record_state.carries_pending_evidence(state):
+        return "a pending record no finish of this landing can answer stands beside it"
+    if current is None:
+        return ""
+    handoff = _settlement.read_evidence_handoff(state)
+    named = None if handoff is None else (handoff.receipt, handoff.revision)
+    spent = _record_state._latest_revision(state)
+    return next((why for refused, why in (
+        (named != (current.receipt, current.revision), "the evidence handoff does not name it"),
+        (spent is None, "nobody can say which revision was spent last"),
+        (spent != current.revision, "a revision past it was spent"),
+    ) if refused), "")
 
 
 def capture_answered(state: PinnedState) -> bool:

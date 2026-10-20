@@ -44,7 +44,6 @@ def _set_workflow_label(
     new_label: str | None,
     *,
     guarded: bool = True,
-    **correlation,
 ) -> None:
     resolved_label = _label_reading.coerce_workflow_label(new_label) if new_label else None
     if resolved_label is not None and guarded:
@@ -67,7 +66,6 @@ def _set_workflow_label(
             "stage_enter",
             issue_number=issue.number,
             stage=_workflow_state.stage_name(resolved_label),
-            **correlation,
         )
         _recording_events.record_stage_enter(
             repo=client._repo_slug,

@@ -5,6 +5,8 @@ description: >-
 ---
 # Architecture
 
+The project-wide guarantees this design must preserve are in [Contracts and invariants](contracts.md).
+
 Single-process **polling orchestrator** that drives GitHub issues through a label-based state machine, delegating coding
 work to a configurable coding-agent CLI (`codex`, `claude`, or `agy`) running as a subprocess in isolated git worktrees.
 
@@ -250,15 +252,15 @@ package — and those initializers are what keep the recurrences distinct at col
 
 ## Workflow labels
 
-An issue should have at most one workflow label at a time; where a pre-namespace spelling survives beside the
-namespaced one, the namespaced label is the state and the bare one is outranked rather than counting as a second. The
-names are part of the public contract because live GitHub issues already carry them. The `workflow:` prefix marks the
-states the orchestrator writes itself, so a repository's own vocabulary cannot collide with them; the five a human
-also applies or reads — `in_review`, `question`, `discussion`, and the `done` / `rejected` terminals — keep the bare
-spelling, as do the `backlog` and `paused` control labels an operator types. Membership in `WorkflowLabel` /
-`ControlLabel` is what closes both sets rather than the prefix, so a `workflow:`-prefixed name outside them —
-Dependabot's service labels on its own update PRs — is not a state, routes nowhere, and survives a label write
-untouched.
+The rules for relabels and human edits are in [C-02](contracts.md#c-02-workflow-labels-and-transitions).
+Where a pre-namespace spelling survives beside the namespaced one, the namespaced label is the state and the bare one
+is outranked rather than counting as a second. The names are part of the public contract because live GitHub issues
+already carry them. The `workflow:` prefix marks the states the orchestrator writes itself, so a repository's own
+vocabulary cannot collide with them; the five a human also applies or reads — `in_review`, `question`, `discussion`, and
+the `done` / `rejected` terminals — keep the bare spelling, as do the `backlog` and `paused` control labels an operator
+types. Membership in `WorkflowLabel` / `ControlLabel` is what closes both sets rather than the prefix, so a
+`workflow:`-prefixed name outside them — Dependabot's service labels on its own update PRs — is not a state, routes
+nowhere, and survives a label write untouched.
 
 The namespace is a GitHub label spelling and stops at that boundary, which is the distinction the stage map in
 [`architecture/workflow-modules.md`](architecture/workflow-modules.md) reads by: a bare tag there names the *stage* —
@@ -717,16 +719,19 @@ lock, and the resume mechanic are documented in
 
 ### Environment filtering (`agents.environment.filter_agent_env`)
 
-The agent subprocess env is filtered to keep host secrets and the orchestrator's own GitHub credentials out of agent
-reach. The same filter runs for the verify-command runner (with `allow_provider_auth=False`, which also strips provider
-keys).
+The agent subprocess env is filtered to avoid passing host secrets and the orchestrator's own GitHub credentials
+through inherited environment variables. The same filter runs for the verify-command runner (with
+`allow_provider_auth=False`, which also strips provider keys). Both run as the orchestrator's OS user and can read its
+credential files, so filtering does not prevent a prompt-injected agent or verification command from pushing or
+calling the GitHub API. Isolation comes from the host, container, or VM; see
+[C-11](contracts.md#c-11-credentials-and-execution-boundaries).
 
 - **Inherited virtualenv activation** (`_INHERITED_ENVIRONMENT_MARKERS`: `VIRTUAL_ENV`) is stripped for every managed
   repository, including its `bin` directory on `PATH`. Conda activation is preserved. The
   [environment selection policy](configuration/operations.md#dependency-tooling) covers target-repository setup
   and verification requirements.
 - **GitHub-token-bearing env vars** are stripped (`GITHUB_TOKEN`, `GH_TOKEN`, etc. — the `_FORBIDDEN_AGENT_ENV`
-  exact-match set) so a prompt-injected agent cannot push or call the GitHub API.
+  exact-match set) so those credentials are not inherited by agent or verification subprocesses.
 - **Production-secret-shaped env vars** are stripped by name shape: anything matching `_AGENT_SECRET_SUFFIXES`
   (`_TOKEN`, `_KEY`, `_SECRET`, `_PASSWORD`, `_PAT`, `_CREDENTIAL`) or the bare-name set (`TOKEN`, `KEY`, `SECRET`,
   `PASSWORD`, `PAT`, `CREDENTIAL`). Without this a `STRIPE_API_KEY` / `DATABASE_PASSWORD` set on the host would ride
@@ -1032,46 +1037,19 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   the attempt in the write that records it (`pending_auto_base_rebase_evidence_receipt`), since no announcement mark
   is down yet; it outlives the bounded evidence history, so a run records another road wrote pushed out of it is
   still never run again, and any other pending transaction is that road's, kept as written. The recovery abandons
-  the captured run to the same effect -- in a write of its own landed as the attempt's checkpoint, not through the
-  finish's write over the comment read afresh -- where its snapshot reads the
-  landing on another head, or its reset takes the checkout off it (`workflow/engine/rewrite_landing_moved.py`), the
-  git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
-  park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). Evidence a
-  finish already settled for the landed head has dormant primitives beside these, which no production finish, recovery,
-  or park road asks yet (`workflow/engine/rewrite_finish_readiness.py`): proving it ready again before a route takes it
-  -- the base readings that made a continuation excused over a head the base advanced past again, and proved once more
-  behind any stop of a write the finish makes after it -- and invalidating it into history whole where anything it is
-  bound to moved -- over the comment read afresh or the tick's own copy, the attempt's base tip blanked where the
-  invalidation cannot land, so nothing put back revives it. In a finish only the dormant settled-evidence policy
-  asks them: a caller selects it by building the finish with `proves_settled` and handing it directly to the
-  coordinator (`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which
-  announces, relabels, parks, and retires nothing), and no production road builds such a finish
-  (`workflow/engine/rewrite_finish_settled.py`). That phase proves settled evidence
-  ready before the route goes on, abandons a continuation's captured transaction before proving the settled evidence
-  beside it, takes in a settlement and announcement another finish made beside its answer and invalidates that
-  settlement over movement read under it, reads the comment afresh behind every invalidation it lands so a newer
-  transaction or another attempt written right behind that write holds the route
-  (`workflow/engine/rewrite_finish_rechecks.py`), and has the primitives read and retire more: an announcement of the
-  landing taken in and a refused write retried over a fresh reading, the same receipt retired over whatever attempt now
-  stands, and movement history has no room for recorded under the evidence's own receipt -- a mark in its handoff's
-  place, its whole compact retirement, or a revision spent past it -- however the attempt or the comment moved since
-  (`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_outranking.py`,
-  `workflow/engine/rewrite_finish_unconfirmed.py`). The coordinator held to the policy proves the evidence again
-  before every out-of-step hold, unfinishable landing beside a standing attempt, and debt park, ahead of and behind
-  the relabel, and behind every stop of the announcement, the park, or the retirement -- a refusal over a record the
-  evidence's binding rests on, or one whose comment, its preparation's fresh reading, the strict edit's own, or the
-  fresh reading a refused edit was derived over, was read
-  recording movement under the evidence, a mark, a revision spent past it, or a blank of the attempt's base tip,
-  invalidating it however soon that comment is put back, as does such movement in the record a write that was
-  prepared, landed, or went out unconfirmed made of the comment, even where the finish goes on -- decides the
-  checkpoint, the event's record, and the park on
-  every record the evidence is bound through, puts back an attempt a
-  retirement nobody confirmed took before invalidating over it, and announces, relabels, or parks nothing another
-  finish of the landing already did (`workflow/engine/rewrite_finish_stops.py`,
-  `workflow/engine/rewrite_finish_announced.py`, `workflow/engine/rewrite_finish_writes.py`) -- its relabel landed
-  behind a guarded record of its own on the attempt (`pending_auto_base_rebase_relabelled`), read beside the label,
-  and beside a label the issue already wore against the audit log where one is configured. No recovery road asks
-  the readiness primitives: a recovery holds, parks, clears, and resets an interrupted attempt with the captured-only
+  the captured run to the same effect -- in a write of its own landed as the attempt's checkpoint, as the finish's
+  own abandonment is -- where its snapshot reads the landing on another head, or its reset takes the checkout off it
+  (`workflow/engine/rewrite_landing_moved.py`), the git owner's reset tail asking every recovery context for that
+  answer (`settles_over_a_reset`), and every recovery park that keeps the attempt asking it first to prove a captured
+  run again (`proves_before_a_park`). Evidence a
+  finish already settled and left current is routed as it stands, behind the last word over the landing and the base,
+  and proved current by the reviewer the route hands it to before anything relies on it. The finish's own writes --
+  its evidence decision, an abandonment, the record of its event, its announcement, its debt's park, and its
+  retirement -- are guarded commits over the reading the tick last confirmed
+  (`workflow/engine/rewrite_finish_writes.py`), so a record it is decided on that reads otherwise stops it with the
+  attempt standing and nothing that depends on the write made; what it owns, completes, and stops on is the
+  [finalization contract](state-machine/delivery-stages.md#the-base-rewrite-finalization-contract). A recovery holds,
+  parks, clears, and resets an interrupted attempt with the captured-only
   answers above. The issue writer claim its caller takes before reading the issue keeps every other orchestrator
   writer off that issue through the recovery's final write, so the recovery's own writes are checkpoints of one
   sequence: every auto-rebase park, and a recovery's clear, its abandonment of a captured transaction
