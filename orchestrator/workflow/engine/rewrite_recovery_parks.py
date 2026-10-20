@@ -140,7 +140,7 @@ from orchestrator.workflow.engine import (
     rewrite_recovery_notices as _notices,
     verification_records as _evidence_records,
 )
-from orchestrator.workflow.engine.owed_events import loss_owed, owes_a_loss
+from orchestrator.workflow.engine.owed_events import UNCONFIRMED_USAGE, loss_owed, owes_a_loss
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
     LEFT_THE_CHECKOUT,
@@ -373,7 +373,7 @@ def proves_before_a_park(
     a proof write already carried, and save the totals among it -- usage --
     which ride none of the proof's writes and land first, in a write of their
     own read like every other the proof takes (`rewrite_recovery_staging.adds_the_totals`),
-    a lost answer there or before it holding, the usage owed unresolved.
+    a lost answer there or before it answering False behind the proof, the usage owed unresolved.
     Behind a record its staging is kept out of every write the proof lands.
     `lost` -- with `heads_read` and a loss still owed (`owed_events.loss_owed`)
     -- names a checkout read gone or off the evidence's head, or the replay's
@@ -393,7 +393,10 @@ def proves_before_a_park(
             if not adds_the_totals(proving, read):
                 log.warning(_REPLACED, proving.issue.number)
                 return False
-            return _retirement.retires_unproved(proving, read)
+            if _retirement.retires_unproved(proving, read) and not loss_owed(proving, UNCONFIRMED_USAGE):
+                return True
+            proving.state.withheld = True
+            return False
         return records_the_reset(proving, lost=lost or (proving.worktree,))
 
 
@@ -411,49 +414,36 @@ def records_the_reset(context: _base_sync_models._AutoRebaseRecoveryContext, *, 
     being left for a checkout put back to revive, and evidence settled behind
     the blank reads it as movement. A tip the tick read blank -- null, or not
     recorded at all -- is held to the fresh comment too: one another road put
-    back refuses the record and the reset; still blank, nothing is sent, and
-    no field is added to a comment that may have no room for it. True where the blank stood or
+    back refuses the record and the reset; still blank, nothing is sent. True
+    where the blank stood or
     landed; False, logged, where it was refused or went unconfirmed, for the
     git owner to hold with nothing reset or cleaned -- the tick's state
     withheld by the commit (`ReportCommit.withholds`), so its stale tip is
-    never written back over a blank that landed unconfirmed. False and
-    withheld too where the comment read afresh behind a landed blank carries
-    its tip put back or another attempt, or would not read, so no reset moves
-    the checkout off evidence nothing records moved, or under another attempt;
-    and where the tick's state already carries another attempt -- one a proof
-    took in off the comment -- with no blank written, so a replacement's tip
-    is never blanked under a recovery of the attempt it replaced.
+    never written back over a blank that landed unconfirmed. False too where
+    the comment read afresh behind a landed blank carries its tip put back or
+    another attempt, or would not read, and where the tick's state already
+    carries another attempt a proof took in, no blank written over its tip.
     Movement the record's commit read (`rewrite_landing_retirement.moved_under`)
-    is proved as read first, so what moved is retired before the reset goes on,
-    False where that does not land -- and the comment is read afresh once more
-    behind that proof, so a tip put back or another attempt pinned while it made
-    its own requests holds the reset as well, the tick's state withheld; evidence
-    that reading carries under a receipt movement was read under -- a successor
-    settled, or the run put back, right behind the proof -- is proved again, the
-    comment read again behind each such proof until a reading carries none.
-    Whatever else another road moved in each such reading is laid over the
-    tick's state, its own staging kept (`rewrite_recovery_rereads.lays_what_moved`),
-    and a transaction recorded pending there under a receipt the attempt does
-    not name holds the reset, the tick's state withheld. What
-    the tick staged is kept across these writes as a proof keeps it
-    (`rewrite_recovery_staging.keeps_the_staging`), its usage landing first, in
-    a write of its own whose readings the record proves, where no proof keeps
-    it already.
-    Over a checkout gone from disk, or one
-    `lost` names however soon it is back, the loss is owed by the attempt the
-    moment it is read, ahead of every write (`owed_events.owes_a_loss`), so a
-    checkout back by the time those writes are refused still leaves evidence
-    put back later retired over it; and the evidence is retired as over a
-    reset in its own `CLEAR` write (`rewrite_recovery_staging.lands_the_retirement`),
-    blank landed or not. True only where both landed and nothing it retired,
-    no successor or other attempt, is read back, and the comment read afresh
-    once more behind the retirement still carries the blank, the attempt, and
-    every evidence record as the retirement left them (`_RETIRED`) -- a tip put
-    back, an attempt pinned, or a successor recorded or floor raised during it,
-    the checkout back by then, holds the reset with the tick's state withheld,
-    what moved laid over it. Every False answer withholds the tick's state from
-    every whole-state write behind -- whatever proof write landed meanwhile --
-    since the comment may carry a successor, its floor, or usage by then.
+    is proved as read before the reset goes on, False where that does not
+    land, and the comment read again behind each proof: a tip put back or
+    another attempt pinned meanwhile holds; evidence under a receipt read
+    moving is proved again until a reading carries none; what else another
+    road moved there is laid over the tick's state, its staging kept
+    (`rewrite_recovery_rereads.lays_what_moved`); and a transaction pending
+    under a receipt the attempt does not name holds. What the tick staged is
+    kept as a proof keeps it (`rewrite_recovery_staging.keeps_the_staging`),
+    its usage landing first, in a write of its own whose readings it proves.
+    Over a checkout gone from disk, or one `lost` names however soon it is
+    back, the loss is owed by the attempt the moment it is read
+    (`owed_events.owes_a_loss`), and the evidence retired as over a reset in
+    its own `CLEAR` write (`rewrite_recovery_staging.lands_the_retirement`),
+    blank landed or not: True only where both landed and the comment read
+    afresh behind still carries the blank, the attempt, and every evidence
+    record as the retirement left them (`_RETIRED`), what moved laid over the
+    tick's state. Usage a lost answer left owed (`owed_events.UNCONFIRMED_USAGE`)
+    answers False once all of that is recorded, never sent again. Every False
+    answer withholds the tick's state from every whole-state write behind,
+    whatever proof write landed meanwhile.
     """
     with keeps_the_staging(context) as recording:
         moved: dict[str, ReportEvidence] = {}
@@ -465,22 +455,23 @@ def records_the_reset(context: _base_sync_models._AutoRebaseRecoveryContext, *, 
             log.warning(_REPLACED, recording.issue.number)
             return False
         recorded = _blanks_the_tip(recording, moved)
-        if gone or not recording.worktree.is_dir():
+        gone = gone or not recording.worktree.is_dir()
+        if gone:
             owes_a_loss(recording)
             log.warning(
                 "issue=#%d the checkout is gone from disk; retiring what a finish captured or settled for the landed "
                 "head as over a reset, in a write of its own", recording.issue.number,
             )
-            if not (lands_the_retirement(recording, CLEAR) and recorded):
-                recording.state.withheld = True
-                return False
-            return bool(_blanks_the_tip(recording, moved, again=True, held=_RETIRED))
-        pending = moved.keys()
+            recorded = lands_the_retirement(recording, CLEAR) and recorded and _blanks_the_tip(
+                recording, moved, again=True, held=_RETIRED,
+            )
+        pending = not gone and moved.keys()
         while pending:
             recorded = _retirement.retires_unproved(
                 replace(recording, records_before_a_reset=records_the_reset), _retirement.reconciles(recording, moved),
             ) and recorded and _blanks_the_tip(recording, moved, again=True)
             pending = recorded and _retirement.receipts(recorded) & moved.keys()
+        recorded = recorded and not loss_owed(recording, UNCONFIRMED_USAGE)
         recording.state.withheld |= not recorded
         return bool(recorded)
 

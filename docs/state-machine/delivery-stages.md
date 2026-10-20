@@ -1606,8 +1606,9 @@ because there it is the claim that this stage has already rerouted rather than a
   an attempt any of its readings carries in place of the one recovered holding them, however soon it is put back and
   however little evidence is left to prove -- added to the total the comment then carries; where that write's answer
   was lost, no total read afresh says whose increment it holds or how much of it survived, so the usage is neither
-  taken as landed nor sent again but owed unresolved by the attempt, holding every later proof of it in this process,
-  while the rest of the tick's staging, a gate's record among it, is sent again by the
+  taken as landed nor sent again but owed unresolved by the attempt, so every later proof or reset record of it in this
+  process answers False once it has recorded a checkout loss and retired what that loss moves -- while the rest of
+  the tick's staging, a gate's record among it, is sent again by the
   write behind any whose answer was lost, nothing read into what survives on the comment
   (`rewrite_recovery_staging.keeps_the_staging`). A tip the tick read blank holds an unrecorded reset where another road
   put it back, movement the reset's own record read is retired before the reset goes on, evidence the reading behind

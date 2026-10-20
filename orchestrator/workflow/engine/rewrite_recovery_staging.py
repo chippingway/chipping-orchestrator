@@ -29,7 +29,7 @@ holds the caller, however soon it is put back. A refusal stages them again
 behind the block, for the record behind it. A lost answer is neither taken as
 landed nor sent again: no total read afresh can say how much of it landed, or
 whose increment it holds, so the usage is owed unresolved by the attempt for
-as long as this process runs, holding the caller and every later one.
+as long as this process runs, every later answer of its proof or reset False.
 
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
@@ -63,7 +63,7 @@ from orchestrator.workflow.engine import (
     verification_durable as _durable,
     verification_record_state as _record_state,
 )
-from orchestrator.workflow.engine.owed_events import UNCONFIRMED_USAGE, loss_owed, owes_a_loss
+from orchestrator.workflow.engine.owed_events import UNCONFIRMED_USAGE, owes_a_loss
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 
 # The edits that may have carried what they sent onto the comment: landed, or sent with the answer lost; and the
@@ -200,9 +200,9 @@ def adds_the_totals(kept: _base_sync_models._AutoRebaseRecoveryContext, into: di
     client that asks every reading (`rewrite_recovery_readings.AsksEveryReading`), so each comment that write reads
     is read for movement under the evidence the tick holds (`rewrite_landing_retirement.moved_under`), kept in
     `into` for the caller's proof. False where any comment it read carries another attempt in place of the one `kept`
-    recovers -- however soon it is put back -- or where its answer was lost, or one before was, the usage owed
-    unresolved by the attempt (`owed_events.owes_a_loss`): the tick's state withheld, for the caller to hold whatever
-    evidence it holds. A context nothing keeps took no totals off, and lands none.
+    recovers -- however soon it is put back -- the tick's state withheld, for the caller to hold whatever evidence it
+    holds; a lost answer leaves the usage owed unresolved by the attempt (`owed_events.owes_a_loss`), for the caller
+    to answer False over once it recorded what it reads. A context nothing keeps took no totals off, and lands none.
     """
     keeper = kept.gh
     if not isinstance(keeper, _KeepsWhatItCarried):
@@ -212,8 +212,7 @@ def adds_the_totals(kept: _base_sync_models._AutoRebaseRecoveryContext, into: di
         owes_a_loss(kept, UNCONFIRMED_USAGE)
     for reading in seen:
         _retirement.moved_under(reading, tick=kept.state, into=into)
-    stands = all(_readings.stands_as_recovered(kept, read) for read in seen)
-    if stands and not loss_owed(kept, UNCONFIRMED_USAGE):
+    if all(_readings.stands_as_recovered(kept, read) for read in seen):
         return True
     kept.state.withheld = True
     return False

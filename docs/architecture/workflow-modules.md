@@ -2689,7 +2689,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             caller, however soon it is put back and however little evidence is left to prove; a lost
                             answer there neither taken as landed nor sent again, since no total read afresh says whose
                             increment it holds or how much survived, but owed unresolved by the attempt
-                            (`owed_events.py`), holding the caller and every later one, a refusal staged
+                            (`owed_events.py`), every later proof answering False behind what it records, a loss among
+                            it, a refusal staged
                             again for the record behind
                             (`adds_the_totals`), and a
                             context already kept handed back as it is, so

@@ -108,6 +108,9 @@ _LOST_ANSWERS = (
     (True, -5, 0), (True, -2, 0),
 )
 
+# Each of those, over the checkout on disk or gone from it.
+_LOST_ROADS = tuple((answers, gone) for answers in _LOST_ANSWERS for gone in (False, True))
+
 # How each lost-answer road answers the reset record's blank: whether it is sent, and whether another road writes
 # over the comment right then.
 _LOSES = MappingProxyType({
@@ -366,23 +369,27 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # The tick stages 5 tokens and 1 of cost, landed first in a write of their own whose answer is lost, sent or
         # not, another road adding as much or less right then or writing back part of the token total. No total read
         # afresh says whose increment it holds or how much survived, so neither is taken as landed nor sent again: the
-        # block holds, the tick's state withheld, the attempt owing the usage, and every later hold holds, unsent.
-        for answers in _LOST_ANSWERS:
-            with self.subTest(sent=answers[0], added=answers[1:]):
+        # tick's state withheld, the attempt owing the usage, every later hold holds, unsent -- each over a checkout
+        # gone still recording the loss and retiring the run first, so a checkout put back revives nothing.
+        for answers, gone in _LOST_ROADS:
+            with self.subTest(answers=answers, gone=gone):
                 self.setUp()
                 context = self._stages_usage()[1]
                 context.state.set(_COST, 1)
+                if gone:
+                    self._wt.rename(self._wt.parent / "checkout-away")
                 with (
                     patch.object(self.gh, _EDITS, partial(_answers_lost, self.gh.edit_pinned_state, answers=answers)),
                     keeps_the_staging(context) as keeping,
                 ):
-                    self.assertFalse(adds_the_totals(keeping, {}))
-                left = self.pinned_fields(_USAGE, _COST)
+                    self.assertTrue(adds_the_totals(keeping, {}))
+                self._wrote = self.pinned_fields(_USAGE, _COST)
                 self.assertTrue(context.state.withheld)
                 self.assertFalse(_parks.lands_a_hold(context))
                 fresh = self._over(self.gh.read_pinned_state(self.issue))
                 self.assertFalse(_parks.lands_a_hold(fresh))
-                self.assertEqual(self.pinned_fields(_USAGE, _COST), left)
+                self.assertEqual(self.pinned_fields(_USAGE, _COST), self._wrote)
+                self.assertEqual(readings.pinned_records(self)[1] is None, gone)
 
     def test_a_replacement_under_the_totals_holds(self) -> None:
         # Over a comment carrying no evidence left to prove, another road pins a fresh attempt right ahead of the
