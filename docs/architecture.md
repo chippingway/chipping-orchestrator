@@ -1032,7 +1032,8 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   the attempt in the write that records it (`pending_auto_base_rebase_evidence_receipt`), since no announcement mark
   is down yet; it outlives the bounded evidence history, so a run records another road wrote pushed out of it is
   still never run again, and any other pending transaction is that road's, kept as written. The recovery abandons
-  the captured run the same way where its snapshot reads the
+  the captured run to the same effect -- in a write of its own landed as the attempt's checkpoint, not through the
+  finish's write over the comment read afresh -- where its snapshot reads the
   landing on another head, or its reset takes the checkout off it (`workflow/engine/rewrite_landing_moved.py`), the
   git owner's reset tail asking every recovery context for that answer (`settles_over_a_reset`), and every recovery
   park that keeps the attempt asking it first to prove a captured run again (`proves_before_a_park`). Evidence a
