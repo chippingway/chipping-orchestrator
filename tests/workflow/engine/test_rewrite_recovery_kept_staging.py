@@ -21,8 +21,8 @@ read off the comment handed straight to the dormant guarded hold or park
   that blank landing with its answer lost.
 - On a state alone (`KeepsTheStagingTest`): what the tick staged is staged
   again over its own reading, what the block staged or an edit carried is
-  left, and usage whose own write lost its answer is never sent twice, nor
-  lost where that write was never sent. That write is the first the reset's
+  left, and usage whose own write lost its answer is neither taken as landed
+  nor sent again, but owed unresolved, holding. That write is the first the reset's
   record or the hold's proof makes, so an attempt pinned right ahead of it
   holds either -- a proof holding no evidence left to prove among them -- and
   the report moved and put back around it is read moving, the run invalidated
@@ -100,11 +100,12 @@ _REPLACING = (
     (_parks.proves_before_a_park, True),
 )
 
-# How the staged usage's own write is answered lost: whether it is sent, and how much usage another road adds right
-# then -- or takes off, writing the token total it read back.
+# How the staged usage's own write is answered lost: whether it is sent, and how many tokens and how much cost another
+# road adds right then -- as much as the tick, or less -- or takes off, writing back all or part of the token total.
 _LOST_ANSWERS = (
-    (True, 0), (True, 2), (True, -5),
-    (False, 0), (False, 2),
+    (True, 0, 0), (False, 0, 0),
+    (False, 5, 1), (False, 2, 1),
+    (True, -5, 0), (True, -2, 0),
 )
 
 # How each lost-answer road answers the reset record's blank: whether it is sent, and whether another road writes
@@ -134,16 +135,16 @@ def _settles_report_three(case, head: str, beside: dict) -> None:
     case.gh.write_pinned_state(case.issue, case.state)
 
 
-def _answers_lost(live, issue, staged, *, answers: tuple[bool, int] = (True, 0), **options) -> PinnedEdit:
+def _answers_lost(live, issue, staged, *, answers: tuple, **options) -> PinnedEdit:
     """`live`, the pinned-comment edit, sent as it is where `answers` says, and answered lost either way -- another
-    road then adding the usage `answers` names over what the comment carries, where it names any."""
-    sends, adds = answers
+    road then adding the tokens and cost `answers` names over what the comment carries."""
+    sends, tokens, cost = answers
     standing = staged.data if sends else options["over"]
     if sends:
         live(issue, staged, **options)
-    if adds:
-        added = {**standing, _USAGE: (standing.get(_USAGE) or 0) + adds}
-        live(issue, PinnedState(comment_id=staged.comment_id, state_data=added), over=standing)
+    added = {**standing, _USAGE: (standing.get(_USAGE) or 0) + tokens}
+    added[_COST] = (standing.get(_COST) or 0) + cost
+    live(issue, PinnedState(comment_id=staged.comment_id, state_data=added), over=standing)
     return PinnedEdit.UNCONFIRMED
 
 
@@ -361,32 +362,27 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(state.data, {**landed, _PENDING: "the block's", _GATE: "head"})
         self.assertEqual(json.loads(state.synced), landed)
 
-    def test_lost_totals_are_sent_once(self) -> None:
-        # The tick stages 5 tokens and 1 of cost alone, taken off the state for the block, whose first write lands
-        # them in a write of its own whose answer is lost, another road adding 2 tokens right then or not: sent, the
-        # comment carries at least what was sent, so both are taken in as sent, the tick's state withheld, and the
-        # hold recorded behind adds neither again; never sent, the comment carries less than that, so they are staged
-        # again for that hold, which adds them once beside what the other road added. Sent and its token total written
-        # back, only the tokens are sent again.
+    def test_a_lost_usage_answer_is_owed(self) -> None:
+        # The tick stages 5 tokens and 1 of cost, landed first in a write of their own whose answer is lost, sent or
+        # not, another road adding as much or less right then or writing back part of the token total. No total read
+        # afresh says whose increment it holds or how much survived, so neither is taken as landed nor sent again: the
+        # block holds, the tick's state withheld, the attempt owing the usage, and every later hold holds, unsent.
         for answers in _LOST_ANSWERS:
-            with self.subTest(sent=answers[0], added=answers[1]):
+            with self.subTest(sent=answers[0], added=answers[1:]):
                 self.setUp()
-                context, counted = self._stages_usage()[1:]
-                cost = context.state.get(_COST) or 0
-                context.state.set(_COST, cost + 1)
+                context = self._stages_usage()[1]
+                context.state.set(_COST, 1)
                 with (
                     patch.object(self.gh, _EDITS, partial(_answers_lost, self.gh.edit_pinned_state, answers=answers)),
                     keeps_the_staging(context) as keeping,
                 ):
-                    self.assertEqual(context.state.get(_USAGE) or 0, counted)
-                    adds_the_totals(keeping, {})
-                self.assertEqual(context.state.withheld, answers[0])
-                self.assertTrue(_parks.lands_a_hold(context))
-
-                self.assertEqual(
-                    self.pinned_fields(_USAGE, _COST),
-                    (counted + 5 + max(answers[1], 0), cost + 1),
-                )
+                    self.assertFalse(adds_the_totals(keeping, {}))
+                left = self.pinned_fields(_USAGE, _COST)
+                self.assertTrue(context.state.withheld)
+                self.assertFalse(_parks.lands_a_hold(context))
+                fresh = self._over(self.gh.read_pinned_state(self.issue))
+                self.assertFalse(_parks.lands_a_hold(fresh))
+                self.assertEqual(self.pinned_fields(_USAGE, _COST), left)
 
     def test_a_replacement_under_the_totals_holds(self) -> None:
         # Over a comment carrying no evidence left to prove, another road pins a fresh attempt right ahead of the

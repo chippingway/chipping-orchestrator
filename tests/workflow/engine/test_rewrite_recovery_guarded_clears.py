@@ -11,7 +11,8 @@ road under the label the run was reviewed in (`replay_cleanup._finish_an_unmoved
 The write clearing the attempt retires the run with it, so reconciling the head put back revives nothing; a newer run
 settling as the clear reads HEAD refuses the clear and keeps its floor; another finish settling the run, or a newer run
 marked moved and unmarked, refuses the clear and the move read invalidates it; a usage write refusing the clear has the
-reset recorded by base tip; with no history room nothing is cleared, the run current beside its blanked tip. A newer
+reset recorded by base tip; with no history room nothing is cleared, the run current beside its blanked tip, and a
+clear refused for room holds, its state withheld, the reset recorded behind it. A newer
 run and another attempt, or a revision floor raised alone, written right behind a clear that landed hold the tick, its
 state withheld from writing over them; the run written back there -- once, again behind its retirement, or with every
 write behind refused -- stays outranked by the revision the clear spent past it, since no attempt guards it any longer,
@@ -27,6 +28,7 @@ from unittest.mock import patch
 from orchestrator.git.base_sync import replay_cleanup as _replay_cleanup, snapshot as _snapshot
 from orchestrator.git.base_sync.models import _AutoRebaseRecoverySnapshot
 from orchestrator.git.verification import probes as _probes
+from orchestrator.workflow.engine import verification_settlement_state as _settlement
 from orchestrator.workflow.engine.rewrite_finish_models import FinishRoad
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import (
@@ -379,6 +381,22 @@ class UnmovedClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         _ChargesTheClear(self).sets(self.issue, _USAGE, 2)
         self.gh.write_pinned_state(self.issue, self.context.state)
         self.assertEqual(self.pinned_fields(_USAGE), (2,))
+
+    def test_a_clear_refused_for_room_withholds(self) -> None:
+        # The run retired and the comment full, the tick stages a record longer than the attempt, so the clear is
+        # refused for room over an unmoved comment; the reset recorded behind moves it: held, the state withheld.
+        self.settles_then_dies()
+        state = self.gh.read_pinned_state(self.issue)
+        self.assertTrue(_settlement.retire_current_evidence(state))
+        self.gh.write_pinned_state(self.issue, state)
+        _unnames(self)
+        finish_moves.fills_the_comment(self)
+        context = guarded.recovery_context(self)
+        context.state.set("late_gate_hold", "x" * 1024)
+        self.assertTrue(_snapshot._clear_unchanged_recovery(context))
+        self.assertTrue(context.state.withheld)
+        standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
+        self.assertEqual(standing, (self.anchor, None))
 
     def _clears(self, *, full: bool = False) -> bool:
         """The unmoved-head road over the attempt unnamed on its anchor -- the comment filled to its limit where `full`

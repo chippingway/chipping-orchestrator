@@ -9,7 +9,8 @@ the word counts as the event filed, at most once, unless this process noted it o
 (`github/client.GitHubClient._for_worker_thread`), keyed by what the notice says (`said`), not its id, so one notice's
 failed post never files another's event. A checkout loss the dormant recovery proof read is owed the same way, to
 that very attempt for as long as this process runs (`owes_a_loss`, `loss_owed`): another road putting the evidence,
-the base tip, or the checkout back can undo any record a write lands, so no write pays it.
+the base tip, or the checkout back can undo any record a write lands, so no write pays it. So is usage whose own
+write went unanswered (`UNCONFIRMED_USAGE`), which no reading of an aggregate total can settle either way.
 """
 from __future__ import annotations
 
@@ -20,9 +21,11 @@ from orchestrator.github import events as _events
 # Where a client keeps the events its process noted owing, shared with every worker client it mints.
 _NOTED = "owed_events"
 
-# The notice an event names, which is posted after the event is owed; and the record a checkout loss is owed.
+# The notice an event names, which is posted after the event is owed; the record a checkout loss is owed; and the one
+# usage whose write went unanswered is.
 _NOTICE = "notice_id"
 _LOST = "checkout_lost"
+UNCONFIRMED_USAGE = "usage_unconfirmed"
 
 
 def owes(client: Any, event: str, *, issue_number: int, said: str = "", **identity: Any) -> bool:
@@ -67,18 +70,18 @@ def _owing(event: str, issue_number: int, said: str, identity: dict[str, Any]) -
     return (event, int(issue_number), said, tuple(sorted(named.items())))
 
 
-def owes_a_loss(context: Any) -> None:
-    """Note a checkout loss `context`'s recovery read as owed by its attempt -- its anchor and the replay it recorded.
+def owes_a_loss(context: Any, owed: str = _LOST) -> None:
+    """Note a checkout loss `context`'s recovery read -- or what `owed` names -- as owed by its attempt and its replay.
 
     Scoped to that attempt, so another pinned later on the same anchor, its replay made afresh, owes none of it.
     """
     attempt = (context.pending_pre_rebase_sha, context.pending_rewrite)
-    owing = (_LOST, int(context.issue.number), attempt)
+    owing = (owed, int(context.issue.number), attempt)
     _noted(context.gh).add(owing)
 
 
-def loss_owed(context: Any) -> bool:
-    """Whether `context`'s attempt owes a checkout loss this process read, asked without dropping it."""
+def loss_owed(context: Any, owed: str = _LOST) -> bool:
+    """Whether `context`'s attempt owes a checkout loss this process read, or what `owed` names; nothing dropped."""
     attempt = (context.pending_pre_rebase_sha, context.pending_rewrite)
-    owing = (_LOST, int(context.issue.number), attempt)
+    owing = (owed, int(context.issue.number), attempt)
     return owing in _noted(context.gh)

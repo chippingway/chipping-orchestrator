@@ -169,10 +169,10 @@ _PARK_FLAGS = frozenset((_base_sync_state._AWAITING_HUMAN, _base_sync_state._PAR
 # The base tip the attempt recorded its replay as made onto, which the reset's record blanks.
 _TIP = _base_sync_state._PENDING_REWRITE_BASE
 
-# What a proof or a reset's record logs holding over another attempt the write landing its usage read.
+# What a proof or a reset's record logs holding over another attempt the write landing its usage read, or usage owed.
 _REPLACED = (
-    "issue=#%d the comment read landing the tick's staged usage carries another auto-rebase attempt in place of "
-    "the one its recovery read; holding with nothing reset, cleared, or parked, for the next tick to recover it"
+    "issue=#%d the write landing the tick's staged usage read another auto-rebase attempt in place of the one its "
+    "recovery read, or the attempt owes usage a lost answer left unresolved; holding with nothing reset or parked"
 )
 
 # What a recovery hold records: whatever the tick staged since its reading --
@@ -299,7 +299,7 @@ def lands_a_clear(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool
     (`rewrite_recovery_rereads.outranks_the_retired`), so every reader reads that run outranked however soon another
     road writes it back with no attempt left to guard it; a successor settled meanwhile refuses it, its floor kept. A
     clear not landing records the reset (`records_the_reset`) and proves the fresh comment with that move
-    (`proves_before_a_park`).
+    (`proves_before_a_park`), the caller's state withheld, since those writes move the comment under it.
     One that landed is followed by the comment read afresh: a successor, another attempt, or anything else the clear
     was decided on written right behind it -- a revision floor raised, or any other record a binding rests on moved,
     among them (`verification_durable.durable_comment`) -- or a comment that would not read holds the tick too, its
@@ -343,6 +343,7 @@ def lands_a_clear(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool
     moved.update(dict.fromkeys(_retirement.receipts(moving.state), LEFT_THE_CHECKOUT))
     records_the_reset(moving)
     proves_before_a_park(moving, _retirement.reconciles(moving, moved))
+    context.state.withheld = True
     return False
 
 
@@ -371,7 +372,8 @@ def proves_before_a_park(
     refused -- across every write it lands, for the record behind, save what
     a proof write already carried, and save the totals among it -- usage --
     which ride none of the proof's writes and land first, in a write of their
-    own read like every other the proof takes (`rewrite_recovery_staging.adds_the_totals`).
+    own read like every other the proof takes (`rewrite_recovery_staging.adds_the_totals`),
+    a lost answer there or before it holding, the usage owed unresolved.
     Behind a record its staging is kept out of every write the proof lands.
     `lost` -- with `heads_read` and a loss still owed (`owed_events.loss_owed`)
     -- names a checkout read gone or off the evidence's head, or the replay's

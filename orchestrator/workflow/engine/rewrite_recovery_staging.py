@@ -26,10 +26,10 @@ on nothing and added to the total the comment carries then. That write is
 read through the client that asks every reading, so what it reads moving is
 proved and an attempt any reading of it carries in place of the one recovered
 holds the caller, however soon it is put back. A refusal stages them again
-behind the block, for the record behind it; a lost answer takes each as sent,
-never sending it twice, save one the comment read afresh carries short of
-what was sent -- a total only grows, so it carries none of what that write
-added -- which is staged again the same way.
+behind the block, for the record behind it. A lost answer is neither taken as
+landed nor sent again: no total read afresh can say how much of it landed, or
+whose increment it holds, so the usage is owed unresolved by the attempt for
+as long as this process runs, holding the caller and every later one.
 
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
@@ -48,7 +48,6 @@ import json
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import replace
-from typing import Any
 
 from github.Issue import Issue
 
@@ -64,6 +63,7 @@ from orchestrator.workflow.engine import (
     verification_durable as _durable,
     verification_record_state as _record_state,
 )
+from orchestrator.workflow.engine.owed_events import UNCONFIRMED_USAGE, loss_owed, owes_a_loss
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 
 # The edits that may have carried what they sent onto the comment: landed, or sent with the answer lost; and the
@@ -102,7 +102,6 @@ class _KeepsWhatItCarried:
         self._moves = frozenset(staging)
         self._staging = frozenset(staging if ahead else ())
         self._totals = frozenset(field for field in self._staging if self._adds_again(field))
-        self._lost: Mapping[str, Any] = {}
         self.carried: set[str] = set()
         _lays(self._tick, self._read, self._totals if ahead else staging)
 
@@ -110,17 +109,12 @@ class _KeepsWhatItCarried:
         return getattr(self._gh, name)
 
     def edit_pinned_state(self, issue: Issue, state: PinnedState, **options) -> PinnedEdit:
-        """The strict edit, sent through; what it moved over its comment kept where it landed, or may have.
-
-        What an edit whose answer was lost sent is kept too, for the totals' own write to read the comment afresh
-        against (`_short_of_sent`).
-        """
+        """The strict edit, sent through; what it moved over its comment kept where it landed, or may have."""
         edit = self._gh.edit_pinned_state(issue, state, **options)
         if issue.number != self._issue.number or edit not in _MAY_HAVE_LANDED:
             return edit
         moved = _moved(state.data, options.get("over") or {})
         if edit is PinnedEdit.UNCONFIRMED:
-            self._lost = dict(state.data)
             self.carried.update(moved - self._staging)
             return edit
         self.carried.update(moved)
@@ -141,52 +135,33 @@ class _KeepsWhatItCarried:
         _lays(tick, self._staged, left)
         _commit.takes_in(tick, self._read, left)
 
-    def adds_the_totals(self, gh) -> None:
+    def adds_the_totals(self, gh) -> bool:
         """Land the totals the tick staged, taken off its state for the block, in a guarded write of their own, once.
 
         Through `gh`, the block's caller's client that asks every reading, ahead of every other write of the block, so
         what that write reads moving is proved and an attempt put in place meanwhile holds whatever the block answers.
         Over the tick's reading, so the total another road reached meanwhile is added to rather than written over.
         Landed, they are taken in as the comment then carries them; refused, they are staged again behind the block,
-        for the record behind it, and so is each sent with the answer lost that the comment read afresh carries short
-        of what was sent (`_short_of_sent`); every other total sent with the answer lost is taken as sent, the tick's
-        state withheld, so nothing sends one twice.
+        for the record behind it. Whether the answer was lost: then they are kept off the state, neither taken in nor
+        sent again, the tick's state withheld.
         """
         tick = self._tick
         moving = sorted(self._totals - self.carried)
         if not moving:
-            return
+            return False
         reading = _readings.RecordsALostCheckout.as_read(tick)
         _lays(reading, self._staged, moving)
         commit = _commits.ReportCommit(gh, self._issue, reading)
         landed = commit.lands(reading, _TOTALS).status
         if landed not in _SENT:
-            return
-        if landed is _commit_models.CommitStatus.UNCONFIRMED:
-            moving = sorted(set(moving) - self._short_of_sent(gh, moving))
-            tick.withheld |= bool(moving)
-            _lays(tick, self._staged, moving)
-        else:
-            _lays(tick, reading.data, moving)
-        _commit.takes_in(tick, tick.data, moving)
+            return False
         self.carried.update(moving)
-
-    def _short_of_sent(self, gh, totals: list[str]) -> set[str]:
-        """Those of `totals` the comment read afresh through `gh` carries short of what the lost edit sent.
-
-        A total only grows, so one carried short carries none of what that edit added -- never landed, or written back
-        over by another road -- and is sent again, alone; one carried as high, or a comment that would not read, cannot
-        say whether another road added that much, and is taken as sent, never added twice.
-        """
-        fresh = _durable.durable_comment(gh, self._issue, self._tick)[0]
-        if fresh is None:
-            return set()
-        carried = {total: fresh.data.get(total) or 0 for total in totals}
-        sent = {total: self._lost.get(total) or 0 for total in totals}
-        return {
-            total for total, now in carried.items()
-            if isinstance(now, int | float) and now < sent[total]
-        }
+        if landed is _commit_models.CommitStatus.UNCONFIRMED:
+            tick.withheld = True
+            return True
+        _lays(tick, reading.data, moving)
+        _commit.takes_in(tick, tick.data, moving)
+        return False
 
     def _adds_again(self, field: str) -> bool:
         """Whether `field` as the tick staged it, sent again over a comment already carrying it, moves on: a total."""
@@ -225,17 +200,20 @@ def adds_the_totals(kept: _base_sync_models._AutoRebaseRecoveryContext, into: di
     client that asks every reading (`rewrite_recovery_readings.AsksEveryReading`), so each comment that write reads
     is read for movement under the evidence the tick holds (`rewrite_landing_retirement.moved_under`), kept in
     `into` for the caller's proof. False where any comment it read carries another attempt in place of the one `kept`
-    recovers -- however soon it is put back -- the tick's state withheld, for the caller to hold whatever evidence it
-    holds. A context nothing keeps took no totals off, and lands none.
+    recovers -- however soon it is put back -- or where its answer was lost, or one before was, the usage owed
+    unresolved by the attempt (`owed_events.owes_a_loss`): the tick's state withheld, for the caller to hold whatever
+    evidence it holds. A context nothing keeps took no totals off, and lands none.
     """
     keeper = kept.gh
     if not isinstance(keeper, _KeepsWhatItCarried):
         return True
     seen: list[PinnedState] = []
-    keeper.adds_the_totals(_readings.asks_every_reading(kept, seen.append).gh)
+    if keeper.adds_the_totals(_readings.asks_every_reading(kept, seen.append).gh):
+        owes_a_loss(kept, UNCONFIRMED_USAGE)
     for reading in seen:
         _retirement.moved_under(reading, tick=kept.state, into=into)
-    if all(_readings.stands_as_recovered(kept, read) for read in seen):
+    stands = all(_readings.stands_as_recovered(kept, read) for read in seen)
+    if stands and not loss_owed(kept, UNCONFIRMED_USAGE):
         return True
     kept.state.withheld = True
     return False
@@ -311,7 +289,7 @@ def _lands(
     return lands_the_retirement(context, write, asked, behind=landed)
 
 
-def _lays(state: PinnedState, spelled: Mapping[str, Any], fields: Iterable[str]) -> None:
+def _lays(state: PinnedState, spelled: Mapping[str, object], fields: Iterable[str]) -> None:
     """Lay each of `fields` on `state` as `spelled` spells it, dropping one it lacks; nothing is taken in as read."""
     for field in fields:
         state.data.pop(field, None)
@@ -321,7 +299,7 @@ def _lays(state: PinnedState, spelled: Mapping[str, Any], fields: Iterable[str])
 
 
 def _moved(
-    after: Mapping[str, Any], before: Mapping[str, Any],
+    after: Mapping[str, object], before: Mapping[str, object],
 ) -> set[str]:
     """Every field `after` spells otherwise than `before`, one that either lacks included."""
     spelled = _commit_models.spelled

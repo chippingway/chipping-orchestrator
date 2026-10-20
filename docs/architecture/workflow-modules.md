@@ -574,7 +574,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             write was refused outright (`rewrite_finish_events.py`); and, for the dormant recovery
                             proof alone, a checkout loss the proof read, owed by that very attempt -- its anchor and
                             the replay it recorded (`owes_a_loss`) -- and asked by every later proof of it without
-                            being dropped (`loss_owed`), since a write recording it can be undone by another road
+                            being dropped (`loss_owed`), since a write recording it can be undone by another road; and
+                            so is usage whose own write went unanswered (`UNCONFIRMED_USAGE`), which no total settles
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
                             taken by the funnel's `bounded=True`, by the implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked
@@ -2592,7 +2593,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the tick's state (`rewrite_recovery_rereads.py`); one that does not land records the reset
                             against the attempt
                             as read and proves the evidence read afresh with its move off the landing under each
-                            receipt held.
+                            receipt held, the caller's state withheld.
                             Asked ahead of a record, that proof keeps what the tick staged before it -- a gate's record
                             of the hold, or the tip the git owner stages back behind a reset git refused -- across
                             every write it lands (`rewrite_recovery_staging.py`), and behind one keeps it out of them. A
@@ -2686,9 +2687,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             then carries, read through the client that asks every reading, so what it reads moving is
                             proved and an attempt any reading of it carries in place of the one recovered holds the
                             caller, however soon it is put back and however little evidence is left to prove; a lost
-                            answer there taken as sent so it is never sent twice, save each total the comment read
-                            afresh carries short of what that write sent -- a total only grows, so it carries none of
-                            what that write added to it -- staged again alone, as a refusal's are, a refusal staged
+                            answer there neither taken as landed nor sent again, since no total read afresh says whose
+                            increment it holds or how much survived, but owed unresolved by the attempt
+                            (`owed_events.py`), holding the caller and every later one, a refusal staged
                             again for the record behind
                             (`adds_the_totals`), and a
                             context already kept handed back as it is, so

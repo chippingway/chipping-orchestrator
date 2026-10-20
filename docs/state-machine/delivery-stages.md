@@ -1604,10 +1604,10 @@ because there it is the claim that this stage has already rerouted rather than a
   the usage the tick staged rides none of the proof's writes, or the reset record's asked directly: it lands first,
   ahead of them, in a guarded write of its own read like every other reading of theirs -- what it reads moving proved,
   an attempt any of its readings carries in place of the one recovered holding them, however soon it is put back and
-  however little evidence is left to prove -- added to the total the comment then carries, never sent twice even where
-  that write's answer was lost, yet each total the comment read afresh carries short of what that write sent is sent
-  again, alone, by the write behind -- a total only grows, so it carries none of what that write added to it, however
-  another road added to it -- while the rest of the tick's staging, a gate's record among it, is sent again by the
+  however little evidence is left to prove -- added to the total the comment then carries; where that write's answer
+  was lost, no total read afresh says whose increment it holds or how much of it survived, so the usage is neither
+  taken as landed nor sent again but owed unresolved by the attempt, holding every later proof of it in this process,
+  while the rest of the tick's staging, a gate's record among it, is sent again by the
   write behind any whose answer was lost, nothing read into what survives on the comment
   (`rewrite_recovery_staging.keeps_the_staging`). A tip the tick read blank holds an unrecorded reset where another road
   put it back, movement the reset's own record read is retired before the reset goes on, evidence the reading behind
