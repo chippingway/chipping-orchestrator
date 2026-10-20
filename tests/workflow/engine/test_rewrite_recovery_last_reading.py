@@ -10,10 +10,11 @@ floor raised alone -- right as its retirement over a checkout gone answers, a us
 hold's record with nothing left to prove, a fresh attempt pinned or a usage total added to. The comment read last is
 laid over the tick's state (`rewrite_recovery_rereads.lays_what_moved`), so that state written whole behind puts none
 of it back, and the pending successor holds the reset, the fresh attempt the hold. Movement the reread behind a
-hold's record reads is retired before the hold answers; a successor that record took in holds it; another attempt the
-proof read and saw put back holds it, a checkout lost behind that reading recorded first; and a checkout the readiness
-proof reads gone from this host stays owed under refused writes. On a state alone, what the tick staged itself is kept
-over another road's move of it. Nothing is run again, pushed, or launched.
+hold's record reads is retired before the hold answers; a successor that record took in holds it; a run written back
+behind a park's record releasing the attempt stands outranked; another attempt the proof read and saw put back holds
+it, a checkout lost behind that reading recorded first; and a checkout the readiness proof reads gone from this host
+stays owed under refused writes. On a state alone, what the tick staged itself is kept over another road's move of it.
+Nothing is run again, pushed, or launched.
 """
 from __future__ import annotations
 
@@ -23,13 +24,14 @@ from contextlib import ExitStack
 from functools import partial
 from unittest.mock import patch
 
-from orchestrator.git.base_sync import attempts as _attempts, rewrite_facts as _rewrite_facts
+from orchestrator.git.base_sync import attempts as _attempts, rewrite_facts as _rewrite_facts, snapshot as _snapshot
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     owed_events as _owed_events,
     pinned_commit as _commit,
     rewrite_landing_retirement as _retirement,
     rewrite_recovery_parks as _parks,
+    verification_proof as _proof,
     verification_settlement_state as _settlement,
     verification_world as _world,
 )
@@ -48,6 +50,7 @@ from tests.workflow.engine import (
 _REPORT = "developer_report_current"
 _REVISION = "revision"
 _PENDING = "verification_evidence_pending"
+_CURRENT = "verification_evidence_current"
 _USAGE = "issue_total_tokens"
 _AWAY = "checkout-away"
 
@@ -68,6 +71,12 @@ _BEHIND_THE_RETIREMENT = handoff.Boundary(
 )
 _BEHIND_THE_HOLD = handoff.Boundary(
     "behind the hold's record", "edit_pinned_state", lambda _issue, staged, **_options: staged.get(_GATE) is not None,
+)
+
+# The park's record that releases the attempt, the first edit carrying no anchor.
+_BEHIND_THE_RELEASE = handoff.Boundary(
+    "behind the releasing park's record", "edit_pinned_state",
+    lambda _issue, staged, **_options: not staged.get(readings.KEY_PENDING_PUSH),
 )
 
 # The comment read afresh behind a hold's record, and the first reading a proof before a park takes.
@@ -228,6 +237,23 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(readings.pinned_records(self)[0], newer)
         self.assertEqual(self.pinned_fields(readings.KEY_REVISION_FLOOR), (newer.revision,))
 
+    def test_a_run_put_back_behind_a_releasing_park(self) -> None:
+        # The git owner's abort resets the checkout and parks, the park's record releasing the attempt and retiring the
+        # run beside it; right behind that record another road writes the run back and puts the checkout back on the
+        # head. The park's own write spent a revision past the run, so with no attempt left to guard it the run stands
+        # outranked, and the readiness proof of the comment as it stands refuses it.
+        head, run = self.settles_then_dies()
+        releases = _BEHIND_THE_RELEASE.moving(
+            self.gh.edit_pinned_state, partial(self._puts_the_run_back, self.pinned_fields(_CURRENT)[0], head),
+        )
+        with patch.object(self.gh, _BEHIND_THE_RELEASE.step, releases):
+            _snapshot._abort_recovery_unverified(guarded.recovery_context(self), "fetch failed")
+        fresh = self.gh.read_pinned_state(self.issue)
+        self.assertIsNone(fresh.get(readings.KEY_PENDING_PUSH))
+        self.assertEqual(readings.pinned_records(self)[1], run)
+        reading = _proof.ProofReading(self.gh, self._spec, self.issue, fresh)
+        self.assertFalse(_proof.current_evidence_verdict(reading).proved)
+
     def test_a_replacement_in_the_proof_holds(self) -> None:
         # Another road pins the landed head as a fresh anchor as the proof before a park first reads the comment, and
         # puts the attempt back right behind that reading: the proof read another attempt in place of the one it
@@ -244,6 +270,11 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             self.assertFalse(_parks.proves_before_a_park(context))
         self.assertTrue(context.state.withheld)
         self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (standing,))
+
+    def _puts_the_run_back(self, record: dict, head: str) -> None:
+        """Write `record` back as the current one, as another road would, and put the checkout back on `head`."""
+        _writes(self, {_CURRENT: record})
+        self._git("reset", "--quiet", "--hard", head, cwd=self._wt)
 
 
 class LossInTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):

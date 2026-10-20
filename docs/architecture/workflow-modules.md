@@ -2547,7 +2547,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the park staged as every auto-rebase park is -- or a notice already said taken in
                             instead (`rewrite_recovery_notices.py`) -- then landed through the guarded commit
                             (`report_commits.ReportCommit`) as `PARK` -- owning what the tick staged since its
-                            reading, the attempt a landed reset drops and the evidence retired beside it included,
+                            reading, the attempt a landed reset drops and the evidence retired beside it included --
+                            a revision spent past each run so released, so one another road writes back stays outranked
+                            (`rewrite_recovery_rereads.outranks_the_retired`) --
                             decided on the attempt, the park's flags, and the evidence records, and keeping every
                             other field as the fresh comment carries it -- so a report another road settled or a
                             transaction it recorded while the notice went out is kept rather than put back. A park
@@ -2665,7 +2667,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             pending under such a receipt holding the caller all the same; and evidence a landed clear
                             retired that the reading behind it carries put back retired again over it, read again and
                             asked once more where that does not land (`retires_again`), the clear's own write spending a
-                            revision past each run it retires (`outranks_the_retired`) so a run written back stays
+                            revision past each run it retires (`outranks_the_retired`), as a park's releasing the
+                            attempt does, so a run written back stays
                             outranked however that ends
     rewrite_recovery_staging.py
                             dormant, as the proof it serves is: what the tick staged before the proof a recovery park

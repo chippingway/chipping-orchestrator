@@ -1529,8 +1529,10 @@ because there it is the claim that this stage has already rerouted rather than a
   handed to no recovery context -- the reset recorded first by blanking the attempt's base tip in a write decided
   on the evidence records as the tick read them (`rewrite_recovery_parks.records_the_reset`) -- a tip already blank,
   null or absent, needing no field added -- a captured run abandoned and settled evidence invalidated whole in the
-  write that releases the attempt, or either kept whole beside it with nothing released where history has no room
-  (`rewrite_landing_retirement.retires_over_the_reset`), the proof before a park that keeps the
+  write that releases the attempt, a revision spent past each in that write so one written back with no attempt left
+  stays outranked (`rewrite_recovery_rereads.outranks_the_retired`), or either kept whole beside it with nothing
+  released where history has no room (`rewrite_landing_retirement.retires_over_the_reset`), the proof before a park
+  that keeps the
   attempt (`rewrite_recovery_parks.proves_before_a_park`) -- a captured run and settled evidence proved there, each
   whatever the other's proof answered, evidence another road settled for the head beside a captured run alone, or under
   a receipt movement was already read under -- the tick holding no evidence at all among it -- taken in from the comment

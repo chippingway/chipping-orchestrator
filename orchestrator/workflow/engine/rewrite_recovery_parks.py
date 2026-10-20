@@ -221,7 +221,12 @@ def lands_a_park(context: _base_sync_models._AutoRebaseRecoveryContext, message:
     never landed, the notice the conversation carries is taken in instead,
     nothing said twice (`rewrite_recovery_notices.parks_awaiting_human`) --
     and what lands is laid over that state, so whatever the recovery does behind
-    it starts from the comment as it now stands. Behind it, whether it landed
+    it starts from the comment as it now stands. A park that releases the
+    attempt over a landed reset, retiring the evidence beside it, spends a
+    revision past each run it retires in that very write
+    (`rewrite_recovery_rereads.outranks_the_retired`), so a run another road
+    writes back behind it, no attempt left to guard it, stays outranked for
+    every reader. Behind it, whether it landed
     or not, evidence the park leaves standing beside the attempt is proved once
     more over the comment read afresh (`rewrite_landing_retirement.retires_unproved`),
     so a report another road settled while the notice was posted is read
@@ -251,6 +256,7 @@ def lands_a_park(context: _base_sync_models._AutoRebaseRecoveryContext, message:
     if state.synced is None:
         context.gh.write_pinned_state(context.issue, state)
         return
+    outranks_the_retired(state, RecordsALostCheckout.as_read(state))
     _lands_then_proves(context, PARK, "park")
 
 

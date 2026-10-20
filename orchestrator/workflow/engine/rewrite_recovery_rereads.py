@@ -16,8 +16,8 @@ the caller's proof, the comment read again behind it, so it stands however soon 
 record itself took in pending under such a receipt holds the caller all the same. Behind a landed clear, which took
 the attempt guarding the evidence it retired with it, evidence that reading carries put back under a receipt the clear
 retired is retired again over it, in a write of its own (`retires_again`); the clear's own write spent a revision past
-each run it retired (`outranks_the_retired`), so a run written back after that, or past a retirement refused, stays
-outranked for every reader with no attempt left to guard it.
+each run it retired (`outranks_the_retired`), as a park's that releases the attempt does, so a run written back after
+that, or past a retirement refused, stays outranked for every reader with no attempt left to guard it.
 
 Dormant, as those records are: no recovery context the workflow builds reaches it.
 """
@@ -101,10 +101,11 @@ def stands_behind(
 def outranks_the_retired(state: PinnedState, read: PinnedState) -> None:
     """Stage on `state` a revision spent past each run `read` carries for the landed head that `state` no longer does.
 
-    For a clear, whose write retires a run -- captured, or settled -- with the attempt that guarded it: the revision
-    floor raised past that run in the very write (`rewrite_finish_outranking.spends_past`), so every reader reads it
-    outranked however soon another road writes it back, and whatever later write of the clear's own is refused. `read`
-    is the comment as the tick read it; a run `state` still carries is left as it is.
+    For a clear, or a park releasing the attempt over a landed reset, whose write retires a run -- captured, or
+    settled -- with the attempt that guarded it: the revision floor raised past that run in the very write
+    (`rewrite_finish_outranking.spends_past`), so every reader reads it outranked however soon another road writes it
+    back, and whatever later write of the caller's own is refused. `read` is the comment as the tick read it; a run
+    `state` still carries -- a park that keeps the attempt and its evidence -- is left as it is.
     """
     standing = {
         getattr(record, "receipt", None)
