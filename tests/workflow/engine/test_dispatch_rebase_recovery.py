@@ -10,7 +10,8 @@ and the boundary pinned here is that the tick stops there -- under a park its
 own stage left as well, which the refresh answers the anchor beneath rather
 than the handler releasing it -- a checkout that is not on disk is restored
 rather than handed to one, and a stage the refresh does not drive is answered
-on the refresh's own ineligible road.
+on the refresh's own ineligible road -- a clear there landed in a write of its
+own, which the next tick reads back where it was refused or its answer lost.
 """
 from __future__ import annotations
 
@@ -64,6 +65,11 @@ _FAILED_BASE_FETCH = MagicMock(
 
 # The pull request branch fetch a recovery takes before it reads the head.
 _FETCHED_BRANCH = MagicMock(returncode=0, stderr="")
+
+# How the dispatcher's clear of a relabelled anchor goes wrong, beside the
+# client's failure that does it and whether the clear landed: refused
+# outright, or landed with its answer lost.
+_UNLANDED_CLEARS = (("refused", "refused", False), ("landed, its answer lost", "lost", True))
 
 # A park its own stage left, which only that stage's handler takes down.
 STAGE_PARK = "review_cap"
@@ -268,6 +274,36 @@ class DeferredRecoveryTest(_InterruptedRebaseCase):
             _worktree_creation, "_ensure_pr_worktree", refused,
         ), self.assertLogs("orchestrator.base_sync", level="ERROR"):
             self.assertTrue(self._stops(self.checkout / "gone"))
+
+
+
+class UnlandedClearTest(_InterruptedRebaseCase):
+    """The dispatcher's clear of a relabelled anchor is a write of its own, read back by the next tick."""
+
+    def test_the_next_tick_reads_the_clear(self) -> None:
+        # Relabelled off the refreshed stages over a checkout still on the
+        # anchor, and the dispatcher's clear is refused or lands with its
+        # answer lost: the tick stops either way. The next tick reads the
+        # comment afresh, and an anchor still standing is cleared then.
+        for unlanded, failure, lands in _UNLANDED_CLEARS:
+            with self.subTest(unlanded=unlanded):
+                standing = self._stops_unlanded(failure)
+
+                self.assertEqual(standing, None if lands else ANCHOR)
+                self._stops(label=RESOLVING)
+                cleared = self.gh.pinned_data(ISSUE)
+                self.assertIsNone(cleared.get(ANCHOR_KEY))
+                self.assertFalse(cleared.get("awaiting_human"))
+
+    def _stops_unlanded(self, failure: str) -> str | None:
+        """Stop a tick whose clear the client answers with `failure`; the anchor the comment then carries."""
+        self._opens(RESOLVING)
+        self._seed()
+        failing = getattr(self.gh.pinned_failures, failure)
+        failing.add(ISSUE)
+        self.assertTrue(self._stops(label=RESOLVING))
+        failing.discard(ISSUE)
+        return self.gh.pinned_data(ISSUE).get(ANCHOR_KEY)
 
 
 if __name__ == "__main__":

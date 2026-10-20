@@ -153,6 +153,14 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # one thing only: the shape a recorded commit is held to. Spelled twice, a
 # comment would come to accept what every other reader in the tree refuses.
 #
+# Every auto-rebase park, and a recovery's clear, abandonment, or record of a
+# gate's hold, lands as the attempt's checkpoint through the tick-state guarded
+# commit, decided on the attempt and the verification evidence it guards, and
+# the reset a park's tail makes is asked first whether the comment still reads
+# them so: the commit, its fresh reading, and its outcomes are the workflow's,
+# and so are the names of the evidence records, which a second spelling here
+# could let drift from their owner's.
+#
 # A pull request that is over ends an attempt's whole handoff in one write --
 # the receipt, the debt, the rotation, and the rollback's drop -- and reports a
 # settlement the sinks never got, which is the terminal handoff's own.
@@ -164,6 +172,12 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 _CALL_TIME_HOPS = MappingProxyType({
     f"{_BASE_SYNC}.attempt_records": (
         f"{PACKAGE}.workflow.late_split.formats",
+    ),
+    f"{_BASE_SYNC}.checkpoints": (
+        f"{PACKAGE}.workflow.engine.pinned_commit",
+        f"{PACKAGE}.workflow.engine.pinned_commit_models",
+        f"{PACKAGE}.workflow.engine.report_commits",
+        f"{PACKAGE}.workflow.engine.verification_records",
     ),
     f"{_BASE_SYNC}.conflicts": (_COMMENTS,),
     f"{_BASE_SYNC}.terminal_handoff": (

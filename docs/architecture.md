@@ -231,7 +231,8 @@ versus installed layout that picks the `.env`, which a setup asks before any con
 nothing beyond each other.
 Over every scope, the only other reaches
 left are declared one by one in `tests/repository/test_layering.py`: three base-sync owners posting a notice or a park
-through the workflow's comment and guard owners, deferred to a call because at module scope they would be a cycle. An
+through the workflow's comment and guard owners, and the attempt's checkpoint owner landing a park's record through
+the workflow's guarded commit, deferred to a call because at module scope they would be a cycle. An
 undeclared hop fails wherever it is written, and a declared one fails if it is bound at module scope after all. The
 launch forms compose each other and are reached from nothing below them at any scope but those two install facts,
 and no import anywhere is relative, because a relative target names its module by position and no layer can be read
@@ -497,7 +498,8 @@ of a round a reply bought (`review_handoffs.py`, `review_launch_park.py`, `revie
 write of an approval's tail -- its verdict's retirement, the squash's own records, the handoff with the evidence it
 carries or invalidates, a failed squash's park, and the handoff's end behind the label (`squash_writes.py` beside
 them) -- are the roads that commit through it so far, and so is the finish of every base rewrite that landed,
-whichever road reached it (`workflow/engine/rewrite_finish_writes.py`). It derives a candidate
+whichever road reached it (`workflow/engine/rewrite_finish_writes.py`), and every auto-rebase park and a recovery's
+clear, abandonment, and record of a gate's hold (`git/base_sync/checkpoints.py`). It derives a candidate
 over a fresh reading of the comment its caller captured, refuses with nothing written where that comment or a record
 the decision rests on moved, or where another writer moved a field the caller is changing, measures the whole rendered
 candidate against the comment limit before any dependent effect, and lands through the strict in-place edit on
@@ -1069,9 +1071,17 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   behind a guarded record of its own on the attempt (`pending_auto_base_rebase_relabelled`), read beside the label,
   and beside a label the issue already wore against the audit log where one is configured. No recovery road asks
   the readiness primitives: a recovery holds, parks, clears, and resets an interrupted attempt with the captured-only
-  answers above and writes every park whole, since the issue writer claim its caller takes before reading the issue
-  keeps every other orchestrator writer off that issue through the recovery's final write. It runs under its
-  caller's issue writer claim.
+  answers above. The issue writer claim its caller takes before reading the issue keeps every other orchestrator
+  writer off that issue through the recovery's final write, so the recovery's own writes are checkpoints of one
+  sequence: every auto-rebase park, and a recovery's clear, its abandonment of a captured transaction
+  (`workflow/engine/rewrite_landing_moved.py`), and its record of a gate's hold, lands through the tick-state guarded
+  commit over the reading the tick last confirmed, carrying what the tick staged since, decided on the attempt and
+  its evidence (`git/base_sync/checkpoints._lands_the_checkpoint`), and the hard reset a park's tail makes is taken
+  only once the comment, read afresh, still spells them so (`checkpoints._still_owns_the_attempt`). Only a clear
+  that landed lets the tick's rebase go on. A write refused, one whose answer was lost, and an attempt or evidence
+  record found moved without the recovery stop it there -- before any reset, push, or relabel behind it -- logged,
+  with nothing put back, adopted, or repaired, and the next tick's reading takes up whatever the comment then
+  records. It runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

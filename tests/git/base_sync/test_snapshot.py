@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -61,33 +62,90 @@ class AbortRecoveryUnverifiedTest(unittest.TestCase):
         self.assertIn(f"#{fixtures.PR_NUMBER}", message)
 
 
+# The anchor an out-of-band edit repoints the attempt to.
+MOVED_ANCHOR = "0dd0a5c4" * 5
+
+# The two clears, beside whether a landed one lets the tick's rebase go on.
+CLEARS = (
+    ("an ineligible label", snapshot._clear_ineligible_recovery, False),
+    ("an unmoved head", snapshot._clear_unchanged_recovery, True),
+)
+
+# How a clear's write can fail to land, beside the anchor the comment then
+# carries: refused before anything landed and landed with its answer lost, as
+# the client names each, and over an anchor the comment came to spell otherwise
+# without the recovery, which is kept as it stands.
+UNLANDED = (
+    ("refused", "refused", fixtures.PRE_REBASE_SHA),
+    ("landed, its answer lost", "lost", None),
+    ("the attempt moved", MOVED_ANCHOR, MOVED_ANCHOR),
+)
+
+
+def _breaks(context, how: str) -> None:
+    """Fail `context`'s next pinned-comment edit as the client names `how`, or repoint the comment's anchor to it.
+
+    The anchor is repointed after the tick read the comment, by no write of
+    the recovery's.
+    """
+    if how in {"refused", "lost"}:
+        getattr(context.gh.pinned_failures, how).add(fixtures.ISSUE)
+        return
+    moved = context.gh.read_pinned_state(context.issue)
+    moved.set(fixtures.KEY_PENDING_PUSH_SHA, how)
+    context.gh.write_pinned_state(context.issue, moved)
+
+
 class ClearRecoveryAnchorTest(unittest.TestCase):
-    """Both no-op exits drop the anchor and publish it immediately."""
+    """Both no-op exits drop the anchor in a write of their own, and only a landed one lets the rebase go on."""
 
-    def test_ineligible_label_clears_anchor(self) -> None:
-        context = self._cleared(snapshot._clear_ineligible_recovery, True)
-
+    def test_a_landed_clear_drops_the_anchor(self) -> None:
         # An operator relabelled away from the refresh-driven stages, so no
-        # rebase runs this tick either.
-        self.assertEqual(context.gh.write_state_calls, 1)
+        # rebase runs this tick; HEAD never left the anchor, so the caller
+        # continues into the normal rebase flow on the same tick -- with the
+        # tick's state reading as the comment the clear landed on.
+        for exit_, clear, goes_on in CLEARS:
+            with self.subTest(exit=exit_):
+                context = self._context()
 
-    def test_unmoved_head_clears_and_falls_through(self) -> None:
-        # HEAD never left the anchor, so there is nothing to recover and the
-        # caller continues into the normal rebase flow on the same tick.
-        self._cleared(snapshot._clear_unchanged_recovery, False)
+                self.assertIs(clear(context), not goes_on)
 
-    def _cleared(self, clear, expected: bool):
+                published = context.gh.pinned_data(fixtures.ISSUE)
+                self.assertIsNone(published.get(fixtures.KEY_PENDING_PUSH_SHA))
+                self.assertEqual(json.loads(context.state.synced), published)
+                self.assertEqual(context.gh.write_state_calls, 1)
+
+    def test_an_unlanded_clear_holds_the_tick(self) -> None:
+        # A clear that was refused, whose answer was lost, or that met an
+        # attempt moved without the recovery owns the tick, so no rebase
+        # pins and pushes behind it. The tick's state keeps the attempt and
+        # is withheld from any whole-state write; the comment keeps whatever
+        # it carries, for the next tick to read.
+        for exit_, clear, _goes_on in CLEARS:
+            with self.subTest(exit=exit_):
+                self._holds(clear)
+
+    def _holds(self, clear) -> None:
+        """Ask `clear` over each way its write fails to land, and read back what it held."""
+        for unlanded, breaks, anchored in UNLANDED:
+            with self.subTest(unlanded=unlanded):
+                context = self._context(breaks)
+
+                with self.assertLogs("orchestrator.base_sync", "WARNING"):
+                    self.assertTrue(clear(context))
+
+                standing = context.gh.pinned_data(fixtures.ISSUE).get(fixtures.KEY_PENDING_PUSH_SHA)
+                self.assertEqual(standing, anchored)
+                self.assertEqual(context.state.get(fixtures.KEY_PENDING_PUSH_SHA), fixtures.PRE_REBASE_SHA)
+                self.assertTrue(context.state.withheld)
+
+    def _context(self, breaks: str | None = None):
+        """A recovery context over an attempt that pinned its anchor and nothing else, `breaks` done to it."""
         context = fixtures._recovery_context(
             pending_auto_base_rebase_push_sha=fixtures.PRE_REBASE_SHA,
         )
-
-        self.assertIs(clear(context), expected)
-
-        self.assertIsNone(
-            context.gh.pinned_data(fixtures.ISSUE).get(
-                fixtures.KEY_PENDING_PUSH_SHA,
-            ),
-        )
+        if breaks is not None:
+            _breaks(context, breaks)
         return context
 
 

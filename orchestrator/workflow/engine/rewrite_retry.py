@@ -60,6 +60,7 @@ before the issue is read and holds through the route.
 from __future__ import annotations
 
 from orchestrator.git.base_sync import (
+    checkpoints as _checkpoints,
     outcomes as _outcomes,
     recovery_push as _recovery_push,
     replay_transfer_parks as _replay_transfer_parks,
@@ -146,9 +147,11 @@ def _publishes(
 
     A gate that held the candidate -- parked it, or handed it to an
     adjudication -- owns the issue from there, so nothing is announced or
-    routed; its park's flags are written as the gate left them, and the
-    attempt is offered to the adjudication the hold may have left
-    (`rewrite_takeover`), whose proof is what tells that hold from a park.
+    routed; its park's flags are landed as the gate left them, as the
+    attempt's checkpoint (`git/base_sync/checkpoints._lands_the_checkpoint`), and
+    only once that write landed is the attempt offered to the adjudication
+    the hold may have left (`rewrite_takeover`), whose proof is what tells
+    that hold from a park.
 
     The reply that released this recovery, where it only asked for the
     retry, is staged read before the gate, so it rides the gate's own write --
@@ -169,8 +172,8 @@ def _publishes(
     if published.refused:
         return _replay_transfer_parks._park_refused_permit_recovery(context, completed)
     if published.held:
-        context.gh.write_pinned_state(context.issue, context.state)
-        _takeover.takes_over(context.gh, context.issue, context.state)
+        if _checkpoints._lands_the_checkpoint(context.gh, context.issue, context.state, "recording the gate's hold"):
+            _takeover.takes_over(context.gh, context.issue, context.state)
         return True
     landing = push.landing
     if landing is None or not published.landed:

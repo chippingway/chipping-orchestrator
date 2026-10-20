@@ -76,7 +76,10 @@ verdict an earlier tick left waiting (`stages/validating/review_handoffs.py`,
 tail, its squash's own included (`stages/validating/squash_writes.py`). A
 landed base rewrite's finish is declared over them too
 (`rewrite_finish_writes`), which every landing lands through -- the ordinary
-publication of a clean rebase, and both roads of its crash recovery.
+publication of a clean rebase, and both roads of its crash recovery -- and so
+is every auto-rebase park and a recovery's clear and record of a gate's hold,
+decided on the attempt and its evidence
+(`git/base_sync/checkpoints._lands_the_checkpoint`).
 """
 from __future__ import annotations
 

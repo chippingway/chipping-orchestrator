@@ -213,8 +213,12 @@ beside it, and asks the primitives that policy adds -- retiring the same receipt
 announcement of the landing taken in and a refused write retried, and recording movement history has no room for under
 the evidence's own receipt, beside restoring an attempt a retirement nobody confirmed took, which the coordinator asks
 (`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_unconfirmed.py`). No recovery road asks
-them: the recovery abandons only the transaction a finish captured and writes every park whole, under the issue writer
-claim the base refresh or the dispatcher holds from before its reading through its final write. A tick lost behind
+them: the recovery abandons only the transaction a finish captured, under the issue writer claim the base refresh or
+the dispatcher holds from before its reading through its final write, and lands every park, clear, and record of a
+gate's hold -- and its abandonment of a captured transaction -- as a checkpoint over the reading it last confirmed,
+decided on the attempt and its evidence (`git/base_sync/checkpoints._lands_the_checkpoint`), and resets the checkout
+only once the comment still spells those records so: a write refused or never confirmed, or an attempt or evidence
+record found moved without it, stops the recovery with nothing put back, for the next tick to read. A tick lost behind
 the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
 checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
 recovery, which reads what was done off the mark, the pull request, the event stream, and the label
@@ -659,8 +663,9 @@ and runs on into the agent it was holding back, and a timeout, a reading nobody 
 is likewise ended by a handler the hold keeps back, as is a developer report recorded and not yet settled by the
 report reconciliation behind it. So beside an anchor none of them keeps the refresh away, and the
 refresh answers the anchor under them with the recovery alone, no reply spent, leaving each for its owner. A recovery
-that takes the anchor down and lets the tick go on — an attempt that never started cleared, or a landed head the base
-advanced past again retired unrouted — has the refresh's whole selection asked again before the rebase behind it
+that takes the anchor down and lets the tick go on — an attempt that never started cleared in a write that landed, or
+a landed head the base advanced past again retired unrouted — has the refresh's whole selection asked again before
+the rebase behind it
 (`workflow/engine/base_rewrite.py`), so each of them holds that rebase as it holds an unanchored branch: a report
 recorded and not yet settled is settled on the head it is about first, and a reply the recovery did not spend is left
 for the rebase that follows. A pull

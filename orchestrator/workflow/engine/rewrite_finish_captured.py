@@ -70,8 +70,9 @@ was refused, the settlement left standing.
 Only a record about the landed head is read here: while the attempt stands the
 anchor holds every other road, so nothing but a finish of this landing records
 evidence for that head. The recovery's answer to a landing read moving before
-any finish is reached is `rewrite_landing_moved`, which abandons through the
-same last word.
+any finish is reached is `rewrite_landing_moved`, which proves a transaction
+again here (`proved_again`) and abandons it over the movement already read in
+a checkpoint of the recovery's own rather than through this last word.
 """
 from __future__ import annotations
 

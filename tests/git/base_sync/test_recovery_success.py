@@ -4,12 +4,16 @@
 
 Each owes the head it lands the report debt a clean finish records, and none
 may reach the route with it unrecorded -- nor lose it to a base that moved
-again under the recovery.
+again under the recovery. None is taken over an attempt the comment came to
+record otherwise behind the refresh's reading, nor is a merged pull request's
+handoff ended over one: that record stands as it moved.
 """
 
 from __future__ import annotations
 
 import unittest
+from functools import partial
+from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from tests.git.base_sync.refresh_scenarios import (
@@ -40,6 +44,7 @@ from tests.git.base_sync.report_debt_test_support import (
     stands_on,
 )
 from tests.support.fakes import FakeGitHubClient, FakePRRef
+from tests.workflow.interleaving import _RacesPastTheCall
 
 ISSUE = 7
 
@@ -69,6 +74,25 @@ METHOD_FIELD = "method"
 KEY_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
 
 DIED = "the process died before the tick returned"
+
+# The verification evidence floor the attempt's record is seeded with, and
+# what it and the anchor come to read by no write of the recovery's.
+KEY_REVISION_FLOOR = "verification_evidence_revision"
+
+_MOVED = MappingProxyType({KEY_PENDING_PUSH_SHA: "0dd0a5c4" * 5, KEY_REVISION_FLOOR: 3})
+
+# What the recovery logs where it holds a road over records that moved: the
+# roads off a completed comparison, and the end of a terminal handoff.
+_COMPARED = "holding rather than taking the road the comparison chose"
+
+_ENDED = "holding rather than ending the handoff of a pull request that is over"
+
+# Each road the recovery would take, beside what it holds with: the retry of an
+# unpushed replay, the finish of a landed push, and a merged handoff's end.
+_ROADS = (("_retries", _COMPARED), ("_finishes", _COMPARED), ("_ends", _ENDED))
+
+# The git call that resets the checkout.
+_RESET = "reset"
 
 
 class CrashRecoverySuccessUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCase):
@@ -302,6 +326,76 @@ class ForeignUpdateReportDebtUnitTest(_InterruptedFinishFixture, unittest.TestCa
             (standing, PARK_PUSH_FAILED),
         )
         self.assertNotIn((ISSUE, LABEL_VALIDATING), self.gh.label_history)
+
+
+class MovedRecordRecoveryUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCase):
+    """An attempt record moved behind the refresh's reading stops every road that would write or push over it."""
+
+    def test_no_road_moves_over_it(self) -> None:
+        # Right behind the refresh's reading, the comment comes to spell the
+        # attempt's anchor and evidence floor otherwise, by no write of the
+        # recovery's -- an invariant failure under the issue writer claim.
+        # Whether the recovery would retry the unpushed replay, finish the
+        # landed push, or end a merged pull request's handoff, nothing is
+        # pushed, reset, relabelled, or announced, and the comment keeps both
+        # records as they moved.
+        for road, held in _ROADS:
+            with self.subTest(road=road), self.assertLogs("orchestrator.base_sync", "WARNING") as logged:
+                scenario = getattr(self, road)()
+
+                self._runs_moved(scenario)
+
+                self.assertIn(held, "\n".join(logged.output))
+                self.assertEqual(self._made(scenario), ((), False, [], [], _MOVED))
+
+    def _retries(self):
+        """A replay the dead tick never pushed, over a pull request still on the anchor; the scenario."""
+        self._seeds(None)
+        return _scenario(
+            dirty=MagicMock(return_value=[]),
+            rebase=MagicMock(),
+            head_sha=MagicMock(return_value=REBASED_SHA),
+            ahead_behind=MagicMock(return_value=_diverged(1, 0)),
+            fetch=MagicMock(return_value=_git_result()),
+            push=MagicMock(return_value=True),
+            git=MagicMock(return_value=_git_result(stdout=UP_TO_DATE_STDOUT)),
+            hardened=MagicMock(side_effect=_RemoteHeadGit(BEFORE_SHA)),
+        )
+
+    def _finishes(self):
+        """A push the dead tick landed, the pull request already on it; the scenario."""
+        self._seeds(FakePRRef(sha=REBASED_SHA))
+        return _landed_recovery_scenario(REBASED_SHA)
+
+    def _ends(self):
+        """A push the dead tick landed, the pull request merged on it since; the scenario."""
+        self._seeds(FakePRRef(sha=REBASED_SHA), merged=True)
+        return _landed_recovery_scenario(REBASED_SHA)
+
+    def _seeds(self, head: FakePRRef | None, *, merged: bool = False) -> None:
+        """Start over on the interrupted attempt and its evidence floor, its pull request standing on `head`."""
+        self.gh = FakeGitHubClient()
+        self._seed_pr_issue(**_pending_attempt(REBASED_SHA), **{KEY_REVISION_FLOOR: 2})
+        if head is not None:
+            self._add_pr(merged=merged, head=head)
+
+    def _made(self, scenario) -> tuple:
+        """The pushes `scenario` made and whether it reset, the relabels and events filed, and the moved records."""
+        pushes = tuple(scenario[PUSH_PATCH].call_args_list)
+        ran = {called.args[0] for called in scenario["hardened"].call_args_list}
+        resets = _RESET in ran
+        durable = self.gh.pinned_data(ISSUE)
+        kept = {field: durable.get(field) for field in _MOVED}
+        return pushes, resets, self.gh.label_history, self.gh.recorded_events, kept
+
+    def _runs_moved(self, scenario) -> None:
+        """Run `scenario`, the attempt's records moved on the comment right behind the refresh's reading."""
+        moved = self.gh.read_pinned_state(self.gh.get_issue(ISSUE))
+        moved.data.update(_MOVED)
+        moves = partial(self.gh.write_pinned_state, self.gh.get_issue(ISSUE), moved)
+        with patch.object(self.gh, "read_pinned_state", _RacesPastTheCall(self.gh.read_pinned_state, 1, moves)):
+            scenario.run(self)
+
 
 if __name__ == "__main__":
     unittest.main()

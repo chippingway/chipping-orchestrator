@@ -15,8 +15,9 @@ found already landed -- hand it to the one finish every landing gets
   park and nothing fetched (`git/base_sync/replay_cleanup.py`).
 - The branch is fetched and the checkout read (`git/base_sync/snapshot.py`).
   A checkout still standing on the anchor is the unstarted attempt's clear,
-  which lets this tick's rebase go on wherever the refresh's selection, asked
-  again with the anchor down, lets it (`base_rewrite`), or the rollback's park.
+  which -- once its write landed, and only then -- lets this tick's rebase go
+  on wherever the refresh's selection, asked again with the anchor down, lets
+  it (`base_rewrite`), or the rollback's park.
 - Before any road a snapshot it read chooses is taken, the verification
   transaction an earlier finish of the attempt captured -- the one under the
   receipt it put on the attempt, which a finish records before it announces
@@ -49,6 +50,12 @@ found already landed -- hand it to the one finish every landing gets
   moved; one whose abandonment did not land is not parked at all.
 - The remote head completes the comparison, and how far the transfer beside
   the attempt got is read off the comment (`git/base_sync/transfers.py`).
+  Every road off that comparison opens on a write or a push decided on the
+  attempt -- the gate's records, a settled transfer's report, the push itself
+  -- so the comment is asked first whether it still spells the attempt and its
+  evidence as the tick last confirmed them
+  (`git/base_sync/checkpoints._still_owns_the_attempt`); one that does not
+  holds the tick with nothing pushed, reset, relabelled, or written.
 - A remote standing on the checkout is a push that already landed, and the
   road that finishes it without pushing again is the workflow's own
   (`rewrite_landed`).
@@ -65,7 +72,12 @@ found already landed -- hand it to the one finish every landing gets
 
 Run under the issue writer claim the base refresh (`base_refresh`) takes
 before the issue is read and holds through the route; nothing here asks for
-one of its own.
+one of its own. That claim is what makes the recovery's own writes -- an
+abandonment, a clear, a park, a gate's hold -- checkpoints of one sequence:
+each lands over the reading the last one confirmed
+(`git/base_sync/checkpoints._lands_the_checkpoint`), and one that did not land,
+or met an attempt or evidence record moved without the recovery, stops the
+road with nothing put back for the next tick's reading to take up.
 """
 from __future__ import annotations
 
@@ -82,6 +94,7 @@ from orchestrator.git.base_sync import (
     snapshot as _snapshot,
     transfers as _transfers,
 )
+from orchestrator.git.base_sync.checkpoints import _still_owns_the_attempt
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseDecision,
@@ -156,8 +169,9 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     anchor down, so the refresh's selection is asked again ahead of that
     rebase.
 
-    Every road that resets the checkout drops the attempt in one write, and
-    the recovery's answer to that movement rides it: the context the roads
+    Every road that resets the checkout drops the attempt in one write -- the
+    park's record, landed as the attempt's checkpoint -- and the recovery's
+    answer to that movement rides it: the context the roads
     are handed carries `rewrite_landing_moved.abandons_over_the_reset`, which
     the git owner asks once a reset landed and before the drop -- and the
     proof every park that keeps the attempt asks first
@@ -230,13 +244,24 @@ def _routes_the_comparison(
     fail into an abort whose reset fails too, which would park the attempt
     with the transaction kept over a checkout already read moving -- and then
     the remote head the completion read.
+
+    Each road from there opens on a write or a push decided on the attempt,
+    some of them -- the gate's, a settled transfer's report -- writing the
+    tick's state whole, which would put the tick's reading back over an
+    attempt or evidence record moved by no write of this recovery's. So the
+    comment is asked once more whether it spells those records as the tick
+    last confirmed them, and one that does not holds the tick, the comment
+    left as it stands (`git/base_sync/checkpoints._still_owns_the_attempt`).
     """
     if not _landing_moved.abandons_off_the_landing(context, observed):
         return True
     completed = _snapshot._complete_recovery_snapshot(context, observed)
     if completed is None:
         return True
-    if not _landing_moved.abandons_off_the_landing(context, completed):
+    owned = _landing_moved.abandons_off_the_landing(context, completed) and _still_owns_the_attempt(
+        context.gh, context.issue, context.state, "taking the road the comparison chose",
+    )
+    if not owned:
         return True
     carried = _transfers._carried_by(context, completed.head)
     if completed.local_head and completed.local_head == completed.remote_head:

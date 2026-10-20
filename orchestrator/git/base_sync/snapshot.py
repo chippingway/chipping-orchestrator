@@ -10,12 +10,20 @@ Every read that cannot produce both of those SHAs -- a failed fetch, a failed
 or empty `rev-parse` -- resolves to the same fail-closed answer: reset onto the
 anchor and park. A recovery that guessed instead would force-push over a PR
 head it never saw.
+
+The two clears a recovery ends an attempt with here -- under a label the
+refresh no longer drives, and over a checkout that never left the anchor --
+land as the attempt's checkpoint (`checkpoints._lands_the_checkpoint`), staged on
+a copy of the tick's state, so that state drops the attempt only once the
+comment has. Only a clear that landed lets the tick's ordinary rebase go on.
 """
 from __future__ import annotations
 
+import copy
+
 from orchestrator import config
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.base_sync import attempts, persistence
+from orchestrator.git.base_sync import attempts, checkpoints, persistence
 from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoveryContext,
     _AutoRebaseRecoverySnapshot,
@@ -28,6 +36,7 @@ from orchestrator.git.base_sync.state import (
 from orchestrator.git.publication import probes as publication_probes
 from orchestrator.git.verification import probes as verification_probes
 from orchestrator.git.worktrees import naming as _naming
+from orchestrator.github.pinned_state import PinnedState
 
 
 def _abort_recovery_unverified(
@@ -54,15 +63,19 @@ def _abort_recovery_unverified(
 def _clear_ineligible_recovery(
     context: _AutoRebaseRecoveryContext,
 ) -> bool:
-    """Clear an interrupted-rebase anchor after an operator relabel."""
-    attempts._clears_the_attempt(context.state)
-    context.gh.write_pinned_state(context.issue, context.state)
-    log.info(
-        "issue=#%d auto-rebase recovery: label %r is no longer in "
-        "the refresh-driven set; clearing pending flag",
-        context.issue.number,
-        context.label,
-    )
+    """Clear an interrupted-rebase anchor after an operator relabel; the recovery owns the tick either way.
+
+    Nothing runs behind it on this tick whether or not the clear lands
+    (`_clears`): one that did not leaves the anchor standing, and the next
+    tick answers it again over whatever the comment then records.
+    """
+    if _clears(context):
+        log.info(
+            "issue=#%d auto-rebase recovery: label %r is no longer in "
+            "the refresh-driven set; cleared pending flag",
+            context.issue.number,
+            context.label,
+        )
     return True
 
 
@@ -107,17 +120,43 @@ def _fetch_recovery_snapshot(
 def _clear_unchanged_recovery(
     context: _AutoRebaseRecoveryContext,
 ) -> bool:
-    """Clear an anchor when HEAD never moved beyond the pre-rebase SHA."""
-    attempts._clears_the_attempt(context.state)
-    context.gh.write_pinned_state(context.issue, context.state)
+    """Clear an anchor when HEAD never moved beyond the pre-rebase SHA; whether the recovery owns the tick.
+
+    False -- the ordinary rebase goes on from the anchor on this same tick --
+    only once the clear has landed (`_clears`). That rebase pins an anchor of
+    its own and pushes behind it, so a clear refused or never confirmed holds
+    the tick instead: the attempt the comment still records, or may, is the
+    next tick's to answer.
+    """
+    if not _clears(context):
+        return True
     log.info(
         "issue=#%d auto-rebase recovery: local HEAD matches pre-"
-        "rebase SHA `%s`; clearing flag and falling through to "
+        "rebase SHA `%s`; cleared flag and falling through to "
         "the normal rebase flow",
         context.issue.number,
         context.pending_pre_rebase_sha[:8],
     )
     return False
+
+
+def _clears(context: _AutoRebaseRecoveryContext) -> bool:
+    """Land the clear of `context`'s attempt as the attempt's checkpoint; whether it landed.
+
+    Staged on a copy of the tick's state (`checkpoints._lands_the_checkpoint`),
+    so the tick's state drops the attempt only once the comment has: a clear
+    refused or never confirmed leaves that state carrying the attempt the
+    comment still carries, or may, withheld from any whole-state write.
+    """
+    staged = PinnedState(
+        comment_id=context.state.comment_id,
+        state_data=copy.deepcopy(context.state.data),
+        parsed=context.state.parsed,
+    )
+    attempts._clears_the_attempt(staged)
+    return checkpoints._lands_the_checkpoint(
+        context.gh, context.issue, context.state, "clearing its attempt", staged,
+    )
 
 
 def _read_remote_recovery_head(

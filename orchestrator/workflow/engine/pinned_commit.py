@@ -65,10 +65,11 @@ behind a published squash with the evidence it carries or invalidates, the
 park a failed squash takes, the record of what it posted where the records it
 holds moved, and the end of the handoff behind its label
 (`stages/validating/squash_writes.py`). So does the finish of every base
-rewrite that landed, whichever road reached it (`rewrite_finish_writes`), and
-the retirement of a failed developer conversation, landed alone over a fresh
-reading for a tick whose own write may never happen
-(`stages/implementing/session_retirement.py`).
+rewrite that landed, whichever road reached it (`rewrite_finish_writes`), every
+auto-rebase park and a recovery's clear and record of a gate's hold
+(`git/base_sync/checkpoints._lands_the_checkpoint`), and the retirement of a
+failed developer conversation, landed alone over a fresh reading for a tick
+whose own write may never happen (`stages/implementing/session_retirement.py`).
 Every other road still rewrites the whole record.
 
 The report's commits are captured over the reading a tick last synced with the

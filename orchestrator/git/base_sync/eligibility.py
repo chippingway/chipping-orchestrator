@@ -165,10 +165,9 @@ def _open_auto_rebase_pr(
     pr_status = context.gh.pr_state(pr)
     if pr_status == "open":
         return pr
-    if context.pending_pre_rebase_sha:
-        _terminal_handoff._retires_the_terminal_handoff(
-            context, getattr(pr.head, "sha", None) or "",
-        )
+    if context.pending_pre_rebase_sha and _terminal_handoff._retires_the_terminal_handoff(
+        context, getattr(pr.head, "sha", None) or "",
+    ):
         log.info(
             "issue=#%d PR #%d is %s and an attempt was still in flight for "
             "it; ending the anchor, the debt it owed that pull request, and "

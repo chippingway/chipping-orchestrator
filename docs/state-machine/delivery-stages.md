@@ -1524,10 +1524,22 @@ because there it is the claim that this stage has already rerouted rather than a
   reset that failed keeps both, save a transaction the snapshot already read the landing move under. Publishing and
   settling the recorded transaction is the finish's own, under the anchor (the bullet above). Evidence a finish
   already settled for the head is held to none of these: no recovery road retires it over a landed reset or before a
-  park that keeps the attempt. Every park here is written whole, over the reading the recovery took after the issue
-  writer claim was taken -- by the base refresh before it reads the issue, or by the dispatch whose anchor hold
-  answers it -- and held through the recovery's final write, so no other orchestrator writer moves the comment
-  between that reading and the park; a human's edit, the pull request, the remote branch, the configuration, and the
+  park that keeps the attempt. The recovery reads the attempt and its evidence once the issue writer claim is taken
+  -- by the base refresh before it reads the issue, or by the dispatch whose anchor hold answers it -- and holds it
+  through its final write, so its own writes are checkpoints of one sequence rather than moves another writer made:
+  each park, each clear, its abandonment of a captured transaction (`rewrite_landing_moved`), and its record of a
+  gate's hold lands through the tick-state guarded commit over the reading the tick last confirmed, carrying what the
+  tick staged since -- a gate's records, a reply recorded read, a run's usage -- once, and decided on the attempt and
+  its evidence (`git/base_sync/checkpoints._lands_the_checkpoint`); the abandonment acts on the movement already read
+  and reads nothing again for it. A reset, every road off a completed comparison -- the retry's gate and push, the
+  landed road's transfer report and finish -- and the end of a merged or closed pull request's handoff are taken only
+  once the comment, read afresh, still spells the attempt and its evidence as the tick last confirmed them
+  (`checkpoints._still_owns_the_attempt`), since each opens on an effect or a whole-state write no guarded commit
+  precedes, and a clear lets the tick's rebase go on only once it landed. A write refused, one whose answer was lost,
+  and an attempt or evidence record found moved without the recovery -- nothing on this host writes either under the
+  claim -- stop that operation before anything it would push, reset, or relabel behind it, logged, the comment left as
+  it stands rather than put back or repaired; the next tick's reading takes up whatever it then records, under hold and
+  park behaviour already described. A human's edit, the pull request, the remote branch, the configuration, and the
   checkout are what the readings above are taken again for.
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the
   announcement (the notice, the `base_rebased` event, and the checkpoint writing the round reset and the mark), the
