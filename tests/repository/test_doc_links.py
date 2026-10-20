@@ -115,6 +115,12 @@ class DocumentAnchorTest(unittest.TestCase):
             with self.subTest(page=name):
                 self.assertIn(name, pages)
 
+    def test_agents_required_reading_links_contracts(self) -> None:
+        """The required-reading section links the contract register."""
+        guide = (_link_support.REPO_ROOT / "AGENTS.md").read_text(encoding=_ENCODING)
+        required = guide.partition("## Required reading for every task\n")[2].split("\n## ", 1)[0]
+        self.assertRegex(required, r"\[[^\]]+\]\(docs/contracts\.md\)")
+
     def test_reference_definitions_are_scanned(self) -> None:
         """A foot-of-page definition is a link, and resolves like one."""
         with TemporaryDirectory() as directory:

@@ -17,6 +17,7 @@ handler reads and writes.
 | install with pipx | the [quick start](../README.md#quick-start), then [basic setup](configuration.md#basic-setup) |
 | add another repository to an installed setup | [adding a repository][add-repo] |
 | run from source or launch developer analytics tools | the [developer guide](development.md) |
+| know which guarantees a change must preserve | [contracts and invariants](contracts.md) |
 | understand the design before changing it | [`architecture.md`](architecture.md) |
 | know what a label means, or when it moves | [`state-machine.md`](state-machine.md) |
 | know which agent a stage spawns, under what prompt | [`workflow.md`](workflow.md) |
@@ -29,7 +30,7 @@ handler reads and writes.
 | harden the deployment | [`security.md`](security.md) |
 | report a suspected vulnerability | [`../SECURITY.md`](../SECURITY.md) |
 | report a bug, propose a change, or contribute a PR | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) |
-| change the code | [`../AGENTS.md`](../AGENTS.md), then the [`develop` skill](../.agents/skills/develop/SKILL.md) |
+| change the code | [`../AGENTS.md`](../AGENTS.md), [contracts](contracts.md), then the [`develop` skill][develop] |
 | size or split an issue | the [`decompose` skill](../.agents/skills/decompose/SKILL.md) |
 | preview or publish this documentation | [publishing the documentation][publishing] |
 
@@ -37,6 +38,7 @@ handler reads and writes.
 
 Grouped the way the site's navigation groups them.
 
+- **Contracts** — [contracts and invariants](contracts.md)
 - **Operate** — [settings](configuration.md), [operations](configuration/operations.md),
   [snapshot capability check](configuration/snapshot-capability-check.md), [security](security.md)
 - **How it works**
@@ -59,3 +61,4 @@ Grouped the way the site's navigation groups them.
 [pollers]: configuration/operations.md#running-more-than-one-poller
 [user-service]: configuration.md#running-under-systemd-user-service
 [publishing]: configuration/operations.md#publishing-the-documentation
+[develop]: ../.agents/skills/develop/SKILL.md

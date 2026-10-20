@@ -2,26 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """A landed base rewrite's finish, held to the guarded commits it writes through.
 
-Each write of a finish lands over the comment read afresh, so another road's
-move of a record it was decided on refuses it with nothing behind it made --
-no notice, no event, no relabel, no retirement -- and leaves that road's write
-exactly as it stands, while a field nobody decided on is kept as the fresh
-comment carries it. An edit nobody confirmed stops the finish too, and the next
-one picks up from what it left. Every check holds as well for a finish held
-to the dormant settled-evidence policy, selected explicitly for every finish
-the case builds, whose announcement is decided on the records the evidence's
-binding rests on besides: a review subject another road moved before the
-announcement refuses its checkpoint before anything is said, and a report
-moved while the notice was posted refuses the event's record before the event
-is filed, where every other finish says both and is refused behind them.
+Each write of a finish lands over the reading the tick last confirmed, so a
+record it was decided on that reads otherwise -- which inside the writer claim
+only an edit from outside the orchestrator makes -- refuses it with nothing
+behind it made: no notice, no event, no relabel, no retirement, and the record
+left exactly as it stands, while a field nobody decided on is kept as the
+fresh comment carries it. An edit nobody confirmed stops the finish too, and
+the next one picks up from what it left.
 """
 from __future__ import annotations
 
 import unittest
-from dataclasses import replace
 from functools import partial
 from types import MappingProxyType
-from unittest.mock import patch
 
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome
 from tests.workflow.engine import (
@@ -230,69 +223,6 @@ class UnconfirmedAnnouncementTest(unittest.TestCase):
         self.assertEqual(recorded, (None, support.LANDED))
 
 
-# A review subject another road hands over before the announcement, under
-# either policy: what the finish comes to, and the notices, events, and labels
-# it made -- everything once routed over that subject, or nothing at all.
-_SUBJECT_MOVED = (
-    (False, FinishOutcome.ROUTED, (1, 1, _ROUTED)),
-    (True, FinishOutcome.REFUSED, (0, 0, ())),
-)
-
-
-class SettledGuardedWriteTest(GuardedWriteTest):
-    """The guarded writes of a finish held to the dormant settled-evidence policy."""
-
-    def setUp(self) -> None:
-        self.enterContext(patch.object(support.FinishWorld, "proves_settled", True))
-
-
-class SettledUnconfirmedAnnouncementTest(UnconfirmedAnnouncementTest):
-    """The announcement said once by whichever finish held to the settled-evidence policy gets there."""
-
-    def setUp(self) -> None:
-        self.enterContext(patch.object(support.FinishWorld, "proves_settled", True))
-
-
-class SettledProfileTest(unittest.TestCase):
-    """Only a finish held to the settled-evidence policy decides its announcement on the binding records."""
-
-    def test_a_review_subject_moved_first(self) -> None:
-        # Another road hands a reviewer a subject after the finish read the
-        # comment. A finish held to the settled-evidence policy prepares its
-        # checkpoint on that record and is refused with nothing said; every
-        # other finish says the landing, takes the subject in with the
-        # checkpoint's fresh comment, and routes over it unread.
-        for proves_settled, outcome, said in _SUBJECT_MOVED:
-            with self.subTest(proves_settled=proves_settled):
-                world = support.FinishWorld.seeded()
-                finish = replace(world.finish(), proves_settled=proves_settled)
-                world.another_road(review_subject={"pr_number": support.PR_NUMBER})
-
-                self.assertEqual(world.finalizes(finish=finish), outcome)
-
-                self.assertEqual(self._said(world), said)
-
-    def test_a_report_moved_under_the_notice(self) -> None:
-        # Another road settles a later report while the notice is posted. The
-        # checkpoint behind the event is refused over it either way; the
-        # event's own record is refused over it, before anything is filed,
-        # only where the finish is held to the settled-evidence policy.
-        for proves_settled, filed in ((False, 1), (True, 0)):
-            with self.subTest(proves_settled=proves_settled):
-                world = support.FinishWorld.seeded()
-                moves = partial(world.another_road, developer_report_current={"revision": 9})
-                world.github.pr_comment = _RacesPastTheCall(world.github.pr_comment, 1, moves)
-                finish = replace(world.finish(), proves_settled=proves_settled)
-
-                self.assertEqual(world.finalizes(finish=finish), FinishOutcome.REFUSED)
-
-                self.assertEqual(self._said(world), (1, filed, ()))
-                self.assertIsNone(world.pinned().get(support.KEY_ANNOUNCED))
-
-    def _said(self, world: support.FinishWorld) -> tuple:
-        """How many notices PR #42 was given and `base_rebased` events filed, and the labels written."""
-        notices, events = world.said()
-        return len(notices), len(events), world.relabels()
 
 if __name__ == "__main__":
     unittest.main()

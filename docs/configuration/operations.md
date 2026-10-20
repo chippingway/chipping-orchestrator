@@ -862,12 +862,13 @@ retain the relative paths the repository's documentation checks validate.
 
 ### Site navigation
 
-`nav:` in [`../../mkdocs.yml`](../../mkdocs.yml) groups the pages by what a reader came to do: **Operate** (quick start,
-settings, operations, snapshot capability check, security), **How it works** (architecture, the state machine, and the
-agents), **Observability**, and **Releases**, beside the homepage the site name links to. [`../README.md`](../README.md)
-lists every page under the same grouping for readers browsing on GitHub. A page's URL follows its path under `docs/`,
-not its place in `nav:`, so moving a page between groups changes no address. The templates in
-[`../../.github/docs-theme/`](../../.github/docs-theme/) render that list over the bundled `mkdocs` theme:
+`nav:` in [`../../mkdocs.yml`](../../mkdocs.yml) groups the pages by what a reader came to do:
+**Contracts**, **Operate** (quick start, settings, operations, snapshot capability check, security),
+**How it works** (architecture, the state machine, and the agents), **Observability**, **Releases**, and **Developers**,
+beside the homepage the site name links to. [`../README.md`](../README.md) lists every page under the same grouping for
+readers browsing on GitHub. A page's URL follows its path under `docs/`, not its place in `nav:`, so moving a page
+between groups changes no address. The templates in [`../../.github/docs-theme/`](../../.github/docs-theme/) render that
+list over the bundled `mkdocs` theme:
 
 - The top bar names each top-level entry once, as a plain link rather than a dropdown. A section links to its first
   page, which makes that page the section's landing page, so an area's overview goes first. The current section is

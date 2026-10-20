@@ -381,7 +381,6 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         state: PinnedState,
         *,
         over: dict,
-        seen: list[PinnedState] | None = None,
     ) -> PinnedEdit:
         """Rewrite the pinned comment `state` names in place, and only over `over`.
 
@@ -395,9 +394,7 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         the edit, so a comment another writer moved since `over` was read --
         compared as the comment's JSON spells it, where `null` is not an
         absent field and `true` is not `1` -- is answered MOVED and left as it
-        stands. `seen`, where a caller hands one, keeps the comment that walk
-        read when it answers MOVED, so the caller can say what moved under the
-        edit however soon it is put back.
+        stands.
 
         The two requests are the primitives below, so the in-memory double
         answers through this same policy over its own records.
@@ -414,8 +411,6 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
             return PinnedEdit.MISSING
         target, reading = located
         if not reading.reads_as(over):
-            if seen is not None:
-                seen.append(reading)
             return PinnedEdit.MOVED
         body = pinned_state_body(state.data)
         try:

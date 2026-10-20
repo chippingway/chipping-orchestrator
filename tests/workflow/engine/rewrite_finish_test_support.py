@@ -16,7 +16,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from orchestrator.git.base_sync.rewrite_handoffs import (
-    _BaseStanding,
     _CheckoutReading,
     _LandedRewrite,
     _PushOutcome,
@@ -31,7 +30,6 @@ from orchestrator.workflow.engine import rewrite_finish as _finish
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeGitHubClient, FakeIssue, FakePR, FakePRRef, make_issue
-from tests.workflow.git_owners import seam_patch
 from tests.workflow.repo_values import _TEST_SPEC
 
 ISSUE = 7
@@ -164,16 +162,10 @@ PUSHED_AGAIN = Road(FinishRoad.RECOVERY, _PushOutcome.ACCEPTED)
 
 @dataclass
 class FinishWorld:
-    """Issue #7, its client, and the finishes handed to the finalizer over what it pins.
-
-    `proves_settled`, a class attribute rather than a field, holds every
-    finish the world builds to the dormant settled-evidence policy, for a case
-    that selects it explicitly by patching it for its own scope.
-    """
+    """Issue #7, its client, and the finishes handed to the finalizer over what it pins."""
 
     github: FakeGitHubClient
     issue: FakeIssue
-    proves_settled = False
 
     @classmethod
     def seeded(cls, *, label: str = LABEL_FIXING, **pinned: object) -> FinishWorld:
@@ -201,22 +193,11 @@ class FinishWorld:
             road=road.road,
             lag=LAG,
             retry=road.retry,
-            proves_settled=self.proves_settled,
         )
 
     def finalizes(self, road: Road = PUBLISHED, finish: LandedFinish | None = None) -> FinishOutcome:
-        """Finish the landing `road` reached, or `finish` where one is given, through the finalizer.
-
-        For a finish held to the settled-evidence policy the base the landed
-        head was counted against stands where it was: this world has no
-        checkout for that policy's base reading behind the relabel of an
-        attempt that records no base tip to be taken in.
-        """
-        finishing = finish or self.finish(road)
-        if not finishing.proves_settled:
-            return _finish.finalizes(finishing)
-        with seam_patch("_standing_on_the_remote_base", lambda *_args: _BaseStanding.STANDING):
-            return _finish.finalizes(finishing)
+        """Finish the landing `road` reached, or `finish` where one is given, through the finalizer."""
+        return _finish.finalizes(finish or self.finish(road))
 
     def pinned(self) -> dict:
         """The record the pinned comment carries now."""

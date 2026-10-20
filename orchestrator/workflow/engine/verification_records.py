@@ -27,11 +27,7 @@ that one transaction finished, and it is what turns a replay into a no-op.
 Beside them sits the revision FLOOR, the highest revision any transaction on
 this issue was recorded under: a record can be damaged, dropped, or evicted
 from the bounded history, and the revision it spent -- one its artifact may
-already carry on the pull request -- must outlive it. A finish held to the
-dormant settled-evidence policy may spend one past current evidence it read
-moving, a revision no transaction carries, or take the floor off to retire
-that evidence whole (`rewrite_finish_outranking`); no production road selects
-that policy.
+already carry on the pull request -- must outlive it.
 
 The binding EXTENDS the report records rather than forking them. What the
 evidence is written for is the report domain's own `ReportSubject`: the
@@ -87,8 +83,7 @@ EVIDENCE_HISTORY = "verification_evidence_history"
 # The receipt that one transaction finished.
 EVIDENCE_HANDOFF = "verification_evidence_handoff"
 
-# The highest revision any transaction on this issue was recorded under, or
-# one the dormant settled-evidence policy spent past evidence it read moving.
+# The highest revision any transaction on this issue was recorded under.
 REVISION_FLOOR = "verification_evidence_revision"
 
 # How a transaction's receipt is spelled: the issue, the revision it was minted

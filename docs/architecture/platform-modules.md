@@ -450,9 +450,8 @@ orchestrator/
                         only a source checkout is offered, and the refusal of every selected target that is not a
                         checkout, as `service/checkouts.py` reads one
   github/               publishes `GitHubClient` and `PinnedState` from their defining owners
-    client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records -- a
-                        caller's correlation on a relabel riding the audit one alone -- and canonical
-                        repository identity; a clone reuses the parent's token and bot login on a requester of its
+    client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records, and
+                        canonical repository identity; a clone reuses the parent's token and bot login on a requester of its
                         own, shares the parent's ledger of events its process owes (`workflow/engine/owed_events.py`),
                         and fetches its repository only on the first read of repository metadata, while
                         number, label, and commit operations stay eager at the call; ownership checks complete that
@@ -558,10 +557,8 @@ orchestrator/
                         comment's JSON spells both (`PinnedState.reads_as`); it never recreates a comment that is
                         gone or no longer the authenticated state-only one, and answers EDITED only where GitHub's
                         response carries the body sent -- a lost response, a refused request, and an answer carrying
-                        another body are all UNCONFIRMED, since the record may read either way. A caller that
-                        hands it a `seen` list is handed the comment the walk read where it answers MOVED, so it
-                        can say what moved under the edit. Its two requests are primitives the in-memory double
-                        overrides, so the double answers through this policy.
+                        another body are all UNCONFIRMED, since the record may read either way. Its two requests
+                        are primitives the in-memory double overrides, so the double answers through this policy.
                         A state read from the comment or written over it remembers what the comment carried then
                         (`PinnedState.synced`), spelled as its JSON is and outside the record itself, so what a
                         tick staged on it since can be told from what it read; a state the guarded commits taken
@@ -898,8 +895,8 @@ orchestrator/
                         (`workflow/engine/rewrite_replies.py`)
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
                         that ends an auto-rebase attempt, the recorded base tip, the record of the `base_rebased`
-                        event a finish files (`pending_auto_base_rebase_announced_event`), and the record of the
-                        relabel a dormant finish makes (`pending_auto_base_rebase_relabelled`) among its members. The
+                        event a finish files (`pending_auto_base_rebase_announced_event`), and a relabel member no
+                        road sets (`pending_auto_base_rebase_relabelled`) among its members. The
                         workflow's publication records its replay here, with the base tip frozen before git ran
                         beside it (`pending_auto_base_rebase_rewrite_base`); the
                         workflow's finish of every landing puts the mark down through its own guarded checkpoint,

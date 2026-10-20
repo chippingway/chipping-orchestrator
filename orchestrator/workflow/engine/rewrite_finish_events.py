@@ -31,13 +31,8 @@ event goes out only behind a write proving the attempt still stands as the
 finish read it, and the record tells whoever reads the comment that the event
 may be out. It lands over a copy of the tick's state, and the tick takes in
 that one field and nothing else the write read, so the checkpoint behind it
-is still decided on every other record as the tick read it. A finish held to
-the dormant settled-evidence policy decides it on every record the evidence
-is bound through too (`rewrite_finish_writes._SETTLED`), a refusal over one of
-the records its binding rests on, or movement the comment that refusal read
-records under the evidence, collected for the coordinator to invalidate it
-over (`rewrite_finish_readiness.invalidates_behind`).
-A record that did not land is where the finish stops, with nothing filed. That write is
+is still decided on every other record as the tick read it. A record that did
+not land is where the finish stops, with nothing filed. That write is
 prepared ahead of the notice too (`prepares_the_record`), beside the
 checkpoint's own preparation: it is made over the comment as the tick read
 it, its round included, which only the checkpoint resets, so a comment with
@@ -64,7 +59,6 @@ from orchestrator.workflow.engine import (
     rewrite_finish_writes as _writes,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
-from orchestrator.workflow.engine.verification_proof import ProofReading
 from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
@@ -84,7 +78,7 @@ def method(finish: LandedFinish) -> str:
     return "crash_recovery_pushed"
 
 
-def files(finish: LandedFinish, staged: PinnedState, observed: ProofReading | None = None) -> FinishOutcome | None:
+def files(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
     """File `finish`'s `base_rebased` event once, recorded on the attempt ahead of it; None to go on.
 
     The event stream is asked first, whatever the attempt records, and
@@ -92,8 +86,7 @@ def files(finish: LandedFinish, staged: PinnedState, observed: ProofReading | No
     With no audit log, an attempt recording the event is taken as having
     filed it, save where this process owes it (`owed_events.unfiled`).
     `staged` is the checkpoint's own state, which carries the record too. The
-    outcome of the record's own write where that did not land, the movement
-    its refusal read collected on `observed` (`rewrite_finish_writes.lands`).
+    outcome of the record's own write where that did not land.
     """
     named = {"issue_number": finish.issue.number, "sha": finish.head}
     found = _github_events.filed(finish.gh, _REBASED, **named)
@@ -113,7 +106,7 @@ def files(finish: LandedFinish, staged: PinnedState, observed: ProofReading | No
         )
         return None
     anew = _owed_events.owes(finish.gh, _REBASED, **named)
-    stopped = None if recorded else _records(finish, staged, observed)
+    stopped = None if recorded else _records(finish, staged)
     if stopped is FinishOutcome.REFUSED and anew:
         _owed_events.pays(finish.gh, _REBASED, **named)
     if stopped is not None:
@@ -132,30 +125,29 @@ def files(finish: LandedFinish, staged: PinnedState, observed: ProofReading | No
     return None
 
 
-def prepares_the_record(finish: LandedFinish, observed: ProofReading | None = None) -> FinishOutcome | None:
+def prepares_the_record(finish: LandedFinish) -> FinishOutcome | None:
     """None where the record of `finish`'s event would land now, or the attempt already carries it; REFUSED otherwise.
 
-    Measured over the comment read afresh, as `_records` would write it, the
-    movement a refusal read collected on `observed`.
+    Measured over the comment read afresh, as `_records` would write it.
     """
     if finish.state.get(_FILED) == finish.head:
         return None
-    return _writes.prepares(finish, _recording(finish), _writes.ANNOUNCED_EVENT, observed)
+    return _writes.prepares(finish, _recording(finish), _writes.ANNOUNCED_EVENT)
 
 
-def _records(finish: LandedFinish, staged: PinnedState, observed: ProofReading | None) -> FinishOutcome | None:
+def _records(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
     """Record on the attempt that `finish`'s event is being filed, in a write of its own; None where it landed.
 
     Landed over a copy of the tick's state, so the tick and `staged` take in
     the record alone: every other field the checkpoint is decided on stays as
-    the tick read it, and a move another road made before the record still
-    refuses the checkpoint behind it. For a finish held to the
-    settled-evidence policy, a binding record moved refuses the record itself,
-    the movement collected on `observed`.
+    the tick read it, so a record that reads otherwise before the checkpoint
+    still refuses the checkpoint behind it. What else the tick staged and had
+    not written rides this write too and is taken in by neither, so the
+    checkpoint behind it lands a staged usage total's delta a second time.
     """
     held = copy.deepcopy(finish.state)
     recorded = _recording(finish)
-    stopped = _writes.lands(replace(finish, state=held), recorded, _writes.ANNOUNCED_EVENT, observed)
+    stopped = _writes.lands(replace(finish, state=held), recorded, _writes.ANNOUNCED_EVENT)
     finish.state.withheld = finish.state.withheld or held.withheld
     if stopped is None:
         finish.state.set(_FILED, finish.head)

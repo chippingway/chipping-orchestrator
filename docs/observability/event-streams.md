@@ -50,14 +50,7 @@ two spellings and which labels have only one.
 capped in-memory tail (`recorded_events`, `_RECORDED_EVENTS_CAP = 500`) for tests and short-window debugging — the
 file is the durable record.
 
-- `stage_enter` — `set_workflow_label` (via `_emit_stage_enter`) for every label flip; extras: `stage`, and `sha` --
-  the landed head -- on the relabel to `workflow:validating` the route of a landed rewrite finished directly under the
-  dormant settled-evidence policy makes (`workflow/engine/rewrite_finish_announced.relabels_once`), which no
-  production road selects. That relabel's pinned record lands ahead of it, and beside that record on an issue that
-  already wore `workflow:validating` the next such finish asks the audit log for this event before relabelling again
-  (`rewrite_finish_announced.relabelled`), holding while it will not read; with no log configured the record alone
-  answers, and the relabel is read as made -- at most once, never twice. The correlation rides the audit event alone,
-  not the analytics row.
+- `stage_enter` — `set_workflow_label` (via `_emit_stage_enter`) for every label flip; extras: `stage`.
 - `agent_spawn` / `agent_exit` — `_run_agent_tracked` (in `workflow/engine/usage.py`) wraps every `run_agent` call
   (decomposer, implementer, reviewer, dev-resume, conflict-resolution dev); extras: `agent` (backend), `agent_role`,
   `review_round`, `retry_count`. `session_id` and `agent_exit`-only fields are described below. A launch the
@@ -77,9 +70,7 @@ file is the durable record.
   `stages/validating/review_parks.py`, the park of a handed change request's developer launch that may have started
   (`stages/validating/review_launch_park.py`, `parks`) -- emitted once its guarded commit is down -- the
   question- and discussion-stage
-  `_park_question` / `_park_discussion` funnels, and the debt park of a landed rewrite finished directly under the
-  dormant settled-evidence policy whose notice was said with no event behind it
-  (`workflow/engine/rewrite_finish_debt.py`, `files_the_park`), which no production road selects;
+  `_park_question` / `_park_discussion` funnels;
   fanned out to `ANALYTICS_LOG_PATH` alongside this audit log through the shared `GitHubClient.emit_event` chokepoint;
   extras: `stage` (read from the current
   workflow label, not passed in), `reason` (e.g. `agent_timeout`, `push_failed`, `failed_checks`, `agent_question`,
@@ -356,18 +347,7 @@ other dispatch decision keys off the pinned `<!--orchestrator-state ...-->` JSON
 workflow label). If the two disagree, trust pinned state. Truncating, rotating, or deleting the log never moves a
 decision the pinned state records; a rotation that keeps its copy beside the log costs nothing, while deleting that
 copy or truncating the log with none kept, done while a lost finish is still to retry, can let that retry file its
-`base_rebased` a second time. No production road reads it
-anywhere else: a finish handed to the coordinator directly under the dormant settled-evidence policy also asks it
-whether the `park_awaiting_human` of a debt park whose notice it finds already said is filed -- matched on the issue,
-the `reason`, the landed head such a park names as `sha`, and the id of that notice it names as `notice_id`, which the
-park asks the funnel to name (`names_the_notice=True`) -- and holds while it will not read. The same finish asks for the
-`stage_enter` its relabel filed where the relabel's record stands beside a label the issue already wore
-(`rewrite_finish_announced.relabelled`); there `github/events.durable` tells it whether a log is configured at all, and
-with none the record alone answers. With no log configured the dormant debt park takes its notice already said as its
-event filed unless this process noted that event owing ahead of a notice saying the same and never filed it -- a
-ledger the repository's client shares with its worker clients (`workflow/engine/owed_events.py`) -- so a restart
-between a park's notice and its record files the event at most once, never twice, and a failed post of another notice
-files no earlier one's event again.
+`base_rebased` a second time. No road reads it anywhere else.
 
 ## Analytics sink (`ANALYTICS_LOG_PATH`)
 
@@ -400,7 +380,7 @@ foundation layer for the Postgres aggregation step.
 **Event kinds written today:**
 
 - `stage_enter` — `GitHubClient._emit_stage_enter` alongside the audit `stage_enter`; one record per workflow label
-  transition; carries `stage`, never the correlation a caller hands the audit event (the dormant relabel's `sha`).
+  transition; carries `stage`.
 - `stage_evaluation` — the `_process_issue` dispatcher (in `workflow/engine/issue_processing.py`); written by its
   try/except/finally wrapper; carries `stage`,
   `duration_s` (handler wall-clock), `result` (`"ok"` / `"error"`); omitted for `backlog`- / `paused`-skipped issues

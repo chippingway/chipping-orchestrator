@@ -5,6 +5,8 @@ description: >-
 ---
 # Security checklist and operator-owned controls
 
+The project-wide trust and execution boundaries are collected in [Contracts and invariants](contracts.md).
+
 This page maps the project security checklist to the `chipping-orchestrator` repo: what the repo files already enforce
 and what is **operator-owned** (GitHub or org settings that no file in the repo can set).
 

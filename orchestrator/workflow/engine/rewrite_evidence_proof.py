@@ -14,10 +14,6 @@ carries or follows a recorded decision ends in the last word -- a captured
 transaction's behind whatever stopped it -- and only a fresh decision held
 before its write, whose write did not land, or whose failure notice nobody
 could confirm ends without it, leaving no transaction behind it to abandon.
-The dormant readiness primitives (`rewrite_finish_readiness`) ask the last
-word over evidence already settled for the head as well, and only the dormant
-settled-evidence finish policy asks them
-(`rewrite_finish_models.LandedFinish.proves_settled`).
 
 `proves_again` reads the world afresh rather than off the tick's own reading:
 the issue is fetched again, since the one a finish holds carries the title and
@@ -36,8 +32,7 @@ of them can have moved while it was answered. So `last_word` is asked once
 nothing else is left to request, and reads everything that moves again in one
 fixed order: the network first -- the remote branch the head landed on, the
 base, and, over the issue and pinned comment fetched once more, the issue's
-requirements and the review and report records the transaction is bound to,
-and any verdict the caller asks of that comment (`records`) --
+requirements and the review and report records the transaction is bound to --
 and then the readings no request answers, behind every one that did: the
 checkout's own head, the local base ref it counts against, and the
 configuration. The remote branch and the checkout are two readings, the
@@ -59,8 +54,7 @@ the landing could have moved under.
 `standing_refusal` reads the base through the git owner
 (`git/base_sync/rewrite_facts._standing_on_the_remote_base`), over the base
 tip the attempt recorded its replay as made onto
-(`git/base_sync/attempt_records._recorded_onto`), or over one a caller that
-counted the head itself hands in:
+(`git/base_sync/attempt_records._recorded_onto`):
 
 - A remote base gone elsewhere since the head was counted, or a local count
   the head is behind -- the base advanced past it -- is movement established
@@ -90,7 +84,6 @@ on every record the evidence is bound through (`rewrite_finish_writes.FINISH`).
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from types import MappingProxyType
 
 from github.Issue import Issue
@@ -179,12 +172,6 @@ _REFUSALS = MappingProxyType({
     ),
 })
 
-# The base readings a continuation is made over -- the base gone past the
-# landed head since its replay -- which move nothing under settled evidence
-# the continuation keeps for the rebase behind it to decide over
-# (`last_word`); a tip blanked to record movement is no such reading.
-ADVANCED = (BASE_MOVED, _REFUSALS[_BaseStanding.DROPPED])
-
 
 def proves_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _evidence_models.ReportEvidence:
     """The whole proof of `binding` over the issue and pinned comment read afresh, or the HOLD nobody could read.
@@ -206,17 +193,13 @@ def proves_again(finish: LandedFinish, binding: _records.EvidenceBinding) -> _ev
     return _proof.recorded_verdict(read[1], binding) or found
 
 
-def standing_refusal(finish: LandedFinish, onto: str | None = None) -> _evidence_models.ReportEvidence | None:
-    """Why `finish`'s landed head no longer stands on the base its replay was made onto, or None where it does.
-
-    `onto` is the base tip to hold the head to, where the caller has one of
-    its own: by default the one the attempt recorded its replay as made onto.
-    """
+def standing_refusal(finish: LandedFinish) -> _evidence_models.ReportEvidence | None:
+    """Why `finish`'s landed head no longer stands on the base its replay was made onto, or None where it does."""
     standing = _rewrite_facts._standing_on_the_remote_base(
         finish.spec,
         _worktree_paths._worktree_path(finish.spec, finish.issue.number),
         finish.landed.candidate,
-        _attempt_records._recorded_onto(finish.state) if onto is None else onto,
+        _attempt_records._recorded_onto(finish.state),
     )
     return _REFUSALS.get(standing)
 
@@ -227,32 +210,17 @@ def last_word(
     *,
     landing: bool = True,
     earlier: _evidence_models.ReportEvidence | None = None,
-    records: Callable[[PinnedState, Issue], Refusals] | None = None,
 ) -> Word:
     """What everything that moves under `finish`'s route reads as now, behind every request: `(moved, held)`.
 
     `binding` is the evidence the route would carry -- a transaction recorded
-    for the head, or evidence already settled for it, proved ready again
-    (`rewrite_finish_readiness`) -- None where it carries none, and `landing`
-    whether the remote branch and the checkout are read again too -- for a
-    route that carries or follows a recorded decision.
-    `earlier` is a verdict the caller already read the transaction with -- a
-    proof of it again -- which is sorted first, beside the rest. `records` is
-    a caller's own reading of the pinned comment the last word reads afresh,
-    handed that comment and the issue read with it, asked beside the
-    requirements and the review and report records, and
-    answering with refusals of its own that are sorted beside every other --
-    the evidence records settled evidence is held to
-    (`rewrite_finish_readiness`). The network is read first and the local
+    for the head -- None where it carries none, and `landing` whether the
+    remote branch and the checkout are read again too -- for a route that
+    carries or follows a recorded decision. `earlier` is a verdict the caller
+    already read the transaction with -- a proof of it again -- which is
+    sorted first, beside the rest. The network is read first and the local
     readings last (`_answers_locally`), so nothing read before a request is
-    taken on trust behind it. Settled evidence for a head the base advanced
-    past again -- `records` asked of a landing whose candidate counted the base
-    ahead of it, which a continuation keeps that evidence over for the rebase
-    behind it -- does not count the base readings that made the continuation
-    (`ADVANCED`): they are dropped before the first movement and the first
-    hold are taken, so none of them hides a reading behind it. Only the
-    dormant readiness proof asks `records`, so only a finish held to the
-    dormant settled-evidence policy asks that.
+    taken on trust behind it.
 
     Every reading is taken, and none nobody could take hides one that read
     movement. `moved` is the first that establishes that something the route
@@ -262,10 +230,8 @@ def last_word(
     it. `held` is the first that holds the route: a reading nobody could take,
     or one of those two. Either is None where no reading says so.
     """
-    answered = _answers_locally(finish, binding, _hears(finish, binding, landing, records), landing)
-    excused = ADVANCED if finish.behind and records is not None else ()
+    answered = _answers_locally(finish, binding, _hears(finish, binding, landing), landing)
     found = [refused for refused in (earlier, *answered) if refused and not refused.proved]
-    found = [refused for refused in found if refused not in excused]
     movements = (refused for refused in found if not refused.holds or refused in MOVEMENT)
     holds = (refused for refused in found if refused.holds)
     return next(movements, None), next(holds, None)
@@ -275,16 +241,14 @@ def _hears(
     finish: LandedFinish,
     binding: _records.EvidenceBinding | None,
     landing: bool,
-    records: Callable[[PinnedState, Issue], Refusals] | None,
 ) -> _Heard:
     """Every request the last word makes, in its order: the remote branch, the base, and the issue and its comment.
 
     The issue and its pinned comment are read again for a transaction the
     route would carry, and both are asked of it: the requirements over the
     issue, and the review and report records over the comment
-    (`verification_proof.recorded_verdict`), whatever any other reading came to
-    -- and whatever the caller's `records` refuses on that same comment, where
-    it asks any.
+    (`verification_proof.recorded_verdict`), whatever any other reading came
+    to.
     """
     remote = None
     if landing:
@@ -304,7 +268,6 @@ def _hears(
         base,
         _subject.requirements_verdict(issue, state, binding.target.publication.requirements_revision),
         _proof.recorded_verdict(state, binding),
-        *(() if records is None else records(state, issue)),
     )
 
 

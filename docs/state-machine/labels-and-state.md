@@ -12,9 +12,11 @@ The handlers that act on them are in [`delivery-stages.md`](delivery-stages.md) 
 
 ## Workflow labels
 
-An issue should have at most one workflow label at a time. Non-workflow labels such as `bug` or `enhancement` are
-preserved; the orchestrator only swaps labels from its own workflow set. Label names are part of the public contract
-because live GitHub issues carry them.
+Label writes follow [C-02](../contracts.md#c-02-workflow-labels-and-transitions). Repository labels such as `bug` or
+`enhancement` lie outside the workflow set. Readers prefer the current workflow labels listed below over legacy bare
+tags (for example, `workflow:ready` over `ready`) and tolerate multiple labels added by humans. A write may deliberately
+clear the workflow label, including between the two writes that reapply a restart's target label; recovery handles a
+crash in that unlabeled state. Label names are part of the public contract because live GitHub issues carry them.
 
 A state's label and the stage under it are spelled apart throughout this file. `workflow:<tag>` is the **wire label**:
 the literal string on the GitHub issue, which is what a label write puts there, the transition guard checks, the
@@ -42,15 +44,16 @@ Three non-workflow **control labels** modify behavior without occupying the work
 - `paused` is the same hard skip as `backlog` at every point (dispatch, scheduler routing, `_process_issue`, and base
   sync), differing only in intent: `backlog` is a "not yet" hold on a fresh issue, `paused` freezes an already
   in-flight one without discarding its state. Removing it resumes processing on the next tick. Because those skip
-  points read the issue's labels at tick start, every stage that runs an agent additionally re-checks a freshly
-  fetched issue right after the run returns (`_paused_during_agent_run`, alongside each stage's `interrupted`
-  short-circuit — both live on the `workflow/engine/guards.py` owner the stage leaves import directly): the dev-agent
+  points read the issue's labels at tick start, every stage that runs an agent additionally re-checks both hard-skip
+  labels on a freshly fetched issue right after the run returns (`_paused_during_agent_run`, alongside each stage's
+  `interrupted` short-circuit — both live on the `workflow/engine/guards.py` owner the stage leaves import directly):
+  the dev-agent
   stages that resume committed work (`implementing`, `in_review`, `fixing`, `resolving_conflict`, the `validating`
   drift / awaiting-human / reviewer-change dev resumes, and the `documenting` initial and follow-up docs passes) and
   the stages whose agent is not a developer (the decomposer run in `decomposing`, fresh spawn and awaiting-human
   resume; the reviewer run in `validating`; and the question and discussion runs, opening round and awaiting-human
-  resume alike) all consult it. A `paused` applied
-  mid-run stops before a PR opens, the label flips, a HITL park or ACK comment posts, a docs push lands, usage
+  resume alike) all consult it. If the fresh label fetch fails, the guard allows processing to continue. A `paused`
+  applied mid-run stops before a PR opens, the label flips, a HITL park or ACK comment posts, a docs push lands, usage
   counters fold, child issues are created, watermarks advance, or pinned state advances, so a dev stage's committed
   work stays on the branch and republishes through the normal recovered-worktree / stranded-fix path once the label is
   removed, while the read-only decomposer / reviewer / question runs simply re-run from durable state on the next
@@ -105,11 +108,11 @@ Two guards run at `GitHubClient.set_workflow_label` (the single label-write chok
   `warn` logs the rejected edge through the
   `orchestrator.state_machine` logger and proceeds; `enforce` raises `IllegalTransition`; `off` disables the check. A
   same-label re-set is always allowed. That logger name is spelled out literally in the owner, so an operator log
-  filter selects on it regardless of which module the guard lives in. One write asks to skip it (`guarded=False`), and
-  only one: the late size gate putting a label back where a human moved it from. The graph describes the moves this
-  orchestrator makes, so it has no edge for repairing one it never made — a guarded `workflow:validating →
-  workflow:decomposing` restoration would raise under `enforce` and strand the generation under the wrong label for as
-  long as the operator kept the guard on, which is the opposite of what the guard is for. See
+  filter selects on it regardless of which module the guard lives in. Three late-generation writes skip this guard
+  (`guarded=False`): restoring a live adjudication to `workflow:decomposing`, restoring a closed cancelled owner to a
+  label the cleanup sweep queries, and moving a cancelled owner to `rejected` once its obligations are settled.
+  These recovery writes must work from labels a human may have applied outside the transition graph; otherwise
+  `enforce` could strand adjudication or cleanup. The typo guard still applies. See
   [`../workflow/roles.md`](../workflow/roles.md#what-the-humans-can-still-change-while-a-candidate-is-frozen).
 
 The write also leaves the issue object it went through reading what it wrote. PyGithub's `Issue.set_labels` sends the
@@ -580,13 +583,10 @@ The room the debt needs is measured on the whole write it rides -- the announcem
 ledger entry (reserved at the widest id a comment is recorded at), the record of the `base_rebased` event
 (`pending_auto_base_rebase_announced_event`), the `review_round` both finishes reset ahead of the mark, and the
 mark -- rather than on the debt alone, and on the comment as it stands as well, since resetting a wide
-round can make the announcement the narrower of the two; the writes past it only clear. A finish held to the dormant
-settled-evidence policy that routes its head -- a continuation relabels nothing -- measures both beside the record of
-the relabel its route makes behind them (`pending_auto_base_rebase_relabelled`), which lands before the retirement
-clears it, and reserves it on the checkpoint it prepares over the comment read afresh, so a comment filled since posts
-nothing. A proved debt that does not fit stops the finish before it announces anything: no notice, no `base_rebased`, no
-relabel, and no clear. It parks `auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay
-standing, and the anchor holding every stage handler back; the park asks for room to be made on the pinned comment and a
+round can make the announcement the narrower of the two; the writes past it only clear. A proved debt that does not fit
+stops the finish before it announces anything: no notice, no `base_rebased`, no relabel, and no clear. It parks
+`auto_base_rebase_unrecorded_debt` with the push kept, the anchor and the replay standing, and the anchor holding every
+stage handler back; the park asks for room to be made on the pinned comment and a
 reply, and the reply brings the recovery back to finish the landed head -- recording the debt first, or parking again if
 there is still no room. A standing claim the rewrite cannot be carried onto is no such debt, and
 `workflow/engine/report_rewrite_room.py` is what tells the two refusals apart, for the conflict stage as well.
@@ -720,18 +720,10 @@ earlier finish already settled is routed with nothing posted or settled again wh
 otherwise -- a newer transaction for the head is settled over it, and a handoff or revision floor out of step holds
 the route -- with the invalidation a moved context now owes landed before the route, that settled evidence's own
 included: a configuration moved since it settled invalidates it with nothing run again, rather than leaving it to
-hold the route behind a revision spent past it. The evidence phase of a finish held to the dormant settled-evidence
-policy, which a caller asks directly and no production road selects, proves settled evidence ready again before it
-lets the route go on (`workflow/engine/rewrite_finish_readiness.py`), invalidating it whole where anything it is bound
-to moved, a readable revision spent past it outranking it for good, and a settlement another road made while it
-answered or abandoned the run adopted and invalidated over movement read under it; behind each such invalidation it
-reads the comment afresh, so evidence put back current under the receipt it just invalidated is retired again, and a
-pending record or another attempt written there holds the route. The coordinator a caller hands such a finish to
-directly proves that evidence again around every hold, debt park, relabel, and stop of its own writes
-(`workflow/engine/rewrite_finish_stops.py`), decides its announcement and park on every record the evidence is bound
-through, reading what a comment one of them was refused over records under the evidence however soon it is put back,
-and announces, relabels, or parks nothing another finish of the landing already did, so no field here is written
-twice for one landing.
+hold the route behind a revision spent past it. Settled evidence routed as it stands is proved current by the reviewer
+the route hands it to before anything relies on it, and every write of the finish's is a guarded commit over the
+reading the tick last confirmed, so no field here is written twice for one landing
+([the finalization contract](delivery-stages.md#the-base-rewrite-finalization-contract)).
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
@@ -2873,31 +2865,16 @@ The keys that matter for the state machine fall into a few groups:
   settlement: that evidence still current, its artifact still the one that settled and carrying exactly the commands
   copied, or the carry is refused. `verification_evidence_current` is the evidence the pull request
   carries: the same binding without the commands, plus the artifact's evidence digest (`content`), the comment it landed
-  as (`comment`), and whether at least one command ran and every one exited 0 (`passed`); `null` once invalidated --
-  or, retired by the dormant settled-evidence policy where not even its movement mark had room, removed, with a
-  pending record left null and an unreadable handoff beside it; where not even that fits, it stays whole and current
-  beside a revision that policy spent past it on the floor, which every reader reads as outranking it -- or, where the
-  floor has no room to grow, it is retired whole with the floor removed.
+  as (`comment`), and whether at least one command ran and every one exited 0 (`passed`); `null` once invalidated.
   `verification_evidence_history` is the five highest-revision retired records, in revision order rather than the order
   they retired -- each with its receipt, revision, whole binding (the report revision and digest and the complete review
   subject included, since the artifact names only the subject's head), digest, `passed`, `comment` (`null` exactly for
   an abandoned transaction, which never held one), and `retired` (`superseded`, `invalidated`, or `abandoned`) -- an
   index of artifacts that all stay on the pull request. `verification_evidence_handoff` is the receipt of the last
   settled transaction with its pull request (`pr`), revision, target head (`head`), and, where it could be read, the
-  label the issue carried as it settled (`under`); a landed rewrite's finish held to the dormant settled-evidence
-  policy replaces it with the mark `{"moved": <receipt>}` where it can record movement read under that evidence no
-  other way (`workflow/engine/rewrite_finish_marks.py`): no reader takes the mark for a handoff, so none hands that
-  evidence on, and every later readiness proof of that very receipt under that policy reads it as movement,
-  retiring the evidence whole once room is made, as a finish of the landing finding no attempt does
-  (`rewrite_finish_unconfirmed.retires_the_marked`, which a caller asks directly) -- and as a settlement that
-  policy's evidence phase adopted does over a mark its own answer read, however soon the handoff is put back.
-  `verification_evidence_revision` is the highest revision any
+  label the issue carried as it settled (`under`). `verification_evidence_revision` is the highest revision any
   transaction on the issue was recorded under, raised in the same write as each record, so a revision whose artifact may
-  already be on the pull request stays spent after its record is damaged, dropped, or evicted from the history; a
-  finish held to the dormant settled-evidence policy raises it one past current evidence it read moving where nothing
-  else has room to record that movement, spending a revision no transaction carries -- and where even that has no
-  room, removes a floor showing no revision past that evidence to retire it whole, after which nobody can say what
-  was spent and nothing is minted until a floor is put back.
+  already be on the pull request stays spent after its record is damaged, dropped, or evicted from the history.
   An issue without any of the keys owes, holds, and has spent nothing, and every reader is fail-closed: a record short
   of any member, or holding a value its writer never spells (a receipt naming another revision than its own included),
   reads as none, a history that is `null`, longer than five, or whose revisions do not strictly rise reads as none, and
@@ -3242,11 +3219,7 @@ The keys that matter for the state machine fall into a few groups:
   request its route makes (`workflow/engine/rewrite_evidence_proof.py`): moved or unread holds the route, dropped or
   unproven refuses the decision for good. A captured transaction whose abandonment the comment has no room for is
   dropped with this member blanked, in a write that only shrinks the comment, so no later reading proves a base for it
-  and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`). The dormant readiness
-  primitives blank it too where an invalidation of settled evidence cannot land
-  (`workflow/engine/rewrite_finish_readiness.py`), and the dormant settled-evidence policy's readiness step, which
-  its coordinator asks behind the relabel, holds a head with no evidence current to the base the tick counted it
-  against where this member is blank or missing (`workflow/engine/rewrite_finish_settled.py`).
+  and nothing runs or carries for that head again (`workflow/engine/rewrite_finish_captured.py`).
   `pending_auto_base_rebase_announced_sha` is the member written last and covers the last window a finish has:
   everything a finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out
   before the relabel, and the write that clears this record goes out after it, so the head it has already said it
@@ -3285,23 +3258,10 @@ The keys that matter for the state machine fall into a few groups:
   another road left pending, and the replay the attempt's record names counts as landed for the rollback park. Additive:
   an attempt whose finish recorded no transaction carries none, and one from before this member existed recorded its
   evidence only behind its mark, so with none on it a transaction about the head the mark names is that finish's.
-  `pending_auto_base_rebase_relabelled` — the head whose relabel to `workflow:validating` a finish of the attempt
-  made, written only by a finish held to the dormant settled-evidence policy, so no production road writes it yet:
-  landed in a guarded write of its own (`workflow/engine/rewrite_finish_writes.RELABEL`) ahead of that relabel,
-  whatever label the issue wears, so no relabel is made that nothing durable records. Such a finish reads the
-  relabel made only where this member names the head and the issue wears `workflow:validating`
-  (`workflow/engine/rewrite_finish_announced.relabelled`), so a finish lost before the retirement -- or another
-  finish of the landing -- makes neither the relabel nor its stage-entry event twice, with no event log needed.
-  Beside another label the member is a relabel that never landed, and the route relabels. On an issue that already
-  wore `workflow:validating` the label says nothing of whether the relabel behind the member was made: with the
-  audit log configured the next finish asks it for the relabel's `stage_enter` event, which names the head
-  (`sha`), relabels where it is missing, and holds where the log will not read; with no log the relabel is read as
-  made, so a finish lost between this member and that relabel files no stage-entry event for the head -- once at
-  most, never twice. A relabel onto that label that raises takes the member back off before the error goes on, for
-  the next finish to relabel, only where the event stream -- this process's own tail first -- reads and carries no
-  stage-entry event naming the head; one that landed and then raised keeps it. Blanked with the rest of the
-  attempt by every write that ends it, whichever road ends it. Additive: an attempt from before this member
-  existed, or one a production finish routes, carries none.
+  `pending_auto_base_rebase_relabelled` — a member of the attempt no road sets: every write that ends the attempt
+  blanks it with the rest, so live comments carry it `null`, and every write decided on the attempt holds it as read.
+  The finish reads its relabel off the mark and the label instead -- an issue already on `workflow:validating` under
+  the mark naming the landed head is not relabelled again, so it files no second stage-entry event.
   `pending_auto_base_rebase_announced_event` — the head whose `base_rebased` event a finish of the attempt is
   filing, written in a guarded write of its own right ahead of the event and of the mark
   (`workflow/engine/rewrite_finish_writes.ANNOUNCED_EVENT`), carried by the checkpoint as well, and blanked with the

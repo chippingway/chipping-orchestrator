@@ -7,12 +7,18 @@ It is loaded into every agent session — keep it short. It routes to the author
 there, not here. Update this file only when repository-wide agent instructions, safety rules, or documentation
 routing change — never to track a moved handler, helper, module, or test.
 
+## Required reading for every task
+
+Read [`docs/contracts.md`](docs/contracts.md) before investigation, planning, implementation, or review. It is the
+central register of project contracts, invariants, and compatibility boundaries.
+Follow its links for the area you touch; update the contract and its checks together when a task changes a guarantee.
+
 ## What this project is
 
 `chipping-orchestrator` is a GitHub-Issue-driven workflow that watches issues on configured repos, drives them through a
 label-based state machine, and spawns local CLI agents (`codex`, `claude`) in per-issue git worktrees to implement
-them and open PRs. State lives entirely in GitHub (one workflow label + one pinned JSON comment per issue), so the
-orchestrator process is stateless.
+them and open PRs. Workflow state lives in GitHub (one workflow label + one pinned JSON comment per issue), with the
+recovery exceptions described in [`docs/contracts.md`](docs/contracts.md#c-01-durable-workflow-state-and-recovery).
 
 ## Where the details live
 
@@ -63,6 +69,9 @@ Read [`.agents/skills/develop/SKILL.md`](.agents/skills/develop/SKILL.md) before
 `orchestrator/`, `tests/`, or `docs/`. It carries the commands, commit format, license headers, test placement,
 comment rules, and dependency policy.
 
+When touching the state machine, agent invocation, or stage handlers, read
+[`docs/state-machine.md`](docs/state-machine.md) and [`docs/workflow.md`](docs/workflow.md) first.
+
 Any agent that sizes or splits an issue, including the late adjudication of an oversized committed change, must first
 read [`.agents/skills/decompose/SKILL.md`](.agents/skills/decompose/SKILL.md). It carries what a child's scope has to
 include, the residual test every proposed child passes, and how the initial and late stages differ.
@@ -88,21 +97,13 @@ Tests are the primary correctness gate. Add or update tests for any behavioral c
   Postgres volume — runtime state, not source. **Never traverse, read, modify, permission-repair, delete, or re-run
   any command against it with elevated privileges.** If a tool reports it as unreadable, that is expected: target
   `tests` explicitly (the default `pytest` config already ignores the directory) rather than escalating access.
-- **Workflow labels and pinned-state JSON fields are a compatibility contract.** Live issues already carry them, so a
-  rename is a migration, not a refactor. The same holds for comment marker text, watermark fields, and event payload
-  shapes. When touching the state machine, agent invocation, or stage handlers, read
-  [`docs/state-machine.md`](docs/state-machine.md) and [`docs/workflow.md`](docs/workflow.md) first.
-- **One orchestrator writer per issue.** Issues are worked in parallel, but dispatch and the per-tick base refresh
-  each hold the issue's writer claim from before they read it through their last write. Do not add code that adopts,
-  reconciles, or repairs another orchestrator writer's changes made inside that claim; keep handling crashes, lost or
-  refused writes, comment capacity, and changes from outside the orchestrator. Rationale:
-  [`docs/architecture.md`](docs/architecture.md#design-constraints).
-- **Secrets.** `GITHUB_TOKEN` is deliberately *not* loaded from `.env`. Tokens live in
-  `~/.config/<owner>/<repo>/token` or the process environment. Rationale:
-  [`docs/configuration.md`](docs/configuration.md#github-personal-access-token).
+- **Preserve persisted and external formats:** [C-03](docs/contracts.md#c-03-persisted-and-externally-consumed-formats).
+- **One orchestrator writer per issue:** [C-05](docs/contracts.md#c-05-writer-claims-and-artifact-maintenance).
+- **Never load GitHub tokens from `.env`:** [C-11](docs/contracts.md#c-11-credentials-and-execution-boundaries).
 - **`plans/` is working notes, not spec.** Files under `plans/` are non-authoritative human working notes.
-  Implement what the issue asks for, do not cite a `plans/` document in code, comments, or commit messages, and leave
-  those files untouched unless the issue explicitly asks you to edit one.
+  Implement what the issue asks for. Do not cite a `plans/` document in code, tests, comments, docstrings, or commit
+  messages. Leave those files untouched unless the issue explicitly asks you to edit or remove one; that exception
+  does not permit citations.
 
 ## Out of scope without explicit ask
 

@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A landed base rewrite whose finish captured or settled its head's evidence and stopped short of its route.
+"""A landed base rewrite whose finish captured its head's evidence and stopped short of its route.
 
 The finish case (`rewrite_finish_evidence_test_support`): the tested commit
 rebased onto the rebased head and landed, a report about that head settled and
@@ -9,11 +9,7 @@ onto. The publication's finish runs the configured suite on that head and
 records the run as a pending transaction, and the answer to that write is
 lost, so nothing routes: the run is captured for the head beside the standing
 attempt, which is what the recovery helpers are asked about
-(`CapturedEvidenceCase`). Or the finish settles its evidence under the anchor
--- that run, or the anchor's evidence carried onto a squash whose tree is the
-tested one -- and dies before announcing the landing, so that evidence is
-current beside the standing attempt, which is what the readiness primitives
-are asked about (`SettledEvidenceCase`).
+(`CapturedEvidenceCase`).
 
 A case asks one helper directly (`asks`) over the finish a later tick's
 recovery would hold (`landed`), under the world's git readings, with the
@@ -29,16 +25,11 @@ from unittest.mock import Mock, patch
 
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding, _PushOutcome
-from orchestrator.workflow.engine import (
-    verification_records as _records,
-    verification_settlement_state as _settlement,
-)
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from tests.workflow.engine import (
     rewrite_finish_evidence_test_support as finish_support,
     rewrite_finish_moves as moves,
     rewrite_finish_readings as readings,
-    rewrite_handoff_test_support as handoff,
     verification_evidence_test_support as support,
 )
 from tests.workflow.fixtures import _TEST_SPEC
@@ -138,57 +129,6 @@ class CapturedEvidenceCase(_LandedEvidenceCase):
     def kept(self) -> tuple:
         """The evidence records while the captured run still stands."""
         return self.captured, None, self.invalidated()
-
-
-class SettledEvidenceCase(_LandedEvidenceCase):
-    """Issue #7's `head` landed, its evidence settled under the anchor by a finish that died before announcing it.
-
-    `head` is the rebased head, whose run the finish made and settled, or the
-    squash, onto which it carried the anchor's evidence with nothing run.
-    """
-
-    def setUp(self) -> None:
-        _LandedEvidenceCase.setUp(self)
-        self.attempts(self.head)
-        self.rewrites(self.head)
-        handoff.dies_at(self.gh, handoff.BEFORE_THE_ANNOUNCEMENT, lambda: self.finishes(self.head))
-        records = readings.pinned_records(self)
-        self.settled = records[1]
-        self.history = records[2]
-        self.assertEqual(self.settled.binding.target.target_head, self.head)
-
-    def settles(self, head: str) -> None:
-        """Start over with the evidence settled for `head`."""
-        self.head = head
-        self.setUp()
-
-    def kept(self) -> tuple:
-        """The evidence records while the settled evidence is still current."""
-        return None, self.settled, self.history
-
-    def snapshots_the_issue(self):
-        """The client's issue read answering with a copy, as GitHub's does: an edit after it leaves it as read."""
-        live = self.gh.get_issue
-        return patch.object(self.gh, "get_issue", lambda number: copy(live(number)))
-
-    def puts_back(self, kept: dict) -> None:
-        """Another road putting the pinned comment back exactly as `kept` read it."""
-        state = self.gh.read_pinned_state(self.issue)
-        state.data = dict(kept)
-        self.gh.write_pinned_state(self.issue, state)
-
-    def invalidated_whole(self, *spent: tuple) -> tuple:
-        """The evidence records once the settled evidence was invalidated, beside any `spent` entry after it."""
-        invalidated = (self.settled.receipt, readings.INVALIDATED)
-        return None, None, (*self.history, invalidated, *spent)
-
-    def assert_invalidated(self, *spent: tuple) -> None:
-        """The settled evidence kept whole in history -- revision, transcript, tested and source provenance."""
-        history = _settlement.read_evidence_history(self.gh.read_pinned_state(self.issue))
-        entry = next(entry for entry in history if entry.receipt == self.settled.receipt)
-        invalidated = _records.HistoricalEvidence.of(self.settled, _records.Retirement.INVALIDATED)
-        self.assertEqual(entry, invalidated)
-        self.assert_dormant(self.invalidated_whole(*spent))
 
 
 def dropped(case: CapturedEvidenceCase) -> tuple:

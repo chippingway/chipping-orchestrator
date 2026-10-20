@@ -72,7 +72,6 @@ evidence only under the context configured when it is written.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.github.verification_evidence import VerifiedCommand
@@ -86,7 +85,6 @@ from orchestrator.workflow.engine import (
     verification_record_state as _record_state,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_models import RewriteEvidence, RewriteEvidenceRoute
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
 from orchestrator.workflow.engine.verification_proof import ProofReading
@@ -99,9 +97,7 @@ log = logging.getLogger("orchestrator.workflow")
 _Licensed = tuple[EvidenceBinding, tuple[VerifiedCommand, ...], str | None]
 
 
-def settles(
-    finish: LandedFinish, classifies_a_move: Callable[[PinnedState], ReportEvidence | None] | None = None,
-) -> FinishOutcome | None:
+def settles(finish: LandedFinish) -> FinishOutcome | None:
     """Decide the evidence `finish`'s landed head is routed with, and land what it requires; None to route it.
 
     Anything else is where the finish stops, with nothing routed and the
@@ -122,22 +118,14 @@ def settles(
     standing for a later route once what moved is back -- an evidence write
     refused over a bound record it read moved hands that movement to the word
     as its proof, so a record put back meanwhile is abandoned over all the
-    same. The stop is the outcome all the same. `classifies_a_move`, handed
-    only by the dormant settled-evidence policy's evidence phase, asks the
-    comment that write's strict edit read what it records moving under the
-    transaction (`verification_proof.ProofReading.classifies_a_move`), so a
-    mark, a revision spent past it, or a blank of the attempt's base tip
-    another road left there and put back before the edit answered is that
-    movement all the same.
+    same. The stop is the outcome all the same.
     """
     failure = _failures.recorded(finish.state, finish.head)
     captured = _captured.recorded(finish)
     if failure is None and captured is None and not _captured.retired(finish):
         return _decides(finish)
     staged = _writes.staging(finish)
-    observed = ProofReading(
-        finish.gh, finish.spec, finish.issue, finish.state, observed=[], classifies_a_move=classifies_a_move,
-    )
+    observed = ProofReading(finish.gh, finish.spec, finish.issue, finish.state, observed=[])
     stopped = _lands(finish, staged, observed) if _invalidates(finish, staged) else FinishOutcome.HELD
     if captured is not None:
         observed.observes(_captured.proved_again(finish, captured))
@@ -152,13 +140,10 @@ def continues(finish: LandedFinish) -> FinishOutcome | None:
 
     The caller's next rebase replaces that head, so a transaction recorded
     for it is a decision no route takes (`rewrite_finish_captured.sets_aside`),
-    abandoned in a write of its own over the comment read afresh before the
+    abandoned in a write of its own before the
     continuation is announced or the attempt retires; one that does not land
     holds the continuation with nothing announced. Nothing is decided, run, or
-    invalidated for the head itself, save -- for a finish held to the dormant
-    settled-evidence policy -- a settlement another finish made of that very
-    transaction while its abandonment was asked, which is invalidated in its
-    place.
+    invalidated for the head itself.
     """
     return _captured.sets_aside(finish)
 

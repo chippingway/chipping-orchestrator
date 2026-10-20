@@ -3,13 +3,12 @@
 """Which events behind a durable word that they may be out a process still has to file.
 
 With an audit log every absence is the log's to vouch for and the event filed; with none, only one this process owes
-unpaid is, whatever its notice's id, noted by any worker of its repository's client, not another repository's, and only
-for a notice saying what the owing post said: an earlier notice found said is not refiled over another's failed post.
+unpaid is, noted by any worker of its repository's client and not another repository's, and only for the very head the
+owing record named.
 """
 from __future__ import annotations
 
 import unittest
-from functools import partial
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from unittest.mock import patch
@@ -18,20 +17,20 @@ from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import owed_events
 
-_PARKED = "park_awaiting_human"
+_REBASED = "base_rebased"
 
 # The audit log's setting, unset where no log vouches for an absence.
 _LOG = "EVENT_LOG_PATH"
-_NAMED = MappingProxyType({"issue_number": 7, "reason": "auto_base_rebase_push_failed"})
+
+# The landed head a finish's `base_rebased` record names, and another one.
+_HEAD = "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+_OTHER_HEAD = "c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3"
+_NAMED = MappingProxyType({"issue_number": 7, "sha": _HEAD})
 
 # Two repositories' clients, each minting its own workers, and what they are built with.
 _SLUGS = ("owner/repo", "owner/other")
 _TOKEN = "tok"
 _BOT = "bot"
-
-# Two park notices of one issue, parked for the same reason.
-_SAID = "Reset failed; inspect the checkout."
-_OTHER = "Reset succeeded; continue after repair."
 
 
 def _minted(workers: int) -> tuple:
@@ -49,34 +48,27 @@ class OwedEventTest(unittest.TestCase):
     def test_no_log_files_only_an_owed_event(self) -> None:
         client = SimpleNamespace()
         self.enterContext(patch.object(config, _LOG, None))
-        self.assertFalse(owed_events.unfiled(client, _PARKED, **_NAMED))
-        owed_events.owes(client, _PARKED, **_NAMED)
-        self.assertTrue(owed_events.unfiled(client, _PARKED, notice_id=9, **_NAMED))
-        owed_events.pays(client, _PARKED, notice_id=9, **_NAMED)
-        self.assertFalse(owed_events.unfiled(client, _PARKED, **_NAMED))
+        self.assertFalse(owed_events.unfiled(client, _REBASED, **_NAMED))
+        owed_events.owes(client, _REBASED, **_NAMED)
+        other_head = {**_NAMED, "sha": _OTHER_HEAD}
+        owing = [owed_events.unfiled(client, _REBASED, **named) for named in (_NAMED, other_head)]
+        self.assertEqual(owing, [True, False])
+        owed_events.pays(client, _REBASED, **_NAMED)
+        self.assertFalse(owed_events.unfiled(client, _REBASED, **_NAMED))
 
     def test_a_log_vouches_for_every_absence(self) -> None:
         self.enterContext(patch.object(config, _LOG, Path("events.jsonl")))
-        self.assertTrue(owed_events.unfiled(SimpleNamespace(), _PARKED, **_NAMED))
+        self.assertTrue(owed_events.unfiled(SimpleNamespace(), _REBASED, **_NAMED))
 
     def test_workers_share_their_repository_debt(self) -> None:
         # A lost worker client's debt passes to the next one minted for the issue; paid there, it is paid for all.
         self.enterContext(patch.object(config, _LOG, None))
         lost, replacing, later, other = _minted(3)
-        owed_events.owes(lost, _PARKED, **_NAMED)
-        owing = [owed_events.unfiled(client, _PARKED, **_NAMED) for client in (replacing, other)]
+        owed_events.owes(lost, _REBASED, **_NAMED)
+        owing = [owed_events.unfiled(client, _REBASED, **_NAMED) for client in (replacing, other)]
         self.assertEqual(owing, [True, False])
-        owed_events.pays(replacing, _PARKED, **_NAMED)
-        self.assertFalse(owed_events.unfiled(later, _PARKED, **_NAMED))
-
-    def test_another_notices_debt_files_nothing(self) -> None:
-        # A process owing a failed notice's event takes an earlier notice found saying something else as filed.
-        self.enterContext(patch.object(config, _LOG, None))
-        client = SimpleNamespace()
-        owed_events.owes(client, _PARKED, said=_OTHER, **_NAMED)
-        unfiled = partial(owed_events.unfiled, client, _PARKED, **_NAMED)
-        owing = [unfiled(said=said) for said in (_SAID, _OTHER)]
-        self.assertEqual(owing, [False, True])
+        owed_events.pays(replacing, _REBASED, **_NAMED)
+        self.assertFalse(owed_events.unfiled(later, _REBASED, **_NAMED))
 
 
 if __name__ == "__main__":

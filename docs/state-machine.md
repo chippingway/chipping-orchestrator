@@ -5,6 +5,8 @@ description: >-
 ---
 # Workflow state machine
 
+Read [Contracts and invariants](contracts.md) for the project-wide state, compatibility, and recovery rules.
+
 This area documents the label-based state machine that drives every GitHub issue from pickup to terminal. It is split
 out of [`architecture.md`](architecture.md), which keeps the high-level overview, the top-level module map, and the
 process / agent / push model. Workflow labels and pinned-state JSON keys are a compatibility contract — live issues
@@ -35,22 +37,21 @@ them, see [`configuration.md`](configuration.md). For the audit event log and an
 
 ## Workflow labels
 
-An issue carries at most one workflow label at a time, and the orchestrator only ever swaps labels from its own set —
-`bug`, `enhancement`, and a repository's own triage labels are preserved. `workflow:<tag>` is the **wire label**: the
-literal string on the GitHub issue that a label write puts there, the transition guard checks, and the per-tick
-dispatcher partitions on. A bare `<tag>` is the **stage**: the handler, the subpackage under
-`orchestrator/workflow/stages/` holding it, and the identifier analytics rows, audit event payloads, and agent-session
-attribution carry. `in_review`, `question`, `discussion`, `done`, and `rejected` were never namespaced, so those read
-the same either way.
+The rules for relabels and human edits are in [C-02](contracts.md#c-02-workflow-labels-and-transitions).
+`workflow:<tag>` is the **wire label**: the literal string on the GitHub issue that a label write puts there, the
+transition guard checks, and the per-tick dispatcher partitions on. A bare `<tag>` is the **stage**: the handler, the
+subpackage under `orchestrator/workflow/stages/` holding it, and the identifier analytics rows, audit event payloads,
+and agent-session attribution carry. `in_review`, `question`, `discussion`, `done`, and `rejected` were never
+namespaced, so those read the same either way.
 
 The states, in lifecycle order: no label, `workflow:decomposing`, `workflow:ready`, `workflow:blocked`,
 `workflow:umbrella`, `workflow:implementing`, `workflow:documenting`, `workflow:validating`, `in_review`,
 `workflow:fixing`, `workflow:resolving_conflict`, the operator-applied `question` and `discussion`, and the `done` /
 `rejected` terminals. Three non-workflow **control labels** modify behavior without occupying the workflow slot:
-`backlog` (a "not yet" hard skip on a fresh issue), `paused` (the same hard skip on an in-flight one, honored again
-right after every agent run returns), and `workflow:community_contribution` (applied by the per-tick open-PR sweep,
-never by an operator). What each state means, what a `paused` mid-run withholds, and why the prefix is a collision
-guard rather than the membership test are in
+`backlog` (a "not yet" hard skip on a fresh issue), `paused` (the same hard skip on an in-flight one), and
+`workflow:community_contribution` (applied by the per-tick open-PR sweep, never by an operator). Both hard-skip labels
+are checked again right after every agent run returns. What each state means, what a mid-run hold withholds, and why
+the prefix is a collision guard rather than the membership test are in
 [`state-machine/labels-and-state.md#workflow-labels`](state-machine/labels-and-state.md#workflow-labels).
 
 ### Typed states and the transition guard
@@ -60,9 +61,9 @@ both vocabularies once; because `StrEnum` members *are* their wire strings, a me
 Two guards run at `GitHubClient.set_workflow_label`, the single label-write chokepoint: an always-strict **typo
 guard** that raises on a name outside `WorkflowLabel`, and the **transition guard**
 (`WORKFLOW_TRANSITION_GUARD` = `off` / `warn` / `enforce`, default `warn`) checking `current → new` against
-`ALLOWED_TRANSITIONS`. Operator relabels through the GitHub UI bypass both, so the guard never fights a human — and
-one orchestrator write skips the transition guard for the same reason: the late size gate putting a label back where
-a human moved it from is repairing a move the graph has no edge for. The edge set, that one exemption, the
+`ALLOWED_TRANSITIONS`. Operator relabels through the GitHub UI bypass both. Three late-generation recovery writes also
+skip the transition guard: restoring a live adjudication, restoring a closed cancelled owner to the cleanup sweep,
+and finalizing its cancellation as `rejected`. The edge set, those exemptions, the
 `orchestrator.state_machine` logger a rejection is filtered by, and how `create_child_issue` shares the typo guard for
 its direct write are in [`state-machine/labels-and-state.md`][typed-states].
 
@@ -195,33 +196,20 @@ the landing read moving by the recovery's first snapshot -- or reset off by its 
 finish put on the attempt in the write that recorded it (`pending_auto_base_rebase_evidence_receipt`); any other is
 another road's, and kept as it wrote it. Every recovery park or hold that keeps the attempt for a later tick or a
 human's reply proves a captured run again first, on readings no failed fetch is needed for, and abandons it where
-anything moved, so putting that input back before the attempt is taken up again revives nothing. Proving settled
-evidence ready again before its route, and invalidating it whole wherever anything it rests on moved, are dormant
-primitives (`workflow/engine/rewrite_finish_readiness.py`) that in a finish only the dormant settled-evidence policy
-asks -- one a caller selects by building a finish with `proves_settled` and handing it directly to the coordinator
-(`rewrite_finish.finalizes`) or to its evidence phase (`rewrite_finish_settlement.resolves`, which announces,
-relabels, parks, and retires nothing), as no production road does (`workflow/engine/rewrite_finish_settled.py`). The
-coordinator under it proves the evidence again before every hold, unfinishable landing, continuation, and debt park,
-around the relabel, and behind every stop of the announcement, the park, or the retirement
-(`workflow/engine/rewrite_finish_stops.py`), and announces, relabels, or parks nothing another finish already did --
-its relabel landing behind a record of its own on the attempt (`pending_auto_base_rebase_relabelled`); the
-phase adopts a settlement another road made and invalidates
-it over movement read under it, reads the comment afresh behind every invalidation it lands, holding over a newer
-transaction or another attempt written right behind it (`workflow/engine/rewrite_finish_rechecks.py`), abandons a
-continuation's captured transaction before proving the settled evidence
-beside it, and asks the primitives that policy adds -- retiring the same receipt over whatever attempt now stands, an
-announcement of the landing taken in and a refused write retried, and recording movement history has no room for under
-the evidence's own receipt, beside restoring an attempt a retirement nobody confirmed took, which the coordinator asks
-(`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_unconfirmed.py`). No recovery road asks
-them: the recovery abandons only the transaction a finish captured, under the issue writer claim the base refresh or
-the dispatcher holds from before its reading through its final write, and lands every park, clear, and record of a
-gate's hold -- and its abandonment of a captured transaction -- as a checkpoint over the reading it last confirmed,
-decided on the attempt and its evidence (`git/base_sync/checkpoints._lands_the_checkpoint`), and resets the checkout
-only once the comment still spells those records so: a write refused or never confirmed, or an attempt or evidence
-record found moved without it, stops the recovery with nothing put back, for the next tick to read. A tick lost behind
-the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
-checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
-recovery, which reads what was done off the mark, the pull request, the event stream, and the label
+anything moved, so putting that input back before the attempt is taken up again revives nothing. Evidence an earlier
+finish settled and left current is routed as it stands, and the reviewer the route hands it to proves it current
+before relying on it. The finish and the recovery each run under the issue writer claim the base refresh or the
+dispatcher holds from before its reading through its final write, and land every write -- the finish's evidence,
+abandonment, announcement, park, and retirement (`workflow/engine/rewrite_finish_writes.py`), and the recovery's
+every park, clear, record of a gate's hold, and abandonment of a captured transaction
+(`git/base_sync/checkpoints._lands_the_checkpoint`) -- as a checkpoint over the reading the tick last confirmed,
+decided on the attempt and its evidence; the recovery resets the checkout only once the comment still spells those
+records so. A write refused or never confirmed, or an attempt or evidence record found moved without one, stops the
+operation with nothing put back, for the next tick to read. What the finish owns, takes in, completes on, and holds
+or parks over is [its contract](state-machine/delivery-stages.md#the-base-rewrite-finalization-contract).
+A tick lost behind the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and
+checkpoint, between the checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt
+standing for that recovery, which reads what was done off the mark, the pull request, the event stream, and the label
 (`workflow/engine/rewrite_finish_notices.py`, `workflow/engine/rewrite_finish_events.py`): no second notice,
 `base_rebased` or stage-entry event, round reset, relabel, evidence publication, or developer launch. A conversation or
 audit log the finish cannot read holds it with nothing filed. With no audit log, the attempt's record of its

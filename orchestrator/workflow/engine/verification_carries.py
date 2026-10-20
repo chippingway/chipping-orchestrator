@@ -177,13 +177,10 @@ def abandons_afresh(reading: ProofReading, pending: _records.PendingEvidence | N
     confirmed holds, and the next tick finds the record gone or abandons it
     again, with no second entry. Every record the reading rests on beyond the
     bound ones (`ProofReading.rests_on`) -- a standing auto-rebase attempt --
-    is held the same way, and what that reading, or the commit's own, refused
-    and records is kept for a reading that classifies a move
-    (`ProofReading.reads_afresh`, `verification_durable.lands_observing`).
+    is held the same way.
     """
     issue = reading.issue
     durable, refused = _durable.durable_comment(reading.gh, issue, reading.state, reading.rests_on)
-    reading.reads_afresh(durable, refused)
     if refused is None:
         guard = _durable.guarded(durable, ABANDONS, reading.rests_on)
         if not abandons(durable, pending):
@@ -191,7 +188,7 @@ def abandons_afresh(reading: ProofReading, pending: _records.PendingEvidence | N
                 "issue=#%d has no room on its pinned comment to abandon the "
                 "verification evidence it owes; leaving it owed", issue.number,
             )
-        refused = _durable.lands_observing(reading, guard, durable)
+        refused = _durable.lands(reading.gh, issue, reading.state, guard, durable)
     if refused is None:
         return False
     log.info(

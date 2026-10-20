@@ -188,7 +188,6 @@ def set_workflow_label(
     new_label: str | None,
     *,
     guarded: bool = True,
-    **correlation: Any,
 ) -> None:
     """Replace only the workflow label and emit its stage-enter event.
 
@@ -197,20 +196,16 @@ def set_workflow_label(
     the state the first one left. A write GitHub refuses raises before either
     the cached labels or the stage-enter event move.
 
-    `correlation` rides the stage-enter event as extra fields, for a caller
-    that has to find its own relabel on the event stream again: the route of
-    a landed rewrite held to the dormant settled-evidence policy names the
-    head it relabels for as `sha`, since a relabel onto the label the issue
-    already wore leaves the label itself saying nothing.
+    The stage-enter event goes to the audit log and the analytics sink
+    alike (`GitHubClient._emit_stage_enter`), and a relabel onto the label
+    the issue already wore records it again, as one more entry into that
+    state.
 
-    `guarded=False` is for the one write that is not a transition: putting a
-    label back where a human moved it from. The graph describes the moves this
-    orchestrator makes, so under `enforce` it would refuse a repair of a move
-    it never made -- `validating -> decomposing` is not a step the workflow
-    takes, and the whole reason to write it is that the issue is not on the
-    label it should be. Refusing there would strand the issue under the wrong
-    one for as long as the operator kept the guard on, which is the opposite
-    of what the guard is for.
+    `guarded=False` lets late-generation recovery restore an adjudication,
+    restore a closed cancelled owner to the cleanup sweep, or finalize that
+    cancellation as rejected. Those writes must work from labels a human
+    may have applied outside the transition graph, or `enforce` could strand
+    adjudication or cleanup. Label-name validation still applies.
     """
     new_workflow_label = (
         _label_reading.coerce_workflow_label(new_label) if new_label else None
@@ -235,7 +230,7 @@ def set_workflow_label(
         # The event and the analytics row name the state by its bare tag: the
         # namespace is a GitHub label spelling, and every reader downstream of
         # here keys on the tag under it.
-        client._emit_stage_enter(issue, _workflow_state.stage_name(new_workflow_label), **correlation)
+        client._emit_stage_enter(issue, _workflow_state.stage_name(new_workflow_label))
 
 
 # The event kind GitHub records when a label is put ON an issue. A removal is

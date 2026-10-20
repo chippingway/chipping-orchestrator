@@ -55,17 +55,10 @@ from orchestrator.agents.models import (
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import (
-    comments as _comments,
-    owed_events as _owed_events,
-    park_watermarks as _park_watermarks,
-)
+from orchestrator.workflow.engine import comments as _comments, park_watermarks as _park_watermarks
 from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
-
-# The event every park files.
-_PARKED = "park_awaiting_human"
 
 
 def _ignore_if_interrupted(issue: Issue, agent_result: AgentResult) -> bool:
@@ -330,26 +323,10 @@ def _park_awaiting_human(
     so it belongs to neither the event nor the analytics payload. Only a
     bounded park reads the ledger before posting: the walk needs it, and the
     ordinary park appends to that ledger without parsing what it already holds.
-
-    `names_the_notice=True` is popped the same way and asks the event to carry
-    the id of the notice this call posted as `notice_id`, which only the
-    poster can know: a later caller that finds that notice said and asks the
-    event stream whether its park's event was filed then asks for that park's
-    own, not any earlier one's. Only the dormant debt park of a landed rewrite
-    asks for it, so every other record goes out without the field. Such a park's event is noted owed ahead of the post
-    until filed (`owed_events`), under the text the notice says, so with no
-    audit log that later caller files it for a notice this process said and
-    takes one an earlier process said as filed.
     """
     reason = correlation.pop("reason", None)
     bounded = correlation.pop("bounded", False)
-    names_the_notice = correlation.pop("names_the_notice", False)
     _screened_correlation(correlation)
-    if names_the_notice:
-        _owed_events.owes(
-            gh, _PARKED, issue_number=issue.number, said=message,
-            reason=reason, **correlation,
-        )
     said_before = _comments._orchestrator_ids(state) if bounded else None
     posted = _comments._post_issue_comment(gh, issue, state, message)
     state.set("awaiting_human", True)
@@ -358,21 +335,14 @@ def _park_awaiting_human(
         _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
     elif getattr(posted, "id", None) is not None:
         state.set("last_action_comment_id", posted.id)
-    if names_the_notice:
-        correlation["notice_id"] = getattr(posted, "id", None)
     # Read the label AFTER the comment post and state writes so the
     # captured stage reflects the handler that drove the park (the label
     # itself is unchanged by this call -- callers relabel only after the
     # `write_pinned_state` they do next).
     gh.emit_event(
-        _PARKED,
+        "park_awaiting_human",
         issue_number=issue.number,
         stage=stage_name(gh.workflow_label(issue)),
         reason=reason,
         **correlation,
     )
-    if names_the_notice:
-        _owed_events.pays(
-            gh, _PARKED, issue_number=issue.number, said=message,
-            reason=reason, **correlation,
-        )

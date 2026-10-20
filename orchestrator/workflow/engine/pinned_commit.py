@@ -123,17 +123,13 @@ def prepare(
     Asked ahead of an external effect that depends on the record being
     written -- a comment posted, a label moved -- so the effect is never made
     for a record that could not follow it. A PREPARED answer licenses nothing
-    past the requests that follow it: `commit` derives everything again. A
-    guard that `reads_a_move` has a refusal of moved prerequisites carry the
-    fresh reading it read them on, and a candidate refused over that reading
-    -- past the limit, or by the domain's own check -- carry it too
-    (`pinned_commit_models.PinnedCommit.keeps_the_move`).
+    past the requests that follow it: `commit` derives everything again.
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)
     if isinstance(fresh, _models.CommitOutcome):
         return fresh
-    return guard.keeps_the_move(change.over(issue, fresh), fresh)
+    return change.over(issue, fresh)
 
 
 def commit(
@@ -150,37 +146,21 @@ def commit(
     fresh one. A candidate the comment already reads as is COMMITTED with
     nothing sent. A comment that moved between the fresh reading and the edit
     is refused as MOVED with nothing sent, and a commit asked again derives
-    over whatever it carries then -- or, for a guard that `reads_a_move`, as
-    PREREQUISITE_CHANGED naming the prerequisites the comment the edit read
-    spells otherwise, where any did
-    (`pinned_commit_models.PinnedCommit.under_the_edit`). Such a guard's
-    refusal of moved prerequisites carries the comment it read them moved on,
-    the fresh reading or the edit's, a candidate it refused over the fresh
-    reading carries that reading, and its MOVED refusal the comment the edit
-    found in place of the fresh reading (`PinnedCommit.keeps_the_move`) --
-    every refusal of the edit keeping the fresh reading beside it as well
-    (`CommitOutcome.fresh`), since a record moved there and put back before
-    the edit read the comment moved under the write too.
+    over whatever it carries then.
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)
     if isinstance(fresh, _models.CommitOutcome):
         return fresh
-    prepared = guard.keeps_the_move(change.over(issue, fresh), fresh)
+    prepared = change.over(issue, fresh)
     if prepared.status is not _models.CommitStatus.PREPARED:
         return prepared
     if fresh.reads_as(prepared.reading.data):
         return replace(prepared, status=_models.CommitStatus.COMMITTED)
-    edit = gh.edit_pinned_state(
-        issue, prepared.reading, **guard.edit_options(fresh.data, change.seen),
-    )
+    edit = gh.edit_pinned_state(issue, prepared.reading, over=fresh.data)
     refusal = _UNSENT.get(edit)
     if refusal is not None:
-        return guard.keeps_the_move(
-            _refused(issue, *guard.under_the_edit(refusal, change.seen)),
-            next(iter(change.seen), None),
-            fresh,
-        )
+        return _refused(issue, refusal)
     return replace(prepared, status=_LANDED[edit])
 
 
@@ -198,7 +178,7 @@ def reread(
     moved; `commit` holds the comment to every one of them again whatever
     this answered.
     """
-    return _fresh(gh, issue, _Change(guard, guard.read, _NO_TRANSFORMS, []))
+    return _fresh(gh, issue, _Change(guard, guard.read, _NO_TRANSFORMS))
 
 
 def takes_in(
@@ -240,9 +220,6 @@ class _Change:
     # The staged state, as the comment's JSON would spell each field.
     staged: Mapping[str, str]
     derived: Mapping[str, _models.Transform]
-    # The comment the strict edit read where it found it moved, kept for a
-    # guard that reads a move (`pinned_commit_models.PinnedCommit.edit_options`).
-    seen: list[PinnedState]
 
     @classmethod
     def of(
@@ -256,7 +233,6 @@ class _Change:
             guard=guard,
             staged=MappingProxyType({field: _models.spelled(staged, field) for field in staged}),
             derived=MappingProxyType(dict(derived)),
-            seen=[],
         )
 
     def assigned(self) -> list[str]:

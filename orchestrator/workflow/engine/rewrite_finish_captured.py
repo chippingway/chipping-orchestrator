@@ -43,29 +43,21 @@ even once everything is back where it was; one recorded for a head the base
 advanced past is abandoned the same way (`sets_aside`). A reading nobody
 could take holds the route and keeps the transaction for a later proof.
 
-The abandonment (`_abandoned`) is staged on the comment read afresh and
-committed guarded by that reading, so a review, report, or approval another
-road wrote meanwhile neither refuses it nor is written over -- only an attempt
-put in place of the one the finish read does, since its records are none of
-this transaction's to write; where that write does not land, it is staged on
-the tick's own copy and landed as `rewrite_finish_writes.ABANDONMENT` instead,
-which is decided on the attempt too. Through
-`verification_carries.abandons`, a carry takes the approval of exactly the
-review it answers for with it. Where the comment has no room for the
+The abandonment (`_abandoned`) is a checkpoint of its own: staged on a copy
+of the tick's state and landed as `rewrite_finish_writes.ABANDONMENT`, captured
+over the reading the tick last confirmed and decided on the records it retires
+and the attempt, so whatever the tick staged and has not written yet rides it
+once and every field nothing here touched is kept as the comment carries it.
+Through `verification_carries.abandons`, a carry takes the approval of exactly
+the review it answers for with it. Where the comment has no room for the
 abandonment's history entry, the transaction is dropped instead and the base
 tip its replay was recorded as made onto blanked with it, in a write that only
 shrinks the comment: every later reading of the base proves nothing
 (`rewrite_evidence_proof.standing_refusal`), so nothing could run or carry
-the landing's evidence again or route over it. Every other record on the
-comment stays as it reads. Under the dormant settled-evidence policy
-(`rewrite_finish_models.LandedFinish.proves_settled`), an abandonment another
-finish refused by settling that very transaction meanwhile retires the
-settlement instead, and so does one whose own write landed with that
-settlement right behind it, the comment read afresh behind every abandonment
-that lands (`rewrite_finish_unconfirmed.reconciles_the_abandonment`) -- a
-successor under another receipt kept, and one recorded beside that settlement
-holding the route. Every other finish holds the route where its abandonment
-was refused, the settlement left standing.
+the landing's evidence again or route over it. An abandonment that does not
+land -- refused over an attempt or evidence record that no longer reads as the
+tick confirmed it, or sent and never confirmed -- holds the route with the
+transaction exactly as the comment carries it, for a later tick to read.
 
 Only a record about the landed head is read here: while the attempt stands the
 anchor holds every other road, so nothing but a finish of this landing records
@@ -79,14 +71,12 @@ from __future__ import annotations
 import logging
 from functools import partial
 
-from orchestrator.git.base_sync import attempts as _attempts, state as _base_sync_state
+from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    pinned_commit_models as _commit_models,
     rewrite_finish_writes as _writes,
     rewrite_landing_records as _landing_records,
     verification_carries as _carries,
-    verification_durable as _durable,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
@@ -94,15 +84,10 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_evidence_proof import last_word, proves_again
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
-from orchestrator.workflow.engine.rewrite_finish_unconfirmed import reconciles_the_abandonment
 
 log = logging.getLogger("orchestrator.workflow")
 
 _ADVANCED = "the base advanced past the head it was recorded for"
-
-# What an abandonment writes: the transaction, the history it enters, a carry's
-# approval, and -- with no room for the entry -- the recorded base tip.
-_ABANDONED = (*_carries.ABANDONS, _base_sync_state._PENDING_REWRITE_BASE)
 
 
 def recorded(finish: LandedFinish, *, logged: bool = True) -> _records.PendingEvidence | None:
@@ -213,10 +198,7 @@ def stands_before_the_route(
     binding, a landing off its head, a base read elsewhere -- abandons the
     transaction the route would carry, in its own write (`_abandoned`): a
     decision something moved under is no decision any later route may take,
-    even one finding everything back where it was -- nor, under the
-    settled-evidence policy, is a settlement another finish made of it while
-    that abandonment was asked, which is invalidated over the same movement
-    instead. Any reading nobody could
+    even one finding everything back where it was. Any reading nobody could
     take, a landing that moved, or a base gone elsewhere holds the route with
     the attempt standing, so the next tick classifies the branch and counts
     the head again; a transaction nothing established movement under is kept
@@ -249,59 +231,29 @@ def sets_aside(finish: LandedFinish) -> FinishOutcome | None:
     """Abandon a record made for a landed head the base advanced past, in its own write; None to go on.
 
     The same abandonment a movement read under the record takes
-    (`_abandoned`), staged on the comment read afresh, so an approval or a
-    review another road wrote meanwhile neither refuses it nor is written
-    over; one that does not land, or that has no room and only refuses the
-    record for good, holds the continuation with the attempt standing. Under
-    the settled-evidence policy, a settlement another finish made of the
-    record while that was asked is invalidated in its place, so the
-    continuation carries none of the run, as it would carry none of a record
-    abandoned.
+    (`_abandoned`); one that does not land, or that has no room and only
+    refuses the record for good, holds the continuation with the attempt
+    standing.
     """
     pending = recorded(finish)
     return None if pending is None else _abandoned(finish, pending, _ADVANCED)
 
 
 def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str) -> FinishOutcome | None:
-    """Abandon `pending` in its own write, or refuse it for good where that has no room; None to go on.
+    """Abandon `pending` in a checkpoint of its own, or refuse it for good where that has no room; None to go on.
 
-    Staged on the pinned comment read afresh (`verification_durable`) rather
-    than on the tick's copy, and committed guarded by that reading: whatever
-    another road wrote meanwhile -- a review subject, a report, an approval of
-    its own -- is the movement this answers or none of its business, so it
-    neither refuses the abandonment nor is written over. Only a carry's own
-    approval goes with it (`verification_carries.abandons`), and only while
-    the comment still carries that approval. The attempt is the one exception:
-    the fresh comment has to carry the very attempt `finish` read, since a
-    replacement attempt is none of this transaction's business, and its
-    records -- the base tip its replay was made onto among them -- are never
-    written over. Where that write does not land
-    -- a comment that would not read again, a record moved under the write --
-    the abandonment is staged on the tick's own copy instead and landed as
-    `rewrite_finish_writes.ABANDONMENT`, decided only on the records it
-    retires and the attempt, so one failed reading or one move does not leave
-    the transaction standing for a later route to take once the landing is
-    put back. Another finish that settled `pending` while this was asked
-    refuses both, yet what this abandons it over was read under it all the
-    same: a finish held to the settled-evidence policy takes that settlement
-    in and invalidates it whole over that reading
-    (`rewrite_finish_unconfirmed.retires_the_settled`), its announcement taken
-    in and the route going on as a landed abandonment does -- or held, the
-    movement recorded, where there is no room or that finish's route took the
-    attempt, and held too where a newer transaction another road recorded
-    came in beside that settlement, which stands owed for the next finish.
-    Such a settlement may also land right behind an abandonment that did
-    land, made over a reading taken before it: under that policy the comment
-    is read afresh behind every abandonment that lands
-    (`rewrite_finish_unconfirmed.reconciles_the_abandonment`), so that
-    settlement is invalidated the same way and a successor or another attempt
-    written there holds the route.
-    Only where nothing lands is the route held
-    with the transaction kept, logged: the comment taking no write at all,
-    carrying another attempt -- which every write here is decided on -- or
-    no longer recording `pending` with no settlement of it current that the
-    policy takes in, a successor settled under another receipt kept as its
-    road wrote it.
+    Staged on a copy of the tick's state and landed as
+    `rewrite_finish_writes.ABANDONMENT` (`rewrite_finish_writes.abandons`):
+    captured over the reading the tick last confirmed, decided only on the
+    records it retires and the attempt, and carrying every field the tick
+    staged since, so nothing staged and not yet written is lost behind it.
+    Only a carry's own approval goes with it (`verification_carries.abandons`),
+    and only while the comment still carries that approval. Where that write
+    does not land -- an attempt or evidence record that no longer reads as the
+    tick confirmed it, which no write of this finish's moved, or an edit
+    nobody confirmed -- the route is held with the transaction exactly as the
+    comment carries it, logged: nothing is retried over a fresh reading, and a
+    later tick reads what stands.
 
     A comment with no room for the abandonment's history entry still takes a
     write that only shrinks it, and that write refuses the transaction for
@@ -316,25 +268,11 @@ def _abandoned(finish: LandedFinish, pending: _records.PendingEvidence, why: str
     over it, however the base, the landing, or the issue reads by then. The
     route is held behind that write.
     """
-    fits = None
-    # The bound records another road moved are no refusal here; only the attempt is.
-    durable = _durable.durable_comment(finish.gh, finish.issue, finish.state)[0]
-    replaced = durable is None or _commit_models.PinnedCommit.capture(
-        finish.state, prerequisites=_attempts._ATTEMPT_KEYS,
-    ).moved(durable.data)
-    if not replaced and _record_state.read_pending_evidence(durable) == pending:
-        guard = _durable.guarded(durable, _ABANDONED, _attempts._ATTEMPT_KEYS)
-        fits = _abandons(finish, durable, pending, why)
-        if _durable.lands(finish.gh, finish.issue, finish.state, guard, durable) is not None:
-            fits = None
-    if fits is None and recorded(finish, logged=False) == pending:
-        fits = _writes.abandons(finish, partial(_abandons, finish, pending=pending, why=why))
-    if finish.proves_settled:
-        fits = reconciles_the_abandonment(finish, pending, why, fits)
+    fits = _writes.abandons(finish, partial(_abandons, finish, pending=pending, why=why))
     if fits is None:
         log.warning(
-            "issue=#%d holding the route of %.8s: verification evidence revision %d could not be abandoned over "
-            "the pinned comment read again or the tick's own reading of it (%s)",
+            "issue=#%d holding the route of %.8s: verification evidence revision %d could not be abandoned in a "
+            "checkpoint over the reading this tick last confirmed (%s)",
             finish.issue.number, finish.head, pending.revision, why,
         )
     return None if fits else FinishOutcome.HELD
