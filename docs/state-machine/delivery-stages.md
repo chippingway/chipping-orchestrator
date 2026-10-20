@@ -1581,7 +1581,9 @@ because there it is the claim that this stage has already rerouted rather than a
   state first, a successor settled meanwhile refusing it with its floor kept, a successor, another attempt, or a
   revision floor raised alone written right behind it holding the tick with its state withheld, the run it retired
   written back there retired again in a write of its own since no attempt guards it any longer
-  (`rewrite_recovery_rereads.retires_again`), anything else written there -- a usage total -- laid over that state
+  (`rewrite_recovery_rereads.retires_again`) and outranked for every reader all the same by the revision the clear's
+  own write spent past it (`rewrite_recovery_rereads.outranks_the_retired`), anything else written there -- a usage
+  total -- laid over that state
   (`rewrite_recovery_rereads.lays_what_moved`), and a full history keeping the attempt
   (`rewrite_recovery_parks.lands_a_clear`, `git/base_sync/snapshot.py`); and a checkout gone from disk -- ahead of a
   park's or hold's record or behind one or a notice that raised, found gone by one of the proof's own git requests

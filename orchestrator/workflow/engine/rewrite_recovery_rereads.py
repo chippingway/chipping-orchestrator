@@ -15,7 +15,9 @@ the reading is asked for movement first (`stands_behind`): movement under eviden
 the caller's proof, the comment read again behind it, so it stands however soon it is put back; and a transaction the
 record itself took in pending under such a receipt holds the caller all the same. Behind a landed clear, which took
 the attempt guarding the evidence it retired with it, evidence that reading carries put back under a receipt the clear
-retired is retired again over it, in a write of its own (`retires_again`).
+retired is retired again over it, in a write of its own (`retires_again`); the clear's own write spent a revision past
+each run it retired (`outranks_the_retired`), so a run written back after that, or past a retirement refused, stays
+outranked for every reader with no attempt left to guard it.
 
 Dormant, as those records are: no recovery context the workflow builds reaches it.
 """
@@ -39,6 +41,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
+from orchestrator.workflow.engine.rewrite_finish_outranking import spends_past
 from orchestrator.workflow.engine.rewrite_finish_rechecks import lays
 
 
@@ -57,7 +60,9 @@ def lays_what_moved(state: PinnedState, reading: PinnedState, held: Collection[s
     lays(state, reading, moved)
     if not moved.isdisjoint(held):
         return True
-    return _evidence_records.PENDING_EVIDENCE in moved and _unnamed(reading)
+    if _evidence_records.PENDING_EVIDENCE not in moved or _landing_records.captured(reading) is not None:
+        return False
+    return _record_state.read_pending_evidence(reading) is not None
 
 
 def stands_behind(
@@ -88,7 +93,26 @@ def stands_behind(
     arrived = _commit_models.spelled(durable.data, _evidence_records.PENDING_EVIDENCE) != pending
     if lays_what_moved(context.state, durable, _attempts._ATTEMPT_KEYS):
         return False
-    return not (arrived and _unnamed(durable))
+    if not arrived or _landing_records.captured(durable) is not None:
+        return True
+    return _record_state.read_pending_evidence(durable) is None
+
+
+def outranks_the_retired(state: PinnedState, read: PinnedState) -> None:
+    """Stage on `state` a revision spent past each run `read` carries for the landed head that `state` no longer does.
+
+    For a clear, whose write retires a run -- captured, or settled -- with the attempt that guarded it: the revision
+    floor raised past that run in the very write (`rewrite_finish_outranking.spends_past`), so every reader reads it
+    outranked however soon another road writes it back, and whatever later write of the clear's own is refused. `read`
+    is the comment as the tick read it; a run `state` still carries is left as it is.
+    """
+    standing = {
+        getattr(record, "receipt", None)
+        for record in (_settlement.read_current_evidence(state), _record_state.read_pending_evidence(state))
+    }
+    for run in (_landing_records.captured(read), _landing_records.settled(read)):
+        if run is not None and run.receipt not in standing:
+            spends_past(state, run)
 
 
 def retires_again(
@@ -147,13 +171,6 @@ def _retires_on(staged: PinnedState, retired: frozenset[str]) -> bool | None:
     invalidated = current not in standing or _settlement.retire_current_evidence(staged)
     abandoned = pending not in standing or _settlement.retire_pending_evidence(staged, pending)
     return invalidated and abandoned
-
-
-def _unnamed(reading: PinnedState) -> bool:
-    """Whether `reading` carries a transaction pending under a receipt the attempt it carries does not name."""
-    if _record_state.read_pending_evidence(reading) is None:
-        return False
-    return _landing_records.captured(reading) is None
 
 
 def _moved(

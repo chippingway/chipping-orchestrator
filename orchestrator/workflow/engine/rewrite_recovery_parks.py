@@ -149,7 +149,12 @@ from orchestrator.workflow.engine.rewrite_recovery_readings import (
     asks_every_reading,
     stands_as_recovered,
 )
-from orchestrator.workflow.engine.rewrite_recovery_rereads import lays_what_moved, retires_again, stands_behind
+from orchestrator.workflow.engine.rewrite_recovery_rereads import (
+    lays_what_moved,
+    outranks_the_retired,
+    retires_again,
+    stands_behind,
+)
 from orchestrator.workflow.engine.rewrite_recovery_staging import (
     adds_the_totals,
     keeps_the_staging,
@@ -284,21 +289,26 @@ def lands_a_hold(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool:
 def lands_a_clear(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool:
     """Record a clear the tick staged on `context.state` over the comment read afresh, as `CLEAR`; whether it landed.
 
-    Only what the tick staged lands; a successor settled meanwhile refuses it, its floor kept. A clear not landing
-    records the reset (`records_the_reset`) and proves the fresh comment with that move (`proves_before_a_park`).
+    Only what the tick staged lands, a revision spent past each run it retires beside it
+    (`rewrite_recovery_rereads.outranks_the_retired`), so every reader reads that run outranked however soon another
+    road writes it back with no attempt left to guard it; a successor settled meanwhile refuses it, its floor kept. A
+    clear not landing records the reset (`records_the_reset`) and proves the fresh comment with that move
+    (`proves_before_a_park`).
     One that landed is followed by the comment read afresh: a successor, another attempt, or anything else the clear
     was decided on written right behind it -- a revision floor raised, or any other record a binding rests on moved,
     among them (`verification_durable.durable_comment`) -- or a comment that would not read holds the tick too, its
     state withheld, so no write of it puts back what that road wrote; evidence the clear retired that reading carries
     put back is retired again over it, in a `CLEAR` write of its own, since no attempt guards it any longer
-    (`rewrite_recovery_rereads.retires_again`). Anything else written there, a usage total among it, is laid over that
-    state (`rewrite_recovery_rereads.lays_what_moved`), so a write of it keeps it. A state nothing was read into is
-    written whole.
+    (`rewrite_recovery_rereads.retires_again`) -- outranked all the same where that does not land, or where it is
+    written back again behind it. Anything else written there, a usage total among it, is laid over that state
+    (`rewrite_recovery_rereads.lays_what_moved`), so a write of it keeps it. A state nothing was read into is written
+    whole.
     """
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
         return True
     moving = replace(context, state=RecordsALostCheckout.as_read(context.state))
+    outranks_the_retired(context.state, moving.state)
     moved: dict[str, ReportEvidence] = {}
     landed = _commits.ReportCommit(
         asks_every_reading(

@@ -13,8 +13,9 @@ settling as the clear reads HEAD refuses the clear and keeps its floor; another 
 marked moved and unmarked, refuses the clear and the move read invalidates it; a usage write refusing the clear has the
 reset recorded by base tip; with no history room nothing is cleared, the run current beside its blanked tip. A newer
 run and another attempt, or a revision floor raised alone, written right behind a clear that landed hold the tick, its
-state withheld from writing over them, and the run written back there is retired again in a write of its own, since no
-attempt guards it any longer; usage another road adds there lets either clear go on, laid over that state.
+state withheld from writing over them; the run written back there -- once, again behind its retirement, or with every
+write behind refused -- stays outranked by the revision the clear spent past it, since no attempt guards it any longer,
+and is retired again where it can be; usage another road adds there lets either clear go on, laid over that state.
 """
 from __future__ import annotations
 
@@ -52,6 +53,15 @@ _RUNS = (
 
 # Either clear of an attempt whose checkout is back on its anchor: under an undriven label, or never started.
 _EITHER_CLEAR = (_snapshot._clear_ineligible_recovery, _snapshot._clear_unchanged_recovery)
+
+# How another road writes the run back behind the clear's edit: once; again behind the clear's own retirement of it
+# over the comment read afresh; or once, every write behind refused -- each named, with how many times it writes the
+# run back and whether it refuses.
+_ONCE = ("once", 1, False)
+_RESTORATIONS = (_ONCE, ("again", 2, False), ("refused", 1, True))
+
+# Every run, under either clear, written back each way.
+_RESTORED_RUNS = tuple(product(_RUNS, _EITHER_CLEAR, _RESTORATIONS))
 _USAGE = "issue_total_tokens"
 _EDITS = "edit_pinned_state"
 
@@ -125,6 +135,34 @@ def _assert_kept(case, newer) -> None:
     floor = case.pinned_fields(readings.KEY_REVISION_FLOOR, readings.KEY_PENDING_PUSH)
     kept = (readings.pinned_records(case)[1].receipt, *floor)
     case.assertEqual(kept, (newer.receipt, newer.revision, None))
+
+
+class _PutsTheRunBack:
+    """The strict edit, another road writing the run `kind` names back behind each edit taking it off, as `restoration`
+    says."""
+
+    def __init__(self, case, kind: tuple, restoration: tuple) -> None:
+        self._case = case
+        self._live = case.gh.edit_pinned_state
+        self._field = kind[1]
+        self._run = case.pinned_fields(self._field)[0]
+        self._left = restoration[1]
+        self._refuses = restoration[2]
+        self._refused = case.gh.pinned_failures.refused
+
+    def __call__(self, issue, staged, **options):
+        """Answer the edit, the run written back behind it where it took the run off and a restoration is left."""
+        answered = self._live(issue, staged, **options)
+        field = self._field
+        takes_off = options["over"].get(field) and not staged.get(field)
+        if takes_off and self._left:
+            self._left -= 1
+            fresh = self._case.gh.read_pinned_state(issue)
+            fresh.set(field, self._run)
+            self._case.gh.write_pinned_state(issue, fresh)
+            if self._refuses:
+                self._refused.add(issue.number)
+        return answered
 
 
 def _unnames(case) -> None:
@@ -244,9 +282,10 @@ class WrittenBehindTheClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(kept, (self._newer.revision, *self._pinned.values()))
 
     def test_a_floor_raised_behind_the_clear(self) -> None:
-        # Another road raises the revision floor alone right behind the clear's edit: the clear reads it afresh and
-        # holds, the tick's state withheld, so writing that state whole lowers no floor.
-        floor = self.settles_then_dies()[1].revision + 1
+        # Another road raises the revision floor alone right behind the clear's edit, past the revision the clear
+        # spent past the run: the clear reads it afresh and holds, the tick's state withheld, so writing that state
+        # whole lowers no floor.
+        floor = self.settles_then_dies()[1].revision + 2
         self._pinned = {readings.KEY_REVISION_FLOOR: floor}
         context = self._clears_behind(self._pins)
         self.assertTrue(context.state.withheld)
@@ -272,24 +311,31 @@ class WrittenBehindTheClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_a_run_put_back_behind_either_clear(self) -> None:
         # Another road writes the run back right behind the clear's edit -- settled, or only captured -- under an
-        # undriven label or over an attempt that never started: no attempt guards it any longer, so the clear retires
-        # it again over the comment read afresh, in a write of its own, and holds the tick, its state withheld, leaving
-        # nothing current or pending for a later proof to take up.
-        for (captures, field, retirement), clears in product(_RUNS, _EITHER_CLEAR):
-            with self.subTest(captured=captures, clears=clears.__name__):
+        # undriven label or over an attempt that never started, no attempt guarding it any longer. The clear's own
+        # write spent a revision past the run, so every reader reads it outranked however it stands, and the clear
+        # retires it again over the comment read afresh, holding the tick, its state withheld: written back once,
+        # nothing is left current or pending; written back again behind that retirement, or with every write behind
+        # refused, the run stands outranked.
+        for kind, clears, restoration in _RESTORED_RUNS:
+            with self.subTest(case=(kind, clears, restoration)):
                 self.setUp()
-                run = (self.captures() if captures else self.settles_then_dies())[1]
-                self._pinned = {field: self.pinned_fields(field)[0]}
-                self.assertTrue(self._clears_behind(self._pins, clears).state.withheld)
-                self.assertEqual(readings.pinned_records(self)[:2], (None, None))
-                self.assertIn((run.receipt, retirement), readings.pinned_records(self)[2])
+                run = (self.captures() if kind[0] else self.settles_then_dies())[1]
+                with patch.object(self.gh, _EDITS, _PutsTheRunBack(self, kind, restoration)):
+                    self.assertTrue(self._clears_behind(None, clears).state.withheld)
+                records = readings.pinned_records(self)
+                self.assertGreater(readings.pinned(self)[readings.KEY_REVISION_FLOOR], run.revision)
+                self.assertIn((run.receipt, kind[2]), records[2])
+                self.assertEqual(not any(records[:2]), restoration is _ONCE)
 
     def _clears_behind(self, writes, clears=_snapshot._clear_ineligible_recovery):
-        """Clear the attempt unnamed on its anchor by `clears`, guarded, `writes` made right behind the clear's edit;
-        its state."""
+        """Clear the attempt unnamed on its anchor by `clears`, guarded, `writes` made right behind the clear's edit
+        where it names any; its state."""
         _unnames(self)
         context = guarded.recovery_context(self)
-        with patch.object(self.gh, _EDITS, _BEHIND_THE_CLEAR.moving(self.gh.edit_pinned_state, writes)):
+        edits = self.gh.edit_pinned_state
+        if writes is not None:
+            edits = _BEHIND_THE_CLEAR.moving(edits, writes)
+        with patch.object(self.gh, _EDITS, edits):
             clears(context)
         return context
 

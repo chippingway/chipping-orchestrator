@@ -2582,8 +2582,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             successor settled meanwhile refuses it with its floor kept; one that lands is followed by
                             the comment read afresh, a successor, another attempt, or any record a binding rests on --
                             a revision floor raised alone among them -- written right behind it holding the tick with
-                            its state withheld, the run it retired written back there retired again in a `CLEAR` write
-                            of its own since no attempt guards it any longer, and anything else written there, a usage
+                            its state withheld, a revision spent past each run it retires in that very write so every
+                            reader reads the run outranked however it is written back, the run it retired written back
+                            there retired again in a `CLEAR` write of its own since no attempt guards it any longer,
+                            and anything else written there, a usage
                             total among it, laid over
                             the tick's state (`rewrite_recovery_rereads.py`); one that does not land records the reset
                             against the attempt
@@ -2662,7 +2664,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proved again by the caller's proof (`stands_behind`), and a transaction that record took in
                             pending under such a receipt holding the caller all the same; and evidence a landed clear
                             retired that the reading behind it carries put back retired again over it, read again and
-                            asked once more where that does not land (`retires_again`)
+                            asked once more where that does not land (`retires_again`), the clear's own write spending a
+                            revision past each run it retires (`outranks_the_retired`) so a run written back stays
+                            outranked however that ends
     rewrite_recovery_staging.py
                             dormant, as the proof it serves is: what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it
