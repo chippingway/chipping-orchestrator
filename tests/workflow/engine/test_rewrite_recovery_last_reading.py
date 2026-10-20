@@ -73,6 +73,9 @@ _BEHIND_THE_RELEASE = handoff.Boundary(
     lambda _issue, staged, **_options: not staged.get(readings.KEY_PENDING_PUSH),
 )
 
+# How another road races the reading behind a hold's record: the report moved, beside a newer run, or the run restored.
+_MOVED, _SUCCEEDED, _RESTORED = "moved", "succeeded", "restored"
+
 # The comment read afresh behind a hold's record, and the first reading a proof before a park takes.
 _AT_THE_REREAD = handoff.Boundary("at the reread behind the record", "durable_comment", lambda *_called: True)
 _AT_THE_FIRST_READ = handoff.Boundary("at the proof's first reading", "read_pinned_state", lambda *_called: True)
@@ -203,19 +206,19 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
     def test_movement_behind_the_record_is_retired(self) -> None:
         # The run settled current, the comment read afresh behind the hold's record has the run's report moved, put
-        # back right behind that reading: the hold proves the run again with that movement before it answers, so it is
-        # invalidated whole, and the next proof, over the report put back, keeps nothing current.
-        run, context = _gated(self, retired=False)[1:]
-        report = self.pinned_fields(_REPORT)[0]
-        rereads = _AT_THE_REREAD.racing(
-            _parks.durable_comment,
-            partial(_writes, self, {_REPORT: {**report, _REVISION: report[_REVISION] + 1}}),
-            partial(_writes, self, {_REPORT: report}),
-        )
-        with patch.object(_parks, _AT_THE_REREAD.step, rereads):
-            self.assertTrue(_parks.lands_a_hold(context))
-        self.assertTrue(self.proves())
-        self.assert_invalidated(run)
+        # back right behind -- beside a newer run settled on the run's binding there, or, the hold's own proof having
+        # retired the run over that move, the run and report written back instead. The hold proves that reading again,
+        # a successor on its own binding, a run its history retired as moved: the next proof keeps nothing current.
+        for mode in (_MOVED, _SUCCEEDED, _RESTORED):
+            with self.subTest(mode=mode):
+                self.setUp()
+                run, context = _gated(self, retired=False)[1:]
+                with patch.object(_parks, _AT_THE_REREAD.step, self._rereads(mode, run)):
+                    self.assertTrue(_parks.lands_a_hold(context))
+                self.assertTrue(self.proves())
+                self.assertIsNone(readings.pinned_records(self)[1])
+                if mode != _SUCCEEDED:
+                    self.assert_invalidated(run)
 
     def test_a_successor_the_record_took_in_holds(self) -> None:
         # The run already retired, another road records a newer run pending on its binding after the tick read the
@@ -246,23 +249,6 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         reading = _proof.ProofReading(self.gh, self._spec, self.issue, fresh)
         self.assertFalse(_proof.current_evidence_verdict(reading).proved)
 
-    def test_a_replacement_in_the_proof_holds(self) -> None:
-        # Another road pins the landed head as a fresh anchor as the proof before a park first reads the comment, and
-        # puts the attempt back right behind that reading: the proof read another attempt in place of the one it
-        # recovers, so it holds, the tick's state withheld, however that attempt stands again by its last reading.
-        head = self.settles_then_dies()[0]
-        context = guarded.recovery_context(self)
-        standing = self.pinned_fields(readings.KEY_PENDING_PUSH)[0]
-        reads = _AT_THE_FIRST_READ.racing(
-            self.gh.read_pinned_state,
-            partial(_writes, self, {readings.KEY_PENDING_PUSH: head}),
-            partial(_writes, self, {readings.KEY_PENDING_PUSH: standing}),
-        )
-        with patch.object(self.gh, _AT_THE_FIRST_READ.step, reads):
-            self.assertFalse(_parks.proves_before_a_park(context))
-        self.assertTrue(context.state.withheld)
-        self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (standing,))
-
     def test_a_false_answer_stays_withheld(self) -> None:
         # The reset's blank, over the run's report moved, or the hold's record, the report moving as it goes out, is
         # sent with its answer lost; the proof behind retires the run only past two unread edits, another road adding
@@ -285,6 +271,23 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.gh.pinned_failures.unreadable.clear()
                 self.assertTrue(context.state.withheld)
                 self.assertEqual(self.pinned_fields(_USAGE), (2,))
+
+    def _rereads(self, mode: str, run):
+        """The reading behind the hold's record, raced as `mode` says: the report moved and put back behind, beside a
+        newer run settled on `run`'s binding; or that report moved ahead of the hold, the run and report put back."""
+        written = self.pinned_fields(_REPORT, _CURRENT)
+        moved = {**written[0], _REVISION: written[0][_REVISION] + 1}
+        ahead = partial(_writes, self, {_REPORT: moved})
+        live = _parks.durable_comment
+        if mode == _RESTORED:
+            ahead = partial(_writes, self, dict(zip((_REPORT, _CURRENT), written)))
+            _writes(self, {_REPORT: moved})
+        if mode == _SUCCEEDED:
+            newer = partial(settled.records_a_newer_run, self, settles=True, binding=run.binding)
+            live = _AT_THE_REREAD.racing(live, newer, partial(_writes, self, {}))
+        return _AT_THE_REREAD.racing(
+            live, ahead, partial(_writes, self, {_REPORT: written[0]}),
+        )
 
     def _loses(self, live, issue, staged, **options):
         """`live`, the strict edit: the first carrying the gate's record lost unsent, the report moved right then; the
@@ -312,7 +315,24 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
 
 class LossInTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
-    """A checkout the proof finds gone or reads absent, however soon it is back: its loss owed, nothing else excused."""
+    """Another attempt, or a checkout gone or read absent, in the proof, however soon it is back: held, or owed."""
+
+    def test_a_replacement_in_the_proof_holds(self) -> None:
+        # Another road pins the landed head as a fresh anchor as the proof before a park first reads the comment, and
+        # puts the attempt back right behind that reading: the proof read another attempt in place of the one it
+        # recovers, so it holds, the tick's state withheld, however that attempt stands again by its last reading.
+        head = self.settles_then_dies()[0]
+        context = guarded.recovery_context(self)
+        standing = self.pinned_fields(readings.KEY_PENDING_PUSH)[0]
+        reads = _AT_THE_FIRST_READ.racing(
+            self.gh.read_pinned_state,
+            partial(_writes, self, {readings.KEY_PENDING_PUSH: head}),
+            partial(_writes, self, {readings.KEY_PENDING_PUSH: standing}),
+        )
+        with patch.object(self.gh, _AT_THE_FIRST_READ.step, reads):
+            self.assertFalse(_parks.proves_before_a_park(context))
+        self.assertTrue(context.state.withheld)
+        self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (standing,))
 
     def test_a_replacement_then_a_loss_holds(self) -> None:
         # Another road pins the landed head as a fresh anchor as the proof first reads the comment, and puts the

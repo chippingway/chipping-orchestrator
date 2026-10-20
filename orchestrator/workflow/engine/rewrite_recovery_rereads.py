@@ -5,7 +5,7 @@
 The reset's record (`rewrite_recovery_parks.records_the_reset`) and a landed hold's, park's, or clear's record answer
 over the comment read afresh behind them, and the tick's state may be written whole behind that. So the reading is laid
 over the state for every field another road moved since the tick's own, its staging kept (`lays_what_moved`); behind a
-hold or park, movement it shows under evidence the tick holds is proved again first (`stands_behind`); and a run a clear
+hold or park, movement it shows under any evidence it carries is proved again first (`stands_behind`); and a run a clear
 or a releasing park retires with its attempt is outranked in that very write (`outranks_the_retired`), and retired again
 behind a clear where written back (`retires_again`).
 
@@ -30,9 +30,12 @@ from orchestrator.workflow.engine import (
     verification_records as _evidence_records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
 from orchestrator.workflow.engine.rewrite_finish_outranking import spends_past
 from orchestrator.workflow.engine.rewrite_finish_rechecks import lays
+
+# The movement a run standing again under a receipt the tick's own history records retired carries.
+_REVIVED = ReportEvidence(ReportEvidenceVerdict.DEFER, "retired already, and written back since")
 
 
 def lays_what_moved(state: PinnedState, reading: PinnedState, held: Collection[str] = ()) -> bool:
@@ -63,10 +66,11 @@ def stands_behind(
     """Whether a record that landed may answer over the comment read afresh behind it, what moved there proved first.
 
     Read through `reads` (`verification_durable.durable_comment`, as the caller resolves it), the comment is asked what
-    it records moving under evidence the tick holds (`rewrite_landing_retirement.moved_under`), handed to `proves` and
-    read again until it carries none, then laid over the state (`lays_what_moved`). False where `proves` does not land,
-    a reading would not read, an attempt member moved, or the reading carries a transaction pending under a receipt the
-    attempt does not name that the tick did not hold before the record, as `pending` spells it.
+    moves under the evidence it carries (`rewrite_landing_retirement.moved_under`), evidence its receipt the tick's
+    history records retired moved by that alone, handed to `proves` -- a successor laid over the state first, to be
+    proved on its own binding (`reconciles`) -- and read again until it carries none, then laid over the state
+    (`lays_what_moved`). False where `proves` does not land, a reading would not read, an attempt member moved, or it
+    carries a transaction pending under a receipt the attempt does not name that the tick did not hold (`pending`).
     """
     moved: dict[str, ReportEvidence] = {}
     asks = partial(_retirement.moved_under, tick=context.state, into=moved)
@@ -74,14 +78,20 @@ def stands_behind(
     durable = reads(asked.gh, context.issue, context.state)[0]
     if durable is None:
         return False
-    if moved.keys() & _retirement.receipts(context.state):
+    retired = {entry.receipt for entry in _settlement.read_evidence_history(context.state) or ()}
+    retired &= _retirement.receipts(durable) - moved.keys()
+    moved.update(dict.fromkeys(retired, _REVIVED))
+    if moved.keys() - _retirement.receipts(context.state):
+        moved = _retirement.reconciles(context, moved)
+    if moved:
         return proves(moved) and stands_behind(context, proves, reads, pending)
-    arrived = _commit_models.spelled(durable.data, _evidence_records.PENDING_EVIDENCE) != pending
     if lays_what_moved(context.state, durable, _attempts._ATTEMPT_KEYS):
         return False
-    if not arrived or _landing_records.captured(durable) is not None:
-        return True
-    return _record_state.read_pending_evidence(durable) is None
+    return (
+        _commit_models.spelled(durable.data, _evidence_records.PENDING_EVIDENCE) == pending
+        or _landing_records.captured(durable) is not None
+        or _record_state.read_pending_evidence(durable) is None
+    )
 
 
 def outranks_the_retired(state: PinnedState, read: PinnedState) -> None:

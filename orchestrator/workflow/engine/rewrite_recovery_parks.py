@@ -67,22 +67,15 @@ settled behind it reads it as movement; a tip put back over one the tick read
 blank refuses an unrecorded reset. A blank refused or never confirmed
 holds the tick with nothing reset or cleaned, and the tick's state, which
 still carries the tip, is withheld from every whole-state write behind it, so
-a blank that landed with its answer lost is never put back. A blank that
-landed is followed by the comment read afresh, and a tip put back or another
-attempt pinned right behind it holds the reset the same way. A tick whose
-state carries another attempt by then -- one a proof took in off the comment
--- blanks nothing and holds the same way, so no reset is recorded over the
-tip a replacement attempt records. Movement the record reads is proved
-before the reset goes on, and the comment read again behind each proof:
-evidence standing there under a receipt read moving -- a successor, or the
-run put back -- is proved again, until a reading carries none. Whatever else
-another road moved in each such reading -- a usage total, a revision floor --
-is laid over the tick's state, its own staging kept
-(`rewrite_recovery_rereads.lays_what_moved`), so no write of it puts that
-back, and a transaction recorded pending there under a receipt the attempt
-does not name holds the reset the same way. The record
-keeps what the tick staged as a proof keeps it, its usage landing in a write
-of its own ahead of the record's own, wherever no proof keeps it already. A reset git
+a blank that landed with its answer lost is never put back. A tip put back
+or another attempt pinned behind a landed blank holds the reset the same way,
+as does a tick holding another attempt a proof took in, nothing blanked.
+Movement the record reads is proved before the reset goes on, the comment
+read again behind each proof until it carries none under a receipt read
+moving; what else another road moved there is laid over the tick's state
+(`rewrite_recovery_rereads.lays_what_moved`), and a transaction pending under
+a receipt the attempt does not name holds. Its usage lands first, in a write
+of its own, where no proof keeps it already. A reset git
 refused moved nothing, and the git owner
 stages the tip back for the park that keeps the attempt, so the evidence
 stands for that park's proof as it did before.
@@ -92,12 +85,10 @@ brings the recovery back, so that evidence is proved before the park
 (`proves_before_a_park`), and once more behind its notice and record
 (`lands_a_park`) -- landed, refused, or raised -- since the notice is long
 enough for another road to settle a later report. Behind a record that
-landed the comment is read afresh once more, whatever evidence is left:
-movement it reads under evidence the tick holds is proved again first, so it
-stands however soon it is put back, and what else another road moved there is
-laid over the tick's state, another attempt, or a transaction recorded
-pending under a receipt the attempt does not name that the tick never held,
-holding the tick. Movement the record's
+landed the comment is read afresh once more: movement there -- under a
+successor too, or a run its history records retired, written back -- is
+proved again first, and another attempt or an unnamed pending transaction
+holds. Movement the record's
 commit read -- in the record it sent, the comment its strict edit found moved,
 or the fresh reading behind that edit -- is read against each evidence's own
 binding (`rewrite_landing_retirement.moved_under`) and handed to that proof as
@@ -109,19 +100,13 @@ successor another road settled meanwhile is proved on its own binding, and
 that record's staging rides none of the proof's writes. A checkout gone from
 disk has nothing to prove the landing over, so its evidence is retired as over
 the reset recorded against it, each in its own write (`records_the_reset`),
-ahead of a park or hold and behind one (`proves_before_a_park`), so a park or
-hold whose record is refused, or never made, leaves it retired all the same.
-The comment is reread behind that retirement: evidence written back is
-retired again, the tick held, as over a successor, another attempt, the base
-tip put back, or any evidence record moved since -- laid over the tick's
-state, so no write of it lowers a floor raised there -- nothing reset. One a
-caller read gone or off the landing
-(`lost`, `heads_read`), one the proof found gone mid-request or read off the
-landing, and one an earlier proof read but no write recorded
-(`owed_events.loss_owed`) are recorded and retired alike, however soon the
-checkout is back, the attempt owing that loss to every later proof from the
-moment it is read. A retirement not landing, or a proof answering False,
-withholds the tick's state, which may hold a successor's floor stale.
+ahead of a park or hold and behind one (`proves_before_a_park`), and retired
+again where the comment reread behind carries it written back, the tick
+held, as over a successor, another attempt, or the tip put back. A checkout a
+caller read gone or off the landing (`lost`, `heads_read`), or one a proof
+read so (`owed_events.loss_owed`), is owed by the attempt from the moment it
+is read, however soon it is back. A retirement not landing, or a proof
+answering False, withholds the tick's state.
 """
 from __future__ import annotations
 
@@ -221,12 +206,10 @@ def lands_a_park(context: _base_sync_models._AutoRebaseRecoveryContext, message:
     never landed, the notice the conversation carries is taken in instead,
     nothing said twice (`rewrite_recovery_notices.parks_awaiting_human`) --
     and what lands is laid over that state, so whatever the recovery does behind
-    it starts from the comment as it now stands. A park that releases the
-    attempt over a landed reset, retiring the evidence beside it, spends a
-    revision past each run it retires in that very write
-    (`rewrite_recovery_rereads.outranks_the_retired`), so a run another road
-    writes back behind it, no attempt left to guard it, stays outranked for
-    every reader. Behind it, whether it landed
+    it starts from the comment as it now stands. A park releasing the attempt
+    over a landed reset spends a revision past each run it retires in that very
+    write (`rewrite_recovery_rereads.outranks_the_retired`), so a run another
+    road writes back behind it stays outranked for every reader. Behind it, whether it landed
     or not, evidence the park leaves standing beside the attempt is proved once
     more over the comment read afresh (`rewrite_landing_retirement.retires_unproved`),
     so a report another road settled while the notice was posted is read
@@ -264,8 +247,7 @@ def lands_a_hold(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool:
     """Prove what a recovery hold keeps, then record the hold over the comment read afresh, as `HOLD`; whether it did.
 
     A publication gate that held a recovery's push -- the landed road's leased
-    no-op (`rewrite_landed`), or the retry's reissued push (`rewrite_retry`)
-    -- keeps the attempt, so its evidence
+    no-op (`rewrite_landed`), or the retry's reissued push (`rewrite_retry`) -- keeps the attempt, so its evidence
     is proved first, as before every park that keeps it
     (`proves_before_a_park`): over a checkout gone from disk the reset is
     recorded against it and it is retired, each in a write of its own, so a

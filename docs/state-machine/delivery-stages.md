@@ -1574,10 +1574,10 @@ because there it is the claim that this stage has already rerouted rather than a
   afresh, its proof taken first as before a park that keeps the attempt -- what the tick staged before that proof, the
   gate's own record among it, kept across every write the proof lands (`rewrite_recovery_staging.keeps_the_staging`) --
   nothing recorded where that proof does not land, and whether it all landed answered -- behind a hold's or park's
-  record that landed, whatever evidence is left, the comment read afresh once more -- movement it reads under the
-  evidence the tick holds proved again first, so it stands however soon it is put back -- and laid over the tick's
-  state, another attempt or a moved one, or a transaction pending under a receipt the attempt does not name that the
-  tick never held, however the record took it in, holding the tick with its state withheld
+  record that landed, whatever evidence is left, the comment read afresh once more -- movement it reads proved again
+  first, a successor's on its own binding, a run the tick's history retired, written back, as moved -- and laid over
+  the tick's state, another attempt or a moved one, or a transaction pending under a receipt the attempt does not name
+  that the tick never held, however the record took it in, holding the tick with its state withheld
   (`rewrite_recovery_parks.lands_a_hold`); so is the clear an ineligible label's gate or an unmoved anchor would land
   as `CLEAR` over the comment read afresh, retiring what a finish captured or settled for the head on the clear's own
   state first, a successor settled meanwhile refusing it with its floor kept, a successor, another attempt, or a
@@ -1585,8 +1585,7 @@ because there it is the claim that this stage has already rerouted rather than a
   written back there retired again in a write of its own since no attempt guards it any longer
   (`rewrite_recovery_rereads.retires_again`) and outranked for every reader all the same by the revision the clear's
   own write spent past it (`rewrite_recovery_rereads.outranks_the_retired`), anything else written there -- a usage
-  total -- laid over that state
-  (`rewrite_recovery_rereads.lays_what_moved`), and a full history keeping the attempt
+  total -- laid over that state (`rewrite_recovery_rereads.lays_what_moved`), and a full history keeping the attempt
   (`rewrite_recovery_parks.lands_a_clear`, `git/base_sync/snapshot.py`); and a checkout gone from disk -- ahead of a
   park's or hold's record or behind one or a notice that raised, found gone by one of the proof's own git requests
   (`rewrite_recovery_readings.LosesTheCheckout`) or read gone from this host by its readiness proof, or read gone or
