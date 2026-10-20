@@ -13,7 +13,8 @@ settling as the clear reads HEAD refuses the clear and keeps its floor; another 
 marked moved and unmarked, refuses the clear and the move read invalidates it; a usage write refusing the clear has the
 reset recorded by base tip; with no history room nothing is cleared, the run current beside its blanked tip. A newer
 run and another attempt, or a revision floor raised alone, written right behind a clear that landed hold the tick, its
-state withheld from writing over them; usage another road adds there lets either clear go on, laid over that state.
+state withheld from writing over them, and the run written back there is retired again in a write of its own, since no
+attempt guards it any longer; usage another road adds there lets either clear go on, laid over that state.
 """
 from __future__ import annotations
 
@@ -42,6 +43,15 @@ _HEAD_SHA = _probes._head_sha
 
 # The handoff a movement mark takes the place of, the usage total another road's write moves, and the strict edit.
 _HANDOFF = "verification_evidence_handoff"
+
+# Where a run stands -- current where settled, pending where only captured -- and how its retirement is recorded.
+_RUNS = (
+    (False, "verification_evidence_current", readings.INVALIDATED),
+    (True, "verification_evidence_pending", readings.ABANDONED),
+)
+
+# Either clear of an attempt whose checkout is back on its anchor: under an undriven label, or never started.
+_EITHER_CLEAR = (_snapshot._clear_ineligible_recovery, _snapshot._clear_unchanged_recovery)
 _USAGE = "issue_total_tokens"
 _EDITS = "edit_pinned_state"
 
@@ -248,7 +258,7 @@ class WrittenBehindTheClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         # Another road adds 2 of usage right behind the clear's edit, under an undriven label or over an attempt that
         # never started: nothing the clear was decided on moved, so it goes on, the comment read afresh behind it laid
         # over the tick's state, and writing that state whole keeps the usage beside the attempt cleared.
-        for clears in (_snapshot._clear_ineligible_recovery, _snapshot._clear_unchanged_recovery):
+        for clears in _EITHER_CLEAR:
             with self.subTest(clears=clears.__name__):
                 self.setUp()
                 self.settles_then_dies()
@@ -259,6 +269,20 @@ class WrittenBehindTheClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.gh.write_pinned_state(self.issue, context.state)
                 kept = self.pinned_fields(_USAGE, readings.KEY_PENDING_PUSH)
                 self.assertEqual(kept, (self._pinned[_USAGE], None))
+
+    def test_a_run_put_back_behind_either_clear(self) -> None:
+        # Another road writes the run back right behind the clear's edit -- settled, or only captured -- under an
+        # undriven label or over an attempt that never started: no attempt guards it any longer, so the clear retires
+        # it again over the comment read afresh, in a write of its own, and holds the tick, its state withheld, leaving
+        # nothing current or pending for a later proof to take up.
+        for (captures, field, retirement), clears in product(_RUNS, _EITHER_CLEAR):
+            with self.subTest(captured=captures, clears=clears.__name__):
+                self.setUp()
+                run = (self.captures() if captures else self.settles_then_dies())[1]
+                self._pinned = {field: self.pinned_fields(field)[0]}
+                self.assertTrue(self._clears_behind(self._pins, clears).state.withheld)
+                self.assertEqual(readings.pinned_records(self)[:2], (None, None))
+                self.assertIn((run.receipt, retirement), readings.pinned_records(self)[2])
 
     def _clears_behind(self, writes, clears=_snapshot._clear_ineligible_recovery):
         """Clear the attempt unnamed on its anchor by `clears`, guarded, `writes` made right behind the clear's edit;

@@ -149,7 +149,7 @@ from orchestrator.workflow.engine.rewrite_recovery_readings import (
     asks_every_reading,
     stands_as_recovered,
 )
-from orchestrator.workflow.engine.rewrite_recovery_rereads import lays_what_moved, stands_behind
+from orchestrator.workflow.engine.rewrite_recovery_rereads import lays_what_moved, retires_again, stands_behind
 from orchestrator.workflow.engine.rewrite_recovery_staging import (
     adds_the_totals,
     keeps_the_staging,
@@ -289,13 +289,16 @@ def lands_a_clear(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool
     One that landed is followed by the comment read afresh: a successor, another attempt, or anything else the clear
     was decided on written right behind it -- a revision floor raised, or any other record a binding rests on moved,
     among them (`verification_durable.durable_comment`) -- or a comment that would not read holds the tick too, its
-    state withheld, so no write of it puts back what that road wrote; anything else written there, a usage total
-    among it, is laid over that state (`rewrite_recovery_rereads.lays_what_moved`), so a write of it keeps it. A state
-    nothing was read into is written whole.
+    state withheld, so no write of it puts back what that road wrote; evidence the clear retired that reading carries
+    put back is retired again over it, in a `CLEAR` write of its own, since no attempt guards it any longer
+    (`rewrite_recovery_rereads.retires_again`). Anything else written there, a usage total among it, is laid over that
+    state (`rewrite_recovery_rereads.lays_what_moved`), so a write of it keeps it. A state nothing was read into is
+    written whole.
     """
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
         return True
+    moving = replace(context, state=RecordsALostCheckout.as_read(context.state))
     moved: dict[str, ReportEvidence] = {}
     landed = _commits.ReportCommit(
         asks_every_reading(
@@ -308,6 +311,7 @@ def lands_a_clear(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool
         durable, refused = durable_comment(context.gh, context.issue, context.state, CLEAR.decided_on)
         if refused is None and not lays_what_moved(context.state, durable):
             return True
+        retires_again(context, durable, _retirement.receipts(moving.state), CLEAR, durable_comment)
         log.warning(
             "issue=#%d the clear of its auto-rebase attempt landed, but the comment read afresh behind it carries "
             "another road's records; holding, for the next tick to answer the comment as it then stands",
@@ -320,7 +324,6 @@ def lands_a_clear(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool
         "tick answers the comment as it then stands",
         context.issue.number, (landed.refusal or landed.status).value,
     )
-    moving = replace(context, state=RecordsALostCheckout.as_read(context.state))
     moved.update(dict.fromkeys(_retirement.receipts(moving.state), LEFT_THE_CHECKOUT))
     records_the_reset(moving)
     proves_before_a_park(moving, _retirement.reconciles(moving, moved))

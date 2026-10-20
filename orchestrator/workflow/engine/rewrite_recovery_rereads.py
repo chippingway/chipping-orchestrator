@@ -13,7 +13,9 @@ refuse as the guarded commit does. A move of a field the caller holds the readin
 recorded pending under a receipt the attempt does not name, holds the caller. Behind a landed hold's or park's record
 the reading is asked for movement first (`stands_behind`): movement under evidence the tick holds is proved again by
 the caller's proof, the comment read again behind it, so it stands however soon it is put back; and a transaction the
-record itself took in pending under such a receipt holds the caller all the same.
+record itself took in pending under such a receipt holds the caller all the same. Behind a landed clear, which took
+the attempt guarding the evidence it retired with it, evidence that reading carries put back under a receipt the clear
+retired is retired again over it, in a write of its own (`retires_again`).
 
 Dormant, as those records are: no recovery context the workflow builds reaches it.
 """
@@ -28,11 +30,13 @@ from orchestrator.git.base_sync import attempts as _attempts, models as _base_sy
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
+    report_commits as _commits,
     rewrite_landing_records as _landing_records,
     rewrite_landing_retirement as _retirement,
     rewrite_recovery_readings as _readings,
     verification_record_state as _record_state,
     verification_records as _evidence_records,
+    verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_rechecks import lays
@@ -85,6 +89,64 @@ def stands_behind(
     if lays_what_moved(context.state, durable, _attempts._ATTEMPT_KEYS):
         return False
     return not (arrived and _unnamed(durable))
+
+
+def retires_again(
+    context: _base_sync_models._AutoRebaseRecoveryContext,
+    reading: PinnedState | None,
+    retired: frozenset[str],
+    write: _commits.ReportWrite,
+    reads: Callable[..., tuple],
+) -> bool:
+    """Retire again what a landed write retired that `reading` carries put back; whether none of it stands then.
+
+    For a write that took the attempt guarding that evidence with it -- a clear -- so evidence another road put back
+    right behind it under one of `retired`, the receipts it retired, stands guarded by nothing for the next proof to
+    take up again. It is abandoned or invalidated again, staged on `reading` itself, and landed as `write` over it;
+    where that does not land, the comment is read again through `reads` -- `verification_durable.durable_comment`, as
+    the caller resolves it -- and asked once more. False where it still stands: a comment that would not read, writes
+    that did not land, or no room for the history entry.
+    """
+    if reading is None:
+        return False
+    if _retires_over(context, reading, retired, write):
+        return True
+    reread = reads(context.gh, context.issue, reading)[0]
+    return _retires_over(context, reread, retired, write)
+
+
+def _retires_over(
+    context: _base_sync_models._AutoRebaseRecoveryContext,
+    reading: PinnedState | None,
+    retired: frozenset[str],
+    write: _commits.ReportWrite,
+) -> bool:
+    """Retire again, staged on `reading` and landed as `write` over it, what it carries under `retired`; whether none
+    of it stands then."""
+    if reading is None:
+        return False
+    retires = _retires_on(reading, retired)
+    if retires is None:
+        return True
+    if not retires:
+        return False
+    landed = _commits.ReportCommit(context.gh, context.issue, reading).lands(reading, write)
+    return landed.status is _commit_models.CommitStatus.COMMITTED
+
+
+def _retires_on(staged: PinnedState, retired: frozenset[str]) -> bool | None:
+    """Retire on `staged` the evidence standing there under one of `retired`; whether all of it was, None for none."""
+    current = _settlement.read_current_evidence(staged)
+    pending = _record_state.read_pending_evidence(staged)
+    standing = [
+        record for record in (current, pending)
+        if record is not None and record.receipt in retired
+    ]
+    if not standing:
+        return None
+    invalidated = current not in standing or _settlement.retire_current_evidence(staged)
+    abandoned = pending not in standing or _settlement.retire_pending_evidence(staged, pending)
+    return invalidated and abandoned
 
 
 def _unnamed(reading: PinnedState) -> bool:

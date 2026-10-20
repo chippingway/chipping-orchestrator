@@ -2582,7 +2582,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             successor settled meanwhile refuses it with its floor kept; one that lands is followed by
                             the comment read afresh, a successor, another attempt, or any record a binding rests on --
                             a revision floor raised alone among them -- written right behind it holding the tick with
-                            its state withheld, and anything else written there, a usage total among it, laid over
+                            its state withheld, the run it retired written back there retired again in a `CLEAR` write
+                            of its own since no attempt guards it any longer, and anything else written there, a usage
+                            total among it, laid over
                             the tick's state (`rewrite_recovery_rereads.py`); one that does not land records the reset
                             against the attempt
                             as read and proves the evidence read afresh with its move off the landing under each
@@ -2658,7 +2660,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             receipt the attempt does not name, holding the reset; behind a landed hold's or park's
                             record that reading asked for movement first, what moved under evidence the tick holds
                             proved again by the caller's proof (`stands_behind`), and a transaction that record took in
-                            pending under such a receipt holding the caller all the same
+                            pending under such a receipt holding the caller all the same; and evidence a landed clear
+                            retired that the reading behind it carries put back retired again over it, read again and
+                            asked once more where that does not land (`retires_again`)
     rewrite_recovery_staging.py
                             dormant, as the proof it serves is: what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it
