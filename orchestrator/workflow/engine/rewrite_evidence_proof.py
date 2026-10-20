@@ -107,6 +107,7 @@ from orchestrator.workflow.engine import (
     verification_proof as _proof,
     verification_records as _records,
     verification_subject as _subject,
+    verification_world as _world,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import LandedFinish
 
@@ -252,7 +253,10 @@ def last_word(
     whether the remote branch and the checkout are read again too -- for a
     route that carries or follows a recorded decision.
     `earlier` is a verdict the caller already read the transaction with -- a
-    proof of it again -- which is sorted first, beside the rest. `records` is
+    proof of it again -- which is sorted first, beside the rest; one that read
+    the checkout gone from this host (`verification_world.CHECKOUT_ABSENT`) is
+    handed a finish that carries `hears_the_checkout` first as the landing left,
+    so that loss stands however soon the checkout is back. `records` is
     a caller's own reading of the pinned comment the last word reads afresh,
     handed that comment and the issue read with it, asked beside the
     requirements and the review and report records, and
@@ -278,6 +282,8 @@ def last_word(
     it. `held` is the first that holds the route: a reading nobody could take,
     or one of those two. Either is None where no reading says so.
     """
+    if finish.hears_the_checkout is not None and earlier == _world.CHECKOUT_ABSENT:
+        finish.hears_the_checkout(LEFT_THE_LANDING)
     answered = _answers_locally(finish, binding, _hears(finish, binding, landing, records), landing)
     excused = ADVANCED if finish.behind and records is not None else ()
     found = [refused for refused in (earlier, *answered) if refused and not refused.proved]

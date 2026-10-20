@@ -180,8 +180,9 @@ class LosesTheCheckout:
     def hears(self, checkout: object) -> None:
         """Owe a checkout the last word read off the landed head as the loss of the attempt the proof recovers.
 
-        Handed every such reading as it is taken (`rewrite_finish_models.LandedFinish.hears_the_checkout`), however a
-        refusal read ahead of it is weighed, so the proof's own later readings count as its first does
+        Handed every such reading as it is taken (`rewrite_finish_models.LandedFinish.hears_the_checkout`) -- and the
+        landing left where the proof behind it read the checkout gone from this host -- however a refusal read ahead of
+        it is weighed, so the proof's own later readings count as its first does
         (`owed_events.owes_a_loss`), and a retirement over them refused, the head put back, still leaves the evidence
         read moving to the next proof.
         """

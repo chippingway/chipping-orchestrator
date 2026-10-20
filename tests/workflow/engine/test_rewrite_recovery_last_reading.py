@@ -9,23 +9,29 @@ record's proof of the run's moved report answers -- a newer run recorded pending
 floor raised alone -- right as its retirement over a checkout gone answers, a usage total added to, or right behind a
 hold's record with nothing left to prove, a fresh attempt pinned or a usage total added to. The comment read last is
 laid over the tick's state (`rewrite_recovery_rereads.lays_what_moved`), so that state written whole behind puts none
-of it back, and the pending successor holds the reset, the fresh attempt the hold. On a state alone, what the tick
-staged itself is kept over another road's move of it. Nothing is run again, pushed, or launched.
+of it back, and the pending successor holds the reset, the fresh attempt the hold. Movement the reread behind a
+hold's record reads is retired before the hold answers; a successor that record took in holds it; another attempt the
+proof read and saw put back holds it, a checkout lost behind that reading recorded first; and a checkout the readiness
+proof reads gone from this host stays owed under refused writes. On a state alone, what the tick staged itself is kept
+over another road's move of it. Nothing is run again, pushed, or launched.
 """
 from __future__ import annotations
 
 import json
 import unittest
+from contextlib import ExitStack
 from functools import partial
 from unittest.mock import patch
 
-from orchestrator.git.base_sync import attempts as _attempts
+from orchestrator.git.base_sync import attempts as _attempts, rewrite_facts as _rewrite_facts
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    owed_events as _owed_events,
     pinned_commit as _commit,
     rewrite_landing_retirement as _retirement,
     rewrite_recovery_parks as _parks,
     verification_settlement_state as _settlement,
+    verification_world as _world,
 )
 from orchestrator.workflow.engine.rewrite_recovery_rereads import lays_what_moved
 from tests.workflow.engine import (
@@ -67,6 +73,9 @@ _BEHIND_THE_HOLD = handoff.Boundary(
 # The comment read afresh behind a hold's record, and the first reading a proof before a park takes.
 _AT_THE_REREAD = handoff.Boundary("at the reread behind the record", "durable_comment", lambda *_called: True)
 _AT_THE_FIRST_READ = handoff.Boundary("at the proof's first reading", "read_pinned_state", lambda *_called: True)
+
+# The readiness proof's word on the checkout the evidence names.
+_AT_THE_WORLD = handoff.Boundary("at the readiness proof's world", "world_verdict", lambda *_called: True)
 
 
 def _adds(case, field: str, more: int) -> None:
@@ -235,6 +244,68 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
             self.assertFalse(_parks.proves_before_a_park(context))
         self.assertTrue(context.state.withheld)
         self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (standing,))
+
+
+class LossInTheProofTest(guarded.GuardedRecoveryCase, unittest.TestCase):
+    """A checkout the proof finds gone or reads absent, however soon it is back: its loss owed, nothing else excused."""
+
+    def test_a_replacement_then_a_loss_holds(self) -> None:
+        # Another road pins the landed head as a fresh anchor as the proof first reads the comment, and puts the
+        # attempt back right behind that reading; the checkout then goes under the proof's next reading of it, back
+        # right behind. The loss is recorded first, owed by the attempt, and the attempt the proof read in place of its
+        # own still holds it, the tick's state withheld.
+        head = self.settles_then_dies()[0]
+        context = guarded.recovery_context(self)
+        self._standing = self.pinned_fields(readings.KEY_PENDING_PUSH)[0]
+        self._armed = False
+        reads = _AT_THE_FIRST_READ.racing(
+            self.gh.read_pinned_state, partial(_writes, self, {readings.KEY_PENDING_PUSH: head}), self._arms,
+        )
+        checkout = partial(self._loses_once_armed, _rewrite_facts._reads_the_checkout)
+        with (
+            patch.object(self.gh, _AT_THE_FIRST_READ.step, reads),
+            patch.object(_rewrite_facts, "_reads_the_checkout", checkout),
+        ):
+            self.assertFalse(_parks.proves_before_a_park(context))
+        self.assertTrue(context.state.withheld)
+        self.assertTrue(_owed_events.loss_owed(context))
+        self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (self._standing,))
+
+    def test_a_checkout_read_absent_stays_owed(self) -> None:
+        # The readiness proof finds the checkout gone from this host, put back right behind that reading, and every
+        # write is refused: the attempt owes that loss from the moment the proof reads it, so the next proof, its
+        # writes landing over the checkout back, still retires the run whole.
+        run = self.settles_then_dies()[1]
+        context = guarded.recovery_context(self)
+        world = _AT_THE_WORLD.racing(_world.world_verdict, *self._goes_and_returns())
+        refusing = patch.object(self.gh.pinned_failures, "refused", {self.issue.number})
+        with refusing, patch.object(_world, _AT_THE_WORLD.step, world):
+            self.assertFalse(self.proves())
+        self.assertTrue(_owed_events.loss_owed(context))
+        self.assertTrue(self.proves())
+        self.assert_invalidated(run)
+
+    def _arms(self) -> None:
+        """Put the attempt's anchor back as another road would, arming the checkout's loss behind it."""
+        _writes(self, {readings.KEY_PENDING_PUSH: self._standing})
+        self._armed = True
+
+    def _loses_once_armed(self, live, *args, **kwargs):
+        """`live`, a reading of the checkout, taken with the checkout gone from disk the first time once armed, and the
+        checkout put back right behind it."""
+        if not self._armed:
+            return live(*args, **kwargs)
+        self._armed = False
+        goes, returns = self._goes_and_returns()
+        with ExitStack() as back:
+            back.callback(returns)
+            goes()
+            return live(*args, **kwargs)
+
+    def _goes_and_returns(self) -> tuple:
+        """Taking the checkout away from disk, and putting it back."""
+        away = self._wt.parent / _AWAY
+        return partial(self._wt.rename, away), partial(away.rename, self._wt)
 
 
 class LaysWhatMovedTest(unittest.TestCase):

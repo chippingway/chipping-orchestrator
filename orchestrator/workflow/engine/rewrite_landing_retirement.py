@@ -252,7 +252,8 @@ def retires_unproved(
     -- has nothing to prove the landing over, so the
     recorder `context` carries (`records_before_a_reset`) records the reset and
     retires both, its answer the proof's; with none both are retired on the
-    state the park lands (`retires_over_the_reset`). False only where evidence still
+    state the park lands (`retires_over_the_reset`) -- the loss recorded either
+    way before another attempt a reading of the proof carried holds it. False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
     its history entry among it, its movement recorded instead -- or where any
     comment the proof read carries another attempt in place of the one
@@ -288,7 +289,7 @@ def retires_unproved(
     )
     if proved is None:
         records = context.records_before_a_reset
-        return (
+        proved = (
             records(context, lost=(context.worktree,))
             if records else retires_over_the_reset(context, _landing_moved._CHECKOUT_GONE)
         )

@@ -116,8 +116,10 @@ class LandedFinish:
     retirements, and answers as it always has where it is False.
     `hears_the_checkout` is handed what each last word reads of the checkout
     (`rewrite_evidence_proof._landing_refusals`) -- however that reading is
-    weighed against the rest -- where a caller hands one in; only the
-    recovery's dormant proof does, every other finish leaving it None.
+    weighed against the rest -- and the landing left where the proof the last
+    word is handed read the checkout gone from this host, where a caller hands
+    one in; only the recovery's dormant proof does, every other finish leaving
+    it None.
     """
 
     gh: GitHubClient

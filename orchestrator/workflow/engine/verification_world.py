@@ -41,6 +41,12 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
 )
 
+# What a checkout gone from this host earns: nothing on disk vouches for the evidence, which a dormant recovery proof
+# reads as that checkout's loss (`rewrite_evidence_proof.last_word`).
+CHECKOUT_ABSENT = _evidence_models.ReportEvidence(
+    _evidence_models.ReportEvidenceVerdict.DEFER, "the checkout the evidence names is not on this host",
+)
+
 
 def world_verdict(
     spec: _config_models.RepoSpec,
@@ -50,10 +56,7 @@ def world_verdict(
     """Refuse a branch or object that cannot vouch for `binding`, or None."""
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if not worktree.exists():
-        return _evidence_models.ReportEvidence(
-            _evidence_models.ReportEvidenceVerdict.DEFER,
-            "the checkout the evidence names is not on this host",
-        )
+        return CHECKOUT_ABSENT
     adrift = _remote.subject_remote_verdict(spec, issue, binding.target.publication)
     if adrift is not None:
         return adrift

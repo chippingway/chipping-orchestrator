@@ -1397,8 +1397,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             profiles, adoptions, or retirements; and whether a finish's route lands a record of its
                             own relabel -- held to that dormant policy and routing, not continuing, its head
                             (`routes_a_relabel`); and, for the recovery's dormant proof alone, what each last word
-                            reads of the checkout is handed to (`hears_the_checkout`), every other finish leaving it
-                            None
+                            reads of the checkout, and a checkout its proof read gone from this host, is handed to
+                            (`hears_the_checkout`), every other finish leaving it None
     rewrite_finish_debt.py  the debt a landed rewrite leaves, staged only where both the announcement write it rides
                             -- the notice's ledger entry reserved at the widest id, the record of the event, the
                             reset round, and the mark, and for a dormant finish routing its head
@@ -1851,7 +1851,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             local base nobody could count against holding; where `records` is asked over a head the
                             base advanced past again, the base readings that made its continuation (`ADVANCED`) are
                             dropped first, a tip blanked to record movement never among them; the checkout's own verdict
-                            handed first to a finish that carries `hears_the_checkout`, however it is weighed after
+                            handed first to a finish that carries `hears_the_checkout`, however it is weighed after, and
+                            so is a proof handed in that read the checkout gone from this host
+                            (`verification_world.CHECKOUT_ABSENT`), as the landing left
     rewrite_evidence_models.py
                             the policy's decision (`RewriteEvidence`): its route (`RewriteEvidenceRoute`: fresh,
                             carried, reviewer, failed, or moved), whether the current evidence is invalidated, the
@@ -2001,9 +2003,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transcript the artifact would refuse, UTF-8 cannot carry, or could not fit in one comment at
                             the widest receipt and revision a record carries; the room on the pinned comment is the
                             recorder's question
-    verification_world.py   the branch and object half of the evidence proof: a checkout on this host, the branch
-                            held by `report_remote_evidence.py` to the target head, and the tested commit and the
-                            target head each read as a commit in its own right -- never a tag peeling to one --
+    verification_world.py   the branch and object half of the evidence proof: a checkout on this host, its absence
+                            one refusal (`CHECKOUT_ABSENT`) a dormant recovery proof owes as that checkout's loss, the
+                            branch held by `report_remote_evidence.py` to the target head, and the tested commit and
+                            the target head each read as a commit in its own right -- never a tag peeling to one --
                             carrying the one tree the run recorded (`tree_of`)
     verification_subject.py the subject half: the evidence's pull request the one this issue pins as `pr_number`; no
                             developer report still owed (`report_delivery.owes_a_report`, the validating hold's rule);
@@ -2474,7 +2477,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`rewrite_recovery_readings.stands_as_recovered`) with nothing reset, cleared, or parked
                             and the tick's state withheld,
                             and a checkout one of its finishes read off the landing -- as its candidate, or in the
-                            last word (`rewrite_recovery_readings.LosesTheCheckout.hears`) -- owed and recorded before
+                            last word, or gone from this host in the proof that word is handed
+                            (`rewrite_recovery_readings.LosesTheCheckout.hears`) -- owed and recorded before
                             it answers (`rewrite_recovery_readings.LosesTheCheckout.proves`) -- a successor it carries
                             there laid over the tick's state and proved the same way, what that reading records moving
                             kept, a successor that reading takes in behind an invalidation that landed proved too --
@@ -2636,7 +2640,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             revision read spent past it (`owed_moves`), as the complete dormant finish reads one still
                             owed; whether the tick's state still carries the attempt the recovery recovers
                             (`stands_as_recovered`); and a block a checkout gone from disk cuts short
-                            (`LosesTheCheckout`), its git request there read as that loss, back by then or not, and
+                            (`LosesTheCheckout`), its git request there read as that loss, back by then or not -- the
+                            loss recorded before another attempt a reading of the proof carried holds it -- and
                             recorded for a road (`RecordsALostCheckout`) over the tick's state staged with what the tick
                             staged ahead of the road alone -- usage, a gate's record -- the road's own staging dropped,
                             and a checkout the last word reads off the landing owed as that loss, whatever refusal is

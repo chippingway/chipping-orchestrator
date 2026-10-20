@@ -1584,7 +1584,8 @@ because there it is the claim that this stage has already rerouted rather than a
   history keeping the attempt
   (`rewrite_recovery_parks.lands_a_clear`, `git/base_sync/snapshot.py`); and a checkout gone from disk -- ahead of a
   park's or hold's record or behind one or a notice that raised, found gone by one of the proof's own git requests
-  (`rewrite_recovery_readings.LosesTheCheckout`), or read gone or off the evidence's head by its caller, however soon
+  (`rewrite_recovery_readings.LosesTheCheckout`) or read gone from this host by its readiness proof, or read gone or
+  off the evidence's head by its caller, however soon
   it is back -- has the reset recorded and the evidence retired as over it, each in a guarded write of its own
   (`rewrite_recovery_staging.lands_the_retirement`), evidence written back behind retired again and an attempt or
   successor another road put in its place holding the tick unreset, a transaction it recorded pending under a receipt
