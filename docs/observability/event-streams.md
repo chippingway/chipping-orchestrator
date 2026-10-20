@@ -976,7 +976,9 @@ accepted one with ([`../workflow/roles.md`](../workflow/roles.md#the-size-gate-a
 rides the write that receipts the landed push, so it is written only where the pull request really carries the
 rewritten commit, and it is filed under the stage the rewrite was entered from rather than under `implementing`. An
 auto rebase whose pull request merged or closed on the rewritten commit before its receipt was written reports the
-same way when the refresh ends that attempt's handoff, since the pull request shipped the commit the permission names. A
+same way when the refresh ends that attempt's handoff, since the pull request shipped the commit the permission names --
+behind the write ending that handoff only once GitHub confirmed it, so a write refused reports nothing and one whose
+answer was lost is left to the proof below. A
 process lost between that write and the record leaves the proof the settlement kept (`late_rewrite_proof`), and the
 reconciliation ahead of the next dispatched handler — or the refresh's own recovery, which finishes the same attempt —
 writes the record from it and drops the proof, so a lost process does not cost the record. Delivery stays best effort
