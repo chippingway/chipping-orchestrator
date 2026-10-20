@@ -48,9 +48,7 @@ def _park_unfinished_recovery(
     and route it into adjudication a second time. A human's reply re-enters
     this route, the remote is read again, and whatever it turns out to be is
     classified from scratch -- which is why the recovery context is asked
-    first whether the park may go on (`persistence._proves_before_the_park`),
-    and the park is recorded as every recovery park is
-    (`persistence._parks_the_recovery`).
+    first whether the park may go on (`persistence._proves_before_the_park`).
     """
     if not persistence._proves_before_the_park(context):
         return True
@@ -61,8 +59,10 @@ def _park_unfinished_recovery(
         "recovery anchor exactly as they are and parking awaiting human",
         context.issue.number, context.pr_number, local_short, detail,
     )
-    persistence._parks_the_recovery(
-        context,
+    persistence._park_auto_rebase_failure(
+        context.gh,
+        context.issue,
+        context.state,
         message=(
             f"{config.HITL_MENTIONS} crash recovery for PR "
             f"#{context.pr_number}: the rebased branch reached the remote, so "

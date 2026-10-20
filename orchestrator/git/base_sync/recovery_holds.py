@@ -179,11 +179,8 @@ def _answers_an_unreadable_checkout(
     recovery road's are (`_AutoRebaseRecoveryContext`), by the workflow's
     recovery (`workflow/engine/rewrite_recovery.answers_an_unreadable_checkout`):
     what it owes over a reset that landed (`settles_over_a_reset`) and what it
-    asks before the park of one that did not (`proves_before_a_park`), and --
-    once the workflow hands them in, which it does not yet -- what it records
-    before the reset (`records_before_a_reset`) and the park it records either
-    park through (`lands_a_park`). An answer not handed in is the context's
-    None.
+    asks before the park of one that did not (`proves_before_a_park`). An
+    answer not handed in is the context's None.
     """
     return snapshot._abort_recovery_unverified(
         _AutoRebaseRecoveryContext(
@@ -226,7 +223,6 @@ def _held_anchor_context(gh, spec, issue, state, label) -> _AutoRebaseRecoveryCo
 def _answers_a_held_anchor(
     context: _AutoRebaseRecoveryContext,
     proves_before_a_park: Callable[[_AutoRebaseRecoveryContext], bool] | None = None,
-    lands_a_park: Callable[[_AutoRebaseRecoveryContext, str, str], None] | None = None,
 ) -> None:
     """What an anchor the dispatcher holds a handler back for is owed.
 
@@ -253,11 +249,9 @@ def _answers_a_held_anchor(
     refresh of the same issue on this host -- and it asks for no claim of its
     own, which that hold would refuse. `proves_before_a_park` is what the
     workflow's recovery asks before the stranded park keeps the attempt
-    (`_AutoRebaseRecoveryContext.proves_before_a_park`), and `lands_a_park`
-    the park it records that one through (`_AutoRebaseRecoveryContext.lands_a_park`),
-    which the dispatcher does not hand in yet, so it writes the state whole.
+    (`_AutoRebaseRecoveryContext.proves_before_a_park`).
     """
-    context = replace(context, proves_before_a_park=proves_before_a_park, lands_a_park=lands_a_park)
+    context = replace(context, proves_before_a_park=proves_before_a_park)
     if context.label in _PR_REFRESH_DETOUR_LABELS:
         if not context.worktree.is_dir():
             _restores_the_checkout(context.spec, context.issue.number, context.state)

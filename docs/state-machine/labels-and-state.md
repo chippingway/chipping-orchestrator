@@ -3354,17 +3354,10 @@ The keys that matter for the state machine fall into a few groups:
   refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
   unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand, save a
   verification transaction a finish captured for the landed head, which every recovery park that keeps the attempt
-  has proved again first and abandoned where anything it rests on moved (`proves_before_a_park`). Each park still
-  writes the tick's state whole: the guarded park that records it over the comment read afresh, and the record of a
-  reset made ahead of it, are dormant answers no recovery context carries yet (`lands_a_park`,
-  `records_before_a_reset`, `workflow/engine/rewrite_recovery_parks.py`), and so is the guarded hold a publication
-  gate's hold of a recovery's push would be recorded through (`lands_a_hold`, `HOLD`). Their records keep what moved
-  under them as read -- the comment a refused strict edit found among it, a base tip blanked there beside the rest of
-  the attempt included -- lay the evidence the comment carries over the tick's state behind a record that did not
-  land, so a successor another road settled is proved on its own binding, record the reset against the evidence
-  behind a record or notice the checkout went from disk under, and take in a park notice already said past the
-  watermark rather than posting it twice (`workflow/engine/rewrite_recovery_notices.py`); a refused record's flags
-  ride no write of the proof behind it, and stay on the tick's state only where none of that proof's edits landed.
+  has proved again first and abandoned where anything it rests on moved (`proves_before_a_park`). Each park writes
+  the tick's state whole: the recovery read it under the issue writer claim its caller -- the base refresh, or the
+  dispatch whose anchor hold answers it -- takes before reading the issue and holds through that write, so no other
+  orchestrator writer moves the comment in between.
   **The post-publication route is live too.** The recovery hands every head the pull request already carries, beside
   how far the transfer got, to the workflow's landed road (`workflow/engine/rewrite_landed.py`), which asks
   `landed_recovery` why it may not finish one, and eligibility's open-PR gate hands `terminal_handoff` every

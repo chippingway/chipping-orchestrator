@@ -92,6 +92,11 @@ Tests are the primary correctness gate. Add or update tests for any behavioral c
   rename is a migration, not a refactor. The same holds for comment marker text, watermark fields, and event payload
   shapes. When touching the state machine, agent invocation, or stage handlers, read
   [`docs/state-machine.md`](docs/state-machine.md) and [`docs/workflow.md`](docs/workflow.md) first.
+- **One orchestrator writer per issue.** Issues are worked in parallel, but dispatch and the per-tick base refresh
+  each hold the issue's writer claim from before they read it through their last write. Do not add code that adopts,
+  reconciles, or repairs another orchestrator writer's changes made inside that claim; keep handling crashes, lost or
+  refused writes, comment capacity, and changes from outside the orchestrator. Rationale:
+  [`docs/architecture.md`](docs/architecture.md#design-constraints).
 - **Secrets.** `GITHUB_TOKEN` is deliberately *not* loaded from `.env`. Tokens live in
   `~/.config/<owner>/<repo>/token` or the process environment. Rationale:
   [`docs/configuration.md`](docs/configuration.md#github-personal-access-token).

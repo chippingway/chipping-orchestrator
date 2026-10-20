@@ -49,7 +49,7 @@ entry blanks.
 `INVALIDATION` invalidates settled evidence a reading established movement
 under where the write staged on the comment read afresh would not land
 (`rewrite_finish_readiness.invalidates`, asked only by the dormant
-settled-evidence policy and the recovery's dormant answers): staged on the
+settled-evidence policy): staged on the
 tick's own copy and decided only on the evidence records and the attempt --
 landed without the publication's pinned fields among them (`lands`,
 `publication` False), so a pull request or branch another road repointed

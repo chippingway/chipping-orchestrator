@@ -42,6 +42,16 @@ it, as the [operations runbook](configuration/operations.md#running-more-than-on
 is not recovered from GitHub alone ([what survives a restart](configuration/operations.md#what-survives-a-restart);
 [backups](security.md#backup-and-restore-drills)).
 
+Each issue has one orchestrator writer at a time. Different issues are worked in parallel, but every dispatch and every
+per-tick base refresh takes the issue's host-local [writer claim](#process-model) before it reads the issue and holds
+it through its last write, so no other orchestrator writer changes that issue's pinned comment or labels in the middle
+of an operation. Code under the claim may treat its own earlier writes as sequential checkpoints, and need not adopt,
+reconcile, or repair records a second orchestrator writer could have moved meanwhile. What it still handles is a
+process lost between two writes, a write refused or whose answer was lost, a comment with no room left, and changes
+from outside the orchestrator: a human's comment, label, or issue edit, the pull request, the remote branch, the
+configuration, and the checkout on disk. A successor record another orchestrator operation wrote before the claim was
+taken is real, and the reading taken once the claim is held is what sees it.
+
 The orchestrator is not fully autonomous. When a stage hits uncertainty, an unsafe repository state, a malformed agent
 response, or an exhausted retry cap, it parks with `awaiting_human` and mentions `HITL_HANDLE`; a later human issue
 comment is the resume signal for the parked agent session. The exhausted retry cap is the one park an ordinary
@@ -1057,18 +1067,11 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   finish of the landing already did (`workflow/engine/rewrite_finish_stops.py`,
   `workflow/engine/rewrite_finish_announced.py`, `workflow/engine/rewrite_finish_writes.py`) -- its relabel landed
   behind a guarded record of its own on the attempt (`pending_auto_base_rebase_relabelled`), read beside the label,
-  and beside a label the issue already wore against the audit log where one is configured. Dormant guarded
-  recovery operations are built on the readiness
-  primitives,
-  and no recovery context the workflow builds carries them yet: the settled-aware answer to a landed reset and proof
-  before a park that keeps the attempt (`workflow/engine/rewrite_landing_retirement.py`), which retire settled
-  evidence whole beside a captured run and refuse the attempt's release where history has no room for it; and the
-  reset recorded against captured or settled evidence before git moves the checkout, with every recovery park landed
-  through the guarded commit over the comment read afresh and proving what it keeps once more behind its notice
-  (`workflow/engine/rewrite_recovery_parks.py`), each an optional answer the git owner transports
-  (`records_before_a_reset`, `lands_a_park`) -- a park made again over a notice already said taking it in rather than
-  posting it twice (`workflow/engine/rewrite_recovery_notices.py`) -- beside the guarded hold a publication gate's
-  hold of a recovery's push would be recorded as (`lands_a_hold`). It runs under its caller's issue writer claim.
+  and beside a label the issue already wore against the audit log where one is configured. No recovery road asks
+  the readiness primitives: a recovery holds, parks, clears, and resets an interrupted attempt with the captured-only
+  answers above and writes every park whole, since the issue writer claim its caller takes before reading the issue
+  keeps every other orchestrator writer off that issue through the recovery's final write. It runs under its
+  caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
   (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from

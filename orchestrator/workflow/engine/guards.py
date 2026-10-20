@@ -336,9 +336,7 @@ def _park_awaiting_human(
     poster can know: a later caller that finds that notice said and asks the
     event stream whether its park's event was filed then asks for that park's
     own, not any earlier one's. Only the dormant debt park of a landed rewrite
-    and the dormant guarded recovery parks of an automatic base rewrite
-    (`rewrite_recovery_notices`) ask for it, so every other record goes out
-    without the field. Such a park's event is noted owed ahead of the post
+    asks for it, so every other record goes out without the field. Such a park's event is noted owed ahead of the post
     until filed (`owed_events`), under the text the notice says, so with no
     audit log that later caller files it for a notice this process said and
     takes one an earlier process said as filed.
