@@ -2563,7 +2563,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reconciliation
                             behind a record that did not land, so evidence it read moving that the comment carries
                             nothing in place of by then is kept -- unless the record took in evidence under another
-                            receipt, which is proved on its own readings. The hold behind a publication gate that held a
+                            receipt, which is proved on its own readings; behind a record that landed and the proof
+                            behind it, whatever evidence is left, the comment is read afresh once more and laid over
+                            the tick's state (`rewrite_recovery_rereads.py`), another attempt, the attempt moved, or a
+                            transaction recorded pending under a receipt the attempt does not name holding the tick
+                            with its state withheld. The hold behind a publication gate that held a
                             recovery's push would land the same way, as `HOLD`, decided on the attempt alone and its
                             proof taken first as before a park that keeps the attempt, recording nothing where that
                             proof does not land, and answering whether the proof, the record, and the proof behind it
@@ -2572,7 +2576,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             successor settled meanwhile refuses it with its floor kept; one that lands is followed by
                             the comment read afresh, a successor, another attempt, or any record a binding rests on --
                             a revision floor raised alone among them -- written right behind it holding the tick with
-                            its state withheld; one that does not land records the reset against the attempt
+                            its state withheld, and anything else written there, a usage total among it, laid over
+                            the tick's state (`rewrite_recovery_rereads.py`); one that does not land records the reset
+                            against the attempt
                             as read and proves the evidence read afresh with its move off the landing under each
                             receipt held.
                             Asked ahead of a record, that proof keeps what the tick staged before it -- a gate's record
@@ -2633,8 +2639,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and a checkout the last word reads off the landing owed as that loss, whatever refusal is
                             weighed ahead of it (`LosesTheCheckout.hears`); a remote read off the landing owes none
     rewrite_recovery_rereads.py
-                            dormant, as the reset's record it serves is: the comment that record reads afresh last
-                            before it lets a reset go on (`rewrite_recovery_parks.records_the_reset`), laid over the
+                            dormant, as the records it serves are: the comment the reset's record reads afresh last
+                            before it lets a reset go on (`rewrite_recovery_parks.records_the_reset`), and the one read
+                            behind a landed hold's, park's, or clear's record, laid over the
                             tick's state for every field another road moved since the tick's own reading
                             (`lays_what_moved`) -- a usage total added to, a revision floor raised, a transaction
                             recorded -- each taken in as read, so a whole-state write behind the reset puts none of it
@@ -2658,8 +2665,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proved and an attempt any reading of it carries in place of the one recovered holds the
                             caller, however soon it is put back and however little evidence is left to prove; a lost
                             answer there taken as sent so it is never sent twice, save where the comment read afresh
-                            still spells each total as that write read it, which carries none of them, so they are
-                            staged again as a refusal's are, a refusal staged again for the record behind
+                            carries any total short of what that write sent -- a total only grows, so that comment
+                            carries none of them, however another road added to it -- so they are staged again as a
+                            refusal's are, a refusal staged again for the record behind
                             (`adds_the_totals`), and a
                             context already kept handed back as it is, so
                             the reset's recorder keeps it alike asked inside a proof or directly by the git owner

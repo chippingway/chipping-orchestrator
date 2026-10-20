@@ -218,8 +218,9 @@ settled evidence retired whole with a landed reset's release or kept whole besid
 and every recovery park, a publication gate's hold of a recovery's push, and a clear of the attempt landed over the
 comment read afresh, a park made again over a notice already said taking it in, and a checkout found gone or read off
 the landing before or during a proof recorded with its evidence retired in writes of their own, the attempt owing that
-loss to every later proof, and whatever another road wrote by the comment a reset goes on over laid over the tick's
-state (`workflow/engine/rewrite_landing_retirement.py`, `workflow/engine/rewrite_recovery_parks.py`,
+loss to every later proof, and whatever another road wrote by the comment a reset, or a landed park, hold, or clear,
+goes on over laid over the tick's state (`workflow/engine/rewrite_landing_retirement.py`,
+`workflow/engine/rewrite_recovery_parks.py`,
 `workflow/engine/rewrite_recovery_rereads.py`, `workflow/engine/rewrite_recovery_staging.py`,
 `workflow/engine/rewrite_recovery_notices.py`). A tick lost behind
 the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the

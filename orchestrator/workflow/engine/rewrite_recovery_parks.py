@@ -91,7 +91,10 @@ A park that keeps the attempt keeps the evidence with it for the reply that
 brings the recovery back, so that evidence is proved before the park
 (`proves_before_a_park`), and once more behind its notice and record
 (`lands_a_park`) -- landed, refused, or raised -- since the notice is long
-enough for another road to settle a later report. Movement the record's
+enough for another road to settle a later report. Behind a record that
+landed the comment is read afresh once more, whatever evidence is left, and
+what another road moved there laid over the tick's state, another attempt
+holding the tick. Movement the record's
 commit read -- in the record it sent, the comment its strict edit found moved,
 or the fresh reading behind that edit -- is read against each evidence's own
 binding (`rewrite_landing_retirement.moved_under`) and handed to that proof as
@@ -264,7 +267,8 @@ def lands_a_hold(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool:
     is proved once more, over the move the record itself carried, as behind
     every park (`lands_a_park`) -- or the reset recorded, over a checkout gone
     from disk by then. A state nothing was read into is written whole.
-    True where the proof, the record, and the proof behind it all landed.
+    True where the proof, the record, and the proof behind it all landed, and the comment read afresh behind them
+    still carries the attempt as the record left it (`_lands_then_proves`).
     """
     if not proves_before_a_park(context):
         return False
@@ -282,21 +286,24 @@ def lands_a_clear(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool
     One that landed is followed by the comment read afresh: a successor, another attempt, or anything else the clear
     was decided on written right behind it -- a revision floor raised, or any other record a binding rests on moved,
     among them (`verification_durable.durable_comment`) -- or a comment that would not read holds the tick too, its
-    state withheld, so no write of it puts back what that road wrote. A state nothing was read into is written whole.
+    state withheld, so no write of it puts back what that road wrote; anything else written there, a usage total
+    among it, is laid over that state (`rewrite_recovery_rereads.lays_what_moved`), so a write of it keeps it. A state
+    nothing was read into is written whole.
     """
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
         return True
     moved: dict[str, ReportEvidence] = {}
-    asked = asks_every_reading(
-        context, lambda reading: _retirement.moved_under(reading, tick=context.state, into=moved),
-    )
     landed = _commits.ReportCommit(
-        asked.gh, context.issue, context.state,
+        asks_every_reading(
+            context, lambda reading: _retirement.moved_under(reading, tick=context.state, into=moved),
+        ).gh,
+        context.issue,
+        context.state,
     ).lands(context.state, CLEAR)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
-        refused = durable_comment(context.gh, context.issue, context.state, CLEAR.decided_on)[1]
-        if refused is None:
+        durable, refused = durable_comment(context.gh, context.issue, context.state, CLEAR.decided_on)
+        if refused is None and not lays_what_moved(context.state, durable):
             return True
         log.warning(
             "issue=#%d the clear of its auto-rebase attempt landed, but the comment read afresh behind it carries "
@@ -535,23 +542,29 @@ def _lands_then_proves(
     carries by then is kept for the proof rather than laid away. Every
     comment the commit itself reads, the reread behind a refusal for room
     among them, is asked as it is read (`rewrite_recovery_readings.AsksEveryReading`).
-    `named` is the record, logged where it did not land.
+    Behind a record that landed and the proof behind it -- whatever evidence was left to prove, none among it -- the
+    comment is read afresh once more and what another road moved there laid over the tick's state
+    (`rewrite_recovery_rereads.lays_what_moved`): any attempt member moved, another attempt pinned among it, or a
+    transaction recorded pending under a receipt the attempt does not name holds the tick, its state withheld, and so
+    does a comment that would not read. `named` is the record, logged where it did not land.
     """
     state = context.state
-    held = (_landing_records.captured(state), _landing_records.settled(state))
-    attempt = _retirement.attempt_as_read(state)
+    read = (
+        _retirement.attempt_as_read(state),
+        (_landing_records.captured(state), _landing_records.settled(state)),
+    )
     moved: dict[str, ReportEvidence] = {}
     landed = _commits.ReportCommit(
         AsksEveryReading(
             context.gh,
             context.issue.number,
-            lambda reading: _retirement.moved_under(reading, attempt, held, into=moved),
+            lambda reading: _retirement.moved_under(reading, *read, into=moved),
         ),
         context.issue,
         state,
     ).lands(state, write)
     if landed.reading is not None:
-        _retirement.moved_under(landed.reading, attempt, held, into=moved)
+        _retirement.moved_under(landed.reading, *read, into=moved)
     if landed.status is not _commit_models.CommitStatus.COMMITTED:
         log.warning(
             "issue=#%d the %s of its auto-rebase recovery did not land (%s); nothing is recorded, "
@@ -559,4 +572,16 @@ def _lands_then_proves(
             context.issue.number, named, (landed.refusal or landed.status).value,
         )
         moved = _retirement.reconciles(context, moved)
-    return proves_before_a_park(context, moved) and landed.status is _commit_models.CommitStatus.COMMITTED
+    if not (proves_before_a_park(context, moved) and landed.status is _commit_models.CommitStatus.COMMITTED):
+        return False
+    durable = durable_comment(context.gh, context.issue, state)[0]
+    if durable is not None and not lays_what_moved(state, durable, _attempts._ATTEMPT_KEYS):
+        return True
+    log.warning(
+        "issue=#%d the %s of its auto-rebase recovery landed, but the comment read afresh behind it carries another "
+        "attempt, the attempt moved, or a transaction another road recorded, or would not read; holding, for the next "
+        "tick to answer the comment as it then stands",
+        context.issue.number, named,
+    )
+    state.withheld = True
+    return False

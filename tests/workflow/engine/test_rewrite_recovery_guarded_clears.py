@@ -13,7 +13,7 @@ settling as the clear reads HEAD refuses the clear and keeps its floor; another 
 marked moved and unmarked, refuses the clear and the move read invalidates it; a usage write refusing the clear has the
 reset recorded by base tip; with no history room nothing is cleared, the run current beside its blanked tip. A newer
 run and another attempt, or a revision floor raised alone, written right behind a clear that landed hold the tick, its
-state withheld from writing over them.
+state withheld from writing over them; usage another road adds there lets either clear go on, laid over that state.
 """
 from __future__ import annotations
 
@@ -214,7 +214,8 @@ class IneligibleClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
 
 
 class WrittenBehindTheClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
-    """What another road writes right behind a guarded clear that landed holds the tick, the tick's state withheld."""
+    """What another road writes right behind a guarded clear that landed: a record the clear was decided on holds the
+    tick, its state withheld, and anything else is laid over that state."""
 
     def test_a_successor_and_attempt_behind_the_clear(self) -> None:
         # A newer run settles on the run's binding and another attempt is pinned right behind the clear's edit: the
@@ -243,12 +244,29 @@ class WrittenBehindTheClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         kept = self.pinned_fields(readings.KEY_REVISION_FLOOR, readings.KEY_PENDING_PUSH)
         self.assertEqual(kept, (floor, None))
 
-    def _clears_behind(self, writes):
-        """Clear the attempt unnamed on its anchor, guarded, `writes` made right behind the clear's edit; its state."""
+    def test_usage_behind_either_clear(self) -> None:
+        # Another road adds 2 of usage right behind the clear's edit, under an undriven label or over an attempt that
+        # never started: nothing the clear was decided on moved, so it goes on, the comment read afresh behind it laid
+        # over the tick's state, and writing that state whole keeps the usage beside the attempt cleared.
+        for clears in (_snapshot._clear_ineligible_recovery, _snapshot._clear_unchanged_recovery):
+            with self.subTest(clears=clears.__name__):
+                self.setUp()
+                self.settles_then_dies()
+                counted = self.pinned_fields(_USAGE)[0] or 0
+                self._pinned = {_USAGE: counted + 2}
+                context = self._clears_behind(self._pins, clears)
+                self.assertFalse(context.state.withheld)
+                self.gh.write_pinned_state(self.issue, context.state)
+                kept = self.pinned_fields(_USAGE, readings.KEY_PENDING_PUSH)
+                self.assertEqual(kept, (self._pinned[_USAGE], None))
+
+    def _clears_behind(self, writes, clears=_snapshot._clear_ineligible_recovery):
+        """Clear the attempt unnamed on its anchor by `clears`, guarded, `writes` made right behind the clear's edit;
+        its state."""
         _unnames(self)
         context = guarded.recovery_context(self)
         with patch.object(self.gh, _EDITS, _BEHIND_THE_CLEAR.moving(self.gh.edit_pinned_state, writes)):
-            _snapshot._clear_ineligible_recovery(context)
+            clears(context)
         return context
 
     def _settles_and_pins(self) -> None:

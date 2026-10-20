@@ -1571,12 +1571,16 @@ because there it is the claim that this stage has already rerouted rather than a
   the hold a publication gate's hold of a recovery's push would be recorded through, as `HOLD` over the comment read
   afresh, its proof taken first as before a park that keeps the attempt -- what the tick staged before that proof, the
   gate's own record among it, kept across every write the proof lands (`rewrite_recovery_staging.keeps_the_staging`) --
-  nothing recorded where that proof does not land, and whether it all landed answered
+  nothing recorded where that proof does not land, and whether it all landed answered -- behind a hold's or park's
+  record that landed, whatever evidence is left, the comment read afresh once more and laid over the tick's state,
+  another attempt or a moved one, or a transaction recorded pending under a receipt the attempt does not name,
+  holding the tick with its state withheld
   (`rewrite_recovery_parks.lands_a_hold`); so is the clear an ineligible label's gate or an unmoved anchor would land
   as `CLEAR` over the comment read afresh, retiring what a finish captured or settled for the head on the clear's own
   state first, a successor settled meanwhile refusing it with its floor kept, a successor, another attempt, or a
-  revision floor raised alone written right behind it holding the tick with its state withheld, and a full history
-  keeping the attempt
+  revision floor raised alone written right behind it holding the tick with its state withheld, anything else
+  written there -- a usage total -- laid over that state (`rewrite_recovery_rereads.lays_what_moved`), and a full
+  history keeping the attempt
   (`rewrite_recovery_parks.lands_a_clear`, `git/base_sync/snapshot.py`); and a checkout gone from disk -- ahead of a
   park's or hold's record or behind one or a notice that raised, found gone by one of the proof's own git requests
   (`rewrite_recovery_readings.LosesTheCheckout`), or read gone or off the evidence's head by its caller, however soon
@@ -1593,8 +1597,9 @@ because there it is the claim that this stage has already rerouted rather than a
   ahead of them, in a guarded write of its own read like every other reading of theirs -- what it reads moving proved,
   an attempt any of its readings carries in place of the one recovered holding them, however soon it is put back and
   however little evidence is left to prove -- added to the total the comment then carries, never sent twice even where
-  that write's answer was lost, yet sent again by the write behind where the comment read afresh still spells each
-  total as that write read it, while the rest of the tick's staging, a gate's record among it, is sent again by the
+  that write's answer was lost, yet sent again by the write behind where the comment read afresh carries any total
+  short of what that write sent -- a total only grows, so it carries none of them, however another road added to
+  it -- while the rest of the tick's staging, a gate's record among it, is sent again by the
   write behind any whose answer was lost, nothing read into what survives on the comment
   (`rewrite_recovery_staging.keeps_the_staging`). A tip the tick read blank holds an unrecorded reset where another road
   put it back, movement the reset's own record read is retired before the reset goes on, evidence the reading behind

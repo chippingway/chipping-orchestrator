@@ -1,18 +1,18 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The comment a dormant recovery reads last before a reset, laid over the tick's state where another road moved it.
+"""The comment a dormant recovery reads last behind its writes, laid over the tick's state where another road moved it.
 
 The reset's record (`rewrite_recovery_parks.records_the_reset`) lets the reset go on over the comment it reads
-afresh behind its own writes, and the tick's state is written behind that reset -- whole, by a recovery context that
-hands in no park of its own. A usage total another road added to by then, a revision floor it raised, or a
-transaction it recorded would be put back by that write. So `lays_what_moved` lays that reading over the state for
-every field another road moved since the tick's own reading, each taken in as read
-(`rewrite_finish_rechecks.lays`), so a guarded write behind counts none of it as the tick's own move either; a field
-the tick staged itself stays staged, for the write behind to merge or refuse as the guarded commit does. A move of a
-field the caller holds the reading to, or a transaction another road recorded pending under a receipt the attempt
-does not name, holds the reset.
+afresh behind its own writes, and a landed hold's, park's, or clear's record answers over the one read behind it;
+the tick's state is written behind them -- whole, by a recovery context that hands in no park of its own. A usage
+total another road added to by then, a revision floor it raised, or a transaction it recorded would be put back by
+that write. So `lays_what_moved` lays that reading over the state for every field another road moved since the
+tick's own reading, each taken in as read (`rewrite_finish_rechecks.lays`), so a guarded write behind counts none of
+it as the tick's own move either; a field the tick staged itself stays staged, for the write behind to merge or
+refuse as the guarded commit does. A move of a field the caller holds the reading to, or a transaction another road
+recorded pending under a receipt the attempt does not name, holds the caller.
 
-Dormant, as that record is: no recovery context the workflow builds reaches it.
+Dormant, as those records are: no recovery context the workflow builds reaches it.
 """
 from __future__ import annotations
 
