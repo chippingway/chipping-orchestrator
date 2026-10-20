@@ -100,6 +100,21 @@ For any refactor:
   CHANGES_REQUESTED), retry budgets, and stale-session detection are easy to break by accident during
   a move; verify their call paths survive intact.
 
+## One writer per issue
+
+Each issue has one active orchestrator writer: dispatch and the per-tick base refresh take its writer claim before
+reading it and hold it through their last write
+([design constraints](../../../docs/architecture.md#design-constraints)).
+
+- Do not request support for a second orchestrator writer changing the issue's pinned comment or labels during a
+  claimed operation -- adopting a successor it settled there, reconciling records it moved and put back, or wrapping
+  every reading of the comment to catch it -- and flag a PR that adds such machinery.
+- Do request handling for what still happens under the claim: a process lost between two writes, a write refused or
+  whose answer was lost, a comment with no room left, and changes from outside the orchestrator -- humans, labels,
+  issue text, pull requests, remote branches, configuration, and checkouts.
+- A successor or replacement another orchestrator operation wrote between two separately claimed operations is real;
+  the reading taken once the claim is held is what sees it, so do not dismiss that scenario as an excluded writer.
+
 ## Workflow owners and stage modules
 
 Most package initializers are markers. The deliberate public APIs retain their explicit `__all__` surfaces and

@@ -47,8 +47,7 @@ still has to hear what those records say moved. Its readers are the evidence
 proof of a landed base rewrite (`rewrite_evidence_proof`) and the readiness
 proof of the evidence such a rewrite's finish settled
 (`rewrite_finish_readiness`), which is dormant: only the dormant
-settled-evidence finish policy and the recovery's dormant guarded operations
-ask it, and no production road selects either.
+settled-evidence finish policy asks it, and no production road selects it.
 
 `configured_context_revision` is the context both witnesses are held to: the
 configured `VERIFY_COMMANDS` and `VERIFY_TIMEOUT`, minted by the verify

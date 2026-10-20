@@ -16,8 +16,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
-from orchestrator.workflow.engine import owed_events, rewrite_recovery_notices as _notices
-from tests.support.fakes import FakeGitHubClient, FakeIssue, FakeLabel
+from orchestrator.workflow.engine import owed_events
 
 _PARKED = "park_awaiting_human"
 
@@ -30,7 +29,7 @@ _SLUGS = ("owner/repo", "owner/other")
 _TOKEN = "tok"
 _BOT = "bot"
 
-# Two recovery park notices of one issue, parked for the same reason.
+# Two park notices of one issue, parked for the same reason.
 _SAID = "Reset failed; inspect the checkout."
 _OTHER = "Reset succeeded; continue after repair."
 
@@ -42,12 +41,6 @@ def _minted(workers: int) -> tuple:
         other = GitHubClient(token=_TOKEN, repo_slug=_SLUGS[1], bot_login=_BOT)
         minted = [parent._for_worker_thread() for _worker in range(workers)]
     return (*minted, other)
-
-
-def _parks(gh: FakeGitHubClient, issue: FakeIssue, message: str) -> None:
-    """A recovery park of `issue` over `message`, posted or taken in where it is already said."""
-    context = SimpleNamespace(gh=gh, issue=issue, state=gh.read_pinned_state(issue))
-    _notices.parks_awaiting_human(context, message, _NAMED["reason"])
 
 
 class OwedEventTest(unittest.TestCase):
@@ -77,18 +70,13 @@ class OwedEventTest(unittest.TestCase):
         self.assertFalse(owed_events.unfiled(later, _PARKED, **_NAMED))
 
     def test_another_notices_debt_files_nothing(self) -> None:
-        # A restart owing a failed notice's event takes an earlier notice found saying something else as filed.
+        # A process owing a failed notice's event takes an earlier notice found saying something else as filed.
         self.enterContext(patch.object(config, _LOG, None))
-        issue = FakeIssue(_NAMED["issue_number"], labels=[FakeLabel("workflow:fixing")])
-        gh = FakeGitHubClient([issue])
-        parks = partial(_parks, gh, issue)
-        parks(_SAID)
-        gh.recorded_events.clear()
-        gh.owed_events.clear()
-        with patch.object(gh, "comment", side_effect=RuntimeError("post failed before sending")):
-            self.assertRaises(RuntimeError, parks, _OTHER)
-        parks(_SAID)
-        self.assertEqual(gh.recorded_events, [])
+        client = SimpleNamespace()
+        owed_events.owes(client, _PARKED, said=_OTHER, **_NAMED)
+        unfiled = partial(owed_events.unfiled, client, _PARKED, **_NAMED)
+        owing = [unfiled(said=said) for said in (_SAID, _OTHER)]
+        self.assertEqual(owing, [False, True])
 
 
 if __name__ == "__main__":

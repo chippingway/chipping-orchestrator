@@ -212,12 +212,9 @@ continuation's captured transaction before proving the settled evidence
 beside it, and asks the primitives that policy adds -- retiring the same receipt over whatever attempt now stands, an
 announcement of the landing taken in and a refused write retried, and recording movement history has no room for under
 the evidence's own receipt, beside restoring an attempt a retirement nobody confirmed took, which the coordinator asks
-(`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_unconfirmed.py`) -- and so are the guarded
-recovery operations built on them: a reset recorded against captured or settled evidence before git moves the checkout,
-settled evidence retired whole with a landed reset's release or kept whole beside the attempt where history has no room,
-and every recovery park, and a publication gate's hold of a recovery's push, landed over the comment read afresh,
-a park made again over a notice already said taking it in (`workflow/engine/rewrite_landing_retirement.py`,
-`workflow/engine/rewrite_recovery_parks.py`, `workflow/engine/rewrite_recovery_notices.py`). A tick lost behind
+(`workflow/engine/rewrite_finish_marks.py`, `workflow/engine/rewrite_finish_unconfirmed.py`). No recovery road asks
+them: the recovery abandons only the transaction a finish captured and writes every park whole, under the issue writer
+claim the base refresh or the dispatcher holds from before its reading through its final write. A tick lost behind
 the resolved evidence -- before the announcement, between its notice, `base_rebased` event, and checkpoint, between the
 checkpoint and the relabel, or between the relabel and the retirement -- leaves the attempt standing for that
 recovery, which reads what was done off the mark, the pull request, the event stream, and the label
