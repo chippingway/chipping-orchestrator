@@ -1601,9 +1601,11 @@ because there it is the claim that this stage has already rerouted rather than a
   that retirement carries under a receipt read moving -- a successor, or the run put back -- retired in turn, and a tip
   put back or an attempt pinned right behind that record, behind the proof of what it read moving, or during the
   retirement over a checkout read gone -- there any evidence record moved too, a successor recorded or a floor raised,
-  laid over the tick's state -- holds the reset, read off the comment afresh, the tick's state withheld, and
-  a tick whose state carries another attempt by then -- one a proof took in off the comment -- holds it with no blank
-  written over that attempt's tip
+  laid over the tick's state -- holds the reset, read off the comment afresh, the tick's state withheld; so does a
+  transaction another road recorded pending under a receipt the attempt does not name, read last before the reset,
+  and whatever else that road moved there -- a usage total, a floor -- is laid over the tick's state either way
+  (`rewrite_recovery_rereads.lays_what_moved`); and a tick whose state carries another attempt by then -- one a proof
+  took in off the comment -- holds it with no blank written over that attempt's tip
   (`rewrite_recovery_parks.records_the_reset`); so does a proof that reads another attempt in place of the one it
   recovers (`rewrite_landing_retirement.retires_unproved`).
 - **Base-rewrite evidence, handed off**: behind the evidence the finish resolved comes the tail of its route -- the

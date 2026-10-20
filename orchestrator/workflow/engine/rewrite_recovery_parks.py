@@ -75,7 +75,12 @@ state carries another attempt by then -- one a proof took in off the comment
 tip a replacement attempt records. Movement the record reads is proved
 before the reset goes on, and the comment read again behind each proof:
 evidence standing there under a receipt read moving -- a successor, or the
-run put back -- is proved again, until a reading carries none. The record
+run put back -- is proved again, until a reading carries none. Whatever else
+another road moved in each such reading -- a usage total, a revision floor --
+is laid over the tick's state, its own staging kept
+(`rewrite_recovery_rereads.lays_what_moved`), so no write of it puts that
+back, and a transaction recorded pending there under a receipt the attempt
+does not name holds the reset the same way. The record
 keeps what the tick staged as a proof keeps it, its usage landing in a write
 of its own ahead of the record's own, wherever no proof keeps it already. A reset git
 refused moved nothing, and the git owner
@@ -131,7 +136,6 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.owed_events import loss_owed, owes_a_loss
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
-from orchestrator.workflow.engine.rewrite_finish_rechecks import lays
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
     LEFT_THE_CHECKOUT,
     AsksEveryReading,
@@ -139,6 +143,7 @@ from orchestrator.workflow.engine.rewrite_recovery_readings import (
     asks_every_reading,
     stands_as_recovered,
 )
+from orchestrator.workflow.engine.rewrite_recovery_rereads import lays_what_moved
 from orchestrator.workflow.engine.rewrite_recovery_staging import (
     adds_the_totals,
     keeps_the_staging,
@@ -394,7 +399,11 @@ def records_the_reset(context: _base_sync_models._AutoRebaseRecoveryContext, *, 
     its own requests holds the reset as well, the tick's state withheld; evidence
     that reading carries under a receipt movement was read under -- a successor
     settled, or the run put back, right behind the proof -- is proved again, the
-    comment read again behind each such proof until a reading carries none. What
+    comment read again behind each such proof until a reading carries none.
+    Whatever else another road moved in each such reading is laid over the
+    tick's state, its own staging kept (`rewrite_recovery_rereads.lays_what_moved`),
+    and a transaction recorded pending there under a receipt the attempt does
+    not name holds the reset, the tick's state withheld. What
     the tick staged is kept across these writes as a proof keeps it
     (`rewrite_recovery_staging.keeps_the_staging`), its usage landing first, in
     a write of its own whose readings the record proves, where no proof keeps
@@ -460,9 +469,11 @@ def _blanks_the_tip(
     pinned there, or a comment that would not read holds the reset too -- no reset moving the checkout off evidence
     nothing records moved -- the tick's state withheld rather than written back over what that road wrote. `again`
     writes nothing and asks only that reading, for a caller whose proof made requests of its own since the blank.
-    `held` names records the tick's state carries as the comment last read: any that reading spells otherwise -- a
-    successor recorded, a floor raised -- is laid over the state (`rewrite_finish_rechecks.lays`) and holds the reset
-    the same way, so no write of that state lowers or drops what another road wrote.
+    Whatever that reading carries that another road moved since the tick's reading -- a usage total added to, a
+    floor raised, a transaction recorded -- is laid over the tick's state, the tick's own staging kept
+    (`rewrite_recovery_rereads.lays_what_moved`), so no write of that state puts back what that road wrote; a
+    transaction recorded pending there under a receipt the attempt does not name holds the reset the same way, and so
+    does a move of any of `held`, the records a caller's retirement left the state carrying as the comment then read.
     """
     asked = asks_every_reading(
         context, lambda reading: _retirement.moved_under(reading, tick=context.state, into=moved),
@@ -491,13 +502,13 @@ def _blanks_the_tip(
     durable = durable_comment(asked.gh, context.issue, context.state)[0]
     if durable is not None and not durable.get(_TIP) and stands_as_recovered(
         context, durable,
-    ) and not lays(context.state, durable, held):
+    ) and not lays_what_moved(context.state, durable, held):
         log.info("issue=#%d the reset stands recorded ahead of it, the attempt's base tip blank", context.issue.number)
         return durable
     log.warning(
         "issue=#%d the reset was recorded, but the comment read afresh behind it carries its base tip back, no "
-        "attempt this recovery recovers, or evidence records moved behind their retirement; nothing is reset until a "
-        "later tick answers the comment as it then stands",
+        "attempt this recovery recovers, or a transaction or evidence record another road moved since; nothing is "
+        "reset until a later tick answers the comment as it then stands",
         context.issue.number,
     )
     context.state.withheld = True

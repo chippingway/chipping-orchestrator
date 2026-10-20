@@ -2602,7 +2602,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             before the reset goes on, the comment read afresh once more behind that proof and the reset
                             held where that retirement does not land or the blank no longer stands, evidence that
                             reading carries under a receipt read moving -- a successor, or the run put back -- proved
-                            again until a reading carries none; the record keeping what the tick staged as a proof
+                            again until a reading carries none, and whatever else another road moved in each such
+                            reading laid over the tick's state, a transaction it recorded pending under a receipt the
+                            attempt does not name holding the reset (`rewrite_recovery_rereads.py`); the record
+                            keeping what the tick staged as a proof
                             keeps it, its usage landing first in a write of its own whose readings it proves, wherever
                             no proof keeps it already (`rewrite_recovery_staging.keeps_the_staging`); over a
                             checkout read gone, the evidence retired as over a reset in a `CLEAR` write of its own
@@ -2629,6 +2632,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             staged ahead of the road alone -- usage, a gate's record -- the road's own staging dropped,
                             and a checkout the last word reads off the landing owed as that loss, whatever refusal is
                             weighed ahead of it (`LosesTheCheckout.hears`); a remote read off the landing owes none
+    rewrite_recovery_rereads.py
+                            dormant, as the reset's record it serves is: the comment that record reads afresh last
+                            before it lets a reset go on (`rewrite_recovery_parks.records_the_reset`), laid over the
+                            tick's state for every field another road moved since the tick's own reading
+                            (`lays_what_moved`) -- a usage total added to, a revision floor raised, a transaction
+                            recorded -- each taken in as read, so a whole-state write behind the reset puts none of it
+                            back, the tick's own staging kept for the write behind to merge or refuse; a move of a
+                            field the caller holds that reading to, or a transaction recorded pending there under a
+                            receipt the attempt does not name, holding the reset
     rewrite_recovery_staging.py
                             dormant, as the proof it serves is: what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it
