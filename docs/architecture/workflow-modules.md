@@ -2462,8 +2462,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is abandoned into history as `abandons_over_the_reset` stages it and settled
                             evidence invalidated into history whole on the same state, so both go with the attempt's
                             release or neither does; with no room for either's history entry neither is dropped, as
-                            the captured-only answer drops a run it cannot abandon: it is kept pending or current and
-                            whole beside the attempt, its base tip, where it records one, blanked in a write of its own
+                            the captured-only answer drops a run it cannot abandon: it is kept whole beside the attempt,
+                            the tick's state withheld, its base tip, where it records one, blanked in a write of its own
                             (`rewrite_finish_writes.ABANDONMENT`) so every later proof reads movement, and the
                             answer is False, for the git owner to keep the attempt with nothing released or parked.
                             Before a park that keeps the attempt (`retires_unproved`) the captured run is proved again
@@ -2686,10 +2686,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             then carries, read through the client that asks every reading, so what it reads moving is
                             proved and an attempt any reading of it carries in place of the one recovered holds the
                             caller, however soon it is put back and however little evidence is left to prove; a lost
-                            answer there taken as sent so it is never sent twice, save where the comment read afresh
-                            carries any total short of what that write sent -- a total only grows, so that comment
-                            carries none of them, however another road added to it -- so they are staged again as a
-                            refusal's are, a refusal staged again for the record behind
+                            answer there taken as sent so it is never sent twice, save each total the comment read
+                            afresh carries short of what that write sent -- a total only grows, so it carries none of
+                            what that write added to it -- staged again alone, as a refusal's are, a refusal staged
+                            again for the record behind
                             (`adds_the_totals`), and a
                             context already kept handed back as it is, so
                             the reset's recorder keeps it alike asked inside a proof or directly by the git owner

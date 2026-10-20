@@ -24,14 +24,12 @@ proof and land first, ahead of every other write the proof or the reset's
 record makes (`adds_the_totals`), in a guarded write of their own, decided
 on nothing and added to the total the comment carries then. That write is
 read through the client that asks every reading, so what it reads moving is
-proved and an attempt any of its readings carries in place of the one
-recovered holds the caller, however soon it is put back and however little
-evidence is left to prove; a lost answer there takes them as sent, so they
-are never sent twice -- save where the comment read afresh carries any of
-them short of what that write sent: a total only grows, so that comment
-carries none of what the write added, landed or not, however another road
-added to it -- and a refusal, or such a lost answer, stages them again behind
-the block, for the record behind it.
+proved and an attempt any reading of it carries in place of the one recovered
+holds the caller, however soon it is put back. A refusal stages them again
+behind the block, for the record behind it; a lost answer takes each as sent,
+never sending it twice, save one the comment read afresh carries short of
+what was sent -- a total only grows, so it carries none of what that write
+added -- which is staged again the same way.
 
 A checkout gone from disk, or read gone, leaves the proof nothing to read the
 landing over, so what the tick holds for it is retired as over a reset
@@ -115,7 +113,7 @@ class _KeepsWhatItCarried:
         """The strict edit, sent through; what it moved over its comment kept where it landed, or may have.
 
         What an edit whose answer was lost sent is kept too, for the totals' own write to read the comment afresh
-        against (`_never_landed`).
+        against (`_short_of_sent`).
         """
         edit = self._gh.edit_pinned_state(issue, state, **options)
         if issue.number != self._issue.number or edit not in _MAY_HAVE_LANDED:
@@ -150,9 +148,9 @@ class _KeepsWhatItCarried:
         what that write reads moving is proved and an attempt put in place meanwhile holds whatever the block answers.
         Over the tick's reading, so the total another road reached meanwhile is added to rather than written over.
         Landed, they are taken in as the comment then carries them; refused, they are staged again behind the block,
-        for the record behind it, and so are those sent with the answer lost where the comment read afresh carries any
-        of them short of what was sent (`_never_landed`); any other sent with the answer lost is taken as sent, the
-        tick's state withheld, so nothing sends them twice.
+        for the record behind it, and so is each sent with the answer lost that the comment read afresh carries short
+        of what was sent (`_short_of_sent`); every other total sent with the answer lost is taken as sent, the tick's
+        state withheld, so nothing sends one twice.
         """
         tick = self._tick
         moving = sorted(self._totals - self.carried)
@@ -165,35 +163,30 @@ class _KeepsWhatItCarried:
         if landed not in _SENT:
             return
         if landed is _commit_models.CommitStatus.UNCONFIRMED:
-            if self._never_landed(gh, moving):
-                return
+            moving = sorted(set(moving) - self._short_of_sent(gh, moving))
+            tick.withheld |= bool(moving)
             _lays(tick, self._staged, moving)
-            tick.withheld = True
         else:
             _lays(tick, reading.data, moving)
         _commit.takes_in(tick, tick.data, moving)
         self.carried.update(moving)
 
-    def _never_landed(self, gh, totals: list[str]) -> bool:
-        """Whether the comment read afresh through `gh` carries any of `totals` short of what the edit whose answer was
-        lost sent.
+    def _short_of_sent(self, gh, totals: list[str]) -> set[str]:
+        """Those of `totals` the comment read afresh through `gh` carries short of what the lost edit sent.
 
-        A total only grows, so a comment that took that edit carries at least as much of each as it sent, whatever
-        another road added since; one carrying less of any carries none of what that edit added -- it never landed, or
-        another road wrote an older total back over it -- however another road added to it meanwhile, so the totals
-        are sent again by a write behind. A comment carrying at least as much of each cannot say whether another road
-        added that much meanwhile, and nor can one that would not read: the totals are taken as sent there, so they are
-        never added twice.
+        A total only grows, so one carried short carries none of what that edit added -- never landed, or written back
+        over by another road -- and is sent again, alone; one carried as high, or a comment that would not read, cannot
+        say whether another road added that much, and is taken as sent, never added twice.
         """
         fresh = _durable.durable_comment(gh, self._issue, self._tick)[0]
         if fresh is None:
-            return False
-        carried = [fresh.data.get(total) or 0 for total in totals]
-        sent = [self._lost.get(total) or 0 for total in totals]
-        return any(
-            isinstance(now, int | float) and now < was
-            for now, was in zip(carried, sent, strict=True)
-        )
+            return set()
+        carried = {total: fresh.data.get(total) or 0 for total in totals}
+        sent = {total: self._lost.get(total) or 0 for total in totals}
+        return {
+            total for total, now in carried.items()
+            if isinstance(now, int | float) and now < sent[total]
+        }
 
     def _adds_again(self, field: str) -> bool:
         """Whether `field` as the tick staged it, sent again over a comment already carrying it, moves on: a total."""

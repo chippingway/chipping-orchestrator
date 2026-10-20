@@ -369,12 +369,16 @@ class UnmovedClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 (self.assert_abandoned if captures else self.assert_invalidated)(run)
 
     def test_a_full_comment_keeps_the_attempt(self) -> None:
-        # No history room: nothing cleared and the tick held, the run current with its base tip blanked.
+        # No history room: nothing cleared and the tick held, the run current with its base tip blanked, the tick's
+        # state withheld behind that blank, so 2 of usage another road adds behind the hold survive a write of it.
         run = self.settles_then_dies()[1]
         self.assertTrue(self._clears(full=True))
         standing = self.pinned_fields(readings.KEY_PENDING_PUSH, readings.KEY_REWRITE_BASE)
         self.assertEqual(standing, (self.anchor, None))
         self.assertEqual(readings.pinned_records(self)[1], run)
+        _ChargesTheClear(self).sets(self.issue, _USAGE, 2)
+        self.gh.write_pinned_state(self.issue, self.context.state)
+        self.assertEqual(self.pinned_fields(_USAGE), (2,))
 
     def _clears(self, *, full: bool = False) -> bool:
         """The unmoved-head road over the attempt unnamed on its anchor -- the comment filled to its limit where `full`
@@ -383,7 +387,8 @@ class UnmovedClearTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         if full:
             finish_moves.fills_the_comment(self)
         observed = _AutoRebaseRecoverySnapshot(branch=self.pull_request.head_branch, local_head=self.anchor)
-        return _replay_cleanup._finish_an_unmoved_head(guarded.recovery_context(self), observed)
+        self.context = guarded.recovery_context(self)
+        return _replay_cleanup._finish_an_unmoved_head(self.context, observed)
 
 
 if __name__ == "__main__":

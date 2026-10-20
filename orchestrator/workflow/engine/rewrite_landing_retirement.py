@@ -175,9 +175,9 @@ def retires_over_the_reset(
     (`rewrite_recovery_parks.records_the_reset`); a checkout gone from disk has
     it landed here. It only shrinks the comment, so it lands at once, guarded
     as the finish's own abandonment is (`rewrite_finish_writes.ABANDONMENT`),
-    with whatever else this answer staged. False then, for the git owner to
-    keep the attempt and hold the tick with nothing parked until room is made.
-    `why` names the write it rides, logged.
+    with whatever else this answer staged. False then, the tick's state withheld
+    whether or not that write landed, for the git owner to keep the attempt and
+    hold the tick with nothing parked until room is made. `why` names the write.
     """
     pending = _landing_records.captured(context.state)
     kept = pending is not None and not _settlement.retire_pending_evidence(
@@ -204,6 +204,7 @@ def retires_over_the_reset(
         "for the landed head; keeping it beside the attempt, its base tip blanked (%s), and holding until room is made",
         context.issue.number, recorded.status.value,
     )
+    context.state.withheld = True
     return False
 
 

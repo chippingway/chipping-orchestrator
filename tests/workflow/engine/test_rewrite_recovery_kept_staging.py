@@ -65,8 +65,8 @@ _ANOTHER_GATE = "another road's gate"
 # A record the tick and the block a keeper guards both stage, and the base tip neither does, on a state alone.
 _PENDING = "pending"
 
-# A counter of the issue's usage the tick adds to, which a write carrying it must add once; and the strict edit.
-_USAGE = "issue_total_tokens"
+# Counters of the issue's usage the tick adds to, which a write carrying them must add once; and the strict edit.
+_USAGE, _COST = "issue_total_tokens", "issue_total_cost_usd"
 _EDITS = "edit_pinned_state"
 _TIP = MappingProxyType({"tip": "onto"})
 
@@ -101,9 +101,9 @@ _REPLACING = (
 )
 
 # How the staged usage's own write is answered lost: whether it is sent, and how much usage another road adds right
-# then.
+# then -- or takes off, writing the token total it read back.
 _LOST_ANSWERS = (
-    (True, 0), (True, 2),
+    (True, 0), (True, 2), (True, -5),
     (False, 0), (False, 2),
 )
 
@@ -362,18 +362,20 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertEqual(json.loads(state.synced), landed)
 
     def test_lost_totals_are_sent_once(self) -> None:
-        # The tick stages 5 of usage alone, taken off the state for the block, whose first write lands it in a write
-        # of its own whose answer is lost, another road adding 2 right then or not: sent, the comment carries at least
-        # what was sent, so it is taken in as sent, the tick's state withheld, and the hold recorded behind adds none
-        # of it again; never sent, the comment carries less than that, so it is staged again for that hold, which
-        # adds it once beside what the other road added.
+        # The tick stages 5 tokens and 1 of cost alone, taken off the state for the block, whose first write lands
+        # them in a write of its own whose answer is lost, another road adding 2 tokens right then or not: sent, the
+        # comment carries at least what was sent, so both are taken in as sent, the tick's state withheld, and the
+        # hold recorded behind adds neither again; never sent, the comment carries less than that, so they are staged
+        # again for that hold, which adds them once beside what the other road added. Sent and its token total written
+        # back, only the tokens are sent again.
         for answers in _LOST_ANSWERS:
             with self.subTest(sent=answers[0], added=answers[1]):
                 self.setUp()
                 context, counted = self._stages_usage()[1:]
-                loses = partial(_answers_lost, self.gh.edit_pinned_state, answers=answers)
+                cost = context.state.get(_COST) or 0
+                context.state.set(_COST, cost + 1)
                 with (
-                    patch.object(self.gh, _EDITS, loses),
+                    patch.object(self.gh, _EDITS, partial(_answers_lost, self.gh.edit_pinned_state, answers=answers)),
                     keeps_the_staging(context) as keeping,
                 ):
                     self.assertEqual(context.state.get(_USAGE) or 0, counted)
@@ -382,8 +384,8 @@ class KeepsTheStagingTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assertTrue(_parks.lands_a_hold(context))
 
                 self.assertEqual(
-                    readings.pinned(self).get(_USAGE),
-                    counted + 5 + answers[1],
+                    self.pinned_fields(_USAGE, _COST),
+                    (counted + 5 + max(answers[1], 0), cost + 1),
                 )
 
     def test_a_replacement_under_the_totals_holds(self) -> None:
