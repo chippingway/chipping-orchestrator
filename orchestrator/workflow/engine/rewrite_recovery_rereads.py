@@ -3,13 +3,10 @@
 """The comment a dormant recovery reads behind its writes, laid over the tick's state where another road moved it.
 
 The reset's record (`rewrite_recovery_parks.records_the_reset`) and a landed hold's, park's, or clear's record answer
-over the comment read afresh behind them, and the tick's state may be written whole behind that. So the reading is laid
-over the state for every field another road moved since the tick's own, its staging kept (`lays_what_moved`); behind a
-hold or park, movement it shows under any evidence it carries is proved again first (`stands_behind`); and a run a clear
-or a releasing park retires with its attempt is outranked in that very write (`outranks_the_retired`), and retired again
-behind a clear where written back (`retires_again`).
-
-Dormant, as those records are: no recovery context the workflow builds reaches it.
+over the comment read afresh behind them, laid over the tick's state where another road moved it (`lays_what_moved`);
+behind a hold or park, movement under any evidence it carries is proved again first (`stands_behind`); and a run a clear
+or releasing park retires is outranked in that write (`outranks_the_retired`), retired again behind a clear where
+written back (`retires_again`). Dormant, as those records are: no recovery context the workflow builds reaches it.
 """
 from __future__ import annotations
 
@@ -30,12 +27,9 @@ from orchestrator.workflow.engine import (
     verification_records as _evidence_records,
     verification_settlement_state as _settlement,
 )
-from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_outranking import spends_past
 from orchestrator.workflow.engine.rewrite_finish_rechecks import lays
-
-# The movement a run standing again under a receipt the tick's own history records retired carries.
-_REVIVED = ReportEvidence(ReportEvidenceVerdict.DEFER, "retired already, and written back since")
 
 
 def lays_what_moved(state: PinnedState, reading: PinnedState, held: Collection[str] = ()) -> bool:
@@ -61,16 +55,17 @@ def stands_behind(
     context: _base_sync_models._AutoRebaseRecoveryContext,
     proves: Callable[[dict[str, ReportEvidence]], bool],
     reads: Callable[..., tuple],
-    pending: str | None,
+    before: PinnedState,
 ) -> bool:
     """Whether a record that landed may answer over the comment read afresh behind it, what moved there proved first.
 
     Read through `reads` (`verification_durable.durable_comment`, as the caller resolves it), the comment is asked what
-    moves under the evidence it carries (`rewrite_landing_retirement.moved_under`), evidence its receipt the tick's
-    history records retired moved by that alone, handed to `proves` -- a successor laid over the state first, to be
-    proved on its own binding (`reconciles`) -- and read again until it carries none, then laid over the state
+    moves under the evidence it carries (`rewrite_landing_retirement.moved_under`), evidence under a receipt history
+    records retired -- its own, the tick's, or `before`'s, the state ahead of the record, so a record that took the
+    evidence back in erases none of it -- moved by that alone, handed to `proves` (a successor laid over the state first
+    to be proved on its own binding, `reconciles`) and read again until none moves, then laid over the state
     (`lays_what_moved`). False where `proves` does not land, a reading would not read, an attempt member moved, or it
-    carries a transaction pending under a receipt the attempt does not name that the tick did not hold (`pending`).
+    carries a transaction pending under a receipt the attempt does not name that `before` did not.
     """
     moved: dict[str, ReportEvidence] = {}
     asks = partial(_retirement.moved_under, tick=context.state, into=moved)
@@ -78,17 +73,22 @@ def stands_behind(
     durable = reads(asked.gh, context.issue, context.state)[0]
     if durable is None:
         return False
-    retired = {entry.receipt for entry in _settlement.read_evidence_history(context.state) or ()}
+    retired = {
+        entry.receipt
+        for state in (before, context.state, durable)
+        for entry in _settlement.read_evidence_history(state) or ()
+    }
     retired &= _retirement.receipts(durable) - moved.keys()
-    moved.update(dict.fromkeys(retired, _REVIVED))
+    moved.update(dict.fromkeys(retired, _readings.REVIVED))
     if moved.keys() - _retirement.receipts(context.state):
         moved = _retirement.reconciles(context, moved)
     if moved:
-        return proves(moved) and stands_behind(context, proves, reads, pending)
+        return proves(moved) and stands_behind(context, proves, reads, before)
     if lays_what_moved(context.state, durable, _attempts._ATTEMPT_KEYS):
         return False
     return (
-        _commit_models.spelled(durable.data, _evidence_records.PENDING_EVIDENCE) == pending
+        _commit_models.spelled(durable.data, _evidence_records.PENDING_EVIDENCE)
+        == _commit_models.spelled(before.data, _evidence_records.PENDING_EVIDENCE)
         or _landing_records.captured(durable) is not None
         or _record_state.read_pending_evidence(durable) is None
     )
@@ -97,9 +97,8 @@ def stands_behind(
 def outranks_the_retired(state: PinnedState, read: PinnedState) -> None:
     """Stage on `state` a revision spent past each run `read` carries for the landed head that `state` no longer does.
 
-    For a clear, or a park releasing the attempt, whose write retires a run with the attempt guarding it: the floor
-    raised past it in that write (`rewrite_finish_outranking.spends_past`) keeps it outranked for every reader however
-    another road writes it back. `read` is the comment as the tick read it.
+    For a clear, or a releasing park, whose write retires a run with its attempt: the floor raised past it there
+    (`rewrite_finish_outranking.spends_past`) keeps it outranked however it is written back. `read` is as the tick read.
     """
     standing = {
         getattr(record, "receipt", None)
@@ -119,9 +118,8 @@ def retires_again(
 ) -> bool:
     """Retire again what a landed write retired that `reading` carries put back; whether none of it stands then.
 
-    For a clear, which took the attempt guarding that evidence with it: evidence under one of `retired` is retired
-    again, staged on `reading` and landed as `write`, and asked once more over the comment read again through `reads`
-    where that does not land. False where it still stands.
+    For a clear, which took the attempt guarding it: evidence under one of `retired` is retired again, staged on
+    `reading` and landed as `write`, asked once more over a reading through `reads` where that does not land.
     """
     if reading is None:
         return False

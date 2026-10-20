@@ -2,16 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """A run the dormant proof before a park retires for good once it finds the checkout gone from disk.
 
-The guarded recovery case (`guarded_recovery_support`): issue #7's run captured, or settled and its finish killed before
-its announcement, the recovery context read off the comment handed straight to the dormant proof before a park
-(`rewrite_recovery_parks.proves_before_a_park`), or the git owner's abort taken over it. The checkout goes from disk
-under one of the proof's own git requests, or a road's (`RecordsALostCheckout`), so that loss is recorded and the run
-retired whole however soon it is back, what the tick staged ahead of the road landing with it; every write refused, the
-loss stays owed, so the next proof over the checkout put back still retires the run; with no history room the run and
-its attempt stand beside the blanked tip until room is made. A run written back behind its retirement is retired again
-over the comment read afresh, the proof holding; and where another road pins a fresh attempt or settles a newer run
-ahead of the retirement -- at once, or past two usage writes -- what it wrote stands and the checkout is not reset over
-it. Nothing is run again, pushed, or launched.
+The guarded recovery case (`guarded_recovery_support`): issue #7's run captured, or settled and its finish killed, the
+context handed to the dormant proof before a park, or the git owner's abort taken over it. The checkout goes under one
+of the proof's git requests, or a road's (`RecordsALostCheckout`): the loss is recorded and the run retired whole
+however soon it is back; every write refused, the loss stays owed for the next proof; with no room the run stands beside
+the blanked tip. A run written back behind its retirement is retired again, the proof holding; a fresh attempt or newer
+run another road wrote ahead of the retirement stands, the checkout not reset over it. Nothing is run or pushed.
 """
 from __future__ import annotations
 

@@ -2476,7 +2476,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             nothing current under that receipt and still the recovered attempt -- another road's attempt
                             in its place, in any comment the proof read however soon it was put back, holding the tick
                             (`rewrite_recovery_readings.stands_as_recovered`) with nothing reset, cleared, or parked
-                            and the tick's state withheld,
+                            and the tick's state withheld, evidence standing under a receipt its history retired moved,
                             and a checkout one of its finishes read off the landing -- as its candidate, or in the
                             last word, or gone from this host in the proof that word is handed
                             (`rewrite_recovery_readings.LosesTheCheckout.hears`) -- owed and recorded before
@@ -2650,22 +2650,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and a checkout the last word reads off the landing owed as that loss, whatever refusal is
                             weighed ahead of it (`LosesTheCheckout.hears`); a remote read off the landing owes none
     rewrite_recovery_rereads.py
-                            dormant, as the records it serves are: the comment the reset's record reads afresh last
-                            before it lets a reset go on (`rewrite_recovery_parks.records_the_reset`), and the one read
-                            behind a landed hold's, park's, or clear's record, laid over the
-                            tick's state for every field another road moved since the tick's own reading
-                            (`lays_what_moved`) -- a usage total added to, a revision floor raised, a transaction
-                            recorded -- each taken in as read, so a whole-state write behind the reset puts none of it
-                            back, the tick's own staging kept for the write behind to merge or refuse; a move of a
-                            field the caller holds that reading to, or a transaction recorded pending there under a
-                            receipt the attempt does not name, holding the reset; behind a landed hold's or park's
-                            record that reading asked for movement first, what moved under any evidence it carries
-                            proved again by the caller's proof (`stands_behind`), and a transaction that record took in
-                            pending under such a receipt holding the caller all the same; and evidence a landed clear
-                            retired that the reading behind it carries put back retired again over it, read again and
-                            asked once more where that does not land (`retires_again`), the clear's own write spending a
-                            revision past each run it retires (`outranks_the_retired`), as a park's releasing the
-                            attempt does, so a run written back stays outranked however that ends
+                            dormant, as the records it serves are: the comment read afresh behind the reset's record
+                            (`rewrite_recovery_parks.records_the_reset`) and behind a landed hold's, park's, or clear's
+                            record, laid over the tick's state for every field another road moved since its reading
+                            (`lays_what_moved`) -- a usage total, a floor, a transaction -- so no whole-state write
+                            behind puts it back, its own staging kept, a move of a field the caller holds it to or a
+                            transaction pending under a receipt the attempt does not name holding the caller; behind a
+                            hold or park, movement under any evidence it carries proved again first (`stands_behind`) --
+                            a successor's on its own binding, and evidence any history records retired, the state's
+                            ahead of the record among it, as moved by that alone -- a transaction that record took in
+                            pending under such a receipt holding the caller; and evidence a landed clear retired written
+                            back there retired again (`retires_again`), the clear's own write, as a releasing park's,
+                            spending a revision past each run it retires (`outranks_the_retired`) so a run written back
+                            stays outranked however that ends
     rewrite_recovery_staging.py
                             dormant, as the proof it serves is: what the tick staged before the proof a recovery park
                             or hold asks first (`rewrite_recovery_parks.proves_before_a_park`), staged again behind it

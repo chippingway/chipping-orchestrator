@@ -82,6 +82,9 @@ _SETTLED_UNBASED = ReportEvidence(
 # under every evidence the tick held, however soon it is put back.
 LEFT_THE_CHECKOUT = ReportEvidence(ReportEvidenceVerdict.DEFER, "the checkout left the landing: on the anchor, or gone")
 
+# Evidence standing again under a receipt history records retired: written back, so moved by that alone.
+REVIVED = ReportEvidence(ReportEvidenceVerdict.DEFER, "retired already, and written back since")
+
 # A readable revision read spent past a transaction captured for the head: it
 # outranks that transaction for good, however soon the floor is put back.
 _SPENT_PAST_THE_OWED = ReportEvidence(

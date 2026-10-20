@@ -2,14 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Movement a dormant reset record reads under the run, retired before the reset goes on, whatever git answers.
 
-The guarded recovery case (`guarded_recovery_support`), its run settled or captured and its finish killed unannounced,
-the next fetch failing as another road moves the run's report, the git owner's abort handed the dormant recorder. Git
-refuses the abort's reset behind its record's blank: the run is retired whole first, so neither tip nor report put back
-revives it; every write behind the blank refused, the next recovery reads the blank and invalidates it. A tip read blank
-and put back refuses the record, so no reset goes unrecorded, and one put back behind the blank, or behind the
-retirement over a gone checkout come back, holds the reset; a gone checkout's lost-answer record, under the dispatcher's
-stranded park, retires the run in its own write; an attempt pinned behind is kept, its base tip unblanked where the
-proof took it in beside a newer run before the checkout went.
+The guarded recovery case (`guarded_recovery_support`), its run settled or captured and its finish killed, the fetch
+failing as another road moves the run's report, the git owner's abort handed the dormant recorder. Git refuses the reset
+behind the blank: the run is retired first, so nothing put back revives it; every write behind the blank refused, the
+next recovery reads the blank. A tip put back -- before the record, behind the blank, or behind a retirement over a gone
+checkout -- holds the reset; a gone checkout's lost-answer record retires the run in its own write; an attempt pinned
+behind is kept, its tip unblanked where the proof took it in beside a newer run.
 """
 from __future__ import annotations
 

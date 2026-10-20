@@ -3,11 +3,10 @@
 """What another road writes right behind a dormant recovery's last proof, retirement, or record, kept on its state.
 
 The guarded recovery case (`guarded_recovery_support`): issue #7's run settled and its finish killed unannounced, the
-context read off the comment handed straight to the dormant reset record, proof before a park, hold, or park. Whatever
-another road writes behind them -- a successor, a floor, usage, a fresh attempt, the run put back, the report moved and
-put back, a checkout lost or read absent -- is laid over the tick's state (`rewrite_recovery_rereads`), retired, or
-outranked, or holds the caller with its state withheld; on a state alone, what the tick staged is kept. Nothing is run
-again, pushed, or launched.
+context handed straight to the dormant reset record, proof before a park, hold, or park. Whatever another road writes
+behind them -- a successor, a floor, usage, a fresh attempt, the run, report, or history put back, a checkout lost or
+read absent -- is laid over the tick's state, retired again, outranked, or holds the caller, its state withheld; a run
+history records retired, written back, is moved for any later proof. Nothing is run again, pushed, or launched.
 """
 from __future__ import annotations
 
@@ -44,7 +43,7 @@ from tests.workflow.engine import (
 _REPORT = "developer_report_current"
 _REVISION = "revision"
 _PENDING = "verification_evidence_pending"
-_CURRENT = "verification_evidence_current"
+_CURRENT, _HISTORY = "verification_evidence_current", "verification_evidence_history"
 _USAGE = "issue_total_tokens"
 _AWAY = "checkout-away"
 
@@ -73,8 +72,11 @@ _BEHIND_THE_RELEASE = handoff.Boundary(
     lambda _issue, staged, **_options: not staged.get(readings.KEY_PENDING_PUSH),
 )
 
-# How another road races the reading behind a hold's record: the report moved, beside a newer run, or the run restored.
-_MOVED, _SUCCEEDED, _RESTORED = "moved", "succeeded", "restored"
+# How another road races a hold: the report moved behind its record, beside a newer run, or the run and its history put
+# back there, or behind its first proof for the record to take in.
+_MOVED, _SUCCEEDED, _RESTORED, _ADOPTED = "moved", "succeeded", "restored", "adopted"
+_PUT_BACK = (_REPORT, _CURRENT, _HISTORY)
+_AT_THE_FIRST_PROOF = handoff.Boundary("behind the hold's proof", "proves_before_a_park", lambda *_called: True)
 
 # The comment read afresh behind a hold's record, and the first reading a proof before a park takes.
 _AT_THE_REREAD = handoff.Boundary("at the reread behind the record", "durable_comment", lambda *_called: True)
@@ -207,18 +209,22 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
     def test_movement_behind_the_record_is_retired(self) -> None:
         # The run settled current, the comment read afresh behind the hold's record has the run's report moved, put
         # back right behind -- beside a newer run settled on the run's binding there, or, the hold's own proof having
-        # retired the run over that move, the run and report written back instead. The hold proves that reading again,
-        # a successor on its own binding, a run its history retired as moved: the next proof keeps nothing current.
-        for mode in (_MOVED, _SUCCEEDED, _RESTORED):
+        # retired the run over that move, the run, report, and history written back there or behind that proof, for
+        # the record to take in. The hold proves the reading again, a successor on its own binding, a run any history
+        # it read retired as moved; so does a fresh proof the run and report are put back over once more.
+        for mode in (_MOVED, _SUCCEEDED, _RESTORED, _ADOPTED):
             with self.subTest(mode=mode):
                 self.setUp()
                 run, context = _gated(self, retired=False)[1:]
-                with patch.object(_parks, _AT_THE_REREAD.step, self._rereads(mode, run)):
+                with patch.object(_parks, *self._rereads(mode, run)):
                     self.assertTrue(_parks.lands_a_hold(context))
                 self.assertTrue(self.proves())
                 self.assertIsNone(readings.pinned_records(self)[1])
                 if mode != _SUCCEEDED:
                     self.assert_invalidated(run)
+                _writes(self, dict(zip(_PUT_BACK[:2], self._written)))
+                self.assertTrue(self.proves())
+                self.assertIsNone(readings.pinned_records(self)[1])
 
     def test_a_successor_the_record_took_in_holds(self) -> None:
         # The run already retired, another road records a newer run pending on its binding after the tick read the
@@ -272,22 +278,25 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
                 self.assertTrue(context.state.withheld)
                 self.assertEqual(self.pinned_fields(_USAGE), (2,))
 
-    def _rereads(self, mode: str, run):
-        """The reading behind the hold's record, raced as `mode` says: the report moved and put back behind, beside a
-        newer run settled on `run`'s binding; or that report moved ahead of the hold, the run and report put back."""
-        written = self.pinned_fields(_REPORT, _CURRENT)
-        moved = {**written[0], _REVISION: written[0][_REVISION] + 1}
+    def _rereads(self, mode: str, run) -> tuple:
+        """The step of the hold `mode` races, and its stand-in: the reading behind the record, the report moved and put
+        back behind -- beside a newer run settled on `run`'s binding -- or the run, report, and history put back there
+        or behind the hold's proof, that report moved ahead of the hold. What was put back is kept as `_written`."""
+        self._written = self.pinned_fields(*_PUT_BACK)
+        report = self._written[0]
+        moved = {**report, _REVISION: report[_REVISION] + 1}
         ahead = partial(_writes, self, {_REPORT: moved})
         live = _parks.durable_comment
-        if mode == _RESTORED:
-            ahead = partial(_writes, self, dict(zip((_REPORT, _CURRENT), written)))
+        if mode in {_RESTORED, _ADOPTED}:
+            ahead = partial(_writes, self, dict(zip(_PUT_BACK, self._written)))
             _writes(self, {_REPORT: moved})
+        if mode == _ADOPTED:
+            return _AT_THE_FIRST_PROOF.step, _AT_THE_FIRST_PROOF.moving(_parks.proves_before_a_park, ahead)
         if mode == _SUCCEEDED:
             newer = partial(settled.records_a_newer_run, self, settles=True, binding=run.binding)
             live = _AT_THE_REREAD.racing(live, newer, partial(_writes, self, {}))
-        return _AT_THE_REREAD.racing(
-            live, ahead, partial(_writes, self, {_REPORT: written[0]}),
-        )
+        live = _AT_THE_REREAD.racing(live, ahead, partial(_writes, self, {_REPORT: report}))
+        return _AT_THE_REREAD.step, live
 
     def _loses(self, live, issue, staged, **options):
         """`live`, the strict edit: the first carrying the gate's record lost unsent, the report moved right then; the

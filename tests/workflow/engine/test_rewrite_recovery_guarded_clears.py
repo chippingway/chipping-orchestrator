@@ -2,21 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """A dormant guarded clear of an attempt whose checkout is back on its anchor: relabelled, or never started.
 
-The guarded recovery case (`guarded_recovery_support`): issue #7's run captured, or settled and its finish killed before
-its announcement, then its replay unnamed, the checkout put back on the anchor, and the issue relabelled out of the
-refresh's stages. The dispatcher's hold, or the refresh's eligibility gate, clears the attempt, each handed the dormant
-clear and the settled-aware retirement it asks first (`rewrite_recovery_parks.lands_a_clear`); so does the unmoved-head
-road under the label the run was reviewed in (`replay_cleanup._finish_an_unmoved_head`), the attempt never started.
-
-The write clearing the attempt retires the run with it, so reconciling the head put back revives nothing; a newer run
-settling as the clear reads HEAD refuses the clear and keeps its floor; another finish settling the run, or a newer run
-marked moved and unmarked, refuses the clear and the move read invalidates it; a usage write refusing the clear has the
-reset recorded by base tip; with no history room nothing is cleared, the run current beside its blanked tip, and a
-clear refused for room holds, its state withheld, the reset recorded behind it. A newer
-run and another attempt, or a revision floor raised alone, written right behind a clear that landed hold the tick, its
-state withheld from writing over them; the run written back there -- once, again behind its retirement, or with every
-write behind refused -- stays outranked by the revision the clear spent past it, since no attempt guards it any longer,
-and is retired again where it can be; usage another road adds there lets either clear go on, laid over that state.
+The guarded recovery case (`guarded_recovery_support`): issue #7's run captured, or settled and its finish killed, its
+replay unnamed and checkout put back on the anchor. The dispatcher's hold, the eligibility gate, or the unmoved-head
+road (`replay_cleanup._finish_an_unmoved_head`) clears the attempt through the dormant clear (`lands_a_clear`). The
+clear retires the run, so reconciling revives nothing; a newer run settled meanwhile refuses it, its floor kept; another
+finish settling the run, or a newer run marked moved, refuses it and the move invalidates the run; with no room nothing
+is cleared beside the blanked tip, a clear refused for room held, its state withheld. A newer run, another attempt, or a
+floor raised behind a landed clear holds the tick; the run written back there stays outranked and is retired again where
+it can be; usage added there is laid over the tick's state.
 """
 from __future__ import annotations
 

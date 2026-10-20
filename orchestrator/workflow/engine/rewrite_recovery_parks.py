@@ -277,20 +277,15 @@ def lands_a_hold(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool:
 def lands_a_clear(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool:
     """Record a clear the tick staged on `context.state` over the comment read afresh, as `CLEAR`; whether it landed.
 
-    Only what the tick staged lands, a revision spent past each run it retires beside it
-    (`rewrite_recovery_rereads.outranks_the_retired`), so every reader reads that run outranked however soon another
-    road writes it back with no attempt left to guard it; a successor settled meanwhile refuses it, its floor kept. A
-    clear not landing records the reset (`records_the_reset`) and proves the fresh comment with that move
-    (`proves_before_a_park`), the caller's state withheld, since those writes move the comment under it.
-    One that landed is followed by the comment read afresh: a successor, another attempt, or anything else the clear
-    was decided on written right behind it -- a revision floor raised, or any other record a binding rests on moved,
-    among them (`verification_durable.durable_comment`) -- or a comment that would not read holds the tick too, its
-    state withheld, so no write of it puts back what that road wrote; evidence the clear retired that reading carries
-    put back is retired again over it, in a `CLEAR` write of its own, since no attempt guards it any longer
-    (`rewrite_recovery_rereads.retires_again`) -- outranked all the same where that does not land, or where it is
-    written back again behind it. Anything else written there, a usage total among it, is laid over that state
-    (`rewrite_recovery_rereads.lays_what_moved`), so a write of it keeps it. A state nothing was read into is written
-    whole.
+    Only what the tick staged lands, a revision spent past each run it retires (`rewrite_recovery_rereads`), so a run
+    written back with no attempt left to guard it stays outranked (`outranks_the_retired`); a successor settled
+    meanwhile refuses it, its floor kept. A clear not landing records the reset (`records_the_reset`) and proves the
+    fresh comment with that move (`proves_before_a_park`), the caller's state withheld. One that landed is followed by
+    the comment read afresh: a successor, another attempt, or any record the clear was decided on or a binding rests on
+    moved right behind it, or a comment that would not read, holds the tick, its state withheld; evidence the clear
+    retired written back there is retired again in a `CLEAR` write of its own
+    (`rewrite_recovery_rereads.retires_again`); anything else, a usage total among it, is laid over that state
+    (`rewrite_recovery_rereads.lays_what_moved`). A state nothing was read into is written whole.
     """
     if context.state.synced is None:
         context.gh.write_pinned_state(context.issue, context.state)
@@ -537,9 +532,9 @@ def _lands_then_proves(
     carries by then is kept for the proof rather than laid away. Every
     comment the commit itself reads, the reread behind a refusal for room
     among them, is asked as it is read (`rewrite_recovery_readings.AsksEveryReading`).
-    Behind a record that landed and the proof behind it, whatever evidence is left, the comment is read afresh once
-    more (`rewrite_recovery_rereads.stands_behind`), what moved there proved again first; a moved attempt, an unnamed
-    pending transaction the tick did not hold, or a comment that would not read holds the tick. Any False answer
+    Behind a record that landed and the proof behind it, the comment is read afresh once more against the state ahead
+    of the record (`rewrite_recovery_rereads.stands_behind`), what moved there proved again first; a moved attempt, an
+    unnamed pending transaction the tick did not hold, or a comment that would not read holds the tick. Any False answer
     leaves the tick's state withheld. `named` is the record, logged where it did not land.
     """
     state = context.state
@@ -547,7 +542,7 @@ def _lands_then_proves(
         _retirement.attempt_as_read(state),
         (_landing_records.captured(state), _landing_records.settled(state)),
     )
-    pending = _commit_models.spelled(state.data, _evidence_records.PENDING_EVIDENCE)
+    before = PinnedState(state_data=dict(state.data))
     moved: dict[str, ReportEvidence] = {}
     landed = _commits.ReportCommit(
         AsksEveryReading(
@@ -570,7 +565,7 @@ def _lands_then_proves(
     if not (proves_before_a_park(context, moved) and landed.status is _commit_models.CommitStatus.COMMITTED):
         state.withheld = True
         return False
-    if stands_behind(context, lambda behind: proves_before_a_park(context, behind), durable_comment, pending):
+    if stands_behind(context, lambda behind: proves_before_a_park(context, behind), durable_comment, before):
         return True
     log.warning(
         "issue=#%d the %s of its auto-rebase recovery landed, but the comment read afresh behind it carries another "

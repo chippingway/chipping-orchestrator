@@ -110,6 +110,7 @@ from orchestrator.workflow.engine.pinned_commit_models import PinnedCommit, spel
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence
 from orchestrator.workflow.engine.rewrite_finish_rechecks import invalidates_rechecked, lays
 from orchestrator.workflow.engine.rewrite_recovery_readings import (
+    REVIVED,
     LosesTheCheckout,
     RecordsALostCheckout,
     asks_every_reading,
@@ -246,7 +247,9 @@ def retires_unproved(
     each first (`rewrite_recovery_readings.AsksEveryReading`). Where both may
     go on while evidence still standing carries movement read only behind its
     own proof, both are asked again with it; a proof that reads movement
-    retires what moved or answers False, so the asking stops there.
+    retires what moved or answers False, so the asking stops there. Evidence
+    the tick's state carries under a receipt its history records retired is
+    moved by that alone (`rewrite_recovery_readings.REVIVED`), however fresh.
     A checkout gone before the proof or found gone by one of its requests,
     however soon it returns -- or read off the landing by one of its finishes
     while evidence still stands (`rewrite_recovery_readings.LosesTheCheckout.proves`)
@@ -266,7 +269,12 @@ def retires_unproved(
     over another road's writes or the attempt in place: for the git owner to
     hold the tick with nothing reset, cleared, or parked over it.
     """
-    moved = dict(moved or {})
+    moved = dict.fromkeys(
+        receipts(context.state) & {
+            entry.receipt for entry in _settlement.read_evidence_history(context.state) or ()
+        },
+        REVIVED,
+    ) | dict(moved or {})
     if not (moved or receipts(context.state)):
         return True
     unread = _base_sync_models._AutoRebaseRecoverySnapshot(
