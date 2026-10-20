@@ -59,7 +59,7 @@ so every recovery context still carries the captured-only answers alone.
   carries records the reset and retires both in writes of their own
   (`rewrite_recovery_parks.records_the_reset`); with none, both are retired as
   over a reset, on the state the park lands. A proof whose last reading of the
-  comment carries another attempt holds rather than park over it.
+  comment carries another attempt holds rather than park; any False answer withholds the tick's state.
 
 The dormant guarded records a recovery park or hold lands behind that proof
 (`rewrite_recovery_parks`) read three more things here. The receipts of what
@@ -255,15 +255,15 @@ def retires_unproved(
     state the park lands (`retires_over_the_reset`) -- the loss recorded either
     way before another attempt a reading of the proof carried holds it. False only where evidence still
     stands once its retirement was asked -- settled evidence with no room for
-    its history entry among it, its movement recorded instead -- or where any
-    comment the proof read carries another attempt in place of the one
-    `context` recovers (`rewrite_recovery_readings.stands_as_recovered`),
-    however soon the attempt was put back, however the tick's state still names
-    it, and whether or not the proof's own
-    writes landed -- that state withheld from every whole-state write behind,
-    so nothing it carries is put back over the attempt in place: either way
-    for the git owner to hold the tick with nothing reset, cleared, or parked
-    over it.
+    its history entry among it, its movement recorded instead, or a comment
+    that would not read again behind its invalidation -- or where any comment
+    the proof read carries another attempt in place of the one `context`
+    recovers (`rewrite_recovery_readings.stands_as_recovered`), however soon
+    it was put back, however the tick's state still names it. Every False
+    answer, whether or not the proof's own writes landed, withholds that state
+    from every whole-state write behind, so nothing it carries is put back
+    over another road's writes or the attempt in place: for the git owner to
+    hold the tick with nothing reset, cleared, or parked over it.
     """
     moved = dict(moved or {})
     if not (moved or receipts(context.state)):
@@ -303,6 +303,7 @@ def retires_unproved(
         return False
     if proved and moved.keys() & receipts(context.state):
         return retires_unproved(context, moved)
+    context.state.withheld |= not proved
     return bool(proved)
 
 

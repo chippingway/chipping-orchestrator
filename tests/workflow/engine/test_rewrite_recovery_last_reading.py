@@ -15,6 +15,7 @@ import json
 import unittest
 from contextlib import ExitStack
 from functools import partial
+from itertools import product
 from unittest.mock import patch
 
 from orchestrator.git.base_sync import attempts as _attempts, rewrite_facts as _rewrite_facts, snapshot as _snapshot
@@ -262,29 +263,33 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         self.assertTrue(context.state.withheld)
         self.assertEqual(self.pinned_fields(readings.KEY_PENDING_PUSH), (standing,))
 
-    def test_a_lost_record_stays_withheld(self) -> None:
+    def test_a_false_answer_stays_withheld(self) -> None:
         # The reset's blank, over the run's report moved, or the hold's record, the report moving as it goes out, is
         # sent with its answer lost; the proof behind retires the run only past two unread edits, another road adding
-        # 2 of usage right behind it: the record answers False, its state withheld still, so no write of it puts that
-        # usage back.
-        for asks in (_parks.records_the_reset, _parks.lands_a_hold):
-            with self.subTest(asks=asks.__name__):
+        # 2 of usage right behind it. Or, over the report moved, the blank lands, or the hold's proof goes first, and
+        # the run is retired at once, the comment unreadable right behind that usage. The caller answers False, its
+        # state withheld still, so no write of it puts that usage back.
+        for asks, lost in product((_parks.records_the_reset, _parks.lands_a_hold), (True, False)):
+            with self.subTest(asks=asks.__name__, lost=lost):
                 self.setUp()
                 context = _gated(self, retired=False)[2]
                 report = self.pinned_fields(_REPORT)[0]
                 self._moved = {_REPORT: {**report, _REVISION: report[_REVISION] + 1}}
-                self._losing = True
-                self._unread = 2
-                if asks is _parks.records_the_reset:
+                self._losing = lost
+                self._unread = 2 if lost else 0
+                self._unreadable = set() if lost else {self.issue.number}
+                if asks is _parks.records_the_reset or not lost:
                     _writes(self, self._moved)
                 with patch.object(self.gh, "edit_pinned_state", partial(self._loses, self.gh.edit_pinned_state)):
                     self.assertFalse(asks(context))
+                self.gh.pinned_failures.unreadable.clear()
                 self.assertTrue(context.state.withheld)
                 self.assertEqual(self.pinned_fields(_USAGE), (2,))
 
     def _loses(self, live, issue, staged, **options):
         """`live`, the strict edit: the first carrying the gate's record lost unsent, the report moved right then; the
-        first two retiring the run left unread; 2 of usage added right behind the next."""
+        first two retiring the run left unread, where lost; 2 of usage added right behind the next, the comment left
+        unreadable behind that where nothing was lost."""
         retires = options["over"].get(_CURRENT) and not staged.get(_CURRENT)
         if self._losing and staged.get(_GATE):
             self._losing = False
@@ -297,6 +302,7 @@ class RereadHoldTest(guarded.GuardedRecoveryCase, unittest.TestCase):
         if retires and self._unread == 0:
             self._unread = -1
             _adds(self, _USAGE, 2)
+            self.gh.pinned_failures.unreadable.update(self._unreadable)
         return answered
 
     def _puts_the_run_back(self, record: dict, head: str) -> None:

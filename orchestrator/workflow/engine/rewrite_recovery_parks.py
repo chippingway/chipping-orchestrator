@@ -120,8 +120,8 @@ caller read gone or off the landing
 landing, and one an earlier proof read but no write recorded
 (`owed_events.loss_owed`) are recorded and retired alike, however soon the
 checkout is back, the attempt owing that loss to every later proof from the
-moment it is read. A retirement that does not land withholds the tick's
-state, which may hold a successor's floor stale.
+moment it is read. A retirement not landing, or a proof answering False,
+withholds the tick's state, which may hold a successor's floor stale.
 """
 from __future__ import annotations
 
@@ -270,7 +270,7 @@ def lands_a_hold(context: _base_sync_models._AutoRebaseRecoveryContext) -> bool:
     (`proves_before_a_park`): over a checkout gone from disk the reset is
     recorded against it and it is retired, each in a write of its own, so a
     hold record refused or never confirmed leaves it retired. Where that proof
-    does not land -- the reset not
+    does not land -- its state withheld, the reset not
     recorded among it -- nothing is recorded, for a later tick to answer. The
     gate's own record, staged on the tick's state before this is asked, is
     kept across every write that proof lands, so the hold's record still
@@ -358,7 +358,7 @@ def proves_before_a_park(
     it, each in its own write (`records_the_reset`), so a park write refused,
     unconfirmed, cut short by a lost process, or never made leaves it retired
     however the checkout and base tip are put back. One not landing holds the
-    tick with nothing parked.
+    tick with nothing parked, its state withheld.
 
     Behind a park's or hold's record, or a notice that raised, it is asked
     once more, `moved` the movement already read there -- handed only then --

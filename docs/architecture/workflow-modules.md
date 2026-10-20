@@ -2578,8 +2578,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a publication gate that held a
                             recovery's push would land the same way, as `HOLD`, decided on the attempt alone and its
                             proof taken first as before a park that keeps the attempt, recording nothing where that
-                            proof does not land, and answering whether the proof, the record, and the proof behind it
-                            all landed (`lands_a_hold`); no recovery road records its hold through it yet. A clear
+                            proof does not land, its state withheld, answering whether the proof, the record, and the
+                            proof behind it all landed (`lands_a_hold`); no recovery road holds through it yet. A clear
                             would land as `CLEAR` (`lands_a_clear`), decided on the attempt and evidence records, so a
                             successor settled meanwhile refuses it with its floor kept; one that lands is followed by
                             the comment read afresh, a successor, another attempt, or any record a binding rests on --

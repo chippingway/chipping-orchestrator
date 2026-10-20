@@ -1598,8 +1598,8 @@ because there it is the claim that this stage has already rerouted rather than a
   proof of it from the moment it is read, ahead of any write
   (`workflow/engine/owed_events.py`, `rewrite_recovery_parks.proves_before_a_park`); so is a checkout the proof's own
   finish reads off the landing, as its candidate or in the last word whatever refusal is weighed ahead of it, recorded
-  before the proof answers -- a remote read off the landing owes none. A retirement that does not land, and a reset
-  record or hold or park record answering False whatever proof write landed behind it, withholds the tick's state
+  before the proof answers -- a remote read off the landing owes none. A retirement that does not land, and a proof,
+  reset record, or hold or park record answering False whatever write landed behind it, withholds the tick's state
   from every whole-state write, so a successor and the floor it raised are never written back over, and
   the usage the tick staged rides none of the proof's writes, or the reset record's asked directly: it lands first,
   ahead of them, in a guarded write of its own read like every other reading of theirs -- what it reads moving proved,
