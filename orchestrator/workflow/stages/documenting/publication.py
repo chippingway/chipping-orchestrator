@@ -2,14 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a docs pass leaves on the PR, and the order it is written in.
 
-Both surviving outcomes end the same way -- the completion `handoff` lands
-(`_hand_off_to_in_review`): stamp the watermarks, post the notice, hand off --
-but the push comes first and gates everything after it. A failed push parks
-instead of advancing, because a `docs_verdict` stamped over a commit that never
-reached the remote would tell the next tick the docs are published when the
-reviewer would never see them in the diff. That is also why a
-`DOCS: NO_CHANGE` verdict over a recovered commit still routes through the
-push path rather than the clean one.
+Both surviving outcomes end the same way -- a completion lands: stamp the
+watermarks, post the notice, hand off. A pass that published nothing goes to
+`in_review` (`handoff._hand_off_to_in_review`). A pass that published a docs
+commit changed the content the approval, its evidence, and the developer
+report were about, so it goes back to `validating` for a report of the
+published head and a fresh review (`handback._hands_back_for_review`). The
+push comes first and gates everything after it. A failed push parks instead
+of advancing, because a stamp over a commit that never reached the remote
+would tell the next tick the docs are published when the reviewer would never
+see them in the diff. That is also why a `DOCS: NO_CHANGE` verdict over a
+recovered commit still routes through the push path rather than the clean one.
 
 `docs_checked_sha` records the head the verdict was formed against and the
 silent-park counter is reset alongside it, so a park streak that predates a
@@ -21,10 +24,14 @@ best-effort -- a comment failure must not strand an issue whose branch is
 already published -- are the completion's own.
 
 The receipt the gate leaves (`docs_settled_sha`) is what a later tick finishes
-a published pass's handoff from (`_finished_settled_docs`), and it is told
-apart from an unpublished candidate by the checkout: a commit still ahead of
-the remote is republished through the gate, and only one the branch is level
-with AND standing on is handed off without a second pass.
+a published pass's handoff from, and it is told apart from an unpublished
+candidate two ways. Where the code-publication receipt names it as published
+on the pinned pull request and no park stands, it is handed back at once, ahead
+of the approval it outdated (`_finishes_a_published_pass`): that receipt is the
+proof the hand-back's debt is read off. Otherwise by the checkout
+(`_finished_settled_docs`): a commit still ahead of the remote is republished
+through the gate, and only one the branch is level with AND standing on is
+handed off without a second pass.
 
 Ahead of all of it, `subject` gives the docs commit its pull request's
 reference, and the id that hands back is the only one anything past it names:
@@ -43,6 +50,7 @@ from orchestrator.workflow.late_split import (
     payloads as _payloads,
 )
 from orchestrator.workflow.stages.documenting import (
+    handback as _handback,
     handoff as _handoff,
     models as _models,
     parks as _parks,
@@ -61,10 +69,6 @@ log = logging.getLogger("orchestrator.workflow")
 # The revision a checkout's own head is named by.
 _HEAD = "HEAD"
 
-
-# The verdict a pass that published a docs commit is stamped with.
-_UPDATED = "updated"
-
 # What a `DOCS: NO_CHANGE` verdict tells the pull request, with the agent's own
 # justification quoted under it where it supplied one.
 _NO_CHANGE_NOTICE = (
@@ -79,14 +83,15 @@ def _push_docs_and_advance(
     notice: str,
     entered_head: str = "",
 ) -> None:
-    """Push docs commit(s) and hand off to `in_review`.
+    """Push docs commit(s) and hand them back to `validating` for a report and a review.
 
     On push failure, park with `push_failed` instead of advancing. On
-    success, hand the commit that went out to the completion
-    (`handoff._hand_off_to_in_review`), which stamps the docs watermarks
-    (`docs_checked_sha`, `docs_verdict=updated`), posts `notice` on the PR,
-    and routes to `in_review` behind a write that landed. Writes pinned state;
-    the caller returns unconditionally.
+    success, hand the commit that went out to the hand-back
+    (`handback._hands_back_for_review`), which stamps `docs_checked_sha`,
+    records the report debt the publication leaves and the evidence and
+    approval it invalidates, posts `notice` on the PR, and routes to
+    `validating` behind a write that landed. Writes pinned state; the caller
+    returns unconditionally.
 
     A docs commit is a candidate for a pull request the remote already carries
     like any other, so the size gate stands in front of this push too. It is
@@ -94,8 +99,8 @@ def _push_docs_and_advance(
     matter rather than what makes it an exception: a pass that took the diff
     past the ceiling would put an unadjudicated pull request in front of the
     person who merges it. A held candidate ends the tick -- the gate has
-    parked the issue or handed it to the adjudication, and the `in_review`
-    handoff below would move it off the state the gate just set -- but the
+    parked the issue or handed it to the adjudication, and the hand-back
+    below would move it off the state the gate just set -- but the
     pass itself is over, so the head it produced is handed to the gate as the
     receipt this stage is owed. Written inside the gate's routed write, ahead
     of the relabel, the resumed tick below reads it back and finishes the
@@ -106,7 +111,11 @@ def _push_docs_and_advance(
     The same receipt covers the push that was ALLOWED, because the gate writes
     it whichever way the answer went -- so a push that landed and a process
     that died before this stage could record it comes back to a receipt naming
-    the published commit rather than to a pass nothing remembers.
+    the published commit rather than to a pass nothing remembers. The head
+    the push replaces rides beside it (`docs_settled_lease`), since the report
+    debt the hand-back records is owed from that head, and the
+    code-publication receipt's own lease is rewritten by any later
+    republication -- a recovery pushing the docs commit over itself among them.
 
     Every one of those ids is the commit `subject._referenced_docs_commit`
     hands back before the gate is entered, `docs_checked_sha` among them: under
@@ -148,8 +157,13 @@ def _push_docs_and_advance(
             # force-push drops it -- the last push before a human is asked to
             # merge, so what it would drop is what that human would not see.
             head=entered_head,
+            # The receipt the handoff is owed, and the head this push replaces,
+            # which the report debt that handoff records is owed from: the
+            # code-publication receipt's own lease is rewritten by any later
+            # republication, the docs commit's over itself included.
             spends=_late_gate_models._Spends(fields=(
                 (_state._SETTLED_DOCS_SHA, candidate),
+                (_state._SETTLED_DOCS_LEASE, entered_head),
             )),
         ),
     )
@@ -174,7 +188,7 @@ def _push_docs_and_advance(
             "push_failed",
         )
         return
-    _handoff._hand_off_to_in_review(ctx, candidate, _UPDATED, notice)
+    _handback._hands_back_for_review(ctx, candidate, notice)
 
 
 _SETTLED_DOCS_NOTICE = (
@@ -187,10 +201,10 @@ _SETTLED_DOCS_NOTICE = (
 def _finished_settled_docs(
     ctx: _models._DocumentingContext, wt, ahead: int,
 ) -> bool:
-    """Finish a docs pass whose commit the pull request already carries.
+    """Finish a docs pass whose commit the pull request already carries, handing it back for review.
 
     The receipt says the pass is over: an agent ran, it committed, and the
-    only thing left between that commit and `in_review` is the handoff. The
+    only thing left between that commit and `validating` is the hand-back. The
     gate HELD the commit, and an authorized settlement publishes it from the
     adjudication and hands the label back here. Or the gate ALLOWED the push,
     it landed, and the tick died before this stage could record it, or the
@@ -229,17 +243,57 @@ def _finished_settled_docs(
     peel is not one anything may be compared against -- both leave the
     receipt exactly where it is for a tick that can prove it.
 
-    True once the completion is handed the receipt, whether or not its write
+    True once the hand-back is handed the receipt, whether or not its write
     landed: the tick is handled either way, and a write that did not land
-    leaves the receipt standing for the next tick to read.
+    leaves the receipt standing for the next tick to read. The report debt it
+    records is read off the code-publication receipt the publication wrote --
+    the gate's own, or the settlement's -- rather than off this checkout. A
+    receipt that code-publication receipt proves is answered ahead of this
+    road on an unparked tick (`_finishes_a_published_pass`), so what reaches it
+    is a park's reply over a published pass, or a receipt nothing proves.
     """
     settled = _payloads.as_hex(
         ctx.state.get(_state._SETTLED_DOCS_SHA), _formats.COMMIT_LENGTHS,
     )
     if not settled or ahead > 0 or not _standing_on(wt, settled):
         return False
-    _handoff._hand_off_to_in_review(
-        ctx, settled, _UPDATED, _SETTLED_DOCS_NOTICE.format(commit=settled),
+    _handback._hands_back_for_review(
+        ctx, settled, _SETTLED_DOCS_NOTICE.format(commit=settled),
+    )
+    return True
+
+
+def _finishes_a_published_pass(ctx: _models._DocumentingContext) -> bool:
+    """Hand back a pass whose publication the receipts prove, ahead of every question about its approval.
+
+    The docs receipt names the commit the pass produced, and the
+    code-publication receipt beside it names that very commit as published
+    onto the pull request the issue pins (`handback._publication_proved`) --
+    which, with the lease recorded beside the docs receipt, is the proof the
+    report debt the hand-back records is read off, so nothing here reads the
+    checkout. A lease that does not read holds the hand-back there.
+    The approval was of the head before that commit, so whether it still
+    stands is no question for this pass: asked first, an evidence context or a
+    report that moved since would send the issue back to `validating` with no
+    debt recorded, and the reviewer road would park for the very report the
+    debt exists to fetch.
+
+    Only an unparked issue: a park standing over a published pass -- a
+    checkout that moved or was dirtied under the push -- is a human's to
+    answer, and its reply comes back through `_finished_settled_docs`, which
+    proves the checkout first. A receipt that proves no publication is left to
+    that road too. True once the hand-back is handed the receipt, whether or
+    not its write landed.
+    """
+    settled = _payloads.as_hex(
+        ctx.state.get(_state._SETTLED_DOCS_SHA), _formats.COMMIT_LENGTHS,
+    )
+    if not settled or ctx.state.get(_state._AWAITING_HUMAN):
+        return False
+    if not _handback._publication_proved(ctx.state, settled):
+        return False
+    _handback._hands_back_for_review(
+        ctx, settled, _SETTLED_DOCS_NOTICE.format(commit=settled),
     )
     return True
 
@@ -274,7 +328,8 @@ def _route_documenting_no_change(
     A recovered local commit (`ahead > 0`) that the resumed dev added
     nothing to must still reach the remote before advancing -- otherwise
     the reviewer agent at validating would never see the docs in the diff
-    -- so push it via the updated path. Otherwise hand the clean no-change
+    -- so push it via the updated path, which hands it back to `validating`
+    like any published docs commit. Otherwise hand the clean no-change
     verdict against the evaluated head to the completion, which lands it and
     advances. Writes pinned state; the caller returns unconditionally.
     """

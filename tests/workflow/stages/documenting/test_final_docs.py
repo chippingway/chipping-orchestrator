@@ -189,13 +189,13 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
         state = gh.pinned_data(self.issue_number)
         self.assertEqual(state.get(DOCS_VERDICT), VERDICT_NO_CHANGE)
 
-    def test_recovered_ahead_routes_to_in_review(
+    def test_recovered_ahead_hands_back_for_review(
         self,
     ) -> None:
         # A previous final-docs tick committed but parked before the
         # push landed. The resume's no-change verdict triggers the
         # ahead-push branch; the recovered commit is now the new PR
-        # head.
+        # head, which no review covered, so it goes back to validating.
         gh, issue = self._seeded(awaiting_human=True, park_reason=PARK_PUSH_FAILED)
         issue.comments.append(
             FakeComment(
@@ -221,7 +221,7 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
         )
 
         mocks[PUSH_BRANCH].assert_called_once()
-        self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
+        self.assertEqual(gh.label_history, [(self.issue_number, VALIDATING)])
 
     def test_drift_routes_to_validating_without_spawn(
         self,
@@ -266,7 +266,7 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
         # comment). A human replies at id=1100 on the issue thread.
         # The next documenting tick's awaiting-human resume consumes
         # 1100 (advances `last_action_comment_id=1100`), the dev
-        # produces a docs commit, the helper pushes and relabels to
+        # finds the docs already cover it, and the helper relabels to
         # `in_review`. Without the watermark ratchet,
         # `pr_last_comment_id` stays at 900, and the next in_review
         # tick scans `comments_after(900)`, sees 1100 as fresh PR
@@ -324,16 +324,16 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
         )
 
         # Documenting tick: awaiting-human resume consumes id=1100,
-        # docs commit lands, advance to in_review.
+        # the docs need nothing more, advance to in_review.
         self._run_documenting(
             gh,
             issue,
             run_agent=_agent(
                 session_id=DEV_SESSION,
-                last_message="docs: cover edge case X",
+                last_message="Edge case X is already covered.\nDOCS: NO_CHANGE",
             ),
             push_branch=True,
-            head_shas=[SHA_BEFORE, SHA_DOCS],
+            head_shas=[SHA_BEFORE, SHA_BEFORE],
             branch_ahead_behind=(0, 0),
         )
 

@@ -27,7 +27,11 @@ the stamped `docs_verdict`, the receipt it consumes, and the
 `pr_last_comment_id` ratchet that carries in_review's watermark past the span
 a human reply the docs pass already consumed sits in -- as a checkpoint over
 the reading the tick last confirmed, and relabels only behind a write that
-landed.
+landed. `handback` is the completion of a pass that published a docs commit,
+which changed what the approval was of: the report debt that commit is owed,
+the evidence and approval it retires, and the relabel back to `validating`,
+which the dispatcher finishes from that debt where the write landed and the
+relabel did not.
 
 `failed_pass` says what a pass that did not finish is, and keeps the record an
 Antigravity launch lands before it runs, so a tick that ends writing nothing

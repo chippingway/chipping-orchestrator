@@ -88,6 +88,16 @@ per-stage behavior is in
   `workflow/stages/implementing/resume.py` is the one module every one of those resumes goes through; it declares the
   call signature its callers were written against, then binds those arguments into a typed request/context before
   executing the resume.
+- **A docs pass that changes the pull request.** `_handle_documenting` resumes the dev session for the final-docs
+  pass behind an approval, and a pass that publishes a docs commit — a fresh one, commits an earlier tick left
+  unpushed, or the commit a `docs_settled_sha` receipt names — has changed what the approval, the evidence it rests
+  on, and the settled developer report were about. So it is handed back to `workflow:validating` rather than on to
+  `in_review` (`workflow/stages/documenting/handback.py`), owing a report of that commit: the same locked session is
+  resumed for that report alone, with no human reply and no commit, and the earlier report stays as it was written,
+  naming its own commit. A fresh reviewer is then handed the new report and owes evidence of its own on the docs
+  commit, and only the approval behind that review buys the next final-docs pass. Each of those runs is charged once;
+  The hand-back spends one review round in the write that records it, since an approval spends none: the review
+  counts against `MAX_REVIEW_ROUNDS` once, and where it was the last round the review parks `review_cap`.
 - **A split parent's own pass.** A parent an ordinary split did not make an umbrella goes back to `workflow:ready`
   once every child is done, and the decomposer's `rationale` is where that split named the residual scope the parent
   kept for its own pass — the [`decompose` skill](../../.agents/skills/decompose/SKILL.md) requires it there. Every
@@ -117,7 +127,8 @@ per-stage behavior is in
   returned record is what tells a hand-back still owed its review from one a reviewer has read. A pull request with no
   report recorded, a report about another commit than that head, and one written against requirements the issue has
   moved past are refused rather than handed over — save that a report of the head this orchestrator's own rewrite
-  replaced (a rebase, a conflict resolution, or commits an earlier tick left unpushed), where a recorded
+  replaced (a rebase, a conflict resolution, commits an earlier tick left unpushed, or the docs commit a final-docs
+  pass published), where a recorded
   `developer_report_rewrite_debt` explains exactly that gap, holds the reviewer while the developer is resumed for a
   fresh report of the rewritten head, which is the report handed over once it settles. So does a report of the
   approved commit this orchestrator's approval squash collapsed into that replaced head, once the squash's recorded

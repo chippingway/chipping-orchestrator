@@ -879,7 +879,10 @@ orchestrator/
                         the settlement write each `null`, which ends that freeze. So does an Antigravity docs
                         launch nothing answered for -- `docs_launched_sha` anything but `null` -- until the park
                         that answers it drops it, since a rewrite first would publish what that pass left, or the
-                        base, as though a pass had finished -- the two parks that freeze one
+                        base, as though a pass had finished; and a docs pass's receipt no completion has consumed --
+                        `docs_settled_sha` anything but `null` -- until the hand-back drops it, since a rewrite first
+                        would leave the published docs commit's report debt naming it as the head replaced, which
+                        no settled report is about -- the two parks that freeze one
                         with no record behind them at all
                         (a size reading nobody could take, and an implementer timeout whose watermark names a
                         commit not yet made), and the two no write ever ends (the accepted commit and the

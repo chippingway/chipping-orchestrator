@@ -1684,10 +1684,18 @@ and handed off -- and this is what it guarantees and what stops it.
   [Base refresh](labels-and-state.md#base-refresh)). The authorized settlement of a replay a late generation took over
   from its auto rebase records one for the push it makes, before its label (`late_replay_debt.py`) -- which hands the
   head to `workflow:validating`, as the refresh's own finish does, and never to the two roads held below.
+  [`_handle_documenting`](#_handle_documenting-label-workflowdocumenting) records one for the docs commit a final-docs
+  pass publishes, in the completion that hands the pull request back to `workflow:validating`
+  (`documenting/handback.py`), over the head the gate recorded that push as replacing (`docs_settled_lease`).
   An issue without the record passes through reading nothing.
 - **Holds**: `workflow:documenting` and `in_review`, the roads past an approval that would carry a head no report is
   about to the human who merges it. Nothing is written or posted; the claim is left for validating, and the hold is
-  logged once a tick.
+  logged once a tick. The one claim that moves the issue instead is the documenting stage's own: a readable claim on
+  the pinned pull request naming exactly the commit `docs_handed_back_sha` marks is that stage's hand-back having
+  landed with its relabel lost, so on `workflow:documenting` the dispatcher finishes the relabel to
+  `workflow:validating` (`handback._owes_the_relabel`) and writes nothing else; a relabel that fails raises, and the
+  next tick asks again. Every other claim there -- another head, another pull request, one nobody can read, or no mark
+  -- and the same claim on `in_review` is held as before.
 - **Runs**: every other label -- `workflow:validating` above all, whose report hold
   ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 3) holds the reviewer against the debt,
   resumes the developer for a fresh report of the rewritten head with no human reply, and pays the debt once a
@@ -1715,7 +1723,9 @@ and handed off -- and this is what it guarantees and what stops it.
   disagrees on any member, or a commit read as another tree, each DEFERRING. A checkout not on this host or a commit
   git would not read HOLDS. The proof writes nothing: `developer_report_current` keeps the commit it was written
   about, and the claim keeps its fields, its actual replaced head, and its retargeting, so a claim a later base
-  advance retargeted still proves for the latest head it names.
+  advance retargeted still proves for the latest head it names. A docs commit's claim names the squash as the head it
+  replaced, and the hand-back that records it retires the carry into history as `invalidated`, which the proof reads
+  all the same, so a report of the approved commit is refreshed for the docs commit with no human.
 
 ## The seed hold (every dispatch, ahead of the reuse guard)
 - **Trigger**: `_pinned_state_refuses` (`workflow/engine/dispatch_guards.py`) on any issue this orchestrator opened
@@ -2861,14 +2871,25 @@ and handed off -- and this is what it guarantees and what stops it.
 ## `_handle_documenting` (label `workflow:documenting`)
 - **Trigger**: each tick while the label is `workflow:documenting`. Set only by the **final-docs handoff** in
   `_handle_validating`'s approval branch (after verify + squash); the docs pass runs exactly once per
-  reviewer-approval handoff, between approval and `in_review`. A PR may visit `workflow:documenting` more than once:
+  reviewer-approval handoff, between approval and `in_review` -- or, where it publishes a docs commit, between
+  approval and the fresh report and review that commit earns back on `workflow:validating`, whose approval buys the
+  next pass. A PR may visit `workflow:documenting` more than once:
   if PR feedback bounces the issue to `workflow:fixing` and the dev pushes a fix, the next approval triggers another
   final-docs pass. Also runs on closed-`workflow:documenting` issues so an externally-merged PR finalizes to `done`.
 - **Input**: pinned `pr_number`, `branch`, `dev_agent` / `dev_session_id` (the docs pass reuses the locked dev spec —
   there is no separate `documenting_agent`), plus `docs_checked_sha` / `docs_verdict` / `silent_park_count`, and the
   `docs_launched_sha` an Antigravity launch lands ahead of its run (step 7).
 - **Internal flow**:
-  0. **What `validating` still owes goes back to it** (`_hands_back_what_validating_owes`), with nothing written --
+  0. **A published pass's hand-back is finished first** (`publication._finishes_a_published_pass`), asked once steps
+     1–3 below have let the tick through and ahead of everything else here: where `docs_settled_sha` names a commit
+     the code-publication receipt names as published onto the pinned pull request, and no park stands, the pass is
+     handed back as step 12's **Landed** describes, with no checkout read -- that receipt and the docs receipt's
+     lease are the proof its report debt is read off, a lease that does not read holds the hand-back there, and
+     `workflow:validating` proves the world again before asking for the report. The approval it outdated is no
+     question for it: asked first, an evidence context or report that moved since would send the issue back with no
+     debt behind it, and the reviewer road would park for the report the debt exists to fetch. A parked issue, and a
+     receipt that proves no publication, are left to step 8.
+     Then **what `validating` still owes goes back to it** (`_hands_back_what_validating_owes`), with nothing written --
      asked once steps 1–3 below have let the tick through, so a merged or closed pull request finalizes whatever the
      approval's reading would say, and ahead of step 4's drift block and the docs pass. The approval that moved the
      label here retires its own `review_returned_verdict` ahead
@@ -2964,14 +2985,18 @@ and handed off -- and this is what it guarantees and what stops it.
      recorded it (step 12) was refused or never landed — the receipt rides the gate's own write either way, which is
      ahead of everything this stage does with a landed push, and it is the write RECORDING the pass that drops it, so
      a receipt read here is one no handoff has been made for. So the receipt is read back, and where the branch is in
-     sync AND the checkout is standing on that exact commit this tick hands the completion `docs_checked_sha` /
-     `docs_verdict="updated"`, which announces the handoff and advances to `in_review`, with no agent run and no push.
+     sync AND the checkout is standing on that exact commit this tick hands that commit to the hand-back step 12's
+     landed push takes, which announces it and hands the pull request back to `workflow:validating`, with no agent run
+     and no push -- its report debt read off the code-publication receipt the gate's push or the settlement wrote.
      Without that receipt the tick would read a branch in sync with its remote as an issue no docs pass has run for
      and spawn a second agent over work that is already published. Ahead of the remote the receipt stands and the
      `ahead > 0` road republishes it through the gate, which is the one road that measures it again; a receipt that is
      not a whole object id, or a head this host cannot peel, likewise leaves it for a tick that can prove it — in sync
      is not the same claim as CARRYING it, since a replacement host rebuilt from a pull request that has moved on
-     reads level with its remote too.
+     reads level with its remote too. A receipt whose publication the code-publication receipt proves reaches this
+     step only behind a park, since step 0 hands an unparked one back first. While the receipt stands the pre-tick
+     base refresh holds the branch still (`git/base_sync/frozen`): rebased first, the published commit's own report
+     debt would name it as the head replaced, which no settled report is about.
   9. Whichever shape runs below, the `docs_verdict` an EARLIER pass left is dropped as this one begins. Every shape
      re-anchors `docs_checked_sha` to the head it is about — the resumed dev that adds nothing to a commit already
      waiting anchors on that very head — so a stale verdict beside it would say a pass has FINISHED for the head this
@@ -2991,7 +3016,9 @@ and handed off -- and this is what it guarantees and what stops it.
       pinned Antigravity command both spawning shapes first land `docs_launched_sha` (the head they launch on) alone
       through the guarded commit (`failed_pass._armed`); a record that did not land holds the launch, and the tick
       returns writing nothing. Every branch below that writes drops it in that write.
-  12. Branch on result. Every success exit ends in the one completion (`handoff._hand_off_to_in_review`), which
+  12. Branch on result. Every success exit ends in one completion (`handoff._completes`) -- the hand-off to
+      `in_review` of a pass that published nothing (`_hand_off_to_in_review`), or the hand-back of a published docs
+      commit (`handback._hands_back_for_review`, under **Landed** below) -- which
       ratchets `pr_last_comment_id` past any issue-thread reply the resume consumed — the reply is dropped by
       in_review's own delivery-cursor read either way, so what the ratchet buys is a watermark that does not leave the
       next stage re-reading that span. The order is the crash contract: **stamp, prepare, announce, land, relabel** —
@@ -3000,7 +3027,8 @@ and handed off -- and this is what it guarantees and what stops it.
       (`report_commits.ReportCommit`) over the reading the tick last confirmed — the one taken once the claim was
       held, or what its own last write landed — owning the stamp, the notice's ledger entry, the ratcheted watermark,
       and whatever the tick staged since, each kept beside any other move by its own rule, and decided on the stamp's
-      own fields (`docs_checked_sha`, `docs_verdict`, `silent_park_count`, `docs_settled_sha`, `docs_launched_sha`),
+      own fields (`docs_checked_sha`, `docs_verdict`, `silent_park_count`, `docs_settled_sha`, `docs_launched_sha`,
+      `docs_handed_back_sha`),
       on the publication it is about (`pr_number`, `branch`, the `implementing_published_*` receipt) and the debt of a
       push not yet landed (`late_approved_sha`, `late_approved_lease`), and on the returned verdict, the squash
       handoff, and every report, evidence, and approval record step 0 read the approval over. One that reads
@@ -3024,7 +3052,9 @@ and handed off -- and this is what it guarantees and what stops it.
       announcing it a second time; a write that landed — unconfirmed, or ahead of a relabel that did not land —
       leaves the record a same-head re-entry leaves, so the next tick runs the pass rather than handing off on
       evidence that could belong to either. A clean no-change publishes no receipt, so its next tick runs the pass
-      again whichever way the write went. Branches:
+      again whichever way the write went. A hand-back's write that landed leaves its report debt and mark instead,
+      from which the dispatcher finishes its relabel
+      ([the rewritten-head report debt](#the-rewritten-head-report-debt-every-dispatch)). Branches:
       - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
         pinned state (the pre-spawn `docs_checked_sha` / watermark writes are discarded), so the next process
         re-runs the docs pass. Precedes every branch below. The recovered `ahead > 0` path synthesizes a
@@ -3104,7 +3134,8 @@ and handed off -- and this is what it guarantees and what stops it.
         three ways to earn it differ in everything else:
         - **oversized** → the adjudication hold. Nothing is pushed, no docs verdict is stamped, no `in_review`
           handoff is made, the issue is relabelled `workflow:decomposing`, and the head the pass produced goes down
-          as `docs_settled_sha` inside the gate's own routed write, ahead of that relabel (step 8 reads it back).
+          as `docs_settled_sha` inside the gate's own routed write, ahead of that relabel (step 8 reads it back),
+          with the head the pass was entered on beside it as `docs_settled_lease`.
         - **a reading the gate could not take** → a park, not a relabel. A tree that is not provably clean, a pull
           request nothing could read or one that is closed or merged, a caller-named head that is no whole object id
           or that disagrees with the head the gate reads, a head that moved off what a live record froze, a count
@@ -3116,9 +3147,37 @@ and handed off -- and this is what it guarantees and what stops it.
           the push) so the reconciliation ahead of the next handler restores the checkout rather than handing a
           reviewer one nobody read.
 
-        **Landed**: record `docs_checked_sha` as the commit that went out — the amended one where the subject was
-        amended — plus `docs_verdict="updated"`, reset `silent_park_count=0`, drop `docs_settled_sha`, prepare, post
-        `:books: documenting pass: pushed docs commit.`, land, and advance — once, behind a write that landed.
+        **Landed**: the docs commit changed what the approval, its evidence, and the settled developer report were
+        about, so the pass is handed back for review (`handback._hands_back_for_review`) rather than on to
+        `in_review`. Record `docs_checked_sha` as the commit that went out — the amended one where the subject was
+        amended — with no `docs_verdict`, since the merge gate reads one as a head documented after its approval;
+        reset `silent_park_count=0` and drop `docs_settled_sha` and `docs_settled_lease`. Record the
+        `developer_report_rewrite_debt` that commit is owed, read off the receipts the publication wrote alone —
+        the code-publication receipt has to name the commit as published on the pull request the issue pins, and the
+        claim's `previous_head` is `docs_settled_lease`, the head the gate recorded the push as replacing in the write
+        that records the docs receipt; `implementing_published_lease` is never read for it, since a later
+        republication rewrites it, and a recovery that pushes the docs commit over itself leaves it naming the docs
+        commit, which is no debt — and mark the commit `docs_handed_back_sha`. A docs receipt with no readable lease
+        beside it — missing, `null`, or no commit id, none of which the gate writes — is a record something edited:
+        the hand-back holds with nothing written, announced, or relabelled, and the record stands for a human to
+        repair or remove, the base refresh held behind it. Write
+        `review_approved_subject` `null`, since no approval is of the docs commit, and then retire the current
+        evidence into history as `invalidated`, keeping its whole binding, so a squash's carry still proves the
+        [approval-squash lineage](#the-rewritten-head-report-debt-every-dispatch) — required, and measured over the
+        whole hand-back with the approval already cleared, so a hand-back never lands with that evidence current.
+        Then prepare, post
+        `:books: documenting pass: pushed docs commit.` with the hand-back said beneath it, land, and relabel to
+        `workflow:validating` — once, behind a write that landed. The guarded commit owns the debt, the evidence and
+        its history, and the approval as well, and is decided on the debt. A receipt that proves no publication of
+        the commit records no debt or mark and hands the pass back all the same, leaving the reviewer road to hold the
+        report it finds to the head; a proved debt, or a retirement, the comment has no room for stops the hand-back
+        with nothing announced or written, as a completion with no room does. The write spends one review round
+        (`review_round` + 1), since an approval spends none and the review it buys has to count against
+        `MAX_REVIEW_ROUNDS`; it is the write that records the hand-back, so the round is spent exactly once however
+        the hand-back is retried, and where it was the last the review parks `review_cap`. On `workflow:validating`
+        ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 3) the developer is resumed for a
+        report of the docs commit alone with no human reply, a fresh reviewer is handed it once it settles and owes
+        evidence of its own on that commit, and the approval behind that review buys the next final-docs pass.
         **Neither** (allowed, and the push itself failed): park
         (`push_failed`), with the commit that is owed a publication and the head to pin it against left on the record
         for the retry.
@@ -3128,7 +3187,8 @@ and handed off -- and this is what it guarantees and what stops it.
         otherwise complete with `docs_verdict="no_change"` through the same checkpoint, posting
         `:books: no docs changes required.`, and advance without pushing.
       - no commit + unknown verdict → `_on_question`: park.
-- **Output**: label moved to `in_review` (success), OR `workflow:validating` (drift unwind), OR
+- **Output**: label moved to `in_review` (a pass that published nothing), OR `workflow:validating` (a published
+  docs commit's hand-back, or the drift unwind), OR
   `workflow:decomposing` (a docs commit the size gate held), OR terminal `done` / `rejected` (short-circuit), OR a
   HITL park.
 
@@ -4088,8 +4148,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
 
 ## `_handle_validating` (label `workflow:validating`)
 - **Trigger**: each tick while label is `workflow:validating`. Set by `_handle_implementing` after `_on_commits` opens
-  the PR, by `_handle_documenting`'s drift unwind, and by `_handle_fixing` / `_handle_in_review` /
-  `_handle_resolving_conflict` on their pushed exits.
+  the PR, by `_handle_documenting`'s drift unwind and its hand-back of a published docs commit, and by
+  `_handle_fixing` / `_handle_in_review` / `_handle_resolving_conflict` on their pushed exits.
 - **Input**: PR #, branch, `dev_agent` / `dev_session_id`, `review_round`.
 - **Internal flow**:
   0. **External-merge / closed-issue short-circuit** (same chain as implementing / documenting). The reviewer is not
@@ -4965,8 +5025,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
   change and no reviewer (a developer report still owed) OR a HITL park.
 
 ## `_handle_in_review` (label `in_review`)
-- **Trigger**: each tick while label is `in_review`. Set by `_handle_documenting` on the final-docs hop. Also runs on
-  closed-`in_review` issues for external-merge finalization.
+- **Trigger**: each tick while label is `in_review`. Set by `_handle_documenting` on the final-docs hop of a pass that
+  published nothing. Also runs on closed-`in_review` issues for external-merge finalization.
 - **Input**: pinned `pr_number`, `branch`, `dev_agent` / `dev_session_id`, and three watermarks (`pr_last_comment_id`,
   `pr_last_review_comment_id`, `pr_last_review_summary_id`) — one per id namespace GitHub uses for PR feedback. Mixing
   any two namespaces under one watermark would silently drop or replay one side. `last_action_comment_id` is read

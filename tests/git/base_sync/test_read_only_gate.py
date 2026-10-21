@@ -139,6 +139,15 @@ _REPORTS_IN_FLIGHT: tuple[dict, ...] = (
     {"developer_report_pending": {}},
 )
 
+# A docs pass whose outcome is still owed a write: a launch nothing answered
+# for, one whose head could not be read, and the receipt a published pass
+# leaves its completion.
+_DOCS_PASSES_IN_FLIGHT: tuple[dict, ...] = (
+    {"docs_launched_sha": _ACCEPTED_COMMIT},
+    {"docs_launched_sha": ""},
+    {"docs_settled_sha": _ACCEPTED_COMMIT},
+)
+
 
 _FALSEY_READINGS: tuple[dict, ...] = (
     {"late_additions": 0},
@@ -476,7 +485,10 @@ class ReportInFlightSkipTest(_SkipCase, unittest.TestCase):
     An Antigravity docs launch nothing answered for is read the same way, and
     holds until the park that answers it: that park reruns the pass over
     whatever it left, and a rewrite first would publish that work -- or, with
-    none, the base -- as though a pass had finished.
+    none, the base -- as though a pass had finished. So is a docs pass's
+    receipt no completion has consumed: rebased first, the published docs
+    commit's own report debt would name it as the head replaced, a head no
+    settled report is about.
     """
 
     def test_a_report_in_flight_holds_the_branch(self) -> None:
@@ -496,17 +508,19 @@ class ReportInFlightSkipTest(_SkipCase, unittest.TestCase):
             developer_report_delivery=None,
             developer_report_pending=None,
             docs_launched_sha=None,
+            docs_settled_sha=None,
         )
 
-    def test_a_launch_in_flight_holds_the_branch(self) -> None:
+    def test_a_docs_pass_in_flight_holds_the_branch(self) -> None:
         # Read against `null`, so a launch whose head could not be read, which
-        # records an empty string, still holds.
-        for offset, launched in enumerate((_ACCEPTED_COMMIT, "")):
-            with self.subTest(launched=launched):
+        # records an empty string, still holds; and a docs receipt holds until
+        # the completion that hands its pass on consumes it.
+        for offset, record in enumerate(_DOCS_PASSES_IN_FLIGHT):
+            with self.subTest(record=record):
                 self._assert_skipped(
                     _LAUNCH_IN_FLIGHT_ISSUE_NUMBER + offset,
                     LABEL_DOCUMENTING,
-                    docs_launched_sha=launched,
+                    **record,
                 )
 
 

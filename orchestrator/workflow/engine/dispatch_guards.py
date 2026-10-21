@@ -9,7 +9,9 @@ verification-evidence transaction behind it are the reconciliations here that
 belong to no stage, so they are bound at module scope rather than resolved
 through `stage_targets.py`. So is the report debt a rewritten pull-request head
 leaves, which holds the roads past an approval from here and leaves the
-validating stage to settle it.
+validating stage to settle it -- save the debt a content-changing docs pass
+recorded as it handed itself back to `validating`, whose lost relabel is
+finished here instead of held.
 """
 from __future__ import annotations
 
@@ -154,9 +156,11 @@ def _pinned_state_refuses(
     would spawn a reviewer over a report nobody put on the pull request.
     Verification evidence recorded and never made current is answered right
     behind it, for the same reason and about the report it names. So is the
-    report debt a rewritten pull-request head leaves, which only holds: the
-    roads past an approval would carry a head no report is about to the human
-    who merges it, while `validating` runs and pays the debt. Where all three
+    report debt a rewritten pull-request head leaves, which holds: the roads
+    past an approval would carry a head no report is about to the human who
+    merges it, while `validating` runs and pays the debt -- save the debt a
+    docs pass's own hand-back recorded, whose lost relabel to `validating` it
+    finishes instead. Where all three
     sit among the reconciliations above them, and why, is on
     `_record_stops_the_tick` below, which is where they are ordered.
 
@@ -294,9 +298,10 @@ def _record_stops_the_tick(
     evidence behind them reads it settled or honestly still owed.
 
     The report debt a rewritten head leaves is asked directly behind both, and
-    it only holds: behind the anchor readings, since a replay no recovery has
-    published is no head a debt can name yet, and ahead of the handler it
-    keeps off.
+    it holds -- or, for a docs pass's own hand-back, finishes the relabel to
+    `validating` that hand-back's write landed ahead of: behind the anchor
+    readings, since a replay no recovery has published is no head a debt can
+    name yet, and ahead of the handler it keeps off.
     """
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):
@@ -317,7 +322,7 @@ def _record_stops_the_tick(
         gh, spec, issue, label, state,
     ) or _verification_transaction._reconciles_pending_evidence(
         gh, spec, issue, label, state,
-    ) or _rewrite_debt_holds_the_tick(spec, issue, label, state):
+    ) or _rewrite_debt_holds_the_tick(gh, spec, issue, label, state):
         return True
     late_reuse = importlib.import_module(_stage_targets._LATE_REUSE_OWNER)
     return (
@@ -388,12 +393,13 @@ def _anchor_holds_the_tick(
 
 
 def _rewrite_debt_holds_the_tick(
+    gh: GitHubClient,
     spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
     state: PinnedState,
 ) -> bool:
-    """Whether a rewritten head's report debt keeps this label's handler off.
+    """Whether a rewritten head's report debt keeps this label's handler off; True too where it finished a hand-back.
 
     Only on the roads past an approval, which are what would carry a head no
     report is about to the human who merges it. Presence rather than meaning:
@@ -402,9 +408,28 @@ def _rewrite_debt_holds_the_tick(
     runs -- `validating` above all, whose report hold is where the debt is held
     against the reviewer and paid, and the developer's own roads, whose report
     is what pays it.
+
+    One debt on `workflow:documenting` is that stage's own: a docs pass that
+    changed the pull request's content records it in the write that hands the
+    pass back to `validating`, beside a mark naming the very commit it is
+    about, and relabels behind that write. Where the write landed and the
+    relabel did not, holding would keep the issue here for good, so that
+    relabel is finished instead -- only for a debt still naming the marked
+    commit on the pinned pull request (`handback._owes_the_relabel`), never for
+    one somebody else's push or a later rewrite left. A relabel that fails
+    raises, with the debt still standing for the next tick to ask again.
     """
     if label not in _MERGE_ROADS or not _rewrite_debt.carries_rewrite_debt(state):
         return False
+    handback = importlib.import_module(_stage_targets._DOCS_HANDBACK_OWNER)
+    if label == WorkflowLabel.DOCUMENTING and handback._owes_the_relabel(state):
+        log.info(
+            "repo=%s issue=#%s carries the report debt its docs pass handed back "
+            "for review; finishing the relabel to validating",
+            spec.slug, issue.number,
+        )
+        gh.set_workflow_label(issue, WorkflowLabel.VALIDATING)
+        return True
     log.warning(
         "repo=%s issue=#%s carries report debt for a rewritten pull-request "
         "head; holding the %r handler until validating settles a report of it",

@@ -217,8 +217,9 @@ def _build_report_refresh_prompt(
 
     The report the pull request carries is about `previous_head`, which a
     rewrite replaced with `rewritten_head` -- a rebase, a conflict resolution,
-    or commits an earlier run left unpushed -- so the only outcome that pays for
-    the rewrite is one written afresh about it. Where `approved` is given the
+    commits an earlier run left unpushed, or the commit a final docs pass
+    published -- so the only outcome that pays for the rewrite is one written
+    afresh about it. Where `approved` is given the
     report is about that commit instead, which this orchestrator's approval
     squash collapsed into `previous_head`, and the prompt says so rather than
     naming a commit the report never mentions. The whole report contract
@@ -236,8 +237,9 @@ def _build_report_refresh_prompt(
     return (
         "This orchestrator rewrote the head of the pull request of GitHub issue "
         f"#{issue.number} ({issue.title!r}) -- rebasing it onto its updated base "
-        "branch, resolving the conflicts that rebase met, or publishing commits an "
-        "earlier run left unpushed. The pull request now stands on commit "
+        "branch, resolving the conflicts that rebase met, publishing commits an "
+        "earlier run left unpushed, or publishing the documentation commit a "
+        "final docs pass made. The pull request now stands on commit "
         f"`{rewritten_head}`, and your worktree is checked out at it. The developer "
         f"report the pull request carries describes {described}, so it is not a "
         "report of this commit.\n\n"

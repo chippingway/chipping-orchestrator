@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The report a pull request is owed because this orchestrator rewrote its head.
 
-A rewrite this orchestrator publishes -- a rebase, a conflict resolution, or
-commits an earlier tick left unpushed -- moves the pull request onto a commit no
+A rewrite this orchestrator publishes -- a rebase, a conflict resolution,
+commits an earlier tick left unpushed, or a final-docs pass's docs commit --
+moves the pull request onto a commit no
 developer report is about: the report the issue last settled names the head the
 rewrite replaced, and a reviewer is right to refuse it for the one standing now.
 Left to that refusal, the rewrite parks the issue for a human whose reply only
@@ -65,7 +66,10 @@ already landed. A replay the size gate handed to an adjudication instead is
 taken over by the late generation with its attempt retired
 (`rewrite_takeover.py`), and the authorized settlement that publishes it
 records the same debt before it hands the head to `validating`
-(`stages/decomposition/late_replay_debt.py`). A settled report of the commit
+(`stages/decomposition/late_replay_debt.py`). A final-docs pass that publishes
+a docs commit records one off its code-publication receipt in the write that
+hands the pull request back to `validating` (`stages/documenting/handback.py`).
+A settled report of the commit
 an approval's squash replaced is of neither head, so it pays nothing, and on
 its own it is owed nothing either. Written against the requirements the issue
 carries now, it is the one case only a proof can open (`squashed` on
