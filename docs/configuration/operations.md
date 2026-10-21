@@ -1,8 +1,8 @@
 # Operations
 
 How the orchestrator is installed, upgraded, checked, launched, supervised, and reconfigured: package installation
-and rollback, continuous integration, documentation publishing, run modes, the systemd user service, and when an
-edited `.env` takes effect. The environment-variable reference is in
+and rollback, deploying a build without migration, continuous integration, documentation publishing, run modes, the
+systemd user service, and when an edited `.env` takes effect. The environment-variable reference is in
 [`../configuration.md`](../configuration.md), which also routes to the observability settings beside this page.
 
 ## Package installation, upgrades, and rollback
@@ -277,9 +277,12 @@ Package changes are operator-initiated. Use `pipx upgrade-all --skip chipping-or
 other apps so they do not change the package under a running poller. Before upgrading:
 
 1. Read the [release notes][package-releases] for the version you intend to install and record that version. Check
-   compatibility with the current Python, agents, targets, and live workflow state. Record the current `Version` from
-   `pipx runpip chipping-orchestrator show chipping-orchestrator` and retain its templates; if they are missing,
-   [save them](#save-the-installed-versions-templates) now, while that version is still the one installed.
+   compatibility with the current Python, agents, targets, and live workflow state. Where that version cannot read the
+   workflow state the installed one wrote, follow [Deploying without migration](#deploying-without-migration), which
+   uses the backup and install steps below: no upgrade converts that state, and the work it cannot read does not
+   resume. Record the current `Version` from `pipx runpip chipping-orchestrator show chipping-orchestrator` and retain
+   its templates; if they are missing, [save them](#save-the-installed-versions-templates) now, while that version is
+   still the one installed.
 2. Choose a [safe stopping point](#safe-restart-guidance), preferably with no live agent child. Stop the service
    with `chipping-orchestrator stop` (`systemctl --user stop orchestrator.service` on a host still running the
    hand-written unit of v0.13.0 or earlier), or Ctrl+C the foreground command, and wait for shutdown. Stop every
@@ -393,8 +396,13 @@ so review startup diagnostics after every repair and after rollback.
 
 ### Return to the previous package version
 
-Read both releases' rollback notes: restoring `.env` does not undo workflow state written on GitHub. Before returning
-to a version that cannot handle late split state, complete the
+Read both releases' rollback notes: restoring `.env` does not undo workflow state written on GitHub. Returning an
+older binary to workflow state a newer one wrote is not a supported procedure for this release
+([C-03](../contracts.md#c-03-persisted-and-externally-consumed-formats)): nothing converts that state back, and the
+older version is not promised to read it. A return carries no such risk only while the newer version has not polled,
+as after a failed installation or check; otherwise treat it as a
+[deployment without migration](#deploying-without-migration) that keeps from the older version every issue the newer
+one wrote. Before returning to a version that cannot handle late split state, complete the
 [workflow drain](#rolling-back-to-an-older-orchestrator) with the newer package running and `DECOMPOSE=off`.
 Honor other release-specific restrictions, then stop the process and supervisor and wait for shutdown.
 Returning to v0.13.0 or earlier also takes away the service `init` installed, since those releases have no `init`
@@ -523,6 +531,313 @@ Compare configuration and repeat compatibility checks before restarting.
 [pipx-changelog]: https://pipx.pypa.io/stable/changelog.html
 [pipx-pinning]: https://pipx.pypa.io/stable/how-to/pin-packages.html
 [pip-constraints]: https://pip.pypa.io/en/stable/user_guide/#constraints-files
+
+## Deploying without migration
+
+This procedure deploys a build that cannot read the work the running pollers own: a package version or source commit
+that no longer reads a format some issue, record, or artifact of theirs still carries.
+[C-03](../contracts.md#c-03-persisted-and-externally-consumed-formats) sets the policy for this release, so there is no
+migration to run, no final 0.x release to install first, and no automatic resumption of the work the selected build
+cannot read. Finishing some of that work under a build that reads it, before these steps, is optional.
+
+Breaking changes do not wait for a release tag. They reach `main` as they merge, so a source checkout that follows it
+can receive one before any release carries it, and a tag deploys nothing by itself: a package changes only when an
+operator installs another version. Judge the selected build by its own release notes or commits, whatever its version.
+
+Three procedures are not supported for this release: converting earlier-format JSONL records or Postgres analytics
+data to current formats, continuing an agent session recorded in an earlier format, and returning an older binary to
+workflow state a newer one wrote. [Upgrade a package](#upgrade-a-package),
+[Return to the previous package version](#return-to-the-previous-package-version),
+[Rolling back to an older orchestrator](#rolling-back-to-an-older-orchestrator), and
+[What survives a restart](#what-survives-a-restart) all stay inside that boundary.
+
+### Take an inventory
+
+Record the following before stopping anything, on every host that runs a poller against the same repositories. One
+host is the [supported topology](#running-more-than-one-poller), so finding a second is a finding in itself.
+
+- **Pollers and agents.** `pgrep -af 'orchestrator|run\.sh|codex|claude|agy'` lists them. A poller runs the
+  `chipping-orchestrator` command or `python -m orchestrator`, a source wrapper runs `run.sh`, and an agent is a
+  `codex`, `claude`, or `agy` process whose working directory (`readlink /proc/<pid>/cwd`) lies under `WORKTREES_DIR`.
+  Count each `run --once` and `run --cleanup-terminal-artifacts` launch among them.
+- **Installations and checkouts.** For a package: `pipx list`, the `Version` that
+  `pipx runpip chipping-orchestrator show chipping-orchestrator` shows, and `chipping-orchestrator status`, which
+  names the `.env` and the unit in use; a v0.13.0 [dedicated venv](#moving-from-a-dedicated-venv) is one more
+  installation. For a source checkout: `git rev-parse HEAD` and `git branch --show-current` run in it, and the
+  `ORCHESTRATOR_BASE_BRANCH` its `.env` or launch environment sets (default `main`).
+- **Supervision and updates.** `systemctl --user list-unit-files 'chipping-orchestrator*' 'orchestrator*'` finds the
+  service `init` installs and the hand-written unit of v0.13.0 or earlier. Look as well for a development unit
+  running a checkout's `run.sh`, whose name is the developer's choice, and read `systemctl --user list-timers --all`,
+  `crontab -l`, and any job that runs `pipx upgrade`, `pipx upgrade-all`, `pipx reinstall`, or a `git pull` in a
+  checkout. Note which units are enabled: an enabled unit starts whenever the user manager does, at boot with linger.
+  A source wrapper is an update mechanism of its own, since
+  [`run.sh`](../development.md#development-restart-wrapper) pulls before it launches.
+- **The selected build.** The exact package version, or the full commit SHA of the source revision, and what its
+  [release notes][package-releases] or commits say it no longer reads.
+- **Repositories and `WORKTREES_DIR`.** The `REPOS` each poller resolves -- from `~/.config/chipping-orchestrator/.env`
+  for a package, from the checkout's own `.env` for a source checkout, and from any process or drop-in override, which
+  `systemctl --user cat chipping-orchestrator.service` shows -- and the `WORKTREES_DIR` each one resolves, explicit or
+  [defaulted](../configuration.md#workspace-and-agent-identity) beside the first entry. Note which entries share one
+  `target_root`: those can only be [excluded](#exclude-or-retire-unsupported-work) together.
+- **Owned work, per repository.** Issues carrying a workflow label in any spelling, open or closed; issues carrying a
+  pinned state comment; and every open issue an `ALLOWED_ISSUE_AUTHORS` login filed that carries neither, which the
+  selected build would take up as new work. List apart the old issues with no pinned comment, including those whose
+  only label is one the selected build may not read as a workflow label, such as a pre-namespace spelling
+  ([legacy labels](../state-machine.md#legacy-labels-and-the-migration-off-them)): to a build that does not route
+  that spelling, such an issue carries no workflow label and no pinned comment, which is exactly what fresh pickup
+  looks for. Then the pull requests on `orchestrator/` branches, the branches and refs under `orchestrator/` in the
+  clone and on the remote, the worktrees, and the host's recovery records: the claim files and quota retirement
+  records in `WORKTREES_DIR/.issue-writer-claims/` ([host records](#running-more-than-one-poller)), and
+  `EVENT_LOG_PATH` with every rotated copy beside it
+  ([audit log](../observability/event-streams.md#audit-event-log-event_log_path)).
+
+With the GitHub CLI, `gh`, logged in to an account that reads the repository, and the shell's `WORKTREES_DIR` set to
+the resolved directory, these list a repository's share; repeat them for every `REPOS` entry:
+
+```sh
+ORCHESTRATOR_REPO='acme/api'
+ORCHESTRATOR_CLONE="$HOME/src/acme-api"
+ORCHESTRATOR_REMOTE='origin'
+(
+  set -eu
+  gh api --paginate "repos/${ORCHESTRATOR_REPO:?}/issues?state=all&per_page=100" \
+    --jq '.[] | select(.pull_request | not) | [.number, .state, .user.login, ([.labels[].name] | join(","))] | @tsv'
+  gh api --paginate "repos/${ORCHESTRATOR_REPO:?}/issues/comments?per_page=100" \
+    --jq '.[] | select((.body // "") | contains("<!--orchestrator-state")) | [.issue_url, .id, .user.login] | @tsv'
+  gh api --paginate "repos/${ORCHESTRATOR_REPO:?}/pulls?state=all&per_page=100" \
+    --jq '.[] | select(.head.ref | startswith("orchestrator/")) | [.number, .state, .head.label] | @tsv'
+)
+git -C "${ORCHESTRATOR_CLONE:?}" for-each-ref refs/heads/orchestrator/ refs/orchestrator/
+git -C "${ORCHESTRATOR_CLONE:?}" ls-remote "${ORCHESTRATOR_REMOTE:?}" 'refs/heads/orchestrator/*' 'refs/orchestrator/*'
+git -C "${ORCHESTRATOR_CLONE:?}" worktree list --porcelain
+ls -la "${WORKTREES_DIR:?}" "${WORKTREES_DIR:?}/.issue-writer-claims"
+grep -L -x '{}' "${WORKTREES_DIR:?}"/.issue-writer-claims/*.quota-retirement
+```
+
+The three listings page through the whole repository: every issue, open or closed, with its author and labels; every
+issue comment that carries the pinned-state marker, with the issue it is on; and every pull request on an
+`orchestrator/` branch. Stop if the subshell fails, since a page it did not fetch leaves the inventory incomplete, and
+work missing from the inventory is work nothing below keeps away from the selected build. A pinned comment counts as
+state only when the orchestrator's own account wrote it
+([authentication](../security.md#pinned-state-authentication)), so compare the login each line prints with that
+account. The last command names every quota retirement record that does not read `{}`: an arming or an owed retirement
+that holds its issue's developer launches until someone settles it.
+
+### Stop and hold every poller
+
+Stop every poller in the inventory, with its agents, before replacing any code it runs, and hold whatever would start
+or update one again until the [deliberate start](#install-check-and-start-deliberately). Choose a
+[safe stopping point](#safe-restart-guidance) where you can, preferably with no live agent child.
+
+For a package:
+
+1. Hold package updates. `pipx pin chipping-orchestrator` keeps `pipx upgrade` and `pipx upgrade-all` from replacing
+   the installed version ([pipx pinning][pipx-pinning]); disable any scheduled job that installs, reinstalls, or
+   upgrades the package as well.
+2. Stop the service and hold it:
+
+   ```sh
+   chipping-orchestrator stop
+   systemctl --user disable chipping-orchestrator.service
+   ```
+
+   `stop` leaves the service enabled, so the user manager would start it again the next time it starts, as at boot;
+   `disable` holds it until supervision is restored. `init` enables the service whenever it runs, so leave it to the
+   deliberate start, or disable the service again after running it. A host still on the hand-written unit of v0.13.0
+   or earlier runs `systemctl --user disable --now orchestrator.service` instead.
+3. Stop the rest: Ctrl+C each foreground `chipping-orchestrator run` and wait for it to exit, and hold each timer or
+   crontab line that launches `run` in any form, with `systemctl --user disable --now <name>.timer` or by commenting
+   the line out in `crontab -e`.
+
+For a source checkout:
+
+1. Stop and hold the wrapper's supervisor first, so nothing relaunches it: `systemctl --user disable --now <unit>` for
+   a [development unit](../development.md#development-restart-wrapper), whose stop sends the wrapper the `SIGTERM` it
+   exits on without relaunching, and comment out each crontab line that runs `run.sh` or `python -m orchestrator`.
+2. Ctrl+C a foreground `./run.sh` once and wait for it to exit; a second Ctrl+C ends it at once, without the graceful
+   shutdown.
+3. Leave `run.sh` stopped until the selected revision is [held](#install-check-and-start-deliberately): on its base
+   branch it pulls `origin/<ORCHESTRATOR_BASE_BRANCH>` when it starts and again before every relaunch after an exit
+   that is not a signal stop, so any start of it there takes whatever that branch carries by then.
+
+Then check that everything is down:
+
+```sh
+pgrep -af 'orchestrator|run\.sh|codex|claude|agy'
+chipping-orchestrator status
+systemctl --user is-enabled chipping-orchestrator.service
+```
+
+No poller, wrapper, or agent working under `WORKTREES_DIR` may remain in the list. `status` exits 3 for a service that
+is not running, and `is-enabled` prints `disabled`; ask the same of a development unit or hand-written unit by name. A
+graceful stop ends its agents with it ([what survives a restart](#what-survives-a-restart)). An agent left running by a
+poller killed outright is still working in its worktree: wait for it to exit, or stop it knowing that this can leave a
+dirty worktree and, for `agy`, an armed quota record. Go no further while any of them runs.
+
+### Exclude or retire unsupported work
+
+Sort the inventoried work into what the selected build reads and what it cannot. Current work it reads resumes from
+its label, pinned comment, worktree, and host records once it starts. Everything else has to be kept from it, and
+which paths reach an issue decides what keeps it away:
+
+- **Pickup.** The first tick greets as new work every open issue an `ALLOWED_ISSUE_AUTHORS` login filed that carries
+  no workflow label and no pinned comment. Label setup creates only the canonical labels a repository lacks, leaving
+  pre-namespace definitions and the issues carrying them as they are, so an old issue keeps its old label. To a build
+  whose [legacy-label rule](../state-machine.md#legacy-labels-and-the-migration-off-them) no longer routes that
+  spelling, an old issue with no pinned comment looks exactly like new work; to one that still does, it reaches the
+  stage handler the label names with no record behind it. Apply `backlog` to each of those that is not new work.
+- **Dispatch and refresh.** An open issue whose workflow label routes it reaches the stage handler that label names,
+  and the base refresh before each tick can rebase its worktree. `paused`, or `backlog`, holds both, at dispatch,
+  scheduling, and the refresh ([control labels](../configuration.md#control-labels)). Hold a decomposed family as a
+  whole: a parent's handler writes its children too, under each child's own claim.
+- **Closed-issue recovery and cleanup.** The closed-issue sweep finalizes a closed issue still on a stage label, and
+  `paused` holds that as it holds dispatch. A closed issue on `workflow:decomposing`, `workflow:umbrella`,
+  `workflow:ready`, or `workflow:blocked` goes to the
+  [closed-owner sweep](../state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own) instead,
+  which ends the cycle, closes the pull request it held, reclaims what its ledger owes the remote, and writes
+  `rejected`; a control label defers those steps but not the cancellation it records in the pinned comment. The
+  [maintenance pass](#reclaiming-a-finished-issues-artifacts) reclaims the worktree and branches of a closed issue on
+  one terminal label whatever its control labels say, though only what its gates prove nothing else needs. Closing an
+  issue retires it into these paths, not out of them: retire that way only work whose records the selected build
+  reads, and keep the rest out with its repository.
+- **A whole repository.** A repository the selected build is not configured for is never polled, swept, or
+  refreshed, and the maintenance pass leaves alone every artifact whose name marks it as that repository's. A clone
+  two `REPOS` entries share is the exception: the artifacts on it whose names do not tell the entries apart, every
+  flat legacy branch and checkout among them, are attributed by elimination among the entries configured on that
+  clone ([shared clones](#what-it-looks-for)). With both entries configured the pass refuses them as ambiguous; with
+  one left out, the other claims them and judges them against its own issue of that number. So leave out every entry
+  that shares the excluded repository's clone, and keep them all out until those artifacts have been disposed of by
+  hand. Set `WORKTREES_DIR` explicitly first: left unset, it follows the first `REPOS` entry, and dropping that entry
+  would move it away from the retained work and its records. Keep at least one compatible entry, too, or keep polling
+  stopped: an installed package refuses to start with `REPOS` empty, but a source checkout then falls back to its
+  developer settings, `REPO` at `TARGET_REPO_ROOT`
+  ([developer fallback](../configuration.md#developer-fallback-and-target-checks)), which can name the very repository
+  left out. Within those conditions, leaving a repository out is the one exclusion every path honors.
+
+Never make old work look current or new to get the selected build started: do not delete or edit a pinned comment,
+stamp earlier JSON as a supported format, reset lifetime run charges
+([C-15](../contracts.md#c-15-lifetime-agent-run-budget)), or delete a branch, worktree, or host record nobody has
+proved unneeded. A record the selected build cannot read is left for a human to decide on.
+
+### Preserve records for manual disposition
+
+Everything the inventory lists stays in place for manual disposition, decided artifact by artifact and never as a step
+toward starting the selected build:
+
+- Export every inventoried issue with its comments, the pinned comment included, off the host, as the
+  [backup drill](../security.md#backup-and-restore-drills) does, so what each issue records now survives whatever is
+  written to it later.
+- Back up `WORKTREES_DIR/.issue-writer-claims/` while the pollers are stopped, and keep `WORKTREES_DIR` at the same path
+  with its worktrees: retained work recovers from them and from the claim and quota retirement records
+  ([C-01](../contracts.md#c-01-durable-workflow-state-and-recovery)), and an unsettled quota record keeps holding its
+  issue's developer launches until someone settles it ([owed quota retirement](#running-more-than-one-poller)).
+- Keep the target clones and every branch and ref under `orchestrator/`, locally and on the remote.
+- Keep `EVENT_LOG_PATH` naming the same file, with every rotated copy beside it readable: a base-rewrite finish still to
+  retry reads them so it files its `base_rebased` only once
+  ([C-12](../contracts.md#c-12-observation-and-the-audit-recovery-exception)).
+- Back up the settings, as step 3 of [Upgrade a package](#upgrade-a-package) does for a package or by copying a source
+  checkout's `.env`, and keep custom units, drop-ins, and the logs.
+- Leave operator-owned analytics storage alone: the analytics and trajectory JSONL files, and the analytics database
+  with its `analytics-db/data/` volume.
+
+### Install, check, and start deliberately
+
+With every poller still stopped and held, install the selected build, give it the configuration and launch syntax it
+documents, check it, and start it by hand.
+
+For a package:
+
+1. Install the selected version with the explicit-version forced install in step 4 of
+   [Upgrade a package](#upgrade-a-package), or with the [pinned procedure](#pin-a-release-and-runtime-dependencies) and
+   that version's constraints. Confirm the `Version` pipx shows, then run `pipx pin chipping-orchestrator` again, since
+   a forced install clears the pin.
+2. [Save its templates](#save-the-installed-versions-templates) and
+   [compare configuration](#compare-configuration-across-versions), merging what the version requires into `.env`.
+   Give every launch line, script, timer, and unit its launch syntax, such as `run` after the command
+   ([upgrade warning](#upgrade-a-package)).
+3. Run the [compatibility checks](#check-compatibility-and-start). Run `chipping-orchestrator init` only where the
+   interpreter path or the agents' directories changed, or the unit was removed, remembering that it enables the
+   service.
+
+For a source checkout:
+
+1. Hold the selected revision. A checkout on its base branch is fast-forwarded by `run.sh` before every launch, and the
+   [self-restart guard](../architecture.md#process-model) ends the poller, before any polling pass, whenever
+   `origin/<ORCHESTRATOR_BASE_BRANCH>` has moved past the running commit with changes under `orchestrator/`. Another
+   branch skips the pull but not the guard: once that remote branch moves on, the poller exits before its first pass on
+   every launch, and the wrapper relaunches it every second without it ever polling. The guard reads
+   `origin/<ORCHESTRATOR_BASE_BRANCH>` from the checkout's own refs once its fetch is done, so a remote-tracking ref a
+   deleted remote branch left behind, which `git fetch` does not prune by default, still counts. So check the revision
+   out on a local branch whose name matches no ref on `origin` and none of the checkout's `origin/` refs, and name that
+   branch as `ORCHESTRATOR_BASE_BRANCH`:
+
+   ```sh
+   ORCHESTRATOR_CHECKOUT="$HOME/src/chipping-orchestrator"
+   ORCHESTRATOR_COMMIT='<full commit SHA>'
+   git -C "${ORCHESTRATOR_CHECKOUT:?}" fetch origin
+   git -C "${ORCHESTRATOR_CHECKOUT:?}" ls-remote --exit-code origin held-deployment 'held-deployment/HEAD'
+   git -C "${ORCHESTRATOR_CHECKOUT:?}" rev-parse --verify --quiet origin/held-deployment
+   git -C "${ORCHESTRATOR_CHECKOUT:?}" switch --create held-deployment "${ORCHESTRATOR_COMMIT:?}"
+   ```
+
+   Switch only once both checks come back empty. `ls-remote` has to exit 2, finding no ref on `origin` the wrapper's
+   `git pull origin held-deployment` could resolve the name to: a branch, a tag, or any other ref ending in it. And
+   `rev-parse` has to exit 1, finding nothing the guard's `origin/held-deployment` would resolve to in the checkout.
+   Where either finds the name, pick another rather than deleting the ref it found, and pick one nobody will push to
+   `origin` as a branch or a tag: the wrapper's pull asks `origin` for that name on every launch and the guard's fetch
+   before every polling pass, and a branch the fetch finds writes the tracking ref the guard then reads. Set
+   `ORCHESTRATOR_BASE_BRANCH=held-deployment` in the checkout's `.env`, editing an existing line rather than adding a
+   second one, since the wrapper and the poller each read the first; a value in the environment the wrapper starts
+   with, such as a unit's `Environment=`, wins over the file, so change it there too. The wrapper's pull of that branch
+   then fails on every launch, warning `self-update failed -- running existing code`, and the guard finds nothing to
+   restart for. Returning the checkout to its base branch takes whatever `origin` carries there at the next launch,
+   which is another deployment.
+2. Bring the environment and settings to the revision as the [developer guide](../development.md#source-checkout-setup)
+   describes: `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` while nothing uses the checkout's `.venv/`, keeping the
+   checkout's `.env` and comparing it with the revision's `orchestrator/service/.env.example` and
+   `.env.example.advanced`.
+3. Run the developer guide's local startup-settings check under
+   [direct launch commands](../development.md#direct-launch-commands).
+
+Either way, the selected build's `REPOS` names only the repositories it may touch, and at least one, beside an
+explicit `WORKTREES_DIR`; where no compatible repository is left, polling stays stopped. Before the first start, print
+the targets and the `WORKTREES_DIR` the build resolves, with `ORCHESTRATOR_PYTHON` set to the package environment's
+interpreter as for [saving its templates](#save-the-installed-versions-templates), or to
+`"$ORCHESTRATOR_CHECKOUT/.venv/bin/python"` for a source checkout:
+
+```sh
+env -i HOME="$HOME" USER="$USER" PATH="$PATH" "${ORCHESTRATOR_PYTHON:?}" -I -c '
+from orchestrator import config
+
+for spec in config.default_repo_specs():
+    print(spec.slug, spec.target_root)
+print("WORKTREES_DIR", config.WORKTREES_DIR)
+'
+```
+
+It reads the settings file the build reads and takes nothing from the shell but the three variables it names, so add
+any `REPOS` or `WORKTREES_DIR` a unit, drop-in, or launch environment sets, which wins over the file. It exits 1 with
+the reason where a setting is invalid or, for a package, no target is selected. Keep polling stopped if it names a
+repository left out, or a developer-fallback target nobody chose.
+
+The setup checks prove settings, targets, tokens, and agents, not that the selected build reads the live workflow
+state, so the first start is where the two meet. `run --once` is no dry run either: it performs one real polling tick,
+label setup, pickup, and agent launches included ([run modes](#run-modes)).
+
+Start deliberately and watch the first ticks in the journal and `LOG_DIR/orchestrator.log`: run
+`chipping-orchestrator start` for the service, `chipping-orchestrator run` or `run --once` in the foreground, and
+`./run.sh` or the developer guide's [launch commands](../development.md#direct-launch-commands) for a source checkout.
+A diagnostic in which the selected build refuses an issue, a record, or an artifact as unsupported or unreadable is a
+refusal that needs manual disposition: hold the issue with `paused` if nothing holds it yet, keep everything it names,
+and decide by hand. No migration will run for it, and no later tick will repair it.
+
+Restore supervision once the started build behaves, stopping a foreground start first so the supervised process does
+not poll beside it. For the service, run `systemctl --user enable chipping-orchestrator.service`, which `init` also
+does, so the user manager starts it again at boot; re-enable the timers and crontab lines held above with the selected
+build's launch syntax, and keep the pipx pin until the next deliberate upgrade. For a source checkout,
+`systemctl --user enable --now <unit>` restores a development unit, which launches `run.sh` on the held revision. Held
+work rejoins only once a human has disposed of what it carried, by removing `backlog` or `paused`, or by adding its
+repository, and every entry sharing its clone, back to `REPOS`.
 
 ## Continuous integration
 
@@ -1531,6 +1846,11 @@ direct check when a pinned comment is ambiguous. An issue that has to be parked 
 ends its cycle irreversibly and settles what it owes the remote — the work stays committed in its worktree and the
 section below says how to start it again.
 
+The drain settles the late generation and nothing else a newer orchestrator wrote. Returning an older binary to that
+state stays outside the procedures this release supports
+([C-03](../contracts.md#c-03-persisted-and-externally-consumed-formats)), and
+[Deploying without migration](#deploying-without-migration) is how to keep from it whatever else it cannot read.
+
 ### Restarting an issue whose cycle was cancelled
 
 **Reopen the issue, then remove `rejected`.** That is the whole gesture, and both halves are required: the
@@ -1989,8 +2309,10 @@ the service is running. [Developer checkouts](../development.md) use their own r
 Per-issue progress lives in the issue's pinned JSON comment on GitHub and in the per-issue worktree on disk, and an
 Antigravity developer launch also keeps a quota retirement record on the host
 ([An owed quota retirement](#running-more-than-one-poller)). Restarting between ticks loses nothing — the next tick
-picks each issue back up from its label and pinned state, and from that record on the same host. Three restart-time
-hazards are worth knowing:
+picks each issue back up from its label and pinned state, and from that record on the same host. That holds for a
+restart onto a build that reads the formats the stopped one wrote; starting one that cannot is a
+[deployment without migration](#deploying-without-migration), and what it cannot read is not resumed. Three
+restart-time hazards are worth knowing:
 
 - **A live `codex` / `claude` child.** Stage handlers spawn agent subprocesses that may run for as long as
   `AGENT_TIMEOUT`. On a SIGTERM/SIGINT stop the loop terminates in-flight agent process groups up front (and, as a hard

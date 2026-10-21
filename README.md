@@ -165,6 +165,10 @@ after stopping the poller and reviewing release notes. Constrained installs upgr
 procedure in the operations guide with the new release's constraints. Package upgrades are operator-initiated.
 Upgrading from v0.13.0 or earlier moves the poller to `chipping-orchestrator run`: the bare command prints help
 and exits, so read the [upgrade notes][installation] before upgrading a host whose scripts or systemd unit run it.
+A release or source revision that cannot read the work the running poller owns is
+[deployed without migration][deploying]: stop and hold every poller, keep what the new build cannot read away from it
+and in place for a human to decide on, then install, check, and start it deliberately. Nothing converts earlier
+workflow state, and breaking changes reach `main` as they merge, not first at a release tag.
 
 ## Asking the orchestrator a question
 
@@ -301,6 +305,8 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [configuration]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md
 [installation]:
   https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#package-installation-upgrades-and-rollback
+[deploying]:
+  https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#deploying-without-migration
 [pinned-installation]:
   https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration/operations.md#pin-a-release-and-runtime-dependencies
 [operations]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/configuration.md#run-modes
