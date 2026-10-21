@@ -553,7 +553,8 @@ fresh attempt, charged to both budgets, before a human's continue.
 
 The single docs pass on the existing PR worktree, reached only via the final-docs handoff in `_handle_validating`'s
 approval branch. It reuses the locked dev session — there is no `documenting_agent` and no separate retry budget —
-and advances to `in_review` on an explicit `DOCS: NO_CHANGE` verdict, from a run that succeeded. A pass that pushes a
+and advances to `in_review` on an explicit `DOCS: NO_CHANGE` verdict, from a run that succeeded, over evidence proved
+current behind it (below). A pass that pushes a
 docs commit -- fresh, recovered, or finished from the receipt a size-gate hold or a lost write left -- changed what
 the approval was of, so it hands the pull request back to `workflow:validating` instead, owing a report of the docs
 commit, its evidence and approval retired and one review round spent: the developer reports on it with no human

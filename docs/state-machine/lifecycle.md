@@ -465,10 +465,25 @@ than a second source of truth: where the two disagree, the handler pages are aut
        ok, subject still standing, squash ok)──► review_approved_subject
        recorded, docs_verdict and
        ready_ping_sha retired, label=workflow:documenting (final-docs)
-       ──► in_review where the pass published nothing; a report or issue
-       edited, a later report settled, or the head pushed while the squash
-       runs ─► rewrite finished, label held, and the next tick hands the
-       change to a fresh reviewer or the drift check
+       ──► in_review where the pass published nothing and the approval's
+       evidence proves current again behind it; a report or issue edited, a
+       later report settled, or the head pushed while the squash runs ─►
+       rewrite finished, label held, and the next tick hands the change to
+       a fresh reviewer or the drift check
+     workflow:documenting, DOCS: NO_CHANGE with nothing published ─► the
+       completion's watermark walk, then the evidence proof (the current
+       record, its artifact re-read and passing every configured command,
+       the PR and branch on its head, the tested tree, the context, the
+       review subject, the settled report, and the requirements, read
+       afresh), then the PR read last; proved ─► the completion decided on
+       every record that proof read, evidence untouched, ──► in_review.
+       Refused -- a push, another tree, context, requirements, report, or
+       review subject, an artifact edited or gone, or evidence missing or
+       unreadable ─► ONE guarded write: current evidence retired as
+       invalidated, review_approved_subject null, nothing announced; then
+       label=workflow:validating for a fresh reviewer. A reading nobody
+       could take, one that raised, or a PR found merged or closed ─► held:
+       only what the tick staged lands, and the next tick runs the pass again
      workflow:documenting, a docs commit published (a fresh push, commits
        an earlier tick left unpushed, or a docs_settled_sha receipt the
        code-publication receipt proves, finished ahead of the approval
