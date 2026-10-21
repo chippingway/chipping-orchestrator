@@ -500,14 +500,15 @@ of a round a reply bought (`review_handoffs.py`, `review_launch_park.py`, `revie
 write of an approval's tail -- its verdict's retirement, the squash's own records, the handoff with the evidence it
 carries or invalidates, a failed squash's park, and the handoff's end behind the label (`squash_writes.py` beside
 them) -- are the roads that commit through it so far, and so is the finish of every base rewrite that landed,
-whichever road reached it (`workflow/engine/rewrite_finish_writes.py`), and every auto-rebase park and a recovery's
-clear, abandonment, and record of a gate's hold (`git/base_sync/checkpoints.py`). It derives a candidate
-over a fresh reading of the comment its caller captured, refuses with nothing written where that comment or a record
-the decision rests on moved, or where another writer moved a field the caller is changing, measures the whole rendered
-candidate against the comment limit before any dependent effect, and lands through the strict in-place edit on
-`github/pinned_state.py`, reporting an edit nobody confirmed as neither answer. It narrows the window between a reading
-and the write over it; it does not serialize two pollers, since GitHub's comment edit takes no condition. The contract
-is on [`state-machine/labels-and-state.md`][pinned-state].
+whichever road reached it (`workflow/engine/rewrite_finish_writes.py`), every auto-rebase park and a recovery's
+clear, abandonment, and record of a gate's hold (`git/base_sync/checkpoints.py`), and a final-docs pass's completion,
+prepared before its notice and relabelled only behind a confirmed write (`workflow/stages/documenting/handoff.py`). It
+derives a candidate over a fresh reading of the comment its caller captured, refuses with nothing written where that
+comment or a record the decision rests on moved, or where another writer moved a field the caller is changing, measures
+the whole rendered candidate against the comment limit before any dependent effect, and lands through the strict
+in-place edit on `github/pinned_state.py`, reporting an edit nobody confirmed as neither answer. It narrows the window
+between a reading and the write over it; it does not serialize two pollers, since GitHub's comment edit takes no
+condition. The contract is on [`state-machine/labels-and-state.md`][pinned-state].
 
 For the full per-tick sequence — eligible-issue enumeration, the cap exemption a no-agent bucket earns, what the base
 refresh rebases and pushes, the read-only skip the `question` and `discussion` labels take, the per-tick
