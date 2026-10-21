@@ -12,7 +12,9 @@ onto, and `base_ref` the local base ref the checkout counts its head against;
 tree each carries, so a commit missing from it is one git could not read; and
 `tags` says which ids are annotated tags and the commit each points at. The
 tags are answered as git answers them: `^{tree}` peels one to its commit's
-tree, and only the unpeeled type says it is a tag. They travel on one record,
+tree, and only the unpeeled type says it is a tag. `unread` says which ids git
+would not look up at all -- neither proved present nor proved absent. They
+travel on one record,
 owned apart from the case that uses them, so a case that moves one of them is
 writing a world rather than a race.
 """
@@ -80,6 +82,7 @@ class EvidenceWorld:
     base_ref: _BranchDivergence = field(default_factory=lambda: _BranchDivergence(tip=BASE_TIP, readable=True))
     remote_answers: bool = True
     checkout_head: str = ""
+    unread: set[str] = field(default_factory=set)
 
     def fetch(self, *_args, **_kw) -> Fetched:
         """What `_authed_fetch` hands back in this world."""
@@ -94,8 +97,18 @@ class EvidenceWorld:
         return self.base
 
     def commit_present(self, _worktree, revision: str, *_rest, peeled: bool = True) -> bool:
-        """Whether `revision` reads as a commit here -- peeled through a tag, unless not."""
+        """Whether `revision` reads as a commit here -- peeled through a tag, unless not; never for one unread."""
+        if revision in self.unread:
+            return False
         return revision in self.trees or (peeled and revision in self.tags)
+
+    def object_kind(self, _worktree, revision: str) -> str | None:
+        """The type of the object `revision` names here, "" for none, or None where the lookup does not answer."""
+        if revision in self.unread:
+            return None
+        if revision in self.trees:
+            return "commit"
+        return "tag" if revision in self.tags else ""
 
     def tree_sha(self, _worktree, revision: str) -> str:
         """The tree `revision` peels to in this world, or "" for none."""

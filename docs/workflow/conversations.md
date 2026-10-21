@@ -735,6 +735,19 @@ the evidence its approval rests on (`tests/workflow/stages/validating/test_chang
 configured-author filtering, report freshness, and the approved versus changes-requested routing are those of every
 other round. `tests/workflow/stages/validating/test_evidence_aware_rounds.py` drives each of these through whole ticks.
 
+The final-docs pass behind an approval runs no verification of its own. Where it replies `DOCS: NO_CHANGE` with nothing
+to publish, the pull request is still on the head the approval moved there, and the evidence that approval rests on is
+kept only once it proves current again behind the pass (`stages/documenting/retention.py`, through the proof a
+reviewer's hand-off takes): the repository and pull request, the published head and the branch, the tested and target
+trees, the configured context, the requirements, the settled developer report re-read at its location, and the
+applicable review subject, with the artifact re-read on the pull request -- and it has to pass as an approval's must,
+every command exiting 0 and every configured `VERIFY_COMMANDS` command among them. An equivalent-tree squash's carry is
+kept exactly as it settled -- the commit the checks ran on, the transcript, and the report's own source commit -- so the
+pull request never shows a run as one on the squashed head. Evidence that no longer proves is invalidated into history
+with the approval it answers for, and the issue goes back to a fresh reviewer rather than on to `in_review`; a reading
+nobody could take holds the pass. Evidence that is missing, malformed, edited, or otherwise unproven never counts as
+passing: it takes that same road back. A reply over recovered commits publishes them, and is never this shortcut.
+
 ## Foreground execution and asynchronous command guidance
 
 Every developer and commit-producing prompt — initial implementation, automated reviewer fixes, requirements drift,

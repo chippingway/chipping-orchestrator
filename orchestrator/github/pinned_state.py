@@ -126,7 +126,8 @@ class PinnedState:
     report's, a validating reviewer round's, a change request's handoff and
     its recovery's, an approval tail's, a landed base rewrite's finish's, an
     auto-rebase attempt's checkpoint -- a park, or a recovery's clear or
-    record of a gate's hold -- or a final-docs pass's completion --
+    record of a gate's hold -- or a final-docs pass's completion, or the
+    invalidation or hold that withholds a no-change one --
     one refused over a comment that moved, or one sent and never confirmed --
     on one whose report post or re-read left its transaction owed over a
     comment another road wrote meanwhile, and on an approval tail's whose records the comment moved: the

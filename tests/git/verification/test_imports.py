@@ -13,6 +13,7 @@ from tests.support.import_probes import CONFIGURATION_READS, probe_import
 _MODULES = (
     "orchestrator.git.verification",
     "orchestrator.git.verification.models",
+    "orchestrator.git.verification.objects",
     "orchestrator.git.verification.output",
     "orchestrator.git.verification.probes",
     "orchestrator.git.verification.status",
@@ -41,6 +42,7 @@ _ALLOWED_MODULES = ("orchestrator", *sorted(CONFIGURATION_READS))
 
 _RESULT_OWNERS = (
     "orchestrator.git.verification.models",
+    "orchestrator.git.verification.objects",
     "orchestrator.git.verification.output",
     "orchestrator.git.verification.probes",
     "orchestrator.git.verification.status",
@@ -74,6 +76,7 @@ _OWNER_ONLY_NAMES = (
     "_VERIFY_OUTPUT_BUDGET",
     "_context_revision",
     "_head_sha",
+    "_object_kind",
     "_run_verify_commands",
     "_tree_sha",
     "_truncate_verify_output",

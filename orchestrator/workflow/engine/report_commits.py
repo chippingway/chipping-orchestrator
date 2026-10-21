@@ -83,7 +83,9 @@ decided on the attempt and its evidence
 completion, decided on its stamp, its publication, and the records its
 approval was read over (`stages/documenting/handoff.py`) -- its hand-back of a
 published docs commit decided on the report debt it records as well
-(`stages/documenting/handback.py`).
+(`stages/documenting/handback.py`), a no-change one on every record its
+evidence proof read, and the invalidation or hold that withholds it where that
+proof refused or could not be taken (`stages/documenting/retention.py`).
 """
 from __future__ import annotations
 

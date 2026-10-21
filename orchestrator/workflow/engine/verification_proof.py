@@ -225,10 +225,11 @@ def current_evidence_verdict(reading: ProofReading) -> _evidence_models.ReportEv
     """Prove the current evidence still stands and is still published, or refuse it.
 
     For a reader about to rely on the current record -- a reviewer handed it,
-    a readiness decision -- rather than for the reconciliation that settled
-    it: a head, a context, a report, a review subject, or requirements can
-    each move after the settlement, and the artifact can be deleted or edited,
-    and the record alone sees none of it -- and a newer transaction can be
+    a readiness decision, a docs pass that changed nothing and would keep it --
+    rather than for the reconciliation that settled it: a head, a context, a
+    report, a review subject, or requirements can each move after the
+    settlement, and the artifact can be deleted or edited, and the record
+    alone sees none of it -- and a newer transaction can be
     recorded, its artifact superseding this one's on the thread. So behind the
     pull request it has to still be the latest evidence recorded, its handoff
     and its artifact are read again (`verification_current`), and then the

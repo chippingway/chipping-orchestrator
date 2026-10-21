@@ -312,8 +312,9 @@ posted), the reconciliation's drop and damage-park retirement, the park a refuse
 fixing recovery's release, a reviewer round's launch, return, verdict, drop, and park writes, a change request's
 handoff (prepared before its feedback is posted), the drop, retirement, and park of a handed one, the recovery's
 writes over a verdict left waiting, every write of an approval's tail, its squash's own and a failed squash's park
-included, a final-docs pass's completion (prepared before its notice, and relabelled only behind a confirmed write),
-and the retirement of a failed developer conversation -- lays only the fields its caller owns over a fresh
+included, a final-docs pass's completion (prepared before its notice, and relabelled only behind a confirmed write)
+and the evidence invalidation or hold that withholds a no-change one, and the retirement of a failed developer
+conversation -- lays only the fields its caller owns over a fresh
 reading instead, refusing with nothing written where the
 comment, a record the decision rests on, or a field the caller is changing moved, or where the whole candidate would
 not fit one comment.
@@ -576,7 +577,12 @@ before the size gate it is replaced by a commit bound to the one the pass made �
 gate, a hold, the push, and the recorded SHAs all name the replacement. Both this issue's number and the request's are
 handed to the shared normalization, so a subject the agent left carrying the issue's own reference — alone, or beside
 one an earlier publication appended — sheds it, while a subject that already reads as the normalization would write it
-is published as it is. Drift
+is published as it is. A `DOCS: NO_CHANGE` with nothing to publish leaves the pull request on the approved head, so the
+verification evidence the approval rests on is proved whole again, and passing, behind the pass before it advances -- an
+equivalent-tree squash's carry kept with its tested commit and report untouched. Evidence that no longer answers for the
+head -- missing or unreadable evidence included, which never counts as passing -- is invalidated into history with the
+approval it answers for and the issue goes back to `workflow:validating` with nothing announced; a reading nobody could
+take holds. Drift
 during the hop unwinds the worktree and relabels back to `workflow:validating` without spawning. Past the terminal
 checks -- a merged or closed pull request finalizes first -- and ahead of drift and the docs pass, the tick hands the
 issue back to `workflow:validating`, writing nothing, where the comment still carries a squash handoff

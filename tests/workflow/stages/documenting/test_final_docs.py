@@ -32,6 +32,7 @@ from tests.workflow.stages.documenting.documenting_scenario_test_support import 
 from tests.workflow.stages.documenting.documenting_test_support import (
     SHA_BEFORE as _SHA_BEFORE,
     _branch,
+    evidence_proved,
 )
 
 DOCUMENTING = "workflow:documenting"
@@ -157,7 +158,6 @@ SEED_WALK_ISSUE_NUMBER = 710
 SEED_WALK_PR_NUMBER = 74
 SEED_WALK_ID = 1200
 LATEST_PR_COMMENT_IDS = "_latest_pr_comment_ids"
-PR_LAST_COMMENT_ID = "pr_last_comment_id"
 
 
 class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture):
@@ -169,6 +169,7 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
     def test_no_change_verdict_advances_to_in_review(
         self,
     ) -> None:
+        self.enterContext(evidence_proved())
         gh, issue = self._seeded()
         mocks = self._run_documenting(
             gh,
@@ -178,8 +179,9 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
                 last_message=("Inspected diff; no user-facing change.\nDOCS: NO_CHANGE"),
             ),
             push_branch=True,
-            # No commit landed: before_sha == after_sha == approved head.
-            head_shas=["approvedSha", "approvedSha"],
+            # No commit landed: before_sha == after_sha == the approved head
+            # the pull request stands on.
+            head_shas=[SHA_BEFORE, SHA_BEFORE],
             branch_ahead_behind=(0, 0),
         )
 
@@ -325,17 +327,18 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
 
         # Documenting tick: awaiting-human resume consumes id=1100,
         # the docs need nothing more, advance to in_review.
-        self._run_documenting(
-            gh,
-            issue,
-            run_agent=_agent(
-                session_id=DEV_SESSION,
-                last_message="Edge case X is already covered.\nDOCS: NO_CHANGE",
-            ),
-            push_branch=True,
-            head_shas=[SHA_BEFORE, SHA_BEFORE],
-            branch_ahead_behind=(0, 0),
-        )
+        with evidence_proved():
+            self._run_documenting(
+                gh,
+                issue,
+                run_agent=_agent(
+                    session_id=DEV_SESSION,
+                    last_message="Edge case X is already covered.\nDOCS: NO_CHANGE",
+                ),
+                push_branch=True,
+                head_shas=[SHA_BEFORE, SHA_BEFORE],
+                branch_ahead_behind=(0, 0),
+            )
 
         self.assertIn(
             (WATERMARK_ISSUE_NUMBER, IN_REVIEW),
@@ -406,10 +409,10 @@ class FinalDocsWatermarkOwnerTest(unittest.TestCase):
             LATEST_PR_COMMENT_IDS,
             return_value=(SEED_WALK_ID, None),
         ) as seed_walk:
-            _handoff._ratchet_in_review_watermark_for_final_docs(gh, issue, state)
+            walked = _handoff._in_review_watermark(gh, issue, state)
             seed_walk.assert_called_once()
 
-        self.assertEqual(state.get(PR_LAST_COMMENT_ID), SEED_WALK_ID)
+        self.assertEqual(walked, SEED_WALK_ID)
 
 
 if __name__ == "__main__":

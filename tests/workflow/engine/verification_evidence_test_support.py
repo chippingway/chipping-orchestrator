@@ -152,6 +152,7 @@ class VerificationEvidenceCase:
             ("_authed_fetch", world.fetch),
             ("_branch_divergence", world.divergence),
             ("_commit_present", world.commit_present),
+            ("_object_kind", world.object_kind),
             ("_tree_sha", world.tree_sha),
             ("_standing_on_the_remote_base", world.standing),
             ("_remote_branch_read", lambda *args: _world.remote_read(world, *args)),

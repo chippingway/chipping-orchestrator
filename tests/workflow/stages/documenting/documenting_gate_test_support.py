@@ -291,17 +291,20 @@ class _DocsGateRunMixin:
     def _rerun(self, github, issue):
         """The docs pass a tick takes when it finds nothing left owed.
 
-        Its agent has an already-documented tree in front of it, so it
-        confirms the diff and writes nothing.
+        Its agent has an already-documented tree in front of it -- the one the
+        pull request stands on -- so it confirms the diff and writes nothing,
+        over evidence answered as still standing.
         """
-        return self._fresh_tick(
-            github, issue,
-            run_agent=fixtures._agent(
-                session_id=documenting.DEV_SESSION,
-                last_message=NO_CHANGE_REPLY,
-            ),
-            head_shas=[MEASURED_CANDIDATE_SHA, MEASURED_CANDIDATE_SHA],
-        )
+        github.pulls[self.pr_number].head.sha = MEASURED_CANDIDATE_SHA
+        with documenting.evidence_proved():
+            return self._fresh_tick(
+                github, issue,
+                run_agent=fixtures._agent(
+                    session_id=documenting.DEV_SESSION,
+                    last_message=NO_CHANGE_REPLY,
+                ),
+                head_shas=[MEASURED_CANDIDATE_SHA, MEASURED_CANDIDATE_SHA],
+            )
 
     def _crashed_pass(self, dies=DIES_ON_THE_WRITE, **run_options):
         """A fresh docs pass killed where `dies` names, and what it left."""

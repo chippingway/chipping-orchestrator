@@ -39,7 +39,13 @@ swallowed: the walk stops at the first unread non-orchestrator comment on
 either surface, and the consumed-through bound applies to the issue thread
 only. `max` keeps a higher in_review watermark from regressing, and a PR fetch
 failure is best-effort -- the handoff still advances, and in_review's own
-rescan is debounced and correct on its own.
+rescan is debounced and correct on its own. A hand-back walks behind its
+notice, and so seeds past it. The hand-off to `in_review` walks ahead of the
+proof that the evidence still answers for its head instead
+(`retention._retains`), since the walk requests the pull
+request and its threads, and a push behind a request that proof came before
+is one it never saw: its watermark stops short of its own notice, which
+in_review's feedback scan drops by the ledger entry the write records.
 
 Every terminal success ends in the one completion (`_completes`) -- to
 `in_review` (`_hand_off_to_in_review`), or back to `validating` for a pass that
@@ -58,7 +64,9 @@ stamp and whatever the tick staged since -- a run's usage, the notice's ledger
 entry, the ratcheted watermark, each kept beside any other move by its own
 rule -- and decided on the stamp's own records, the publication and the debt
 of a push not yet landed, and every record the hand-back read the approval
-over. A record that reads otherwise was moved by no write of this tick's, and
+over; a pass that changed nothing over evidence proved to still answer for its
+head is decided as well on every record that proof read (`retention.UNCHANGED`).
+A record that reads otherwise was moved by no write of this tick's, and
 refuses it with nothing put back, adopted, or repaired. A hand-back owns and is
 decided on more besides (`handback._HANDBACK`), on the same terms.
 
@@ -124,6 +132,9 @@ log = logging.getLogger("orchestrator.workflow")
 
 _PR_LAST_COMMENT_ID = "pr_last_comment_id"
 
+# The verdict a pass that published nothing is stamped with.
+_NO_CHANGE = "no_change"
+
 # What a finished pass stamps: the head its verdict was formed against, the
 # verdict, the silent-park streak it resets, the receipt, its lease, and the
 # launch record it consumes, and the hand-back an earlier pass left. Each has to land as
@@ -164,11 +175,12 @@ _COMPLETION = _commits.ReportWrite(
 _GOES_ON = frozenset((_commit_models.CommitStatus.PREPARED, _commit_models.CommitStatus.COMMITTED))
 
 
-def _ratchet_in_review_watermark_for_final_docs(
+def _in_review_watermark(
     gh: GitHubClient, issue: Issue, state: PinnedState,
-) -> None:
-    """Ratchet `pr_last_comment_id` past issue-thread comments the docs
-    pass already consumed during the final-docs hop.
+) -> int | None:
+    """The `pr_last_comment_id` the completion ratchets to, past issue-thread
+    comments the docs pass already consumed during the final-docs hop, or
+    None where there is nothing to ratchet.
 
     During documenting's awaiting-human resume the handler advances
     `last_action_comment_id` past the human reply it fed into the
@@ -194,10 +206,13 @@ def _ratchet_in_review_watermark_for_final_docs(
     docs handoff itself still advances. In the worst case in_review
     will route to `fixing` and the rescan there is debounced and
     correct on its own.
+
+    Only read: the walk requests the pull request and both threads, and
+    the caller stages what it reached where its completion is to land.
     """
     pr_number = state.get("pr_number")
     if pr_number is None:
-        return
+        return None
     try:
         pr = gh.get_pr(int(pr_number))
     except Exception as error:  # noqa: BLE001 - an unreadable PR leaves the watermark to in_review
@@ -206,7 +221,7 @@ def _ratchet_in_review_watermark_for_final_docs(
             "`pr_last_comment_id` on the final-docs handoff: %s",
             issue.number, pr_number, error,
         )
-        return
+        return None
 
     candidate, _ = _validating_watermarks._latest_pr_comment_ids(
         gh, issue, pr, state,
@@ -217,9 +232,7 @@ def _ratchet_in_review_watermark_for_final_docs(
             prev_wm if candidate is None
             else max(candidate, prev_wm)
         )
-    if candidate is None:
-        return
-    state.set(_PR_LAST_COMMENT_ID, candidate)
+    return candidate
 
 
 def _hands_back_what_validating_owes(
@@ -321,32 +334,51 @@ def _approval_still_stands(gh: GitHubClient, issue: Issue, state: PinnedState) -
 
 
 def _hand_off_to_in_review(
-    ctx: _models._DocumentingContext, checked_sha: str, verdict: str, notice: str,
+    ctx: _models._DocumentingContext,
+    checked_sha: str,
+    notice: str,
+    write: _commits.ReportWrite,
 ) -> None:
-    """Stamp what the pass decided, land it as a checkpoint, then move the issue to `in_review`.
+    """Stamp a pass that published nothing, land it as a checkpoint, then move the issue to `in_review`.
 
-    `verdict` is the one a pass that published nothing earns, `no_change`,
-    formed against `checked_sha`, and `notice` is what the pull request is
-    told. A pass that published a docs commit is handed back for review
-    instead (`handback`), through the same completion.
+    Its verdict is `no_change`, formed against `checked_sha`, and `notice` is
+    what the pull request is told. `write` is the completion decided as well
+    on every record the proof that the evidence still answers for that head
+    read (`retention.UNCHANGED`). That proof took the ratchet's walk
+    (`_in_review_watermark`) ahead of itself and staged what it reached: the
+    walk requests the pull request and its threads, and a push behind a
+    request the proof came before is one it never saw. So nothing here asks
+    the pull request anything once the proof has answered, and the watermark
+    stops short of the notice, which the ledger entry this write records
+    keeps every later reader from taking for a human's. A pass that published
+    a docs commit is handed back for review instead (`handback`), through the
+    same completion.
     """
-    _stamp_docs_verdict(ctx.state, checked_sha, verdict)
-    _completes(ctx, _COMPLETION, notice, WorkflowLabel.IN_REVIEW)
+    _stamp_docs_verdict(ctx.state, checked_sha, _NO_CHANGE)
+    _completes(ctx, write, notice, WorkflowLabel.IN_REVIEW, walks=False)
 
 
 def _completes(
-    ctx: _models._DocumentingContext, write: _commits.ReportWrite, notice: str, label: WorkflowLabel,
+    ctx: _models._DocumentingContext,
+    write: _commits.ReportWrite,
+    notice: str,
+    label: WorkflowLabel,
+    *,
+    walks: bool = True,
 ) -> None:
     """Land the completion staged on the tick's state as `write`, announcing `notice`, then relabel to `label`.
 
     The order is the whole of the crash contract. The completion is prepared
     over the fresh comment first, with the notice's ledger entry and the
-    watermark the ratchet behind it moves reserved at their widest, so a
-    comment that would not take it is announced nothing. The notice goes out
-    ahead of the write, whose ledger entry is what keeps every later reader
-    from taking it for a human's, and best-effort: a comment failure must not
-    strand an issue whose branch is already published. The relabel goes
-    behind a write GitHub confirmed, and only behind one.
+    watermark the ratchet moves reserved at their widest, so a comment that
+    would not take it is announced nothing. The notice goes out ahead of the
+    write, whose ledger entry is what keeps every later reader from taking it
+    for a human's, and best-effort: a comment failure must not strand an
+    issue whose branch is already published. The ratchet's walk behind the
+    notice (`walks`) seeds the watermark past it; a caller that took the walk
+    itself, ahead of a decision nothing may be read behind, stages what it
+    reached and walks nothing here. The relabel goes behind a write GitHub
+    confirmed, and only behind one.
 
     A refused preparation, or a write refused or never confirmed, stops the
     handoff there (`_stops`), and a crash anywhere along it lands on an issue
@@ -369,7 +401,10 @@ def _completes(
             "issue=#%s could not post docs notice to PR #%s",
             ctx.issue.number, ctx.pr_number,
         )
-    _ratchet_in_review_watermark_for_final_docs(ctx.gh, ctx.issue, ctx.state)
+    if walks:
+        walked = _in_review_watermark(ctx.gh, ctx.issue, ctx.state)
+        if walked is not None:
+            ctx.state.set(_PR_LAST_COMMENT_ID, walked)
     if _stops(ctx, commit.lands(ctx.state, write), "relabelling"):
         return
     ctx.gh.set_workflow_label(ctx.issue, label)

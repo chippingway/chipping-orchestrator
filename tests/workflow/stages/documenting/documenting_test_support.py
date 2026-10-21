@@ -2,7 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+from contextlib import ExitStack, contextmanager
+from unittest.mock import patch
+
+from orchestrator.workflow.engine import report_evidence_models as _evidence_models, verification_proof as _proof
 from orchestrator.workflow.stages.documenting import handler as _documenting
+from orchestrator.workflow.stages.validating import (
+    approved_evidence as _approved_evidence,
+    review_coverage as _review_coverage,
+)
 from tests.support.fakes import (
     DEFAULT_PR_HEAD_SHA,
     FakeGitHubClient,
@@ -159,6 +167,24 @@ WATERMARK_PR_NUMBER = 73
 PICKUP_COMMENT_ID = 900
 PARK_COMMENT_ID = 950
 HUMAN_REPLY_ID = 1100
+
+
+@contextmanager
+def evidence_proved():
+    """The proof a pass that changed nothing holds the approval's evidence to, answering proved, passing, and holding.
+
+    Each part patched on the owner that defines it -- the evidence proved
+    current, its artifact passing as an approval's must, and the approval
+    holding over what is read last -- for a case about what such a pass's
+    completion does rather than about that evidence, which the case's pinned
+    comment does not record, and which `test_unchanged_evidence` proves whole.
+    """
+    proved = _evidence_models.ReportEvidence(_evidence_models.ReportEvidenceVerdict.PROVED)
+    with ExitStack() as answers:
+        answers.enter_context(patch.object(_proof, "current_evidence_verdict", return_value=proved))
+        answers.enter_context(patch.object(_approved_evidence, "_artifact_refusal", return_value=""))
+        answers.enter_context(patch.object(_review_coverage, "_approval_holds", return_value=True))
+        yield
 
 
 def _branch(issue_number: int) -> str:

@@ -95,6 +95,16 @@ _REFUSALS = (
         False, "tested commit cannot be read",
     ),
     (
+        "the tested commit's lookup does not answer",
+        lambda case: case.world.unread.add(support.TESTED_SHA),
+        True, "tested commit could not be looked up",
+    ),
+    (
+        "the tested commit's tree read does not answer",
+        lambda case: case.world.trees.update({support.TESTED_SHA: ""}),
+        True, "tree of the evidence's tested commit could not be read",
+    ),
+    (
         "the configuration moved",
         lambda case: case.enterContext(
             patch.object(config, "VERIFY_COMMANDS", ("uv run pytest -x",)),

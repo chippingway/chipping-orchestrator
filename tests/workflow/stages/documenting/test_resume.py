@@ -547,6 +547,7 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
         # `diverged_branch`, timeout) would leave the watermark
         # unset and downstream consumers could not tell which
         # commit was verified.
+        self.enterContext(documenting_support.evidence_proved())
         gh = FakeGitHubClient()
         issue = make_issue(NO_CHANGE_REPLY_ISSUE_NUMBER, label=DOCUMENTING)
         issue.comments.append(
@@ -557,6 +558,8 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             )
         )
         _registered(gh, issue, NO_CHANGE_REPLY_PR_NUMBER)
+        # The pull request stands on the head the dev verifies.
+        gh.pulls[NO_CHANGE_REPLY_PR_NUMBER].head.sha = SHA_PR_HEAD
         gh.seed_state(
             NO_CHANGE_REPLY_ISSUE_NUMBER,
             pr_number=NO_CHANGE_REPLY_PR_NUMBER,

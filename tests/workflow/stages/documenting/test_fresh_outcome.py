@@ -233,6 +233,7 @@ class HandleDocumentingFreshOutcomeTest(
         self.assertIn(":books: documenting pass", _pr_comment_text(gh))
 
     def test_no_change_marker_advances_without_push(self) -> None:
+        self.enterContext(documenting_support.evidence_proved())
         gh, issue = self._seeded()
         mocks = self._run_documenting(
             gh,
@@ -390,6 +391,7 @@ class AgyDocsOutcomeTest(unittest.TestCase, _FreshDocumentingFixture):
         # about a quota: a commit is published and handed back for review, or
         # the verdict is stamped and the issue handed to in_review, without a
         # park either way.
+        self.enterContext(documenting_support.evidence_proved())
         for agent_result, head, verdict, pushes, handed_to in SUCCEEDED_PASSES:
             with self.subTest(verdict=verdict):
                 self.assertEqual(self._left_by(agent_result, head), {

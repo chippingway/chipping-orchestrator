@@ -1234,14 +1234,17 @@ because there it is the claim that this stage has already rerouted rather than a
     for it was proved before the post: the settlement, staged at its widest with the artifact's ledger entry reserved
     against the ledger as it stands, is prepared over the comment read afresh, and a comment another road filled, or
     whose bound records moved, since the tick read it posts nothing.
-  - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, the report's location, the
-    requirements, an unconfirmed post, the issue re-read right before the post, or the issue, the pinned comment, or
+  - **Held** → a reading nobody could take: the pull request, the fetch, the divergence, a lookup of what a commit id
+    names that answers neither a type nor an absence, the tree of a commit this repository holds (an empty tree read
+    for one is that read failing), the report's location, the requirements, an
+    unconfirmed post, the issue re-read right before the post, or the issue, the pinned comment, or
     the artifact re-read before a settling or retiring write -- a pinned comment replaced or no longer parsing
     included, over which nothing is written -- or a
     settling commit that went out and was never confirmed. The next tick asks again, and finds either nothing owed or
     the same transaction to settle over the same artifact, with no second history entry.
-  - **Stood down** → a moved head or branch, an absent checkout, an id that is not a commit itself, an unreadable or
-    different tree, a moved configuration, a pinned `pr_number` naming another pull request, a report still owed (a
+  - **Stood down** → a moved head or branch, an absent checkout, an id that is not a commit itself or that git says
+    names no object here, a different tree, a moved configuration, a pinned `pr_number` naming another pull
+    request, a report still owed (a
     delivery, a transaction, or an undeliverable park), a review subject absent, replaced, about another head than the
     target, or carrying requirements its round was not due, a report settled after the review, stale against the
     subject, or deleted, edited, or out of step with its handoff, an issue that stopped being live work during the
@@ -1291,9 +1294,10 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Relying on it later**: `current_evidence_verdict` proves the current record again for a reader -- no revision
   past it spent, its handoff, its artifact re-read at the recorded comment with the pass flag its commands earn, and
   then the whole proof above -- so newer evidence posted and never settled, a deleted or edited artifact, or a flag it
-  contradicts is not reported as current. Its readers are three: the approval's proof over the evidence its verdict
+  contradicts is not reported as current. Its readers are four: the approval's proof over the evidence its verdict
   names (`stages/validating/approved_evidence.py`); the squash handoff, which proves a settled carry whole again before
-  the label moves over it (`stages/validating/squash_evidence.py`); and `stages/validating/review_evidence.py`, which
+  the label moves over it (`stages/validating/squash_evidence.py`); a final-docs pass that changed nothing, before it
+  keeps the evidence (`stages/documenting/retention.py`); and `stages/validating/review_evidence.py`, which
   hands a reviewer the current evidence only where the record is bound to exactly the subject that reviewer is
   handed -- pull request, head, requirements, and the complete report by revision and digest -- and it proves current,
   then re-reads the artifact for the prompt and holds it to the record again, so an edit between the two reads hands
@@ -3036,9 +3040,11 @@ and handed off -- and this is what it guarantees and what stops it.
       nothing put back, adopted, or repaired. The write is prepared over the fresh comment before the notice, with
       the notice's ledger entry and the watermark reserved at their widest, so a comment that would not take it —
       unreadable, replaced, moved, or with no room left — is announced nothing. The notice comes before the write
-      because posting one RECORDS it: the comment id lands in `orchestrator_comment_ids`, which is what has the
-      watermark walk seed past it and the in_review feedback scan drop it rather than resume a dev over an
-      informational post of ours, and there is nothing behind the write to carry it. The write comes before the
+      because posting one RECORDS it: the comment id lands in `orchestrator_comment_ids`, which is what has a
+      hand-back's watermark walk seed past it and the in_review feedback scan drop it rather than resume a dev over
+      an informational post of ours, and there is nothing behind the write to carry it. The hand-off to `in_review`
+      takes its walk ahead of the evidence proof below instead, so no request of the pull request comes between that
+      proof and the writes it licenses, and its watermark stops short of its own notice. The write comes before the
       relabel because `in_review` repairs nothing it is handed: its merge gate pings only for a head that
       `docs_checked_sha` names with a `docs_verdict` beside it, so a relabel taken first strands the issue on a stage
       whose handler never looks at either — and only a write GitHub confirmed licenses it. Anything else stops the
@@ -3183,14 +3189,56 @@ and handed off -- and this is what it guarantees and what stops it.
         for the retry.
       - no commit + `DOCS: NO_CHANGE` verdict: when `ahead > 0` the recovered commit goes through that same amendment
         and gate and earns the same answers — the verdict certifies the local tree and says nothing about what the
-        remote carries or what its subject names;
-        otherwise complete with `docs_verdict="no_change"` through the same checkpoint, posting
-        `:books: no docs changes required.`, and advance without pushing.
+        remote carries or what its subject names — and, being a publication, never takes the evidence proof below.
+        Otherwise the pull request is still on the head the approval moved here, so before anything is stamped the
+        verification evidence that approval rests on is proved whole again (`documenting/retention._retains`, through
+        `verification_proof.current_evidence_verdict` over the issue read afresh): still the latest revision, its
+        handoff describing it, its artifact re-read and still the one that settled, the pull request open on its
+        branch and standing on its head, the branch fetched and level with it, the tested commit and that head reading
+        as the tested tree, the configured context, the applicable review subject — for an equivalent-tree squash's
+        carry, the approved review of the tested commit — the settled report re-read at its location, and the
+        requirements. Current is not passing, so the artifact re-read on that pull request is then held to what an
+        approval may rest on (`validating/approved_evidence._artifact_refusal`): every command exiting 0, each
+        configured `VERIFY_COMMANDS` command among them. The last word, behind every one of those requests, is the
+        check every road about to move an approval on takes (`validating/review_coverage._approval_holds`): the
+        approval's evidence and report, the requirements over the issue read afresh, and the pull request read afresh
+        standing on the head -- so an issue edited or a push made while the proof was reading refuses it, and a
+        reading nobody could take holds it -- and behind that the terminals' own reading of the pull request
+        (`engine/terminal_reading._linked_pull_request`), the last request: a merge or close leaves the head where it
+        was and holds, and a head other than the checked one -- a push behind the check before it -- refuses. The
+        completion's watermark walk requests the pull request and its threads too, so it is taken ahead of the whole
+        proof, and nothing asks the pull request anything once that last reading has answered. The
+        pass committed nothing, so that head is the one it found needing no docs.
+        - **proved**: complete with `docs_verdict="no_change"` through the same checkpoint, decided as well on every
+          record that proof read (the evidence's bound records with the report debt, the approval's claim,
+          `user_content_hash`, the `validating_reviewer_owes_a_round` and `validating_reviewer_round_requirements`
+          that stand in for that baseline where a reply bought the round, and the `orchestrator_comment_ids` ledger
+          the requirements are read without), posting `:books: documenting pass: no docs changes required.`, and
+          advance without pushing. A hand edit of any of them while the pass is out refuses the completion with
+          nothing announced, and the next tick answers what the comment then carries. Nothing about the evidence is
+          written: a carry keeps the tested commit it ran on and its artifact, and the report keeps the source it was
+          written about, so the docs agent is the one launch this road makes.
+        - **refused** — a push, the tree, the context, the requirements, the report at its location, the artifact
+          deleted or edited, a review subject no longer recorded, a failed or uncovering run, no evidence recorded at
+          all, or a current record that will not read, none of which ever counts as passing: no verdict, no notice, no
+          `in_review`. The evidence is invalidated into history and the approval it answers for written null
+          (`validating/squash_evidence._invalidates`), in a checkpoint over the reading the tick last confirmed, and the
+          label goes back to `workflow:validating`, for a fresh reviewer, only behind a write GitHub confirmed; a write
+          refused or never confirmed relabels nothing, and the next tick's step 0 hands back the approval that no longer
+          stands.
+        - **unreadable** — the pull request, its thread, the threads the completion's watermark walk reads, the
+          branch, the report's location, the issue, the lookup of a commit id, or the tree of a commit the
+          repository holds, any of them raising rather than answering included (a git that cannot be started among
+          them) — or a pull request found merged or closed, by the proof or by the terminals' own reading
+          of it taken last: nothing announced, stamped, retired, or relabelled, and the evidence and approval left as
+          they were. What the tick staged — the run's usage and session, the dropped `docs_launched_sha` — lands
+          alone through the same checkpoint, and the next tick answers a terminal first and otherwise runs the pass
+          again rather than parking a launch whose outcome nothing recorded.
       - no commit + unknown verdict → `_on_question`: park.
-- **Output**: label moved to `in_review` (a pass that published nothing), OR `workflow:validating` (a published
-  docs commit's hand-back, or the drift unwind), OR
-  `workflow:decomposing` (a docs commit the size gate held), OR terminal `done` / `rejected` (short-circuit), OR a
-  HITL park.
+- **Output**: label moved to `in_review` (a pass that published nothing over evidence still proved current), OR
+  `workflow:validating` (a published docs commit's hand-back, the drift unwind, or evidence a no-change pass found no
+  longer answering for its head), OR `workflow:decomposing` (a docs commit the size gate held), OR terminal `done` /
+  `rejected` (short-circuit), OR a HITL park.
 
 The docs pass is deliberately a thin dev-session rerun on the existing PR worktree rather than a separate role: there is
 no `documenting_agent` pin and no separate retry budget. The dev session resumes on its locked `(backend, args)` spec,
@@ -4209,8 +4257,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      label moves over it (`current_evidence_verdict`: the tested commit and the head still reading as the tested
      tree, the applicable review subject still recorded and approved, the context, the publication, the report, and
      the requirements) -- and moves the label with no reviewer, or, refused, invalidates it and drops the record in
-     a write of its own, for the round below on the next tick. A carry that reconciliation refused is abandoned with
-     the approval it was recorded for (`review_approved_subject` written `null`), which leaves
+     a write of its own, for the round below on the next tick; a tree read that answers nothing for a commit the
+     repository holds refuses nothing and holds the move for the next tick. A carry that reconciliation refused is
+     abandoned with the approval it was recorded for (`review_approved_subject` written `null`), which leaves
      `review_approved_evidence` naming a transaction that never settled, so the handoff is dropped and a fresh
      reviewer validates the head, as for any evidence that no longer stands. A carry it only stood down on for want of
      room on the pinned comment -- ahead of the post or behind it -- is not refused: it stays owed for an approval

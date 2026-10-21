@@ -77,9 +77,10 @@ retries the relabel this is asked ahead of the approval's coverage, so the
 pull request is the last thing read before the move, and a handoff that
 coverage drops takes the settled carry with it (`drops_the_handoff`).
 
-A decision against the evidence -- a tree that is not the tested one or that
-nobody could read, a context moved (during the squash included), a pull
-request that moved off the head or ended, a review subject replaced or gone,
+A decision against the evidence -- a tree that is not the tested one, or one
+nobody could read where the carry is still to be decided
+(`verification_carry_forward`), a context moved (during the squash included),
+a pull request that moved off the head or ended, a review subject replaced or gone,
 an artifact gone or edited, or a carry onto the head the approval's claim no
 longer names -- is the evidence proved to no longer answer for the pull
 request: it is invalidated into history, the approval it was recorded for
@@ -89,7 +90,9 @@ and the handoff that would have moved the label over it dropped, in the same
 write, so the next tick hands a fresh reviewer the head as it stands. A carry
 the comment has no room to record is answered the same way. A pull request or artifact nobody could
 read decides nothing: the handoff stands, nothing is recorded, and the next
-tick decides again.
+tick decides again -- and so does a settled carry's tree read that answers
+nothing for a commit the repository holds, which its whole proof holds on
+(`verification_world`).
 
 Nothing is this owner's where the approval rests on no evidence at all, or on
 evidence the records no longer carry as the latest -- a claim on another
@@ -450,8 +453,10 @@ def _invalidates(state: PinnedState) -> bool:
     shrinks the comment, so that refusal is always one the comment can carry.
     Whether the evidence was retired. The caller writes; every field this
     stages is one of `INVALIDATES`, which the commit invalidating an
-    unanswered carry owns (`collapse`), as does the commit staging a refused
-    carry (`SquashEvidence.writes`).
+    unanswered carry owns (`collapse`), as do the commit staging a refused
+    carry (`SquashEvidence.writes`) and the documenting stage's invalidation
+    of evidence a pass that changed nothing found no longer proved
+    (`stages/documenting/retention.py`).
     """
     current = _settlement.read_current_evidence(state)
     if current is not None:

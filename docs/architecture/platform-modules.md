@@ -564,7 +564,8 @@ orchestrator/
                         through `workflow/engine/report_commits.py` -- the developer report's, a validating
                         reviewer round's, a change request's handoff and its recovery's, an approval tail's, a
                         landed base rewrite's finish's, an auto-rebase attempt's checkpoint, and a final-docs
-                        pass's completion -- did not land over -- refused over a comment that moved, or sent and
+                        pass's completion or the evidence invalidation or hold that withholds a no-change one --
+                        did not land over -- refused over a comment that moved, or sent and
                         never confirmed -- or
                         whose report post or re-read left its transaction owed over a comment another road wrote
                         meanwhile, or whose approval tail's records the comment moved, is marked `withheld`, and
@@ -1339,6 +1340,13 @@ orchestrator/
                         the transcript of `VerifyCommandOutcome`s for the commands attempted, timeout, and context
                         revision), when that record is reusable passing evidence, the context revision digest
                         minted from the commands and timeout, the statuses, and the output budget
+      objects.py        what object an id names, read without peeling -- git's own type, an empty answer only
+                        where git's quiet lookup exits with its status for a name that resolves to nothing,
+                        without a word about any object it could not open (an object behind a directory git may
+                        not read exits like a missing one, and only that word tells them apart), and None where
+                        it said neither, a lookup a signal killed or that failed any other way included -- for
+                        the evidence proof, which holds rather than retires where presence answered no and
+                        nothing proved why
       output.py         the redact-then-truncate pass over captured verify output, cut to the budget in UTF-8 bytes
                         and never inside a character
       probes.py         HEAD, branch, and tree identity, committed-path and regular-file reads, object presence
@@ -1525,7 +1533,8 @@ off a facade:
   `commands`, `commits`, `branch_transport`, and those same verification probes; `resume` calls `rewrite` and reaches
   the gate through the one hop that owner spells; `standing` calls `resume` for the ancestry read and reaches the gate
   through that same hop; `squash` calls `planning`, `resume`, `rewrite`, and `standing`.
-- `verification/` — `output` calls `models`, `process` calls `output`, `probes`, and `status`, and `runner` calls
+- `verification/` — `objects` calls `commands` alone, `output` calls `models`, `process` calls `output`, `probes`, and
+  `status`, and `runner` calls
   `process`, `probes`, `status`, and `models`: the baseline commit, tree, and clean status before the first command,
   and the context revision the result records.
   `status` shares the NUL framing and submodule arguments defined on `probes` so both path reads agree.
