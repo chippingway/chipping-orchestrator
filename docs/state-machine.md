@@ -305,7 +305,8 @@ posted), the reconciliation's drop and damage-park retirement, the park a refuse
 fixing recovery's release, a reviewer round's launch, return, verdict, drop, and park writes, a change request's
 handoff (prepared before its feedback is posted), the drop, retirement, and park of a handed one, the recovery's
 writes over a verdict left waiting, every write of an approval's tail, its squash's own and a failed squash's park
-included, and the retirement of a failed developer conversation -- lays only the fields its caller owns over a fresh
+included, a final-docs pass's completion (prepared before its notice, and relabelled only behind a confirmed write),
+and the retirement of a failed developer conversation -- lays only the fields its caller owns over a fresh
 reading instead, refusing with nothing written where the
 comment, a record the decision rests on, or a field the caller is changing moved, or where the whole candidate would
 not fit one comment.

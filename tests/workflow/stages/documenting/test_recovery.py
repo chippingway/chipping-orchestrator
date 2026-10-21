@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
@@ -11,6 +12,8 @@ from tests.workflow.fixtures import (
 
 # --- Workflow labels this stage routes between --------------------------
 from tests.workflow.stages.documenting import (
+    documenting_completion_test_support as completion,
+    documenting_gate_test_support as gate,
     documenting_test_support as documenting_support,
 )
 from tests.workflow.stages.documenting.documenting_assertion_test_support import (
@@ -300,3 +303,50 @@ class HandleDocumentingRecoveryTest(unittest.TestCase, _BasicDocumentingFixture)
             commit_message=commit_message,
             branch_ahead_behind=(1, 0),
         )
+
+
+class UnlandedCompletionRecoveryTest(unittest.TestCase, _BasicDocumentingFixture):
+    """A recovered commit published, and the completion behind it never landed."""
+
+    issue_number = 302
+    pr_number = 32
+
+    def test_an_unlanded_completion_pushes_once(self) -> None:
+        # The recovered commit reached the remote and the gate's own write put
+        # its receipt down; the completion behind the notice went out and never
+        # landed, so nothing was relabelled on it. The tick that follows finds
+        # the branch level with its remote and standing on that commit, and
+        # finishes the handoff from the receipt -- with no agent spawned and
+        # nothing pushed a second time.
+        gh, issue = self._seeded()
+        with patch.object(
+            gh, gate.EDIT_PINNED_STATE, completion._FailsTheCompletion(gh, completion.REFUSED),
+        ):
+            published = self._run_documenting(
+                gh,
+                issue,
+                run_agent=_agent(),
+                push_branch=True,
+                head_shas=[SHA_RECOVERED],
+                commit_message=f"docs: recovered notes (#{self.pr_number})\n",
+                branch_ahead_behind=(1, 0),
+            )
+        published[PUSH_BRANCH].assert_called_once()
+        self.assertNotIn((self.issue_number, IN_REVIEW), gh.label_history)
+        self.assertIsNone(gh.pinned_data(self.issue_number).get(DOCS_VERDICT))
+
+        mocks = self._run_documenting(
+            gh,
+            issue,
+            run_agent=_agent(),
+            push_branch=True,
+            head_shas=[SHA_RECOVERED],
+            branch_ahead_behind=(0, 0),
+        )
+
+        mocks[RUN_AGENT].assert_not_called()
+        mocks[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(gh.label_history, [(self.issue_number, IN_REVIEW)])
+        state = gh.pinned_data(self.issue_number)
+        self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
+        self.assertEqual(state.get(DOCS_CHECKED_SHA), SHA_RECOVERED)

@@ -3289,12 +3289,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `subject_amend_failed` rather than publishing it
       publication.py        the size gate a docs commit passes -- the last one before a human is asked to merge,
                             and handed the commit this pass made so a checkout something moved is refused rather than
-                            measured in its place -- then the push, the docs watermarks it stamps, and the PR notice
-                            it posts; a commit the gate held and one it let through leave the same receipt, the head
-                            the handoff is still owed for, and the handler finishes from that only over a checkout
-                            standing ON it, since in sync with its remote is what a replacement host rebuilt at a
-                            moved pull request reads as too -- the write that records the pass drops it, so no
-                            receipt outlives the handoff it was written for
+                            measured in its place -- then the push, and which head and verdict the completion stamps
+                            and what its PR notice says; a commit the gate held and one it let through leave the same
+                            receipt, the head the handoff is still owed for, and the handler finishes from that only
+                            over a checkout standing ON it, since in sync with its remote is what a replacement host
+                            rebuilt at a moved pull request reads as too -- a commit still ahead of the remote is an
+                            unpublished candidate the gate measures again -- and the write that records the pass
+                            drops it, so no receipt outlives the handoff it was written for
       drift.py              a body edit mid-hop: the dropped approval, the unwind sentinel, and the relabel to
                             `workflow:validating`. No developer runs on this road, so nothing about the conversation
                             is recorded -- the requirements revision alone goes down, and it says only that this
@@ -3305,9 +3306,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that would read the triggering comment as a retry signal every poll
       drift_reset.py        the fetch / probe / hard-reset that puts the worktree back on the PR head, and the parks
                             each failure earns
-      handoff.py            the `pr_last_comment_id` ratchet that keeps in_review from replaying a consumed reply,
-                            the write that carries it, and the relabel behind both -- taken ahead of that write, the
-                            relabel leaves `in_review` a pass it reads as unfinished and no stage goes back for it.
+      handoff.py            the completion every finished pass ends in: the docs verdict and checked head stamped,
+                            the receipt and launch record consumed, the PR notice, the `pr_last_comment_id` ratchet
+                            that keeps in_review from replaying a consumed reply, and the relabel behind all of it.
+                            The write is a checkpoint -- the tick-state guarded commit over the reading the tick last
+                            confirmed under the issue writer claim (`report_commits.ReportCommit`), decided on the
+                            stamp, the publication and its push debt, and the records the approval was read over --
+                            prepared before the notice with what posting and walking past it write reserved, and
+                            landed before the relabel. A refused preparation announces nothing; a write refused or
+                            never confirmed relabels nothing, withholds the tick's state, and leaves the comment as
+                            it stands for the next tick, which finishes from a receipt still standing and otherwise
+                            runs the pass again -- taken ahead of that write, the relabel would leave `in_review` a
+                            pass it reads as unfinished, and no stage goes back for it.
                             And the hand-back past the terminals and ahead of drift, which writes nothing: a squash
                             handoff (`late_collapse_handoff_sha`) or a readable `review_returned_verdict` standing is
                             the approval that moved the label here having failed to end its own, or another road's

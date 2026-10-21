@@ -2,39 +2,29 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a docs pass leaves on the PR, and the order it is written in.
 
-Both surviving outcomes end the same way -- stamp the watermarks, post the
-notice, hand off -- but the push comes first and gates everything after it. A
-failed push parks instead of advancing, because a `docs_verdict` stamped over
-a commit that never reached the remote would tell the next tick the docs are
-published when the reviewer would never see them in the diff. That is also why
-a `DOCS: NO_CHANGE` verdict over a recovered commit still routes through the
+Both surviving outcomes end the same way -- the completion `handoff` lands
+(`_hand_off_to_in_review`): stamp the watermarks, post the notice, hand off --
+but the push comes first and gates everything after it. A failed push parks
+instead of advancing, because a `docs_verdict` stamped over a commit that never
+reached the remote would tell the next tick the docs are published when the
+reviewer would never see them in the diff. That is also why a
+`DOCS: NO_CHANGE` verdict over a recovered commit still routes through the
 push path rather than the clean one.
 
 `docs_checked_sha` records the head the verdict was formed against and the
 silent-park counter is reset alongside it, so a park streak that predates a
-successful pass cannot later rotate a healthy session. The PR notice itself is
-best-effort: a comment failure must not strand an issue whose branch is already
-published and whose state is already stamped.
+successful pass cannot later rotate a healthy session. What this owner decides
+is which head the stamp names, which verdict it carries, and what the notice
+says. The order the stamp, the notice, its write, and the relabel go out in,
+what a write that is refused or never confirmed stops, and the notice being
+best-effort -- a comment failure must not strand an issue whose branch is
+already published -- are the completion's own.
 
-Every terminal success ends the same way too, and the order is the whole of the
-crash contract: stamp, announce, persist, relabel -- one durable write, and the
-relabel behind it. The notice comes before the write because posting one
-RECORDS it: the comment id lands in `orchestrator_comment_ids`, which is what
-keeps the watermark walk and the in_review feedback scan from reading our own
-post as human feedback, and there is nothing behind the write to carry it. The
-write comes before the relabel because `in_review` repairs nothing it is
-handed: relabelled first, a crash in between leaves the merge gate reading the
-head the pass BEGAN on and a verdict nobody wrote, on a stage whose own handler
-never looks at either.
-
-Two windows are left and both fail toward doing the work again rather than
-skipping it. A tick that posted its notice and died over the write comes back
-with nothing on the record saying so, and the tick that finishes the handoff
-from the receipt announces it a second time. And a tick whose relabel did not
-land comes back to a pass this write already called finished, with the receipt
-it dropped: nothing tells that state from a `validating` approval handing the
-same head back, so the pass runs again rather than handing off on a receipt
-that could belong to either.
+The receipt the gate leaves (`docs_settled_sha`) is what a later tick finishes
+a published pass's handoff from (`_finished_settled_docs`), and it is told
+apart from an unpublished candidate by the checkout: a commit still ahead of
+the remote is republished through the gate, and only one the branch is level
+with AND standing on is handed off without a second pass.
 
 Ahead of all of it, `subject` gives the docs commit its pull request's
 reference, and the id that hands back is the only one anything past it names:
@@ -47,14 +37,12 @@ import logging
 
 from orchestrator import config
 from orchestrator.git.measurement import commits as _measurement_commits
-from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, messages as _messages
+from orchestrator.workflow.engine import messages as _messages
 from orchestrator.workflow.late_split import (
     formats as _formats,
     payloads as _payloads,
 )
 from orchestrator.workflow.stages.documenting import (
-    failed_pass as _failed_pass,
     handoff as _handoff,
     models as _models,
     parks as _parks,
@@ -74,51 +62,14 @@ log = logging.getLogger("orchestrator.workflow")
 _HEAD = "HEAD"
 
 
+# The verdict a pass that published a docs commit is stamped with.
+_UPDATED = "updated"
+
 # What a `DOCS: NO_CHANGE` verdict tells the pull request, with the agent's own
 # justification quoted under it where it supplied one.
 _NO_CHANGE_NOTICE = (
     ":books: documenting pass: no docs changes required.\n\n{justification}"
 )
-
-
-def _stamp_docs_verdict(
-    state: PinnedState, checked_sha: str, verdict: str,
-) -> None:
-    """Stamp the docs watermarks after a terminal success: record the
-    evaluated head, the verdict (`updated` / `no_change`), and reset the
-    silent-park counter.
-
-    The receipt is dropped in the same breath, and it has to be: it says a
-    published pass still owes a handoff, and this write is what records that
-    pass as finished. Held past this write to cover the relabel behind it, it
-    outlives the handoff whenever the write that would have dropped it does
-    not land -- and the state that leaves is indistinguishable from the one a
-    failed relabel leaves, since both carry the same commit, the same verdict,
-    and the same head. A later `validating` approval at that same head then
-    reads it as a pass still pending, skips the docs pass the approval just
-    bought, and hands the issue to `in_review` a second time. Between two
-    readings nothing can tell apart, running the pass is the safe one.
-
-    A failed pass a paused tick recorded goes too: this pass finished, so the
-    branch carries nothing a later tick must still park for.
-    """
-    state.set(_state._CHECKED_DOCS_SHA, checked_sha)
-    state.set("docs_verdict", verdict)
-    state.set("silent_park_count", 0)
-    state.set(_state._SETTLED_DOCS_SHA, None)
-    _failed_pass._forget(state)
-
-
-def _post_docs_notice(ctx: _models._DocumentingContext, note: str) -> None:
-    """Post a docs-pass notice on the PR, best-effort (a comment failure must
-    not block the handoff)."""
-    try:
-        _comments._post_pr_comment(ctx.gh, int(ctx.pr_number), ctx.state, note)
-    except Exception:
-        log.exception(
-            "issue=#%s could not post docs notice to PR #%s",
-            ctx.issue.number, ctx.pr_number,
-        )
 
 
 def _push_docs_and_advance(
@@ -131,9 +82,11 @@ def _push_docs_and_advance(
     """Push docs commit(s) and hand off to `in_review`.
 
     On push failure, park with `push_failed` instead of advancing. On
-    success, stamp the docs watermarks (`docs_checked_sha`,
-    `docs_verdict=updated`), post `notice` on the PR, and route to
-    `in_review`. Writes pinned state; the caller returns unconditionally.
+    success, hand the commit that went out to the completion
+    (`handoff._hand_off_to_in_review`), which stamps the docs watermarks
+    (`docs_checked_sha`, `docs_verdict=updated`), posts `notice` on the PR,
+    and routes to `in_review` behind a write that landed. Writes pinned state;
+    the caller returns unconditionally.
 
     A docs commit is a candidate for a pull request the remote already carries
     like any other, so the size gate stands in front of this push too. It is
@@ -221,9 +174,7 @@ def _push_docs_and_advance(
             "push_failed",
         )
         return
-    _stamp_docs_verdict(ctx.state, candidate, "updated")
-    _post_docs_notice(ctx, notice)
-    _handoff._advance_after_docs_push(ctx.gh, ctx.issue, ctx.state)
+    _handoff._hand_off_to_in_review(ctx, candidate, _UPDATED, notice)
 
 
 _SETTLED_DOCS_NOTICE = (
@@ -242,9 +193,10 @@ def _finished_settled_docs(
     only thing left between that commit and `in_review` is the handoff. The
     gate HELD the commit, and an authorized settlement publishes it from the
     adjudication and hands the label back here. Or the gate ALLOWED the push,
-    it landed, and the tick died before this stage could record it -- the
-    receipt goes down in the gate's own write either way, which is ahead of
-    everything this stage does with a landed push.
+    it landed, and the tick died before this stage could record it, or the
+    completion that would have recorded it was refused or went out and never
+    landed -- the receipt goes down in the gate's own write either way, which
+    is ahead of everything this stage does with a landed push.
 
     It is the write that RECORDS the pass which drops it, so a receipt read
     here is one no handoff has been made for. Kept past that write to cover
@@ -276,15 +228,19 @@ def _finished_settled_docs(
     id is not one a checkout can be compared to, and a head this host cannot
     peel is not one anything may be compared against -- both leave the
     receipt exactly where it is for a tick that can prove it.
+
+    True once the completion is handed the receipt, whether or not its write
+    landed: the tick is handled either way, and a write that did not land
+    leaves the receipt standing for the next tick to read.
     """
     settled = _payloads.as_hex(
         ctx.state.get(_state._SETTLED_DOCS_SHA), _formats.COMMIT_LENGTHS,
     )
     if not settled or ahead > 0 or not _standing_on(wt, settled):
         return False
-    _stamp_docs_verdict(ctx.state, settled, "updated")
-    _post_docs_notice(ctx, _SETTLED_DOCS_NOTICE.format(commit=settled))
-    _handoff._advance_after_docs_push(ctx.gh, ctx.issue, ctx.state)
+    _handoff._hand_off_to_in_review(
+        ctx, settled, _UPDATED, _SETTLED_DOCS_NOTICE.format(commit=settled),
+    )
     return True
 
 
@@ -318,9 +274,9 @@ def _route_documenting_no_change(
     A recovered local commit (`ahead > 0`) that the resumed dev added
     nothing to must still reach the remote before advancing -- otherwise
     the reviewer agent at validating would never see the docs in the diff
-    -- so push it via the updated path. Otherwise persist the clean
-    no-change verdict against the evaluated head and advance. Writes
-    pinned state; the caller returns unconditionally.
+    -- so push it via the updated path. Otherwise hand the clean no-change
+    verdict against the evaluated head to the completion, which lands it and
+    advances. Writes pinned state; the caller returns unconditionally.
     """
     if run.ahead > 0:
         _push_docs_and_advance(
@@ -336,14 +292,12 @@ def _route_documenting_no_change(
     # there leaves it correct); setting it here too makes the post-condition
     # explicit and covers any future entry path that bypasses them.
     # `after_sha == before_sha` in this branch by construction (no commit).
-    _stamp_docs_verdict(ctx.state, after_sha, "no_change")
-    _post_docs_notice(ctx, _NO_CHANGE_NOTICE.format(
+    _handoff._hand_off_to_in_review(ctx, after_sha, "no_change", _NO_CHANGE_NOTICE.format(
         # Quoted where the agent supplied a justification, so the PR carries
         # the reasoning rather than only the verdict.
         justification=_messages._as_blockquote(body.strip()) if body.strip()
         else "",
     ).rstrip())
-    _handoff._advance_after_docs_no_change(ctx.gh, ctx.issue, ctx.state)
 
 
 def _documenting_commit_notice(recovered: bool) -> str:

@@ -852,8 +852,8 @@ place, or as a new comment where none is named or the named one is gone. A **gua
 reconciliation's retirements, `validating`'s invalidation of an unanswered carry, the developer report's writes, a
 reviewer round's launch, return, verdict, and park writes, a change request's handoff and its recovery's writes, and
 every write of an approval's tail commit through, and which the finish of a base rewrite the base refresh published
-itself, every auto-rebase park and a recovery's clear and record of a gate's hold, and the retirement of a failed
-developer conversation land through) is never written from its caller's state.
+itself, every auto-rebase park and a recovery's clear and record of a gate's hold, a final-docs pass's completion,
+and the retirement of a failed developer conversation land through) is never written from its caller's state.
 It is captured from the reading the caller decided on —
 the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent
 one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
@@ -2989,22 +2989,25 @@ The keys that matter for the state machine fall into a few groups:
   subject it hands that gate, so the hold, the failed-push approval, and the receipt that gate writes each sit beside
   the commit the rest of the record names rather than beside the head the spawn began on; a hold the gate REFUSES
   rather than routes measures, records and publishes nothing, so that anchor goes back to the pre-spawn head. The
-  success exits announce first, then persist, then relabel: the notice's id has to ride a write or nothing
+  success exits prepare, announce, then land, then relabel: the notice's id has to ride a write or nothing
   records it, and `in_review` repairs nothing it is handed — its merge gate pings only for a head `docs_checked_sha`
   names with a `docs_verdict` beside it, so a relabel taken ahead of the write would strand the issue there on the
-  head the pass began on. `docs_settled_sha` is the head a docs pass produced, written inside the size gate's own
-  routed write ahead of that gate's relabel to `workflow:decomposing`: the pass is finished and only the `in_review`
-  handoff is still owed, so the tick a settled verdict hands the label back to finishes from the receipt rather than
-  reading a branch in sync with its remote as an issue no docs pass has run for. The gate writes it whichever way the
-  answer went, so it covers the other tick that can leave a handoff owed — a push the gate ALLOWED, which landed,
-  whose process died before that write could record the pass. Read back only over a checkout standing ON the head it
-  names — in sync is what a replacement host rebuilt at a moved pull request reads as too. Dropped by every terminal
-  docs success in the same write that records it, including a republication that carries the held commit to the
-  remote itself — held past that write to cover the relabel behind it, the receipt outlives the handoff whenever the
-  write that would drop it does not land, and a later `validating` approval at the same head consumes it and skips
-  the docs pass it just bought. So the relabel window keeps no receipt, and it does not need one: what it leaves is
-  the record a same-head approval leaves, and the next tick runs the pass rather than handing off on evidence that
-  could belong to either.
+  head the pass began on. That write is a checkpoint: the tick-state guarded commit over the reading the tick last
+  confirmed (`stages/documenting/handoff.py`), decided on these fields, the publication and its push debt, and the
+  records the approval was read over, so a refused preparation announces nothing and a write refused or never confirmed
+  relabels nothing, leaving the comment for the next tick to read. `docs_settled_sha` is the head a docs pass produced,
+  written inside the size gate's own routed write ahead of that gate's relabel to `workflow:decomposing`: the pass is
+  finished and only the `in_review` handoff is still owed, so the tick a settled verdict hands the label back to
+  finishes from the receipt rather than reading a branch in sync with its remote as an issue no docs pass has run for.
+  The gate writes it whichever way the answer went, so it covers the other tick that can leave a handoff owed — a push
+  the gate ALLOWED, which landed, whose process died before that write could record the pass or whose write was refused
+  or never landed. Read back only over a checkout standing ON the head it names — in sync is what a replacement host
+  rebuilt at a moved pull request reads as too. Dropped by every terminal docs success in the same write that records
+  it, including a republication that carries the held commit to the remote itself — held past that write to cover the
+  relabel behind it, the receipt outlives the handoff whenever the write that would drop it does not land, and a later
+  `validating` approval at the same head consumes it and skips the docs pass it just bought. So the relabel window keeps
+  no receipt, and it does not need one: what it leaves is the record a same-head approval leaves, and the next tick runs
+  the pass rather than handing off on evidence that could belong to either.
   `docs_launched_sha` (additive) is the head an Antigravity docs pass was launched on, landed alone through the
   guarded commit ahead of the launch — a launch it did not land on is not made — and standing until the run's outcome
   is recorded or proved not to need it: the disposition drops it in the write that records the outcome, and a paused

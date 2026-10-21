@@ -67,10 +67,12 @@ holds moved, and the end of the handoff behind its label
 (`stages/validating/squash_writes.py`). So does the finish of every base
 rewrite that landed, whichever road reached it (`rewrite_finish_writes`), every
 auto-rebase park and a recovery's clear and record of a gate's hold
-(`git/base_sync/checkpoints._lands_the_checkpoint`), and the retirement of a
-failed developer conversation, landed alone over a fresh reading for a tick
-whose own write may never happen (`stages/implementing/session_retirement.py`).
-Every other road still rewrites the whole record.
+(`git/base_sync/checkpoints._lands_the_checkpoint`), a final-docs pass's
+completion, prepared before its notice and landed before its relabel
+(`stages/documenting/handoff.py`), and the retirement of a failed developer
+conversation, landed alone over a fresh reading for a tick whose own write may
+never happen (`stages/implementing/session_retirement.py`). Every other road
+still rewrites the whole record.
 
 The report's commits are captured over the reading a tick last synced with the
 comment (`PinnedState.synced`), so what the tick staged since is told from what
