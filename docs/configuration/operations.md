@@ -997,7 +997,8 @@ Source-checkout module launches and the restart wrapper are for developers; see 
 
 On first start the orchestrator creates the workflow labels and the `backlog` / `paused` /
 `workflow:community_contribution` control labels on the repo, then begins polling open issues every `POLL_INTERVAL`
-seconds. On a repo it drove before the labels were namespaced, each pre-namespace label is renamed in place instead.
+seconds. It creates only the labels a repo lacks: on a repo it drove before the labels were namespaced, each
+namespaced label is created beside its pre-namespace one, which stays defined and stays on every issue carrying it.
 
 ### Poetry migration for operators
 

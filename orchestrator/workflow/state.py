@@ -69,7 +69,7 @@ def legacy_label_name(
 
     Every namespaced label has one, control labels included: the namespace is
     exactly what the migration adds, so what it strips is what the repository
-    carried before. A label already spelled bare is not one this ever renamed.
+    carried before. A label already spelled bare never had a second spelling.
     """
     label_name = str(label)
     if not label_name.startswith(_LABEL_NAMESPACE):

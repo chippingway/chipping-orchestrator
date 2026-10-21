@@ -5,30 +5,67 @@ from __future__ import annotations
 
 import unittest
 from types import MappingProxyType
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 from github import GithubException
+from github.Label import Label
+from github.Repository import Repository
 
 from orchestrator.github import labels as _labels
 from orchestrator.github.client import GitHubClient
-from orchestrator.workflow.state import (
-    ControlLabel,
-    WorkflowLabel,
-    legacy_label_name as _legacy_label_name,
-)
+from orchestrator.workflow.state import ControlLabel, WorkflowLabel
 from tests.support.fakes import FakeIssue, FakeLabel
 
 _HTTP_FORBIDDEN = 403
 _LEGACY_IMPLEMENTING = "implementing"
-_NAME_KWARG = "name"
+_LEGACY_COMMUNITY_CONTRIBUTION = "community_contribution"
 _LABEL_SPECS = _labels.WORKFLOW_LABEL_SPECS + _labels.CONTROL_LABEL_SPECS
-_SPEC_BY_LABEL = MappingProxyType({spec[0]: spec for spec in _LABEL_SPECS})
-# The labels the bootstrap has a pre-namespace spelling to rename: what the
-# orchestrator writes itself, the automatic control label as much as a state.
-# `backlog` / `paused` are the operator's to type and stay bare.
-_RENAMED_LABELS = (
-    WorkflowLabel.IMPLEMENTING,
-    ControlLabel.COMMUNITY_CONTRIBUTION,
+# The one creation the bootstrap may make for each canonical label, in the
+# order it walks them: the exact name, color, and description of its spec.
+_CREATIONS = MappingProxyType({
+    name: call(name=name, color=color, description=description)
+    for name, color, description in _LABEL_SPECS
+})
+# The only repository requests a bootstrap makes. Any other -- an issue read
+# above all -- is a road to some issue's label assignments.
+_BOOTSTRAP_REQUESTS = frozenset(("get_labels", "create_label"))
+
+# Repository definitions -> how many of them the bootstrap finds canonical.
+# Only an exact canonical name counts: a pre-namespace spelling beside or
+# instead of the canonical label, or a label of the repository's own, is not
+# one. The seven unprefixed names ARE canonical, so they are found rather than
+# created a second time under the namespace.
+_DEFINITION_CASES = (
+    (
+        "only obsolete",
+        (_LEGACY_IMPLEMENTING, _LEGACY_COMMUNITY_CONTRIBUTION),
+        0,
+    ),
+    (
+        "both",
+        (
+            "workflow:implementing",
+            _LEGACY_IMPLEMENTING,
+            "workflow:community_contribution",
+            _LEGACY_COMMUNITY_CONTRIBUTION,
+        ),
+        2,
+    ),
+    ("neither", (), 0),
+    ("unrelated", ("bug", "enhancement"), 0),
+    (
+        "canonical unprefixed",
+        (
+            "in_review",
+            "question",
+            "discussion",
+            "done",
+            "rejected",
+            "backlog",
+            "paused",
+        ),
+        7,
+    ),
 )
 
 
@@ -39,15 +76,17 @@ def _issue_with(*label_names: str) -> FakeIssue:
     )
 
 
-def _repo_label(name: str) -> MagicMock:
-    """A repository label the bootstrap can rename in place.
+def _forbidden() -> GithubException:
+    return GithubException(_HTTP_FORBIDDEN, {"message": "Forbidden"}, None)
 
-    `name` is assigned after construction because `MagicMock(name=...)`
-    configures the mock's own repr instead of the attribute under test.
-    """
-    repo_label = MagicMock()
-    repo_label.name = name
-    return repo_label
+
+def _missing_creations(defined_names: tuple[str, ...]) -> list[object]:
+    """The creations a bootstrap owes a repository defining these labels."""
+    return [
+        creation
+        for name, creation in _CREATIONS.items()
+        if name not in defined_names
+    ]
 
 
 # Issue label sets -> the workflow member `workflow_label` reads past any
@@ -130,131 +169,83 @@ class HardSkipControlLabelTest(unittest.TestCase):
 
 
 class EnsureWorkflowLabelsTest(unittest.TestCase):
-    """Bootstrap creates the missing vocabulary and never blocks the loop.
+    """Bootstrap creates the missing canonical labels and touches nothing else.
 
-    The PAT may lack `Issues: Read and write`, and the orchestrator has to keep
-    polling either way: a failed listing skips the pass entirely, and a failed
-    creation stops after the first refusal instead of retrying it per spec.
+    Every definition the repository already lists -- canonical, obsolete, or
+    its own -- is left as it is: never edited, renamed, or deleted, and no
+    issue is read, so no issue's label assignments move either. The PAT may
+    lack `Issues: Read and write`, and the orchestrator has to keep polling
+    either way: a failed listing skips the pass entirely, and a failed creation
+    stops after the first refusal instead of retrying it per spec.
     """
 
     def setUp(self) -> None:
         # Bypass the networked __init__; the bootstrap reads only `self.repo`.
         self.gh = GitHubClient.__new__(GitHubClient)
-        self.gh.repo = MagicMock()
+        self.gh.repo = MagicMock(spec=Repository)
 
-    def test_creates_only_the_absent_labels(self) -> None:
-        present, absent = _LABEL_SPECS[0], _LABEL_SPECS[1]
-        self.gh.repo.get_labels.return_value = [FakeLabel(present[0])]
+    def test_creates_only_missing_canonical_labels(self) -> None:
+        for case, defined_names, found_count in _DEFINITION_CASES:
+            with self.subTest(case=case):
+                definitions = self._define(*defined_names)
 
-        self.gh.ensure_workflow_labels()
+                self.gh.ensure_workflow_labels()
 
-        created = {
-            call.kwargs[_NAME_KWARG]: call.kwargs
-            for call in self.gh.repo.create_label.call_args_list
-        }
-        self.assertNotIn(present[0], created)
-        self.assertEqual(len(created), len(_LABEL_SPECS) - 1)
-        self.assertEqual(
-            created[absent[0]],
-            {
-                _NAME_KWARG: absent[0],
-                "color": absent[1],
-                "description": absent[2],
-            },
-        )
-
-    def test_absent_control_label_is_namespaced(self) -> None:
-        # A repository carrying neither spelling gets the namespaced name
-        # outright, so the community sweep's dedup marker is born under the
-        # same name the sweep later reads back off a PR.
-        self.gh.repo.get_labels.return_value = []
-
-        self.gh.ensure_workflow_labels()
-
-        created = {
-            call.kwargs[_NAME_KWARG]
-            for call in self.gh.repo.create_label.call_args_list
-        }
-        self.assertIn(ControlLabel.COMMUNITY_CONTRIBUTION, created)
-        self.assertNotIn(
-            _legacy_label_name(ControlLabel.COMMUNITY_CONTRIBUTION), created,
-        )
+                self.assertEqual(
+                    self.gh.repo.create_label.call_args_list,
+                    _missing_creations(defined_names),
+                )
+                self.assertEqual(
+                    self.gh.repo.create_label.call_count,
+                    len(_CREATIONS) - found_count,
+                )
+                self._assert_untouched(definitions)
 
     def test_unreadable_labels_skip_the_bootstrap(self) -> None:
-        self.gh.repo.get_labels.side_effect = GithubException(
-            _HTTP_FORBIDDEN,
-            {"message": "Forbidden"},
-            None,
-        )
+        self.gh.repo.get_labels.side_effect = _forbidden()
 
         self.gh.ensure_workflow_labels()
 
-        self.gh.repo.create_label.assert_not_called()
+        self.assertEqual(
+            [request[0] for request in self.gh.repo.method_calls],
+            ["get_labels"],
+        )
 
     def test_refused_creation_stops_bootstrap(self) -> None:
-        self.gh.repo.get_labels.return_value = []
-        self.gh.repo.create_label.side_effect = GithubException(
-            _HTTP_FORBIDDEN,
-            {"message": "Forbidden"},
-            None,
-        )
+        # A refusal is no cue to fall back on the obsolete definitions: they
+        # stay as they are, and the denied write is not retried per spec.
+        definitions = self._define("decomposing", _LEGACY_IMPLEMENTING)
+        self.gh.repo.create_label.side_effect = _forbidden()
 
         self.gh.ensure_workflow_labels()
 
         self.gh.repo.create_label.assert_called_once()
+        self._assert_untouched(definitions)
 
+    def _define(self, *label_names: str) -> list[MagicMock]:
+        """Give a fresh repository exactly these label definitions.
 
-class LegacyLabelRenameTest(unittest.TestCase):
-    """The bootstrap renames the pre-namespace label instead of doubling it.
+        `name` is assigned after construction because `MagicMock(name=...)`
+        configures the mock's own repr instead of the attribute under test.
+        """
+        definitions = []
+        for label_name in label_names:
+            definition = MagicMock(spec=Label)
+            definition.name = label_name
+            definitions.append(definition)
+        self.gh.repo = MagicMock(spec=Repository)
+        self.gh.repo.get_labels.return_value = definitions
+        return definitions
 
-    A rename carries every issue already holding the old label across in one
-    edit -- including the closed and `backlog`-parked ones no polling pass
-    revisits, which a second label beside the first would strand. A PR the
-    community sweep already labeled migrates the same way, which is what keeps
-    its one HITL ping from repeating under a second spelling.
-    """
-
-    def setUp(self) -> None:
-        self.gh = GitHubClient.__new__(GitHubClient)
-        self.gh.repo = MagicMock()
-
-    def test_renames_the_bare_label_in_place(self) -> None:
-        for label in _RENAMED_LABELS:
-            with self.subTest(label=label):
-                # One repository per case: the creation calls of the case
-                # before it would otherwise still be on the mock.
-                self.gh.repo = MagicMock()
-                spec = _SPEC_BY_LABEL[label]
-                legacy_label = _repo_label(_legacy_label_name(label))
-                self.gh.repo.get_labels.return_value = [legacy_label]
-
-                self.gh.ensure_workflow_labels()
-
-                legacy_label.edit.assert_called_once_with(
-                    name=label, color=spec[1], description=spec[2],
-                )
-                created = {
-                    call.kwargs[_NAME_KWARG]
-                    for call in self.gh.repo.create_label.call_args_list
-                }
-                self.assertNotIn(label, created)
-
-    def test_refused_rename_stops_bootstrap(self) -> None:
-        # Same standing-down as a refused creation: an under-scoped PAT must
-        # not make the bootstrap retry the denied edit once per spec.
-        legacy_label = _repo_label(
-            _legacy_label_name(WorkflowLabel.DECOMPOSING),
+    def _assert_untouched(self, definitions: list[MagicMock]) -> None:
+        for definition in definitions:
+            self.assertEqual(
+                definition.method_calls, [], f"{definition.name} was written",
+            )
+        self.assertLessEqual(
+            {request[0] for request in self.gh.repo.method_calls},
+            _BOOTSTRAP_REQUESTS,
         )
-        legacy_label.edit.side_effect = GithubException(
-            _HTTP_FORBIDDEN,
-            {"message": "Forbidden"},
-            None,
-        )
-        self.gh.repo.get_labels.return_value = [legacy_label]
-
-        self.gh.ensure_workflow_labels()
-
-        self.gh.repo.create_label.assert_not_called()
 
 
 if __name__ == "__main__":

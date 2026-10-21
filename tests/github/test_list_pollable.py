@@ -105,8 +105,8 @@ class ListPollableIssuesClosedSweepTest(unittest.TestCase):
     dispatcher the issue.
 
     Either label spelling counts. A closed issue is the one case no other pass
-    revisits, so on a repository whose labels the bootstrap could not rename,
-    the pre-namespace spelling is the only thing left to find it by.
+    revisits, and the bootstrap never renames a bare label off one, so the
+    pre-namespace spelling is the only thing left to find it by.
     """
 
     def test_yielded_under_either_spelling(self) -> None:

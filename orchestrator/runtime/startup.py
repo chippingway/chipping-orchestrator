@@ -67,12 +67,12 @@ def connect_clients() -> RepoClients:
 def connect_read_only_clients() -> RepoClients:
     """Connect once per configured repository without writing to any of them.
 
-    The label bootstrap is the one write a connect makes -- it creates or
-    renames the workflow labels the tick loop is about to use -- and a run that
-    will not tick has no business making it. A maintenance-only launch is asked
-    about issue endings and pull requests and nothing else, so the repository
-    it is pointed at comes back exactly as it was even where the labels are
-    missing entirely.
+    The label bootstrap is the one write a connect makes -- it creates the
+    workflow labels the tick loop is about to use where they are missing --
+    and a run that will not tick has no business making it. A maintenance-only
+    launch is asked about issue endings and pull requests and nothing else, so
+    the repository it is pointed at comes back exactly as it was even where the
+    labels are missing entirely.
     """
     return _connected(ensure_labels=False)
 

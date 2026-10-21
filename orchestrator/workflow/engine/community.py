@@ -15,9 +15,8 @@ The label is the sweep's own dedup marker rather than an operator control,
 which is why the ping is posted BEFORE it. A label write that fails repeats a
 ping on the next tick; a label written ahead of a comment that fails would
 suppress the ping forever and no human would ever be called. Both spellings are
-read for the same reason -- a PR labeled on a repository the bootstrap rename
-could not reach has already had its one ping, and re-labeling it would repeat
-that ping.
+read for the same reason -- a PR labeled before the namespace has already had
+its one ping, and re-labeling it would repeat that ping.
 
 Nothing here may raise. The enumeration and each per-PR step are caught
 separately, so a PyGithub lazy-load failure on one PR costs that PR's ping
@@ -48,8 +47,8 @@ class _CommunityContribution:
 def _has_contribution_label(gh: GitHubClient, pr) -> bool:
     """Whether the sweep already marked this PR, under either spelling.
 
-    A PR labeled before the namespace -- on a repository whose label the
-    bootstrap rename could not reach -- has already had its one HITL ping.
+    A PR labeled before the namespace, which the bootstrap leaves carrying the
+    bare spelling, has already had its one HITL ping.
     """
     return any(
         gh.pr_has_label(pr, label_name)

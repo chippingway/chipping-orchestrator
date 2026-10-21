@@ -503,10 +503,10 @@ orchestrator/
                         property only of a row whose slot is missing or in a shape it does not recognize -- plus
                         the pairing of every swept label with
                         its pre-namespace spelling and with whether a miss on that spelling is the expected
-                        answer, since a closed issue is the one case no other pass revisits and a repository the
-                        rename did not reach has nothing else left to find it by. Sits directly above `issues`
-                        in the client's mixin chain, which is the owner it reads its label sets and its
-                        issue-state spellings from
+                        answer, since a closed issue is the one case no other pass revisits and one still
+                        carrying a bare label, which the bootstrap never renames, has nothing else left to find
+                        it by. Sits directly above `issues` in the client's mixin chain, which is the owner it
+                        reads its label sets and its issue-state spellings from
     issues.py           issue writes, the query options, the wire issue-state vocabulary, the closed predicate
                         every reader of it asks through, the every-state, no-label walk that finds the first
                         issue carrying a marker -- the reading a receipt lookup needs and the only one that
@@ -523,9 +523,10 @@ orchestrator/
                         comment is authenticated under, so a name a collaborator applied by hand is not a
                         write of this orchestrator's; control labels are excluded, and no account, no
                         evidence, and an unreadable walk all answer alike
-    labels.py           label vocabulary, bootstrap specs, in-place legacy-label renames, and cached reads; confirmed
-                        absences expire after a bounded number of closed sweeps, request failures stay retryable,
-                        and each sweep reports only the absent legacy spellings it observed
+    labels.py           label vocabulary, bootstrap specs, the bootstrap that creates the canonical labels a
+                        repository lacks without looking up, editing, or deleting any other definition, and cached
+                        reads; confirmed absences expire after a bounded number of closed sweeps, request failures
+                        stay retryable, and each sweep reports only the absent legacy spellings it observed
     pinned_state.py     the pinned durable-state model, the comment body it is written as -- with the wrapper's own
                         terminator escaped in the SERIALIZED payload and never in the value, since a recorded
                         explanation or a preserved pull-request body carrying `-->` would close that comment early

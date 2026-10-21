@@ -125,9 +125,9 @@ class ClosedIssueSweepLabelTest(unittest.TestCase):
 class LegacyClosedSweepTest(unittest.TestCase):
     """The sweep asks for the pre-namespace spelling too, on a throttle.
 
-    A closed issue is the one case no other pass revisits, so on a repository
-    whose labels the bootstrap could not rename the bare spelling is all that
-    is left to find it by. Every such query costs a request, though, and on a
+    A closed issue is the one case no other pass revisits, and the bootstrap
+    never renames a bare label off one, so the bare spelling is all that is
+    left to find it by. Every such query costs a request, though, and on a
     migrated repository the answer is a certain miss -- so consecutive sweeps
     inside the retry window reuse it instead of re-asking. The window's own
     expiry is `CachedLabelTest`'s.

@@ -80,8 +80,8 @@ class LabelNamespaceTest(unittest.TestCase):
         self.assertIsNone(stage_name(None))
 
     def test_legacy_name_is_the_tag_only_when_renamed(self) -> None:
-        # The bare spelling a repository may still carry, which is what the
-        # bootstrap renames and what a labeled PR is recognized under.
+        # The bare spelling a repository may still carry, which is what a
+        # labeled PR is recognized under.
         self.assertEqual(legacy_label_name(WorkflowLabel.FIXING), "fixing")
         self.assertEqual(
             legacy_label_name(ControlLabel.COMMUNITY_CONTRIBUTION),
@@ -94,10 +94,10 @@ class LabelNamespaceTest(unittest.TestCase):
 class LegacyLabelCompatibilityTest(unittest.TestCase):
     """A pre-namespace label still resolves, and a write replaces it.
 
-    A repository whose labels the bootstrap could not rename keeps issues
-    carrying the bare spelling; reading it as its member is what keeps those
-    issues routing, and dropping it on the next write is what stops the two
-    spellings from coexisting on one issue.
+    A repository whose labels predate the namespace keeps issues carrying the
+    bare spelling; reading it as its member is what keeps those issues
+    routing, and dropping it on the next write is what stops the two spellings
+    from coexisting on one issue.
     """
 
     def test_both_spellings_resolve_to_one_member(self) -> None:
