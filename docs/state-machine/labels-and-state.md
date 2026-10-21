@@ -79,7 +79,7 @@ Three non-workflow **control labels** modify behavior without occupying the work
   skipped via GitHub's `user.type == "Bot"` flag — they open PRs structurally and are not community contributions. The
   orchestrator does not otherwise drive these PRs. The label is the sweep's own dedup marker rather than an operator
   control, which is why it is namespaced where `backlog` / `paused` are not, and why the sweep asks for both its
-  spellings: a PR the bootstrap rename could not reach is already labeled, and re-labeling it would repeat the ping.
+  spellings: a PR marked before the namespace is already labeled, and re-labeling it would repeat the ping.
 
 ### Typed states and the transition guard
 
@@ -208,34 +208,35 @@ stays inert. The pinned state those transitions move an issue through is [below]
 
 ### Legacy labels and the migration off them
 
-A repository whose labels predate the namespace carries the bare spellings on live issues, so moving it over is one
-write plus the reads that cover what that write could not reach.
+A repository whose labels predate the namespace carries the bare spellings on live issues. Nothing moves them over
+wholesale: the label bootstrap only creates what is missing, and an issue comes off its bare label one relabel at a
+time, kept reachable until then by the reads below.
 
-The write is the label bootstrap, which `runtime.startup.connect_clients` runs once per configured repo at process
-start — so such a repository is migrated at the next start, not mid-tick. `ensure_workflow_labels` walks both
-vocabularies and provisions each label the repository is missing. Only a namespaced label has a pre-namespace
-spelling to migrate off, so only those reach all three answers:
+`runtime.startup.connect_clients` runs the bootstrap once per configured repo at process start, not mid-tick.
+`ensure_workflow_labels` lists the repository's labels once and creates each label of both vocabularies whose exact
+canonical name is not among them. A pre-namespace spelling is never looked up, so for a namespaced label there are
+three answers and only one write:
 
 - **The namespaced label already exists** → nothing happens, and a bare label still defined on the repository beside
-  it stays defined. The bootstrap neither renames nor deletes it: at the repository level a leftover of its own and a
-  name the repository picked for itself are the same thing. Issues still carrying that bare label come off it one
-  relabel at a time under the rules below, not on a second bootstrap pass.
-- **Only the pre-namespace spelling exists** → it is renamed in place rather than duplicated, which carries every
-  issue holding it across in a single edit — including the closed ones and the `backlog` / `paused` parked ones no
-  label write of the orchestrator's would otherwise reach.
+  it stays defined.
+- **Only the pre-namespace spelling exists** → the namespaced label is created beside it. The bare definition is
+  neither renamed nor deleted, so every issue holding it keeps it — the closed ones and the `backlog` / `paused`
+  parked ones included.
 - **Neither exists** → the namespaced label is created fresh.
 
+Every other definition is left the same way. At the repository level a leftover pre-namespace spelling and a name the
+repository picked for itself are the same thing, so the bootstrap edits, deletes, and reassigns neither, and issues
+still carrying a bare label come off it one relabel at a time under the rules below, not on a second bootstrap pass.
 The seven labels that were never namespaced — `in_review`, `question`, `discussion`, `done`, `rejected`, and the
-`backlog` / `paused` controls — have no second spelling to migrate off, so the bootstrap only ever skips one that
-already exists or creates it bare. Which vocabulary a spec came from decides nothing here: the rename is driven by the
-label's own spelling, which is why it covers `workflow:community_contribution` alongside the states.
+`backlog` / `paused` controls — are canonical under their bare spelling, so the bootstrap skips one that already
+exists or creates it bare, never under the namespace.
 
-A PAT without `Issues: Read and write` can neither rename nor create: the refusal is logged and the rest of the
-bootstrap is abandoned, leaving that repository on its old vocabulary until the permission is granted and the process
-restarts. That, the skip case above, and a human re-adding a retired label by hand are what the reads below exist
-for.
+A PAT without `Issues: Read and write` cannot create. A refused listing skips the bootstrap; a refused creation is
+logged and the rest of the bootstrap is abandoned, leaving the repository without the labels it was missing until the
+permission is granted and the process restarts. The orchestrator keeps polling either way. Issues still carrying a
+bare label, and a human re-adding one by hand, are what the reads below exist for.
 
-Three reads take either spelling, so none of them depends on the rename having run:
+Three reads take either spelling, which is what keeps an issue carrying only a bare label reachable:
 
 - **Routing.** `github.labels.workflow_label` reads an issue's labels through `issue_workflow_label`, which resolves a
   bare tag back to its `WorkflowLabel`, so an issue still carrying the old label reaches its handler and the next
@@ -740,12 +741,12 @@ counted ends the sync the same way, except over a pinned anchor, where the check
 eight recovery sweep labels — `workflow:implementing`, `workflow:documenting`, `workflow:validating`, `in_review`,
 `workflow:fixing`, `workflow:resolving_conflict`, `question`, `discussion` — or one of the four cleanup ones,
 `workflow:decomposing`, `workflow:umbrella`, `workflow:ready`, and `workflow:blocked`. Each of the seven that HAS a
-pre-namespace spelling is queried under
-that too, because a closed issue is the one case no other pass revisits: on a repository whose labels the
-bootstrap could not rename (see
-[Legacy labels and the migration off them](#legacy-labels-and-the-migration-off-them)), the bare label is
-all that is left to find it by. Both queries feed one seen-number set, so an issue carrying both spellings is yielded
-once. The closed-issue sweep makes external manual merges and operator closes finalize cleanly:
+pre-namespace spelling is queried under that too, because a closed issue is the one case no other pass revisits: the
+bootstrap never renames a bare label off the issues carrying it (see
+[Legacy labels and the migration off them](#legacy-labels-and-the-migration-off-them)), so for a closed issue
+labeled before the namespace the bare label is all that is left to find it by. Both queries feed one seen-number set,
+so an issue carrying both spellings is yielded once. The closed-issue sweep makes external manual merges and operator
+closes finalize cleanly:
 - Closed `in_review` / `workflow:fixing` / `workflow:resolving_conflict` — a human-merged PR with a `Resolves #N`
   footer auto-closes the issue before the orchestrator can flip the label.
 - Closed `workflow:implementing` / `workflow:documenting` / `workflow:validating` — the same external-merge race when
@@ -807,7 +808,7 @@ The closed-issue sweep issues one closed-issue query per sweep label the reposit
 tick — a fixed request cost that drives GitHub primary-rate-limit exhaustion on multi-repo hosts. The four cleanup
 labels ride that same walk rather than a second pass of their own, so what they add is four label lookups and four
 closed-issue queries on the ticks the sweep already runs, and nothing at all in between. A pre-namespace
-spelling the rename already retired costs only its `GET …/labels/<name>` miss, and even that is thrown away for
+spelling the repository does not define costs only its `GET …/labels/<name>` miss, and even that is thrown away for
 twenty sweeps before being asked again rather than re-requested every pass. The spellings one sweep confirms absent
 are reported together, in a single repo-qualified INFO line naming them, so a migrated multi-repo host does not open
 with a burst of near-identical lines that reads like broken configuration; a sweep whose legacy lookups all came from

@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """GitHub label vocabulary, bootstrap, and cached repository label reads.
 
-Bootstrap renames legacy labels so existing issues move with the vocabulary.
-The cache bounds repeated reads; confirmed-absent legacy spellings are
-retried after a bounded number of closed sweeps, while failed requests stay
-retryable. Each sweep reports only the absences that it observed itself.
+Bootstrap creates the canonical labels a repository lacks and leaves every
+other definition, with the issues carrying it, as it found it. The cache
+bounds repeated reads; confirmed-absent legacy spellings are retried after a
+bounded number of closed sweeps, while failed requests stay retryable. Each
+sweep reports only the absences that it observed itself.
 """
 from __future__ import annotations
 
@@ -60,9 +61,9 @@ BACKLOG_LABEL = ControlLabel.BACKLOG
 PAUSED_LABEL = ControlLabel.PAUSED
 COMMUNITY_CONTRIBUTION_LABEL = ControlLabel.COMMUNITY_CONTRIBUTION
 # Every spelling the sweep's own label can be found under. The label is the
-# sweep's dedup marker, so a PR still carrying the bare one -- on a repository
-# the bootstrap rename could not reach -- has to read as already marked, or the
-# HITL ping fires a second time on a PR a human was already asked to review.
+# sweep's dedup marker, so a PR still carrying the bare one -- marked before
+# the namespace -- has to read as already marked, or the HITL ping fires a
+# second time on a PR a human was already asked to review.
 COMMUNITY_CONTRIBUTION_LABEL_NAMES: tuple[str, ...] = tuple(
     label_name
     for label_name in (
@@ -145,26 +146,29 @@ class GitHubLabelMixin:
     """Repository label provisioning, cached reads, and bounded absence retries."""
 
     def ensure_workflow_labels(self) -> None:
-        """Best-effort provisioning of missing workflow and control labels."""
-        existing_labels = self._existing_labels()
-        if existing_labels is None:
+        """Best-effort creation of the canonical labels the repository lacks.
+
+        Only the exact canonical name counts as present, the bare-spelled
+        canonical labels included. Any other definition -- a pre-namespace
+        spelling or a label of the repository's own -- is never looked up,
+        edited, or deleted, so the issues carrying it keep it.
+        """
+        existing_names = self._existing_label_names()
+        if existing_names is None:
             return
         label_specs = WORKFLOW_LABEL_SPECS + CONTROL_LABEL_SPECS
         for name, color, description in label_specs:
-            if name in existing_labels:
+            if name in existing_names:
                 continue
-            if not self._provision_label(
-                existing_labels, name, color, description,
-            ):
+            if not self._provision_label(name, color, description):
                 return
 
-    def _existing_labels(self) -> dict[str, Label] | None:
-        """Return the repository's labels by name, or None if unreadable."""
+    def _existing_label_names(self) -> frozenset[str] | None:
+        """Return the repository's label names, or None if unreadable."""
         try:
-            return {
-                repo_label.name: repo_label
-                for repo_label in self.repo.get_labels()
-            }
+            return frozenset(
+                repo_label.name for repo_label in self.repo.get_labels()
+            )
         except GithubException as error:
             log.warning(
                 "could not list labels (HTTP %s); skipping label bootstrap. "
@@ -173,34 +177,16 @@ class GitHubLabelMixin:
             )
             return None
 
-    def _provision_label(
-        self,
-        existing_labels: dict[str, Label],
-        name: str,
-        color: str,
-        description: str,
-    ) -> bool:
-        """Rename the pre-namespace label into place, or create a fresh one.
+    def _provision_label(self, name: str, color: str, description: str) -> bool:
+        """Create one missing canonical label.
 
-        Renaming carries every issue already holding the old label across in
-        one edit, which is the only migration path for an issue no polling
-        pass revisits -- a closed one mid-sweep, or one parked under
-        `backlog`. Returns False once a refusal has been logged, so the caller
-        stops rather than retrying the same denied permission per spec.
+        Returns False once a refusal has been logged, so the caller stops
+        rather than retrying the same denied permission per spec.
         """
-        legacy_name = legacy_label_name(name)
-        legacy_label = (
-            None if legacy_name is None else existing_labels.get(legacy_name)
-        )
         try:
-            if legacy_label is None:
-                self.repo.create_label(
-                    name=name, color=color, description=description,
-                )
-            else:
-                legacy_label.edit(
-                    name=name, color=color, description=description,
-                )
+            self.repo.create_label(
+                name=name, color=color, description=description,
+            )
         except GithubException as error:
             log.error(
                 "could not provision label %r (HTTP %s). "
@@ -211,12 +197,8 @@ class GitHubLabelMixin:
                 error.status,
             )
             return False
-        if legacy_label is None:
-            log.info("created label %r", name)
-        else:
-            log.info("renamed label %r to %r", legacy_name, name)
+        log.info("created label %r", name)
         return True
-
 
     def _cached_label(
         self,
@@ -295,8 +277,8 @@ class GitHubLabelMixin:
         about: on a migrated host the alternative is a burst of near-identical
         lines naming no repository -- once per legacy spelling per repo on
         every fresh process, and again whenever the retry window expires --
-        that reads like broken configuration while saying only that the rename
-        landed.
+        that reads like broken configuration while saying only that the
+        repository does not define them.
 
         The names come from the sweep that collected them, so a sweep that
         raises partway through takes its own with it. Held on the client

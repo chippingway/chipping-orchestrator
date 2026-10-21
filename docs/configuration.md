@@ -804,7 +804,7 @@ Two built-in mitigations reduce the floor without touching `POLL_INTERVAL`:
   under both its `workflow:`-namespaced name and its pre-namespace one, so an issue still carrying the old label is
   not stranded (see [`state-machine/labels-and-state.md`][pollable-issues]). A lookup that comes back
   404 cannot be cached as a Label object, so it is instead thrown away for 20 sweeps before being asked again — on a
-  repository the bootstrap rename already reached, the seven legacy spellings therefore cost seven
+  repository that defines none of them, the seven legacy spellings therefore cost seven
   `GET …/labels/<name>`
   requests every twentieth sweep and nothing in between. A 403 is never treated this way: rate-limit exhaustion is not
   an answer about whether the label exists, so it is retried on the next sweep.

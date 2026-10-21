@@ -86,9 +86,9 @@ class SweepCommunityContributionPRsTest(unittest.TestCase):
         self.assertEqual(gh.posted_pr_comments, [])
 
     def test_labeled_prs_are_not_pinged_again(self) -> None:
-        # Either spelling is the dedup marker: a PR labeled on a repository
-        # whose label the bootstrap rename could not reach has already had its
-        # one HITL ping, so it earns neither a second label nor a second ping.
+        # Either spelling is the dedup marker: a PR labeled before the
+        # namespace has already had its one HITL ping, so it earns neither a
+        # second label nor a second ping.
         for label_name in COMMUNITY_CONTRIBUTION_LABEL_NAMES:
             with self.subTest(label=label_name):
                 gh = FakeGitHubClient()

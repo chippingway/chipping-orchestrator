@@ -25,7 +25,7 @@ _SWEEP_CADENCE_ATTR = "CLOSED_ISSUE_SWEEP_EVERY_N_TICKS"
 
 # Every pre-namespace spelling the sweep asks for beside a namespaced one,
 # recovery states and cleanup states alike -- all of them answer 404 on a
-# repository the rename reached.
+# repository that defines none of them.
 _LEGACY_NAMES = tuple(
     name
     for name, absence_is_expected in SWEEP_LOOKUPS
@@ -69,8 +69,8 @@ def _sweep(client: GitHubClient) -> list:
 class AbsentLegacyLabelSummaryTest(unittest.TestCase):
     """Confirmed-absent legacy spellings are summarized, once per sweep.
 
-    A repository the rename reached answers 404 for every pre-namespace
-    spelling, so reporting them one at a time opens each fresh process with a
+    A repository that defines no pre-namespace spelling answers 404 for every
+    one, so reporting them one at a time opens each fresh process with a
     burst of near-identical lines -- one per spelling per repo, naming neither
     the repository nor what the names are -- and repeats it whenever the retry
     window expires. One line per repository says the same thing.

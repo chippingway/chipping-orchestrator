@@ -43,8 +43,9 @@ def _sweep_lookups(
     """Pair every swept label spelling with whether a miss on it is expected.
 
     The pre-namespace spelling is queried beside the namespaced one because a
-    closed issue is the one case no other pass revisits: if the bootstrap could
-    not rename the label, nothing else would ever surface that issue again.
+    closed issue is the one case no other pass revisits: the bootstrap never
+    renames a bare label off an issue, so nothing else would ever surface one
+    still carrying it.
     Both queries feed one ``seen_numbers`` set, so an issue a repository
     carries under both spellings is still yielded once.
 
