@@ -55,6 +55,9 @@ publishes a docs commit retires it too, in the write that hands the pull
 request back to `validating` (`stages/documenting/handback.py`): the docs
 commit is content the evidence never ran on, and the entry it leaves keeps the
 squash's carry that still proves a report of the approved commit's lineage.
+One that changed nothing retires it through the carry owner's own invalidation
+where the evidence no longer proves current behind the pass
+(`stages/documenting/retention.py`), ahead of handing the issue back.
 """
 from __future__ import annotations
 

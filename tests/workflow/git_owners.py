@@ -29,6 +29,7 @@ from orchestrator.git.publication import (
 )
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.git.verification import (
+    objects as _verification_objects,
     probes as _verification_probes,
     runner as _verify_runner,
     status as _worktree_status,
@@ -59,6 +60,7 @@ GIT_SEAM_OWNERS = MappingProxyType({
     "_commit_contains": _verification_probes,
     "_commit_message": _publication_commits,
     "_commit_present": _verification_probes,
+    "_object_kind": _verification_objects,
     "_committed_paths_since": _verification_probes,
     "_count_added_lines": _measurement,
     "_decompose_worktree_path": _worktree_decomposition,

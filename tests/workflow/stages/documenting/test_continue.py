@@ -369,6 +369,7 @@ class DocumentingQuotaContinueTest(unittest.TestCase, _ContinueAssertions):
         # the launch landed stands, so it parks for a continue, which reruns
         # the pass in a fresh conversation once the retirement lands ahead of
         # its plan.
+        self.enterContext(documenting_support.evidence_proved())
         gh, issue, run_agent = self._stopped(self._retirement_refused, head_shas=(SHA_BEFORE,))
 
         waited = self._tick(gh, issue, run_agent, head_shas=(SHA_BEFORE,), ahead=0)

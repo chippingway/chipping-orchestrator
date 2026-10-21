@@ -35,16 +35,19 @@ FILLER = "operator_note"
 class _FailsTheCompletion:
     """The completion's edit, left unanswered the way `how` names; every other edit answered as always.
 
-    The failure is set for that one edit alone, so it is gone again by the
-    time the tick that follows reads the comment.
+    The completion is the edit `carrying` recognizes: a stamped verdict unless
+    a case names another write a pass ends in. The failure is set for that one
+    edit alone, so it is gone again by the time the tick that follows reads
+    the comment.
     """
 
-    def __init__(self, github, how: str) -> None:
+    def __init__(self, github, how: str, carrying=gate._a_finished_pass) -> None:
         self._edit = github.edit_pinned_state
         self._failures = getattr(github.pinned_failures, how)
+        self._carrying = carrying
 
     def __call__(self, issue, state, **options):
-        if not gate._a_finished_pass(state):
+        if not self._carrying(state):
             return self._edit(issue, state, **options)
         self._failures.add(issue.number)
         edited = self._edit(issue, state, **options)

@@ -14,14 +14,19 @@ beside it for the git half, which fails closed on every step because a docs
 commit left on disk against the old body is what the next tick's
 recovered-commit shortcut would push unreviewed.
 
-What the pass itself is worth is three more. `run` refreshes the branch,
+What the pass itself is worth is four more. `run` refreshes the branch,
 refuses a diverged worktree, and picks between the awaiting-human resume, the
 recovered-commit shortcut, and a fresh docs spawn. `outcomes` reads what the
 run left behind -- timeout, dirty tree, a run its backend recorded as failed,
 new commit, or a bare `DOCS: NO_CHANGE` -- and `publication` turns the
 surviving two into a push and the verdict and notice a completion carries,
 entered on the commit `subject`
-hands it once that commit's subject names the pull request. `handoff` is separate from both
+hands it once that commit's subject names the pull request. A bare
+`DOCS: NO_CHANGE` with nothing to publish leaves the pull request on the head
+the approval moved here, and `retention` proves the verification evidence that
+approval rests on still answers for it before the completion is handed the
+verdict -- invalidating it and handing the issue back to `validating` where it
+does not, and holding where nobody could say. `handoff` is separate from all of them
 because it protects a stage this one does not run: it lands that completion --
 the stamped `docs_verdict`, the receipt it consumes, and the
 `pr_last_comment_id` ratchet that carries in_review's watermark past the span

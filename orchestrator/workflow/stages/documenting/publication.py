@@ -13,6 +13,10 @@ of advancing, because a stamp over a commit that never reached the remote
 would tell the next tick the docs are published when the reviewer would never
 see them in the diff. That is also why a `DOCS: NO_CHANGE` verdict over a
 recovered commit still routes through the push path rather than the clean one.
+The clean one publishes nothing, so the head stays the one the approval moved
+here, and the evidence that approval rests on is proved to still answer for it
+before the completion is handed the verdict (`retention`); the completion it is
+handed then is decided on every record that proof read as well.
 
 `docs_checked_sha` records the head the verdict was formed against and the
 silent-park counter is reset alongside it, so a park streak that predates a
@@ -54,6 +58,7 @@ from orchestrator.workflow.stages.documenting import (
     handoff as _handoff,
     models as _models,
     parks as _parks,
+    retention as _retention,
     state as _state,
     subject as _subject,
 )
@@ -329,9 +334,19 @@ def _route_documenting_no_change(
     nothing to must still reach the remote before advancing -- otherwise
     the reviewer agent at validating would never see the docs in the diff
     -- so push it via the updated path, which hands it back to `validating`
-    like any published docs commit. Otherwise hand the clean no-change
-    verdict against the evaluated head to the completion, which lands it and
-    advances. Writes pinned state; the caller returns unconditionally.
+    like any published docs commit. That is a publication, so the evidence
+    shortcut below is never its to take.
+
+    Otherwise the head is the one the approval moved here, and the
+    verification evidence that approval rests on is proved to still answer
+    for it first (`retention._retains`), behind the completion's watermark
+    walk, which it takes, so no request of the pull request comes between
+    that proof and the writes it licenses: proved, the clean no-change verdict against the
+    evaluated head goes to the completion, which lands it -- decided as well
+    on every record that proof read -- and advances. A proof
+    that refused -- missing evidence included -- withholds the handoff,
+    invalidates the evidence, and hands the issue back to `validating`; one
+    nobody could take holds it. Writes pinned state; the caller returns unconditionally.
     """
     if run.ahead > 0:
         _push_docs_and_advance(
@@ -341,18 +356,20 @@ def _route_documenting_no_change(
             entered_head=run.entered_head,
         )
         return
+    if not _retention._retains(ctx, after_sha):
+        return
     # Persist the SHA the dev evaluated even on a "nothing changed" outcome.
     # The fresh-spawn and awaiting-human resume shapes both write
     # `docs_checked_sha = before_sha` BEFORE the spawn (so a no-change outcome
     # there leaves it correct); setting it here too makes the post-condition
     # explicit and covers any future entry path that bypasses them.
     # `after_sha == before_sha` in this branch by construction (no commit).
-    _handoff._hand_off_to_in_review(ctx, after_sha, "no_change", _NO_CHANGE_NOTICE.format(
+    _handoff._hand_off_to_in_review(ctx, after_sha, _NO_CHANGE_NOTICE.format(
         # Quoted where the agent supplied a justification, so the PR carries
         # the reasoning rather than only the verdict.
         justification=_messages._as_blockquote(body.strip()) if body.strip()
         else "",
-    ).rstrip())
+    ).rstrip(), _retention.UNCHANGED)
 
 
 def _documenting_commit_notice(recovered: bool) -> str:

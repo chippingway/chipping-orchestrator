@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """One validating issue whose reviewer returned, and the preparation its verdict is handed to.
 
-The world is the one a reviewer round normally meets: an open pull request on
-the default head, the report its delivery published settled on the pinned
-comment, a checkout this host holds, and a fake repository reading every
-commit as one tree, under a configuration that requires the suite. In it the
-proof that settles a reviewer's declared commands passes, so a case that
-refuses one is visibly about the one thing it moved.
+The world is the one a reviewer round normally meets, shared with the stages
+past this one (`tests/workflow/review_world.py`): an open pull request on the
+default head, the report its delivery published settled on the pinned comment,
+a checkout this host holds, and a fake repository reading every commit as one
+tree, under a configuration that requires the suite. In it the proof that
+settles a reviewer's declared commands passes, so a case that refuses one is
+visibly about the one thing it moved.
 
 A case hands the preparation a returned run directly, built the way the live
 round (`reviewer`) hands its own over, so one request of the preparation can be
@@ -34,7 +35,6 @@ from __future__ import annotations
 from dataclasses import replace
 from unittest.mock import patch
 
-from orchestrator import config
 from orchestrator.observability.usage.metrics import UsageMetrics
 from orchestrator.workflow.engine import (
     completion_verdicts as _completion_verdicts,
@@ -50,26 +50,26 @@ from orchestrator.workflow.stages.validating import (
     review_report as _review_report,
     review_verdicts as _verdicts,
 )
-from tests.support.fakes import DEFAULT_PR_HEAD_SHA, FakeGitHubClient, make_issue
-from tests.workflow.fixtures import LABEL_VALIDATING, _agent, _PatchedWorkflowMixin, publishes_the_report
-from tests.workflow.git_owners import GIT_SEAM_OWNERS, seam_patch
+from tests.workflow import review_world as _review_world
+from tests.workflow.fixtures import _agent
+from tests.workflow.git_owners import GIT_SEAM_OWNERS
 from tests.workflow.repo_values import _FAKE_WT, _TEST_SPEC
-from tests.workflow.value_helpers import _issue_branch, _open_pr_for
 
-ISSUE = 1_999
+# The issue, its pull request and head, and the sessions and run seam of the
+# review world this one builds on (`review_world`).
+ISSUE = _review_world.ISSUE
 
-PR = 19_990
+PR = _review_world.PR
 
-HEAD = DEFAULT_PR_HEAD_SHA
+HEAD = _review_world.HEAD
 
-# A commit a push moves the pull request onto, which nobody reviewed.
-OTHER_HEAD = "0123456789abcdef0123456789abcdef01234567"
+OTHER_HEAD = _review_world.OTHER_HEAD
 
-DEV_SESSION = "dev-sess"
+DEV_SESSION = _review_world.DEV_SESSION
 
-REVIEWER_SESSION = "rev-sess"
+REVIEWER_SESSION = _review_world.REVIEWER_SESSION
 
-RUN_AGENT = "run_agent"
+RUN_AGENT = _review_world.RUN_AGENT
 
 # The pinned records a case reads back, spelled as the comment spells them.
 RETURNED_VERDICT = "review_returned_verdict"
@@ -78,15 +78,15 @@ PENDING_EVIDENCE = "verification_evidence_pending"
 
 AGENT_RUNS_USED = "agent_runs_used"
 
-# The tokens the reviewer's usage reports, folded once.
-REVIEWER_TOKENS = 120
+# The reviewer's folded tokens, the suite the configuration requires, what the
+# reviewer's run printed, and the change it requests.
+REVIEWER_TOKENS = _review_world.REVIEWER_TOKENS
 
-# The suite the configuration requires, and what the reviewer's run printed.
-SUITE = "uv run pytest tests"
+SUITE = _review_world.SUITE
 
-SUITE_OUTPUT = "12 passed"
+SUITE_OUTPUT = _review_world.SUITE_OUTPUT
 
-REQUESTED = "1. The suite fails on the empty configuration; handle it."
+REQUESTED = _review_world.REQUESTED
 
 # What a failing run of the suite printed, and the findings a human is shown of
 # a change request declaring it: the reviewer's words, then that check as the
@@ -166,25 +166,10 @@ PREVIOUS_REFUSAL_PROBES = "\n\n".join((
 NO_FINDINGS = _findings._NO_FINDINGS
 
 # The full tree every commit in the fake checkout reads as.
-TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+TREE = _review_world.TREE
 
-# A checkout this host holds, which is all the evidence proof asks of the path.
-_EXISTING_CHECKOUT = _FAKE_WT.parent
-
-
-def declared_run(
-    *, exit_status: int = 0, verdict: str = "APPROVED", command: str = SUITE, output: str = SUITE_OUTPUT,
-) -> str:
-    """A reviewer's final message declaring one run of `command` on the head."""
-    return (
-        f"{REQUESTED}\n\n"
-        f"VERIFICATION: RUN {HEAD}\n"
-        f"COMMAND: {command}\n"
-        f"EXIT: {exit_status}\n"
-        f"{output}\n"
-        "VERIFICATION: END\n\n"
-        f"VERDICT: {verdict}"
-    )
+# A reviewer's final message declaring one run of a command on the head.
+declared_run = _review_world.declared_run
 
 
 # A change request whose run of the suite failed, printing `FAILURE_OUTPUT`.
@@ -201,14 +186,11 @@ DECLARED_ALONE = PASSED_REQUEST.removeprefix(f"{REQUESTED}\n\n")
 REQUEST_REUSING = f"{REQUESTED}\n\nVERIFICATION: REUSED sha256:{{digest}}\n\nVERDICT: CHANGES_REQUESTED"
 
 
-def pushes(case) -> None:
-    """Another road's push, standing `case`'s pull request on a head nobody reviewed."""
-    case.pull_request.head.sha = OTHER_HEAD
+# Another road's push past the reviewed head, and the pull request's thread
+# going unanswered.
+pushes = _review_world.pushes
 
-
-def stops_answering(case) -> None:
-    """`case`'s pull-request thread stops answering, which proves nothing about what it carries."""
-    case.github.report_failures.unreadable.add(PR)
+stops_answering = _review_world.stops_answering
 
 
 def returned_run(case, state, message: str) -> _models._ReviewerRun:
@@ -275,24 +257,11 @@ class AnotherRoadBehind:
         return patch.object(self._owner, self._name, self)
 
 
-class ReviewVerdictWorld(_PatchedWorkflowMixin):
+class ReviewVerdictWorld(_review_world.ReviewWorld):
     """An issue on `workflow:validating` whose reviewer is about to return."""
 
-    # The report is published here, once, so a case's own writes stay its own.
-    delivers_a_report = False
-
     def setUp(self) -> None:
-        self.enterContext(seam_patch("_worktree_path", lambda *_args: _EXISTING_CHECKOUT))
-        self.enterContext(seam_patch("_tree_sha", lambda *_args: TREE))
-        self.enterContext(patch.object(config, "VERIFY_COMMANDS", (SUITE,)))
-        self.github = FakeGitHubClient()
-        self.issue = make_issue(ISSUE, label=LABEL_VALIDATING)
-        self.github.add_issue(self.issue)
-        self.github.seed_state(
-            ISSUE, pr_number=PR, branch=_issue_branch(ISSUE), codex_session_id=DEV_SESSION, review_round=0,
-        )
-        self.pull_request = _open_pr_for(self.github, issue_number=ISSUE, pr_number=PR)
-        publishes_the_report(self.github, self.issue)
+        super().setUp()
         # The decision the last returned run was handed over as, what its
         # preparation answered, and what the last later tick answered of the
         # verdict it found waiting -- None where none waited.
@@ -319,10 +288,6 @@ class ReviewVerdictWorld(_PatchedWorkflowMixin):
         self.decision = None
         self.ready = None
         return self._run(lambda: self._finishes(meanwhile), run_agent=[])
-
-    def pinned(self) -> dict:
-        """The pinned comment as the next tick reads it."""
-        return self.github.pinned_data(ISSUE)
 
     def handed(self, state, delivered=None):
         """The subject a reviewer round is handed now, recorded on `state` as its launch records it."""

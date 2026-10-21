@@ -863,8 +863,9 @@ place, or as a new comment where none is named or the named one is gone. A **gua
 reconciliation's retirements, `validating`'s invalidation of an unanswered carry, the developer report's writes, a
 reviewer round's launch, return, verdict, and park writes, a change request's handoff and its recovery's writes, and
 every write of an approval's tail commit through, and which the finish of a base rewrite the base refresh published
-itself, every auto-rebase park and a recovery's clear and record of a gate's hold, a final-docs pass's completion,
-and the retirement of a failed developer conversation land through) is never written from its caller's state.
+itself, every auto-rebase park and a recovery's clear and record of a gate's hold, a final-docs pass's completion
+and the evidence invalidation or hold that withholds a no-change one, and the retirement of a failed developer
+conversation land through) is never written from its caller's state.
 It is captured from the reading the caller decided on —
 the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent
 one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
@@ -3022,7 +3023,10 @@ The keys that matter for the state machine fall into a few groups:
   head the pass began on. That write is a checkpoint: the tick-state guarded commit over the reading the tick last
   confirmed (`stages/documenting/handoff.py`), decided on these fields, the publication and its push debt, and the
   records the approval was read over, so a refused preparation announces nothing and a write refused or never confirmed
-  relabels nothing, leaving the comment for the next tick to read. `docs_settled_sha` is the head a docs pass produced,
+  relabels nothing, leaving the comment for the next tick to read. A `no_change` verdict with nothing published is
+  stamped only over verification evidence proved to still answer for the head (`stages/documenting/retention.py`),
+  and its write is decided as well on every record that proof read; evidence that no longer answers stamps none.
+  `docs_settled_sha` is the head a docs pass produced,
   written inside the size gate's own routed write ahead of that gate's relabel to `workflow:decomposing`: the pass is
   finished and only its hand-back to `workflow:validating` is still owed, so the tick a settled verdict hands the label
   back to finishes from the receipt rather than reading a branch in sync with its remote as an issue no docs pass has

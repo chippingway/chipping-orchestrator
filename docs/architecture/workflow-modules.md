@@ -625,7 +625,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             commit so far, with the finish of a base rewrite the tick published itself
                             (`rewrite_finish_writes.py`), every auto-rebase park and a recovery's clear and record
                             of a gate's hold (`git/base_sync/checkpoints.py`), and a final-docs pass's completion
-                            (`stages/documenting/handoff.py`) landing through it too, while every other
+                            (`stages/documenting/handoff.py`) and the evidence invalidation or hold that withholds a
+                            no-change one (`stages/documenting/retention.py`) landing through it too, while every other
                             road still writes its whole state: a candidate derived
                             over a fresh reading of the
                             captured comment rather than written from the caller's state. A
@@ -691,7 +692,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recovery's clear and record of a gate's hold does its checkpoint
                             (`git/base_sync/checkpoints.py`) and a final-docs pass its completion, prepared before its
                             notice and landed before its relabel (`stages/documenting/handoff.py`), the hand-back of
-                            a published docs commit included (`stages/documenting/handback.py`)
+                            a published docs commit included (`stages/documenting/handback.py`) -- a no-change one
+                            decided as well on every record its evidence proof read, beside the invalidation or hold
+                            that withholds it (`stages/documenting/retention.py`)
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL
@@ -1685,7 +1688,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             ONE composed write on a copy that keeps the comment it was read from, so writing it rewrites
                             that comment rather than posting a second, and only for the transaction the comment records
                             (the earlier current superseded into history, this one current, the handoff, the pending
-                            record dropped), and retired -- current invalidated, or the pending record the comment
+                            record dropped), and retired -- current invalidated (by the squash's carry owner, a
+                            landed base rewrite's finish, and a final-docs pass that changed nothing over evidence
+                            that no longer proves), or the pending record the comment
                             stores, named whole, abandoned -- into history without ever relabelling a run, each
                             retirement composed on a copy and refused, writing nothing, where the comment could not
                             carry it. History keeps the five highest revisions in revision order, lowest out, and its
@@ -1707,7 +1712,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     verification_world.py   the branch and object half of the evidence proof: a checkout on this host, the branch
                             held by `report_remote_evidence.py` to the target head, and the tested commit and the
                             target head each read as a commit in its own right -- never a tag peeling to one --
-                            carrying the one tree the run recorded (`tree_of`)
+                            carrying the one tree the run recorded (`tree_of`). An id git says names no object here
+                            or another kind of object, or another tree, defers; a lookup that answers neither
+                            (`git/verification/objects.py`), and a tree read that answers nothing for a commit this
+                            repository holds, hold, since each is the read failing rather than an answer
     verification_subject.py the subject half: the evidence's pull request the one this issue pins as `pr_number`; no
                             developer report still owed (`report_delivery.owes_a_report`, the validating hold's rule);
                             the bound review subject about the target head and equal to the applicable record
@@ -1739,8 +1747,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             publication (`verification_current.py` -- the latest record, its handoff, its artifact),
                             then the same proof. Its readers are the reviewer's hand-off of current evidence
                             (`stages/validating/review_evidence.py`), the approval's proof over the evidence its
-                            verdict names (`approved_evidence.py`), and the squash handoff's proof of a settled carry
-                            before the label moves over it (`squash_evidence.py`)
+                            verdict names (`approved_evidence.py`), the squash handoff's proof of a settled carry
+                            before the label moves over it (`squash_evidence.py`), and a final-docs pass that changed
+                            nothing, before it keeps the evidence (`stages/documenting/retention.py`)
     verification_current.py whether the current record is still what the pull request carries: no revision past it
                             spent (a newer transaction, its artifact posted or not, supersedes it), the handoff
                             describing it, and the comment it recorded, re-read, our artifact with every binding
@@ -3316,7 +3325,30 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             records the pass drops it, so no receipt outlives the handoff it was written for.
                             `_finishes_a_published_pass` answers an unparked receipt the code-publication receipt
                             proves published on the pinned pull request ahead of the approval check, with no
-                            checkout read, since that receipt is what the hand-back's debt is read off
+                            checkout read, since that receipt is what the hand-back's debt is read off.
+                            A clean `DOCS: NO_CHANGE` publishes nothing and asks `retention` first; one over
+                            recovered commits is a publication like any other, and never asks it
+      retention.py          whether the verification evidence the approval rests on outlives a docs pass that
+                            changed nothing: proved whole again behind the pass
+                            (`verification_proof.current_evidence_verdict`, the issue read afresh for its
+                            requirements) -- the latest revision, its handoff and artifact, the pull request and
+                            branch standing on its head, the tested and target trees, the context, the applicable
+                            review subject (the approved one for an equivalent-tree squash's carry), the settled
+                            report re-read, and the requirements -- then held to what an approval may rest on, its
+                            artifact passing and covering the configured commands
+                            (`approved_evidence._artifact_refusal`), and last of all to the check every road about
+                            to move an approval on takes (`review_coverage._approval_holds`: the requirements over
+                            the issue read afresh, the pull request read afresh), and kept untouched where it proves,
+                            the completion then decided as well on every record that proof read (`UNCHANGED`). A
+                            refusal withholds the unchanged-doc handoff: the evidence is invalidated into history
+                            with the approval it answers for (`squash_evidence._invalidates`) in a checkpoint over
+                            the reading the tick last confirmed, and the issue goes back to `workflow:validating`
+                            only behind a write that landed -- evidence missing or unreadable taking the same road,
+                            never counted as passing. A reading nobody could take, or a pull request found over,
+                            lands what the tick staged alone and holds. Its last reading of the pull request is the
+                            last request the completion is decided behind: the completion's watermark walk is taken
+                            ahead of the whole proof, and a thread it could not read, or any reading of the proof that
+                            raises rather than answering, holds the same way
       drift.py              a body edit mid-hop: the dropped approval, the unwind sentinel, and the relabel to
                             `workflow:validating`. No developer runs on this road, so nothing about the conversation
                             is recorded -- the requirements revision alone goes down, and it says only that this
@@ -3331,10 +3363,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             head stamped, the receipt, launch record, and an earlier hand-back's mark consumed, the PR
                             notice, the `pr_last_comment_id` ratchet that keeps in_review from replaying a consumed
                             reply, and the relabel behind all of it -- to `in_review` for a pass that published
-                            nothing, and to `workflow:validating` for the hand-back below.
+                            nothing, and to `workflow:validating` for the hand-back below. A hand-back's ratchet walks
+                            behind its notice; the hand-off to `in_review` lands the walk `retention` took ahead of its
+                            proof (`_in_review_watermark`), so nothing asks the pull request anything behind that proof.
                             The write is a checkpoint -- the tick-state guarded commit over the reading the tick last
                             confirmed under the issue writer claim (`report_commits.ReportCommit`), decided on the
                             stamp, the publication and its push debt, and the records the approval was read over --
+                            a no-change one also on every record its evidence proof read (`retention.UNCHANGED`) --
                             prepared before the notice with what posting and walking past it write reserved, and
                             landed before the relabel. A refused preparation announces nothing; a write refused or
                             never confirmed relabels nothing, withholds the tick's state, and leaves the comment as

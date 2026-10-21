@@ -20,11 +20,17 @@ licenses evidence about one commit to stand for another; a matching patch, an
 unchanged topic diff, or a rewrite that calls itself a rebase says nothing
 about the tree the base contributes.
 
-A checkout that is not on this host defers, like a report's, and so does a
-commit or tree that will not read: both are structural, and the routes behind
-the reconciliation are what bring a checkout back or supersede the evidence. A
-fetch or a comparison that did not happen holds, since nobody could say which
-of those it even was.
+A checkout that is not on this host defers, like a report's, and so does an
+id git says names no object here, or names one that is not a commit: both are
+structural, and the routes behind the reconciliation are what bring a checkout
+back or supersede the evidence. A fetch or a comparison that did not happen
+holds, since nobody could say which of those it even was. So does a commit
+whose presence probe answered no without git saying why -- that probe answers
+no on any failure, so what the id names is asked again
+(`git/verification/objects.py`), and a lookup that answers neither a type nor
+an absence is a read that failed -- and a tree read that answers nothing for a
+commit this repository does hold, since every commit has a tree, and an empty
+answer is that read failing rather than a tree that differs.
 """
 from __future__ import annotations
 
@@ -33,13 +39,16 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import objects as _verification_objects, probes as _verification_probes
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     report_remote_evidence as _remote,
     verification_records as _records,
 )
+
+# What git names an object that is a commit in its own right.
+_COMMIT_TYPE = "commit"
 
 
 def world_verdict(
@@ -76,17 +85,62 @@ def tree_of(worktree: Path, commit: str | None) -> str:
 def _trees_verdict(
     worktree: Path, binding: _records.EvidenceBinding,
 ) -> _evidence_models.ReportEvidence | None:
-    """Refuse any named commit that is unreadable or not the tested tree, or None."""
+    """Refuse any named commit that is not here as a commit, or not the tested tree; hold an unread tree; or None.
+
+    A commit this repository holds always has a tree, so a tree read that
+    comes back empty for one is a reading that did not happen, not an answer:
+    it holds rather than refusing what nobody compared.
+    """
     named = (
         ("tested commit", binding.tested_sha),
         ("target head", binding.target.target_head),
     )
     for role, commit in named:
-        tree = tree_of(worktree, commit)
-        if tree != binding.tested_tree:
-            refusal = "does not carry the tested tree" if tree else "cannot be read"
-            return _evidence_models.ReportEvidence(
-                _evidence_models.ReportEvidenceVerdict.DEFER,
-                f"the evidence's {role} {refusal}",
-            )
+        refused = _tree_refusal(worktree, role, commit, binding.tested_tree)
+        if refused is not None:
+            return refused
     return None
+
+
+def _tree_refusal(
+    worktree: Path, role: str, commit: str, tested_tree: str,
+) -> _evidence_models.ReportEvidence | None:
+    """Why the commit in `role` does not vouch for `tested_tree` -- not here, an unread tree, another tree -- or None.
+
+    Read as `tree_of` reads it, each request once: a commit, asked without
+    peeling, and then its tree.
+    """
+    if not commit:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER, f"the evidence's {role} cannot be read",
+        )
+    if not _verification_probes._commit_present(worktree, commit, peeled=False):
+        return _absent_refusal(worktree, role, commit)
+    tree = _verification_probes._tree_sha(worktree, commit)
+    if not tree:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.HOLD, f"the tree of the evidence's {role} could not be read",
+        )
+    if tree != tested_tree:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER, f"the evidence's {role} does not carry the tested tree",
+        )
+    return None
+
+
+def _absent_refusal(worktree: Path, role: str, commit: str) -> _evidence_models.ReportEvidence:
+    """Why the id in `role` is not a commit here: proved absent or another kind of object, or a read that failed.
+
+    The presence probe answers no on any failure, so it is asked again what
+    the id is (`objects._object_kind`): only git saying that no such object is
+    here, or naming another type, refuses; a type nobody could read -- or a
+    commit after all, which is the first read failing -- holds.
+    """
+    kind = _verification_objects._object_kind(worktree, commit)
+    if kind is None or kind == _COMMIT_TYPE:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.HOLD, f"the evidence's {role} could not be looked up",
+        )
+    return _evidence_models.ReportEvidence(
+        _evidence_models.ReportEvidenceVerdict.DEFER, f"the evidence's {role} cannot be read",
+    )

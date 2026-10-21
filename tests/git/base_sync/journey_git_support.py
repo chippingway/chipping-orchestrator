@@ -30,8 +30,8 @@ from tests.git.base_sync.real_git_test_support import (
     WORKTREES_DIR_NAME,
 )
 from tests.git.base_sync.recovery_git_support import _local_fetch
+from tests.workflow.approved_squash import dispatcher_tick
 from tests.workflow.fixtures import LABEL_VALIDATING, _agent, approved_on, publishes_the_report
-from tests.workflow.stages.validating.squash_evidence_test_support import dispatcher_tick
 
 # The ceiling the candidate is oversized against and the file that puts it
 # there: small enough to keep the real diff cheap, large enough that the real

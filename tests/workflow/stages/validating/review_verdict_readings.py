@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import replace
 from functools import partial
 
-from orchestrator.github import verification_artifacts as _artifacts, verification_evidence as _evidence
+from orchestrator.github import verification_evidence as _evidence
 from orchestrator.workflow.engine import (
     report_settlement_state as _report_settlement,
     verification_proof as _proof,
@@ -21,7 +21,7 @@ from orchestrator.workflow.engine import (
     verification_records as _records,
 )
 from orchestrator.workflow.stages.validating import models as _models, review_verdicts as _verdicts
-from tests.workflow import published_reports as _published_reports
+from tests.workflow import published_reports as _published_reports, review_world as _review_world
 from tests.workflow.stages.validating import review_verdict_test_support as _world
 
 _REVIEW_ROUND = "review_round"
@@ -33,20 +33,14 @@ _RETURNED_SUBJECT = "review_returned_subject"
 
 LATER_REPORT = "Covered the empty configuration as well; the suite passes."
 
+# Every verification artifact on a case's pull request, oldest first.
+artifacts = _review_world.artifacts
+
 
 def spent(case) -> tuple:
     """What `case`'s issue has spent so far, in `_SPENT` order."""
     pinned = case.pinned()
     return tuple(pinned.get(key) for key in _SPENT)
-
-
-def artifacts(case) -> list:
-    """Every verification artifact on `case`'s pull request, oldest first."""
-    readings = (
-        _artifacts.verification_artifact_from_comment(posted, bot_login=case.github._bot_login)
-        for posted in case.pull_request.issue_comments
-    )
-    return [found for found in readings if found is not None]
 
 
 def current_report_revision(case) -> int:

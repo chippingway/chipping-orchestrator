@@ -160,6 +160,10 @@ _DROPS_THE_SUBJECT = _support.SquashedRoundWorld.drops_the_record
 
 _REMOVES_THE_CLAIM = partial(_NULLS_THE_CLAIM, popped=True)
 
+# The run option a later tick reads the checkout's trees under: "" for a tree
+# read that does not answer.
+_CHECKOUT_TREE = "checkout_tree"
+
 # The handoff's write: the first guarded commit staging the approval's claim,
 # which the squash records nothing of here.
 _THE_HANDOFF = _one.staging(_support.APPROVED_EVIDENCE)
@@ -510,18 +514,27 @@ class RetriedHandoffTest(_support.SquashedRoundWorld, unittest.TestCase):
     def test_a_refused_relabel_is_retried(self) -> None:
         # The carry settles and the relabel is refused: the handoff stands
         # over evidence that already answers for its head, and the next tick
-        # moves the label without deciding or publishing anything again.
-        _retries_the_relabel(self)
+        # moves the label without deciding or publishing anything again. So
+        # it does behind a retry on which the squashed head's tree read did
+        # not answer, which proves nothing about the carry: nothing is
+        # invalidated or dropped there, and the label waits for a tick that
+        # reads it.
+        for unread in ((), ({_CHECKOUT_TREE: ""},)):
+            with self.subTest(unread=bool(unread)):
+                self.setUp()
+                _retries_the_relabel(self)
+                for retry in unread:
+                    self.later(**retry)
 
-        self.assertEqual(self.standing(), RELABEL_OWED)
-        self.later()
+                self.assertEqual(self.standing(), RELABEL_OWED)
+                self.later()
 
-        self.assertEqual(self.standing(), HANDED_ON)
-        self.assertEqual(self.spent()[0], 1)
+                self.assertEqual(self.standing(), HANDED_ON)
+                self.assertEqual(self.spent()[0], 1)
 
     def test_a_retried_relabel_reproves_the_carry(self) -> None:
         # The carry settles and the relabel is refused; by the retry the
-        # squashed head's tree no longer reads, the review subject the carry
+        # squashed head reads as another tree, the review subject the carry
         # answers for is gone from the records, or the verification context
         # moved. The settled carry is proved whole again before the label
         # moves, and ahead of the approval's own coverage, so none moves it:
@@ -531,15 +544,15 @@ class RetriedHandoffTest(_support.SquashedRoundWorld, unittest.TestCase):
         # nobody can read: a carry answers for the head only on that claim,
         # and an approval with none is not taken for one older than claims.
         for name, moves, retry in (
-            ("an unreadable tree", (), {"checkout_tree": ""}),
+            ("another tree", (), {_CHECKOUT_TREE: _support.OTHER_TREE}),
             ("the review subject gone", (_support.SquashedRoundWorld.drops_the_record,), {}),
             ("a moved context", (_MOVES_THE_CONTEXT,), {}),
             ("the claim removed", (_REMOVES_THE_CLAIM,), {}),
             ("the claim null", (_NULLS_THE_CLAIM,), {}),
             ("the claim removed, the context moved", (_REMOVES_THE_CLAIM, _MOVES_THE_CONTEXT), {}),
             ("the claim null, the context moved", (_NULLS_THE_CLAIM, _MOVES_THE_CONTEXT), {}),
-            ("the claim removed, the tree unreadable", (_REMOVES_THE_CLAIM,), {"checkout_tree": ""}),
-            ("the claim null, the tree unreadable", (_NULLS_THE_CLAIM,), {"checkout_tree": ""}),
+            ("the claim removed, the tree unreadable", (_REMOVES_THE_CLAIM,), {_CHECKOUT_TREE: ""}),
+            ("the claim null, the tree unreadable", (_NULLS_THE_CLAIM,), {_CHECKOUT_TREE: ""}),
         ):
             with self.subTest(name):
                 self.setUp()

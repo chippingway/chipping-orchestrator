@@ -183,8 +183,9 @@ class RetiredApprovalTest(_support.SquashedRoundWorld, unittest.TestCase):
     def _refuses_with_no_room(self) -> None:
         """A settled carry the relabel's retry no longer proves, with no room on the comment to invalidate it.
 
-        The tree goes unread on the retry, with the comment filled to the
-        limit; the room comes back after, and the tree reads again.
+        The checkout reads another tree on the retry, with the comment filled
+        to the limit; the room comes back after, and the tested tree reads
+        again.
         """
         self.approves()
         refuses = _support.RefusesTheRelabelOnce(self.github)
@@ -195,7 +196,7 @@ class RetiredApprovalTest(_support.SquashedRoundWorld, unittest.TestCase):
         room = MAX_PINNED_BODY - len(pinned_state_body(filled.data))
         filled.set(_FILLER, "y" * room)
         self.github.write_pinned_state(self.issue, filled)
-        self.later(checkout_tree="")
+        self.later(checkout_tree=_support.OTHER_TREE)
         self.drops_the_record(_FILLER, popped=True)
 
 
@@ -305,17 +306,17 @@ class RefusedPublicationTest(_support.SquashedRoundWorld, unittest.TestCase):
         # The carry is recorded and its publication is refused: under a moved
         # context on a tick only the reconciliation ran -- the context put
         # back before the next, on a comment filled to its limit or not --
-        # over a squashed tree nobody can read, past a push, at its own artifact found edited under its receipt on the
+        # past a push, at its own artifact found edited under its receipt on the
         # retry of a post whose response was lost -- the edit undone before
         # the next tick -- or at its settlement, under a context moved behind
         # the post and put back before the next tick. Each abandons the carry
         # and retires the approval, so the next tick does not move the label
-        # over it. A pull request nobody
-        # could read only holds the publication, which the next tick makes,
-        # and then moves the label.
+        # over it. A pull request nobody could read, or a squashed head whose
+        # tree would not read, only holds the publication, which the next tick
+        # makes, and then moves the label.
         for refuses, then, retired in (
             (RefusedPublicationTest._refuses_under_a_moved_context, _ABANDONED, True),
-            (RefusedPublicationTest._refuses_an_unread_tree, _ABANDONED, True),
+            (RefusedPublicationTest._holds_an_unread_tree, _HANDED_ON, False),
             (_world.pushes, _ABANDONED, True),
             (RefusedPublicationTest._refuses_on_a_full_comment, _ABANDONED, True),
             (RefusedPublicationTest._refuses_an_edited_artifact, _ABANDONED, True),
@@ -339,8 +340,8 @@ class RefusedPublicationTest(_support.SquashedRoundWorld, unittest.TestCase):
         self._run(lambda: _world.reconciles(self), run_agent=[], fetched_branch_tip=SQUASHED)
         self.enterContext(patch.object(config, "VERIFY_TIMEOUT", timeout))
 
-    def _refuses_an_unread_tree(self) -> None:
-        """A tick on which the squashed head's tree reads as nothing."""
+    def _holds_an_unread_tree(self) -> None:
+        """A tick on which the squashed head's tree read does not answer, which it does again on the next."""
         self.later(checkout_tree="")
 
     def _refuses_on_a_full_comment(self) -> None:
