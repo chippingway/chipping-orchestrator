@@ -734,7 +734,9 @@ examples.
   and [`workflow/roles.md`](workflow/roles.md#what-a-late-adjudication-is-asked-and-what-it-may-answer)
 - `ORCHESTRATOR_BASE_BRANCH` — default `main`. base branch of the orchestrator's own repo, used by the self-update
   path. The [self-restart guard](architecture.md#process-model) fetches it only when the orchestrator runs from its own
-  source checkout; an installed package never fetches it and never restarts for a merge to it
+  source checkout; an installed package never fetches it and never restarts for a merge to it. Naming a local branch
+  that no ref on `origin` and none of the checkout's `origin/` tracking refs match holds a source checkout at that
+  branch's revision, which is how a [deployment without migration](#deploying-without-migration) keeps one
 - `SQUASH_ON_APPROVAL` — default `on`. after the reviewer emits `VERDICT: APPROVED`, squash the dev's commits on the
   PR branch into a single subject-only commit and force-push with lease. The subject reuses the dev's first commit
   subject when it carries a reusable `<prefix>:` form (Conventional **or** repo-local such as `event:`/`career:`);
