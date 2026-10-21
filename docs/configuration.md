@@ -559,7 +559,7 @@ examples.
 - `POLL_INTERVAL` — default `60`. seconds between polling ticks
 - `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS` — default `1`. how many ticks apart the closed-issue recovery sweep runs (see
   [GitHub rate limits](#github-rate-limits) below). The sweep issues one `GET …/issues?state=closed&labels=<L>` per
-  non-terminal workflow label the repository actually carries — the eight recovery labels plus the four cleanup ones,
+  canonical non-terminal workflow label the repository defines — the eight recovery labels plus the four cleanup ones,
   `workflow:decomposing` and `workflow:umbrella` where a late adjudication runs, and `workflow:ready` and
   `workflow:blocked` where an interrupted cancellation can be left — **per repo**; across many repos at a short
   `POLL_INTERVAL` that fixed cost dominates request volume and is the main driver of GitHub *primary* rate-limit
@@ -799,10 +799,10 @@ fixed number of `GET /repos/…` requests **per repo**, independent of how much 
 - the open-issue poll (`list_pollable_issues`): one `GET …/issues` request per page of open issues, pull requests
   included — each listed row is told apart from a pull request by what its page carried, so an open issue adds no
   detail read of its own,
-- the closed-issue sweep: one `GET …/issues?state=closed&labels=<L>` per non-terminal workflow label (10 today —
-  the six PR-carrying stages plus `question` and `discussion`, each of which has a terminal a closed issue may still
-  owe, and `workflow:decomposing` / `workflow:umbrella`, whose closed issues are swept for snapshot cleanup only),
-  and
+- the closed-issue sweep: one `GET …/issues?state=closed&labels=<L>` per non-terminal workflow label, asked for by
+  its canonical name only (12 today — the six PR-carrying stages plus `question` and `discussion`, each of which has a
+  terminal a closed issue may still owe, and `workflow:decomposing`, `workflow:umbrella`, `workflow:ready`, and
+  `workflow:blocked`, whose closed issues are swept for snapshot cleanup only), and
 - the community-contribution PR sweep: 1 `GET …/pulls` request.
 
 On top of that floor comes work that grows with what the repo holds rather than with the tick. The part priced here
@@ -810,7 +810,7 @@ is the open dependency walks: each open `workflow:blocked` / `workflow:umbrella`
 so that cost scales with the number of waiting parents and their children, is zero on a repo holding none, and is
 spent only on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` makes due.
 
-With `R` repos at `POLL_INTERVAL` seconds, the floor is roughly `R × (10 + sweep) × 3600 / POLL_INTERVAL`
+With `R` repos at `POLL_INTERVAL` seconds, the floor is roughly `R × (12 + sweep) × 3600 / POLL_INTERVAL`
 requests/hour even when every repo is idle. Past ~5–6 repos at the 60s default this exceeds 5000/hour: the budget is
 spent partway into each hour, GitHub starts returning `403: Forbidden` with an `X-RateLimit-Reset` in the future, and
 PyGithub's `GithubRetry` sleeps (uninterruptibly) until the reset — typically a ~15–18 minute stall **every hour**, on
@@ -820,17 +820,12 @@ by `Setting next backoff to <hundreds-to-1000+>s`.
 Two built-in mitigations reduce the floor without touching `POLL_INTERVAL`:
 
 - **Workflow-label objects are cached** per repo client. They are immutable after `ensure_workflow_labels`, so the
-  closed sweep no longer re-fetches them every tick — eliminating 10 `GET …/labels/<name>` requests per repo per tick
-  automatically (the eight terminal-arc states, plus `decomposing` and `umbrella`, whose closed issues the sweep
-  also yields for cleanup only).
-- **A pre-namespace label the repository does not have is asked for rarely.** The sweep looks up each swept state
-  under both its `workflow:`-namespaced name and its pre-namespace one, so an issue still carrying the old label is
-  not stranded (see [`state-machine/labels-and-state.md`][pollable-issues]). A lookup that comes back
-  404 cannot be cached as a Label object, so it is instead thrown away for 20 sweeps before being asked again — on a
-  repository that defines none of them, the seven legacy spellings therefore cost seven
-  `GET …/labels/<name>`
-  requests every twentieth sweep and nothing in between. A 403 is never treated this way: rate-limit exhaustion is not
-  an answer about whether the label exists, so it is retried on the next sweep.
+  closed sweep fetches each one once rather than every tick — eliminating 12 `GET …/labels/<name>` requests per repo
+  per tick automatically (the eight terminal-arc states, plus the four cleanup ones, whose closed issues the sweep
+  yields for cleanup only). Only canonical names are looked up, and only a resolved label is kept: a lookup that
+  fails — a 404 for a label the repository lacks, or a 403 from rate-limit exhaustion, which is no answer about
+  whether the label exists — logs a warning, skips that label's query for the sweep, and is asked again on the next
+  one (see [`state-machine/labels-and-state.md`][pollable-issues]).
 - **`CLOSED_ISSUE_SWEEP_EVERY_N_TICKS`** batches the closed-issue recovery sweep to once every N ticks (see the list
   above). At `N=4`–`5` the closed-label queries are amortized down by the same factor while the open-issue poll
   stays every tick.

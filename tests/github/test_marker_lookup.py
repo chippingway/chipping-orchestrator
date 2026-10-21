@@ -41,9 +41,6 @@ def _client_over(*issues) -> GitHubClient:
     client.repo = MagicMock()
     client._repo_slug = "owner/repo"
     client._bot_login = _BOT_LOGIN
-    client._label_cache = {}
-    client._absent_after_sweep = {}
-    client._closed_sweeps = 0
     client.repo.get_issues.return_value = iter(issues)
     return client
 

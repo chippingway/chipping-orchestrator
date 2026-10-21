@@ -97,9 +97,7 @@ class GitHubClient(
         # mints, so a worker taking over from one lost mid-filing owes them.
         self.owed_events: set[tuple] = set()
         self._label_cache: dict[str, Label] = {}
-        self._absent_after_sweep: dict[str, int] = {}
         self._pollable_calls = 0
-        self._closed_sweeps = 0
 
     @property
     def repo_slug(self) -> str:

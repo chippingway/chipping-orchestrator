@@ -13,20 +13,34 @@ _IMPLEMENTING_LABEL = "workflow:implementing"
 _CLOSED_IMPLEMENTING_ISSUE = 301
 _CLOSED_DOCUMENTING_ISSUE = 302
 _CLOSED_VALIDATING_ISSUE = 303
-_CLOSED_LEGACY_IMPLEMENTING_ISSUE = 311
-_CLOSED_LEGACY_FIXING_ISSUE = 312
-_CLOSED_LEGACY_CONFLICT_ISSUE = 313
+_CLOSED_FIXING_ISSUE = 304
+_CLOSED_CONFLICT_ISSUE = 305
+_CLOSED_OBSOLETE_ISSUE = 311
 _CLEANUP_ISSUE = 321
 _SWEEP_CADENCE_ATTR = "CLOSED_ISSUE_SWEEP_EVERY_N_TICKS"
 
-# One closed issue per swept spelling: three namespaced, three pre-namespace.
+# One closed issue per namespaced recovery label; the three canonical under
+# their bare spelling -- `in_review`, `question`, `discussion` -- are above.
 _CLOSED_SWEEP_CASES = (
     (_CLOSED_IMPLEMENTING_ISSUE, _IMPLEMENTING_LABEL),
     (_CLOSED_DOCUMENTING_ISSUE, "workflow:documenting"),
     (_CLOSED_VALIDATING_ISSUE, "workflow:validating"),
-    (_CLOSED_LEGACY_IMPLEMENTING_ISSUE, "implementing"),
-    (_CLOSED_LEGACY_FIXING_ISSUE, "fixing"),
-    (_CLOSED_LEGACY_CONFLICT_ISSUE, "resolving_conflict"),
+    (_CLOSED_FIXING_ISSUE, "workflow:fixing"),
+    (_CLOSED_CONFLICT_ISSUE, "workflow:resolving_conflict"),
+)
+
+# The pre-namespace spelling of every swept label that has one, recovery and
+# cleanup alike.
+_OBSOLETE_SWEEP_SPELLINGS = (
+    "implementing",
+    "documenting",
+    "validating",
+    "fixing",
+    "resolving_conflict",
+    "decomposing",
+    "umbrella",
+    "ready",
+    "blocked",
 )
 
 
@@ -104,15 +118,23 @@ class ListPollableIssuesClosedSweepTest(unittest.TestCase):
     each handler asks at entry cannot fire unless the sweep hands the
     dispatcher the issue.
 
-    Either label spelling counts. A closed issue is the one case no other pass
-    revisits, and the bootstrap never renames a bare label off one, so the
-    pre-namespace spelling is the only thing left to find it by.
+    Only the canonical label counts. A pre-namespace spelling is not a current
+    label, so a closed issue carrying nothing else is not swept back into the
+    workflow -- even though routing still resolves that spelling on an issue
+    some other pass hands it.
     """
 
-    def test_yielded_under_either_spelling(self) -> None:
+    def test_yielded_under_its_canonical_label(self) -> None:
         for issue_number, label in _CLOSED_SWEEP_CASES:
             with self.subTest(label=label):
                 self.assertIn(issue_number, _swept_numbers(issue_number, label))
+
+    def test_obsolete_spelling_alone_is_not_yielded(self) -> None:
+        for label in _OBSOLETE_SWEEP_SPELLINGS:
+            with self.subTest(label=label):
+                self.assertEqual(
+                    _swept_numbers(_CLOSED_OBSOLETE_ISSUE, label), [],
+                )
 
 
 class CleanupSweepTest(unittest.TestCase):

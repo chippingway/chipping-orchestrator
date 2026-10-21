@@ -272,7 +272,7 @@ spelled `workflow:<tag>`. `workflow/state.py` defines `stage_name`, which strips
 The whole set, what each state means, and the control-label semantics are in
 [`state-machine/labels-and-state.md#workflow-labels`](state-machine/labels-and-state.md#workflow-labels). The startup
 bootstrap that creates the canonical labels a repository lacks while leaving its pre-namespace definitions and their
-issues untouched, and the two reads that still take a bare label, are in
+issues untouched, and the one read that still takes a bare label, are in
 [`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#legacy-labels-and-the-migration-off-them).
 
 ## Process model

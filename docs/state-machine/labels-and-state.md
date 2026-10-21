@@ -212,8 +212,9 @@ stays inert. The pinned state those transitions move an issue through is [below]
 ### Legacy labels and the migration off them
 
 A repository whose labels predate the namespace carries the bare spellings on live issues. Nothing moves them over
-wholesale: the label bootstrap only creates what is missing, and an issue comes off its bare label one relabel at a
-time, kept reachable until then by the reads below.
+wholesale: the label bootstrap only creates what is missing, and an open issue comes off its bare label one relabel
+at a time, kept reachable until then by the routing read below. A closed issue carrying nothing but a bare label is
+reached by no sweep, so it keeps that label as it was left.
 
 `runtime.startup.connect_clients` runs the bootstrap once per configured repo at process start, not mid-tick.
 `ensure_workflow_labels` lists the repository's labels once and creates each label of both vocabularies whose exact
@@ -236,22 +237,19 @@ exists or creates it bare, never under the namespace.
 
 A PAT without `Issues: Read and write` cannot create. A refused listing skips the bootstrap; a refused creation is
 logged and the rest of the bootstrap is abandoned, leaving the repository without the labels it was missing until the
-permission is granted and the process restarts. The orchestrator keeps polling either way. Issues still carrying a
-bare label, and a human re-adding one by hand, are what the reads below exist for.
+permission is granted and the process restarts. The orchestrator keeps polling either way. Open issues still
+carrying a bare label, and a human re-adding one by hand, are what the read below exists for.
 
-Two reads take either spelling, which is what keeps an issue carrying only a bare label reachable:
+One read takes either spelling, and it is what keeps an open issue carrying only a bare label reachable:
 
 - **Routing.** `github.labels.workflow_label` reads an issue's labels through `issue_workflow_label`, which resolves a
   bare tag back to its `WorkflowLabel`, so an issue still carrying the old label reaches its handler and the next
   label write rewrites it to the namespaced spelling. (`label_for_name` is the same lookup on the write side, where
   `coerce_workflow_label` accepts either spelling for a label about to be applied.)
-- **The closed-issue sweep.** Each sweep label is queried under its pre-namespace spelling too, because a closed issue
-  is the one case no other pass revisits — see [Pollable issues and finalization](#pollable-issues-and-finalization)
-  for the request cost that carries.
 
-The community sweep is not among them: its dedup marker is [`workflow:community_contribution`](#workflow-labels) alone,
-and a bare `community_contribution` on a PR is the repository's own label, kept where it is beside the marker the
-sweep adds.
+The community sweep does not read a bare label: its dedup marker is
+[`workflow:community_contribution`](#workflow-labels) alone, and a bare `community_contribution` on a PR is the
+repository's own label, kept where it is beside the marker the sweep adds.
 
 An issue can therefore carry both spellings at once, and the namespaced one always wins — `issue_workflow_label`
 scans for it across every label before it will settle for a bare tag, so the order GitHub happens to return them in
@@ -263,6 +261,12 @@ is already namespaced, is read past and left in place: that protection is the po
 worth nothing if a relabel deleted the label anyway. The one case the two spellings cannot be told apart is a bare tag
 on an issue with no namespaced label — there it is taken as the pre-migration state, which is what lets the issue
 keep routing.
+
+The closed-issue sweep does not read a bare label either. It asks for each swept label, recovery and cleanup alike, by
+its canonical name alone, so it never reaches a closed issue whose only workflow label is a pre-namespace spelling:
+that spelling is not current state ([C-03](../contracts.md#c-03-persisted-and-externally-consumed-formats)), and the
+sweep leaves the issue and its label as they are — see
+[Pollable issues and finalization](#pollable-issues-and-finalization).
 
 <a id="per-tick-flow-workflowtick"></a>
 
@@ -750,13 +754,13 @@ counted ends the sync the same way, except over a pinned anchor, where the check
 `gh.list_pollable_issues()` yields all open non-PR issues plus closed non-PR issues still labeled with one of the
 eight recovery sweep labels — `workflow:implementing`, `workflow:documenting`, `workflow:validating`, `in_review`,
 `workflow:fixing`, `workflow:resolving_conflict`, `question`, `discussion` — or one of the four cleanup ones,
-`workflow:decomposing`, `workflow:umbrella`, `workflow:ready`, and `workflow:blocked`. Each of the seven that HAS a
-pre-namespace spelling is queried under that too, because a closed issue is the one case no other pass revisits: the
-bootstrap never renames a bare label off the issues carrying it (see
-[Legacy labels and the migration off them](#legacy-labels-and-the-migration-off-them)), so for a closed issue
-labeled before the namespace the bare label is all that is left to find it by. Both queries feed one seen-number set,
-so an issue carrying both spellings is yielded once. The closed-issue sweep makes external manual merges and operator
-closes finalize cleanly:
+`workflow:decomposing`, `workflow:umbrella`, `workflow:ready`, and `workflow:blocked`. Each is queried under its
+canonical name only, the three canonical under their bare spelling included, so a closed issue whose only workflow
+label is a pre-namespace spelling is not yielded (see
+[Legacy labels and the migration off them](#legacy-labels-and-the-migration-off-them)). The open poll and every closed
+query feed one seen-number set, so an issue two of them return — a closed issue a human left on two swept labels, or
+one closed between the open poll and the sweep — is yielded once. The closed-issue sweep makes external manual merges
+and operator closes finalize cleanly:
 - Closed `in_review` / `workflow:fixing` / `workflow:resolving_conflict` — a human-merged PR with a `Resolves #N`
   footer auto-closes the issue before the orchestrator can flip the label.
 - Closed `workflow:implementing` / `workflow:documenting` / `workflow:validating` — the same external-merge race when
@@ -800,7 +804,7 @@ reopened between the poll and the worker's refetch — is marked cancelled and s
 dispatcher's own guard from the next tick (unless its record has moved on to a cycle restarted after the close, as
 above). It does nothing else — no agent, no activation, and no child of the split touched. `rejected` is the only label
 it ever writes, and it is what takes the issue out of this sweep for good. It rides the same sweep walk, the same
-cadence, the same label cache, and the same absent-label throttle as the recovery labels above. It is partitioned as
+cadence, and the same label cache as the recovery labels above. It is partitioned as
 **fan-out** rather than into the family bucket, and submitted `cap_exempt=True` on its own: the bucket's exemption is
 all-or-nothing, so one open `workflow:decomposing` issue sharing the tick would make a closed owner cap-counted and,
 under a saturated cap, skipped — which would stop the repository reclaiming refs for as long as its decomposer stayed
@@ -814,17 +818,13 @@ busy.
   four with no late cycle at all costs the pass its one pinned read and nothing else — it is not written to, not
   relabelled, and not commented on.
 
-The closed-issue sweep issues one closed-issue query per sweep label the repository actually carries, per repo, every
-tick — a fixed request cost that drives GitHub primary-rate-limit exhaustion on multi-repo hosts. The four cleanup
-labels ride that same walk rather than a second pass of their own, so what they add is four label lookups and four
-closed-issue queries on the ticks the sweep already runs, and nothing at all in between. A pre-namespace
-spelling the repository does not define costs only its `GET …/labels/<name>` miss, and even that is thrown away for
-twenty sweeps before being asked again rather than re-requested every pass. The spellings one sweep confirms absent
-are reported together, in a single repo-qualified INFO line naming them, so a migrated multi-repo host does not open
-with a burst of near-identical lines that reads like broken configuration; a sweep whose legacy lookups all came from
-the throttle confirms nothing and logs nothing, so that line recurs when the window expires rather than every pass. A
-missing namespaced label, or a lookup that failed any other way — a 403 is no answer about whether the label exists —
-stays a per-label warning.
+The closed-issue sweep issues one closed-issue query per sweep label the repository defines, per repo, every tick —
+a fixed request cost that drives GitHub primary-rate-limit exhaustion on multi-repo hosts. The four cleanup labels
+ride that same walk rather than a second pass of their own, so what they add is four closed-issue queries on the ticks
+the sweep already runs, and nothing at all in between. Each label's `GET …/labels/<name>` is paid once per client: a
+resolved label is cached, and no name but a canonical one is ever asked for. A lookup that fails is not cached at all:
+a missing label, or one that failed any other way — a 403 is no answer about whether the label exists — is a
+per-label warning, its query is skipped for that sweep, and the next sweep asks again.
 `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS` (default `1`) batches the whole sweep to once every N ticks; the open-issue poll is
 unaffected, so the only effect of `N>1` is that an externally-merged/closed issue can take up to `N-1` extra ticks to
 finalize. See [configuration.md#github-rate-limits](../configuration.md#github-rate-limits).
