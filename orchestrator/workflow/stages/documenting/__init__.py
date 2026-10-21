@@ -19,12 +19,15 @@ refuses a diverged worktree, and picks between the awaiting-human resume, the
 recovered-commit shortcut, and a fresh docs spawn. `outcomes` reads what the
 run left behind -- timeout, dirty tree, a run its backend recorded as failed,
 new commit, or a bare `DOCS: NO_CHANGE` -- and `publication` turns the
-surviving two into a push, a PR notice, and the stamped `docs_verdict`,
+surviving two into a push and the verdict and notice a completion carries,
 entered on the commit `subject`
 hands it once that commit's subject names the pull request. `handoff` is separate from both
-because it protects a stage this one does not run: the `pr_last_comment_id`
-ratchet is what carries in_review's watermark past the span a human reply the
-docs pass already consumed sits in.
+because it protects a stage this one does not run: it lands that completion --
+the stamped `docs_verdict`, the receipt it consumes, and the
+`pr_last_comment_id` ratchet that carries in_review's watermark past the span
+a human reply the docs pass already consumed sits in -- as a checkpoint over
+the reading the tick last confirmed, and relabels only behind a write that
+landed.
 
 `failed_pass` says what a pass that did not finish is, and keeps the record an
 Antigravity launch lands before it runs, so a tick that ends writing nothing

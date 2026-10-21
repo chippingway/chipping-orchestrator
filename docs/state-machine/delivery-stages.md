@@ -2960,11 +2960,12 @@ and handed off -- and this is what it guarantees and what stops it.
      size gate in step 12 **held** an oversized docs commit off the pull request and handed the issue to the late
      coordinator, where an adjudicator's `single` parks for a human's decision and an authorized settlement publishes
      that commit from there and hands the label back here with only the handoff owed. Or the gate **allowed** the
-     push, it landed, and the tick died before this stage could record it — the receipt rides the gate's own write
-     either way, which is ahead of everything this stage does with a landed push, and it is the write RECORDING the
-     pass that drops it, so a receipt read here is one no handoff has been made for. So the receipt is read back, and
-     where the branch is in sync AND the checkout is standing on that exact commit this tick stamps `docs_checked_sha`
-     / `docs_verdict="updated"`, announces the handoff, and advances to `in_review`, with no agent run and no push.
+     push, it landed, and the tick died before this stage could record it, or the completion that would have
+     recorded it (step 12) was refused or never landed — the receipt rides the gate's own write either way, which is
+     ahead of everything this stage does with a landed push, and it is the write RECORDING the pass that drops it, so
+     a receipt read here is one no handoff has been made for. So the receipt is read back, and where the branch is in
+     sync AND the checkout is standing on that exact commit this tick hands the completion `docs_checked_sha` /
+     `docs_verdict="updated"`, which announces the handoff and advances to `in_review`, with no agent run and no push.
      Without that receipt the tick would read a branch in sync with its remote as an issue no docs pass has run for
      and spawn a second agent over work that is already published. Ahead of the remote the receipt stands and the
      `ahead > 0` road republishes it through the gate, which is the one road that measures it again; a receipt that is
@@ -2990,24 +2991,40 @@ and handed off -- and this is what it guarantees and what stops it.
       pinned Antigravity command both spawning shapes first land `docs_launched_sha` (the head they launch on) alone
       through the guarded commit (`failed_pass._armed`); a record that did not land holds the launch, and the tick
       returns writing nothing. Every branch below that writes drops it in that write.
-  12. Branch on result. Every success exit routes to `in_review` via `_advance_after_docs_push` /
-      `_advance_after_docs_no_change`, which ratchets `pr_last_comment_id` past any issue-thread reply the resume
-      consumed — the reply is dropped by in_review's own delivery-cursor read either way, so what the ratchet buys is
-      a watermark that does not leave the next stage re-reading that span. Both end the same way and the order is
-      the crash contract: **stamp, announce, persist, relabel** — one durable write, and the relabel behind it. The
-      notice comes before the write because posting one RECORDS it: the comment id lands in
-      `orchestrator_comment_ids`, which is what has the watermark walk seed past it and the in_review feedback scan
-      drop it rather than resume a dev over an informational post of ours, and there is nothing behind the write to
-      carry it. The write comes before the relabel because `in_review` repairs nothing it is handed: its merge gate
-      pings only for a head that `docs_checked_sha` names with a `docs_verdict` beside it, so a relabel taken first
-      strands the issue on a stage whose handler never looks at either. That same write drops `docs_settled_sha`,
-      and it has to: the receipt says a published pass still owes a handoff, and held past this write to cover the
-      relabel it outlives the handoff whenever the write that would drop it does not land — leaving a record a later
-      `validating` approval at the same head consumes, skipping the docs pass that approval just bought. Two windows
-      are left and both fail toward doing the work again: a tick that posted its notice and died over the write
-      comes back with nothing on the record saying so, and step 8 announces it a second time; a tick whose relabel
-      did not land leaves the record a same-head re-entry leaves, so the next tick runs the pass rather than handing
-      off on evidence that could belong to either. Branches:
+  12. Branch on result. Every success exit ends in the one completion (`handoff._hand_off_to_in_review`), which
+      ratchets `pr_last_comment_id` past any issue-thread reply the resume consumed — the reply is dropped by
+      in_review's own delivery-cursor read either way, so what the ratchet buys is a watermark that does not leave the
+      next stage re-reading that span. The order is the crash contract: **stamp, prepare, announce, land, relabel** —
+      one durable write, and the relabel behind it. That write is a checkpoint. The tick holds the issue writer claim
+      from its first reading through its last write, so it lands through the tick-state guarded commit
+      (`report_commits.ReportCommit`) over the reading the tick last confirmed — the one taken once the claim was
+      held, or what its own last write landed — owning the stamp, the notice's ledger entry, the ratcheted watermark,
+      and whatever the tick staged since, each kept beside any other move by its own rule, and decided on the stamp's
+      own fields (`docs_checked_sha`, `docs_verdict`, `silent_park_count`, `docs_settled_sha`, `docs_launched_sha`),
+      on the publication it is about (`pr_number`, `branch`, the `implementing_published_*` receipt) and the debt of a
+      push not yet landed (`late_approved_sha`, `late_approved_lease`), and on the returned verdict, the squash
+      handoff, and every report, evidence, and approval record step 0 read the approval over. One that reads
+      otherwise was moved by no write of this tick's — a hand edit of the comment — and refuses the write, with
+      nothing put back, adopted, or repaired. The write is prepared over the fresh comment before the notice, with
+      the notice's ledger entry and the watermark reserved at their widest, so a comment that would not take it —
+      unreadable, replaced, moved, or with no room left — is announced nothing. The notice comes before the write
+      because posting one RECORDS it: the comment id lands in `orchestrator_comment_ids`, which is what has the
+      watermark walk seed past it and the in_review feedback scan drop it rather than resume a dev over an
+      informational post of ours, and there is nothing behind the write to carry it. The write comes before the
+      relabel because `in_review` repairs nothing it is handed: its merge gate pings only for a head that
+      `docs_checked_sha` names with a `docs_verdict` beside it, so a relabel taken first strands the issue on a stage
+      whose handler never looks at either — and only a write GitHub confirmed licenses it. Anything else stops the
+      handoff where it stands, logged, with the tick's state withheld from every whole-state write behind it, and the
+      next tick reads what landed. That same write drops `docs_settled_sha`, and it has to: the receipt says a
+      published pass still owes a handoff, and held past this write to cover the relabel it outlives the handoff
+      whenever the write that would drop it does not land — leaving a record a later `validating` approval at the
+      same head consumes, skipping the docs pass that approval just bought. Two windows are left and both fail toward
+      doing the work again: a write that did not land — a tick that died over it, or one refused or never confirmed
+      behind the notice — leaves the receipt over a published pass, and step 8 finishes the handoff from it,
+      announcing it a second time; a write that landed — unconfirmed, or ahead of a relabel that did not land —
+      leaves the record a same-head re-entry leaves, so the next tick runs the pass rather than handing off on
+      evidence that could belong to either. A clean no-change publishes no receipt, so its next tick runs the pass
+      again whichever way the write went. Branches:
       - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
         pinned state (the pre-spawn `docs_checked_sha` / watermark writes are discarded), so the next process
         re-runs the docs pass. Precedes every branch below. The recovered `ahead > 0` path synthesizes a
@@ -3100,16 +3117,16 @@ and handed off -- and this is what it guarantees and what stops it.
           reviewer one nobody read.
 
         **Landed**: record `docs_checked_sha` as the commit that went out — the amended one where the subject was
-        amended — plus `docs_verdict="updated"`, reset `silent_park_count=0`, drop `docs_settled_sha`, post
-        `:books: documenting pass: pushed docs commit.`, persist, and advance — once.
+        amended — plus `docs_verdict="updated"`, reset `silent_park_count=0`, drop `docs_settled_sha`, prepare, post
+        `:books: documenting pass: pushed docs commit.`, land, and advance — once, behind a write that landed.
         **Neither** (allowed, and the push itself failed): park
         (`push_failed`), with the commit that is owed a publication and the head to pin it against left on the record
         for the retry.
       - no commit + `DOCS: NO_CHANGE` verdict: when `ahead > 0` the recovered commit goes through that same amendment
         and gate and earns the same answers — the verdict certifies the local tree and says nothing about what the
         remote carries or what its subject names;
-        otherwise persist `docs_verdict="no_change"`, post `:books: no docs changes required.`, and advance without
-        pushing.
+        otherwise complete with `docs_verdict="no_change"` through the same checkpoint, posting
+        `:books: no docs changes required.`, and advance without pushing.
       - no commit + unknown verdict → `_on_question`: park.
 - **Output**: label moved to `in_review` (success), OR `workflow:validating` (drift unwind), OR
   `workflow:decomposing` (a docs commit the size gate held), OR terminal `done` / `rejected` (short-circuit), OR a

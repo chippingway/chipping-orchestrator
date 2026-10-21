@@ -14,7 +14,10 @@ A hold is the end of the tick rather than a park: nothing is pushed, no docs
 verdict is stamped, the issue goes to the adjudication instead of `in_review`,
 and the head the pass produced is left as the receipt the handoff is still
 owed. What the gate allows is pushed named to that commit and pinned to the
-head the pass was entered on, and only then stamped, announced, and handed on.
+head the pass was entered on, and only then stamped, announced, and handed on
+-- the stamp landed as a checkpoint over the comment the tick last confirmed,
+and the relabel made only behind a write GitHub confirmed, so a tick killed on
+that write leaves the relabel unmade.
 """
 from __future__ import annotations
 
@@ -415,21 +418,6 @@ class DocsHandoffCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         mocks = self._rerun(github, issue)
 
         mocks[documenting.RUN_AGENT].assert_called_once()
-
-    def _rerun(self, github, issue):
-        """The docs pass a tick takes when it finds nothing left owed.
-
-        Its agent has an already-documented tree in front of it, so it
-        confirms the diff and writes nothing.
-        """
-        return self._fresh_tick(
-            github, issue,
-            run_agent=fixtures._agent(
-                session_id=documenting.DEV_SESSION,
-                last_message=gate.NO_CHANGE_REPLY,
-            ),
-            head_shas=[MEASURED_CANDIDATE_SHA, MEASURED_CANDIDATE_SHA],
-        )
 
 
 class AmendedCandidateTest(unittest.TestCase, gate._DocsGateFixtureMixin):

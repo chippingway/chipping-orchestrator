@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The relabel to `in_review`, and the handoff that brought the issue here.
+"""A finished docs pass's completion, the relabel to `in_review` behind it, and the handoff that brought it here.
 
 The one this stage was handed is the shorter story, and it is asked first
 past the preconditions -- a merged or closed pull request ends the tick before
@@ -37,12 +37,49 @@ only. `max` keeps a higher in_review watermark from regressing, and a PR fetch
 failure is best-effort -- the handoff still advances, and in_review's own
 rescan is debounced and correct on its own.
 
-The pinned write comes next and the relabel last, because the relabel is the
-one effect that takes the issue off the stage that could finish what a crash
-interrupted. `in_review` repairs nothing: relabelled first, a process dying
-before the write leaves the merge gate reading a `docs_checked_sha` that names
-the commit the pass began on and a `docs_verdict` nobody wrote, and the ready
-ping never fires again for that head.
+Every terminal success ends in the one completion (`_hand_off_to_in_review`),
+and the order is the whole of its crash contract: stamp, prepare, announce,
+land, relabel. The stamp records the head the verdict was formed against and
+the verdict, resets the silent-park streak, and consumes the receipt a
+published pass leaves (`_stamp_docs_verdict`). It lands as a checkpoint. The
+tick holds the issue writer claim from its first reading through its last
+write, so no other orchestrator writer moves the comment meanwhile, and the
+reading the tick last confirmed -- the one it took once the claim was held, or
+what its own last write landed (`PinnedState.synced`) -- is the comment the
+completion is decided over. So it goes through the tick-state guarded commit
+(`report_commits.ReportCommit`) over that reading (`_COMPLETION`): owning the
+stamp and whatever the tick staged since -- a run's usage, the notice's ledger
+entry, the ratcheted watermark, each kept beside any other move by its own
+rule -- and decided on the stamp's own records, the publication and the debt
+of a push not yet landed, and every record the hand-back read the approval
+over. A record that reads otherwise was moved by no write of this tick's, and
+refuses it with nothing put back, adopted, or repaired.
+
+The write is prepared before the notice, with the notice's ledger entry and
+the ratcheted watermark reserved at their widest, so a comment that would not
+take it -- unreadable, replaced, moved, or full -- is announced nothing. The
+notice comes before the write because posting one RECORDS it: the comment id
+lands in `orchestrator_comment_ids`, which is what keeps the watermark walk
+and the in_review feedback scan from reading our own post as human feedback,
+and there is nothing behind the write to carry it. The relabel is the one
+effect that takes the issue off the stage that could finish what a crash
+interrupted, and `in_review` repairs nothing: relabelled ahead of the write,
+the merge gate reads a `docs_checked_sha` naming the commit the pass began on
+and a `docs_verdict` nobody wrote, and the ready ping never fires for that
+head. So only a write GitHub confirmed licenses it.
+
+Anything else stops the handoff where it stands -- nothing announced past a
+refused preparation, nothing relabelled past a write refused or never
+confirmed -- logged, with the tick's state withheld from every whole-state
+write behind it, and the next tick reads what landed. A write that did not
+land leaves the receipt standing over a published pass, and that tick
+finishes the handoff from it, announcing it a second time where this one
+already had -- the window a tick that died over the write leaves too. A write
+that landed, unconfirmed or ahead of a relabel that failed, leaves a pass
+already called finished with no receipt behind it -- the record a same-head
+re-entry leaves -- so the next tick runs the pass rather than handing off on
+evidence that could belong to either. A clean no-change publishes no receipt,
+so its next tick runs the pass again whichever way its write went.
 """
 from __future__ import annotations
 
@@ -52,7 +89,19 @@ from github.Issue import Issue
 
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    pinned_commit_models as _commit_models,
+    report_commits as _commits,
+    report_record_values as _record_values,
+)
 from orchestrator.workflow.late_split import handoffs as _late_handoffs
+from orchestrator.workflow.stages.documenting import (
+    failed_pass as _failed_pass,
+    models as _models,
+    state as _state,
+)
+from orchestrator.workflow.stages.implementing.state import _APPROVED_LEASE, _APPROVED_SHA
 from orchestrator.workflow.stages.validating import (
     approved_evidence as _approved_evidence,
     review_comment as _review_comment,
@@ -63,6 +112,44 @@ from orchestrator.workflow.stages.validating import (
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
+
+_PR_LAST_COMMENT_ID = "pr_last_comment_id"
+
+# What a finished pass stamps: the head its verdict was formed against, the
+# verdict, the silent-park streak it resets, and the receipt and launch record
+# it consumes. Each has to land as stamped, so each is decided on as well: one
+# staged as the reading already spelled it is no move of the write's, and would
+# otherwise be kept as whatever the comment carries by then.
+_STAMPED = frozenset((
+    _state._CHECKED_DOCS_SHA,
+    "docs_verdict",
+    "silent_park_count",
+    _state._SETTLED_DOCS_SHA,
+    _state._LAUNCHED_DOCS_SHA,
+))
+
+# The completion of a finished pass, landed as a checkpoint over the reading
+# the tick last confirmed. It owns the stamp, the watermark the ratchet moves,
+# and the ledger entry its notice adds, beside whatever the tick staged since
+# that reading. It is decided on the stamp; on the publication it is about --
+# the pull request, the branch, the receipt of what reached the remote -- and
+# the debt of a push not yet landed, which together tell a published pass from
+# an unpublished candidate; and on every record the hand-back read the approval
+# over, with the verdict and squash handoff only `validating` answers.
+_COMPLETION = _commits.ReportWrite(
+    owned=_STAMPED | {_PR_LAST_COMMENT_ID, _comments._ORCH_COMMENT_IDS},
+    decided_on=frozenset((
+        *_STAMPED,
+        *_review_comment._IN_HAND_RECORDS,
+        _verdicts.RETURNED_VERDICT,
+        _late_handoffs.LATE_COLLAPSE_HANDOFF,
+        _APPROVED_SHA,
+        _APPROVED_LEASE,
+    )),
+).on_the_publication()
+
+# What a guarded commit comes to that lets the handoff go on past it.
+_GOES_ON = frozenset((_commit_models.CommitStatus.PREPARED, _commit_models.CommitStatus.COMMITTED))
 
 
 def _ratchet_in_review_watermark_for_final_docs(
@@ -112,7 +199,7 @@ def _ratchet_in_review_watermark_for_final_docs(
     candidate, _ = _validating_watermarks._latest_pr_comment_ids(
         gh, issue, pr, state,
     )
-    prev_wm = state.get("pr_last_comment_id")
+    prev_wm = state.get(_PR_LAST_COMMENT_ID)
     if isinstance(prev_wm, int):
         candidate = (
             prev_wm if candidate is None
@@ -120,7 +207,7 @@ def _ratchet_in_review_watermark_for_final_docs(
         )
     if candidate is None:
         return
-    state.set("pr_last_comment_id", candidate)
+    state.set(_PR_LAST_COMMENT_ID, candidate)
 
 
 def _hands_back_what_validating_owes(
@@ -222,52 +309,97 @@ def _approval_still_stands(gh: GitHubClient, issue: Issue, state: PinnedState) -
 
 
 def _hand_off_to_in_review(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+    ctx: _models._DocumentingContext, checked_sha: str, verdict: str, notice: str,
 ) -> None:
-    """Persist what the pass decided, then move the issue off this stage.
+    """Stamp what the pass decided, land it as a checkpoint, then move the issue off this stage.
 
-    The order is the whole of the crash contract. The relabel is what takes
-    the issue out of `workflow:documenting`, and `in_review` repairs nothing
-    it is handed: relabelled ahead of this write, a process dying in between
-    leaves the merge gate reading a head whose `docs_checked_sha` still names
-    the commit the pass STARTED on and whose `docs_verdict` was never written,
-    so the ready ping never fires and no later tick of any stage goes back
-    for it.
+    `verdict` is `updated` or `no_change`, formed against `checked_sha`, and
+    `notice` is what the pull request is told. The order is the whole of the
+    crash contract. The completion is prepared over the fresh comment first,
+    with the notice's ledger entry and the watermark the ratchet behind it
+    moves reserved at their widest, so a comment that would not take it is
+    announced nothing. The notice goes out ahead of the write, whose ledger
+    entry is what keeps every later reader from taking it for a human's. The
+    relabel goes behind a write GitHub confirmed, and only behind one.
 
-    Written first, a crash from here on lands on an issue this stage still
-    owns. The write that did not happen leaves the receipt the gate put down,
-    and the next tick finishes the handoff from it. The relabel that did not
-    happen leaves a pass this write already called finished and no receipt
-    behind it -- which is the same record a `validating` approval handing the
-    same head back leaves, so the next tick runs the pass rather than handing
-    off on evidence that could belong to either.
+    A refused preparation, or a write refused or never confirmed, stops the
+    handoff there (`_stops`), and a crash anywhere along it lands on an issue
+    this stage still owns. A write that did not happen leaves the receipt the
+    gate put down, and the next tick finishes the handoff from it. A write
+    that landed with the relabel behind it never made leaves a pass this write
+    already called finished and no receipt behind it, so the next tick runs
+    the pass again rather than handing off.
     """
-    _ratchet_in_review_watermark_for_final_docs(gh, issue, state)
-    gh.write_pinned_state(issue, state)
-    gh.set_workflow_label(issue, WorkflowLabel.IN_REVIEW)
+    _stamp_docs_verdict(ctx.state, checked_sha, verdict)
+    commit = _commits.ReportCommit(ctx.gh, ctx.issue, ctx.state)
+    reserved = commit.staging()
+    reserved.set(_PR_LAST_COMMENT_ID, _record_values.MAX_RECORDED_NUMBER)
+    if _stops(ctx, commit.prepares(reserved, _COMPLETION, ledger_entry=True), "announcing"):
+        return
+    _post_docs_notice(ctx, notice)
+    _ratchet_in_review_watermark_for_final_docs(ctx.gh, ctx.issue, ctx.state)
+    if _stops(ctx, commit.lands(ctx.state, _COMPLETION), "relabelling"):
+        return
+    ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.IN_REVIEW)
 
 
-def _advance_after_docs_push(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+def _stamp_docs_verdict(
+    state: PinnedState, checked_sha: str, verdict: str,
 ) -> None:
-    """Route the issue forward after a successful docs push.
+    """Stamp the docs watermarks after a terminal success: record the
+    evaluated head, the verdict (`updated` / `no_change`), and reset the
+    silent-park counter.
 
-    Advance to `in_review` -- the approval comment, squash comment, and
-    PR watermarks set by validating remain on state untouched, with the
-    in-review issue-comment watermark ratcheted past anything the
-    awaiting-human resume already consumed. Writes pinned state ahead of the
-    relabel; the caller returns unconditionally.
+    The receipt is dropped in the same breath, and it has to be: it says a
+    published pass still owes a handoff, and this write is what records that
+    pass as finished. Held past this write to cover the relabel behind it, it
+    outlives the handoff whenever the write that would have dropped it does
+    not land -- and the state that leaves is indistinguishable from the one a
+    failed relabel leaves, since both carry the same commit, the same verdict,
+    and the same head. A later `validating` approval at that same head then
+    reads it as a pass still pending, skips the docs pass the approval just
+    bought, and hands the issue to `in_review` a second time. Between two
+    readings nothing can tell apart, running the pass is the safe one.
+
+    A failed pass a paused tick recorded goes too: this pass finished, so the
+    branch carries nothing a later tick must still park for.
     """
-    _hand_off_to_in_review(gh, issue, state)
+    state.set(_state._CHECKED_DOCS_SHA, checked_sha)
+    state.set("docs_verdict", verdict)
+    state.set("silent_park_count", 0)
+    state.set(_state._SETTLED_DOCS_SHA, None)
+    _failed_pass._forget(state)
 
 
-def _advance_after_docs_no_change(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
-) -> None:
-    """Route the issue forward after a clean no-change docs verdict.
+def _post_docs_notice(ctx: _models._DocumentingContext, note: str) -> None:
+    """Post a docs-pass notice on the PR, best-effort (a comment failure must
+    not block the handoff)."""
+    try:
+        _comments._post_pr_comment(ctx.gh, int(ctx.pr_number), ctx.state, note)
+    except Exception:
+        log.exception(
+            "issue=#%s could not post docs notice to PR #%s",
+            ctx.issue.number, ctx.pr_number,
+        )
 
-    No commit landed, so the PR head is unchanged. Ratchet the in-review
-    issue-comment watermark past any issue-thread reply the awaiting-human
-    resume already consumed, persist the verdict, and advance to `in_review`.
+
+def _stops(ctx: _models._DocumentingContext, outcome: _commit_models.CommitOutcome, before: str) -> bool:
+    """Whether `outcome` stops the handoff ahead of `before`: anything but a candidate measured or landed.
+
+    Logged, with the tick's state withheld from every whole-state write behind
+    it: a refusal wrote nothing, and an answer that was lost may or may not
+    have landed, which only the next tick's reading can say. That includes a
+    refusal for room over a comment still reading as the tick last confirmed
+    it, which the guarded commit alone would leave writable
+    (`ReportCommit.withholds`): nothing behind the handoff in this tick is owed
+    that room, and the state carries the stamp the comment refused.
     """
-    _hand_off_to_in_review(gh, issue, state)
+    if outcome.status in _GOES_ON:
+        return False
+    ctx.state.withheld = True
+    log.warning(
+        "issue=#%d its final-docs completion came back %s; %s nothing, with the pinned comment left as it stands "
+        "for the next tick to read",
+        ctx.issue.number, (outcome.refusal or outcome.status).value, before,
+    )
+    return True

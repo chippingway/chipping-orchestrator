@@ -103,7 +103,9 @@ RESUME_WATERMARK = 7000
 RESUME_COMMENT_ID = 7100
 RESUME_REPLY = "try again"
 
-WRITE_PINNED_STATE = "write_pinned_state"
+# The strict edit a guarded commit lands through, which the completion's write
+# goes out by.
+EDIT_PINNED_STATE = "edit_pinned_state"
 WRITE_REJECTED = "pinned write rejected"
 SET_WORKFLOW_LABEL = "set_workflow_label"
 RELABEL_REJECTED = "label write rejected"
@@ -142,7 +144,7 @@ def _a_finished_pass(state) -> bool:
 # write it refuses carries. `None` refuses the seam outright, which is what a
 # relabel that never lands looks like -- the one effect behind the write that
 # records the pass.
-DIES_ON_THE_WRITE = (WRITE_PINNED_STATE, _a_finished_pass)
+DIES_ON_THE_WRITE = (EDIT_PINNED_STATE, _a_finished_pass)
 DIES_ON_THE_RELABEL = (SET_WORKFLOW_LABEL, None)
 
 
@@ -222,11 +224,24 @@ class _DocsGateRunMixin:
         seam, carrying = dies
         refusing = MagicMock(side_effect=RuntimeError(RELABEL_REJECTED))
         if carrying is not None:
-            refusing = _CrashesOnTheWrite(
-                github.write_pinned_state, carrying,
-            )
+            refusing = _CrashesOnTheWrite(getattr(github, seam), carrying)
         with patch.object(github, seam, refusing):
             self.assertRaises(RuntimeError, tick, github, issue, **run_options)
+
+    def _rerun(self, github, issue):
+        """The docs pass a tick takes when it finds nothing left owed.
+
+        Its agent has an already-documented tree in front of it, so it
+        confirms the diff and writes nothing.
+        """
+        return self._fresh_tick(
+            github, issue,
+            run_agent=fixtures._agent(
+                session_id=documenting.DEV_SESSION,
+                last_message=NO_CHANGE_REPLY,
+            ),
+            head_shas=[MEASURED_CANDIDATE_SHA, MEASURED_CANDIDATE_SHA],
+        )
 
     def _crashed_pass(self, dies=DIES_ON_THE_WRITE, **run_options):
         """A fresh docs pass killed where `dies` names, and what it left."""

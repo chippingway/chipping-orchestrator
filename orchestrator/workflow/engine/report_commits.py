@@ -79,7 +79,9 @@ landed base rewrite's finish is declared over them too
 publication of a clean rebase, and both roads of its crash recovery -- and so
 is every auto-rebase park and a recovery's clear and record of a gate's hold,
 decided on the attempt and its evidence
-(`git/base_sync/checkpoints._lands_the_checkpoint`).
+(`git/base_sync/checkpoints._lands_the_checkpoint`), and a final-docs pass's
+completion, decided on its stamp, its publication, and the records its
+approval was read over (`stages/documenting/handoff.py`).
 """
 from __future__ import annotations
 
