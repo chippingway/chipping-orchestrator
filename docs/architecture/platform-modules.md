@@ -500,13 +500,11 @@ orchestrator/
                         issue two queries return is dispatched once, and which drops the pull requests those
                         queries also list by the `_pull_request` slot PyGithub filled from the page, since the
                         public property would spend a detail GET on every real issue to answer, asking that
-                        property only of a row whose slot is missing or in a shape it does not recognize -- plus
-                        the pairing of every swept label with
-                        its pre-namespace spelling and with whether a miss on that spelling is the expected
-                        answer, since a closed issue is the one case no other pass revisits and one still
-                        carrying a bare label, which the bootstrap never renames, has nothing else left to find
-                        it by. Sits directly above `issues` in the client's mixin chain, which is the owner it
-                        reads its label sets and its issue-state spellings from
+                        property only of a row whose slot is missing or in a shape it does not recognize -- with
+                        each swept label asked for by its canonical name alone, so a closed issue whose only
+                        workflow label is a pre-namespace spelling is not swept. Sits directly above `issues` in
+                        the client's mixin chain, which is the owner it reads its label sets and its issue-state
+                        spellings from
     issues.py           issue writes, the query options, the wire issue-state vocabulary, the closed predicate
                         every reader of it asks through, the every-state, no-label walk that finds the first
                         issue carrying a marker -- the reading a receipt lookup needs and the only one that
@@ -525,8 +523,8 @@ orchestrator/
                         evidence, and an unreadable walk all answer alike
     labels.py           label vocabulary, bootstrap specs, the bootstrap that creates the canonical labels a
                         repository lacks without looking up, editing, or deleting any other definition, and cached
-                        reads; confirmed absences expire after a bounded number of closed sweeps, request failures
-                        stay retryable, and each sweep reports only the absent legacy spellings it observed
+                        reads that keep each label they resolve and remember no failed lookup, so a label the
+                        sweep could not resolve, or could not ask about, is asked for again on the next sweep
     pinned_state.py     the pinned durable-state model, the comment body it is written as -- with the wrapper's own
                         terminator escaped in the SERIALIZED payload and never in the value, since a recorded
                         explanation or a preserved pull-request body carrying `-->` would close that comment early

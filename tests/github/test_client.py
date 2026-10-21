@@ -12,7 +12,6 @@ from github import GithubException
 from github.Requester import Requester
 
 from orchestrator import config
-from orchestrator.github import labels as _label_cache
 from orchestrator.github.client import GitHubClient
 from tests.support.repos_host import repos_only_host
 
@@ -21,7 +20,7 @@ _REPO_SLUG = "owner/repo"
 _SPEC_SLUG = "other/repo"
 _TOKEN = "tok"
 _IMPLEMENTING_LABEL = "workflow:implementing"
-_LEGACY_LABEL = "implementing"
+_MISSING_LABEL = "in_review"
 _FORBIDDEN_STATUS = 403
 _NOT_FOUND_STATUS = 404
 _NUMBER = 7
@@ -42,7 +41,7 @@ _CANONICAL_URL = f"https://api.github.com/repos/{_CANONICAL_SLUG}"
 _CANONICAL_PULLS_URL = f"{_CANONICAL_URL}/pulls"
 _REPO_ID = 42
 _REPO_PATH = f"/repos/{_REPO_SLUG}"
-_MISSING_LABEL_PATH = f"{_REPO_PATH}/labels/{_LEGACY_LABEL}"
+_MISSING_LABEL_PATH = f"{_REPO_PATH}/labels/{_MISSING_LABEL}"
 _WIRE_BODIES = MappingProxyType({
     _REPO_PATH: {
         "id": _REPO_ID,
@@ -59,9 +58,6 @@ def _bare_client(repo: _CountingRepo) -> GitHubClient:
     gh = GitHubClient.__new__(GitHubClient)
     gh.repo = repo
     gh._label_cache = {}
-    gh._absent_after_sweep = {}
-    gh._pollable_calls = 0
-    gh._closed_sweeps = 0
     return gh
 
 
@@ -76,8 +72,8 @@ class _CountingRepo:
 
     `missing` names answer 404 -- the repository confirming it has no such
     label. `unavailable` names answer 403, which says only that the question
-    could not be asked. `recover` lifts the 403s and `add_label` makes a
-    missing name resolve, so a test can assert what the next lookup sees.
+    could not be asked. `recover` lifts the 403s and `add_missing` makes the
+    missing names resolve, so a test can assert what the next lookup sees.
     """
 
     def __init__(
@@ -94,9 +90,9 @@ class _CountingRepo:
         """Clear the transient failures, as a lifted rate limit would."""
         self._unavailable = set()
 
-    def add_label(self, name: str) -> None:
-        """Make a missing label resolve, as a human re-adding it would."""
-        self._missing = self._missing - {name}
+    def add_missing(self) -> None:
+        """Make the missing labels resolve, as a human adding them would."""
+        self._missing = set()
 
     def get_label(self, name: str):
         self.get_label_calls.append(name)
@@ -343,7 +339,7 @@ class WorkerClientTest(unittest.TestCase):
         # it to an issue posts its name -- which GitHub answers by creating it.
         worker = self.parent._for_worker_thread()
 
-        self.assertIsNone(worker._cached_label(_LEGACY_LABEL))
+        self.assertIsNone(worker._cached_label(_MISSING_LABEL))
 
         self.assertEqual(self.wire.sent_by(worker), [_MISSING_LABEL_PATH])
         self.assertFalse(worker.repo.completed)
@@ -364,70 +360,28 @@ class CachedLabelTest(unittest.TestCase):
             self.assertEqual(label.name, _IMPLEMENTING_LABEL)
         self.assertEqual(repo.get_label_calls, [_IMPLEMENTING_LABEL])
 
-    def test_failed_lookup_is_not_cached_and_retries(self) -> None:
-        repo = _CountingRepo(missing={_IMPLEMENTING_LABEL})
-        gh = _bare_client(repo)
-        self.assertIsNone(gh._cached_label(_IMPLEMENTING_LABEL))
-        self.assertIsNone(gh._cached_label(_IMPLEMENTING_LABEL))
-        # Both calls hit GitHub: a label a human may still create must not be
-        # written off after one miss.
-        self.assertEqual(
-            repo.get_label_calls,
-            [_IMPLEMENTING_LABEL, _IMPLEMENTING_LABEL],
-        )
+    def test_failed_lookup_retries_until_it_resolves(self) -> None:
+        # Neither failure is written off. A 404 is a label a human may still
+        # create; a 403 is what an exhausted primary rate limit answers, which
+        # says nothing about whether the label exists. Every call asks again,
+        # and the first that resolves is cached like any other.
+        for case, repo, answer in (
+            ("absent", _CountingRepo(missing={_IMPLEMENTING_LABEL}), _CountingRepo.add_missing),
+            ("unavailable", _CountingRepo(unavailable={_IMPLEMENTING_LABEL}), _CountingRepo.recover),
+        ):
+            with self.subTest(case=case):
+                gh = _bare_client(repo)
+                for _ in range(2):
+                    self.assertIsNone(gh._cached_label(_IMPLEMENTING_LABEL))
+                answer(repo)
+                for _ in range(2):
+                    resolved = gh._cached_label(_IMPLEMENTING_LABEL)
+                    self.assertEqual(resolved.name, _IMPLEMENTING_LABEL)
 
-    def test_confirmed_absence_is_throttled(self) -> None:
-        # `throttle_absent` is for a name a migrated repository is expected to
-        # be missing -- the pre-namespace spellings the closed-issue sweep
-        # also asks for. Inside the window a 404 is taken at its word, so the
-        # sweep does not spend a request per pass on a certain miss.
-        repo = _CountingRepo(missing={_LEGACY_LABEL})
-        gh = _bare_client(repo)
-        for _ in range(3):
-            self.assertIsNone(
-                gh._cached_label(_LEGACY_LABEL, throttle_absent=True),
-            )
-        self.assertEqual(repo.get_label_calls, [_LEGACY_LABEL])
-
-    def test_absent_label_resolves_once_it_reappears(self) -> None:
-        # The throttle is a window, not a verdict: a human (or an older
-        # integration) re-applying the pre-namespace label must be picked up
-        # without a restart, or the closed issues now carrying it are stranded
-        # for the life of the process.
-        repo = _CountingRepo(missing={_LEGACY_LABEL})
-        gh = _bare_client(repo)
-
-        self.assertIsNone(
-            gh._cached_label(_LEGACY_LABEL, throttle_absent=True),
-        )
-        repo.add_label(_LEGACY_LABEL)
-        gh._closed_sweeps += _label_cache._ABSENT_LABEL_RETRY_SWEEPS
-        reappeared = gh._cached_label(_LEGACY_LABEL, throttle_absent=True)
-
-        self.assertEqual(reappeared.name, _LEGACY_LABEL)
-        self.assertEqual(repo.get_label_calls, [_LEGACY_LABEL, _LEGACY_LABEL])
-
-    def test_transient_failure_retries_and_recovers(self) -> None:
-        # 403 is what an exhausted primary rate limit answers, and it says
-        # nothing about whether the label exists. Caching it as absence would
-        # strand the closed legacy-labeled issues this lookup exists to reach,
-        # so it stays retryable even under `throttle_absent` -- and the lookup
-        # resolves as soon as the limit lifts.
-        repo = _CountingRepo(unavailable={_LEGACY_LABEL})
-        gh = _bare_client(repo)
-
-        for _ in range(2):
-            self.assertIsNone(
-                gh._cached_label(_LEGACY_LABEL, throttle_absent=True),
-            )
-        repo.recover()
-        recovered = gh._cached_label(_LEGACY_LABEL, throttle_absent=True)
-
-        self.assertEqual(recovered.name, _LEGACY_LABEL)
-        self.assertEqual(
-            repo.get_label_calls,
-            [_LEGACY_LABEL, _LEGACY_LABEL, _LEGACY_LABEL],
-        )
+                self.assertEqual(
+                    repo.get_label_calls,
+                    [_IMPLEMENTING_LABEL, _IMPLEMENTING_LABEL, _IMPLEMENTING_LABEL],
+                )
 
 
 if __name__ == "__main__":

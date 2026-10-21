@@ -4,10 +4,10 @@
 
 Two queries under one method: every open issue, and -- on the
 ``CLOSED_ISSUE_SWEEP_EVERY_N_TICKS`` cadence -- the closed ones a sweep still
-owes a pass, one query per swept label spelling. What holds them together is
-the shared number set they all filter through: the queries overlap, and a
-stage handler dispatched twice against one issue in a tick would act on a
-record it had just written itself.
+owes a pass, one query per swept label, asked for by its canonical name. What
+holds them together is the shared number set they all filter through: the
+queries overlap, and a stage handler dispatched twice against one issue in a
+tick would act on a record it had just written itself.
 
 Which labels each half asks about is read from ``issues`` rather than restated
 here. Those sets say which closed issues are still owed something, which is a
@@ -34,42 +34,14 @@ from orchestrator.github.issues import (
     GitHubIssueMixin,
     issue_query_options,
 )
-from orchestrator.workflow.state import WorkflowLabel, legacy_label_name
-
-
-def _sweep_lookups(
-    sweep_labels: tuple[WorkflowLabel, ...],
-) -> tuple[tuple[str, bool], ...]:
-    """Pair every swept label spelling with whether a miss on it is expected.
-
-    The pre-namespace spelling is queried beside the namespaced one because a
-    closed issue is the one case no other pass revisits: the bootstrap never
-    renames a bare label off an issue, so nothing else would ever surface one
-    still carrying it.
-    Both queries feed one ``seen_numbers`` set, so an issue a repository
-    carries under both spellings is still yielded once.
-
-    A miss on a legacy name is the expected answer on a migrated repository,
-    so it is throttled rather than re-asked every sweep -- throttled, not
-    remembered, because the label can still come back by hand.
-    """
-    lookups: list[tuple[str, bool]] = []
-    for sweep_label in sweep_labels:
-        lookups.append((str(sweep_label), False))
-        legacy_name = legacy_label_name(sweep_label)
-        if legacy_name is not None:
-            lookups.append((legacy_name, True))
-    return tuple(lookups)
-
-
-CLOSED_SWEEP_LOOKUPS = _sweep_lookups(CLOSED_SWEEP_LABELS)
-
-CLEANUP_SWEEP_LOOKUPS = _sweep_lookups(CLEANUP_ROUTE_LABELS)
+from orchestrator.workflow.state import WorkflowLabel
 
 # One walk over both, because both are the same request against the same
 # cadence and the same label cache, and the dispatcher tells the two apart by
 # what it finds on the issue rather than by which query produced it.
-SWEEP_LOOKUPS = CLOSED_SWEEP_LOOKUPS + CLEANUP_SWEEP_LOOKUPS
+SWEEP_LABELS: tuple[WorkflowLabel, ...] = (
+    CLOSED_SWEEP_LABELS + CLEANUP_ROUTE_LABELS
+)
 
 # What a row carrying no PyGithub ``_pull_request`` slot at all reads as.
 _NO_RECORDED_PULL_REQUEST = object()
@@ -122,9 +94,9 @@ class GitHubIssuePollingMixin(GitHubIssueMixin):
     A link in the chain rather than a collaborator standing beside it, on the
     same terms as every other link: each inherits its neighbour to be composed,
     not to borrow from it. Nothing here calls an issue method -- the seams the
-    walk reads are the client's own, the repository and the poll and sweep
-    counters and the cached label reads -- so an issue operation and a poll can
-    each be changed without disturbing the other.
+    walk reads are the client's own, the repository and the poll counter and
+    the cached label reads -- so an issue operation and a poll can each be
+    changed without disturbing the other.
     """
 
     def list_pollable_issues(
@@ -163,26 +135,19 @@ class GitHubIssuePollingMixin(GitHubIssueMixin):
     ) -> Iterable[Issue]:
         """Yield the closed issues still carrying a swept workflow label.
 
-        Reached only past the cadence gate, so the sweep count it keeps -- and
-        the absent-label window denominated in it -- advances once per sweep
-        rather than once per poll.
+        Each label is asked for by its canonical name and by nothing else, so a
+        closed issue whose only workflow label is a pre-namespace spelling is
+        not reached: that spelling is not a current label, and a sweep exists
+        to finish current work. A label whose lookup fails is skipped for this
+        pass alone, and the next sweep asks for it again.
 
         The two cleanup states ride the same walk, the same cadence, and the
         same label cache: an extra pass over them would double the fixed cost
         the cadence exists to amortize while asking the identical question one
         tick apart.
         """
-        self._closed_sweeps += 1
-        # Scoped to this pass: the spellings it confirms absent are summarized
-        # at the end of it, and a sweep that raises before then takes them with
-        # it rather than leaving them for the next one to restate.
-        absent_legacy_names: list[str] = []
-        for label_name, absence_is_expected in SWEEP_LOOKUPS:
-            label_object = self._cached_label(
-                label_name,
-                throttle_absent=absence_is_expected,
-                absent_names=absent_legacy_names,
-            )
+        for sweep_label in SWEEP_LABELS:
+            label_object = self._cached_label(str(sweep_label))
             if label_object is None:
                 continue
             yield from iter_new_non_pr_issues(
@@ -195,6 +160,3 @@ class GitHubIssuePollingMixin(GitHubIssueMixin):
                 ),
                 seen_numbers,
             )
-        # After the loop, so every legacy spelling this sweep confirmed absent
-        # lands in one repository-qualified line instead of one line each.
-        self._report_absent_legacy_labels(absent_legacy_names)

@@ -691,8 +691,10 @@ which paths reach an issue decides what keeps it away:
   scheduling, and the refresh ([control labels](../configuration.md#control-labels)). Hold a decomposed family as a
   whole: a parent's handler writes its children too, under each child's own claim.
 - **Closed-issue recovery and cleanup.** The closed-issue sweep finalizes a closed issue still on a stage label, and
-  `paused` holds that as it holds dispatch. A closed issue on `workflow:decomposing`, `workflow:umbrella`,
-  `workflow:ready`, or `workflow:blocked` goes to the
+  `paused` holds that as it holds dispatch. It asks for canonical label names only, so neither it nor the closed-owner
+  sweep below reaches a closed issue whose only workflow label is a pre-namespace spelling
+  ([pollable issues](../state-machine/labels-and-state.md#pollable-issues-and-finalization)). A closed issue on
+  `workflow:decomposing`, `workflow:umbrella`, `workflow:ready`, or `workflow:blocked` goes to the
   [closed-owner sweep](../state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own) instead,
   which ends the cycle, closes the pull request it held, reclaims what its ledger owes the remote, and writes
   `rejected`; a control label defers those steps but not the cancellation it records in the pinned comment. The

@@ -72,11 +72,12 @@ its direct write are in [`state-machine/labels-and-state.md`][typed-states].
 The startup label bootstrap **creates only the canonical labels a repository lacks**. It never looks up, renames, or
 deletes a pre-namespace spelling or any other definition, so a repository whose labels predate the namespace keeps
 them, and every issue holding one keeps it: where only the bare spelling exists, the namespaced label is created
-beside it. Those issues come off the bare label one relabel at a time, because two reads still take either spelling —
-issue routing and the closed-issue sweep's query — and a namespaced label always outranks a bare one on the same
-issue. The community sweep's dedup marker is `workflow:community_contribution` alone, so a bare
-`community_contribution` left on a PR is the repository's own label. What a PAT without `Issues: Read and write`
-leaves behind, and which bare tags a relabel deliberately does not delete, are in
+beside it. Those issues come off the bare label one relabel at a time, because one read still takes either spelling —
+issue routing — and a namespaced label always outranks a bare one on the same issue. Neither sweep reads a bare
+label: the community sweep's dedup marker is `workflow:community_contribution` alone, so a bare
+`community_contribution` left on a PR is the repository's own label, and the closed-issue sweep queries canonical names
+only, so a closed issue whose only workflow label is a bare spelling is never revisited. What a PAT without
+`Issues: Read and write` leaves behind, and which bare tags a relabel deliberately does not delete, are in
 [`state-machine/labels-and-state.md`][legacy-labels].
 
 <a id="per-tick-flow-workflowtick"></a>
@@ -242,11 +243,12 @@ refresh-owned retry are in
 
 ### Pollable issues and finalization
 
-`gh.list_pollable_issues()` yields every open non-PR issue plus the closed ones still carrying one of the ten swept
-labels — the eight a terminal arc may still be owed on, and `workflow:decomposing` / `workflow:umbrella`, whose
-closed issues are yielded for snapshot cleanup only and never reach the stage handler their label names — each also
-queried under its pre-namespace spelling where it has one, so an external merge or an operator close finalizes
-cleanly instead of stranding the issue. `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS` batches that sweep to once every N ticks,
+`gh.list_pollable_issues()` yields every open non-PR issue plus the closed ones still carrying one of the twelve
+swept labels — the eight a terminal arc may still be owed on, and `workflow:decomposing`, `workflow:umbrella`,
+`workflow:ready`, and `workflow:blocked`, whose closed issues are yielded for snapshot cleanup only and never reach
+the stage handler their label names — so an external merge or an operator close finalizes cleanly instead of
+stranding the issue. Each is queried under its canonical name only, so a closed issue whose only workflow label is a
+pre-namespace spelling is not yielded. `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS` batches that sweep to once every N ticks,
 which is the knob for the GitHub primary-rate-limit cost it carries on a multi-repo host. Which labels are swept, why
 the pre-PR labels are not, and how a closed `discussion` is held for its plan PR are in
 [`state-machine/labels-and-state.md`][pollable].

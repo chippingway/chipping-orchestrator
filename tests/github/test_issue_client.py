@@ -4,72 +4,111 @@
 from __future__ import annotations
 
 import unittest
+from functools import partial
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from github import GithubException
 
 from orchestrator import config
-from orchestrator.github import labels as _label_cache
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.issue_polling import SWEEP_LOOKUPS
 from orchestrator.workflow.state import WorkflowLabel
 
 _STATE_OPEN = "open"
 _STATE_CLOSED = "closed"
-_SWEPT_LABEL_COUNT = len(SWEEP_LOOKUPS)
+_HTTP_FORBIDDEN = 403
 _HTTP_NOT_FOUND = 404
 _PARENT_ISSUE_NUMBER = 42
-_LEGACY_SWEEP_NAME = "implementing"
 _REPO_SLUG = "owner/repo"
 _SWEPT_ISSUE_NUMBER = 77
 _SWEEP_CADENCE_ATTR = "CLOSED_ISSUE_SWEEP_EVERY_N_TICKS"
 
+# Every name one sweep asks for, spelled as GitHub stores it: the eight
+# recovery labels -- `in_review`, `question`, and `discussion` canonical under
+# their bare spelling -- then the four cleanup ones.
+_CANONICAL_SWEEP_NAMES = (
+    "workflow:implementing",
+    "workflow:documenting",
+    "workflow:validating",
+    "in_review",
+    "workflow:fixing",
+    "workflow:resolving_conflict",
+    "question",
+    "discussion",
+    "workflow:decomposing",
+    "workflow:umbrella",
+    "workflow:ready",
+    "workflow:blocked",
+)
+_SWEPT_LABEL_COUNT = len(_CANONICAL_SWEEP_NAMES)
+_FAILING_SWEEP_NAME = "workflow:fixing"
+
+
+def _label_lookup(
+    sweep_labels: dict[str, MagicMock],
+    failing: frozenset[str],
+    status: int,
+    name: str,
+) -> MagicMock:
+    """Answer `status` for the failing names and resolve the other canonical ones.
+
+    Any other name answers 404, so a lookup the sweep should never make is
+    recorded on the mock rather than raising out of the poll.
+    """
+    if name in failing:
+        raise GithubException(status, {"message": "nope"}, None)
+    if name not in sweep_labels:
+        raise GithubException(_HTTP_NOT_FOUND, {"message": "Not Found"}, None)
+    return sweep_labels[name]
+
 
 def _closed_sweep_fixture():
-    """Return a bare client whose repo resolves each swept label by name."""
+    """Return a bare client whose repo resolves each canonical swept label."""
     # Bypass the networked __init__; wire only what the poll generator reads.
     client = GitHubClient.__new__(GitHubClient)
     client.repo = MagicMock()
     client._repo_slug = _REPO_SLUG
     client._pollable_calls = 0
-    client._closed_sweeps = 0
     client._label_cache = {}
-    client._absent_after_sweep = {}
-    client.repo.get_issues.return_value = iter([])
+    client.repo.get_issues.side_effect = lambda **_: iter([])
     sweep_labels = {
         name: MagicMock(name=f"{name}_label")
-        for name, _ in SWEEP_LOOKUPS
+        for name in _CANONICAL_SWEEP_NAMES
     }
-    client.repo.get_label.side_effect = sweep_labels.__getitem__
+    client.repo.get_label.side_effect = partial(
+        _label_lookup, sweep_labels, frozenset(), _HTTP_NOT_FOUND,
+    )
     return client, sweep_labels
 
 
-def _raise_not_found() -> None:
-    raise GithubException(_HTTP_NOT_FOUND, {"message": "Not Found"}, None)
-
-
-def _absent_legacy_fixture() -> GitHubClient:
-    """A client whose repo resolves every swept label but the legacy one."""
-    client, sweep_labels = _closed_sweep_fixture()
-    client.repo.get_label.side_effect = lambda name: (
-        _raise_not_found()
-        if name == _LEGACY_SWEEP_NAME
-        else sweep_labels[name]
+def _requests(client: GitHubClient) -> SimpleNamespace:
+    """What the client asked the repository for, by kind."""
+    queries = client.repo.get_issues.call_args_list
+    return SimpleNamespace(
+        looked_up=[call.args[0] for call in client.repo.get_label.call_args_list],
+        open=[call for call in queries if call.kwargs["state"] == _STATE_OPEN],
+        closed=[call for call in queries if call.kwargs["state"] == _STATE_CLOSED],
     )
-    return client
 
 
-def _legacy_lookups(client: GitHubClient) -> int:
-    """How many times the repository was asked for the legacy label."""
-    return len([
-        call for call in client.repo.get_label.call_args_list
-        if call.args[0] == _LEGACY_SWEEP_NAME
-    ])
+def _sweep_through_failure(status: int):
+    """Sweep once with one label's lookup failing `status`, then once with it resolving."""
+    client, sweep_labels = _closed_sweep_fixture()
+    client.repo.get_label.side_effect = partial(
+        _label_lookup, sweep_labels, frozenset((_FAILING_SWEEP_NAME,)), status,
+    )
+    with patch.object(config, _SWEEP_CADENCE_ATTR, 1):
+        list(client.list_pollable_issues())
+        failed = _requests(client)
+        client.repo.get_label.side_effect = partial(
+            _label_lookup, sweep_labels, frozenset(), status,
+        )
+        list(client.list_pollable_issues())
+    return failed, _requests(client), sweep_labels[_FAILING_SWEEP_NAME]
 
 
 class ClosedIssueSweepLabelTest(unittest.TestCase):
-    """The closed-issue sweep queries with Label objects, never label names.
+    """The closed-issue sweep asks for canonical names and queries by Label.
 
     Real PyGithub's `Repository.get_issues(labels=...)` reads `label.name`, so
     a raw string list raises a TypeError before the generator yields anything.
@@ -79,25 +118,19 @@ class ClosedIssueSweepLabelTest(unittest.TestCase):
     against a mocked Repository is what pins the argument type down.
     """
 
-    def test_closed_sweep_uses_label_object(self) -> None:
+    def test_sweep_queries_canonical_label_objects(self) -> None:
+        # Exactly the canonical names, each once: no pre-namespace spelling is
+        # asked for or queried, and the bare canonical names are not dropped.
         client, sweep_labels = _closed_sweep_fixture()
 
         list(client.list_pollable_issues())
 
-        calls = SimpleNamespace(
-            looked_up={
-                call.args[0]
-                for call in client.repo.get_label.call_args_list
-            },
-            closed=[
-                call
-                for call in client.repo.get_issues.call_args_list
-                if call.kwargs.get("state") == _STATE_CLOSED
-            ],
+        requests = _requests(client)
+        self.assertEqual(
+            sorted(requests.looked_up), sorted(_CANONICAL_SWEEP_NAMES),
         )
-        self.assertEqual(calls.looked_up, set(sweep_labels))
-        self.assertEqual(len(calls.closed), _SWEPT_LABEL_COUNT)
-        labels_passed = [call.kwargs["labels"] for call in calls.closed]
+        labels_passed = [call.kwargs["labels"] for call in requests.closed]
+        self.assertEqual(len(labels_passed), _SWEPT_LABEL_COUNT)
         for expected_label in sweep_labels.values():
             self.assertIn([expected_label], labels_passed)
 
@@ -121,86 +154,65 @@ class ClosedIssueSweepLabelTest(unittest.TestCase):
         ]
         self.assertEqual(states, [_STATE_OPEN])
 
-
-class LegacyClosedSweepTest(unittest.TestCase):
-    """The sweep asks for the pre-namespace spelling too, on a throttle.
-
-    A closed issue is the one case no other pass revisits, and the bootstrap
-    never renames a bare label off one, so the bare spelling is all that is
-    left to find it by. Every such query costs a request, though, and on a
-    migrated repository the answer is a certain miss -- so consecutive sweeps
-    inside the retry window reuse it instead of re-asking. The window's own
-    expiry is `CachedLabelTest`'s.
-    """
-
-    def test_both_spellings_are_queried(self) -> None:
-        client, _ = _closed_sweep_fixture()
-
-        list(client.list_pollable_issues())
-
-        looked_up = [
-            call.args[0] for call in client.repo.get_label.call_args_list
-        ]
-        self.assertIn(str(WorkflowLabel.IMPLEMENTING), looked_up)
-        self.assertIn(_LEGACY_SWEEP_NAME, looked_up)
-
     def test_issue_seen_twice_is_yielded_once(self) -> None:
-        # A repository mid-migration can carry both labels on one issue, so
-        # the two queries return it twice; `seen_numbers` is what collapses
-        # that into the single handler dispatch the dispatcher expects.
+        # A closed issue a human left on two swept labels comes back from both
+        # queries, and the open poll can list one closed while the sweep runs;
+        # `seen_numbers` is what collapses that into the single handler
+        # dispatch the dispatcher expects.
         client, _ = _closed_sweep_fixture()
         swept = SimpleNamespace(number=_SWEPT_ISSUE_NUMBER, pull_request=None)
-        client.repo.get_issues.side_effect = lambda **kwargs: iter(
-            [] if kwargs.get("state") == _STATE_OPEN else [swept],
-        )
+        client.repo.get_issues.side_effect = lambda **_: iter([swept])
 
         polled = list(client.list_pollable_issues())
 
         self.assertEqual([issue.number for issue in polled], [_SWEPT_ISSUE_NUMBER])
 
-    def test_absent_legacy_label_throttled(self) -> None:
-        # Three sweeps inside one retry window ask once. Without the throttle
-        # every migrated repository would spend a request per legacy name per
-        # sweep on an answer that is not going to change for a long while.
-        client = _absent_legacy_fixture()
 
-        for _ in range(3):
-            list(client.list_pollable_issues())
+class ClosedSweepRequestCostTest(unittest.TestCase):
+    """What the sweep costs in requests across polls, and how it recovers.
 
-        self.assertEqual(_legacy_lookups(client), 1)
+    A resolved label is a request paid once per client; the closed queries are
+    paid once per sweep, and the cadence decides how many polls that is. A
+    lookup that failed is not remembered either way, so the next sweep asks
+    for it again and queries it once it resolves.
+    """
 
-    def test_window_counts_sweeps_not_polls(self) -> None:
-        # Under a non-default cadence most polls never reach the sweep at all.
-        # Measured in polls, the window would erode as the cadence rises --
-        # expiring after a third of the sweeps at `N=3`, and before the very
-        # next one at any `N` past the window itself.
+    def test_labels_asked_once_queried_per_sweep(self) -> None:
         polls_per_sweep = 3
-        sweeps = _label_cache._ABSENT_LABEL_RETRY_SWEEPS
-        client = _absent_legacy_fixture()
+        polls = 2 * polls_per_sweep
+        client, _ = _closed_sweep_fixture()
 
-        with patch.object(
-            config, _SWEEP_CADENCE_ATTR, polls_per_sweep,
-        ):
-            for _ in range(sweeps * polls_per_sweep):
+        with patch.object(config, _SWEEP_CADENCE_ATTR, polls_per_sweep):
+            for _ in range(polls):
                 list(client.list_pollable_issues())
 
-        self.assertEqual(client._closed_sweeps, sweeps)
-        self.assertEqual(_legacy_lookups(client), 1)
+        requests = _requests(client)
+        self.assertEqual(len(requests.open), polls)
+        self.assertEqual(len(requests.closed), 2 * _SWEPT_LABEL_COUNT)
+        self.assertEqual(
+            sorted(requests.looked_up), sorted(_CANONICAL_SWEEP_NAMES),
+        )
 
-    def test_window_expires_on_the_sweep_past_it(self) -> None:
-        # One sweep past the window the question is asked again, so a label
-        # re-applied by hand is picked up rather than written off.
-        polls_per_sweep = 3
-        sweeps = _label_cache._ABSENT_LABEL_RETRY_SWEEPS + 1
-        client = _absent_legacy_fixture()
+    def test_failed_lookup_is_asked_again_next_sweep(self) -> None:
+        # Neither answer is cached as an absence: a 404 is a label a human may
+        # still add, and a 403 is what an exhausted rate limit answers. The
+        # failed label's query is the one the first sweep skips, and the only
+        # label the second sweep has to ask for again.
+        for status in (_HTTP_NOT_FOUND, _HTTP_FORBIDDEN):
+            with self.subTest(status=status):
+                failed, recovered, retried_label = _sweep_through_failure(status)
 
-        with patch.object(
-            config, _SWEEP_CADENCE_ATTR, polls_per_sweep,
-        ):
-            for _ in range(sweeps * polls_per_sweep):
-                list(client.list_pollable_issues())
-
-        self.assertEqual(_legacy_lookups(client), 2)
+                self.assertEqual(len(failed.closed), _SWEPT_LABEL_COUNT - 1)
+                self.assertEqual(
+                    recovered.looked_up[len(failed.looked_up):],
+                    [_FAILING_SWEEP_NAME],
+                )
+                second_sweep = recovered.closed[len(failed.closed):]
+                self.assertEqual(len(second_sweep), _SWEPT_LABEL_COUNT)
+                self.assertIn(
+                    [retried_label],
+                    [call.kwargs["labels"] for call in second_sweep],
+                )
 
 
 class CreateChildIssueAlwaysUsesParentRepoTest(unittest.TestCase):

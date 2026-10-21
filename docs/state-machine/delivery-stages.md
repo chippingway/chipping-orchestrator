@@ -1872,7 +1872,7 @@ and handed off -- and this is what it guarantees and what stops it.
   and spawn against it. The control label defers what the pass would *do*, not whether the cycle ends: the sweep
   reads the same label and stops at the mark. The
   closed-issue sweep yields those four states beside its own recovery labels, on the same
-  `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS` cadence and through the same label cache and absent-label throttle, so it costs
+  `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS` cadence and through the same label cache, so it costs
   no request on a tick that sweep is skipping anyway (see
   [labels-and-state.md](labels-and-state.md#pollable-issues-and-finalization)).
 - **An owner with no cycle left is asked one question before it is stepped over.** That question is the
