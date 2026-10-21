@@ -50,7 +50,11 @@ rewrite moved the full tree or the verification context
 (`rewrite_finish_evidence`, the invalidation its evidence decision implies:
 `rewrite_evidence_models.RewriteEvidence.stages`), asked again as its write is
 staged -- behind any commands run, and of a decision an earlier finish
-recorded -- and lands that before the head is routed.
+recorded -- and lands that before the head is routed. A final-docs pass that
+publishes a docs commit retires it too, in the write that hands the pull
+request back to `validating` (`stages/documenting/handback.py`): the docs
+commit is content the evidence never ran on, and the entry it leaves keeps the
+squash's carry that still proves a report of the approved commit's lineage.
 """
 from __future__ import annotations
 

@@ -55,3 +55,23 @@ _LAUNCHED_DOCS_SHA = "docs_launched_sha"
 # the accepted commit hands the label back to a stage whose ordinary reading
 # of a branch in sync with its remote is "no docs pass has run".
 _SETTLED_DOCS_SHA = "docs_settled_sha"
+
+# The head the pull request stood on when that pass was entered, which its push
+# is leased against: written beside the receipt in the gate's same write, and
+# spent with it by the completion. The code-publication receipt names that head
+# too, but only until the next publication rewrites it -- a recovery that
+# republishes the docs commit over itself leaves it naming the docs commit --
+# and the report debt the hand-back records is owed from the head the docs
+# commit replaced. The two are one group: a docs receipt with no readable lease
+# beside it is a record something edited, which the hand-back holds over rather
+# than reading a head off anything else.
+_SETTLED_DOCS_LEASE = "docs_settled_lease"
+
+# The docs commit a content-changing pass published and handed back to
+# `workflow:validating` for a fresh developer report and review, written in the
+# one completion write that records the report debt that commit is owed. It is
+# what tells that debt from any other: the dispatcher holds this stage while a
+# debt stands, so a relabel that did not land behind the write is finished
+# from here rather than held for good, and only where the debt still names this
+# very commit. Additive: an issue without it handed nothing back.
+_HANDED_BACK_DOCS_SHA = "docs_handed_back_sha"

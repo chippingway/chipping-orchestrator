@@ -35,6 +35,11 @@ That debt is driven through the real dispatch as well, since what it protects is
 whether a handler is reached at all: any claim, readable or not, holds the roads
 past an approval, while `validating` -- whose report hold pays the debt -- and an
 issue that never carried the record or has paid it dispatch as they always did.
+The one claim that moves an issue rather than holding it is the documenting
+stage's own: the debt a content-changing docs pass recorded as it handed its
+commit back, with the relabel behind that write lost. Its relabel is finished
+and nothing else is done; every other claim on that road, and the same claim
+on `in_review`, is held.
 """
 from __future__ import annotations
 
@@ -114,6 +119,27 @@ _DEBT = _rewrite_debt.RewriteDebt(
 
 # What an issue that predates the record carries in its place: nothing at all.
 _LEGACY = object()
+
+# The mark a docs pass leaves naming the commit it handed back for review, and
+# a commit some other road's debt is about.
+_HANDED_BACK = "docs_handed_back_sha"
+
+_ELSEWHERE = "ef" * (SHA_LENGTH // 2)
+
+_PINNED_PR = "pr_number"
+
+# The one relabel a hand-back's lost relabel earns.
+_HANDED_BACK_RELABEL = ((support.ISSUE_NUMBER, LABEL_VALIDATING),)
+
+# Claims held whatever the mark says, as the label, the claim, and the mark:
+# the hand-back's own claim on `in_review`, and on the documenting road a claim
+# on another head than the one marked, a claim nobody can read, and no mark.
+_HELD_DESPITE_A_MARK = (
+    (LABEL_IN_REVIEW, _DEBT, _REWRITTEN),
+    (LABEL_DOCUMENTING, _DEBT, _ELSEWHERE),
+    (LABEL_DOCUMENTING, {"pr": support.PR_NUMBER}, _REWRITTEN),
+    (LABEL_DOCUMENTING, _DEBT, None),
+)
 
 
 class _Recorder:
@@ -349,12 +375,39 @@ class RewriteDebtDispatchTest(unittest.TestCase, support.ReportTransactionCase):
             with self.subTest(label=label, claim=claim):
                 self.assertEqual(self._dispatched(label, claim), 1)
 
-    def _dispatched(self, label: str, claim) -> int:
-        """One real dispatch of a fresh issue on `label` carrying `claim`."""
+    def test_a_handed_back_claim_finishes_its_relabel(self) -> None:
+        # The claim a docs pass recorded beside the mark naming its commit is
+        # that pass's hand-back, its relabel lost: on `workflow:documenting`
+        # the relabel is finished, with no handler reached and nothing written
+        # or posted. The same claim on `in_review`, and any claim the mark does
+        # not name on `workflow:documenting`, is held as every claim is.
+        self.assertEqual(self._dispatched(LABEL_DOCUMENTING, _DEBT, _REWRITTEN), 0)
+        self.assertEqual(self._standing(), (_HANDED_BACK_RELABEL, _DEBT, ()))
+        for label, claim, marked in _HELD_DESPITE_A_MARK:
+            with self.subTest(label=label, claim=claim, marked=marked):
+                self.assertEqual(self._dispatched(label, claim, marked), 0)
+
+                self.assertEqual(self._standing(), ((), claim, ()))
+
+    def _standing(self) -> tuple:
+        """The relabels made, the claim standing, and the comments posted."""
+        return (
+            tuple(self.gh.label_history),
+            self.gh.pinned_data(support.ISSUE_NUMBER).get(_rewrite_debt.REWRITE_DEBT),
+            tuple(self.gh.posted_comments),
+        )
+
+    def _dispatched(self, label: str, claim, marked: str | None = None) -> int:
+        """One real dispatch of a fresh issue on `label` carrying `claim`, and the hand-back's mark where `marked`."""
         support.ReportTransactionCase.setUp(self)
         self.issue.labels = [FakeLabel(label)]
         if claim is not _LEGACY:
             self.state.set(_rewrite_debt.REWRITE_DEBT, claim)
+        if marked is not None:
+            # The hand-back's write records the mark on an issue pinning the
+            # pull request its debt is about.
+            self.state.set(_HANDED_BACK, marked)
+            self.state.set(_PINNED_PR, support.PR_NUMBER)
         self.gh.write_pinned_state(self.issue, self.state)
         with self._seams(), patch.object(
             _stage_targets, _DISPATCH_SEAM,

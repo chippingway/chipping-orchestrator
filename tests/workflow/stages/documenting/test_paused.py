@@ -304,15 +304,14 @@ class DocumentingResumeTrustFilterTest(unittest.TestCase, _PatchedWorkflowMixin)
             )
         # The trusted reply resumes the full docs prompt (which quotes the
         # filtered conversation, so the outsider URL never appears) and the
-        # pushed docs commit advances to `in_review`.
+        # pushed docs commit is handed back to `validating` for review.
         mocks[RUN_AGENT].assert_called_once()
         prompt = mocks[RUN_AGENT].call_args.args[1]
         self.assertIn("please add a docs note", prompt)
         self.assertNotIn(MALICIOUS_URL, prompt)
         mocks[PUSH_BRANCH].assert_called_once()
-        self.assertIn(
-            (PARKED_DOCS_ISSUE_NUMBER, "in_review"),
-            gh.label_history,
+        self.assertEqual(
+            gh.label_history, [(PARKED_DOCS_ISSUE_NUMBER, "workflow:validating")],
         )
         # Watermark advanced to the trusted comment id only; the trailing
         # outsider comment is left unconsumed.

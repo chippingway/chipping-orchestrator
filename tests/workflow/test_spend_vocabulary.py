@@ -32,6 +32,7 @@ _ROUTE_SPEND_KEYS = (
     _conflicts_state._PREAMBLE_SHA,
     _conflicts_state._REVIEW_ROUND,
     _documenting_state._SETTLED_DOCS_SHA,
+    _documenting_state._SETTLED_DOCS_LEASE,
     _fixing_state._REVIEW_ROUND,
     _fixing_state._PENDING_FIX_AT,
     # Not a round or a bookmark: the mark a fixing report transaction's own

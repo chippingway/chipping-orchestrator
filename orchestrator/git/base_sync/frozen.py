@@ -13,8 +13,9 @@ Most of them end by being SPENT: the step that consumes the record drops it,
 so the freeze lasts exactly as long as the question it belongs to -- the terms
 a squash records before it rewrites the branch among them, dropped by whatever
 finishes or undoes that collapse, a developer report recorded and not yet
-settled, dropped by the binding and settlement that publish it, and an
-Antigravity docs launch, dropped by the write that records its outcome. Three
+settled, dropped by the binding and settlement that publish it, an
+Antigravity docs launch, dropped by the write that records its outcome, and a
+docs pass's receipt, dropped by the completion that hands the pass on. Three
 do not, and they are the reason this is an owner rather than a tuple. An exemption and
 a publication record are invalidated by the head moving off them rather than
 by any write, so what answers for those is the checkout itself -- and, since
@@ -169,8 +170,23 @@ _REPORT_IN_FLIGHT_KEYS: tuple[str, ...] = (
 # It ends by being SPENT, like the report records above, and is read against
 # `null` the same way: a launch whose head could not be read records an empty
 # string, which still names a launch.
+#
+# The receipt a finished docs pass leaves for the completion that hands it on
+# is held the same way. It goes down in the size gate's own write, beside the
+# code-publication receipt of a push that landed or the hold of one that did
+# not, and the completion that hands the published commit back to `validating`
+# consumes it in the write that records that commit's report debt over the
+# head the push replaced. A rebase first -- the completion refused, never
+# confirmed, or cut short by a crash -- publishes a rewrite of the docs commit
+# whose own debt names the docs commit as the head it replaced, which no
+# settled report is about and no squash's lineage reaches, so the reviewer road
+# parks for a report the developer is never asked for. Held, the next
+# documenting tick hands the published commit back first, and a rebase behind
+# that carries the debt onto the commit it publishes, keeping the head the
+# settled report is about.
 _LAUNCH_IN_FLIGHT_KEYS: tuple[str, ...] = (
     "docs_launched_sha",
+    "docs_settled_sha",
 )
 
 
@@ -326,7 +342,8 @@ def _held_records(state: _pinned_state.PinnedState) -> tuple[str, ...]:
 
     A report in flight is read against `null`, the way its own owners ask
     whether one is outstanding, so a record they cannot read still holds; so
-    is a docs launch whose outcome nothing has recorded yet.
+    is a docs launch whose outcome nothing has recorded yet, and a docs pass's
+    receipt no completion has consumed.
     """
     held = tuple(key for key in _FROZEN_BY_KEYS if state.get(key))
     held += _late_claims(state)

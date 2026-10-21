@@ -8,12 +8,14 @@ What GitHub does with that write is not always an answer -- a comment nobody
 could read, an edit refused, an edit that landed and whose answer was lost, a
 comment a human edited while the notice was out, a comment with no room left --
 and none of those is relabelled on. The tick that follows reads what landed: it
-finishes the handoff from a receipt still standing, and runs the pass again
-where none does.
+finishes the handoff from a receipt still standing, finishes the relabel of a
+published commit's hand-back whose debt and mark landed, and runs the pass
+again where neither stands.
 """
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 from unittest.mock import patch
 
 from tests.workflow.stages.documenting import (
@@ -26,22 +28,23 @@ MEASURED_CANDIDATE_SHA = gate.MEASURED_CANDIDATE_SHA
 UNDER_THE_CEILING = gate.UNDER_THE_CEILING
 
 # The roads that leave no receipt behind an unconfirmed write, as how the write
-# went and whether the pass published a commit: a published pass whose write
-# landed and lost its answer, and a clean no-change, which publishes nothing,
-# whichever way its write went.
-UNRECEIPTED = (
-    (completion.LOST, True),
-    (completion.REFUSED, False),
-    (completion.LOST, False),
-)
+# went: a clean no-change publishes nothing, whichever way its write went.
+UNRECEIPTED = (completion.REFUSED, completion.LOST)
 
 # A receipt a maintainer strips off the comment while the notice is out, and
-# whether the tick reading what is left runs the pass again: the docs receipt
-# the completion consumes, and the publication's, which it only reads.
+# where the tick reading what is left hands the issue: the docs receipt the
+# completion consumes, whose loss leaves a branch in sync that the pass reruns
+# over, finds documented, and hands to `in_review`; and the publication's, which
+# the completion only reads, whose loss leaves the docs receipt to hand the
+# published commit back from with no agent run, owed no report.
 STRIPPED = (
-    (gate.KEY_SETTLED_DOCS_SHA, True),
-    (gate.KEY_RECEIPT_SHA, False),
+    (gate.KEY_SETTLED_DOCS_SHA, documenting.IN_REVIEW),
+    (gate.KEY_RECEIPT_SHA, documenting.VALIDATING),
 )
+
+# How many passes the tick reading what is left runs, by where it hands the
+# issue: one rerun ahead of `in_review`, and none ahead of a hand-back.
+PASSES_RUN = MappingProxyType({documenting.IN_REVIEW: 1, documenting.VALIDATING: 0})
 
 
 class UnresolvedCompletionTest(unittest.TestCase, gate._DocsGateFixtureMixin):
@@ -65,26 +68,41 @@ class UnresolvedCompletionTest(unittest.TestCase, gate._DocsGateFixtureMixin):
 
                 mocks[documenting.RUN_AGENT].assert_not_called()
                 mocks[documenting.PUSH_BRANCH].assert_not_called()
-                self._assert_handed_off_once(github, gate.HANDOFF_NOTICE, notices=2)
+                self._assert_handed_back_once(github, gate.HANDOFF_NOTICE, notices=2)
                 self._assert_walked_past_its_notice(github)
 
     def test_an_unreceipted_write_reruns_the_pass(self) -> None:
-        # The tick that sent the write cannot tell one that landed from one
-        # that never did, and relabels nothing. The next one reads what landed
-        # -- a stamp where it landed, none where it did not, and no receipt
-        # either way -- and runs the pass again rather than handing off on a
-        # record no receipt vouches for; only that pass's confirmed write hands
-        # the issue on.
-        for how, publishes in UNRECEIPTED:
-            with self.subTest(how=how, publishes=publishes):
+        # The tick that sent a no-change pass's write cannot tell one that
+        # landed from one that never did, and relabels nothing. The next one
+        # reads what landed -- a stamp where it landed, none where it did not,
+        # and no receipt either way -- and runs the pass again rather than
+        # handing off on a record no receipt vouches for; only that pass's
+        # confirmed write hands the issue on.
+        for how in UNRECEIPTED:
+            with self.subTest(how=how):
                 github, issue = self._seeded()
-                self._unresolved_tick(github, issue, how, publishes)
+                self._unresolved_tick(github, issue, how, publishes=False)
                 self._assert_unreceipted(github, stamped=how == completion.LOST)
 
                 mocks = self._rerun(github, issue)
 
                 mocks[documenting.RUN_AGENT].assert_called_once()
                 self.assertEqual(github.label_history, [(self.issue_number, documenting.IN_REVIEW)])
+
+    def test_a_lost_hand_back_relabels_on_dispatch(self) -> None:
+        # A published commit's hand-back that landed and lost its answer
+        # leaves no receipt, only the debt and the mark it recorded -- which
+        # the dispatcher reads as this stage's own hand-back and relabels,
+        # with no agent, push, or second notice.
+        github, issue = self._seeded()
+        self._unresolved_tick(github, issue, completion.LOST, publishes=True)
+        self.assertEqual(self._pinned(github).get(gate.KEY_SETTLED_DOCS_SHA), None)
+
+        mocks = self._dispatched(github, issue)
+
+        mocks[documenting.RUN_AGENT].assert_not_called()
+        mocks[documenting.PUSH_BRANCH].assert_not_called()
+        self._assert_handed_back_once(github)
 
     def _unresolved_tick(self, github, issue, how: str, publishes: bool) -> None:
         """One tick whose completion's edit is left unanswered `how`: its notice posted, and nothing relabelled.
@@ -124,8 +142,9 @@ class RefusedCompletionTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         # refuses it: nothing is relabelled, and the comment keeps the edit as
         # the human made it -- neither put back nor stamped over. The tick that
         # reads it decides over what is there: with no docs receipt it runs the
-        # pass, and with one it finishes the handoff from it.
-        for stripped, reruns in STRIPPED:
+        # pass, and with one it finishes the handoff from it -- back to
+        # `validating`, with no publication receipt left to owe a report by.
+        for stripped, handed_to in STRIPPED:
             with self.subTest(stripped=stripped):
                 github, issue = self._seeded()
                 with patch.object(
@@ -139,8 +158,8 @@ class RefusedCompletionTest(unittest.TestCase, gate._DocsGateFixtureMixin):
 
                 mocks = self._rerun(github, issue)
 
-                self.assertEqual(mocks[documenting.RUN_AGENT].call_count, int(reruns))
-                self.assertEqual(github.label_history, [(self.issue_number, documenting.IN_REVIEW)])
+                self.assertEqual(mocks[documenting.RUN_AGENT].call_count, PASSES_RUN[handed_to])
+                self.assertEqual(github.label_history, [(self.issue_number, handed_to)])
 
     def test_a_full_comment_announces_nothing(self) -> None:
         # The completion is measured over the comment before its notice goes
@@ -148,7 +167,7 @@ class RefusedCompletionTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         # reserved: a comment with no room left for it is told nothing and
         # handed on nowhere, and the receipt stays for the tick after a human
         # has made room, which announces the handoff once.
-        github, issue = self._seeded(**{gate.KEY_SETTLED_DOCS_SHA: MEASURED_CANDIDATE_SHA})
+        github, issue = self._seeded(**{gate.KEY_SETTLED_DOCS_SHA: MEASURED_CANDIDATE_SHA, **gate.SETTLEMENT_RECEIPT})
         completion._leaves_no_room(github, self.issue_number)
 
         self._settled_tick(github, issue)
@@ -161,7 +180,7 @@ class RefusedCompletionTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         completion._makes_room(github, self.issue_number)
         self._settled_tick(github, issue)
 
-        self._assert_handed_off_once(github, gate.HANDOFF_NOTICE)
+        self._assert_handed_back_once(github, gate.HANDOFF_NOTICE)
 
 
 if __name__ == "__main__":

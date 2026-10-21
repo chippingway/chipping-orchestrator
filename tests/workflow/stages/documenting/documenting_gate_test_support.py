@@ -16,9 +16,11 @@ entered from.
 """
 from __future__ import annotations
 
+from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator import config
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow import fixtures
 from tests.workflow.stages.documenting import (
@@ -46,11 +48,19 @@ UNDER_THE_CEILING = 4
 MAX_ADDED_LINES = "MAX_ADDED_LINES"
 
 # The stamp a finished pass carries, which is what tells the handoff's own
-# durable write from every write a tick takes before it.
+# durable write from every write a tick takes before it: the verdict a pass
+# handed to `in_review` earns, and the mark a pass that published a docs
+# commit leaves as it hands that commit back for review.
 VERDICT_KEY = documenting.DOCS_VERDICT
+KEY_HANDED_BACK = "docs_handed_back_sha"
 
-# The receipt a hold leaves the handoff, and the frozen record beside it.
+# The report debt a published docs commit is owed, and its members.
+KEY_REWRITE_DEBT = "developer_report_rewrite_debt"
+
+# The receipt a hold leaves the handoff, the head its push is leased against,
+# and the frozen record beside them.
 KEY_SETTLED_DOCS_SHA = "docs_settled_sha"
+KEY_SETTLED_DOCS_LEASE = "docs_settled_lease"
 KEY_ADDITIONS = "late_additions"
 KEY_BASE_SHA = "late_base_sha"
 KEY_CANDIDATE_SHA = "late_candidate_sha"
@@ -72,6 +82,23 @@ PR_LAST_COMMENT_ID = "pr_last_comment_id"
 # field wherever the push was made from: it names what this branch put on the
 # remote rather than the stage that put it there.
 KEY_RECEIPT_SHA = "implementing_published_sha"
+
+# The whole receipt an authorized settlement writes as it publishes a held docs
+# commit -- that commit, onto the pull request the docs pass was for, over the
+# head the pass was entered on, which is the head the adjudication froze --
+# beside the lease the gate's hold recorded with the docs receipt.
+SETTLEMENT_RECEIPT = MappingProxyType({
+    KEY_RECEIPT_SHA: MEASURED_CANDIDATE_SHA,
+    "implementing_published_pr": documenting._FreshDocumentingFixture.pr_number,
+    "implementing_published_lease": ENTERED_HEAD,
+    KEY_SETTLED_DOCS_LEASE: ENTERED_HEAD,
+})
+
+# The debt a published docs commit's hand-back records, as its pull request,
+# the head it replaced, and the commit it is about.
+HANDED_BACK_DEBT = (
+    documenting._FreshDocumentingFixture.pr_number, ENTERED_HEAD, MEASURED_CANDIDATE_SHA,
+)
 
 # The seam the count is taken through, and the two keywords a gated push names
 # its commit and pins its ref by.
@@ -95,6 +122,10 @@ DOCS_REPLY = "docs: README tweak"
 # tick that only finished the handoff an earlier one left owed says instead.
 PUSHED_NOTICE = ":books: documenting pass: pushed docs commit."
 HANDOFF_NOTICE = "finished the handoff it was still owed"
+
+# What every notice of a published docs commit goes on to say: it is handed
+# back for a report and a review rather than offered for merge.
+HANDED_BACK_NOTICE = "so it goes back to `workflow:validating`"
 NO_CHANGE_REPLY = "Nothing left to write.\nDOCS: NO_CHANGE"
 
 # The human reply that wakes a parked docs pass, past the watermark the park
@@ -131,13 +162,13 @@ class _CrashesOnTheWrite:
 
 
 def _a_finished_pass(state) -> bool:
-    """The handoff's own write: the first one carrying a stamped verdict.
+    """The handoff's own write: the first one carrying a stamped verdict or a hand-back's mark.
 
-    Every road that finishes a pass stamps the verdict and announces it before
-    this write, so it is the one immediately behind the notice -- the crash
-    the receipt the gate put down has to survive.
+    Every road that finishes a pass stamps it and announces it before this
+    write, so it is the one immediately behind the notice -- the crash the
+    receipt the gate put down has to survive.
     """
-    return state.get(VERDICT_KEY) is not None
+    return state.get(VERDICT_KEY) is not None or state.get(KEY_HANDED_BACK) is not None
 
 
 # Where in the tail a tick is killed, as the seam it dies on and what the
@@ -156,51 +187,58 @@ class _DocsGateAssertionsMixin:
         return github.pinned_data(self.issue_number)
 
     def _assert_unstamped(self, github) -> None:
-        """No docs verdict, and the issue not handed on to be merged.
+        """No docs verdict or hand-back, and the issue handed on to nobody.
 
-        Both together because either alone would pass for the wrong reason: a
-        `docs_verdict` over a commit nothing published tells the next tick the
-        docs are in the diff, and an `in_review` handoff puts a pull request
-        the docs never joined in front of the person who merges it.
+        Together because each alone would pass for the wrong reason: a stamp
+        over a commit nothing published tells the next tick the docs are in
+        the diff, an `in_review` handoff puts a pull request the docs never
+        joined in front of the person who merges it, and a hand-back to
+        `validating` asks a report of a head the pull request never received.
         """
-        self.assertIsNone(self._pinned(github).get(documenting.DOCS_VERDICT))
-        self.assertNotIn(
-            (self.issue_number, documenting.IN_REVIEW), github.label_history,
-        )
+        pinned = self._pinned(github)
+        self.assertIsNone(pinned.get(documenting.DOCS_VERDICT))
+        self.assertIsNone(pinned.get(KEY_HANDED_BACK))
+        for label in (documenting.IN_REVIEW, documenting.VALIDATING):
+            self.assertNotIn((self.issue_number, label), github.label_history)
 
     def _assert_held(self, github, mocks) -> None:
         """Nothing reached the remote, and nothing was stamped over it."""
         mocks[documenting.PUSH_BRANCH].assert_not_called()
         self._assert_unstamped(github)
 
-    def _assert_handed_off_once(
+    def _assert_handed_back_once(
         self, github, notice=PUSHED_NOTICE, notices=1,
     ) -> None:
-        """The stamp, the released receipt, one handoff, and what it said.
+        """The stamp, the released receipt, the debt and mark, one hand-back, and what it said.
 
-        The relabel is counted rather than merely present: the pass ends in
-        one place and every road that reaches it has already published, so a
-        second one would say a docs pass ran twice over one commit. `notices`
-        is asked of each case because the one window the tail cannot close --
-        a notice that went out and a write that did not -- re-announces on the
-        tick that finishes the handoff.
+        The published commit is stamped with no verdict -- a head handed back
+        for review is no head documented for merge -- and owed a report of
+        itself over the head the pass was entered on, which the publication's
+        receipt names. The relabel is counted rather than merely present: the
+        pass ends in one place and every road that reaches it has already
+        published, so a second one would say a docs pass ran twice over one
+        commit. `notices` is asked of each case because the one window the
+        tail cannot close -- a notice that went out and a write that did not --
+        re-announces on the tick that finishes the handoff.
         """
         pinned = self._pinned(github)
-        self.assertEqual(
-            pinned[documenting.DOCS_VERDICT], documenting.VERDICT_UPDATED,
-        )
-        self.assertEqual(
-            pinned[documenting.DOCS_CHECKED_SHA], MEASURED_CANDIDATE_SHA,
-        )
-        self.assertIsNone(pinned.get(KEY_SETTLED_DOCS_SHA))
+        debt = pinned[KEY_REWRITE_DEBT]
+        stamped = (pinned.get(documenting.DOCS_VERDICT), pinned[documenting.DOCS_CHECKED_SHA])
+        self.assertEqual(stamped, (None, MEASURED_CANDIDATE_SHA))
+        marked = (pinned[KEY_HANDED_BACK], pinned.get(KEY_SETTLED_DOCS_SHA), pinned.get(KEY_SETTLED_DOCS_LEASE))
+        self.assertEqual(marked, (MEASURED_CANDIDATE_SHA, None, None))
+        recorded = (debt["pr"], debt["previous_head"], debt["rewritten_head"])
+        self.assertEqual(recorded, HANDED_BACK_DEBT)
         self.assertEqual(len(github.posted_pr_comments), notices)
         self.assertIn(notice, github.posted_pr_comments[-1][1])
+        self.assertIn(HANDED_BACK_NOTICE, github.posted_pr_comments[-1][1])
         self.assertEqual(
             github.label_history.count(
-                (self.issue_number, documenting.IN_REVIEW),
+                (self.issue_number, documenting.VALIDATING),
             ),
             1,
         )
+        self.assertNotIn((self.issue_number, documenting.IN_REVIEW), github.label_history)
 
 
 class _DocsGateRunMixin:
@@ -212,6 +250,28 @@ class _DocsGateRunMixin:
         run_options.setdefault("branch_ahead_behind", IN_SYNC)
         with patch.object(config, MAX_ADDED_LINES, CEILING):
             return self._run_documenting(github, issue, **run_options)
+
+    def _dispatched(self, github, issue, **run_options):
+        """One whole dispatch of the label the issue wears: every guard, then the handler it routes to.
+
+        Nothing is spawned by default, so a dispatch the guards answer reads as
+        one whose seeded run never happened.
+        """
+        run_options.setdefault(documenting.RUN_AGENT, MagicMock())
+        with patch.object(config, MAX_ADDED_LINES, CEILING):
+            return self._run(
+                lambda: _issue_processing._route_issue_to_handler(
+                    github, fixtures._TEST_SPEC, issue, github.workflow_label(issue),
+                ),
+                **run_options,
+            )
+
+    def _settles_the_adjudication(self, github) -> None:
+        """The receipt an authorized settlement writes as it publishes the held commit, on the pinned comment."""
+        state = github.read_pinned_state(github.get_issue(self.issue_number))
+        for key, field_value in SETTLEMENT_RECEIPT.items():
+            state.set(key, field_value)
+        github.write_pinned_state(github.get_issue(self.issue_number), state)
 
     def _crashed(
         self, github, issue, tick, dies=DIES_ON_THE_WRITE, **run_options,

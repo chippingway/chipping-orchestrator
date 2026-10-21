@@ -292,6 +292,9 @@ the attempt is cleared or the issue routed to `workflow:validating`. The authori
 generation took over records one for the push it makes, before its label routes the head to `workflow:validating` as
 the refresh routes every rebase it publishes
 ([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
+A final-docs pass that publishes a docs commit records one off its receipt in the write that hands the pull request
+back to `workflow:validating`, retiring the current evidence and the approval there and marking the commit
+`docs_handed_back_sha`, from which the dispatcher finishes a relabel that write landed ahead of.
 A settled report of the approved commit an approval's squash replaced is of neither head a claim names, so it pays
 nothing, and the hold refreshes it only once a proof (`workflow/engine/report_squash_lineage.py`) links it to the head
 the claim replaced -- from the squash's own recorded evidence carry, held exactly to the settled report and the claim,
@@ -545,9 +548,14 @@ fresh attempt, charged to both budgets, before a human's continue.
 
 The single docs pass on the existing PR worktree, reached only via the final-docs handoff in `_handle_validating`'s
 approval branch. It reuses the locked dev session — there is no `documenting_agent` and no separate retry budget —
-and advances to `in_review` on either a pushed docs commit or an explicit `DOCS: NO_CHANGE` verdict, from a run that
-succeeded. A run that fell short — an unfinished tool step, an Antigravity error, interrupted, or missing terminal
-result, or an Antigravity process that exited nonzero behind a terminal that said it succeeded — parks through the
+and advances to `in_review` on an explicit `DOCS: NO_CHANGE` verdict, from a run that succeeded. A pass that pushes a
+docs commit -- fresh, recovered, or finished from the receipt a size-gate hold or a lost write left -- changed what
+the approval was of, so it hands the pull request back to `workflow:validating` instead, owing a report of the docs
+commit, its evidence and approval retired and one review round spent: the developer reports on it with no human
+reply, a fresh reviewer reviews it with evidence of its own, and that approval buys the next docs pass. A receipt the
+code-publication receipt proves is handed back ahead of the approval check, and holds the base refresh until it is.
+A run that fell short — an unfinished tool step, an Antigravity error, interrupted, or missing terminal result, or an
+Antigravity process that exited nonzero behind a terminal that said it succeeded — parks through the
 shared question park, handed no final message, whatever it committed, whatever tool calls it completed, and whatever
 `DOCS: NO_CHANGE` it wrote: a quota as the session limit, an unfinished step as an execution failure, the rest as a
 silent exit, with no `docs_verdict` stamped and its commit left on the branch unpublished. The

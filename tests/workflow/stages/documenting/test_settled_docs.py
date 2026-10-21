@@ -8,10 +8,14 @@ carries. A hold ends the tick with the pass itself finished, which is what the
 receipt here is about: the adjudication publishes the commit and hands the
 label back, and the tick that gets it has to finish the handoff rather than
 read a branch in sync with its remote as an issue no docs pass has run for.
+That handoff is the one every published docs commit earns -- back to
+`validating`, owed a report of the commit the code-publication receipt names
+-- and a receipt that names no such publication hands it back owed nothing.
 """
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator import config
@@ -47,10 +51,56 @@ IN_SYNC = (0, 0)
 DOCS_VERDICT = "docs_verdict"
 DOCS_CHECKED_SHA = "docs_checked_sha"
 SETTLED_DOCS_SHA = "docs_settled_sha"
-VERDICT_UPDATED = "updated"
+HANDED_BACK_SHA = "docs_handed_back_sha"
+REWRITE_DEBT = "developer_report_rewrite_debt"
 
 DECOMPOSING = "workflow:decomposing"
 IN_REVIEW = "in_review"
+VALIDATING = "workflow:validating"
+
+# Every label a finished pass hands the issue on to.
+HANDED_ON = frozenset((IN_REVIEW, VALIDATING))
+
+# The lease the gate records beside the docs receipt: the head the docs push
+# replaces, which the hand-back's report debt is owed from.
+SETTLED_DOCS_LEASE = "docs_settled_lease"
+
+DOCS_LEASE = MappingProxyType({SETTLED_DOCS_LEASE: SHA_BEFORE})
+
+# The code-publication receipt an authorized settlement writes as it publishes
+# the held commit -- that commit, onto the pull request the issue pins, over the
+# head the adjudication froze -- beside the docs receipt's lease the gate's hold
+# wrote.
+PUBLICATION_RECEIPT = MappingProxyType({
+    "implementing_published_sha": SHA_AFTER,
+    "implementing_published_pr": _FreshDocumentingFixture.pr_number,
+    "implementing_published_lease": SHA_BEFORE,
+})
+
+SETTLEMENT_RECEIPT = MappingProxyType({**PUBLICATION_RECEIPT, **DOCS_LEASE})
+
+# A docs receipt's lease as no gate writes it: missing, written null, and no
+# commit id at all. Each is a record something edited, which the hand-back
+# holds over rather than reading a debt off anything else or erasing it.
+DAMAGED_LEASES = MappingProxyType({
+    "a missing lease": PUBLICATION_RECEIPT,
+    "a null lease": MappingProxyType({**PUBLICATION_RECEIPT, SETTLED_DOCS_LEASE: None}),
+    "a lease that is no commit": MappingProxyType({**PUBLICATION_RECEIPT, SETTLED_DOCS_LEASE: "not-a-commit"}),
+})
+
+# Each receipt a settled commit's tick may find beside it, and what its
+# hand-back leaves as `_handed_back` reads it: the verdict, the checked head,
+# the docs receipt, the mark, and the debt's pull request and two heads. The
+# settlement's receipt proves the publication, so the commit is owed a report
+# of itself over the head the adjudication froze; with no receipt of it the
+# commit is handed back owed nothing and marked nothing.
+SETTLED_RECEIPTS = (
+    (
+        "the settlement's receipt", SETTLEMENT_RECEIPT,
+        (None, SHA_AFTER, None, SHA_AFTER, (_FreshDocumentingFixture.pr_number, SHA_BEFORE, SHA_AFTER)),
+    ),
+    ("no receipt of the publication", DOCS_LEASE, (None, SHA_AFTER, None, None, None)),
+)
 
 CEILING = 5
 PAST_THE_CEILING = 6
@@ -75,6 +125,17 @@ MOVED_HEAD = "0d0d0d0d" * 5
 NOT_A_COMMIT = "nope"
 
 CANDIDATE_ABSENT = MeasurementFailure.CANDIDATE_ABSENT
+
+
+# A published pass's tick that ends elsewhere, as the record seeded beside the
+# receipts, whether the pull request is merged, and the relabels it makes: a
+# merged pull request finalizes `done`, and a park with no reply waits on it.
+TERMINAL_AND_PARKED = MappingProxyType({
+    "a merged pull request": (MappingProxyType({}), True, [(_FreshDocumentingFixture.issue_number, "done")]),
+    "a standing park": (
+        MappingProxyType({"awaiting_human": True, "park_reason": "late_candidate_moved"}), False, [],
+    ),
+})
 
 
 class DocumentingSizeGateTest(
@@ -120,22 +181,18 @@ class DocumentingSizeGateTest(
         # has run for gives -- so without the receipt this tick would spawn a
         # second docs agent over work the first one already published, commit
         # again, and hand the gate a candidate to adjudicate a second time.
-        gh, issue = self._settled_docs_commit()
+        # The commit changed the pull request's content, so it goes back to
+        # `validating` with no verdict, owed a report of itself where the
+        # settlement's receipt proves the publication, and owed none, marked
+        # nothing, where no receipt does.
+        for name, receipt, handed_back in SETTLED_RECEIPTS:
+            with self.subTest(name):
+                gh, issue = self._seeded(docs_settled_sha=SHA_AFTER, **receipt)
 
-        mocks = self._run_documenting(
-            gh, issue,
-            run_agent=MagicMock(),
-            head_shas=[SHA_AFTER],
-            branch_ahead_behind=IN_SYNC,
-        )
+                self._runs_and_pushes_nothing(gh, issue)
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[PUSH_BRANCH].assert_not_called()
-        self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
-        state = gh.pinned_data(self.issue_number)
-        self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
-        self.assertEqual(state.get(DOCS_CHECKED_SHA), SHA_AFTER)
-        self.assertIsNone(state.get(SETTLED_DOCS_SHA))
+                self.assertEqual(gh.label_history, [(self.issue_number, VALIDATING)])
+                self.assertEqual(self._handed_back(gh), handed_back)
 
     def test_an_unpublished_receipt_is_measured(self) -> None:
         # The receipt alone cannot say the commit reached the remote: a
@@ -156,14 +213,82 @@ class DocumentingSizeGateTest(
 
         mocks[RUN_AGENT].assert_not_called()
         mocks[PUSH_BRANCH].assert_called_once()
-        self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
+        self.assertEqual([label for _, label in gh.label_history], [VALIDATING])
         self.assertIsNone(
             gh.pinned_data(self.issue_number).get(SETTLED_DOCS_SHA),
+        )
+
+    def _runs_and_pushes_nothing(self, gh, issue) -> None:
+        """One documenting tick over a branch in sync, standing on the settled commit, that runs and pushes nothing."""
+        mocks = self._run_documenting(
+            gh, issue,
+            run_agent=MagicMock(),
+            head_shas=[SHA_AFTER],
+            branch_ahead_behind=IN_SYNC,
+        )
+        mocks[RUN_AGENT].assert_not_called()
+        mocks[PUSH_BRANCH].assert_not_called()
+
+    def _handed_back(self, gh) -> tuple:
+        """The verdict, checked head, docs receipt, mark, and debt's pull request and heads on the pinned comment."""
+        state = gh.pinned_data(self.issue_number)
+        debt = state.get(REWRITE_DEBT)
+        return (
+            state.get(DOCS_VERDICT),
+            state.get(DOCS_CHECKED_SHA),
+            state.get(SETTLED_DOCS_SHA),
+            state.get(HANDED_BACK_SHA),
+            debt and (debt["pr"], debt["previous_head"], debt["rewritten_head"]),
         )
 
     def _settled_docs_commit(self):
         """A docs pass the gate held and an adjudication has since settled."""
         return self._seeded(docs_settled_sha=SHA_AFTER)
+
+
+class PublishedReceiptOrderTest(
+    unittest.TestCase,
+    _FreshDocumentingFixture,
+):
+    """A published pass's hand-back is asked ahead of its approval, and behind the terminals and any park."""
+
+    def test_the_terminals_and_a_park_come_first(self) -> None:
+        # The receipts proving the pass published are no licence to step over
+        # a merged pull request, which finalizes `done`, or over a park that
+        # stands for a human's reply: neither is handed back, and the docs
+        # receipt is left as it was for the road that does answer it.
+        for name, (seeded, merged, ended_on) in TERMINAL_AND_PARKED.items():
+            with self.subTest(name):
+                published = self._published_tick({**SETTLEMENT_RECEIPT, **seeded}, merged)
+                self.assertEqual(published[:3], (ended_on, None, None))
+
+    def test_a_damaged_lease_holds_the_hand_back(self) -> None:
+        # The head the docs push replaced is what the report debt is owed
+        # from, and a receipt that carries no readable one is not current
+        # state to act on: nothing is relabelled, announced, or recorded, and
+        # the receipt and its lease are left exactly as they stand for a human
+        # to repair -- never read off the code-publication receipt instead.
+        for name, receipt in DAMAGED_LEASES.items():
+            with self.subTest(name):
+                published = self._published_tick(receipt, merged=False)
+
+                held = (SHA_AFTER, receipt.get(SETTLED_DOCS_LEASE))
+                self.assertEqual(published, ([], None, None, [], held))
+
+    def _published_tick(self, receipt, merged: bool) -> tuple:
+        """One tick over a published pass's docs receipt beside `receipt`, its pull request merged where `merged`.
+
+        Read back as the relabels made, the report debt and mark left, the
+        notices posted on the pull request, and the docs receipt and its lease.
+        """
+        github, issue = self._seeded(docs_settled_sha=SHA_AFTER, **receipt)
+        github.get_pr(self.pr_number).merged = merged
+        self._run_documenting(github, issue, run_agent=MagicMock())
+        state = github.pinned_data(self.issue_number)
+        return (
+            github.label_history, state.get(REWRITE_DEBT), state.get(HANDED_BACK_SHA), github.posted_pr_comments,
+            (state.get(SETTLED_DOCS_SHA), state.get(SETTLED_DOCS_LEASE)),
+        )
 
 
 class DocumentingCandidateBindingTest(
@@ -195,7 +320,7 @@ class DocumentingCandidateBindingTest(
         # head this pass made, which nothing published.
         self.assertNotEqual(state[DOCS_CHECKED_SHA], SHA_AFTER)
         self.assertNotIn(DOCS_VERDICT, state)
-        self.assertNotIn((self.issue_number, IN_REVIEW), gh.label_history)
+        self.assertFalse(HANDED_ON & {label for _, label in gh.label_history})
 
     def test_a_publication_that_moved_mid_run_refuses(self) -> None:
         # The race the pass's own head closes, on the last push before a human
@@ -220,7 +345,7 @@ class DocumentingCandidateBindingTest(
         )
 
         mocks[PUSH_BRANCH].assert_not_called()
-        self.assertNotIn((self.issue_number, IN_REVIEW), moved.label_history)
+        self.assertFalse(HANDED_ON & {label for _, label in moved.label_history})
         # And the pull request is left exactly where the other push put it.
         self.assertEqual(moved.get_pr(self.pr_number).head.sha, MOVED_PR_HEAD)
 
@@ -241,7 +366,7 @@ class DocumentingCandidateBindingTest(
         self.assertEqual(
             mocks[PUSH_BRANCH].call_args.kwargs[REVISION], SHA_AFTER,
         )
-        self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
+        self.assertEqual([label for _, label in gh.label_history], [VALIDATING])
 
 
 class SettledDocsProofTest(
@@ -303,5 +428,5 @@ class SettledDocsProofTest(
         """The receipt stands and nothing is handed on behind it."""
         state = gh.pinned_data(self.issue_number)
         self.assertNotIn(DOCS_CHECKED_SHA, state)
-        self.assertNotIn((self.issue_number, IN_REVIEW), gh.label_history)
+        self.assertFalse(HANDED_ON & {label for _, label in gh.label_history})
         mocks[PUSH_BRANCH].assert_not_called()

@@ -79,7 +79,6 @@ PARK_AGENT_QUESTION = "agent_question"
 PARK_RESET_FAILED = "worktree_reset_failed"
 
 # --- Docs verdict values persisted on a successful pass -----------------
-VERDICT_UPDATED = "updated"
 VERDICT_NO_CHANGE = "no_change"
 
 # --- Repo docs paths the agent edits / the dirty guard reports ----------
@@ -167,7 +166,10 @@ class HandleDocumentingFreshOutcomeTest(
 ):
     """A docs agent run on a PR that already has commits."""
 
-    def test_docs_commit_pushed_advances_to_in_review(self) -> None:
+    def test_docs_commit_pushed_hands_back_for_review(self) -> None:
+        # A docs commit changes what the approval was of, so the pass that
+        # published one hands the pull request back to `validating` for its
+        # report and a fresh review rather than on to `in_review`.
         gh, issue = self._seeded()
         mocks = self._run_documenting(
             gh,
@@ -187,7 +189,7 @@ class HandleDocumentingFreshOutcomeTest(
         _, call_kwargs = mocks[RUN_AGENT].call_args
         self.assertEqual(call_kwargs.get("resume_session_id"), DEV_SESSION)
         mocks[PUSH_BRANCH].assert_called_once()
-        self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
+        self.assertEqual(gh.label_history, [(self.issue_number, VALIDATING)])
         # The size gate approves the docs commit before it goes out and
         # records it as one still owed a push; the push that lands pays that
         # debt. Left standing it would freeze this branch out of the pre-tick
@@ -198,7 +200,7 @@ class HandleDocumentingFreshOutcomeTest(
 
     def test_lifecycle_events_carry_review_round(self) -> None:
         # Documenting runs once per reviewer-approval handoff between
-        # approval and `in_review`. The pinned `review_round` at the time
+        # approval and what follows it. The pinned `review_round` at the time
         # of approval (0 on the first approval, higher after fix loops)
         # must ride along on the spawn / exit audit events (and the
         # analytics record), so a downstream consumer can tell which
@@ -221,8 +223,11 @@ class HandleDocumentingFreshOutcomeTest(
             self.assertEqual(event.get(REVIEW_ROUND), 2)
 
         state = gh.pinned_data(self.issue_number)
-        self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
+        self.assertIsNone(state.get(DOCS_VERDICT))
         self.assertEqual(state.get(DOCS_CHECKED_SHA), SHA_AFTER)
+        # The hand-back spends one review round, so the fresh review it buys
+        # counts against the cap the approval left.
+        self.assertEqual(state.get(REVIEW_ROUND), 3)
         # A PR-conversation announcement is posted so reviewers see the
         # docs commit in context.
         self.assertIn(":books: documenting pass", _pr_comment_text(gh))
@@ -348,10 +353,12 @@ FAILED_PASSES = (
 )
 
 # The same responses under a successful terminal, beside the head each left,
-# the verdict the pass is stamped with, and how many pushes publish it.
+# the verdict the pass is stamped with, how many pushes publish it, and where
+# the issue is handed: a published commit back to `validating` with no
+# verdict, and a pass that changed nothing on to `in_review`.
 SUCCEEDED_PASSES = (
-    (agy_responded(COMMITTED_RESPONSE), SHA_AFTER, VERDICT_UPDATED, 1),
-    (agy_responded(NO_CHANGE_RESPONSE), SHA_BEFORE, VERDICT_NO_CHANGE, 0),
+    (agy_responded(COMMITTED_RESPONSE), SHA_AFTER, None, 1, VALIDATING),
+    (agy_responded(NO_CHANGE_RESPONSE), SHA_BEFORE, VERDICT_NO_CHANGE, 0, IN_REVIEW),
 )
 
 # The keys an Antigravity pass's outcome is read back under, beside the pinned
@@ -359,7 +366,6 @@ SUCCEEDED_PASSES = (
 PUSHES = "pushes"
 LABELS = "labels"
 REPORTED = "reported"
-HANDED_TO_REVIEW = ((_FreshDocumentingFixture.issue_number, IN_REVIEW),)
 
 
 class AgyDocsOutcomeTest(unittest.TestCase, _FreshDocumentingFixture):
@@ -381,13 +387,14 @@ class AgyDocsOutcomeTest(unittest.TestCase, _FreshDocumentingFixture):
 
     def test_succeeded_pass_advances(self) -> None:
         # A successful terminal is a finished pass however its prose talks
-        # about a quota: a commit is published, the verdict is stamped, and the
-        # issue is handed to in_review without a park.
-        for agent_result, head, verdict, pushes in SUCCEEDED_PASSES:
+        # about a quota: a commit is published and handed back for review, or
+        # the verdict is stamped and the issue handed to in_review, without a
+        # park either way.
+        for agent_result, head, verdict, pushes, handed_to in SUCCEEDED_PASSES:
             with self.subTest(verdict=verdict):
                 self.assertEqual(self._left_by(agent_result, head), {
-                    PUSHES: pushes, LABELS: HANDED_TO_REVIEW, DOCS_VERDICT: verdict, AWAITING_HUMAN: False,
-                    PARK_REASON: None, REPORTED: [],
+                    PUSHES: pushes, LABELS: ((self.issue_number, handed_to),), DOCS_VERDICT: verdict,
+                    AWAITING_HUMAN: False, PARK_REASON: None, REPORTED: [],
                 })
 
     def _left_by(self, agent_result, head) -> dict:
@@ -504,7 +511,7 @@ class PullRequestReferenceTest(unittest.TestCase, _FreshDocumentingFixture):
         mocks[AMEND_COMMIT_MESSAGE].assert_not_called()
         self.assertEqual(mocks[HEAD_SHA].call_count, 2)
         self.assertEqual(mocks[PUSH_BRANCH].call_args.kwargs[REVISION], SHA_AFTER)
-        self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
+        self.assertEqual(gh.label_history, [(self.issue_number, VALIDATING)])
 
     def test_unreferenced_subject_never_published(self) -> None:
         # Where the reference could not be put on the subject, the issue parks

@@ -24,6 +24,7 @@ _OWNERS = (
     "drift",
     "drift_reset",
     "failed_pass",
+    "handback",
     _HANDLER_OWNER,
     "handoff",
     "models",

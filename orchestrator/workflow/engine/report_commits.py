@@ -81,7 +81,9 @@ is every auto-rebase park and a recovery's clear and record of a gate's hold,
 decided on the attempt and its evidence
 (`git/base_sync/checkpoints._lands_the_checkpoint`), and a final-docs pass's
 completion, decided on its stamp, its publication, and the records its
-approval was read over (`stages/documenting/handoff.py`).
+approval was read over (`stages/documenting/handoff.py`) -- its hand-back of a
+published docs commit decided on the report debt it records as well
+(`stages/documenting/handback.py`).
 """
 from __future__ import annotations
 

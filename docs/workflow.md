@@ -135,15 +135,16 @@ human-feedback round `in_review` routes to `workflow:fixing`: the report is reco
 with the requirements revision the run was handed, bound once the code is out (or at once, for a report alone, which
 spends the round a pushed fix spends because the next reviewer reads it), and the reviewer waits until the pull
 request carries it. So does the report refresh `workflow:validating` runs for a head this orchestrator's own push
-rewrote -- a rebase, a conflict resolution, or commits an earlier tick left unpushed, and an auto-rebase replay a late
-adjudication took over, once its authorized settlement publishes it (a claimed
+rewrote -- a rebase, a conflict resolution, or commits an earlier tick left unpushed, an auto-rebase replay a late
+adjudication took over, once its authorized settlement publishes it, and the docs commit a final-docs pass publishes,
+which that pass hands back to `workflow:validating` with its evidence and approval retired (a claimed
 `developer_report_rewrite_debt`): before any reviewer, the claim is cleared at once where a published report of that
 exact head, still intact and written against the current requirements, has already settled, and otherwise the
 developer is asked with no human reply for a fresh `REPORT: READY` report of that head, recorded and settled the same
 way, which clears it once it has -- a verification of the report the rewrite left behind pays nothing. A report of the
-approved commit this orchestrator's approval squash collapsed into the head a later rebase replaced is refreshed the
-same way, but only once the squash's own recorded lineage proves it and the report re-reads intact; it keeps naming
-the commit it was written about. Each reviewer
+approved commit this orchestrator's approval squash collapsed into the head a later rebase or docs commit replaced is
+refreshed the same way, but only once the squash's own recorded lineage proves it and the report re-reads intact; it
+keeps naming the commit it was written about. Each reviewer
 is then handed the report re-read where it settled, and what it approves is
 recorded as `review_approved_subject` — pull request, head, requirements, and report — so a report that changes on
 an unchanged head goes back to a fresh reviewer rather than riding an earlier approval

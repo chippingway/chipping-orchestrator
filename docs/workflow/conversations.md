@@ -384,10 +384,15 @@ reached for the markers and missed, an `ACK:` line beside a report block include
 
 The **rewritten-head report refresh** acts on one on `workflow:validating`, where a recorded
 `developer_report_rewrite_debt` says this orchestrator's own push moved the pull request onto a head no settled report
-is about -- a rebase, a conflict resolution, or commits an earlier tick left unpushed, and an auto-rebase replay the
-authorized settlement of a late adjudication published after the generation took it over
+is about -- a rebase, a conflict resolution, or commits an earlier tick left unpushed, an auto-rebase replay the
+authorized settlement of a late adjudication published after the generation took it over, and the docs commit a
+final-docs pass published, whether fresh, recovered, or finished from its `docs_settled_sha` receipt
 ([`_handle_validating`](../state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating) step 3,
-`workflow/stages/validating/report_refresh.py`). A published report of that head that already settled, still intact
+`workflow/stages/validating/report_refresh.py`). A pass that publishes a docs commit is handed back here rather than
+on to `in_review`, its evidence retired and its approval written null in the same write that records the claim
+([`_handle_documenting`](../state-machine/delivery-stages.md#_handle_documenting-label-workflowdocumenting) step 12);
+the report the pull request carries is then usually of the approved commit the approval's squash collapsed, which
+the squash's carry, kept in evidence history, proves. A published report of that head that already settled, still intact
 and written against the current requirements, pays the claim and the reviewer runs. Otherwise, before any reviewer
 runs, and with no human reply, the locked session is resumed for a report alone of that exact head, over
 requirements, a whole code-publication receipt, and a clean checkout proved to stand where the debt says, and read
@@ -551,7 +556,8 @@ division of labour between the developer and the orchestrator never changes.
   - human feedback routed from `in_review` (`pending_fix_at` set) resets `review_round` to 0 on its handover, since
     the approval was of the prior head, and its `ACK:` returns the pull request to `in_review`;
   - a rewritten head's report refresh spends nothing: the push that rewrote it already reset `review_round` for the
-    head it published, and the report answers no feedback.
+    head it published -- save a docs commit's hand-back, which spends one in the write that records it, exactly
+    once, so the fresh review it buys counts against the cap -- and the report answers no feedback.
 
   Agent runs are counted where they are spawned and nowhere else: each launch is charged once to `agent_runs_used`
   and its usage folded once into the per-issue totals, and a recovery that finishes a result spawns nobody. Review
@@ -722,7 +728,10 @@ did not exit 0, a configured command the evidence leaves out or spells otherwise
 evidence no longer vouches for parks under `reviewer_unverified` instead -- a further command that exited 0 beside
 every configured one does not, and under an empty `VERIFY_COMMANDS` any declared run of at least one command, every one
 exiting 0, covers the configuration; a bare `/orchestrator continue` buys a fresh reviewer, since the reviewer owes the
-evidence. The review caps,
+evidence. A final-docs pass that publishes a docs commit retires the current evidence into history as invalidated
+and the approval with it, so the review of that commit owes evidence of its own on it: a reuse of the retired
+evidence parks as above, and under an empty `VERIFY_COMMANDS` the reviewer's own declared run on the docs commit is
+the evidence its approval rests on (`tests/workflow/stages/validating/test_changed_docs_journey.py`). The review caps,
 configured-author filtering, report freshness, and the approved versus changes-requested routing are those of every
 other round. `tests/workflow/stages/validating/test_evidence_aware_rounds.py` drives each of these through whole ticks.
 

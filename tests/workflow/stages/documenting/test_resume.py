@@ -70,7 +70,6 @@ PARK_AGENT_QUESTION = "agent_question"
 PARK_RESET_FAILED = "worktree_reset_failed"
 
 # --- Docs verdict values persisted on a successful pass -----------------
-VERDICT_UPDATED = "updated"
 VERDICT_NO_CHANGE = "no_change"
 
 # --- Repo docs paths the agent edits / the dirty guard reports ----------
@@ -223,12 +222,14 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             COMMIT_REPLY_ISSUE_NUMBER,
             branch=_branch(COMMIT_REPLY_ISSUE_NUMBER),
         )
-        self.assertIn(
-            (COMMIT_REPLY_ISSUE_NUMBER, IN_REVIEW),
+        # The published commit is handed back to `validating` for its report
+        # and a review, with no verdict a merge gate could read.
+        self.assertEqual(
             gh.label_history,
+            [(COMMIT_REPLY_ISSUE_NUMBER, VALIDATING)],
         )
         state = gh.pinned_data(COMMIT_REPLY_ISSUE_NUMBER)
-        self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
+        self.assertIsNone(state.get(DOCS_VERDICT))
         # The resumed commit is published under its pull request's reference,
         # and what is pushed and stamped is the replacement it was amended into.
         _assert_referenced_publication(
@@ -361,12 +362,14 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             branch_ahead_behind=(1, 0),
         )
 
-        self.assertIn(
-            (RECOVERED_REPLY_ISSUE_NUMBER, IN_REVIEW),
+        # The published commit is handed back to `validating` for its report
+        # and a review, with no verdict a merge gate could read.
+        self.assertEqual(
             gh.label_history,
+            [(RECOVERED_REPLY_ISSUE_NUMBER, VALIDATING)],
         )
         state = gh.pinned_data(RECOVERED_REPLY_ISSUE_NUMBER)
-        self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
+        self.assertIsNone(state.get(DOCS_VERDICT))
         # A `DOCS: NO_CHANGE` verdict certifies the tree, not the subject:
         # the waiting commit still goes out under its reference.
         _assert_referenced_publication(

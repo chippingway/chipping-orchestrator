@@ -11,13 +11,15 @@ commit an earlier tick stranded, and the `DOCS: NO_CHANGE` reply that still
 has one waiting.
 
 A hold is the end of the tick rather than a park: nothing is pushed, no docs
-verdict is stamped, the issue goes to the adjudication instead of `in_review`,
-and the head the pass produced is left as the receipt the handoff is still
-owed. What the gate allows is pushed named to that commit and pinned to the
-head the pass was entered on, and only then stamped, announced, and handed on
--- the stamp landed as a checkpoint over the comment the tick last confirmed,
-and the relabel made only behind a write GitHub confirmed, so a tick killed on
-that write leaves the relabel unmade.
+stamp is written, the issue goes to the adjudication instead of back for
+review, and the head the pass produced is left as the receipt the handoff is
+still owed. What the gate allows is pushed named to that commit and pinned to
+the head the pass was entered on, and only then stamped, announced, and handed
+back to `validating` owing a report of itself -- the stamp landed as a
+checkpoint over the comment the tick last confirmed, and the relabel made only
+behind a write GitHub confirmed, so a tick killed on that write leaves the
+relabel unmade, and one killed on the relabel leaves it for the next dispatch
+to finish.
 """
 from __future__ import annotations
 
@@ -94,7 +96,7 @@ class CumulativeDocsReadingTest(unittest.TestCase, gate._DocsGateFixtureMixin):
                     ],
                     MEASURED_CANDIDATE_SHA,
                 )
-                self._assert_handed_off_once(github)
+                self._assert_handed_back_once(github)
 
     def test_the_push_replaces_the_entered_head(self) -> None:
         # The lease is the head the pull request was standing on when the pass
@@ -126,6 +128,9 @@ class CumulativeDocsReadingTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         self.assertEqual(pinned[gate.KEY_SOURCE_STAGE], gate.LABEL_DOCUMENTING)
         self.assertEqual(pinned[gate.KEY_PUBLISHED_PR], self.pr_number)
         self.assertEqual(pinned[gate.KEY_PUBLISHED_SHA], ENTERED_HEAD)
+        # And the head the settlement's push will replace, beside the receipt
+        # the handoff is owed, which its report debt is owed from.
+        self.assertEqual(pinned[gate.KEY_SETTLED_DOCS_LEASE], ENTERED_HEAD)
 
 
 class AnnouncedHandoffTest(unittest.TestCase, gate._DocsGateFixtureMixin):
@@ -166,8 +171,9 @@ class AnnouncedHandoffTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         self.assertIsNone(self._pinned(github)[documenting.DOCS_VERDICT])
 
     def test_a_held_pass_still_announces_its_handoff(self) -> None:
-        # The road a held pass takes to `in_review`: it announces nothing
-        # itself, so the tick that finishes the handoff from the receipt is
+        # The road a held pass takes back to `validating`: it announces
+        # nothing itself, so the tick that finishes the handoff from the
+        # receipt, once an authorized settlement has published the commit, is
         # the only thing that tells the pull request its docs commit arrived.
         # Driven from a record already carrying an earlier round's verdict,
         # since that is the shape this road really lands in -- the resumed dev
@@ -178,10 +184,11 @@ class AnnouncedHandoffTest(unittest.TestCase, gate._DocsGateFixtureMixin):
             added_lines=PAST_THE_CEILING,
         )
         self.assertEqual(github.posted_pr_comments, [])
+        self._settles_the_adjudication(github)
 
         self._settled_tick(github, issue)
 
-        self._assert_handed_off_once(github, gate.HANDOFF_NOTICE)
+        self._assert_handed_back_once(github, gate.HANDOFF_NOTICE)
 
 
 class WaitingDocsCommitTest(unittest.TestCase, gate._DocsGateFixtureMixin):
@@ -305,11 +312,13 @@ class DocsPushCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         self.assertIsNone(pinned.get(gate.KEY_APPROVED_LEASE))
         # And the commit that landed is named twice over: by the receipt that
         # says what reached the remote, and by the one this stage is owed a
-        # handoff for.
+        # handoff for, beside the head that push replaced, which outlives any
+        # later republication's rewrite of the receipt's own lease.
         self.assertEqual(pinned[gate.KEY_RECEIPT_SHA], MEASURED_CANDIDATE_SHA)
         self.assertEqual(
             pinned[gate.KEY_SETTLED_DOCS_SHA], MEASURED_CANDIDATE_SHA,
         )
+        self.assertEqual(pinned[gate.KEY_SETTLED_DOCS_LEASE], ENTERED_HEAD)
 
     def test_the_crash_leaves_the_pass_on_this_stage(self) -> None:
         # `in_review` repairs nothing it is handed: relabelled ahead of the
@@ -359,7 +368,7 @@ class DocsHandoffCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
 
         mocks[documenting.RUN_AGENT].assert_not_called()
         mocks[documenting.PUSH_BRANCH].assert_not_called()
-        self._assert_handed_off_once(github, gate.HANDOFF_NOTICE, notices=2)
+        self._assert_handed_back_once(github, gate.HANDOFF_NOTICE, notices=2)
 
     def test_a_settled_crash_hands_on_next_tick(self) -> None:
         # The adjudicated-single road through the same window. The commit was
@@ -368,6 +377,7 @@ class DocsHandoffCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         # leave that receipt exactly where it stands rather than consume it.
         github, issue = self._seeded(**{
             gate.KEY_SETTLED_DOCS_SHA: MEASURED_CANDIDATE_SHA,
+            **gate.SETTLEMENT_RECEIPT,
         })
         self._crashed(github, issue, self._settled_tick)
         self.assertEqual(github.label_history, [])
@@ -379,37 +389,37 @@ class DocsHandoffCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         mocks = self._settled_tick(github, issue)
 
         mocks[documenting.RUN_AGENT].assert_not_called()
-        self._assert_handed_off_once(github, gate.HANDOFF_NOTICE, notices=2)
+        self._assert_handed_back_once(github, gate.HANDOFF_NOTICE, notices=2)
 
-    def test_a_failed_relabel_reruns_the_pass(self) -> None:
-        # The record this window leaves -- a pass already called finished,
-        # with the receipt that write dropped -- is the very record a
-        # `validating` approval handing the same head back leaves. Nothing
-        # tells them apart, so the tick that follows runs the pass rather than
-        # handing off on evidence that could belong to either: skipping a docs
-        # pass an approval just bought is the failure that cannot be undone,
-        # and re-running one over an already-documented tree is not.
+    def test_a_lost_relabel_is_finished_on_dispatch(self) -> None:
+        # The write that hands the commit back consumes the receipt and
+        # records the report debt beside the mark naming the commit, so a
+        # relabel lost behind it leaves the issue here with a debt the
+        # dispatcher holds this stage for -- and no receipt to finish from.
+        # That debt is this stage's own, so the next dispatch finishes the
+        # relabel to `validating`: no agent run, no push, and no second notice.
         github, issue = self._crashed_pass(
             dies=gate.DIES_ON_THE_RELABEL, added_lines=UNDER_THE_CEILING,
         )
         crashed = self._pinned(github)
-        self.assertIsNone(crashed[gate.KEY_SETTLED_DOCS_SHA])
-        self.assertEqual(github.label_history, [])
-
-        mocks = self._rerun(github, issue)
-
-        mocks[documenting.RUN_AGENT].assert_called_once()
         self.assertEqual(
-            github.label_history, [(self.issue_number, documenting.IN_REVIEW)],
+            (crashed[gate.KEY_SETTLED_DOCS_SHA], crashed[gate.KEY_HANDED_BACK], github.label_history),
+            (None, MEASURED_CANDIDATE_SHA, []),
         )
+
+        mocks = self._dispatched(github, issue)
+
+        mocks[documenting.RUN_AGENT].assert_not_called()
+        mocks[documenting.PUSH_BRANCH].assert_not_called()
+        self._assert_handed_back_once(github)
 
     def test_a_finished_handoff_frees_the_next_pass(self) -> None:
         # The receipt may not outlive the handoff it was written for. Left
         # standing by a write behind the relabel that did not land, a later
         # `validating` approval at the same head -- a body edit acknowledged
         # without a commit -- would read it as that pass still pending, skip
-        # the docs pass the approval just bought, and hand the issue to
-        # `in_review` a second time with no agent having run.
+        # the docs pass the approval just bought, and hand the issue on a
+        # second time with no agent having run.
         github, issue = self._seeded()
         self._fresh_tick(github, issue, added_lines=UNDER_THE_CEILING)
         self.assertIsNone(self._pinned(github)[gate.KEY_SETTLED_DOCS_SHA])
@@ -469,7 +479,7 @@ class AmendedCandidateTest(unittest.TestCase, gate._DocsGateFixtureMixin):
                 self.assertEqual(
                     pinned[gate.KEY_RECEIPT_SHA], MEASURED_CANDIDATE_SHA,
                 )
-                self._assert_handed_off_once(github)
+                self._assert_handed_back_once(github)
 
     def test_a_failed_push_pins_the_amended_head(self) -> None:
         # The approval goes down before the push and the park behind it writes

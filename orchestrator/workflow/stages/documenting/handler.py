@@ -8,7 +8,11 @@ edit still unwinds an issue that is sitting parked -- the reverse order would
 leave a stale approval standing behind a park nobody replied to.
 
 Right behind the preconditions -- a pull request merged or closed ends the
-tick whatever else the comment carries -- and ahead of drift and the docs
+tick whatever else the comment carries -- a pass this stage already published
+and still owes its hand-back is finished, where the receipts prove that
+publication and no park stands: the approval it outdated is no longer the
+question, and asked first it could send the issue back with no report debt
+behind it. Behind that, and ahead of drift and the docs
 pass, the tick hands the issue back to `validating` where the comment
 still carries a record only that stage answers -- a returned reviewer verdict,
 or a squash handoff: the approval that moved the label retires its own verdict
@@ -151,22 +155,26 @@ def _handle_documenting(gh: GitHubClient, spec: _config_models.RepoSpec, issue: 
     ):
         return
 
-    # A reviewer verdict or squash handoff standing here is `validating`'s to
-    # answer: its cleanup write failed behind the relabel, it was left over
-    # records that moved during the relabel, or another road put it down then.
-    # So is an approval that no longer covers the report or evidence the
-    # comment carries. Nothing here can tell which, and a docs pass over any of
-    # them documents a head that stage has not finished with. Asked behind the
-    # terminals, so a merged or closed pull request finalizes whatever the
-    # approval's reading would have said.
-    if _handoff._hands_back_what_validating_owes(gh, issue, state):
-        return
-
     ctx = _models._DocumentingContext(
         gh, spec, issue, state,
         _naming._resolve_branch_name(state, spec, issue.number),
         pr_number,
     )
+
+    # Both asked behind the terminals, so a merged or closed pull request
+    # finalizes first. A pass this stage already published, whose hand-back
+    # the receipts prove still owed, is finished ahead of the approval it
+    # outdated: asked of that approval first, an evidence context or report
+    # that moved since would send the issue back with no report debt behind
+    # it, and the reviewer road would park for the report the debt exists to
+    # fetch. Then a reviewer verdict or squash handoff standing here is
+    # `validating`'s to answer: its cleanup write failed behind the relabel, it
+    # was left over records that moved during the relabel, or another road put
+    # it down then. So is an approval that no longer covers the report or
+    # evidence the comment carries. Nothing here can tell which, and a docs
+    # pass over any of them documents a head that stage has not finished with.
+    if _publication._finishes_a_published_pass(ctx) or _handoff._hands_back_what_validating_owes(gh, issue, state):
+        return
 
     if _drift._reconcile_documenting_drift(ctx):
         return

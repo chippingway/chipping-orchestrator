@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """The report a rewritten head is owed, asked for and settled with no human.
 
-A rewrite this orchestrator published -- a rebase, a conflict resolution, or
-commits an earlier tick left unpushed -- leaves the pull request on a commit the
-settled report is not about (`report_rewrite_debt`), and the reviewer road
+A rewrite this orchestrator published -- a rebase, a conflict resolution,
+commits an earlier tick left unpushed, or the docs commit a final-docs pass
+handed back here (`stages/documenting/handback.py`) -- leaves the pull request
+on a commit the settled report is not about (`report_rewrite_debt`), and the
+reviewer road
 would refuse that report and park for a human whose reply only restarts a
 report of a commit this orchestrator made itself. So the report hold asks here
 once no other report is owed, ahead of every reviewer, and this owner either
@@ -32,7 +34,8 @@ reviewer road parks for it exactly as it would with no debt at all.
 Where the debt is instead owed a fresh report (`RewriteDebt.owes_a_refresh`),
 the developer is resumed on a prompt asking for that report alone. So it is
 where the settled report is of the approved commit this orchestrator's
-approval squash collapsed into the head the debt replaced -- of neither head
+approval squash collapsed into the head the debt replaced -- a rebase of the
+squash, or a docs commit on it -- of neither head
 the debt names, so owed nothing on its own -- but only once that lineage is
 proved (`report_squash_lineage`) and the report re-reads intact at its
 location, and only against the requirements the issue carries now. That report
