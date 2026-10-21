@@ -23,6 +23,7 @@ handler reads and writes.
 | know which agent a stage spawns, under what prompt | [`workflow.md`](workflow.md) |
 | find a setting, or apply an edited `.env` | [`configuration.md`](configuration.md) |
 | keep the poller running as a service, then start, stop, or remove it | [the user service][user-service] |
+| deploy a build that cannot read the work in flight, without migration | [deploying without migration][deploying] |
 | run a second poller beside the first on one host | [running more than one poller][pollers] |
 | see what the orchestrator did, and what it cost | [`observability.md`](observability.md) |
 | trace release functionality and upgrade requirements | [`release-timeline.md`](release-timeline.md) |
@@ -60,5 +61,6 @@ Grouped the way the site's navigation groups them.
 [add-repo]: configuration.md#adding-a-repository-with-add-repo
 [pollers]: configuration/operations.md#running-more-than-one-poller
 [user-service]: configuration.md#running-under-systemd-user-service
+[deploying]: configuration.md#deploying-without-migration
 [publishing]: configuration/operations.md#publishing-the-documentation
 [develop]: ../.agents/skills/develop/SKILL.md

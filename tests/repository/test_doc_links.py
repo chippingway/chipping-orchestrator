@@ -1,7 +1,8 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
 """Every documentation link resolves, the index and nav group every page the same way,
-and the contract register keeps the anchors and shape its readers rely on.
+the contract register keeps the anchors and shape its readers rely on, and the
+deployment procedure stays routed from where operators start an upgrade.
 
 A cross-document link is the one reference nothing else checks: moving a page
 or renaming a heading leaves the link syntactically valid and silently pointing
@@ -111,6 +112,33 @@ _INSTRUCTION_PAGES = (
     _link_support.CONTRIBUTING_PAGE,
     ".agents/skills/develop/SKILL.md",
     ".agents/skills/decompose/SKILL.md",
+)
+# The no-migration deployment procedure, one link per hop an operator follows to
+# it: the README and the index reach the configuration landing page, which with
+# the developer guide reaches the operations page, which defers to C-03 for the
+# policy rather than restating it. The README's link is the absolute one.
+_DEPLOYMENT_ANCHOR = "deploying-without-migration"
+_CONFIGURATION_PAGE = "docs/configuration.md"
+_OPERATIONS_PAGE = "docs/configuration/operations.md"
+_DEPLOYMENT_LINKS = (
+    ("README.md", _CONFIGURATION_PAGE, _DEPLOYMENT_ANCHOR),
+    (_link_support.INDEX_PAGE, _CONFIGURATION_PAGE, _DEPLOYMENT_ANCHOR),
+    (_CONFIGURATION_PAGE, _OPERATIONS_PAGE, _DEPLOYMENT_ANCHOR),
+    ("docs/development.md", _OPERATIONS_PAGE, _DEPLOYMENT_ANCHOR),
+    (_OPERATIONS_PAGE, _register_support.CONTRACTS_PAGE, _FORMATS_CONTRACT),
+)
+# The procedure and the upgrade, rollback, and restart sections it bounds. Links
+# written against them from outside this repository have nothing else to keep
+# them true.
+_RESTART_ANCHOR = "what-survives-a-restart"
+_BOUNDED_ANCHORS = (
+    (_OPERATIONS_PAGE, _DEPLOYMENT_ANCHOR),
+    (_OPERATIONS_PAGE, "upgrade-a-package"),
+    (_OPERATIONS_PAGE, "return-to-the-previous-package-version"),
+    (_OPERATIONS_PAGE, "rolling-back-to-an-older-orchestrator"),
+    (_OPERATIONS_PAGE, _RESTART_ANCHOR),
+    (_CONFIGURATION_PAGE, _DEPLOYMENT_ANCHOR),
+    (_CONFIGURATION_PAGE, _RESTART_ANCHOR),
 )
 _REGISTER_SAMPLE = """| ID | Rule |
 | --- | --- |
@@ -354,6 +382,23 @@ class ContractRegisterTest(unittest.TestCase):
 
 def _register_text() -> str:
     return (_link_support.REPO_ROOT / _register_support.CONTRACTS_PAGE).read_text(encoding=_ENCODING)
+
+
+class DeploymentRouteTest(unittest.TestCase):
+    """The no-migration deployment procedure is routed to, and the sections it bounds keep their anchors."""
+
+    def test_each_hop_links_the_next(self) -> None:
+        for name, document, anchor in _DEPLOYMENT_LINKS:
+            with self.subTest(page=name, target=document):
+                self.assertIn(
+                    (document, anchor),
+                    _link_support.document_links(name, _link_support.REPO_ROOT / name),
+                )
+
+    def test_bounded_sections_keep_their_anchors(self) -> None:
+        for page, anchor in _BOUNDED_ANCHORS:
+            with self.subTest(page=page, anchor=anchor):
+                self.assertIn(anchor, _link_support.page_anchors(_link_support.REPO_ROOT / page))
 
 
 class HeadingAnchorSlugTest(unittest.TestCase):

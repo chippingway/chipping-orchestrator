@@ -26,7 +26,8 @@ Two companion pages carry what is read on its own rather than scanned for a valu
 - [`configuration/observability.md`](configuration/observability.md) — the sink paths and retention windows, the
   analytics database URL, skill-trigger tracking, the dashboard read mode, and the dashboard quickstart.
 - [`configuration/operations.md`](configuration/operations.md) — package installation, upgrades and rollback,
-  continuous integration, documentation publishing, run modes, the systemd user service, and applying `.env` changes.
+  deploying without migration, continuous integration, documentation publishing, run modes, the systemd user service,
+  and applying `.env` changes.
 - [`configuration/snapshot-capability-check.md`](configuration/snapshot-capability-check.md) — the
   disposable-repository check that proves a production token and its rulesets can create, fetch, verify, and delete
   the late split's snapshot refs, and what each failure means.
@@ -215,6 +216,26 @@ needs `run` appended before the upgraded package starts. The
 
 The [v0.13.0 upgrade notes](release-timeline.md#v0130) cover the required author allowlist, installed targets,
 Poetry migration, worktree paths, and the report and verification contracts when upgrading from v0.12.0.
+
+A version that cannot read the live workflow state is deployed as [below](#deploying-without-migration), and returning
+an older version to state a newer one wrote is not a supported procedure for this release.
+
+## Deploying without migration
+
+A build that cannot read the work the running pollers own -- a package version or source commit that no longer reads
+a format some issue, record, or artifact still carries -- is deployed without migration, under the policy
+[C-03](contracts.md#c-03-persisted-and-externally-consumed-formats) sets: nothing converts the earlier state, no final
+0.x release has to run first, and the work the selected build cannot read does not resume. Breaking changes reach
+`main` as they merge rather than first at a release tag, so a source checkout that follows it can receive one before
+any release does. Take an inventory of the pollers, their supervision and updates, the selected version or commit, the
+repositories and `WORKTREES_DIR`, and the issues, pull requests, branches, worktrees, and recovery records they own.
+Stop and hold every poller with its agents, supervisor, and updates; exclude or retire what the selected build cannot
+read, old issues with no pinned comment that would look like fresh pickup among them; keep pinned comments, branches,
+worktrees, host records, and the audit log for manual disposition; then install, check, and start the selected build
+deliberately. Converting earlier-format JSONL or Postgres analytics data, continuing an agent session recorded in an
+earlier format, and returning an older binary to newer workflow state are not supported procedures. The package and
+source-checkout steps are in
+[`configuration/operations.md#deploying-without-migration`](configuration/operations.md#deploying-without-migration).
 
 ## Required
 
@@ -1226,8 +1247,10 @@ what each launch style needs, and when each individual setting takes effect are 
 
 Per-issue progress lives in the issue's pinned JSON comment on GitHub, in the per-issue worktree, and -- for an
 Antigravity developer launch -- in the quota retirement record on the host, so restarting between ticks on the same
-host loses nothing. The hazards that are not covered by that — a live `codex` / `claude` / `agy` child, an `agy`
-launch whose poller dies before its record is settled, and the agent spec pinned into an in-flight session — are in
+host, onto a build that reads the same formats, loses nothing; one that cannot read them is a
+[deployment without migration](#deploying-without-migration). The hazards that are not covered by that — a live
+`codex` / `claude` / `agy` child, an `agy` launch whose poller dies before its record is settled, and the agent spec
+pinned into an in-flight session — are in
 [`configuration/operations.md#what-survives-a-restart`](configuration/operations.md#what-survives-a-restart).
 
 ## Control labels

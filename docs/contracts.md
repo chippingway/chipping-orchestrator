@@ -103,7 +103,8 @@ compatibility.
 [command specs](workflow.md#in-flight-session-lock--pinned-full-spec-until-the-session-ends),
 [events](observability/event-streams.md#audit-event-log-event_log_path),
 [loggers](../.agents/skills/develop/SKILL.md#workflow-owners-and-stage-modules),
-[evidence](security.md#what-a-trusted-pinned-record-still-cannot-license).
+[evidence](security.md#what-a-trusted-pinned-record-still-cannot-license),
+[deployment without migration](configuration/operations.md#deploying-without-migration).
 
 **Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py).
 
@@ -308,8 +309,9 @@ obligations. Protocol details and decision history belong in the linked specific
 
 Linked tests are representative checks, not proof of every clause.
 [Documentation checks](../tests/repository/test_doc_links.py) validate links, navigation, the required-reading route
-from AGENTS.md, and the instruction pages' links to [C-03]. They also hold this register's IDs and heading anchors,
-each checklist row against its section's Rule, and the section order; they do not verify behavioral claims.
+from AGENTS.md, the instruction pages' links to [C-03], and the route to the deployment procedure. They also hold this
+register's IDs and heading anchors, each checklist row against its section's Rule, and the section order; they do not
+verify behavioral claims.
 
 [C-01]: #c-01-durable-workflow-state-and-recovery
 [C-02]: #c-02-workflow-labels-and-transitions

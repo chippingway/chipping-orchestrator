@@ -90,6 +90,16 @@ checkout skips the pull; a failed fast-forward warns and launches the existing w
 can therefore restart the checkout on new code. See the [process model](architecture.md#process-model) for the full
 skip-and-warn contract. Installed packages change version only through an explicit pipx upgrade or reinstall.
 
+A non-base branch does not hold a checkout at a selected revision on its own: the Python loop's self-restart guard
+still ends the poller before each polling pass once `origin/<ORCHESTRATOR_BASE_BRANCH>` has moved past the running
+commit with changes under `orchestrator/`, and the wrapper then relaunches it every second without it ever polling.
+To deploy a revision that cannot read the work the checkout's poller owns, follow
+[deploying without migration](configuration/operations.md#deploying-without-migration), which stops and holds the
+wrapper and its supervisor, keeps that work away from the new revision, and names as `ORCHESTRATOR_BASE_BRANCH` a
+local branch whose name matches no ref on `origin`, branch or tag, and none of the checkout's own `origin/` tracking
+refs -- the wrapper's pull resolves a tag of that name as readily as a branch, and the guard reads a stale tracking ref
+as readily as a live one -- so the pull leaves the checkout where it is and the guard never asks to restart.
+
 Run one wrapper per checkout: dependency refreshes can replace packages while other Python processes use the same
 `.venv/`. Additional wrappers need separate checkouts and `.venv/` environments, with the same explicit
 `WORKTREES_DIR` when coordinating on one host; see

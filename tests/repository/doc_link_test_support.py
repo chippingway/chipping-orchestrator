@@ -86,21 +86,21 @@ def document_links(name: str, path: Path) -> list[tuple[str, str]]:
     return [link for link in resolved if link is not None]
 
 
+def page_anchors(path: Path) -> frozenset[str]:
+    """Every heading anchor one page defines, slugged as GitHub slugs it."""
+    return frozenset(
+        heading_anchor(heading)
+        for heading in _MARKDOWN_HEADING.findall(path.read_text(encoding=_ENCODING))
+    )
+
+
 def dangling_anchors(pages: dict[str, Path]) -> list[str]:
     """Report every `...#anchor` link whose target heading is missing.
 
     Links out to another repository are skipped: only a document this repo
     tracks has headings this check can resolve the anchor against.
     """
-    anchors = {
-        name: {
-            heading_anchor(heading)
-            for heading in _MARKDOWN_HEADING.findall(
-                path.read_text(encoding=_ENCODING),
-            )
-        }
-        for name, path in pages.items()
-    }
+    anchors = {name: page_anchors(path) for name, path in pages.items()}
     return [
         f"{name} -> {document}#{anchor}"
         for name, path in pages.items()
