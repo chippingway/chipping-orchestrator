@@ -1,6 +1,7 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Every documentation link resolves, and the index and nav group every page the same way.
+"""Every documentation link resolves, the index and nav group every page the same way,
+and the contract register keeps the anchors and shape its readers rely on.
 
 A cross-document link is the one reference nothing else checks: moving a page
 or renaming a heading leaves the link syntactically valid and silently pointing
@@ -17,6 +18,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from tests.repository import (
+    contract_register_test_support as _register_support,
     doc_link_target_support as _target_support,
     doc_link_test_support as _link_support,
     docs_nav_test_support as _nav_support,
@@ -81,6 +83,95 @@ extra:
   links:
     - Example: elsewhere.md
 """
+# The anchors every link into the register is written against. A title is part
+# of its anchor, so renaming one breaks those links even though the ID stays; a
+# new contract appends its anchor here, and a retired ID is never reused.
+_FORMATS_CONTRACT = "c-03-persisted-and-externally-consumed-formats"
+_CONTRACT_ANCHORS = (
+    "c-01-durable-workflow-state-and-recovery",
+    "c-02-workflow-labels-and-transitions",
+    _FORMATS_CONTRACT,
+    "c-04-authentic-state-and-trusted-input",
+    "c-05-writer-claims-and-artifact-maintenance",
+    "c-06-guarded-writes-and-recoverable-effects",
+    "c-07-publication-authority-and-exact-revisions",
+    "c-08-agent-reply-protocols",
+    "c-09-reports-review-subjects-and-verification",
+    "c-10-pauses-and-parks",
+    "c-11-credentials-and-execution-boundaries",
+    "c-12-observation-and-the-audit-recovery-exception",
+    "c-13-module-ownership-and-public-surfaces",
+    "c-14-pinned-session-commands",
+    "c-15-lifetime-agent-run-budget",
+)
+# The pages that tell an agent or contributor how to change the code, each of
+# which defers to the register on persisted and external formats.
+_INSTRUCTION_PAGES = (
+    "AGENTS.md",
+    _link_support.CONTRIBUTING_PAGE,
+    ".agents/skills/develop/SKILL.md",
+    ".agents/skills/decompose/SKILL.md",
+)
+_REGISTER_SAMPLE = """| ID | Rule |
+| --- | --- |
+| [C-01] | Keep one rule. |
+| [C-02] | Keep another. |
+
+## C-01: First contract
+
+**Rule: Keep one rule.**
+
+**Why:** One reason.
+
+**Limits:** None.
+
+**Specs:** [spec](spec.md).
+
+**Checks:** [test](test.py).
+
+## C-02: Second contract
+
+**Rule: Keep another.**
+
+**Why:** Another reason.
+
+**Limits:** Some.
+
+A second paragraph of limits.
+
+**Specs:** [other spec](other.md).
+
+**Checks:** [other test](other.py).
+
+## Maintaining the contracts
+
+[C-01]: #c-01-first-contract
+[C-02]: #c-02-second-contract
+"""
+_SECOND_ROW = "| [C-02] | Keep another. |\n"
+_LISTING_DRIFT = "checklist and sections list different IDs"
+_FIRST_PARTS_DRIFT = "C-01: parts are missing or out of order"
+# One edit to the sample per case, with the problems the check must report.
+_REGISTER_CASES = (
+    ("agreeing register", ("", ""), ()),
+    ("reworded row", ("| [C-02] | Keep another.", "| [C-02] | Keep more."), (
+        "C-02: checklist row differs from its Rule",
+    )),
+    ("reworded rule", ("**Rule: Keep one", "**Rule: Keep the"), ("C-01: checklist row differs from its Rule",)),
+    ("missing row", (_SECOND_ROW, ""), (_LISTING_DRIFT, "C-02: checklist row differs from its Rule")),
+    ("repeated row", (_SECOND_ROW, _SECOND_ROW * 2), (_LISTING_DRIFT,)),
+    ("missing part", ("**Why:** One reason.\n\n", ""), (_FIRST_PARTS_DRIFT,)),
+    ("swapped parts", (
+        "**Specs:** [spec](spec.md).\n\n**Checks:** [test](test.py).",
+        "**Checks:** [test](test.py).\n\n**Specs:** [spec](spec.md).",
+    ), (_FIRST_PARTS_DRIFT,)),
+    ("extra part", ("A second paragraph", "**Note:** A second paragraph"), (
+        "C-02: parts are missing or out of order",
+    )),
+    ("renamed title", ("## C-01: First contract", "## C-01: First rule"), (
+        "C-01: reference link misses #c-01-first-rule",
+    )),
+)
 _GROUPING_CASES = (
     ("matching groups", _GROUPED_NAV_SAMPLE, True),
     ("different section", _GROUPED_NAV_SAMPLE.replace("  - Configuration:", "  - Operate:"), False),
@@ -109,9 +200,9 @@ class DocumentAnchorTest(unittest.TestCase):
         self.assertTrue(nested, "no document below docs/ was discovered")
 
     def test_discovery_reaches_the_routing_pages(self) -> None:
-        """The agent entry point and the skills route, so they are scanned."""
+        """The entry points, the contribution guide, and the skills route, so they are scanned."""
         pages = _link_support.tracked_markdown()
-        for name in (*_link_support.ENTRY_POINTS, ".agents/skills/develop/SKILL.md"):
+        for name in (*_link_support.ENTRY_POINTS, *_INSTRUCTION_PAGES):
             with self.subTest(page=name):
                 self.assertIn(name, pages)
 
@@ -230,6 +321,39 @@ class DocumentationIndexTest(unittest.TestCase):
                     for document, _ in _link_support.document_links(name, pages[name])
                 }
                 self.assertIn(_link_support.INDEX_PAGE, linked)
+
+
+class ContractRegisterTest(unittest.TestCase):
+    """The register keeps its anchors, its checklist, and its section shape."""
+
+    def test_contract_anchors_stay_stable(self) -> None:
+        sections = _register_support.contract_sections(_register_text())
+        self.assertEqual(tuple(anchor for _, anchor, _ in sections), _CONTRACT_ANCHORS)
+
+    def test_checklist_references_and_sections_agree(self) -> None:
+        self.assertEqual(_register_support.register_problems(_register_text()), [])
+
+    def test_register_drift_is_reported(self) -> None:
+        for name, (old, new), expected in _REGISTER_CASES:
+            with self.subTest(case=name):
+                self.assertIn(old, _REGISTER_SAMPLE)
+                self.assertEqual(
+                    _register_support.register_problems(_REGISTER_SAMPLE.replace(old, new, 1)),
+                    list(expected),
+                )
+
+    def test_instruction_pages_link_formats_contract(self) -> None:
+        """Each instruction page links C-03, the one place the format policy is stated."""
+        for name in _INSTRUCTION_PAGES:
+            with self.subTest(page=name):
+                self.assertIn(
+                    (_register_support.CONTRACTS_PAGE, _FORMATS_CONTRACT),
+                    _link_support.document_links(name, _link_support.REPO_ROOT / name),
+                )
+
+
+def _register_text() -> str:
+    return (_link_support.REPO_ROOT / _register_support.CONTRACTS_PAGE).read_text(encoding=_ENCODING)
 
 
 class HeadingAnchorSlugTest(unittest.TestCase):

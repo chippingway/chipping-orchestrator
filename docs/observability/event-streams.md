@@ -7,14 +7,16 @@ dispatch decision reads it back, and it is safe to truncate, rotate, or delete a
 in exactly one place: a landed base rewrite's finish asks it, and the rotated copies of it beside it, whether its
 `base_rebased` is already filed before filing one, and holds while they will not read, so a configured audit log and
 its copies have to stay readable by the orchestrator, and deleting a copy or truncating the log with none kept can
-cost that one event its once-only guarantee ([below](#audit-event-log-event_log_path)). The third sink, the opt-in
-trajectory recorder, is documented in [`trajectories.md`](trajectories.md).
+cost that one event its once-only guarantee ([below](#audit-event-log-event_log_path);
+[C-12](../contracts.md#c-12-observation-and-the-audit-recovery-exception)). The third sink, the opt-in trajectory
+recorder, is documented in [`trajectories.md`](trajectories.md).
 
-The record shapes below are a compatibility contract: an operator's `jq` filter, a `logrotate` rule, and the Postgres
-`analytics_events` columns all key off them. Where the write path sits in the package tree is *not* repeated here —
-[`architecture/observability-modules.md`](../architecture/observability-modules.md) maps it at the package boundary.
-For the knobs themselves see [`configuration/observability.md`](../configuration/observability.md). The
-parser the analytics `agent_exit` counts come from is on [`usage.md`](usage.md), and the database, read model, and
+The record shapes below are current formats under
+[C-03](../contracts.md#c-03-persisted-and-externally-consumed-formats): an operator's `jq` filter, a `logrotate` rule,
+and the Postgres `analytics_events` columns all key off them. Where the write path sits in the package tree is *not*
+repeated here — [`architecture/observability-modules.md`](../architecture/observability-modules.md) maps it at the
+package boundary. For the knobs themselves see [`configuration/observability.md`](../configuration/observability.md).
+The parser the analytics `agent_exit` counts come from is on [`usage.md`](usage.md), and the database, read model, and
 dashboard that sink is aggregated into afterwards are on [`analytics-database.md`](analytics-database.md) and
 [`analytics-dashboard.md`](analytics-dashboard.md).
 

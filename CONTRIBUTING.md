@@ -50,8 +50,11 @@ Small fixes can go straight to a PR. Discuss larger features or new dependencies
 with anyone already working on the same issue.
 
 Add or update tests for behavioral changes and update the affected documentation. Tests follow the package layout.
-Preserve existing workflow labels, pinned-state fields, comment markers, watermarks, and event payloads. For workflow
-or agent changes, consult the [state machine](docs/state-machine.md) and [workflow guide](docs/workflow.md).
+Keep workflow labels, pinned-state fields, comment markers, watermarks, and event payloads in their current formats
+unless your change deliberately alters one. [C-03](docs/contracts.md#c-03-persisted-and-externally-consumed-formats)
+says what such a change updates, how unsupported input is treated, and why this release needs no migration for
+earlier formats. For workflow or agent changes, consult the [state machine](docs/state-machine.md) and
+[workflow guide](docs/workflow.md).
 
 The [development guide](.agents/skills/develop/SKILL.md) covers detailed conventions, license headers, and the full
 pre-push checklist. The [documentation index](docs/README.md) helps you find the relevant reference pages.

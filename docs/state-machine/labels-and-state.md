@@ -3,7 +3,8 @@
 This page is the authoritative spelling of the state machine's public contract: the label set and how a wire label is
 spelled apart from the stage under it, the migration off the pre-namespace spellings, what one tick reads and writes
 per issue, and every pinned-state key a handler depends on. Live GitHub issues carry these strings, so a rename here
-is a migration rather than a refactor.
+is a deliberate format change under [C-03](../contracts.md#c-03-persisted-and-externally-consumed-formats) rather than
+a refactor.
 
 The handlers that act on them are in [`delivery-stages.md`](delivery-stages.md) and
 [`conversation-stages.md`](conversation-stages.md); the compact label-lifecycle reference is in
