@@ -465,10 +465,22 @@ than a second source of truth: where the two disagree, the handler pages are aut
        ok, subject still standing, squash ok)──► review_approved_subject
        recorded, docs_verdict and
        ready_ping_sha retired, label=workflow:documenting (final-docs)
-       ──► in_review; a report or issue edited, a later report settled, or
-       the head pushed while the squash runs ─► rewrite finished, label
-       held, and the next tick hands the change to a fresh reviewer or the
-       drift check
+       ──► in_review where the pass published nothing; a report or issue
+       edited, a later report settled, or the head pushed while the squash
+       runs ─► rewrite finished, label held, and the next tick hands the
+       change to a fresh reviewer or the drift check
+     workflow:documenting, a docs commit published (a fresh push, commits
+       an earlier tick left unpushed, or a docs_settled_sha receipt the
+       code-publication receipt proves, finished ahead of the approval
+       check) ─► ONE guarded write: docs_checked_sha stamped with no
+       docs_verdict, report debt recorded from docs_settled_lease onto the
+       docs commit, current evidence retired as invalidated,
+       review_approved_subject null, review_round +1, docs_handed_back_sha
+       marked; then label=workflow:validating, where the developer reports
+       on that commit with no human, a fresh reviewer approves it on
+       evidence of its own, and that approval buys the next final-docs
+       pass. A docs receipt with no readable lease ─► held, nothing written;
+       no room for the debt or the retirement ─► held, nothing announced
      in_review with a current report its approval did not cover (an
        unrecorded approval covers none), or the approved one edited or
        removed in place ─► review_round=0,
@@ -877,7 +889,15 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    of the base refresh for the head its push
                                    lands, and by the authorized settlement of
                                    a replay a late generation took over from
-                                   its auto rebase, for the push it makes
+                                   its auto rebase, for the push it makes,
+                                   and by a final-docs pass for the docs
+                                   commit it publishes, in the write that
+                                   hands it back. That one claim, on
+                                   workflow:documenting, naming exactly the
+                                   docs_handed_back_sha commit on the pinned
+                                   PR ─► label=workflow:validating (the
+                                   hand-back's lost relabel), nothing else
+                                   written
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every
