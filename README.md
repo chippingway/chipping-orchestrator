@@ -38,8 +38,10 @@ requests fixes until the change is ready, and the orchestrator opens or updates 
 the verification its verdict relies on, which the orchestrator publishes on the pull request before acting on it; an
 approval without passing evidence covering every configured `VERIFY_COMMANDS` command waits for a human. A final docs
 pass that commits documentation changes sends the pull request back to `workflow:validating`, where the developer
-reports on the new head and a fresh reviewer verifies it before another docs pass. Oversized changes, conflicts,
-retries, and human decisions take explicit side paths; pull requests are never merged automatically.
+reports on the new head and a fresh reviewer verifies it before another docs pass. One that changes nothing hands the
+pull request on only while the approval's verification evidence still proves current behind it; evidence that no
+longer does is invalidated, and the pull request goes back for a fresh review. Oversized changes, conflicts, retries,
+and human decisions take explicit side paths; pull requests are never merged automatically.
 
 See the [state-machine overview][states] for labels and transitions, and the
 [workflow guide][workflow] for agent roles and session behavior.
