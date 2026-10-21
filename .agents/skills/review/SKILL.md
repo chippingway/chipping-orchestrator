@@ -92,8 +92,8 @@ Unavailable: <each diagnostic you could not obtain, and why>
 For any refactor:
 
 - Workflow labels, pinned-state JSON keys, comment marker text, watermark fields, and event-emission
-  shape must match `main` exactly. Issues already in flight depend on these — a rename is a migration,
-  not a refactor.
+  shape must match `main` exactly. Issues already in flight depend on these — a rename is a deliberate format
+  change under [C-03](../../../docs/contracts.md#c-03-persisted-and-externally-consumed-formats), not a refactor.
 - Spot-check that moved code still routes through the same auth / fetch / push / retry helpers. A
   refactor is not allowed to silently change side effects.
 - Squash-on-approval, the in_review HITL ready-ping gates (mergeable + approved + no standing

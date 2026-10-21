@@ -97,7 +97,9 @@ Tests are the primary correctness gate. Add or update tests for any behavioral c
   Postgres volume — runtime state, not source. **Never traverse, read, modify, permission-repair, delete, or re-run
   any command against it with elevated privileges.** If a tool reports it as unreadable, that is expected: target
   `tests` explicitly (the default `pytest` config already ignores the directory) rather than escalating access.
-- **Preserve persisted and external formats:** [C-03](docs/contracts.md#c-03-persisted-and-externally-consumed-formats).
+- **Change persisted and external formats only deliberately:**
+  [C-03](docs/contracts.md#c-03-persisted-and-externally-consumed-formats) lists the current formats, forbids treating
+  unsupported input as current, and explains why this release's cleanup needs no migration or compatibility reader.
 - **One orchestrator writer per issue:** [C-05](docs/contracts.md#c-05-writer-claims-and-artifact-maintenance).
 - **Never load GitHub tokens from `.env`:** [C-11](docs/contracts.md#c-11-credentials-and-execution-boundaries).
 - **`plans/` is working notes, not spec.** Files under `plans/` are non-authoritative human working notes.

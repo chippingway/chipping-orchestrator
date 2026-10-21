@@ -149,9 +149,11 @@ label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions
 - Each owner declares its own `log = logging.getLogger("orchestrator.workflow")` with the channel spelled
   literally (`workflow/transition_guard.py` owns `orchestrator.state_machine`). Operator filters select on those names,
   so never derive one from `__name__`; `tests/workflow/test_imports.py` walks the package and checks it.
-- Preserve the public contract verbatim across a refactor: workflow labels, pinned-state JSON keys,
-  comment marker text, watermark fields, event-emission shape. Live issues already carry these — a
-  "harmless rename" is a migration, not a refactor.
+- Preserve the current formats verbatim across a refactor: workflow labels, pinned-state JSON keys,
+  comment marker text, watermark fields, event-emission shape. Live issues already carry these, so a
+  "harmless rename" is a deliberate format change, not a refactor. Make one only when the issue asks for it, and
+  follow [C-03](../../../docs/contracts.md#c-03-persisted-and-externally-consumed-formats), which also explains why
+  removing a historical format, alias, or call signature in this release needs no compatibility reader or migration.
 
 ## Tests
 
@@ -190,7 +192,8 @@ label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions
   duplicate child or PR, repeated charging, an extra API read or pinned-state write, timeout cleanup,
   write-before-publish ordering. `tests/github/test_issue_polling.py` asserting no per-issue detail GET is the
   model. Literal label, pinned-state key, comment marker, watermark, and event payload checks stay for the same
-  reason — they are the compatibility contract, not implementation detail.
+  reason — they pin the current formats
+  [C-03](../../../docs/contracts.md#c-03-persisted-and-externally-consumed-formats) covers, not implementation detail.
 - Before finalizing tests, do a redundancy pass:
   - List each added/modified test and the distinct behavior it protects.
   - Run one scenario once and assert its outcomes together. Where several methods share a `setUp` and differ
@@ -258,8 +261,8 @@ that summary.
 A new page under `docs/` is listed twice, grouped the same way in both: under **Every page** in `docs/README.md`, and
 under `nav:` in `mkdocs.yml`. In the site a section's first page is its landing page, since the top bar links the
 section to it, so an area's overview goes first. `tests/repository/test_doc_links.py` checks both lists, and every
-relative path and `#anchor` in the docs, the README, `AGENTS.md`, and the skill files, without the documentation
-builder installed.
+relative path and `#anchor` in the docs, the README, `AGENTS.md`, `CONTRIBUTING.md`, and the skill files, without the
+documentation builder installed.
 
 ## `plans/` is working notes, not spec
 

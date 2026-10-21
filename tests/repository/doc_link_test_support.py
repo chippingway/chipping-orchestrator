@@ -23,6 +23,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # The documentation landing page, and the two pages that route readers into it.
 INDEX_PAGE = "docs/README.md"
 ENTRY_POINTS = ("README.md", "AGENTS.md")
+# The contribution guide routes contributors to the same contracts and skills.
+CONTRIBUTING_PAGE = "CONTRIBUTING.md"
 
 # Shared cases keep the link checker and site hook aligned on GitHub's punctuation rules.
 HEADING_ANCHOR_CASES = (
@@ -57,15 +59,16 @@ def tracked_markdown() -> dict[str, Path]:
     `docs/` nests, so the key has to carry the directory: two pages named
     `observability.md` sit one level apart, and a bare filename would resolve
     a link into whichever of them the dictionary happened to keep. The skill
-    files join the docs because they route the same way, and the two entry
-    points because they are where a reader picks an area to begin with.
+    files join the docs because they route the same way, the two entry
+    points because they are where a reader picks an area to begin with, and
+    the contribution guide because it routes contributors into both.
     """
     pages = {
         path.relative_to(REPO_ROOT).as_posix(): path
         for root in _PAGE_ROOTS
         for path in (REPO_ROOT / root).rglob("*.md")
     }
-    pages.update({name: REPO_ROOT / name for name in ENTRY_POINTS})
+    pages.update({name: REPO_ROOT / name for name in (*ENTRY_POINTS, CONTRIBUTING_PAGE)})
     return pages
 
 

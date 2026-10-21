@@ -13,7 +13,7 @@ Use this checklist when reviewing a change; each ID links to its limits, specifi
 | --- | --- |
 | [C-01] | Keep durable workflow state in the issue's workflow label and pinned JSON comment. |
 | [C-02] | Orchestrator relabels leave at most one current workflow label and preserve repository labels. |
-| [C-03] | Preserve persisted formats and public names, or include migration handling. |
+| [C-03] | Change current formats and public names only deliberately; never treat unsupported input as current. |
 | [C-04] | Authenticate pinned state separately from the allowlist that controls issue and comment input. |
 | [C-05] | Run pollers on one host with the same explicit `WORKTREES_DIR`; hold claims from first read to last write. |
 | [C-06] | Treat unconfirmed writes as unknown; read back what landed before retrying publication. |
@@ -71,13 +71,30 @@ relabel. Guard exemptions are listed in the label specification.
 
 ## C-03: Persisted and externally consumed formats
 
-**Rule: Preserve persisted formats and public names, or include migration handling.**
+**Rule: Change current formats and public names only deliberately; never treat unsupported input as current.**
 
-**Why:** Live issues must remain readable, and external consumers must keep recognizing the names and records they use.
+**Why:** Live issues and external consumers depend on the formats the current release writes, and unsupported input
+taken as current could start work or license an irreversible effect.
 
-**Limits:** This includes pinned-state keys, workflow labels, comment markers, watermarks, event formats, branch/ref
-names, host record formats, agent command specs, and logger names. An internal refactor does not exempt an externally
-consumed name or format.
+**Limits:** Current formats include pinned-state keys, workflow labels, comment markers, watermarks, event formats,
+branch/ref names, host record formats, agent command specs, and logger names. Public Python names are the explicit
+`__all__` exports [C-13] covers. An internal refactor changes none of them; a deliberate change updates the affected
+contracts, specifications, and tests with the behavior.
+
+The 1.0 release preparation supports current formats only: breaking changes have already landed, and earlier state has
+no promised conversion or continuity. Cleanup that removes a historical format, alias, or Python call signature needs no
+compatibility reader, migration, or final 0.x release. A contract for current output does not oblige readers to accept
+earlier formats, nor functions to accept callers' obsolete argument aliases. This decision sets no compatibility or
+deprecation policy for later releases. Historical forms the runtime still reads, such as the legacy labels in [C-02],
+stay documented in their specifications until their owners remove them.
+
+Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
+a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
+specification says what a reader does with it. Current-format authentication [C-04], writer claims and artifact
+ownership [C-05], guarded and uncertain-write recovery [C-06], approval evidence [C-09], pinned session commands [C-14],
+lifetime run accounting [C-15], and the audit-log recovery exception [C-12] remain required. Optional fields the current
+format defines and current transactions a crash or lost write interrupted are current state, not historical
+compatibility.
 
 **Specs:** [state](state-machine/labels-and-state.md#pinned-state),
 [branches](security.md#scheduled-artifact-reclamation),
@@ -85,7 +102,8 @@ consumed name or format.
 [host records](configuration/operations.md#running-more-than-one-poller),
 [command specs](workflow.md#in-flight-session-lock--pinned-full-spec-until-the-session-ends),
 [events](observability/event-streams.md#audit-event-log-event_log_path),
-[loggers](../.agents/skills/develop/SKILL.md#workflow-owners-and-stage-modules).
+[loggers](../.agents/skills/develop/SKILL.md#workflow-owners-and-stage-modules),
+[evidence](security.md#what-a-trusted-pinned-record-still-cannot-license).
 
 **Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py).
 
@@ -244,8 +262,8 @@ Deleting a rotated copy or truncating the log without keeping a copy while a fin
 
 **Why:** Importing from one module keeps test patches and runtime calls on the same implementation.
 
-**Limits:** Declared public exports remain supported entry points; importing workflow labels must still leave the
-workflow engine unloaded.
+**Limits:** Declared public exports are the supported entry points, changed only as [C-03] allows; importing workflow
+labels must still leave the workflow engine unloaded.
 
 **Specs:** [ownership](architecture.md#top-level-layout),
 [development conventions](../.agents/skills/develop/SKILL.md#workflow-owners-and-stage-modules).
@@ -289,8 +307,9 @@ Rule / Why / Limits / Specs / Checks order, with one central rule; Limits covers
 obligations. Protocol details and decision history belong in the linked specifications.
 
 Linked tests are representative checks, not proof of every clause.
-[Documentation checks](../tests/repository/test_doc_links.py) validate links, navigation, and the required-reading
-route from AGENTS.md; they do not verify behavioral claims.
+[Documentation checks](../tests/repository/test_doc_links.py) validate links, navigation, the required-reading route
+from AGENTS.md, and the instruction pages' links to [C-03]. They also hold this register's IDs and heading anchors,
+each checklist row against its section's Rule, and the section order; they do not verify behavioral claims.
 
 [C-01]: #c-01-durable-workflow-state-and-recovery
 [C-02]: #c-02-workflow-labels-and-transitions

@@ -36,8 +36,11 @@ alone:
 - mechanically consequent documentation, inventories, and owner docstrings for every symbol or module it moves,
   renames, or deletes — the pages the `develop` skill's [Documentation drift](../develop/SKILL.md#documentation-drift)
   section lists;
-- the compatibility and integration work repository policy requires — workflow labels, pinned-state fields, comment
-  markers, and event payloads are a compatibility contract;
+- the format and integration work repository policy requires — workflow labels, pinned-state fields, comment
+  markers, and event payloads keep their current formats under
+  [C-03](../../../docs/contracts.md#c-03-persisted-and-externally-consumed-formats), so a child that deliberately
+  changes one updates the affected contracts, specifications, and tests with it, and one that removes a historical
+  format owes no migration or compatibility reader;
 - the final documentation pass every implementation PR receives after reviewer approval
   ([documenting stage](../../../docs/state-machine.md#_handle_documenting-label-workflowdocumenting)).
 
@@ -56,7 +59,7 @@ Before emitting any split, run this for every proposed child B:
 
 1. Collect every **direct and transitive** prerequisite of B.
 2. Assume they have all landed **completely** on the base: implementation, tests, consequent documentation,
-   compatibility and integration work, and their final documentation pass.
+   format and integration work, and their final documentation pass.
 3. Re-read B against that repository.
 4. B survives only if it keeps at least one **unique acceptance criterion** and a **predicted non-empty diff** that
    delivers it.

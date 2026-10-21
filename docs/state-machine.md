@@ -9,9 +9,9 @@ Read [Contracts and invariants](contracts.md) for the project-wide state, compat
 
 This area documents the label-based state machine that drives every GitHub issue from pickup to terminal. It is split
 out of [`architecture.md`](architecture.md), which keeps the high-level overview, the top-level module map, and the
-process / agent / push model. Workflow labels and pinned-state JSON keys are a compatibility contract — live issues
-already carry them — so this area is where label spelling, the transitions between them, and each handler's behavior
-are authoritative.
+process / agent / push model. Workflow labels and pinned-state JSON keys are current formats under
+[C-03](contracts.md#c-03-persisted-and-externally-consumed-formats) — live issues already carry them — so this area is
+where label spelling, the transitions between them, and each handler's behavior are authoritative.
 
 ## The pages in this area
 
