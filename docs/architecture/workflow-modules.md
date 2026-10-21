@@ -615,8 +615,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             carries or invalidates, the failed squash's park, what it posted where its records
                             moved, and the handoff's end behind the label (`stages/validating/squash_writes.py`) --
                             commit so far, with the finish of a base rewrite the tick published itself
-                            (`rewrite_finish_writes.py`) and every auto-rebase park and a recovery's clear and record
-                            of a gate's hold (`git/base_sync/checkpoints.py`) landing through it too, while every other
+                            (`rewrite_finish_writes.py`), every auto-rebase park and a recovery's clear and record
+                            of a gate's hold (`git/base_sync/checkpoints.py`), and a final-docs pass's completion
+                            (`stages/documenting/handoff.py`) landing through it too, while every other
                             road still writes its whole state: a candidate derived
                             over a fresh reading of the
                             captured comment rather than written from the caller's state. A
@@ -680,7 +681,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stages/validating/squash_writes.py`), and the finish of a landed base rewrite
                             declares its writes over it (`rewrite_finish_writes.py`), as every auto-rebase park and a
                             recovery's clear and record of a gate's hold does its checkpoint
-                            (`git/base_sync/checkpoints.py`)
+                            (`git/base_sync/checkpoints.py`) and a final-docs pass its completion, prepared before its
+                            notice and landed before its relabel (`stages/documenting/handoff.py`)
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL
