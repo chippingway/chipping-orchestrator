@@ -142,9 +142,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             to sweep at all -- empty, the sweep returns before it costs a request -- and every
                             open PR from outside it earns one `workflow:community_contribution` label and one
                             HITL ping, with the ping posted BEFORE the label that dedups it, since a label
-                            written ahead of a comment that failed would suppress that ping forever. Both
-                            spellings of the label are read, so a PR marked before the namespace is
-                            recognized rather than pinged twice; a Bot author is skipped outright, its PR being
+                            written ahead of a comment that failed would suppress that ping forever. Only that
+                            namespaced label is read as the mark, so a PR carrying just a bare
+                            `community_contribution` is pinged and marked like any other, keeping the bare label
+                            as repository metadata; a Bot author is skipped outright, its PR being
                             structural rather than a contribution. The enumeration and each per-PR step are
                             caught separately, so one PR's failure costs that PR's ping and never the sweep or
                             the tick around it

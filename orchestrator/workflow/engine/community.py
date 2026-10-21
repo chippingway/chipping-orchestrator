@@ -14,9 +14,10 @@ sweep returns before it costs a request.
 The label is the sweep's own dedup marker rather than an operator control,
 which is why the ping is posted BEFORE it. A label write that fails repeats a
 ping on the next tick; a label written ahead of a comment that fails would
-suppress the ping forever and no human would ever be called. Both spellings are
-read for the same reason -- a PR labeled before the namespace has already had
-its one ping, and re-labeling it would repeat that ping.
+suppress the ping forever and no human would ever be called. Only the
+namespaced label is that marker: a bare `community_contribution` is one of the
+repository's own labels, so a PR carrying nothing else is pinged and marked
+like any unmarked PR, and keeps the bare label beside the namespaced one.
 
 Nothing here may raise. The enumeration and each per-PR step are caught
 separately, so a PyGithub lazy-load failure on one PR costs that PR's ping
@@ -31,10 +32,7 @@ from dataclasses import dataclass
 from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.labels import (
-    COMMUNITY_CONTRIBUTION_LABEL,
-    COMMUNITY_CONTRIBUTION_LABEL_NAMES,
-)
+from orchestrator.github.labels import COMMUNITY_CONTRIBUTION_LABEL
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -42,18 +40,6 @@ log = logging.getLogger("orchestrator.workflow")
 @dataclass(frozen=True)
 class _CommunityContribution:
     author: str
-
-
-def _has_contribution_label(gh: GitHubClient, pr) -> bool:
-    """Whether the sweep already marked this PR, under either spelling.
-
-    A PR labeled before the namespace, which the bootstrap leaves carrying the
-    bare spelling, has already had its one HITL ping.
-    """
-    return any(
-        gh.pr_has_label(pr, label_name)
-        for label_name in COMMUNITY_CONTRIBUTION_LABEL_NAMES
-    )
 
 
 def _community_contribution_for_pr(
@@ -65,7 +51,7 @@ def _community_contribution_for_pr(
     author = getattr(user, "login", None) or ""
     if author.lower() in allowed_lower:
         return None
-    if _has_contribution_label(gh, pr):
+    if gh.pr_has_label(pr, COMMUNITY_CONTRIBUTION_LABEL):
         return None
     return _CommunityContribution(author)
 
@@ -107,8 +93,8 @@ def _sweep_community_contribution_prs(
 
     Every open PR whose author is not in the list earns the
     `workflow:community_contribution` label and a one-shot HITL ping comment;
-    a PR already carrying either spelling of that label is skipped, so the
-    comment fires exactly once per PR.
+    a PR already carrying that label is skipped, so the comment fires exactly
+    once per PR.
 
     Bot-authored PRs (Dependabot, Renovate, CI bots) are skipped by GitHub's
     `user.type == "Bot"` flag -- they open PRs structurally and are not

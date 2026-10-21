@@ -72,10 +72,12 @@ its direct write are in [`state-machine/labels-and-state.md`][typed-states].
 The startup label bootstrap **creates only the canonical labels a repository lacks**. It never looks up, renames, or
 deletes a pre-namespace spelling or any other definition, so a repository whose labels predate the namespace keeps
 them, and every issue holding one keeps it: where only the bare spelling exists, the namespaced label is created
-beside it. Those issues come off the bare label one relabel at a time, because three reads still take either
-spelling — issue routing, the community sweep's dedup marker, and the closed-issue sweep's query — and a namespaced
-label always outranks a bare one on the same issue. What a PAT without `Issues: Read and write` leaves behind, and
-which bare tags a relabel deliberately does not delete, are in [`state-machine/labels-and-state.md`][legacy-labels].
+beside it. Those issues come off the bare label one relabel at a time, because two reads still take either spelling —
+issue routing and the closed-issue sweep's query — and a namespaced label always outranks a bare one on the same
+issue. The community sweep's dedup marker is `workflow:community_contribution` alone, so a bare
+`community_contribution` left on a PR is the repository's own label. What a PAT without `Issues: Read and write`
+leaves behind, and which bare tags a relabel deliberately does not delete, are in
+[`state-machine/labels-and-state.md`][legacy-labels].
 
 <a id="per-tick-flow-workflowtick"></a>
 
