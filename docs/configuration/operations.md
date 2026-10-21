@@ -700,6 +700,12 @@ which paths reach an issue decides what keeps it away:
   one terminal label whatever its control labels say, though only what its gates prove nothing else needs. Closing an
   issue retires it into these paths, not out of them: retire that way only work whose records the selected build
   reads, and keep the rest out with its repository.
+- **Community pull requests.** The per-tick community sweep writes to open pull requests from authors outside
+  `ALLOWED_ISSUE_AUTHORS`, and no control label holds it. To a build whose
+  [sweep](../state-machine/labels-and-state.md#workflow-labels) takes only `workflow:community_contribution` as the
+  mark of an earlier HITL ping, one carrying only the pre-namespace `community_contribution` is unmarked: its first
+  sweep @-mentions `HITL_HANDLE` on it again and adds the namespaced label beside the bare one, which stays. Accept
+  that one ping per such pull request, or leave the repository out.
 - **A whole repository.** A repository the selected build is not configured for is never polled, swept, or
   refreshed, and the maintenance pass leaves alone every artifact whose name marks it as that repository's. A clone
   two `REPOS` entries share is the exception: the artifacts on it whose names do not tell the entries apart, every

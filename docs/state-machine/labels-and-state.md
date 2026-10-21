@@ -79,8 +79,10 @@ Three non-workflow **control labels** modify behavior without occupying the work
   is labeled and `HITL_HANDLE` is @-mentioned once per PR. Bot-authored PRs (Dependabot, Renovate, CI bots) are
   skipped via GitHub's `user.type == "Bot"` flag — they open PRs structurally and are not community contributions. The
   orchestrator does not otherwise drive these PRs. The label is the sweep's own dedup marker rather than an operator
-  control, which is why it is namespaced where `backlog` / `paused` are not, and why the sweep asks for both its
-  spellings: a PR marked before the namespace is already labeled, and re-labeling it would repeat the ping.
+  control, which is why it is namespaced where `backlog` / `paused` are not, and the namespaced spelling is the only
+  one the sweep asks for: a bare `community_contribution` is a repository label it neither reads nor removes, so a PR
+  carrying only that one is pinged and earns `workflow:community_contribution` beside it, and the next sweep finds the
+  marker and pings no more.
 
 ### Typed states and the transition guard
 
@@ -237,17 +239,19 @@ logged and the rest of the bootstrap is abandoned, leaving the repository withou
 permission is granted and the process restarts. The orchestrator keeps polling either way. Issues still carrying a
 bare label, and a human re-adding one by hand, are what the reads below exist for.
 
-Three reads take either spelling, which is what keeps an issue carrying only a bare label reachable:
+Two reads take either spelling, which is what keeps an issue carrying only a bare label reachable:
 
 - **Routing.** `github.labels.workflow_label` reads an issue's labels through `issue_workflow_label`, which resolves a
   bare tag back to its `WorkflowLabel`, so an issue still carrying the old label reaches its handler and the next
   label write rewrites it to the namespaced spelling. (`label_for_name` is the same lookup on the write side, where
   `coerce_workflow_label` accepts either spelling for a label about to be applied.)
-- **The community sweep.** It asks for both spellings of `workflow:community_contribution` and rewrites neither: the
-  label it finds is proof the PR's one HITL ping already went out, and re-labeling would repeat it.
 - **The closed-issue sweep.** Each sweep label is queried under its pre-namespace spelling too, because a closed issue
   is the one case no other pass revisits — see [Pollable issues and finalization](#pollable-issues-and-finalization)
   for the request cost that carries.
+
+The community sweep is not among them: its dedup marker is [`workflow:community_contribution`](#workflow-labels) alone,
+and a bare `community_contribution` on a PR is the repository's own label, kept where it is beside the marker the
+sweep adds.
 
 An issue can therefore carry both spellings at once, and the namespaced one always wins — `issue_workflow_label`
 scans for it across every label before it will settle for a bare tag, so the order GitHub happens to return them in

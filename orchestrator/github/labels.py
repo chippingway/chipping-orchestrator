@@ -18,7 +18,7 @@ from github.Label import Label
 
 from orchestrator.github.aliases import StaticMethodAlias
 from orchestrator.workflow.label_reading import issue_workflow_label
-from orchestrator.workflow.state import ControlLabel, WorkflowLabel, legacy_label_name
+from orchestrator.workflow.state import ControlLabel, WorkflowLabel
 
 log = logging.getLogger("orchestrator.github")
 
@@ -60,18 +60,6 @@ WORKFLOW_LABELS = frozenset(WorkflowLabel)
 BACKLOG_LABEL = ControlLabel.BACKLOG
 PAUSED_LABEL = ControlLabel.PAUSED
 COMMUNITY_CONTRIBUTION_LABEL = ControlLabel.COMMUNITY_CONTRIBUTION
-# Every spelling the sweep's own label can be found under. The label is the
-# sweep's dedup marker, so a PR still carrying the bare one -- marked before
-# the namespace -- has to read as already marked, or the HITL ping fires a
-# second time on a PR a human was already asked to review.
-COMMUNITY_CONTRIBUTION_LABEL_NAMES: tuple[str, ...] = tuple(
-    label_name
-    for label_name in (
-        COMMUNITY_CONTRIBUTION_LABEL,
-        legacy_label_name(COMMUNITY_CONTRIBUTION_LABEL),
-    )
-    if label_name is not None
-)
 CONTROL_LABEL_SPECS: tuple[tuple[ControlLabel, str, str], ...] = (
     (
         BACKLOG_LABEL,

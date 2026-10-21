@@ -7,29 +7,30 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.github.labels import (
-    COMMUNITY_CONTRIBUTION_LABEL,
-    COMMUNITY_CONTRIBUTION_LABEL_NAMES,
-)
+from orchestrator.github.labels import COMMUNITY_CONTRIBUTION_LABEL
 from orchestrator.workflow.engine import community
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine.community_test_support import (
     ALLOWED_LOGIN,
     ALLOWLIST_CONFIG,
-    COMMENT_RETRY_PR_NUMBER,
+    BARE_MARKER,
     OUTSIDER_LOGIN,
     TEST_SPEC,
-    fail_first_label_write,
     make_pr,
+    record_label_lookups,
 )
 
 _ALLOWED_LOGIN = ALLOWED_LOGIN
 _ALLOWLIST_CONFIG = ALLOWLIST_CONFIG
-_COMMENT_RETRY_PR_NUMBER = COMMENT_RETRY_PR_NUMBER
+_BARE_MARKER = BARE_MARKER
 _OUTSIDER_LOGIN = OUTSIDER_LOGIN
 _TEST_SPEC = TEST_SPEC
-_fail_first_label_write = fail_first_label_write
 _pr = make_pr
+_record_label_lookups = record_label_lookups
+
+
+def _label_names(pr) -> list[str]:
+    return [label.name for label in pr.labels]
 
 
 class SweepCommunityContributionPRsTest(unittest.TestCase):
@@ -85,22 +86,45 @@ class SweepCommunityContributionPRsTest(unittest.TestCase):
         self.assertEqual(gh.pulls[5].labels, [])
         self.assertEqual(gh.posted_pr_comments, [])
 
-    def test_labeled_prs_are_not_pinged_again(self) -> None:
-        # Either spelling is the dedup marker: a PR labeled before the
-        # namespace has already had its one HITL ping, so it earns neither a
-        # second label nor a second ping.
-        for label_name in COMMUNITY_CONTRIBUTION_LABEL_NAMES:
-            with self.subTest(label=label_name):
-                gh = FakeGitHubClient()
-                gh.add_pr(
-                    _pr(3, author=_OUTSIDER_LOGIN, labels=(label_name,))
-                )
-                with patch.object(
-                    config, _ALLOWLIST_CONFIG, (_ALLOWED_LOGIN,),
-                ):
-                    community._sweep_community_contribution_prs(gh, _TEST_SPEC)
-                self.assertEqual(
-                    [label.name for label in gh.pulls[3].labels],
-                    [label_name],
-                )
-                self.assertEqual(gh.posted_pr_comments, [])
+    def test_canonical_marker_suppresses_ping(self) -> None:
+        # The namespaced label is the sweep's one dedup marker: a PR
+        # carrying it has had its HITL ping, and is asked about that label
+        # alone.
+        gh = FakeGitHubClient()
+        gh.add_pr(
+            _pr(3, author=_OUTSIDER_LOGIN, labels=(COMMUNITY_CONTRIBUTION_LABEL,))
+        )
+        looked_up: list[str] = []
+        with (
+            patch.object(config, _ALLOWLIST_CONFIG, (_ALLOWED_LOGIN,)),
+            _record_label_lookups(gh, looked_up),
+        ):
+            community._sweep_community_contribution_prs(gh, _TEST_SPEC)
+        self.assertEqual(
+            _label_names(gh.pulls[3]), [COMMUNITY_CONTRIBUTION_LABEL],
+        )
+        self.assertEqual(gh.posted_pr_comments, [])
+        self.assertEqual(looked_up, [COMMUNITY_CONTRIBUTION_LABEL])
+
+    def test_bare_marker_is_repository_metadata(self) -> None:
+        # A bare `community_contribution` marks nothing: the PR carrying only
+        # it is pinged and earns the namespaced marker beside the bare label,
+        # which it keeps, and the next sweep finds the namespaced marker and
+        # pings no more. The bare name is never asked about.
+        gh = FakeGitHubClient()
+        gh.add_pr(_pr(4, author=_OUTSIDER_LOGIN, labels=(_BARE_MARKER,)))
+        looked_up: list[str] = []
+        with (
+            patch.object(config, _ALLOWLIST_CONFIG, (_ALLOWED_LOGIN,)),
+            _record_label_lookups(gh, looked_up),
+        ):
+            community._sweep_community_contribution_prs(gh, _TEST_SPEC)
+            community._sweep_community_contribution_prs(gh, _TEST_SPEC)
+        self.assertEqual(
+            _label_names(gh.pulls[4]),
+            [_BARE_MARKER, COMMUNITY_CONTRIBUTION_LABEL],
+        )
+        self.assertEqual(
+            [pr_number for pr_number, _ in gh.posted_pr_comments], [4],
+        )
+        self.assertEqual(set(looked_up), {COMMUNITY_CONTRIBUTION_LABEL})

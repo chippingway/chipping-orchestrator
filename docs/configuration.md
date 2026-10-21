@@ -1278,8 +1278,9 @@ pinned into an in-flight session — are in
 - `workflow:community_contribution` — Applied automatically (not by an operator) by the per-tick open-PR sweep: any
   open PR whose author is outside `ALLOWED_ISSUE_AUTHORS` is labeled and `HITL_HANDLE` is @-mentioned once per PR so a
   human reviews the community-submitted work. Bot authors (Dependabot, Renovate, CI bots) are skipped. It carries the
-  `workflow:` prefix — unlike the two controls above — because the orchestrator writes it itself; a PR still carrying
-  the pre-namespace spelling counts as already labeled, so the migration cannot cost it a second HITL ping.
+  `workflow:` prefix — unlike the two controls above — because the orchestrator writes it itself, and only that
+  spelling marks a PR as already pinged: a bare `community_contribution` is a repository label like any other, so a PR
+  carrying only it is pinged and labeled as an unmarked PR is, and keeps the bare label.
 
 [pollable-issues]: state-machine/labels-and-state.md#pollable-issues-and-finalization
 [transition-guard]: state-machine/labels-and-state.md#typed-states-and-the-transition-guard
