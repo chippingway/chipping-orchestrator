@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 [project]
 name = "chipping-orchestrator"
-version = "0.13.0"
-description = "GitHub-Issue-driven AI agent workflow."
+version = "0.14.0"
+description = "Autonomous AI coding agent orchestrator"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

@@ -165,8 +165,9 @@ examples. The [operations guide][operations] covers run modes, upgrades and roll
 on one host, and systemd deployment. For unconstrained, unpinned installs, use `pipx upgrade chipping-orchestrator`
 after stopping the poller and reviewing release notes. Constrained installs upgrade by repeating the pinned
 procedure in the operations guide with the new release's constraints. Package upgrades are operator-initiated.
-Upgrading from v0.13.0 or earlier moves the poller to `chipping-orchestrator run`: the bare command prints help
-and exits, so read the [upgrade notes][installation] before upgrading a host whose scripts or systemd unit run it.
+Upgrading to v0.14.0 from v0.13.0 or earlier moves the poller to `chipping-orchestrator run`: the bare command prints
+help and exits. Read the [v0.14.0 release and upgrade notes][release-0.14.0] and the
+[package upgrade procedure][installation] before upgrading a host whose scripts or systemd unit run it.
 A release or source revision that cannot read the work the running poller owns is
 [deployed without migration][deploying]: stop and hold every poller, keep what the new build cannot read away from it
 and in place for a human to decide on, then install, check, and start it deliberately. Nothing converts earlier
@@ -270,7 +271,7 @@ Browse the [documentation website](https://chippingway.github.io/chipping-orches
 | [Configuration][configuration] | Environment variables, defaults, and operator runbooks |
 | [Observability][observability] | Logs, analytics, dashboards, trajectories, usage, and cost |
 | [Security][security] | Deployment checklist and operator-owned controls |
-| [Release timeline][releases] | Dated milestones and functionality added in each published release |
+| [Release timeline][releases] | Published milestones, release notes, and upgrade guidance |
 
 Report suspected vulnerabilities through the private process in [SECURITY.md][reporting], never through a public
 issue.
@@ -336,6 +337,7 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [documentation]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/README.md
 [architecture]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/architecture.md
 [releases]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/release-timeline.md
+[release-0.14.0]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/release-timeline.md#v0140
 [reporting]: https://github.com/chippingway/chipping-orchestrator/blob/main/SECURITY.md
 [contributing]: https://github.com/chippingway/chipping-orchestrator/blob/main/CONTRIBUTING.md
 [license]: https://github.com/chippingway/chipping-orchestrator/blob/main/LICENSE

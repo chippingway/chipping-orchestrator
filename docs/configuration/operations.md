@@ -260,7 +260,7 @@ successful migration; subsequent upgrades and rollback use the pipx procedures b
 
 ### Upgrade a package
 
-**Upgrading past v0.13.0 breaks the bare launch command.** Later releases start the polling process only as
+**v0.14.0 changes the polling command.** Upgrading from v0.13.0 or earlier requires starting the poller as
 `chipping-orchestrator run`. The bare command prints the help listing every command and exits 0, and a polling flag
 given before any command is a usage error naming its `run` form, for example `chipping-orchestrator run --once`.
 Before starting the upgraded package, append `run` to every launch line, script, and timer that runs the bare command,

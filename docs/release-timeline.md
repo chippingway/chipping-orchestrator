@@ -1,18 +1,19 @@
 # chipping-orchestrator release timeline
 
-Source material for a public timeline of `chipping-orchestrator`: all **15 published releases**, from `v0.13.0` back to
+Source material for a public timeline of `chipping-orchestrator`: all **16 published releases**, from `v0.14.0` back to
 `v0.1.0`, with links to the [GitHub release history][releases] and tagged changes. Releases run newest first. The table
 gives each milestone a date, version, and suggested title; the lists below supply its functionality, upgrade guidance,
 and supporting sources.
 
-Dates are GitHub release publication dates in **UTC**, rather than commit or tag dates. Each list describes what shipped
-at that tag. Changes after `v0.13.0` are outside this timeline. Historical names and controls are retained where they
-explain a release; use the [documentation index](README.md) for current operation and configuration.
+Dates are GitHub release publication dates in **UTC**, rather than commit or tag dates. Each entry describes what
+shipped at its tag. Historical names and controls are retained where they explain a release; use the
+[documentation index](README.md) for current operation and configuration.
 
 ## Timeline milestones
 
 | Published date | Release | Suggested timeline title |
 |---|---|---|
+| 2026-10-22 | [v0.14.0](#v0140) | Guided service setup and recoverable verification |
 | 2026-10-06 | [v0.13.0](#v0130) | Developer reports, verification evidence, and Poetry packaging |
 | 2026-09-15 | [v0.12.0](#v0120) | Human size approval, lifetime budgets, and artifact cleanup |
 | 2026-08-31 | [v0.11.1](#v0111) | Cumulative PR limits and the chipping-orchestrator name |
@@ -28,6 +29,82 @@ explain a release; use the [documentation index](README.md) for current operatio
 | 2026-06-03 | [v0.3.0](#v030) | Analytics dashboard and scheduled issue processing |
 | 2026-05-26 | [v0.2.0](#v020) | Documentation, Q&A, verification, and parallel work |
 | 2026-05-19 | [v0.1.0](#v010) | GitHub issues become reviewed pull requests |
+
+## v0.14.0
+
+Published **2026-10-22**. Sources: [release notes][v0.14.0] and [tagged changes][changes-0.14.0].
+
+**Added functionality**
+
+- A command-based CLI: `run` starts polling, while a bare launch, `--help`, and `--version` answer without loading
+  repository configuration. Polling flags follow `run`, including `chipping-orchestrator run --once`.
+- Installed-package setup commands: `configure` writes settings from an existing clone and trusted authors;
+  `set-token` checks a token with a read-only GitHub request and stores it owner-only; `add-repo` appends another clone
+  to `REPOS`. Tokens stay outside `.env` and command-line arguments.
+- Interactive onboarding through `init` when no `.env` exists, collecting repositories, credentials, trusted users,
+  and agent choices before a final confirmation. `check` validates setup in a fresh interpreter using the service's
+  environment and token files; `--local` omits GitHub calls.
+- A managed systemd user service. `init` installs and enables the unit, requesting linger where permitted, without
+  starting it; `start`, `stop`, `restart`, `status`, and `remove` manage it. Starts require a local setup check, and
+  removing the unit keeps configuration, credentials, clones, and worktrees.
+- Basic and advanced `.env` templates shipped as package data, so every installation can supply its own version's
+  templates without loading configuration. The installation guide uses pipx and covers migration from a dedicated venv.
+- Workflow-owned automatic base-rebase publication and crash recovery, with a durable verification decision before
+  announcing or routing a landed rewrite. Recovery settles captured checks without rerunning them, abandons evidence
+  whose inputs moved, and reconciles notices and audit events before repeating a write.
+
+**Improvements and changes**
+
+- Guarded checkpoints cover change-request handoffs, approval and squash completion, base-rewrite recovery, and final
+  documentation handoffs. Refused or unconfirmed writes stop dependent actions until a later tick reads the state again.
+  Approval-squash lineage can prove a rebased report eligible for automatic refresh; conflict-stage requirements
+  updates publish their developer reports before review.
+- A final documentation pass that publishes a commit returns to `workflow:validating` for a report on that head and
+  a fresh review. A pass that changes nothing reaches `in_review` only while its approval's verification still proves
+  current; stale or missing evidence invalidates the approval and sends the issue back to validation.
+- Claude weekly limits, Codex reviewer usage limits, and Antigravity quotas produce explicit retryable parks with the
+  provider's reset information when available. A reviewer usage-limit park requires a trusted `/orchestrator continue`.
+  An Antigravity quota retires the failed developer conversation durably; its replacement keeps the pinned command
+  and worktree. Failed Antigravity documentation runs keep commits local until a continued pass succeeds.
+- Reviewer findings identify each failed test, collection, or scenario, its error, and a reproducible check. Published
+  and replayed feedback leads with those failures before showing commands and exit statuses.
+- Fresh initial and late split replies require every child's explicit `depends_on` list, with `[]` for none. Initial
+  split rationales survive recovery and reach the parent's later implementation prompt. The late-split lineage bound
+  rises to depth `5`; generations at depths `0` through `4` may split, while a proposed split at depth `5` parks.
+- Claude output-token accounting uses each message's final count, including supported subagent usage, for run and
+  trajectory totals. Existing records and accumulated issue totals are not backfilled.
+- Label bootstrap creates missing canonical labels without renaming or deleting repository labels. The community
+  contribution sweep recognizes only `workflow:community_contribution`, and the closed-issue sweep queries canonical
+  workflow names only; a closed issue carrying only a legacy bare workflow spelling is not revisited.
+- Source self-restart detection runs only in the orchestrator's own checkout. Locked dependencies include security
+  updates for certifi, Streamlit, and Pillow; the dashboard remains optional.
+
+**Upgrade notes from v0.13.0**
+
+- Stop every poller before upgrading and review
+  [deploying without migration](configuration.md#deploying-without-migration) if the selected build cannot read existing
+  work. Earlier state has no promised conversion or continuity: preserve
+  unsupported issues, artifacts, and recovery records while excluding them from the new poller. Returning an older
+  binary to workflow state a newer one wrote is unsupported.
+- Append `run` to foreground commands, scripts, timers, and hand-written service launch lines, placing polling flags
+  after it. The bare command prints help and exits successfully. Follow the
+  [package upgrade procedure](configuration.md#package-installation-upgrades-and-rollback), including its dedicated-venv
+  and service migration steps, before restarting.
+- A host with the old `orchestrator.service` must stop, disable, and remove that unit before `init` installs
+  `chipping-orchestrator.service`; `init` refuses the old unit. Review the
+  [user service guide](configuration.md#running-under-systemd-user-service), then run `check`, `init`, and `start`
+  deliberately. `check` and `init` read token files, not an exported `GITHUB_TOKEN`; store credentials with `set-token`.
+- Save and compare both versions' templates. v0.13.0 has no packaged templates, so retain its release-tag copies;
+  v0.14.0 supplies them from `orchestrator.service`. Keep `REPOS`, the author allowlist, and the shared absolute
+  `WORKTREES_DIR`; preserve quota-retirement records alongside writer claims and the audit logs pending recovery needs.
+- Expect another developer report and review after documentation commits. Allow review and lifetime run budgets for
+  those passes. Answer provider-limit parks with `/orchestrator continue` after the quota resets; an Antigravity
+  developer resumes the work in a fresh conversation under its original command.
+- Review legacy workflow labels before restarting: bootstrap leaves them in place and the closed-issue sweep does not
+  query their bare spellings. See [legacy-label behavior](state-machine.md#legacy-labels-and-the-migration-off-them).
+- Claude usage after the correction can be higher than earlier records for the same output. Historical output-token
+  counts and estimated costs remain unchanged, and an issue spanning the upgrade mixes both accounting methods;
+  see the [usage parser](observability.md#usage-parser-orchestratorobservabilityusage).
 
 ## v0.13.0
 
@@ -430,6 +507,7 @@ Published **2026-05-19**. Sources: [release notes][v0.1.0] and [tagged history][
 - A polling launcher with self-update/restart behavior, file logs, and GitHub Actions lint and test checks.
 
 [releases]: https://github.com/chippingway/chipping-orchestrator/releases
+[v0.14.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.14.0
 [v0.13.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.13.0
 [v0.12.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.12.0
 [v0.11.1]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.11.1
@@ -445,6 +523,7 @@ Published **2026-05-19**. Sources: [release notes][v0.1.0] and [tagged history][
 [v0.3.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.3.0
 [v0.2.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.2.0
 [v0.1.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.1.0
+[changes-0.14.0]: https://github.com/chippingway/chipping-orchestrator/compare/v0.13.0...v0.14.0
 [changes-0.13.0]: https://github.com/chippingway/chipping-orchestrator/compare/v0.12.0...v0.13.0
 [changes-0.12.0]: https://github.com/chippingway/chipping-orchestrator/compare/v0.11.1...v0.12.0
 [changes-0.11.1]: https://github.com/chippingway/chipping-orchestrator/compare/v0.11.0...v0.11.1

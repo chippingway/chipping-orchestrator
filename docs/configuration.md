@@ -209,13 +209,15 @@ explicit `REPOS` targets above. Review release notes and compare both versions' 
 local overrides, changed defaults, and validation rules can affect both the upgrade and a later rollback. Package
 changes are initiated by the operator.
 
-Upgrading past v0.13.0 moves the poller from the bare `chipping-orchestrator` command to `chipping-orchestrator run`:
+Upgrading to v0.14.0 from v0.13.0 or earlier moves polling to `chipping-orchestrator run`:
 the bare command prints help and exits 0, so a launch line, script, or hand-written unit's `ExecStart` that runs it
 needs `run` appended before the upgraded package starts. The
 [upgrade warning](configuration/operations.md#upgrade-a-package) covers the unit and a rollback.
 
-The [v0.13.0 upgrade notes](release-timeline.md#v0130) cover the required author allowlist, installed targets,
-Poetry migration, worktree paths, and the report and verification contracts when upgrading from v0.12.0.
+The [v0.14.0 upgrade notes](release-timeline.md#v0140) cover the command and service changes, packaged templates,
+workflow-state compatibility, verification recovery, and corrected Claude usage accounting. For upgrades from
+v0.12.0, also read the [v0.13.0 notes](release-timeline.md#v0130) on the required author allowlist, installed targets,
+Poetry migration, worktree paths, and the report and verification contracts.
 
 A version that cannot read the live workflow state is deployed as [below](#deploying-without-migration), and returning
 an older version to state a newer one wrote is not a supported procedure for this release.

@@ -62,12 +62,13 @@ usage as cumulative across the session: the *last* non-zero usage record is the 
 
 **Claude output counts recorded before the correction.** The parser kept the last `assistant` frame's output count,
 the one at the start of each message: 31 output tokens on the main capture, where the CLI reports 358, and 92 on the
-subagent capture against 450. The correction is unreleased: v0.13.0 and every earlier release record the start
-counts. It lands with [pull request #2199](https://github.com/chippingway/chipping-orchestrator/pull/2199), and a
-source checkout is corrected exactly when its history contains that change; the version string is no boundary, since
-a checkout taken after the v0.13.0 tag, corrected or not, still reports `0.13.0`. Nor is a record, which carries no
-orchestrator version: records are corrected from when a host started running a corrected checkout. Records already
-written keep their values: `output_tokens` on `agent_exit` and `agent_trajectory`
+subagent capture against 450. The correction is included in [v0.14.0](../release-timeline.md#v0140); v0.13.0 and every
+earlier release record the start counts.
+[Pull request #2199](https://github.com/chippingway/chipping-orchestrator/pull/2199) identifies the source-checkout
+boundary: a checkout after the v0.13.0 tag can contain the correction while still
+reporting `0.13.0`, so its history determines which accounting it uses. Records carry no orchestrator version: the
+boundary for recorded usage is when the host started running the corrected build. Records already written keep their
+values: `output_tokens` on `agent_exit` and `agent_trajectory`
 lines, the analytics database rows synced from them, and the pinned `issue_total_tokens` an issue accumulated, along
 with `issue_total_cost_usd` where a run's cost was `estimated` from the undercount. Nothing backfills them, and an
 issue in flight across the upgrade mixes both in its counters. The correction leaves input and cache counts, and a
