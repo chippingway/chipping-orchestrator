@@ -27,6 +27,7 @@ from tests.workflow import (
     reviewed_reports as world,
 )
 from tests.workflow.fixtures import LABEL_DOCUMENTING, LABEL_VALIDATING, REVIEW_APPROVED_MESSAGE
+from tests.workflow.stages.in_review import ready_ping_test_support as _ping_support
 
 ISSUE = 1_798
 
@@ -100,6 +101,27 @@ class ReportFreshnessTest(unittest.TestCase, world._ReviewedReports):
             ((None, None), 2, head),
         )
 
+    def test_a_fresh_approval_rearms_a_lost_ping(self) -> None:
+        # The first approval's ping is posted and the write recording it
+        # refused, so the thread carries a ping only its armed receipt names.
+        # A second report approved on the same head retires that receipt with
+        # the stamp: the ping this approval earns is armed with a receipt of
+        # its own and posted, not taken for the first approval's comment.
+        unrecorded = self._pinged_unrecorded()
+        self.github.apply_foreign_label(self.issue, LABEL_VALIDATING)
+        self.reported_round(world.SECOND_REPORT)
+        self.documented()
+        self.in_review_tick()
+
+        self._approved_and_pinged()
+
+        said = "".join(world.ready_pings(self.github))
+        receipts = set(_ping_support.RECEIPT.findall(said))
+        self.assertEqual(unrecorded, (1, None))
+        head = self.pull_request.head.sha
+        stamp = self._stamps()[0]
+        self.assertEqual((len(receipts), stamp), (2, head))
+
     def _observed(self) -> tuple:
         """The label last moved, the round budget, and the pings sent so far."""
         return (
@@ -132,6 +154,19 @@ class ReportFreshnessTest(unittest.TestCase, world._ReviewedReports):
         self.reviewed(REVIEW_APPROVED_MESSAGE)
         self.documented()
         self.in_review_tick()
+
+    def _pinged_unrecorded(self) -> tuple:
+        """Approve and document the first report, and ping it with the write recording the ping refused.
+
+        Returns the pings on the thread and the head recorded as pinged.
+        """
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.reported_round(world.FIRST_REPORT)
+        self.reviewed(REVIEW_APPROVED_MESSAGE)
+        self.documented()
+        with _ping_support.failing(self, _ping_support.REFUSED, settling=True):
+            self.in_review_tick()
+        return (len(world.ready_pings(self.github)), self._stamps()[0])
 
 
 class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):

@@ -27,6 +27,7 @@ _OWNERS = (
     _HANDLER_OWNER,
     "merge_gate",
     "models",
+    "ready_ping",
     "state",
     "surfaces",
     "watermarks",

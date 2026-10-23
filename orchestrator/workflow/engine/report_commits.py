@@ -85,7 +85,10 @@ approval was read over (`stages/documenting/handoff.py`) -- its hand-back of a
 published docs commit decided on the report debt it records as well
 (`stages/documenting/handback.py`), a no-change one on every record its
 evidence proof read, and the invalidation or hold that withholds it where that
-proof refused or could not be taken (`stages/documenting/retention.py`).
+proof refused or could not be taken (`stages/documenting/retention.py`). So
+are the in_review ready ping's arming ahead of its post and its settlement
+behind it, decided on the records the approval was read over
+(`stages/in_review/ready_ping.py`).
 """
 from __future__ import annotations
 

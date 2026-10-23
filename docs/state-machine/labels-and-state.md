@@ -864,8 +864,9 @@ reconciliation's retirements, `validating`'s invalidation of an unanswered carry
 reviewer round's launch, return, verdict, and park writes, a change request's handoff and its recovery's writes, and
 every write of an approval's tail commit through, and which the finish of a base rewrite the base refresh published
 itself, every auto-rebase park and a recovery's clear and record of a gate's hold, a final-docs pass's completion
-and the evidence invalidation or hold that withholds a no-change one, and the retirement of a failed developer
-conversation land through) is never written from its caller's state.
+and the evidence invalidation or hold that withholds a no-change one, the retirement of a failed developer
+conversation, and the in_review ready ping's arming and its settlement land through) is never written from its
+caller's state.
 It is captured from the reading the caller decided on —
 the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent
 one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
@@ -2504,9 +2505,9 @@ The keys that matter for the state machine fall into a few groups:
   Both also read that report at its location again, since no record sees its comment edited or removed in place,
   and hold rather than act where the location could not be read. The in_review stage, which would advertise the
   approval as ready to merge, also holds its `requirements` to `user_content_hash`, handing the issue back where they
-  differ, and at the ready ping reads the issue afresh against that baseline, the pull request afresh for the head
-  the ping names, and -- last -- the pinned comment for the report, verification evidence, and approval records in
-  hand. The
+  differ, and at the ready ping reads the issue afresh against that baseline and the pull request afresh for the head
+  the ping names, then holds the ping's own guarded writes to the report, verification evidence, and approval
+  records in hand. The
   squash tail and the settled
   handoff read the issue afresh too before moving the label to `workflow:documenting`, against that baseline and
   against the approval's own `requirements` both (a baseline moved on to an edit since the approval says nothing
@@ -3070,6 +3071,15 @@ The keys that matter for the state machine fall into a few groups:
   `ready_ping_sha` records the head the in_review handler already posted a `:bell:` HITL ping for. Both it and
   `docs_verdict` are keyed on a head alone, so a recorded approval retires both (below): an approval of a new report
   on the head they name would otherwise be read as documented before its docs pass ran, and pinged by nobody.
+  `ready_ping_pending` (additive) is a ping armed and not yet recorded: `{"sha": <head>, "receipt": <16 lowercase hex
+  digits>}`, landed through the guarded commit before the ping is posted, and dropped (`null`) in the guarded write
+  that stamps `ready_ping_sha` behind the post and enters the comment in `orchestrator_comment_ids`. The ping's
+  comment carries the receipt in the hidden marker `<!--orchestrator-ready-ping:receipt=<receipt>-->` above the
+  orchestrator-comment marker, and a later tick that finds the record over the head it would ping recovers that
+  comment off the thread -- one of this orchestrator's carrying the marker -- instead of posting another
+  ([the ready-ping publication contract](delivery-stages.md#the-ready-ping-publication-contract)). A recorded
+  approval retires it beside `ready_ping_sha`, so the ping a fresh approval earns on the same head is armed with a
+  receipt of its own; a record of any other shape names no ping and the next arming replaces it.
   `docs_drift_unwind_pending` is set while `_handle_documenting`'s drift block is reconciling and cleared only on the
   relabel back to `workflow:validating`. `docs_drift_unwind_asked_at` rides beside it on the failure road: the id of
   the notice a git step that could not be proved parked with. It is NOT a delivery cursor — no agent runs on that

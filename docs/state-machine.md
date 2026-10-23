@@ -615,7 +615,8 @@ tick. What the reviewer was handed — pull request, head, requirements, and rep
 before the spawn (no reviewer spawns where that commit does not land) and again to `review_returned_subject` once that
 reviewer returns (a launch the run budget refuses leaves only the first), and an approval's subject to
 `review_approved_subject` once the verify gate has passed and the approval comment is posted, retiring the head-keyed
-docs verdict and ready ping an earlier approval left. That approval is acted on only while its subject still stands:
+docs verdict and ready ping — recorded or pending — an earlier approval left. That approval is acted on only while its
+subject still stands:
 rechecked as the reviewer returns, after verification, behind the approval comment, and before the squash tail or a
 settled squash handoff moves the label, so a new report on an unchanged head always reaches a fresh reviewer. A failed
 verify gate or squash on that road parks only over that subject still standing (both filed in
@@ -716,7 +717,10 @@ conversation share one, so each is read against its own cursors before the two m
 `workflow:fixing` without advancing the watermarks, falls back to the drift check, and otherwise posts the one-shot
 `:bell:` HITL ping when the head is mergeable, docs-complete or GitHub-approved, and carries no standing human
 CHANGES_REQUESTED — and only while the approval, read again at the ping itself, still covers the report, the
-requirements, and the head standing then. Full flow: [`state-machine/delivery-stages.md`][in-review].
+requirements, and the head standing then. The ping is armed with a receipt in a guarded write before it is posted and
+recorded behind the post, so one whose answer or record was lost is found on the thread rather than posted twice, and
+a thread nobody can read holds it: [the ready-ping publication contract][ready-ping]. Full flow:
+[`state-machine/delivery-stages.md`][in-review].
 
 ### `_handle_fixing` (label `workflow:fixing`)
 
@@ -795,6 +799,7 @@ the shared awaiting-human park — is in [`state-machine/lifecycle.md`](state-ma
 [documenting]: state-machine/delivery-stages.md#_handle_documenting-label-workflowdocumenting
 [validating]: state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating
 [in-review]: state-machine/delivery-stages.md#_handle_in_review-label-in_review
+[ready-ping]: state-machine/delivery-stages.md#the-ready-ping-publication-contract
 [fixing]: state-machine/delivery-stages.md#_handle_fixing-label-workflowfixing
 [resolving-conflict]: state-machine/delivery-stages.md#_handle_resolving_conflict-label-workflowresolving_conflict
 [question]: state-machine/conversation-stages.md#_handle_question-label-question

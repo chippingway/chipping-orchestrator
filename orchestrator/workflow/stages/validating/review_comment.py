@@ -15,9 +15,11 @@ pull request the subject was resolved at, and carries the returned-verdict
 record the state in hand does -- a verdict another road persisted since the tick
 read the comment is one a later tick finishes, not a second reviewer's to
 answer (`_resolved_over`) -- and the
-in_review ready ping and the unmergeable park beside it ask the same once
-mergeability is read (`_records_in_hand`); the squash tail holds each of its
-writes to those records and more (`handoff._holds_its_records`). Where the
+in_review unmergeable park asks the same once mergeability is read
+(`_records_in_hand`), while the ready ping beside it holds its own guarded
+writes to those records (`stages/in_review/ready_ping.py`); the squash tail
+holds each of its writes to those records and more
+(`handoff._holds_its_records`). Where the
 comment moved them, or will not read or parse, the answer is the one that hands
 nothing over and writes nothing: every write from there would be laid over
 records the tick never read, putting back the report they replaced. So is a

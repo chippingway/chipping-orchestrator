@@ -153,12 +153,14 @@ Writer exclusion comes from [C-05].
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
 [publication evidence](security.md#what-a-trusted-pinned-record-still-cannot-license),
 [base-rebase recovery](architecture.md#push-path-gitbranch_transport_push_branch),
-[base-rewrite finalization](state-machine/delivery-stages.md#the-base-rewrite-finalization-contract).
+[base-rewrite finalization](state-machine/delivery-stages.md#the-base-rewrite-finalization-contract),
+[ready-ping publication](state-machine/delivery-stages.md#the-ready-ping-publication-contract).
 
 **Checks:** [guarded commits](../tests/workflow/engine/test_pinned_commit.py),
 [recovery checkpoints](../tests/git/base_sync/test_persistence.py),
 [captured-run abandonment](../tests/workflow/engine/test_rewrite_landing_moved.py),
-[finalization checkpoints](../tests/workflow/engine/test_rewrite_finish_writes.py).
+[finalization checkpoints](../tests/workflow/engine/test_rewrite_finish_writes.py),
+[ready-ping recovery](../tests/workflow/stages/in_review/test_ready_ping_recovery.py).
 
 ## C-07: Publication authority and exact revisions
 

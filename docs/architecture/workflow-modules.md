@@ -624,9 +624,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             moved, and the handoff's end behind the label (`stages/validating/squash_writes.py`) --
                             commit so far, with the finish of a base rewrite the tick published itself
                             (`rewrite_finish_writes.py`), every auto-rebase park and a recovery's clear and record
-                            of a gate's hold (`git/base_sync/checkpoints.py`), and a final-docs pass's completion
+                            of a gate's hold (`git/base_sync/checkpoints.py`), a final-docs pass's completion
                             (`stages/documenting/handoff.py`) and the evidence invalidation or hold that withholds a
-                            no-change one (`stages/documenting/retention.py`) landing through it too, while every other
+                            no-change one (`stages/documenting/retention.py`), and the in_review ready ping's arming
+                            and settlement (`stages/in_review/ready_ping.py`) landing through it too, while every other
                             road still writes its whole state: a candidate derived
                             over a fresh reading of the
                             captured comment rather than written from the caller's state. A
@@ -694,7 +695,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             notice and landed before its relabel (`stages/documenting/handoff.py`), the hand-back of
                             a published docs commit included (`stages/documenting/handback.py`) -- a no-change one
                             decided as well on every record its evidence proof read, beside the invalidation or hold
-                            that withholds it (`stages/documenting/retention.py`)
+                            that withholds it (`stages/documenting/retention.py`) -- and the in_review ready ping its
+                            arming ahead of the post and its settlement, prepared before the post and landed behind it
+                            (`stages/in_review/ready_ping.py`)
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL
@@ -1620,9 +1623,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
-                            where recording the approval also retires the head-keyed `docs_verdict` and `ready_ping_sha`
-                            an earlier one left; the widest subject any of the three can be written at
-                            (`ReviewSubject.widest`), which the report settlement's measurement reserves; whether a
+                            where recording the approval also retires the head-keyed `docs_verdict`, `ready_ping_sha`,
+                            and `ready_ping_pending` an earlier one left; the widest any of the three subject records
+                            can be written at (`ReviewSubject.widest`), which the report settlement's measurement reserves; whether a
                             number names, read as a recorded pull request is, the one a subject is on
                             (`ReviewSubject.is_on_pull_request`); and the question every later reader of an approval
                             asks, whether the report recorded as current is the one it covered, compared on the pinned
@@ -4548,16 +4551,29 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is made is recorded as belonging to the budget that reset gives it, so the road that
                             lands it on `workflow:validating` spends no round the edit has already paid for
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
-                            round-trips ago -- and the one HITL ready-ping an approved, unvetoed head earns per head
-                            SHA, which is no park and carries no mark; a fresh approval retires the stamp, so a
-                            report re-reviewed on an unchanged head is pinged again, and the subject the approval
-                            covered is read again at the ping itself -- the report at its location, the requirements
-                            over the issue read afresh against the approval's revision and the baseline, the head
-                            over the pull request read afresh (`review_coverage.py`), and last the report records on
-                            the pinned comment -- since the requests before it are time another
-                            road can settle a later report in, a human edit the report or the issue in, or a push
-                            move the head in; refused or unread, nobody is pinged and nothing written. The park
-                            asks the pinned comment the same before it writes
+                            round-trips ago -- and the gates in front of the one HITL ready-ping an approved, unvetoed
+                            head earns per head SHA, which is no park and carries no mark; a fresh approval retires
+                            the stamp, so a report re-reviewed on an unchanged head is pinged again. A ping already
+                            armed over the head is recovered first, and any new post waits on the subject the approval
+                            covered read again at the ping itself -- the report at its location, the requirements over
+                            the issue read afresh against the approval's revision and the baseline, the head over the
+                            pull request read afresh (`review_coverage.py`) -- since the requests before it are time
+                            another road can settle a later report in, a human edit the report or the issue in, or a
+                            push move the head in; refused or unread, nobody is pinged and nothing written. The park
+                            asks the pinned comment for the report records before it writes
+      ready_ping.py         the ready ping's publication, in the order a later tick can always finish from: an arming
+                            that lands `ready_ping_pending` -- the head and a receipt minted for it -- as a guarded
+                            checkpoint before anything is posted, the settlement prepared over a fresh reading with its
+                            ledger entry reserved, the post carrying the receipt in a hidden marker, and the settlement
+                            -- `ready_ping_sha` stamped, the pending record dropped, the comment entered in the ledger
+                            -- landed behind it, each decided on the records the approval was read over, the docs
+                            stamps that qualified the head, and the ping's own fields. A ping pending over the head is
+                            looked for on the issue thread first, among this orchestrator's own comments: found, it is
+                            settled with no second post; on a thread nobody could read it is held; and read without
+                            it, it is posted under the same receipt once the gate has asked its eligibility again. A
+                            post that raises is looked for at once. Anything but a measured or confirmed write stops
+                            the ping with the tick's state withheld, and the receipt -- retired by a fresh approval --
+                            is what tells a retry from the ping that approval re-arms on the same head
       surfaces.py           the two reads the shared IssueComment id space is taken as -- the issue thread against
                             the delivery cursor an issue-only resume settled as well, the PR conversation against
                             neither -- and the raw merged read tagged by surface that the watermark walks consume.
@@ -5122,10 +5138,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             may act on once another road dropped or replaced the verdict or pointed the issue elsewhere,
                             and whose evidence records it judges the verdict's claim over. The later roads that act on
                             an approval after requests long enough for a settlement -- the squash tail once the squash
-                            returns, and the in_review park and ready ping -- ask the comment the same of the report
-                            records and the pull request pointer before they write, and act on nothing and write nothing
-                            where they moved. Those roads write the state in hand whole rather than composing over the
-                            comment, so a field another road changed in their window that no guard watches is not kept.
+                            returns, and the in_review park -- ask the comment the same of the report records and the
+                            pull request pointer before they write, and act on nothing and write nothing where they
+                            moved. Those roads write the state in hand whole rather than composing over the comment, so
+                            a field another road changed in their window that no guard watches is not kept. The ready
+                            ping's writes are guarded commits decided on the same records (`_IN_HAND_RECORDS`) instead.
                             A change request's developer run records what it left -- its report, the park it takes, the
                             hand-back behind its relabel -- with the request retired, in guarded commits over the
                             comment read afresh (`review_writes.ANSWERED`, `report_records.HandedRun.decided_on`), which
