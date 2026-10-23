@@ -463,8 +463,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
        and the next tick's drift check resumes the developer
      workflow:validating --(APPROVED of the subject still standing, verify
        ok, subject still standing, squash ok)──► review_approved_subject
-       recorded, docs_verdict and
-       ready_ping_sha retired, label=workflow:documenting (final-docs)
+       recorded, docs_verdict,
+       ready_ping_sha, and ready_ping_pending
+       retired, label=workflow:documenting (final-docs)
        ──► in_review where the pass published nothing and the approval's
        evidence proves current again behind it; a report or issue edited, a
        later report settled, or the head pushed while the squash runs ─►
@@ -551,9 +552,11 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                             the report is settled there
                                             before any reviewer runs)
      mergeable + final-docs-complete or ─► HITL ping (no relabel,
-       GitHub-approved current head        awaiting_human stays false)
-       + no human CHANGES_REQUESTED
-       + head SHA not yet pinged
+       GitHub-approved current head        awaiting_human stays false;
+       + no human CHANGES_REQUESTED        armed with a receipt before the
+       + head SHA not yet pinged           post and recorded behind it, so
+                                           one already on the thread is
+                                           recorded, not posted again)
      unmergeable                        ─► park (unmergeable); a
                                             subsequent human comment
                                             routes to workflow:fixing

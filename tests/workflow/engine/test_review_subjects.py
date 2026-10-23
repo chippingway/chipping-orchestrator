@@ -16,6 +16,7 @@ them no key; recording the subject a reviewer is handed retires neither.
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.github.pull_request_reports import ReportLocation
@@ -56,6 +57,16 @@ _CONTENT_KEY = "report_content"
 _DOCS_VERDICT = "docs_verdict"
 
 _READY_PING_SHA = "ready_ping_sha"
+
+_READY_PING_PENDING = "ready_ping_pending"
+
+# The head-keyed stamps an approval retires, as a ping recorded and a later
+# one left pending over the same head leave them.
+_STAMPS = MappingProxyType({
+    _DOCS_VERDICT: "no_change",
+    _READY_PING_SHA: _HEAD,
+    _READY_PING_PENDING: {"sha": _HEAD, "receipt": "0123456789abcdef"},
+})
 
 
 def _report(revision: int, digest: str) -> review_subjects.ReviewReport:
@@ -198,13 +209,15 @@ class RecordSubjectTest(unittest.TestCase):
     """What a recorded subject is written as, read back as, and retires."""
 
     def test_it_retires_the_head_keyed_stamps(self) -> None:
-        state = _state(**{_DOCS_VERDICT: "no_change", _READY_PING_SHA: _HEAD})
+        # A pending ping goes with the stamp: left standing, the comment an
+        # earlier approval's ping left on the thread would be taken for the
+        # ping this approval earns on the same head.
+        state = _state(**_STAMPS)
 
         _approved(state, _subject(_report(1, _FIRST_DIGEST)))
 
-        self.assertEqual(
-            (state.get(_DOCS_VERDICT), state.get(_READY_PING_SHA)), (None, None),
-        )
+        retired = {stamp: state.get(stamp) for stamp in _STAMPS}
+        self.assertEqual(retired, dict.fromkeys(_STAMPS))
         self.assertEqual(state.get(_APPROVED), {
             _PR: _PR_NUMBER,
             _SHA: _HEAD,
@@ -216,24 +229,20 @@ class RecordSubjectTest(unittest.TestCase):
     def test_it_adds_no_stamp_an_issue_never_carried(self) -> None:
         state = _approved(_state(), _subject(None))
 
-        self.assertFalse(state.carries(_DOCS_VERDICT))
-        self.assertFalse(state.carries(_READY_PING_SHA))
+        self.assertFalse(any(state.carries(stamp) for stamp in _STAMPS))
 
     def test_a_reviewed_subject_retires_nothing(self) -> None:
         # Handing a reviewer a subject is no approval: it is recorded apart,
         # and the stamps an earlier approval left stand until one is given.
-        stamps = {_DOCS_VERDICT: "no_change", _READY_PING_SHA: _HEAD}
-        state = _state(**stamps)
+        state = _state(**_STAMPS)
         handed = _subject(_report(2, _SECOND_DIGEST))
 
         review_subjects.record_reviewed(state, handed)
 
         self.assertEqual(state.get(review_subjects.REVIEW_SUBJECT), handed.recorded())
         self.assertFalse(state.carries(_APPROVED))
-        self.assertEqual(
-            (state.get(_DOCS_VERDICT), state.get(_READY_PING_SHA)),
-            (stamps[_DOCS_VERDICT], stamps[_READY_PING_SHA]),
-        )
+        standing = {stamp: state.get(stamp) for stamp in _STAMPS}
+        self.assertEqual(standing, dict(_STAMPS))
 
     def test_a_pull_request_is_named_as_recorded(self) -> None:
         # Only the whole number the subject is on names its pull request, as a

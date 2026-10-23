@@ -71,9 +71,11 @@ auto-rebase park and a recovery's clear and record of a gate's hold
 completion, prepared before its notice and landed before its relabel
 (`stages/documenting/handoff.py`), the invalidation or hold that withholds a
 no-change one whose evidence does not prove (`stages/documenting/retention.py`),
-and the retirement of a failed developer conversation, landed alone over a
+the retirement of a failed developer conversation, landed alone over a
 fresh reading for a tick whose own write may never happen
-(`stages/implementing/session_retirement.py`). Every other road
+(`stages/implementing/session_retirement.py`), and the in_review ready ping's
+arming, landed before its post, and its settlement, prepared before the post
+and landed behind it (`stages/in_review/ready_ping.py`). Every other road
 still rewrites the whole record.
 
 The report's commits are captured over the reading a tick last synced with the

@@ -18,8 +18,12 @@ subject the approval covered, read again at the ping itself: the requests the
 gate makes before it are time in which another road can settle a later report,
 a human can edit that report or the issue, or a push can move the head the
 ping names -- and another road can point the issue at another pull request
-than the one the ping would name. The park the gate takes is held to the
-first and last of those too, since it writes the state in hand.
+than the one the ping would name. The ping's own writes are held to the
+records that subject was read over, the pointer among them, as guarded commits
+over a fresh reading, and its publication is `ready_ping`'s: armed before it
+is posted, found again on the thread rather than posted twice, and recorded
+behind the post. The park the gate takes is held to the report records and
+the pointer too, since it writes the state in hand.
 
 Both writes this stage makes to a thread are bounded by the same fact: the
 feedback scan that decided this tick ran several GitHub round-trips ago, and a
@@ -27,15 +31,20 @@ human may have written since. So the unmergeable park is a BOUNDED one -- it
 records the thread read only as far as the ledger can vouch for, never at the
 id of the notice it just posted, which would sit above their reply and take it
 with it. And the ping, which is no park at all, ratchets nothing: it is
-filtered by the id ledger on the next read, so no mark has to move for it, and
-a mark that did move would be moving over exactly that unread reply.
+filtered by the id ledger and its hidden marker on the next read, so no mark
+has to move for it, and a mark that did move would be moving over exactly that
+unread reply.
 """
 from __future__ import annotations
 
 from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, guards as _guards
-from orchestrator.workflow.stages.in_review import models as _models, watermarks as _watermarks
+from orchestrator.workflow.engine import guards as _guards
+from orchestrator.workflow.stages.in_review import (
+    models as _models,
+    ready_ping as _ready_ping,
+    watermarks as _watermarks,
+)
 from orchestrator.workflow.stages.validating import (
     review_comment as _review_comment,
     review_coverage as _review_coverage,
@@ -130,12 +139,13 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
     #
     # Deliberately NOT calling `_bump_in_review_watermarks` here. The ping is
     # not a park: it leaves `awaiting_human` false and owes the thread no
-    # "everything below here is read" claim. It IS an issue comment, and it is
-    # recorded in `orchestrator_comment_ids` by `_post_issue_comment`, so the
-    # next tick's id-set filter drops it without any watermark having to move.
-    # Moving one would only risk crossing a human comment that landed between
-    # the earlier feedback scan and this point -- the next tick's
-    # `comments_after` would skip it and the dev would never see the feedback.
+    # "everything below here is read" claim. It IS an issue comment, and its
+    # settlement records it in `orchestrator_comment_ids`, so the next tick's
+    # id-set filter drops it without any watermark having to move -- as the
+    # hidden marker does for one whose record never landed. Moving one would
+    # only risk crossing a human comment that landed between the earlier
+    # feedback scan and this point -- the next tick's `comments_after` would
+    # skip it and the dev would never see the feedback.
     if ctx.state.get("ready_ping_sha") != head_sha:
         _pings_ready(ctx, head_sha)
 
@@ -143,19 +153,16 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
 def _pings_ready(ctx: _models._InReviewContext, head_sha: str) -> None:
     """Ping a human that `head_sha` is ready, while the approval still covers it.
 
-    Refused or unread, nobody is pinged and nothing is written -- the state in
-    hand would put a replaced report back -- and the next tick's hand-back,
-    drift check, or ping over the new head answers it.
+    A ping an earlier tick armed over the head is looked for on the thread
+    first, and settled where it landed (`ready_ping.recovers`): that is a
+    record of what was already said, and posts nothing. Anything else is a
+    new post, asked of the approval again first: unread or refused, nobody is
+    pinged and nothing is written, and the next tick's hand-back, drift check,
+    or ping over the new head answers it.
     """
-    if not _still_ready(ctx, head_sha):
+    if _ready_ping.recovers(ctx, head_sha) or not _still_ready(ctx, head_sha):
         return
-    _comments._post_issue_comment(
-        ctx.gh, ctx.issue, ctx.state,
-        f":bell: {config.HITL_MENTIONS} PR #{ctx.pr_number} is ready "
-        "for review/merge.",
-    )
-    ctx.state.set("ready_ping_sha", head_sha)
-    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+    _ready_ping.publishes(ctx, head_sha)
 
 
 def _still_ready(ctx: _models._InReviewContext, head_sha: str) -> bool:
@@ -169,19 +176,13 @@ def _still_ready(ctx: _models._InReviewContext, head_sha: str) -> bool:
     the ping is the one claim here that what stands was reviewed. So the
     approval has to cover the evidence it was proved over, where it was
     proved over any -- its records and its artifact -- the report as it reads
-    at its location,
-    the requirements over the issue read afresh, and `head_sha` over the pull
-    request read afresh (`review_coverage._approval_holds`), and -- last,
-    directly ahead of the write -- the pinned comment has to carry the report
-    and verification evidence records in hand and point the issue at the pull
-    request the state in hand does (`review_comment._records_in_hand`): the
-    evidence and report reads are requests long enough for another road to
-    record a later verification revision, and the ping's write of the state
-    in hand would put the older revision floor back over it.
+    at its location, the requirements over the issue read afresh, and
+    `head_sha` over the pull request read afresh
+    (`review_coverage._approval_holds`). The pinned comment is held to the
+    report, evidence, approval, and pull-request records in hand by the
+    ping's own guarded writes, each over a fresh reading
+    (`ready_ping._DECIDED_ON`): the evidence and report reads are requests long
+    enough for another road to record a later verification revision, and a
+    write over it would put the older revision floor back.
     """
-    return bool(
-        _review_coverage._approval_holds(ctx.gh, ctx.issue, ctx.state, head_sha)
-        and _review_comment._records_in_hand(
-            ctx.gh, ctx.issue, ctx.state, "ping a human over the approval it holds",
-        ),
-    )
+    return bool(_review_coverage._approval_holds(ctx.gh, ctx.issue, ctx.state, head_sha))

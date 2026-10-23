@@ -17,10 +17,10 @@ can read which report a round saw. `review_returned_subject` is the same
 subject written again in the write a reviewer that RETURNED makes, which is the
 one of the two a refused launch or a death before the spawn never leaves.
 `review_approved_subject` is the subject an approval covers, written once the
-local verify gate has passed, and recording it RETIRES the ready ping and the
-final-docs verdict an earlier approval left: both are keyed on the head alone,
-so on an unchanged commit they would advertise the new report as already
-reviewed, documented, and announced.
+local verify gate has passed, and recording it RETIRES the ready ping, a ping
+still pending, and the final-docs verdict an earlier approval left: all are
+keyed on the head alone, so on an unchanged commit they would advertise the new
+report as already reviewed, documented, and announced.
 `ReviewSubject.widest` is the subject any of them is at its widest, which a
 developer report's acceptance leaves room for
 (`stages/validating/review_records.py`), and `ReviewSubject.is_on_pull_request`
@@ -84,12 +84,15 @@ _WIDEST_HEX = "f" * max(*_formats.COMMIT_LENGTHS, *_formats.DIGEST_LENGTHS)
 # Every member a recorded subject carries, and nothing else.
 _MEMBERS = frozenset((_PR, _SHA, _REQUIREMENTS, _REPORT_REVISION, _REPORT_CONTENT))
 
-# The two head-keyed stamps an approval retires: the final-docs verdict the
-# in_review merge gate reads a head as documented by, and the head it last
-# pinged a human for.
+# The head-keyed stamps an approval retires: the final-docs verdict the
+# in_review merge gate reads a head as documented by, the head it last pinged a
+# human for, and the ping it recorded as about to be posted, whose receipt a
+# comment already carrying it is recovered by.
 _DOCS_VERDICT = "docs_verdict"
 
 _READY_PING_SHA = "ready_ping_sha"
+
+_READY_PING_PENDING = "ready_ping_pending"
 
 
 @dataclass(frozen=True)
@@ -278,15 +281,17 @@ def record_reviewed(state: PinnedState, subject: ReviewSubject) -> None:
 def record_approved(state: PinnedState, subject: ReviewSubject) -> None:
     """Stage the subject an approval covers, and retire the stamps it replaces.
 
-    The docs verdict and the ready ping are each keyed on a head, and a new
-    approval can be of the head they already name. Left standing, the verdict
-    would let the merge gate read the head as documented before this
-    approval's docs pass ran, and the ping would keep that gate silent over the
-    report the approval was for. Each is dropped only where it is set, so an
-    issue that never carried one is not given the key. The caller writes.
+    The docs verdict, the ready ping, and a ping still pending are each keyed
+    on a head, and a new approval can be of the head they already name. Left
+    standing, the verdict would let the merge gate read the head as documented
+    before this approval's docs pass ran, the ping would keep that gate silent
+    over the report the approval was for, and the pending ping would have the
+    gate take a comment an earlier approval's ping left on the thread for this
+    approval's own. Each is dropped only where it is set, so an issue that
+    never carried one is not given the key. The caller writes.
     """
     state.set(APPROVED_SUBJECT, subject.recorded())
-    for stamp in (_DOCS_VERDICT, _READY_PING_SHA):
+    for stamp in (_DOCS_VERDICT, _READY_PING_SHA, _READY_PING_PENDING):
         if state.get(stamp) is not None:
             state.set(stamp, None)
 

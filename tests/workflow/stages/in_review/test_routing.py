@@ -41,6 +41,8 @@ REVIEWED_SHA = "cafe1234"
 CHECKS_SUCCESS = "success"
 RUN_AGENT = "run_agent"
 READY_PING_SHA = "ready_ping_sha"
+READY_PING_PENDING = "ready_ping_pending"
+READY_PING_RECEIPT = "<!--orchestrator-ready-ping:receipt="
 AWAITING_HUMAN = "awaiting_human"
 PR_LAST_COMMENT_ID = "pr_last_comment_id"
 HUMAN_LOGIN = "alice"
@@ -61,6 +63,29 @@ class _PostWithConcurrentComment:
         if READY_MESSAGE in body:
             issue.comments.append(self.comment)
         return _REAL_POST_ISSUE_COMMENT(gh, issue, state, body)
+
+
+class _RecordsThePing:
+    """Every pinned edit and issue post a tick makes, in order, each answered as always.
+
+    An edit is recorded by what it lands: whether it puts down a pending ping,
+    and the head it records as pinged. A post is recorded by whether it is
+    the ping.
+    """
+
+    def __init__(self, github) -> None:
+        self._edit = github.edit_pinned_state
+        self._comment = github.comment
+        self.made: list[tuple] = []
+
+    def edit(self, issue, state, **options):
+        arms = isinstance(state.get(READY_PING_PENDING), dict)
+        self.made.append(("edit", arms, state.get(READY_PING_SHA)))
+        return self._edit(issue, state, **options)
+
+    def comment(self, issue, body):
+        self.made.append(("post", READY_MESSAGE in body))
+        return self._comment(issue, body)
 
 
 class _InReviewRoutingFixtureMixin(_PatchedWorkflowMixin):
@@ -107,8 +132,10 @@ class _InReviewRoutingFixtureMixin(_PatchedWorkflowMixin):
         self.assertEqual(len(ping_comments), 1)
         for expected_text in ("@alice", "@bob", f"PR #{ROUTING_PR}"):
             self.assertIn(expected_text, ping_comments[0])
+        self.assertIn(READY_PING_RECEIPT, ping_comments[0])
         state = github.pinned_data(ROUTING_ISSUE)
-        self.assertEqual(state.get(READY_PING_SHA), REVIEWED_SHA)
+        recorded = (state.get(READY_PING_SHA), state.get(READY_PING_PENDING))
+        self.assertEqual(recorded, (REVIEWED_SHA, None))
         self.assertFalse(state.get(AWAITING_HUMAN))
         ping_id = github.latest_comment_id(issue)
         self.assertIsNotNone(ping_id)
@@ -183,6 +210,9 @@ class InReviewReadyPingRoutingTest(
         # never calls `gh.merge_pr` from in_review. The ping must mention
         # every HITL handle so notifications fire even when the reviewer
         # agent approved via comments rather than a formal GitHub review.
+        # It is armed in a write of its own before it is posted, and
+        # recorded on its head in the write behind the post, with nothing
+        # else written between.
         gh, issue = self._seed(
             pr=self._open_pr(approved=False, mergeable=True, check_state=CHECKS_SUCCESS),
             extra_state={
@@ -190,14 +220,23 @@ class InReviewReadyPingRoutingTest(
                 "docs_verdict": "no_change",
             },
         )
+        recorder = _RecordsThePing(gh)
 
-        with patch.object(config, "HITL_MENTIONS", "@alice @bob"):
+        with (
+            patch.object(config, "HITL_MENTIONS", "@alice @bob"),
+            patch.object(gh, "edit_pinned_state", recorder.edit),
+            patch.object(gh, "comment", recorder.comment),
+        ):
             mocks = self._run_in_review(
                 gh,
                 issue,
                 run_agent=_agent(),
             )
 
+        self.assertEqual(
+            recorder.made,
+            [("edit", True, None), ("post", True), ("edit", False, REVIEWED_SHA)],
+        )
         mocks[RUN_AGENT].assert_not_called()
         self.assertEqual(gh.merge_calls, [])
         self.assertEqual(gh.label_history, [])
@@ -256,9 +295,9 @@ class InReviewReadyPingRoutingTest(
         self.assertIsNone(state.get(READY_PING_SHA))
 
     def test_in_review_mergeable_dedups_same_head(self) -> None:
-        # Second tick on the same head SHA must NOT re-ping; the ping is
-        # one-shot per head so a long-lived ready-for-merge PR doesn't spam
-        # the HITL handles on every poll.
+        # Later ticks on the same head SHA must NOT re-ping, nor write
+        # anything; the ping is one-shot per head so a long-lived
+        # ready-for-merge PR doesn't spam the HITL handles on every poll.
         pr = self._open_pr(approved=True, mergeable=True, check_state=CHECKS_SUCCESS)
         gh, issue = self._seed(pr=pr)
 
@@ -267,14 +306,15 @@ class InReviewReadyPingRoutingTest(
             issue,
             run_agent=_agent(),
         )
-        comments_after_first = list(gh.posted_comments)
-        self._run_in_review(
-            gh,
-            issue,
-            run_agent=_agent(),
-        )
+        after_first = (list(gh.posted_comments), gh.write_state_calls)
+        for _ in range(2):
+            self._run_in_review(
+                gh,
+                issue,
+                run_agent=_agent(),
+            )
 
-        self.assertEqual(gh.posted_comments, comments_after_first)
+        self.assertEqual((gh.posted_comments, gh.write_state_calls), after_first)
 
     def test_in_review_mergeable_repings_new_head(self) -> None:
         # A new commit on the PR branch shifts pr.head.sha; the ping is
