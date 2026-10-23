@@ -27,6 +27,7 @@ from tests.support import fakes
 
 _ISSUE_NUMBER = 42
 _STAGE = "implementing"
+_LABEL = "workflow:implementing"
 _PROMPT = "Implement feature XYZ"
 _AGENT_SPEC = "agy:gemini-3.8-flash"
 _SESSION_ID = "agy-convo-42"
@@ -164,7 +165,7 @@ _UNRETIRED_STOPS = (
 class _AGYRecoveryBase(TestCase):
     def setUp(self) -> None:
         self.gh = fakes.FakeGitHubClient()
-        self.issue = fakes.make_issue(_ISSUE_NUMBER, label=_STAGE)
+        self.issue = fakes.make_issue(_ISSUE_NUMBER, label=_LABEL)
         self.gh.add_issue(self.issue)
         self.state = PinnedState()
         self.worktree = Path("/fake/worktree")

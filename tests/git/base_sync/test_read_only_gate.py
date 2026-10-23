@@ -59,6 +59,8 @@ _PARTIAL_COLLAPSE_ISSUE_NUMBER = 1030
 _REPORT_IN_FLIGHT_ISSUE_NUMBER = 1035
 _REPORT_SETTLED_ISSUE_NUMBER = 1040
 _LAUNCH_IN_FLIGHT_ISSUE_NUMBER = 1045
+_NONCANONICAL_STAGE_ISSUE_NUMBER = 1050
+_NONCANONICAL_DECIDED_ISSUE_NUMBER = 1055
 _HANDED_ON_ISSUE_NUMBER = 1002
 _PUBLISHED_EXEMPTION_ISSUE_NUMBER = 1003
 _UNREAD_MEASUREMENT_ISSUE_NUMBER = 998
@@ -74,6 +76,10 @@ _FROZEN_CANDIDATE = MEASURED_CANDIDATE_SHA
 _COLLAPSED_HEAD = "e" * SHA_LENGTH
 _WORKTREE_ROOT = "/tmp/read-only-issue-"
 _READ_ONLY_LABELS = (LABEL_QUESTION, LABEL_DISCUSSION)
+# Repository labels that read like a stage the refresh holds for, and name
+# none: only the exact canonical label is a workflow state.
+_NONCANONICAL_READ_ONLY_LABELS = ("Question", "DISCUSSION")
+_NONCANONICAL_DECIDED_LABELS = ("implementing", "Workflow:Implementing")
 # Both the clean hand-back and the refusal have to hold the branch still: the
 # refusal names a reset target, and a rebase would move it out from under the
 # operator following that instruction.
@@ -286,6 +292,19 @@ class ReadOnlyLabelBaseRefreshSkipTest(_SkipCase, unittest.TestCase):
             park_reason=None,
             late_candidate_sha=_FROZEN_CANDIDATE,
         )
+
+    def test_a_noncanonical_stage_label_syncs(self) -> None:
+        # The gate reads the label the shared resolver reads, so a repository
+        # label that only looks like a conversation stage holds nothing: the
+        # issue is in no stage, and nothing is parked on its tree. The
+        # operator's controls are the other way round -- a `Paused` typed by
+        # hand still holds the branch.
+        for offset, label in enumerate(_NONCANONICAL_READ_ONLY_LABELS):
+            with self.subTest(label=label):
+                self._assert_synced(
+                    _NONCANONICAL_STAGE_ISSUE_NUMBER + offset, label=label,
+                )
+        self._assert_skipped(_NONCANONICAL_STAGE_ISSUE_NUMBER, "Paused")
 
     def test_a_consumed_park_syncs_again(self) -> None:
         # The guard cleared the park and persisted it, so nothing is holding
@@ -571,6 +590,19 @@ class LateRecordBaseRefreshEndTest(_SkipCase, unittest.TestCase):
             label=LABEL_VALIDATING,
             late_exempt_sha=_ACCEPTED_COMMIT,
         )
+
+    def test_a_noncanonical_decided_label_syncs(self) -> None:
+        # The accepted commit is still checked out, but no stage that acts on
+        # it holds the issue: a bare or recased `implementing` is a repository
+        # label, so the freeze its stage would earn does not apply.
+        for offset, label in enumerate(_NONCANONICAL_DECIDED_LABELS):
+            with self.subTest(label=label):
+                self._assert_synced(
+                    _NONCANONICAL_DECIDED_ISSUE_NUMBER + offset,
+                    head=_ACCEPTED_COMMIT,
+                    label=label,
+                    late_exempt_sha=_ACCEPTED_COMMIT,
+                )
 
     def test_a_stale_exemption_syncs_again(self) -> None:
         # The other half of that freeze, and the reason it reads the checkout

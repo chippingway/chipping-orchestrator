@@ -32,6 +32,29 @@ _REFUSED_READING = _events.measurement_failure_event(
 )
 # An agent's rationale, naming a path, offered as the state an issue was in.
 _PROSE = "rationale: inspect /srv/private/key before splitting"
+# A stage the caller names -> the tag both sinks record. Each state answers to
+# its bare stage tag and its exact canonical label, the unprefixed labels
+# among them, and records the tag the stage-enter events carry.
+_KNOWN_STAGES = (
+    ("decomposing", _STAGE),
+    ("workflow:decomposing", _STAGE),
+    ("resolving_conflict", "resolving_conflict"),
+    ("workflow:resolving_conflict", "resolving_conflict"),
+    ("in_review", "in_review"),
+    ("rejected", "rejected"),
+)
+# Names that are no workflow state: prose, a prefixed name outside the
+# vocabulary, the controls in either spelling, a near miss on a canonical
+# label, and a value that is not a name at all.
+_UNKNOWN_STAGES = (
+    _PROSE,
+    "workflow:python:pip",
+    "backlog",
+    "workflow:community_contribution",
+    "community_contribution",
+    "Workflow:Decomposing",
+    7,
+)
 
 
 def _emit_verdict(gh) -> dict:
@@ -124,8 +147,8 @@ class DualEmissionTest(unittest.TestCase):
 class StageTest(unittest.TestCase):
     """The stage a record carries is a workflow state and nothing else."""
 
-    def test_either_spelling_records_the_bare_tag(self) -> None:
-        for named in ("decomposing", "workflow:decomposing"):
+    def test_a_known_stage_records_its_bare_tag(self) -> None:
+        for named, tag in _KNOWN_STAGES:
             with self.subTest(stage=named):
                 gh = FakeGitHubClient()
                 appended: list = []
@@ -136,25 +159,27 @@ class StageTest(unittest.TestCase):
                         _support.measured_generation(),
                         stage=named,
                     )
-                self.assertEqual(appended[-1][_STAGE_KEY], _STAGE)
-                self.assertEqual(gh.recorded_events[-1][_STAGE_KEY], _STAGE)
+                self.assertEqual(appended[-1][_STAGE_KEY], tag)
+                self.assertEqual(gh.recorded_events[-1][_STAGE_KEY], tag)
 
     def test_a_stage_that_is_not_a_state_is_refused(self) -> None:
         # The envelope's own field is the last one an emitter supplies, and
         # the sinks would carry anything: prose naming a path, offered as the
-        # state an issue was in.
-        gh = FakeGitHubClient()
-        appended: list = []
-        with patch(_ANALYTICS_APPEND, appended.append), self.assertLogs(_WORKFLOW_CHANNEL, level=_ERROR):
-            payload = _telemetry.emit_late_event(
-                gh,
-                _VERDICT_EVENT,
-                _support.measured_generation(),
-                stage=_PROSE,
-            )
-        self.assertEqual(payload, {})
-        self.assertEqual(gh.recorded_events, [])
-        self.assertEqual(appended, [])
+        # state an issue was in, or a label that is no state.
+        for named in _UNKNOWN_STAGES:
+            with self.subTest(stage=named):
+                gh = FakeGitHubClient()
+                appended: list = []
+                with patch(_ANALYTICS_APPEND, appended.append), self.assertLogs(_WORKFLOW_CHANNEL, level=_ERROR):
+                    payload = _telemetry.emit_late_event(
+                        gh,
+                        _VERDICT_EVENT,
+                        _support.measured_generation(),
+                        stage=named,
+                    )
+                self.assertEqual(payload, {})
+                self.assertEqual(gh.recorded_events, [])
+                self.assertEqual(appended, [])
 
 
 class FailingSinkTest(unittest.TestCase):

@@ -16,8 +16,8 @@ where label spelling, the transitions between them, and each handler's behavior 
 ## The pages in this area
 
 - [`state-machine/labels-and-state.md`](state-machine/labels-and-state.md) — the label set and the control labels, the
-  typed states and the transition guard, the migration off the pre-namespace spellings, what one tick reads and writes
-  per issue, and every pinned-state key a handler depends on.
+  typed states and the transition guard, the obsolete bare labels no reader takes for a state, what one tick reads and
+  writes per issue, and every pinned-state key a handler depends on.
 - [`state-machine/delivery-stages.md`](state-machine/delivery-stages.md) — pickup, the user-content drift hook,
   decomposition and the family walks, and the dev / reviewer / docs loop through `in_review`, `workflow:fixing`, and
   `workflow:resolving_conflict`.
@@ -42,7 +42,9 @@ The rules for relabels and human edits are in [C-02](contracts.md#c-02-workflow-
 transition guard checks, and the per-tick dispatcher partitions on. A bare `<tag>` is the **stage**: the handler, the
 subpackage under `orchestrator/workflow/stages/` holding it, and the identifier analytics rows, audit event payloads,
 and agent-session attribution carry. `in_review`, `question`, `discussion`, `done`, and `rejected` were never
-namespaced, so those read the same either way.
+namespaced, so those read the same either way. On GitHub only the wire label names a state, so a bare
+`implementing` on an issue is a repository label ([below](#obsolete-bare-labels)); an emitter handed a stage instead,
+such as the late-split telemetry, checks it against the known stage tags and canonical labels at its own boundary.
 
 The states, in lifecycle order: no label, `workflow:decomposing`, `workflow:ready`, `workflow:blocked`,
 `workflow:umbrella`, `workflow:implementing`, `workflow:documenting`, `workflow:validating`, `in_review`,
@@ -67,18 +69,22 @@ and finalizing its cancellation as `rejected`. The edge set, those exemptions, t
 `orchestrator.state_machine` logger a rejection is filtered by, and how `create_child_issue` shares the typo guard for
 its direct write are in [`state-machine/labels-and-state.md`][typed-states].
 
-### Legacy labels and the migration off them
+<a id="legacy-labels-and-the-migration-off-them"></a>
 
-The startup label bootstrap **creates only the canonical labels a repository lacks**. It never looks up, renames, or
-deletes a pre-namespace spelling or any other definition, so a repository whose labels predate the namespace keeps
-them, and every issue holding one keeps it: where only the bare spelling exists, the namespaced label is created
-beside it. Those issues come off the bare label one relabel at a time, because one read still takes either spelling —
-issue routing — and a namespaced label always outranks a bare one on the same issue. Neither sweep reads a bare
-label: the community sweep's dedup marker is `workflow:community_contribution` alone, so a bare
-`community_contribution` left on a PR is the repository's own label, and the closed-issue sweep queries canonical names
-only, so a closed issue whose only workflow label is a bare spelling is never revisited. What a PAT without
-`Issues: Read and write` leaves behind, and which bare tags a relabel deliberately does not delete, are in
-[`state-machine/labels-and-state.md`][legacy-labels].
+### Obsolete bare labels
+
+**Only a current `WorkflowLabel` member or its exact canonical string is a workflow label.** A bare name an earlier
+build wrote for a state that is namespaced now — `ready`, `fixing`, `implementing`, and the rest — is repository
+metadata like `bug`. Routing reads past it, so an issue carrying nothing else reads as unlabeled; a relabel replaces
+only the current workflow labels, so it stays on the issue alone or beside the canonical label of the state it
+resembles; and the typo guard, the transition guard, the base refresh's stage holds, the label history, and artifact
+ownership never take it for a state. Neither sweep reads one: the community sweep's dedup marker is
+`workflow:community_contribution` alone, and the closed-issue sweep queries canonical names only. Nothing migrates such
+a label or the issues carrying it: the startup label bootstrap **creates only the canonical labels a repository lacks**
+and never looks up, renames, or deletes any other definition. The seven labels that were never namespaced — `in_review`,
+`question`, `discussion`, `done`, `rejected`, and the `backlog` / `paused` controls — are canonical under their bare
+spelling, not obsolete ones. Where each reader draws that line, and what an old issue with no pinned state and only an
+obsolete label looks like, are in [`state-machine/labels-and-state.md`][obsolete-labels].
 
 <a id="per-tick-flow-workflowtick"></a>
 
@@ -247,8 +253,8 @@ refresh-owned retry are in
 swept labels — the eight a terminal arc may still be owed on, and `workflow:decomposing`, `workflow:umbrella`,
 `workflow:ready`, and `workflow:blocked`, whose closed issues are yielded for snapshot cleanup only and never reach
 the stage handler their label names — so an external merge or an operator close finalizes cleanly instead of
-stranding the issue. Each is queried under its canonical name only, so a closed issue whose only workflow label is a
-pre-namespace spelling is not yielded. `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS` batches that sweep to once every N ticks,
+stranding the issue. Each is queried under its canonical name only, so a closed issue carrying only an obsolete bare
+label is not yielded. `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS` batches that sweep to once every N ticks,
 which is the knob for the GitHub primary-rate-limit cost it carries on a multi-repo host. Which labels are swept, why
 the pre-PR labels are not, and how a closed `discussion` is held for its plan PR are in
 [`state-machine/labels-and-state.md`][pollable].
@@ -785,7 +791,7 @@ the `in_review` and `workflow:fixing` terminals, the conflict rounds, the family
 the shared awaiting-human park — is in [`state-machine/lifecycle.md`](state-machine/lifecycle.md).
 
 [typed-states]: state-machine/labels-and-state.md#typed-states-and-the-transition-guard
-[legacy-labels]: state-machine/labels-and-state.md#legacy-labels-and-the-migration-off-them
+[obsolete-labels]: state-machine/labels-and-state.md#obsolete-bare-labels
 [per-tick]: state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick
 [pollable]: state-machine/labels-and-state.md#pollable-issues-and-finalization
 [pickup]: state-machine/delivery-stages.md#_handle_pickup-no-label--workflowdecomposing-or-workflowimplementing

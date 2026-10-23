@@ -36,17 +36,18 @@ OTHER_BRANCH = "orchestrator/issue-314"
 RECORDED_PR_NUMBER = 77
 UNRECORDED_PR_NUMBER = 78
 TIP_SHA = "1234abcd" * 5
-LEGACY_IMPLEMENTING_LABEL = "implementing"
+OBSOLETE_IMPLEMENTING_LABEL = "implementing"
 NO_CLONE = Path("/nonexistent-clone")
 PINNED_BRANCH_KEY = "branch"
 BOT_LOGIN = "orchestrator"
 CORRUPT_COMMENT_ID = 900
 
 # One case per way an issue can fail to be terminal, plus the two ways it can
-# be one. The pair of spellings of a single state is here too: it reads as one
-# state rather than as two, so an issue carrying a label the migration has not
-# reached is not called ambiguous. The control label beside a terminal one is
-# the other direction -- it coexists with a state and is not one.
+# be one. Only a canonical label is a state: an obsolete bare name is
+# repository metadata, so an issue carrying nothing else has no workflow label
+# to own artifacts by, and one beside a canonical label is no second state.
+# The control label beside a terminal one is the same direction -- it
+# coexists with a state and is not one.
 _ENDINGS = (
     ((_support.DONE_LABEL,), False, (RetentionReason.ISSUE_OPEN,)),
     ((), True, (RetentionReason.NO_WORKFLOW_LABEL,)),
@@ -57,10 +58,12 @@ _ENDINGS = (
     ),
     ((_support.IMPLEMENTING_LABEL,), True, (RetentionReason.NON_TERMINAL_LABEL,)),
     (
-        (_support.IMPLEMENTING_LABEL, LEGACY_IMPLEMENTING_LABEL),
+        (_support.IMPLEMENTING_LABEL, OBSOLETE_IMPLEMENTING_LABEL),
         True,
         (RetentionReason.NON_TERMINAL_LABEL,),
     ),
+    ((OBSOLETE_IMPLEMENTING_LABEL,), True, (RetentionReason.NO_WORKFLOW_LABEL,)),
+    ((_support.DONE_LABEL, OBSOLETE_IMPLEMENTING_LABEL), True, ()),
     ((_support.DONE_LABEL,), True, ()),
     ((_support.REJECTED_LABEL,), True, ()),
     ((_support.DONE_LABEL, _support.BACKLOG_LABEL), True, ()),

@@ -111,22 +111,21 @@ class CoerceWorkflowLabelTest(unittest.TestCase):
         self.assertIn("validatign", msg)
         self.assertIn("valid workflow label", msg)
 
-    def test_accepts_either_label_keyword(self) -> None:
-        # Both spellings name the one label, so a caller may pass either.
-        for keyword in ("label_name", "value"):
-            with self.subTest(keyword=keyword):
-                self.assertIs(
-                    coerce_workflow_label(**{keyword: _VALIDATING_LABEL}),
-                    WorkflowLabel.VALIDATING,
-                )
+    def test_accepts_the_label_name_keyword(self) -> None:
+        self.assertIs(
+            coerce_workflow_label(label_name=_VALIDATING_LABEL),
+            WorkflowLabel.VALIDATING,
+        )
 
-    def test_rejects_duplicate_and_unknown_keywords(self) -> None:
-        # A label passed twice or under a name the adapter does not know is a
-        # caller bug: raising beats silently picking one of the two.
+    def test_rejects_every_other_keyword(self) -> None:
+        # `label_name` is the one name the label is passed under: any other
+        # keyword, `value` included, is a caller bug, as is a label passed
+        # twice or not at all.
+        for keywords in ({"value": _VALIDATING_LABEL}, {"label": _VALIDATING_LABEL}, {}):
+            with self.subTest(keywords=keywords), self.assertRaises(TypeError):
+                coerce_workflow_label(**keywords)
         with self.assertRaises(TypeError):
             coerce_workflow_label(_VALIDATING_LABEL, value="done")
-        with self.assertRaises(TypeError):
-            coerce_workflow_label(label=_VALIDATING_LABEL)
 
 
 class LabelWriteTypoGuardTest(unittest.TestCase):
@@ -135,11 +134,19 @@ class LabelWriteTypoGuardTest(unittest.TestCase):
     the real client, so the whole fake-backed suite shares the guard."""
 
     def test_set_workflow_label_rejects_typo(self) -> None:
-        gh = FakeGitHubClient()
-        issue = make_issue(1, label="workflow:implementing")
-        gh.add_issue(issue)
-        with self.assertRaises(ValueError):
-            gh.set_workflow_label(issue, "vaildating")
+        # Only `None` clears: a falsy value is refused like a typo or an
+        # obsolete bare name, and the issue keeps the label it had.
+        for label in ("vaildating", "ready", "", 0, False):
+            with self.subTest(label=label):
+                gh = FakeGitHubClient()
+                issue = make_issue(1, label="workflow:implementing")
+                gh.add_issue(issue)
+                with self.assertRaises(ValueError):
+                    gh.set_workflow_label(issue, label)
+                self.assertEqual(
+                    gh.workflow_label(issue), WorkflowLabel.IMPLEMENTING,
+                )
+                self.assertEqual(gh.label_history, [])
 
     def test_set_label_accepts_enum_and_string(self) -> None:
         gh = FakeGitHubClient()
@@ -159,10 +166,11 @@ class LabelWriteTypoGuardTest(unittest.TestCase):
         self.assertIs(workflow_label, WorkflowLabel.FIXING)
 
     def test_create_child_rejects_control_label(self) -> None:
-        # A child is born with a workflow label only: a misspelling and any
-        # control label (never seeded at creation) both raise here.
+        # A child is born with a canonical workflow label only: a misspelling,
+        # an obsolete bare name, and any control label (never seeded at
+        # creation) all raise here.
         gh = FakeGitHubClient()
-        for label in ("blokced", "backlog"):
+        for label in ("blokced", "ready", "backlog"):
             with self.subTest(label=label), self.assertRaises(ValueError):
                 gh.create_child_issue(
                     title="t", body="b", parent_number=1, labels=[label],

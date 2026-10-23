@@ -120,8 +120,7 @@ class ListPollableIssuesClosedSweepTest(unittest.TestCase):
 
     Only the canonical label counts. A pre-namespace spelling is not a current
     label, so a closed issue carrying nothing else is not swept back into the
-    workflow -- even though routing still resolves that spelling on an issue
-    some other pass hands it.
+    workflow, just as routing reads such an issue as unlabeled.
     """
 
     def test_yielded_under_its_canonical_label(self) -> None:

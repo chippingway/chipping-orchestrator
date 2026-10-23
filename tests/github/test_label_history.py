@@ -35,6 +35,10 @@ _PAUSED = "paused"
 # not recognize at all.
 _HOUSE_LABEL = "needs-triage"
 
+# A bare name matching a namespaced state, which this account may have applied
+# under an earlier build. It is no current state either.
+_OBSOLETE_LABEL = "implementing"
+
 _LABELED = "labeled"
 
 _UNLABELED = "unlabeled"
@@ -100,11 +104,12 @@ class LastAppliedTest(unittest.TestCase):
         # A control label is an operator's modifier rather than a state this
         # workflow put the issue in, so a `paused` applied over a terminal may
         # not displace it -- and a name this vocabulary does not know is not a
-        # state at all.
+        # state at all, an obsolete bare one this account applied included.
         client, issue = _client_over(
             _event(_LABELED, _REJECTED),
             _event(_LABELED, _PAUSED),
             _event(_LABELED, _HOUSE_LABEL),
+            _event(_LABELED, _OBSOLETE_LABEL),
         )
 
         self.assertEqual(

@@ -36,6 +36,7 @@ from tests.workflow.fixtures import (
 
 # The tag each label reports itself as: what the analytics row records.
 _DECOMPOSING_STAGE = "decomposing"
+_DECOMPOSING_LABEL = "workflow:decomposing"
 _IMPLEMENTING_STAGE = "implementing"
 _VALIDATING_STAGE = "validating"
 
@@ -303,14 +304,14 @@ class StageEnterAnalyticsRecordTest(unittest.TestCase):
 
 def _capture_park_records(
     client: FakeGitHubClient,
-    stage: str,
+    label: str,
     reason: str,
     **correlation,
 ) -> tuple[dict, dict]:
     with tempfile.TemporaryDirectory(prefix="analytics-park-") as park_dir:
         log_file = Path(park_dir, _PARK_LOG)
         with patch.object(analytics_settings, _ANALYTICS_PATH_ATTR, log_file):
-            park_issue = make_issue(_PARK_ISSUE, label=stage)
+            park_issue = make_issue(_PARK_ISSUE, label=label)
             client.add_issue(park_issue)
             _guards._park_awaiting_human(
                 client,
@@ -391,7 +392,7 @@ class ParkAwaitingHumanAnalyticsRecordTest(unittest.TestCase):
         )
         event, record = _capture_park_records(
             FakeGitHubClient(),
-            _DECOMPOSING_STAGE,
+            _DECOMPOSING_LABEL,
             "decomposer_silent",
             agent_role="decomposer",
             session_id="sess-fail-2",

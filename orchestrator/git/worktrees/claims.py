@@ -142,15 +142,15 @@ def _read_state(
 def _workflow_members(issue: Any) -> frozenset[WorkflowLabel]:
     """Every workflow state this issue's labels put it in.
 
-    A set of members rather than of names, so the two spellings of one state
-    -- the namespaced label the orchestrator writes and the bare one a
-    repository carried before the migration -- count once. What is left over
-    is genuine: two labels naming two different states, which is the case the
-    caller refuses on.
+    Only canonical labels count, so more than one member is genuine: two
+    labels naming two different states, which is the case the caller refuses
+    on.
 
     Labels that are not workflow states at all are absent, the operator's own
     `backlog` and `paused` controls included. They coexist with a state by
-    design and say nothing about which one the issue is in.
+    design and say nothing about which one the issue is in. So is a bare name
+    such as `implementing`: it is repository metadata, and an issue carrying
+    nothing else has no workflow label to own artifacts by.
     """
     named = (
         label_for_name(getattr(label, "name", "") or "")

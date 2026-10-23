@@ -17,9 +17,9 @@ def _copy_issue_comments(issue: Any) -> list[Any]:
 def _has_closed_sweep_label(issue: Any) -> bool:
     """Whether a closed issue is one the real sweep would still surface.
 
-    Matched on the exact canonical names the real sweep queries, not through
-    the routing lookup, which still resolves a pre-namespace spelling: a closed
-    issue carrying only one of those is not swept. Both label groups the real
+    Matched on the exact canonical names the real sweep queries, a subset of
+    the workflow labels routing resolves: a closed issue on any other label,
+    an obsolete bare name included, is not swept. Both label groups the real
     sweep walks are here, since it walks them as one pass on one cadence.
     """
     return any(label.name in _SWEPT_LABEL_NAMES for label in issue.labels)

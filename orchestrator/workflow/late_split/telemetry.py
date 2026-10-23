@@ -36,19 +36,22 @@ to be repeatable. One raised anywhere below is reported by its type alone.
 
 `stage` is bounded here rather than passed through, because it is the one
 field of the envelope this owner supplies and the sinks would carry anything.
-It is resolved against the workflow label vocabulary and written as the bare
-stage tag every other emitter on those sinks records, so a caller may name
-either spelling and nothing else -- a "stage" carrying a path or an
-adjudication's rationale is refused with the record it came with.
+It is checked against the closed set of workflow states and written as the
+bare stage tag every other emitter on those sinks records, so a caller may
+name a state by that tag or by its exact canonical label and nothing else --
+a "stage" carrying a path or an adjudication's rationale is refused with the
+record it came with. The check is this boundary's own, so the GitHub label
+parser keeps resolving canonical labels alone.
 """
 from __future__ import annotations
 
 import logging
+from types import MappingProxyType
 from typing import Any
 
 from orchestrator.github.client import GitHubClient
 from orchestrator.observability.analytics.recording import events as _recording_events
-from orchestrator.workflow import label_reading as _label_reading, state as _workflow_state
+from orchestrator.workflow import state as _workflow_state
 from orchestrator.workflow.late_split import (
     events as _events,
     formats as _formats,
@@ -58,6 +61,14 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateGeneration
 
 log = logging.getLogger("orchestrator.workflow")
+
+# Every name a caller may give a stage by, mapped to the tag the sinks record:
+# the bare stage tag each handler names its state by, and the canonical label.
+_STAGE_TAGS = MappingProxyType({
+    name: _workflow_state.stage_name(member)
+    for member in _workflow_state.WorkflowLabel
+    for name in (str(member), _workflow_state.stage_name(member))
+})
 
 # What a refusal reports in place of a value that did not validate. An issue
 # number or a family this domain cannot vouch for is not written into a log
@@ -71,9 +82,10 @@ def emit_late_event(
 ) -> dict[str, Any]:
     """Write one late event to the audit and analytics sinks, and return it.
 
-    `stage` is the state the issue sits in, named as either the workflow label
-    or the bare tag under it; what reaches the sinks is always the tag, which
-    is what every other emitter on them records and what a filter matches on.
+    `stage` is the state the issue sits in, named as either its canonical
+    workflow label or the bare tag under it; what reaches the sinks is always
+    the tag, which is what every other emitter on them records and what a
+    filter matches on.
 
     Returns the payload both sinks were handed, or an empty one when the
     contract refused it and nothing was written.
@@ -149,19 +161,19 @@ def _recordable(
 def _stage_tag(stage: str | None) -> str | None:
     """Return the bare stage tag a caller named, or refuse anything else.
 
-    Resolved through the label vocabulary rather than trusted, so the closed
-    set of workflow states is the whole of what either sink can be told an
-    issue was in. Both spellings resolve -- the namespaced label and the tag
-    under it -- and everything else, prose included, is refused.
+    Looked up in the known stage names rather than trusted, so the closed set
+    of workflow states is the whole of what either sink can be told an issue
+    was in. A stage tag and an exact canonical label are known; everything
+    else, prose included, is refused.
     """
     if stage is None:
         return None
-    resolved = _label_reading.label_for_name(stage)
-    if resolved is None:
+    tag = _STAGE_TAGS.get(stage) if isinstance(stage, str) else None
+    if tag is None:
         raise _formats.InvalidLateValue(
             f"stage is not a workflow state ({type(stage).__name__})",
         )
-    return _workflow_state.stage_name(resolved)
+    return tag
 
 
 def _emit_audit(

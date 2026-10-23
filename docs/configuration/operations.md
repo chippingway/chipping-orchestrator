@@ -582,11 +582,11 @@ host is the [supported topology](#running-more-than-one-poller), so finding a se
 - **Owned work, per repository.** Issues carrying a workflow label in any spelling, open or closed; issues carrying a
   pinned state comment; and every open issue an `ALLOWED_ISSUE_AUTHORS` login filed that carries neither, which the
   selected build would take up as new work. List apart the old issues with no pinned comment, including those whose
-  only label is one the selected build may not read as a workflow label, such as a pre-namespace spelling
-  ([legacy labels](../state-machine.md#legacy-labels-and-the-migration-off-them)): to a build that does not route
-  that spelling, such an issue carries no workflow label and no pinned comment, which is exactly what fresh pickup
-  looks for. Then the pull requests on `orchestrator/` branches, the branches and refs under `orchestrator/` in the
-  clone and on the remote, the worktrees, and the host's recovery records: the claim files and quota retirement
+  only stage-like label is an obsolete bare one such as `ready` or `fixing`
+  ([obsolete bare labels](../state-machine.md#obsolete-bare-labels)): to a build that reads canonical labels only,
+  such an issue carries no workflow label and no pinned comment, which is exactly what fresh pickup looks for. Then
+  the pull requests on `orchestrator/` branches, the branches and refs under `orchestrator/` in the clone and on the
+  remote, the worktrees, and the host's recovery records: the claim files and quota retirement
   records in `WORKTREES_DIR/.issue-writer-claims/` ([host records](#running-more-than-one-poller)), and
   `EVENT_LOG_PATH` with every rotated copy beside it
   ([audit log](../observability/event-streams.md#audit-event-log-event_log_path)).
@@ -681,25 +681,31 @@ its label, pinned comment, worktree, and host records once it starts. Everything
 which paths reach an issue decides what keeps it away:
 
 - **Pickup.** The first tick greets as new work every open issue an `ALLOWED_ISSUE_AUTHORS` login filed that carries
-  no workflow label and no pinned comment. Label setup creates only the canonical labels a repository lacks, leaving
-  pre-namespace definitions and the issues carrying them as they are, so an old issue keeps its old label. To a build
-  whose [legacy-label rule](../state-machine.md#legacy-labels-and-the-migration-off-them) no longer routes that
-  spelling, an old issue with no pinned comment looks exactly like new work; to one that still does, it reaches the
-  stage handler the label names with no record behind it. Apply `backlog` to each of those that is not new work.
+  no workflow label and no pinned comment. An old issue with no pinned comment and only an obsolete bare label is one
+  of them: a build that reads [canonical labels only](../state-machine.md#obsolete-bare-labels) finds no workflow
+  label on it, so the issue appears unlabeled and enters ordinary pickup, which starts it from scratch. The bare label
+  is not authoritative state, and no implicit migration reads or rewrites it: label setup creates only the canonical
+  labels a repository lacks and leaves every other definition, and the issues carrying it, as they are. A build's
+  [refusal](#install-check-and-start-deliberately) of unsupported pinned state cannot hold such an issue either, since
+  it has no pinned comment to refuse and an issue without one is fresh work, so this exclusion is what keeps it away.
+  To a build that still routes the bare spelling, the same issue instead reaches the stage handler the label names
+  with no record behind it. Apply `backlog` to each of those that is not new work.
 - **Dispatch and refresh.** An open issue whose workflow label routes it reaches the stage handler that label names,
   and the base refresh before each tick can rebase its worktree. `paused`, or `backlog`, holds both, at dispatch,
   scheduling, and the refresh ([control labels](../configuration.md#control-labels)). Hold a decomposed family as a
   whole: a parent's handler writes its children too, under each child's own claim.
 - **Closed-issue recovery and cleanup.** The closed-issue sweep finalizes a closed issue still on a stage label, and
   `paused` holds that as it holds dispatch. It asks for canonical label names only, so neither it nor the closed-owner
-  sweep below reaches a closed issue whose only workflow label is a pre-namespace spelling
+  sweep below reaches a closed issue carrying only an obsolete bare label
   ([pollable issues](../state-machine/labels-and-state.md#pollable-issues-and-finalization)). A closed issue on
   `workflow:decomposing`, `workflow:umbrella`, `workflow:ready`, or `workflow:blocked` goes to the
   [closed-owner sweep](../state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own) instead,
   which ends the cycle, closes the pull request it held, reclaims what its ledger owes the remote, and writes
   `rejected`; a control label defers those steps but not the cancellation it records in the pinned comment. The
   [maintenance pass](#reclaiming-a-finished-issues-artifacts) reclaims the worktree and branches of a closed issue on
-  one terminal label whatever its control labels say, though only what its gates prove nothing else needs. Closing an
+  one terminal label whatever its control labels or obsolete bare labels say, though only what its gates prove nothing
+  else needs, and keeps those of a closed issue carrying only an obsolete bare label, which has no workflow label to
+  own them by. Closing an
   issue retires it into these paths, not out of them: retire that way only work whose records the selected build
   reads, and keep the rest out with its repository.
 - **Community pull requests.** The per-tick community sweep writes to open pull requests from authors outside
@@ -1321,7 +1327,8 @@ Source-checkout module launches and the restart wrapper are for developers; see 
 On first start the orchestrator creates the workflow labels and the `backlog` / `paused` /
 `workflow:community_contribution` control labels on the repo, then begins polling open issues every `POLL_INTERVAL`
 seconds. It creates only the labels a repo lacks: on a repo it drove before the labels were namespaced, each
-namespaced label is created beside its pre-namespace one, which stays defined and stays on every issue carrying it.
+namespaced label is created beside its pre-namespace one, which stays defined and stays on every issue carrying it as
+a repository label that routes nothing ([obsolete bare labels](../state-machine.md#obsolete-bare-labels)).
 
 ### Poetry migration for operators
 

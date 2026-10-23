@@ -1188,11 +1188,12 @@ event — and every field that could otherwise smuggle text through is closed at
   overflow it cannot describe would reach both sinks as a post-publication entry with no publication in it. A refusal
   names the field and the type it arrived as, never the value, so a field rejected for carrying prose does not put
   that prose in the log line instead of the sink.
-- **`stage`** is resolved against the workflow label vocabulary rather than passed through. A caller may name either
-  spelling — `workflow:decomposing` or the bare `decomposing` — and what reaches both sinks is always the tag, which
-  is what every other emitter on this page records. Anything outside that closed set, prose included, is refused with
-  the record it came with: it is the one envelope field this domain supplies, and the sinks would carry whatever they
-  were handed.
+- **`stage`** is checked against the closed set of workflow states rather than passed through. A caller may name a
+  state by its bare stage tag — `decomposing` — or by its exact canonical label — `workflow:decomposing` — and what
+  reaches both sinks is always the tag, which is what every other emitter on this page records. Anything outside that
+  set, prose and a control label included, is refused with the record it came with: it is the one envelope field this
+  domain supplies, and the sinks would carry whatever they were handed. The check is the emitter's own, so the GitHub
+  label parser still resolves canonical labels alone.
 
 **Self-contained by family.** Beyond the shared fields, `late_measurement` and `late_verdict` must carry
 `source_sha`, `base_sha`, `threshold`, `additions`, and `phase` — the commits that were frozen and the measurement

@@ -246,6 +246,22 @@ class CreateChildIssueAlwaysUsesParentRepoTest(unittest.TestCase):
             create_kwargs["body"],
         )
 
+    def test_an_obsolete_birth_label_creates_nothing(self) -> None:
+        # A bare `ready` names no state, so a child born on it would be an
+        # unlabeled issue the next tick picks up as fresh work.
+        client = GitHubClient.__new__(GitHubClient)
+        client.repo = MagicMock()
+
+        with self.assertRaises(ValueError):
+            client.create_child_issue(
+                title="A",
+                body="do A",
+                parent_number=_PARENT_ISSUE_NUMBER,
+                labels=["ready"],
+            )
+
+        client.repo.create_issue.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

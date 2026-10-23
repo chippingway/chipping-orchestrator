@@ -253,9 +253,10 @@ package — and those initializers are what keep the recurrences distinct at col
 ## Workflow labels
 
 The rules for relabels and human edits are in [C-02](contracts.md#c-02-workflow-labels-and-transitions).
-Where a pre-namespace spelling survives beside the namespaced one, the namespaced label is the state and the bare one
-is outranked rather than counting as a second. The names are part of the public contract because live GitHub issues
-already carry them. The `workflow:` prefix marks the states the orchestrator writes itself, so a repository's own
+Only a current `WorkflowLabel` member or its exact canonical string is a state: a bare name an earlier build wrote for
+a state that is namespaced now, such as `ready` or `fixing`, is repository metadata that routes nowhere and survives
+every relabel, alone or beside the canonical label. The names are part of the public contract because live GitHub
+issues already carry them. The `workflow:` prefix marks the states the orchestrator writes itself, so a repository's own
 vocabulary cannot collide with them; the five a human also applies or reads — `in_review`, `question`, `discussion`, and
 the `done` / `rejected` terminals — keep the bare spelling, as do the `backlog` and `paused` control labels an operator
 types. Membership in `WorkflowLabel` / `ControlLabel` is what closes both sets rather than the prefix, so a
@@ -267,13 +268,15 @@ The namespace is a GitHub label spelling and stops at that boundary, which is th
 the handler, the subpackage under `orchestrator/workflow/stages/` holding it, and the identifier analytics rows,
 audit event payloads, and agent-session attribution have always carried — while the wire label an issue carries is
 spelled `workflow:<tag>`. `workflow/state.py` defines `stage_name`, which strips the prefix for those sinks;
-`workflow/label_reading.py` defines `label_for_name`, which resolves either spelling back to its member.
+`workflow/label_reading.py` defines `label_for_name`, which resolves an exact canonical label to its member and
+nothing else. A stage tag handed to an emitter is checked at that emitter's own boundary, as the late-split telemetry
+checks it against the known tags and canonical labels, not by teaching the label parser a second spelling.
 
 The whole set, what each state means, and the control-label semantics are in
-[`state-machine/labels-and-state.md#workflow-labels`](state-machine/labels-and-state.md#workflow-labels). The startup
-bootstrap that creates the canonical labels a repository lacks while leaving its pre-namespace definitions and their
-issues untouched, and the one read that still takes a bare label, are in
-[`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#legacy-labels-and-the-migration-off-them).
+[`state-machine/labels-and-state.md#workflow-labels`](state-machine/labels-and-state.md#workflow-labels). How each
+reader and writer treats an obsolete bare label, and the startup bootstrap that creates the canonical labels a
+repository lacks while leaving every other definition and its issues untouched, are in
+[`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#obsolete-bare-labels).
 
 ## Process model
 
