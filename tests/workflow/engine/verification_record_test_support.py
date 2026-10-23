@@ -26,7 +26,7 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.state import WorkflowLabel
-from tests.support.fakes import FakeComment
+from tests.support.fakes import DEFAULT_BOT_LOGIN, FakeComment, FakeUser
 
 ISSUE_NUMBER = 7
 
@@ -162,9 +162,14 @@ def current(
 
 def reread(state: _pinned_state.PinnedState) -> _pinned_state.PinnedState:
     """`state` as the next tick reads it: rendered into the pinned comment and parsed back."""
+    state_payload = dict(state.data)
+    if _pinned_state.SCHEMA_VERSION_KEY not in state_payload:
+        state_payload[_pinned_state.SCHEMA_VERSION_KEY] = _pinned_state.SUPPORTED_SCHEMA_VERSION
     comment = FakeComment(
-        id=state.comment_id or 1, body=_pinned_state.pinned_state_body(state.data),
+        id=state.comment_id or 1,
+        body=_pinned_state.pinned_state_body(state_payload),
+        user=FakeUser(DEFAULT_BOT_LOGIN),
     )
     return _pinned_state.pinned_state_from_comment(
-        comment, trusted_login=None, issue_number=ISSUE_NUMBER,
+        comment, trusted_login=DEFAULT_BOT_LOGIN, issue_number=ISSUE_NUMBER,
     )

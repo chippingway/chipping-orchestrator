@@ -46,7 +46,9 @@ Use this checklist when reviewing a change; each ID links to its limits, specifi
 
 **Limits:** Recovery also uses per-issue worktrees,
 [host records](configuration/operations.md#running-more-than-one-poller) under `WORKTREES_DIR`, and the audit-log
-read-back in [C-12]. Treat `WORKTREES_DIR` as state and follow its cleanup rules.
+read-back in [C-12]. Treat `WORKTREES_DIR` as state and follow its cleanup rules. The pinned comment admits only
+supported version-1 records authored by the orchestrator token account; malformed or unsupported pinned comments
+are preserved unchanged and never overwritten, duplicated, or silently upgraded.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
@@ -79,17 +81,19 @@ them. Guard exemptions are listed in the label specification.
 **Why:** Live issues and external consumers depend on the formats the current release writes, and unsupported input
 taken as current could start work or license an irreversible effect.
 
-**Limits:** Current formats include pinned-state keys, workflow labels, comment markers, watermarks, event formats,
-branch/ref names, host record formats, agent command specs, and logger names. Public Python names are the explicit
-`__all__` exports [C-13] covers. An internal refactor changes none of them; a deliberate change updates the affected
-contracts, specifications, and tests with the behavior.
+**Limits:** Current formats include pinned-state keys (with explicit integer `schema_version: 1`), workflow labels,
+comment markers, watermarks, event formats, branch/ref names, host record formats, agent command specs, and logger
+names. Public Python names are the explicit `__all__` exports [C-13] covers. An internal refactor changes none of them;
+a deliberate change updates the affected contracts, specifications, and tests with the behavior.
 
 The 1.0 release preparation supports current formats only: breaking changes have already landed, and earlier state has
-no promised conversion or continuity. Cleanup that removes a historical format, alias, or Python call signature needs no
-compatibility reader, migration, or final 0.x release. A contract for current output does not oblige readers to accept
-earlier formats, nor functions to accept callers' obsolete argument aliases. This decision sets no compatibility or
-deprecation policy for later releases. Historical forms the runtime still reads stay documented in their
-specifications until their owners remove them.
+no promised conversion or continuity. Pinned-state admission accepts only version 1; records missing `schema_version` or
+carrying non-integer, float, boolean, string, or unsupported integer versions are refused, preserved unchanged, and
+cannot authorize work or dependent effects. Genuine new pins are stamped with version 1 on first write. Cleanup that
+removes a historical format, alias, or Python call signature needs no compatibility reader, migration, or final 0.x
+release. A contract for current output does not oblige readers to accept earlier formats, nor functions to accept
+callers' obsolete argument aliases. This decision sets no compatibility or deprecation policy for later releases.
+Historical forms the runtime still reads stay documented in their specifications until their owners remove them.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -117,7 +121,10 @@ compatibility.
 
 **Why:** A trusted author cannot make forged state authentic, and authentic state cannot make untrusted input safe.
 
-**Limits:** Authentication alone does not authorize publication or cleanup; those also require
+**Limits:** Authentic state requires both bot authorship and whole-comment marker verification before schema admission,
+and with no known bot account nothing is authentic. A comment passing authentication is admitted only if its payload
+is a JSON object carrying integer `schema_version == 1`. Authentication alone does not authorize publication or
+cleanup; those also require
 [current evidence](security.md#what-a-trusted-pinned-record-still-cannot-license).
 
 **Specs:** [authentication](security.md#pinned-state-authentication),
@@ -150,7 +157,10 @@ records written before acquiring the claim; [C-06] covers lost or refused writes
 **Why:** An unconfirmed write proves neither success nor absence of an effect.
 
 **Limits:** Recovery rechecks prerequisites. An unreadable record or artifact does not prove the write failed.
-A refused or unconfirmed write stops the steps that depend on it; a later tick reads state afresh.
+A refused or unconfirmed write stops the steps that depend on it; a later tick reads state afresh. Guarded commits
+and direct writes check admission: neither writer may overwrite an unsupported or malformed authoritative comment,
+create a replacement beside it, or silently stamp it as current, whatever comment id its caller holds, and neither
+sends a state the next reading would refuse; strict edits remain non-creating.
 Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),

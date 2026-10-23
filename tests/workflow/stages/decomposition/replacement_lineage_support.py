@@ -14,7 +14,11 @@ from __future__ import annotations
 from dataclasses import replace
 
 from orchestrator.git.snapshots import mirrors as _snapshot_mirrors
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import (
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+    PinnedState,
+)
 from orchestrator.workflow.late_split import (
     ancestry as _ancestry,
     endings as _endings,
@@ -140,7 +144,10 @@ def record(
 
 def seeded(ancestry: _ancestry.LateAncestry | None = None, **edits) -> dict:
     """A child's pinned fields linking it to the parent and carrying `ancestry`, `edits` landing over them."""
-    child = PinnedState(data={"parent_number": PARENT})
+    child = PinnedState(data={
+        SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
+        "parent_number": PARENT,
+    })
     if ancestry is not None:
         _lineage.write_late_ancestry(child, ancestry)
     return {**child.data, **edits}

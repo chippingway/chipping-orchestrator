@@ -598,14 +598,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             late-split stage owners', which is where the pair it names exists -- one per park it can
                             end, the adjudication's and the size gate's, each proving it against its own record
     pinned_commit_models.py the vocabulary of a guarded pinned-state commit: the capture it is held to -- the pinned
-                            comment's id, whether that reading parsed, every field it carried as the comment's JSON
-                            spells it (keys sorted, so `null` is not an absent field and `true` is not `1` at any
-                            depth), the prerequisites the decision rests on, absent ones included, and the fields
-                            the caller owns -- held as strings in a read-only mapping, so nothing the caller does to
-                            its own state afterwards moves it, which of those prerequisites a fresh reading spells
-                            otherwise (`moved`) -- and the caller's own domain check of the complete candidate, where
-                            it has one; the refusals, the four statuses (PREPARED, COMMITTED, UNCONFIRMED, REFUSED),
-                            and the outcome carrying the candidate reading, the fields that earned a refusal, the
+                            comment's id, whether that reading parsed and was supported, every field it carried as the
+                            comment's JSON spells it (keys sorted, so `null` is not an absent field and `true` is not
+                            `1` at any depth), the prerequisites the decision rests on, absent ones included, and the
+                            fields the caller owns -- held as strings in a read-only mapping, so nothing the caller does
+                            to its own state afterwards moves it, which of those prerequisites a fresh reading spells
+                            otherwise (`moved`) -- and the caller's own domain check of the complete candidate, where it
+                            has one; the refusals (including UNSUPPORTED and MALFORMED), the four statuses (PREPARED,
+                            COMMITTED, UNCONFIRMED, REFUSED), and the outcome carrying the candidate reading, the fields
+                            that earned a refusal, the
                             rendered length an overflow measured, and what the domain check answered where it refused
                             the candidate (INADMISSIBLE); and `CONFLICT`, what a domain transformation
                             answers where it cannot keep both roads' moves of its field, refused as an owned conflict
@@ -633,21 +634,27 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             over a fresh reading of the
                             captured comment rather than written from the caller's state. A
                             write the caller did not declare refuses before anything is read; an unreadable,
-                            unparsed, or replaced comment, a prerequisite spelled otherwise, and an owned field
-                            another writer moved to something other than what the caller staged each refuse after;
+                            malformed, unsupported, or replaced comment, a prerequisite spelled otherwise, and an owned
+                            field another writer moved to something other than what the caller staged each refuse after;
                             a domain-supplied transformation decides its owned field over the fresh value instead,
                             and every other field, unknown ones included, is the fresh reading's. The whole
-                            candidate is measured through `pinned_state_body` against `MAX_PINNED_BODY`, and held to the
-                            guard's own domain check where it carries one, before anything goes out -- that very
+                            candidate is held to the payload rule the next reading admits by
+                            (`PinnedAdmission.payload_refusal`, refused as UNSUPPORTED) -- a value staged or
+                            transformed past the reader's nesting bound, or a number JSON cannot spell, is refused
+                            so before anything spells it (`PinnedAdmission.spellable`), a staged one unread --
+                            measured through
+                            `pinned_state_body` against `MAX_PINNED_BODY`, and held to the guard's own domain check
+                            where it carries one, before anything goes out -- that very
                             candidate, over the reading the edit lands on -- and `prepare` stops there, for a caller
                             with an external effect to make first, and `commit` derives everything again over a newer
                             reading and lands it through the strict edit, sending nothing for a candidate the comment
-                            already reads as -- a comment that moved under that edit refused as MOVED, naming nothing.
+                            already reads as -- a comment that moved under that edit refused as MOVED, naming nothing,
+                            and one it found refused admission as UNSUPPORTED.
                             A refusal writes nothing and moves
                             nothing the caller holds, and an edit that went out unconfirmed is reported as neither
                             answer, for the domain's own receipts to settle. `reread` is that fresh reading alone -- the
-                            captured comment, still parsing -- for a caller with requests of its own to make over it
-                            before it stages anything. `takes_in` is for
+                            captured comment, still parsing and admitted -- for a caller with requests of its own to
+                            make over it before it stages anything. `takes_in` is for
                             a road that lays another road's moves over a tick's state without writing -- the validating
                             reread and the run circuit's merge -- or replaces that state with what a commit landed, as
                             the verification settlement and the evidence retirements do, so the reading that state last

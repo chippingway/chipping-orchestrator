@@ -1054,7 +1054,8 @@ because there it is the claim that this stage has already rerouted rather than a
     saying rather than an author this deployment refuses. Beside them is the one damaged reading that holds rather
     than parking: a code-publication receipt group with some of its members and not others. And beside those, the
     settlement's own guarded commit or its preparation where it did not land over the comment the tick read — a
-    record it was decided on or a field it writes moved by another road, a comment replaced or no longer parsing,
+    record it was decided on or a field it writes moved by another road, a comment replaced, no longer parsing, or
+    refused admission,
     an edit refused as moved, a final candidate that would leave the reviewer round or the fixing hand-back behind it
     no room — or where it went out and was never confirmed: the tick's state is withheld, so nothing behind it is
     written, and nothing is posted where the preparation refused. Any refusal below that comes *after* the post or
@@ -1238,8 +1239,8 @@ because there it is the claim that this stage has already rerouted rather than a
     names that answers neither a type nor an absence, the tree of a commit this repository holds (an empty tree read
     for one is that read failing), the report's location, the requirements, an
     unconfirmed post, the issue re-read right before the post, or the issue, the pinned comment, or
-    the artifact re-read before a settling or retiring write -- a pinned comment replaced or no longer parsing
-    included, over which nothing is written -- or a
+    the artifact re-read before a settling or retiring write -- a pinned comment replaced, no longer parsing, or
+    refused admission included, over which nothing is written -- or a
     settling commit that went out and was never confirmed. The next tick asks again, and finds either nothing owed or
     the same transaction to settle over the same artifact, with no second history entry.
   - **Stood down** → a moved head or branch, an absent checkout, an id that is not a commit itself or that git says
@@ -1253,7 +1254,7 @@ because there it is the claim that this stage has already rerouted rather than a
     artifact was posted or under the settling commit, a pinned comment that moved under that commit's edit, or a
     settlement the comment no longer has room for, before the post or behind it. The transaction stays owed for the
     route that answers it, with the artifact's ledger entry committed alone where the comment still reads (a comment
-    that entry finds unreadable, replaced, or no longer parsing holds the tick instead) -- save a
+    that entry finds unreadable, replaced, no longer parsing, or refused admission holds the tick instead) -- save a
     carry onto a head it did not run on, which an approval's squash records onto the head it published, and the finish
     of a landed automatic base rewrite onto its rewritten head (the **base-rewrite evidence** bullets below), and which
     nothing later makes answer again once refused: refused on anything but a reading nobody could take -- its proof

@@ -13,7 +13,13 @@ from __future__ import annotations
 from dataclasses import replace
 
 from orchestrator.github import comments as _trust
-from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState, pinned_state_body
+from orchestrator.github.pinned_state import (
+    MAX_PINNED_BODY,
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+    PinnedState,
+    pinned_state_body,
+)
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     report_delivery as _delivery,
@@ -52,6 +58,8 @@ CROWDING = "crowded"
 CROWDED_FOR_RESERVATION = 1000
 
 CROWDED_FOR_BINDING = 400
+
+_SCHEMA_VERSION_OVERHEAD = 21
 
 # The room left where the record's OWN write is what the comment cannot carry:
 # short of the record, and enough for the park that refusal takes, which is a
@@ -215,7 +223,9 @@ def crowded_comment(
     with the filler giving back exactly what it costs, so the comment refuses
     the very write it refuses without one.
     """
-    crowded = PinnedState(state_data={**(carried or {}), CROWDING: ""})
+    crowded = PinnedState(
+        state_data={SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION, **(carried or {}), CROWDING: ""},
+    )
     if baselined:
         slack -= len(pinned_state_body(crowded.data))
         crowded.set(BASELINE, support.REQUIREMENTS)
@@ -225,7 +235,7 @@ def crowded_comment(
         _review_records.reserves_the_round(reserved)
         taken = pinned_state_body(reserved.data)
         slack += len(taken) - len(pinned_state_body(crowded.data))
-    room = MAX_PINNED_BODY - len(DELIVERED.report) - slack
+    room = MAX_PINNED_BODY - len(DELIVERED.report) - slack - _SCHEMA_VERSION_OVERHEAD
     crowded.set(CROWDING, FILLER * room)
     return crowded
 

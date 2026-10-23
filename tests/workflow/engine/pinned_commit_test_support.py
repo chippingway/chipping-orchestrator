@@ -18,11 +18,12 @@ from types import MappingProxyType
 from typing import Any
 from unittest.mock import patch
 
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import SCHEMA_VERSION_KEY, AdmissionStatus, PinnedState
 from orchestrator.workflow.engine import pinned_commit as _commit, pinned_commit_models as _models
 from tests.support.fakes import FakeGitHubClient, FakeIssue, make_issue
 
 ISSUE = 41
+_UNSUPPORTED_VERSION = 2
 PR = "pr_number"
 SETTLED = "settled_record"
 WATERMARK = "last_read_comment_id"
@@ -34,6 +35,7 @@ UNKNOWN = "a_field_no_binary_writes_yet"
 # The record the caller reads: a prerequisite, a field it owns and replaces, one
 # it owns and leaves alone, and three that are somebody else's.
 RECORD = MappingProxyType({
+    "schema_version": 1,
     PR: 17,
     SETTLED: {"revision": 3, "at": {"comment": 901}},
     WATERMARK: 55,
@@ -74,9 +76,16 @@ def seeded(
     return CommitWorld.of(github, issue, owned=owned)
 
 
-def unparse(world: CommitWorld) -> None:
-    """A hand edit leaves the pinned comment in place, carrying nothing that parses."""
-    world.github._pinned[ISSUE] = PinnedState(comment_id=world.state.comment_id, parsed=False)
+def unparse(world: CommitWorld, *, malformed: bool = True) -> None:
+    """A hand edit leaves the pinned comment in place, unparseable or carrying the record under version 2."""
+    world.github._pinned[ISSUE] = PinnedState(
+        comment_id=world.state.comment_id,
+        state_data={} if malformed else {**world.record(), SCHEMA_VERSION_KEY: _UNSUPPORTED_VERSION},
+        parsed=not malformed,
+        supported=False,
+        admission_status=AdmissionStatus.MALFORMED if malformed else AdmissionStatus.UNSUPPORTED,
+        found_version=None if malformed else _UNSUPPORTED_VERSION,
+    )
 
 
 def repin(world: CommitWorld) -> None:

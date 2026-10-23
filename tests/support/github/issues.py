@@ -9,7 +9,15 @@ from typing import Any
 
 from orchestrator import config
 from orchestrator.github import comments as _github_comments, events as _events
-from orchestrator.github.pinned_state import PINNED_STATE_MARKER, PinnedState
+from orchestrator.github.pinned_state import (
+    PINNED_STATE_MARKER,
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+    AdmissionStatus,
+    PinnedAdmission,
+    PinnedState,
+    pinned_state_body,
+)
 from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.workflow import (
     label_reading as _label_reading,
@@ -213,7 +221,7 @@ class _WorkflowStateService:
         issue.labels.append(FakeLabel(resolved_label))
 
     def seed_state(
-        self, issue: FakeIssue | int, **state_data: Any,
+        self, issue: FakeIssue | int, *, raw: bool = False, **state_data: Any,
     ) -> None:
         """Put a pinned record on this issue, numbered above its own thread.
 
@@ -228,10 +236,22 @@ class _WorkflowStateService:
         every issue this client was given is in.
         """
         thread = issue if isinstance(issue, FakeIssue) else self._issues.get(issue)
+        payload = dict(state_data)
+        if not raw and SCHEMA_VERSION_KEY not in payload:
+            payload[SCHEMA_VERSION_KEY] = SUPPORTED_SCHEMA_VERSION
+        version = payload.get(SCHEMA_VERSION_KEY)
+        refusal = PinnedAdmission.payload_refusal(payload)
         number = issue.number if isinstance(issue, FakeIssue) else issue
         self._pinned[number] = PinnedState(
             comment_id=self._next_comment_id(thread),
-            data=dict(state_data),
+            data=payload,
+            parsed=True,
+            supported=refusal is None,
+            admission_status=AdmissionStatus.SUPPORTED if refusal is None else AdmissionStatus.UNSUPPORTED,
+            found_version=version,
+            refusal_reason=refusal,
+            issue_number=number,
+            repo_slug=self._repo_slug,
         )
 
     def emit_event(
@@ -275,6 +295,9 @@ class _WorkflowStateService:
     def read_pinned_state(self, issue: FakeIssue) -> PinnedState:
         """The record pinned on this issue, parsed or not as it was pinned.
 
+        One refused admission reads back empty, as the real reader answers it,
+        while the record behind it keeps the payload its comment carries.
+
         A thread named on `pinned_failures.unreadable` raises, as the real
         walk does on a request GitHub would not answer, and so does the next
         read of one named on `pinned_failures.unanswered_once`, which is then
@@ -287,13 +310,20 @@ class _WorkflowStateService:
             raise RuntimeError(_PINNED_UNREAD)
         existing = self._pinned.get(issue.number)
         if existing is None:
-            return PinnedState()
+            return PinnedState(issue_number=issue.number, repo_slug=self._repo_slug)
         reading = PinnedState(
             comment_id=existing.comment_id,
-            data=dict(existing.data),
+            data=dict(existing.data) if existing.supported else {},
             parsed=existing.parsed,
+            supported=existing.supported,
+            admission_status=existing.admission_status,
+            found_version=existing.found_version,
+            refusal_reason=existing.refusal_reason,
+            supported_version=existing.supported_version,
+            issue_number=issue.number,
+            repo_slug=self._repo_slug,
         )
-        if reading.parsed:
+        if reading.parsed and reading.supported:
             reading.synced = json.dumps(reading.data, sort_keys=True)
         return reading
 
@@ -302,19 +332,37 @@ class _WorkflowStateService:
         issue: FakeIssue,
         state: PinnedState,
     ) -> PinnedState:
-        """Pin `state`, as the real writer does; a `withheld` one is not written or counted."""
+        """Pin `state`, as the real writer does; one it refuses is not written or counted.
+
+        Refused as the real writer refuses: a `withheld` state, any state over
+        a record refused admission, and a state the next reading would refuse,
+        after a missing version is stamped.
+        """
         if state.withheld:
+            return state
+        existing = self._pinned.get(issue.number)
+        if existing is not None and not existing.supported:
+            return state
+        state.data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
+        if PinnedAdmission.payload_refusal(state.data) is not None:
             return state
         self._issue_history._write_state_calls += 1
         if state.comment_id is None:
             state.comment_id = self._next_comment_id(issue)
             issue.comments.append(FakeComment(
                 id=state.comment_id,
-                body=f"{PINNED_STATE_MARKER} ... -->",
+                body=pinned_state_body(state.data),
+                user=FakeUser(self._bot_login),
             ))
         self._pinned[issue.number] = PinnedState(
             comment_id=state.comment_id,
             data=dict(state.data),
+            parsed=True,
+            supported=True,
+            admission_status=AdmissionStatus.SUPPORTED,
+            found_version=state.data[SCHEMA_VERSION_KEY],
+            issue_number=issue.number,
+            repo_slug=self._repo_slug,
         )
         state.synced = json.dumps(state.data, sort_keys=True)
         return state

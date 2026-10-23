@@ -856,14 +856,29 @@ sanitize: an agent's explanation, a preserved pull-request body, a human's own w
 them, and one carrying `-->` would close the comment early and leave the rest of the record as visible issue text.
 What is escaped is the serialized form and never the value, and a body written before this reads back the same.
 
-A comment that passes both checks is the state comment whatever its payload turns out to be. One that will not parse,
-or that parses into anything but a JSON object — `[]`, `7`, `null`, from a truncated write or a hand edit — is refused
-rather than handed on: the state reads back empty and flagged unparsed, so a reader deciding on the absence of a
-recorded branch or pull request can tell it from an issue that pinned nothing (both carry `{}`), and the comment id is
-kept, so the next write replaces the corruption in place instead of leaving a second pinned comment beside it.
+Both checks need the account the token belongs to: a client that does not know it passes no comment, so it reads no
+record and writes none. A comment that passes both checks undergoes schema admission: only a JSON object carrying an
+actual integer `schema_version` equal to `1` is admitted as supported state. Missing versions, booleans, strings,
+floating-point numbers including `1.0`, unsupported integers, malformed JSON — JSON the reader will not decode included,
+such as an integer past the interpreter's digit limit, a number that is not finite (`NaN`, an infinity, or a literal
+past the float range such as `1e309`), nesting past its recursion limit (a bound the reader holds itself, the same
+whatever the interpreter's decoder would build), or an object cut short of its closing brace,
+whatever raw terminators or markers its values carry — and non-object payloads — `[]`, `7`, `null`, or an array or
+string carrying the comment terminator or a comment marker inside a value, from a truncated write or a hand edit — are
+refused rather than handed on: the state reads back empty and flagged unparsed or unsupported, so a reader deciding on
+the absence of a recorded branch or pull request can tell it from an issue that pinned nothing (both carry `{}`), and
+the comment id is kept for refusal reporting. The original comment is preserved unchanged on GitHub: neither
+`write_pinned_state` nor `edit_pinned_state` may overwrite an unsupported or corrupted comment, create a replacement
+beside it, or silently stamp it as current, whatever comment id the caller holds. Both writers decide on one walk of the
+thread that admits every comment it passes and is the read they land from: the comment the caller's id names is
+rewritten only where that walk admits it, and a refused one ahead of it — or anywhere, where no id is named or the named
+comment is not state — stops the write, so a stale id never reaches past a refused record, nor posts a replacement
+beside one (the strict edit answers `UNSUPPORTED`, or `MOVED` where that record will not parse). Genuinely new pins are
+stamped with `schema_version: 1` on their first write, and neither writer sends a state the next reading would refuse —
+another version, a value JSON cannot spell, or nesting past the recursion limit.
 
 Most writers rewrite the whole record from the state they read (`write_pinned_state`), which lands wherever it can — in
-place, or as a new comment where none is named or the named one is gone. A **guarded commit**
+place, or as a new comment where none is named or the named one is gone or no longer state. A **guarded commit**
 (`workflow/engine/pinned_commit.py`, which the verification-evidence publication and settlement, the evidence
 reconciliation's retirements, `validating`'s invalidation of an unanswered carry, the developer report's writes, a
 reviewer round's launch, return, verdict, and park writes, a change request's handoff and its recovery's writes, and
@@ -883,9 +898,12 @@ is not an absent field, `true` is not `1`, and `1.0` is not `1`, at any depth. T
 (`reread`), for a caller with requests of its own to make over the comment it captured before it stages anything.
 
 It refuses — writing nothing, and touching nothing the caller holds — where the comment will not read, will not parse,
-or is not the one captured (replaced, deleted, or never pinned: the strict edit never creates one); where a prerequisite
-moved; where another writer moved an owned field to something other than what the caller staged; where the caller staged
-or transforms a field it did not declare; and where the complete candidate, rendered through `pinned_state_body`, is
+is refused admission, or is not the one captured (replaced, deleted, or never pinned: the strict edit never creates
+one); where the candidate is one the next reading would refuse, a value the caller staged or a transformation made
+that nests past the reader's bound or is a number JSON cannot spell included, which is refused before anything spells
+it (`PinnedAdmission.spellable`), and a staged one before the comment is read; where a prerequisite moved; where
+another writer moved an owned field to something other than what the caller staged; where the caller staged or
+transforms a field it did not declare; and where the complete candidate, rendered through `pinned_state_body`, is
 longer than `MAX_PINNED_BODY` or than the caller's own domain check admits — a check the guard carries, asked of that
 very candidate. That measurement can be taken alone (`prepare`) ahead of an external effect that depends on the record.
 The commit takes every check again over a reading taken behind whatever requests came between, sends nothing for a

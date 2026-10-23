@@ -152,6 +152,7 @@ def _clears(context: _AutoRebaseRecoveryContext) -> bool:
         comment_id=context.state.comment_id,
         state_data=copy.deepcopy(context.state.data),
         parsed=context.state.parsed,
+        supported=context.state.supported,
     )
     attempts._clears_the_attempt(staged)
     return checkpoints._lands_the_checkpoint(

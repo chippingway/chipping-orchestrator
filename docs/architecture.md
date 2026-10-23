@@ -486,6 +486,9 @@ holds is skipped that tick, keeping only a close the poll read for it. A family 
 each child's own claim.
 
 Per-issue durable state lives in a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`).
+It is state only where the orchestrator's own account wrote it and its whole body is the marker, and a record only where
+its JSON object carries an integer `schema_version` of `1` (`github/pinned_state.py`): a comment refused admission is
+kept as it stands, never written over or replaced beside, and licenses nothing ([pinned state][pinned-state]).
 The label and the pinned JSON are the dispatch input, beside the one host-local record every developer launch reads
 first, the quota retirement record an Antigravity launch arms, and the resolution of it a poller holds in memory while
 the record will not take it ([design constraints](#design-constraints)).
@@ -510,7 +513,8 @@ its hand-back of a published docs commit to `workflow:validating` included (`han
 invalidation or hold that withholds a no-change one (`retention.py` beside it), and the in_review ready ping's arming
 ahead of its post and its settlement behind it (`workflow/stages/in_review/ready_ping.py`). It
 derives a candidate over a fresh reading of the comment its caller captured, refuses with nothing written where that
-comment or a record the decision rests on moved, or where another writer moved a field the caller is changing, measures
+comment or a record the decision rests on moved, where admission refuses that comment or the candidate, or where
+another writer moved a field the caller is changing, measures
 the whole rendered candidate against the comment limit before any dependent effect, and lands through the strict
 in-place edit on `github/pinned_state.py`, reporting an edit nobody confirmed as neither answer. It narrows the window
 between a reading and the write over it; it does not serialize two pollers, since GitHub's comment edit takes no

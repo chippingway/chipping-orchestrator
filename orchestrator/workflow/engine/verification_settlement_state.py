@@ -165,7 +165,7 @@ def settled_state(
     # read from: written without one, it would land as a second state comment
     # beside the one still recording the transaction as owed.
     composed = PinnedState(
-        comment_id=state.comment_id, state_data=dict(state.data), parsed=state.parsed,
+        comment_id=state.comment_id, state_data=dict(state.data), parsed=state.parsed, supported=state.supported,
     )
     superseded = read_current_evidence(composed)
     if superseded is not None:

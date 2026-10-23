@@ -13,9 +13,12 @@ prerequisites that moved rather than refusing over them.
 """
 from __future__ import annotations
 
+import functools
 import json
+import sys
 import unittest
 from dataclasses import replace
+from itertools import product
 from types import MappingProxyType
 from typing import Any
 
@@ -97,6 +100,7 @@ _PREREQUISITE_MOVES = MappingProxyType({
 _SPOILED = MappingProxyType({
     "unreadable": (lambda world: world.github.pinned_failures.unreadable.add(support.ISSUE), _REFUSAL.UNREADABLE),
     "unparsed": (support.unparse, _REFUSAL.MALFORMED),
+    "unsupported": (lambda world: support.unparse(world, malformed=False), _REFUSAL.UNSUPPORTED),
     "replaced": (support.repin, _REFUSAL.REPLACED),
     "deleted": (support.unpin, _REFUSAL.REPLACED),
 })
@@ -104,6 +108,7 @@ _SPOILED = MappingProxyType({
 # What lands between the commit's own fresh reading and its edit.
 _UNDER_THE_EDIT = MappingProxyType({
     "moved": (lambda world: world.another_road(**_MOVED_TOTAL), _REFUSAL.MOVED),
+    "refused admission": (lambda world: support.unparse(world, malformed=False), _REFUSAL.UNSUPPORTED),
     "replaced": (support.repin, _REFUSAL.REPLACED),
     "unreadable": (lambda world: world.github.pinned_failures.unreadable.add(support.ISSUE), _REFUSAL.UNREADABLE),
 })
@@ -117,6 +122,27 @@ _MEASURED = MappingProxyType({
     "terminators, written unescaped": (("-->", 0), (_STATUS.COMMITTED, None, dict(support.SETTLED_ANEW))),
 })
 
+# A value nested just past the admission owner's bound, which every encoder
+# still spells, and one far past it, which some overflow on before anything
+# else refuses it; each built a level at a time, as nothing here may recurse.
+_FAR_PAST_DEPTH = 100_000
+_JUST_PAST_LEVELS = range(sys.getrecursionlimit() - 1)
+_FAR_PAST_LEVELS = range(_FAR_PAST_DEPTH)
+_JUST_PAST = functools.reduce(lambda inner, _: [inner], _JUST_PAST_LEVELS, [])
+_FAR_PAST = functools.reduce(lambda inner, _: [inner], _FAR_PAST_LEVELS, [])
+
+# The guarded calls a caller makes over its staged state.
+_ROUTES = (_commit.prepare, _commit.commit)
+
+# The settled record nested past that bound, as the caller staged it or as a
+# transformation made it: the fields staged over the caller's state, and the
+# transformations handed alongside.
+_UNSPELLABLE = MappingProxyType({
+    "staged just past": ({support.SETTLED: _JUST_PAST}, {}),
+    "staged far past": ({support.SETTLED: _FAR_PAST}, {}),
+    "derived just past": ({}, {support.SETTLED: lambda fresh, read, staged: _JUST_PAST}),
+    "derived far past": ({}, {support.SETTLED: lambda fresh, read, staged: _FAR_PAST}),
+})
 
 def _filler(unit: str, excess: int) -> str:
     """A value bringing the settled candidate's rendered body to `MAX_PINNED_BODY + excess`, of `unit` where it fits."""
@@ -289,14 +315,21 @@ class CommitRefusalTest(unittest.TestCase):
                 self.assert_refused(world, refusal)
 
     def test_a_reading_with_nothing_to_commit_over(self) -> None:
-        # A reading that would not parse is a record nobody read, and an issue
-        # that pinned nothing has no comment the strict edit may rewrite --
-        # it never creates one.
+        # A reading that would not parse is a record nobody read, an unsupported
+        # record is one nothing can authorize over, and an issue that pinned nothing
+        # has no comment the strict edit may rewrite -- it never creates one.
         unparsed = support.seeded()
         support.unparse(unparsed)
         unparsed = support.CommitWorld.of(unparsed.github, unparsed.issue)
+        unsupported = support.seeded()
+        support.unparse(unsupported, malformed=False)
+        unsupported = support.CommitWorld.of(unsupported.github, unsupported.issue)
         unpinned = support.seeded({})
-        for world, refusal in ((unparsed, _REFUSAL.MALFORMED), (unpinned, _REFUSAL.REPLACED)):
+        for world, refusal in (
+            (unparsed, _REFUSAL.MALFORMED),
+            (unsupported, _REFUSAL.UNSUPPORTED),
+            (unpinned, _REFUSAL.REPLACED),
+        ):
             with self.subTest(refusal=refusal):
                 world.settle()
 
@@ -382,6 +415,47 @@ class CommitBoundaryTest(unittest.TestCase):
                 self.assertEqual(world.record(), support.recorded(settled=lands))
                 self.assertEqual(world.github.write_state_calls, 1)
 
+    def test_prepare_refuses_when_unsupported(self) -> None:
+        world = support.seeded()
+        world.settle()
+        support.unparse(world, malformed=False)
+
+        outcome = _commit.prepare(world.github, world.issue, world.guard, world.state.data)
+        self.assertIs(outcome.status, _STATUS.REFUSED)
+        self.assertIs(outcome.refusal, _REFUSAL.UNSUPPORTED)
+
+    def test_unsupported_candidate_refused(self) -> None:
+        # A candidate the next reading would refuse -- another version, or a
+        # value JSON cannot spell -- is never sent over the record.
+        for field, refused in (("schema_version", 2), (support.SETTLED, float("nan"))):
+            with self.subTest(field=field):
+                world = support.seeded(owned=(support.SETTLED, "schema_version"))
+                world.settle()
+                staged = {**world.state.data, field: refused}
+
+                outcome = _commit.commit(world.github, world.issue, world.guard, staged)
+
+                self.assertEqual((outcome.status, outcome.refusal), (_STATUS.REFUSED, _REFUSAL.UNSUPPORTED))
+                self.assertEqual(world.record(), support.recorded())
+
+    def test_unspellable_nesting_is_refused(self) -> None:
+        # A value nested past the admission owner's bound is refused as
+        # unsupported by prepare and commit alike, whether the caller staged
+        # it or a transformation made it, and however far past the bound it
+        # is: never spelled, so no encoder overflows on it, and nothing sent.
+        for guarded, case in product(_ROUTES, _UNSPELLABLE):
+            with self.subTest(route=guarded.__name__, case=case):
+                world = support.seeded()
+                world.settle()
+                fields, derived = _UNSPELLABLE[case]
+                world.state.data.update(fields)
+
+                self.assertEqual(
+                    guarded(world.github, world.issue, world.guard, world.state.data, derived),
+                    _models.CommitOutcome(_STATUS.REFUSED, refusal=_REFUSAL.UNSUPPORTED),
+                )
+                self.assertEqual(world.record(), support.recorded())
+                self.assertEqual(world.github.write_state_calls, 0)
 
     def _caps_the_total(self, candidate: PinnedState) -> str | None:
         """A domain check refusing a candidate whose total is past the cap."""

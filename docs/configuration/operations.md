@@ -620,8 +620,11 @@ issue comment that carries the pinned-state marker, with the issue it is on; and
 work missing from the inventory is work nothing below keeps away from the selected build. A pinned comment counts as
 state only when the orchestrator's own account wrote it
 ([authentication](../security.md#pinned-state-authentication)), so compare the login each line prints with that
-account. The last command names every quota retirement record that does not read `{}`: an arming or an owed retirement
-that holds its issue's developer launches until someone settles it.
+account. A build that admits only version-1 records reads that state only where its JSON object carries an integer
+`schema_version` of `1` ([pinned state](../state-machine/labels-and-state.md#pinned-state)): a pinned comment without
+one, which is every one a build predating that field wrote, is refused and left as it stands, and its issue is work the
+selected build cannot read. The last command names every quota retirement record that does not read `{}`: an arming or
+an owed retirement that holds its issue's developer launches until someone settles it.
 
 ### Stop and hold every poller
 

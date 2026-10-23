@@ -40,12 +40,21 @@ class _PinnedEditService:
         if issue.number in self.pinned_failures.unreadable:
             raise RuntimeError(_READ_REFUSED)
         pinned = self._pinned.get(issue.number)
-        if pinned is None or pinned.comment_id != comment_id:
+        # The one record stands for the whole thread, so a refused one answers
+        # whatever id is named, as the real walk answers one ahead of it.
+        if pinned is None or (pinned.comment_id != comment_id and pinned.supported):
             return None
         return issue, PinnedState(
             comment_id=pinned.comment_id,
-            data=copy.deepcopy(pinned.data),
+            data=copy.deepcopy(pinned.data) if pinned.supported else {},
             parsed=pinned.parsed,
+            supported=pinned.supported,
+            admission_status=pinned.admission_status,
+            found_version=pinned.found_version,
+            refusal_reason=pinned.refusal_reason,
+            supported_version=pinned.supported_version,
+            issue_number=issue.number,
+            repo_slug=pinned.repo_slug,
         )
 
     def _send_pinned_edit(self, issue: FakeIssue, body: str) -> str:
@@ -59,7 +68,7 @@ class _PinnedEditService:
         self._issue_history._write_state_calls += 1
         if issue.number in self.pinned_failures.refused:
             raise RuntimeError(_EDIT_REFUSED)
-        self._pinned[issue.number] = pinned_state_from_comment(
+        parsed = pinned_state_from_comment(
             FakeComment(
                 id=self._pinned[issue.number].comment_id,
                 body=body,
@@ -67,7 +76,10 @@ class _PinnedEditService:
             ),
             trusted_login=self._bot_login,
             issue_number=issue.number,
+            repo_slug=getattr(self, "_repo_slug", None),
         )
+        if parsed is not None:
+            self._pinned[issue.number] = parsed
         if issue.number in self.pinned_failures.lost:
             raise RuntimeError(_RESPONSE_LOST)
         return body

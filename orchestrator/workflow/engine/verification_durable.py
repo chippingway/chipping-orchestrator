@@ -101,6 +101,9 @@ _UNREAD = ReportEvidence(
 _REFUSALS = MappingProxyType({
     _commit_models.CommitRefusal.UNREADABLE: _UNREAD,
     _commit_models.CommitRefusal.MALFORMED: _UNREAD,
+    _commit_models.CommitRefusal.UNSUPPORTED: ReportEvidence(
+        ReportEvidenceVerdict.HOLD, "the pinned comment carries a record this build does not admit",
+    ),
     _commit_models.CommitRefusal.REPLACED: _UNREAD,
     _commit_models.CommitRefusal.MOVED: ReportEvidence(
         ReportEvidenceVerdict.DEFER, "the pinned comment moved while it was being written",

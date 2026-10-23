@@ -187,6 +187,7 @@ class ReportCommit:
             comment_id=self.state.comment_id,
             state_data=copy.deepcopy(self.state.data),
             parsed=self.state.parsed,
+            supported=self.state.supported,
         )
 
     def prepares(
@@ -219,6 +220,7 @@ class ReportCommit:
             comment_id=staged.comment_id,
             state_data=copy.deepcopy(staged.data),
             parsed=staged.parsed,
+            supported=staged.supported,
         )
         if notice:
             reserved.set(_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, _record_values.MAX_RECORDED_NUMBER)
@@ -283,7 +285,10 @@ class ReportCommit:
                 else json.loads(self.state.synced)
             )
             reading = PinnedState(
-                comment_id=self.state.comment_id, state_data=synced, parsed=self.state.parsed,
+                comment_id=self.state.comment_id,
+                state_data=synced,
+                parsed=self.state.parsed,
+                supported=self.state.supported,
             )
             fresh = _commit.reread(self.gh, self.issue, _models.PinnedCommit.capture(reading))
             if isinstance(fresh, PinnedState) and fresh.reads_as(synced):
@@ -311,6 +316,7 @@ class ReportCommit:
                 comment_id=self.state.comment_id,
                 state_data=synced,
                 parsed=self.state.parsed,
+                supported=self.state.supported,
             ),
             prerequisites=write.decided_on,
             owned={*write.owned, *ticked, *kept},

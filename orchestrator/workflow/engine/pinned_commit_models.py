@@ -65,6 +65,9 @@ class CommitRefusal(enum.Enum):
     UNREADABLE = "unreadable"
     # It reads, but not as a state: the captured reading or the fresh one.
     MALFORMED = "malformed"
+    # It reads as a state, but with an unsupported or missing schema version,
+    # or the candidate laid over it is one the next reading would refuse.
+    UNSUPPORTED = "unsupported"
     # It is not the comment captured: replaced, deleted, or never pinned.
     REPLACED = "replaced"
     # It moved between the fresh reading and the edit; nothing went out, and
@@ -125,6 +128,7 @@ class PinnedCommit:
     # The fields the caller may write; every other field is the fresh
     # reading's, unknown ones included.
     owned: frozenset[str]
+    supported: bool = True
     # The caller's domain check of the complete candidate, where it has one.
     admits: Admits | None = None
 
@@ -148,6 +152,7 @@ class PinnedCommit:
         return cls(
             comment_id=state.comment_id,
             parsed=state.parsed,
+            supported=state.supported,
             read=MappingProxyType({field: spelled(state.data, field) for field in state.data}),
             prerequisites=frozenset(prerequisites),
             owned=frozenset(owned),

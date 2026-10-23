@@ -262,7 +262,10 @@ the pre-PR labels are not, and how a closed `discussion` is held for its plan PR
 ### Pinned state
 
 Per-issue durable state is a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`),
-trusted as state only when the orchestrator's own account authored it and its whole body is the marker. Its keys group
+trusted as state only when the orchestrator's own account authored it and its whole body is the marker, and admitted
+only when it is a JSON object carrying an actual integer `schema_version` equal to `1`. Genuinely new pins are stamped
+with version 1 on first write; unsupported or malformed comments are preserved unchanged on GitHub and never
+overwritten, replaced beside, or silently stamped as current. Its keys group
 into agent identity, decomposition, PR / branch, the drift baseline, the HITL park, the in-review watermarks, the
 final-docs handoff, fix routing, the crash-recovery anchors, counters and timestamps, the per-issue usage meter, the
 lifetime agent-run ledger beside it — what the issue is allowed, what it has spent, and the launch holding a charge,

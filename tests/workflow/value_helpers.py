@@ -44,7 +44,8 @@ def _state_with_pr_number(
 ) -> PinnedState:
     seed = {"pr_number": pr_number, **extra}
     github.seed_state(issue_number, **seed)
-    return PinnedState(comment_id=None, data=dict(seed))
+    pinned = github._pinned[issue_number]
+    return PinnedState(comment_id=pinned.comment_id, data=dict(pinned.data))
 
 
 def _open_pr_for(

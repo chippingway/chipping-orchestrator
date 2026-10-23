@@ -19,7 +19,11 @@ from dataclasses import replace
 from types import MappingProxyType
 from unittest.mock import Mock, patch
 
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import (
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+    PinnedState,
+)
 from orchestrator.workflow.engine import (
     issue_processing as _issue_processing,
     stage_targets as _stage_targets,
@@ -265,7 +269,11 @@ def fresh_state(**kept) -> dict:
         lineage_depth=0,
         restart_predecessor=CYCLE_ID,
     ))
-    return {**projected.data, **kept}
+    return {
+        SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
+        **projected.data,
+        **kept,
+    }
 
 
 class RestartCase:

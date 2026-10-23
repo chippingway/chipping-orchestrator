@@ -31,8 +31,6 @@ class FinalizeIfIssueClosedUsageVerdictTest(unittest.TestCase, _PatchedWorkflowM
     test alone would stay green if the receipt call were removed)."""
 
     def test_rejected_posts_usage_verdict(self) -> None:
-        from orchestrator.github.pinned_state import PinnedState
-
         gh = FakeGitHubClient()
         issue = make_issue(USAGE_ISSUE, label=LABEL_IMPLEMENTING)
         issue.closed = True
@@ -47,7 +45,7 @@ class FinalizeIfIssueClosedUsageVerdictTest(unittest.TestCase, _PatchedWorkflowM
             "issue_cost_sources": ["reported"],
         }
         gh.seed_state(USAGE_ISSUE, **seed)
-        self._state = PinnedState(comment_id=None, data=dict(seed))
+        self._state = gh.read_pinned_state(issue)
 
         self._run(
             lambda: self.assertTrue(

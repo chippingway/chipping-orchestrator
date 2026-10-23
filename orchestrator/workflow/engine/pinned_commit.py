@@ -12,7 +12,7 @@ comment afterwards says that happened.
 So a guarded commit is never written from the caller's state. The caller
 captures the reading it decided on (`pinned_commit_models.PinnedCommit`),
 stages its changes on its own state, and hands both here. The comment is read
-afresh and has to be the comment captured, still parse, and still spell every
+afresh and has to be the comment captured, still be supported and parse, and still spell every
 prerequisite exactly as captured. What the caller changed is told by the
 difference between its staged state and the capture, and each changed field
 has to be one it declared it owns. A changed field another writer moved
@@ -29,8 +29,13 @@ The candidate that makes is measured as it would be written, through
 `pinned_state_body` against `MAX_PINNED_BODY`, before anything goes out, and
 held to the caller's own domain check where its guard carries one -- that very
 candidate, not one derived over an earlier reading, so a comment that grew in
-between is judged as it now stands. `prepare` stops there, for a caller that has an external effect to make only
-if the record behind it will fit; `commit` asks everything again over a reading
+between is judged as it now stands. A value no reading takes -- nested past
+the admission owner's bound, or a number JSON cannot spell -- is refused before
+anything spells it, whether the caller staged it or a transformation made it
+(`PinnedAdmission.spellable`), since spelling it a field at a time could
+overflow the encoder first. `prepare` stops there, for a caller that has an
+external effect to make only if the record behind it will fit; `commit` asks
+everything again over a reading
 taken behind whatever requests came between, and lands the candidate through
 the strict edit (`GitHubStateMixin.edit_pinned_state`), which rewrites the
 comment in place only while it still reads as the fresh reading did, and never
@@ -96,7 +101,13 @@ from typing import Any
 from github.Issue import Issue
 
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedEdit, PinnedState, pinned_state_body
+from orchestrator.github.pinned_state import (
+    MAX_PINNED_BODY,
+    PinnedAdmission,
+    PinnedEdit,
+    PinnedState,
+    pinned_state_body,
+)
 from orchestrator.workflow.engine import pinned_commit_models as _models
 
 log = logging.getLogger("orchestrator.workflow")
@@ -112,6 +123,7 @@ _UNSENT = MappingProxyType({
     PinnedEdit.UNREAD: _models.CommitRefusal.UNREADABLE,
     PinnedEdit.MISSING: _models.CommitRefusal.REPLACED,
     PinnedEdit.MOVED: _models.CommitRefusal.MOVED,
+    PinnedEdit.UNSUPPORTED: _models.CommitRefusal.UNSUPPORTED,
 })
 
 _NO_TRANSFORMS: Mapping[str, _models.Transform] = MappingProxyType({})
@@ -226,6 +238,9 @@ class _Change:
     # The staged state, as the comment's JSON would spell each field.
     staged: Mapping[str, str]
     derived: Mapping[str, _models.Transform]
+    # False where the staged state carries a value no reading takes: none of
+    # it was spelled, and the change stands for no write but its refusal.
+    spellable: bool = True
 
     @classmethod
     def of(
@@ -234,10 +249,19 @@ class _Change:
         staged: Mapping[str, Any],
         derived: Mapping[str, _models.Transform],
     ) -> _Change:
-        """The change `staged` and `derived` make over `guard`."""
+        """The change `staged` and `derived` make over `guard`.
+
+        Spelled only once the admission owner takes every value staged. One
+        it does not take stages nothing over the capture, and is refused as
+        unsupported by `unread_refusal`.
+        """
+        try:
+            admitted = PinnedAdmission.spellable(dict(staged))
+        except (ValueError, RecursionError):
+            return cls(guard=guard, staged=guard.read, derived=_NO_TRANSFORMS, spellable=False)
         return cls(
             guard=guard,
-            staged=MappingProxyType({field: _models.spelled(staged, field) for field in staged}),
+            staged=MappingProxyType({field: _models.spelled(admitted, field) for field in admitted}),
             derived=MappingProxyType(dict(derived)),
         )
 
@@ -255,7 +279,8 @@ class _Change:
         A write the caller did not declare is refused whatever the comment
         says, and so is a capture with nothing to commit over: a reading that
         would not parse, and an issue that pinned no comment, which the strict
-        edit will not create.
+        edit will not create. So is a staged state carrying a value no reading
+        takes, as unsupported, whatever the comment carries.
         """
         writes = {*self.assigned(), *self.derived}
         undeclared = sorted(writes.difference(self.guard.owned))
@@ -263,6 +288,8 @@ class _Change:
             return _models.CommitRefusal.UNDECLARED_WRITE, tuple(undeclared)
         if not self.guard.parsed:
             return _models.CommitRefusal.MALFORMED, ()
+        if not (self.guard.supported and self.spellable):
+            return _models.CommitRefusal.UNSUPPORTED, ()
         if self.guard.comment_id is None:
             return _models.CommitRefusal.REPLACED, ()
         return None
@@ -288,9 +315,11 @@ class _Change:
         return self._admitted(issue, fresh, self._candidate(fresh.data, derived))
 
     def _admitted(
-        self, issue: Issue, fresh: PinnedState, candidate: dict,
+        self, issue: Issue, fresh: PinnedState, candidate: dict | None,
     ) -> _models.CommitOutcome:
         """`candidate` measured whole and held to the domain's own check, or the refusal it earns."""
+        if candidate is None or PinnedAdmission.payload_refusal(candidate) is not None:
+            return _refused(issue, _models.CommitRefusal.UNSUPPORTED)
         length = len(pinned_state_body(candidate))
         if length > MAX_PINNED_BODY:
             return _refused(issue, _models.CommitRefusal.OVERFLOW, length=length)
@@ -306,8 +335,16 @@ class _Change:
             reading=PinnedState(comment_id=fresh.comment_id, state_data=candidate),
         )
 
-    def _candidate(self, fresh: dict, derived: dict) -> dict:
-        """`fresh` with this change laid over it, as a reader would parse it back."""
+    def _candidate(self, fresh: dict, derived: dict) -> dict | None:
+        """`fresh` with this change laid over it, as a reader would parse it back.
+
+        None where a transformation made its field a value no reading takes,
+        which is never spelled, as a staged one is not.
+        """
+        try:
+            PinnedAdmission.spellable(list(derived.values()))
+        except (ValueError, RecursionError):
+            return None
         spellings = {field: _models.spelled(fresh, field) for field in fresh}
         spellings.update({
             field: self.staged.get(field) for field in self.assigned()
@@ -346,10 +383,15 @@ def _fresh(
             "issue=#%d could not read its pinned comment to commit over it", issue.number,
         )
         return _refused(issue, _models.CommitRefusal.UNREADABLE)
+    refusal: _models.CommitRefusal | None = None
     if not fresh.parsed:
-        return _refused(issue, _models.CommitRefusal.MALFORMED)
-    if fresh.comment_id != change.guard.comment_id:
-        return _refused(issue, _models.CommitRefusal.REPLACED)
+        refusal = _models.CommitRefusal.MALFORMED
+    elif not fresh.supported:
+        refusal = _models.CommitRefusal.UNSUPPORTED
+    elif fresh.comment_id != change.guard.comment_id:
+        refusal = _models.CommitRefusal.REPLACED
+    if refusal is not None:
+        return _refused(issue, refusal)
     return fresh
 
 

@@ -6,7 +6,11 @@ import unittest
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import (
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+    PinnedState,
+)
 from orchestrator.workflow.late_split import lineage as _lineage, obligations as _obligations
 from orchestrator.workflow.stages.decomposition import (
     blocked as _blocked,
@@ -430,7 +434,7 @@ class DecompositionRecoveryTest(
 
 def _written(ancestry, **edits) -> dict:
     """The pinned fields one ancestry is written as, `edits` landing over them."""
-    recorded = PinnedState()
+    recorded = PinnedState(data={SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION})
     _lineage.write_late_ancestry(recorded, ancestry)
     return {**recorded.data, **edits}
 
@@ -441,7 +445,10 @@ def _written(ancestry, **edits) -> dict:
 # where it compares equal to this one or is carried as `null` -- beside the
 # owed ancestry, or alone.
 _FOREIGN_SEEDS = MappingProxyType({
-    "part of the group": MappingProxyType({"late_ancestry_depth": 1}),
+    "part of the group": MappingProxyType({
+        SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
+        "late_ancestry_depth": 1,
+    }),
     "a field its reader would drop": MappingProxyType(
         _written(_support.ROOT_REPLACEMENT, late_ancestry_generation="first"),
     ),
@@ -449,16 +456,28 @@ _FOREIGN_SEEDS = MappingProxyType({
     "another parent beside the owed ancestry": MappingProxyType(
         _written(_support.ROOT_REPLACEMENT, **{KEY_PARENT_NUMBER: _OTHER_PARENT}),
     ),
-    "another parent and no ancestry": MappingProxyType({KEY_PARENT_NUMBER: _OTHER_PARENT}),
+    "another parent and no ancestry": MappingProxyType({
+        SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
+        KEY_PARENT_NUMBER: _OTHER_PARENT,
+    }),
     "this parent as a float beside the owed ancestry": MappingProxyType(
         _written(_support.ROOT_REPLACEMENT, **{KEY_PARENT_NUMBER: float(_support.PARENT)}),
     ),
-    "this parent as a float and no ancestry": MappingProxyType({KEY_PARENT_NUMBER: float(_support.PARENT)}),
-    "a boolean link and no ancestry": MappingProxyType({KEY_PARENT_NUMBER: False}),
+    "this parent as a float and no ancestry": MappingProxyType({
+        SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
+        KEY_PARENT_NUMBER: float(_support.PARENT),
+    }),
+    "a boolean link and no ancestry": MappingProxyType({
+        SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
+        KEY_PARENT_NUMBER: False,
+    }),
     "a null link beside the owed ancestry": MappingProxyType(
         _written(_support.ROOT_REPLACEMENT, **{KEY_PARENT_NUMBER: None}),
     ),
-    "a null link and no ancestry": MappingProxyType({KEY_PARENT_NUMBER: None}),
+    "a null link and no ancestry": MappingProxyType({
+        SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
+        KEY_PARENT_NUMBER: None,
+    }),
 })
 
 # The parents a crashed split is recovered under, each beside whether its

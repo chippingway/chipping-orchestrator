@@ -14,9 +14,11 @@ road's comment on the ledger, a reviewer's verdict, a field no binary here
 knows -- is kept as that road left it. A bound record it moves, however the
 comment's JSON spells the move, refuses the commit: the move is kept, nothing
 is declared current, the transaction stays owed, and the artifact is still
-recorded as ours. A comment replaced or no longer parsing holds the tick with
-nothing written over it, whichever write meets it -- the settlement's commit or
-the artifact's ledger entry committed alone. However the commit was refused, a
+recorded as ours. A comment replaced, no longer parsing, or refused admission
+holds the tick with nothing written over it, whichever write meets it -- the
+settlement's commit or the artifact's ledger entry committed alone -- and every
+refusal a guarded write can answer is one the tick holds or defers on. However
+the commit was refused, a
 later tick settles the one artifact once wherever the proof still holds. And
 the room proved before the post reserves the artifact's ledger entry against
 the ledger as it stands, so a slot another road took since posts nothing.
@@ -25,16 +27,20 @@ from __future__ import annotations
 
 import itertools
 import unittest
+from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState, pinned_state_body
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, SCHEMA_VERSION_KEY, PinnedState, pinned_state_body
 from orchestrator.workflow.engine import (
+    pinned_commit_models as _commit_models,
     report_records as _report_records,
     review_subjects as _review_subjects,
+    verification_durable as _durable,
     verification_record_state as _record_state,
     verification_records as _records,
     verification_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.report_evidence_models import ReportEvidenceVerdict
 from tests.workflow.engine import evidence_road_test_support as road, verification_evidence_test_support as support
 
 # The reading the settlement is composed over, and the one its commit takes.
@@ -46,6 +52,20 @@ _COMMITTED_OVER = 4
 # over, behind the commit's own reading, and behind the reading a refused
 # binding leaves the artifact's ledger entry over.
 _SPOILING_WINDOWS = ((_COMPOSED_OVER, False), (_COMMITTED_OVER, False), (_COMPOSED_OVER, True))
+
+
+def _unsupports(case) -> None:
+    """The pinned comment edited in place into its record under a version this build refuses."""
+    reading = case.gh.read_pinned_state(case.issue)
+    refused = {**reading.data, SCHEMA_VERSION_KEY: 2}
+    case.gh.seed_state(case.issue, raw=True, **refused)
+    case.gh._pinned[case.issue.number].comment_id = reading.comment_id
+
+
+# What spoils the comment under a settlement: replaced by another carrying the
+# same record, edited into something that does not parse, or edited into its
+# record under a version this build refuses.
+_SPOILERS = MappingProxyType({"replaced": road.repins, "unparsed": road.unparses, "unsupported": _unsupports})
 
 _APPROVAL_RECORDED = road.Move(
     "an approval recorded", _review_subjects.APPROVED_SUBJECT, lambda case: case.subject.recorded(),
@@ -221,7 +241,7 @@ class StaleSettlementTest(unittest.TestCase, support.VerificationEvidenceCase):
 
 
 class ReplacedCommentTest(unittest.TestCase, support.VerificationEvidenceCase):
-    """A comment replaced or unparsed under a settlement holds the tick with nothing written over it."""
+    """A comment replaced, unparsed, or refused under a settlement holds the tick, with nothing written over it."""
 
     def setUp(self) -> None:
         support.VerificationEvidenceCase.setUp(self)
@@ -230,28 +250,28 @@ class ReplacedCommentTest(unittest.TestCase, support.VerificationEvidenceCase):
 
     def test_nothing_is_written_over_another_comment(self) -> None:
         # The pinned comment is replaced by another carrying the same record,
-        # or edited into something that does not parse: behind the reading the
+        # or edited into something that does not parse or into its record
+        # under a version this build refuses: behind the reading the
         # settlement is composed over, behind the commit's own reading -- where
         # the edit finds the comment moved and the artifact's ledger entry is
         # committed alone -- or behind the reading a binding refused by a push
         # during the post leaves that entry over. Whichever write meets it
         # holds the tick and writes nothing. Over a replacement the next tick
         # settles the one artifact unless the push refuses it; over a comment
-        # that does not parse it finds nothing it may act on and writes nothing.
-        for (name, replaced), window in itertools.product(
-            (("replaced", True), ("unparsed", False)), _SPOILING_WINDOWS,
-        ):
+        # that does not parse or is refused admission it finds nothing it may
+        # act on and writes nothing.
+        for (name, spoils), window in itertools.product(_SPOILERS.items(), _SPOILING_WINDOWS):
             with self.subTest(name, window=window):
                 self.setUp()
                 writes = self.gh.write_state_calls
 
                 with self.assertLogs(support.WORKFLOW_LOG, "WARNING"):
-                    self.assertTrue(self.holds_behind(window, road.repins if replaced else road.unparses))
+                    self.assertTrue(self.holds_behind(window, spoils))
                 self.assertEqual(self.gh.write_state_calls, writes)
 
                 self.assertFalse(self.reconcile())
 
-                settles = replaced and not window[1]
+                settles = spoils is road.repins and not window[1]
                 self.assertEqual(
                     (
                         self.gh.write_state_calls - writes,
@@ -272,6 +292,21 @@ class ReplacedCommentTest(unittest.TestCase, support.VerificationEvidenceCase):
         landed = self.posts(pull_request, body)
         self.moves_the_head(support.REBASED_SHA)
         return landed
+
+
+class RefusalVerdictTest(unittest.TestCase):
+    """Every refusal a guarded evidence write can answer holds or defers the tick."""
+
+    def test_every_refusal_has_a_verdict(self) -> None:
+        # A refusal this domain gave no verdict would raise out of the write
+        # rather than hold or defer it, stopping the tick with nothing said.
+        for refusal in _commit_models.CommitRefusal:
+            with self.subTest(refusal=refusal):
+                outcome = _commit_models.CommitOutcome(_commit_models.CommitStatus.REFUSED, refusal=refusal)
+
+                verdict = _durable.refusal_of(outcome).verdict
+
+                self.assertIn(verdict, (ReportEvidenceVerdict.HOLD, ReportEvidenceVerdict.DEFER))
 
 
 if __name__ == "__main__":

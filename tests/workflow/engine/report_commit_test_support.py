@@ -12,7 +12,7 @@ from __future__ import annotations
 import copy
 from unittest.mock import patch
 
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import SCHEMA_VERSION_KEY, PinnedState
 from orchestrator.workflow.engine import report_delivery as _delivery
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import report_delivery_test_support as delivery_support
@@ -28,6 +28,8 @@ def pinned(seeded: tuple, state: PinnedState) -> tuple:
     reading = github.read_pinned_state(issue)
     state.comment_id = reading.comment_id
     state.synced = reading.synced
+    if SCHEMA_VERSION_KEY not in state.data and SCHEMA_VERSION_KEY in reading.data:
+        state.data[SCHEMA_VERSION_KEY] = reading.data[SCHEMA_VERSION_KEY]
     return seeded
 
 

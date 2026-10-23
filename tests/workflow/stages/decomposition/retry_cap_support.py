@@ -12,6 +12,10 @@ from __future__ import annotations
 from types import MappingProxyType
 
 from orchestrator import config
+from orchestrator.github.pinned_state import (
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+)
 from orchestrator.workflow.engine import retry_values as _retry_values
 from orchestrator.workflow.stages.decomposition.models import (
     _DecomposerSession,
@@ -222,6 +226,7 @@ class _RetryCapParkCase(_DecomposingWorkflowMixin):
             self.issue.comments.append(trusted(CONTINUE_COMMAND))
         self.github.add_issue(self.issue)
         self.standing = {
+            SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
             KEY_AWAITING_HUMAN: True,
             KEY_PARK_REASON: PARK_RETRY_CAP,
             KEY_RETRY_CAP_STAGE: STAGE_DECOMPOSING,

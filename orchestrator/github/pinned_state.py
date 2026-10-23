@@ -1,13 +1,25 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Authenticated pinned-state comment model, parser, and client mixin.
+"""Authenticated pinned-state comment model, schema admission parser, and client mixin.
+
+Only version-1 records (JSON objects with integer `schema_version == 1`)
+authored by the account backing the orchestrator token are admitted as
+supported state. Authenticated comments with missing, non-integer, or
+unsupported versions, malformed JSON, or non-object payloads are refused and
+preserved unchanged on GitHub: neither writer may overwrite them, create
+replacements beside them, or silently stamp them as current. Genuinely new pins
+are stamped with schema_version: 1 on first write, and neither writer sends a
+state the next reading would refuse. A client that does not know whose token
+it holds authenticates no comment and writes none.
 
 The mixin writes the record two ways. `write_pinned_state` lands a state
 wherever it can -- in place, or as a new comment where none is named or the
-named one is gone -- which every caller writing the whole record relies on.
+named one is gone or no longer state -- which every caller writing the whole
+record relies on. Both decide on one walk of the thread that admits every
+comment it passes and is the read they land from (`_pinned_comment`).
 `edit_pinned_state` is the strict one a guarded commit lands through: in
 place or not at all, over the reading it was derived from, with an answer
-that says whether GitHub confirmed it.
+that says whether GitHub confirmed it. Strict edits remain non-creating.
 
 A state read from the comment, or written over it, also remembers what the
 comment carried at that moment (`PinnedState.synced`), so what a tick staged on
@@ -19,15 +31,20 @@ import enum
 import json
 import logging
 import re
+import sys
 from dataclasses import dataclass, field
 from typing import Any
 
 from github.Issue import Issue
 from github.IssueComment import IssueComment
 
+from orchestrator.github import comments as _comments
 from orchestrator.github.issue_polling import GitHubIssuePollingMixin
 
 log = logging.getLogger("orchestrator.github")
+
+SUPPORTED_SCHEMA_VERSION = 1
+SCHEMA_VERSION_KEY = "schema_version"
 
 PINNED_STATE_MARKER = "<!--orchestrator-state"
 PINNED_STATE_RE = re.compile(
@@ -38,19 +55,46 @@ PINNED_STATE_RE = re.compile(
 # the marker and nothing else, anchored at both ends, so an ordinary
 # bot-authored comment that merely embeds the marker is not mistaken for state.
 #
-# The payload alternates for a reason. The object form is matched first and
-# spans anything, because a recorded field can legitimately contain `-->` --
-# a preserved pull-request body does -- and that is a live payload this has
-# always read back. Everything else is matched by a form that may not cross a
-# `-->`, since without that guard a forged marker followed by the ordinary
-# comment marker would backtrack onto the trailing `-->` and be adopted as the
-# state comment. What the second form buys is that `[]`, `7`, or `null` from
-# the bot is IDENTIFIED as a corrupted state comment rather than passed over
-# as no state at all -- the parser then refuses it, and a caller that would
-# have read the miss as "this issue recorded nothing" is told otherwise.
+# Where the payload runs is decided by the ordinary comment marker: every other
+# comment this orchestrator posts carries it, appended at its end, or wherever
+# its text already put it, in which case it is not appended again. A state
+# comment carries it only inside a JSON string -- a key or value the comment
+# had no room to escape.
+#
+# So whatever the payload is -- an object, closed by its brace or cut short of
+# it, an array, a string, `7`, `null` -- it is read as JSON strings and the
+# text between them. A string spans anything, raw `-->` and the ordinary marker
+# included, since a preserved pull-request body can carry both, and a string a
+# truncated write cut open runs to the terminator -- an escape it was cut in
+# the middle of included, whose backslash is never taken to escape the
+# terminator's first character. The text between strings spans a raw `-->` but
+# never the marker, which only an ordinary comment's prose puts there, and the
+# body may not end on it, which is where an ordinary comment appends it
+# whatever string its text left open. A record a truncated write or a hand edit
+# damaged -- `[]`, `["-->"]`, `7`, a raw object cut short -- is therefore
+# IDENTIFIED as a corrupted state comment whatever its strings quote, while
+# ordinary prose opening on a forged marker is no record.
+#
+# An identified comment is refused by the parser, so neither writer posts a
+# record beside it, and a caller that would have read the miss as "this issue
+# recorded nothing" is told otherwise.
+#
+# Every bot comment carrying the marker is matched against this on every read,
+# so no quantifier gives back text another has to scan again: the whitespace
+# after the marker and the payload's strings and text are taken possessively,
+# and the payload ends directly on the terminator. A long run then costs one
+# pass rather than one for every position before it.
+_ORDINARY_COMMENT = re.escape(_comments.ORCHESTRATOR_COMMENT_MARKER)
+_CLOSING_TERMINATOR = r"-->\s*\Z"
+_JSON_STRING = r'"(?:[^"\\]|\\.)*+"'
 PINNED_STATE_BODY_RE = re.compile(
-    r"\A\s*<!--orchestrator-state\s+(\{.*?\}|(?:(?!-->).)*?)\s*-->\s*\Z",
-    re.DOTALL,
+    rf"""
+    \A\s*<!--orchestrator-state\s++(?!.*{_ORDINARY_COMMENT}\s*\Z)(
+        (?:{_JSON_STRING}|(?!{_ORDINARY_COMMENT}|{_CLOSING_TERMINATOR})[^"])*+
+        (?:"(?:(?!{_CLOSING_TERMINATOR})(?:[^"\\]|\\(?!{_CLOSING_TERMINATOR}).))*+\\?)?
+    ){_CLOSING_TERMINATOR}
+    """,
+    re.DOTALL | re.VERBOSE,
 )
 PINNED_STATE_TEMPLATE = "<!--orchestrator-state {payload}-->"
 
@@ -73,6 +117,229 @@ MAX_PINNED_BODY = 65536
 _MISSING_STATE = object()
 
 
+class AdmissionStatus(enum.Enum):
+    """The outcome of admitting an issue comment candidate as pinned state.
+
+    NO_COMMENT: No comment carrying authentic state markers authored by the
+    trusted account was found.
+    SUPPORTED: An authenticated comment carrying a valid object with integer
+    schema_version equal to 1.
+    UNSUPPORTED: An authenticated comment carrying an object, but with missing,
+    non-integer, or unsupported schema_version.
+    MALFORMED: An authenticated comment whose payload will not parse as JSON or
+    parses into a non-object (array, scalar, null).
+    """
+
+    NO_COMMENT = "no_comment"
+    SUPPORTED = "supported"
+    UNSUPPORTED = "unsupported"
+    MALFORMED = "malformed"
+
+    @classmethod
+    def of(cls, *, parsed: bool, supported: bool) -> AdmissionStatus:
+        """What a reading was admitted as by its two flags, where whoever built it does not say.
+
+        A state built in memory is a supported one, and a stand-in for a
+        comment that would not parse is a malformed one.
+        """
+        if supported:
+            return cls.SUPPORTED
+        return cls.UNSUPPORTED if parsed else cls.MALFORMED
+
+
+@dataclass(frozen=True)
+class PinnedAdmission:
+    """The admission result and identity of an authenticated pinned comment."""
+
+    status: AdmissionStatus
+    comment_id: int | None = None
+    state: PinnedState | None = None
+    found_version: Any = None
+    supported_version: int = SUPPORTED_SCHEMA_VERSION
+    refusal_reason: str | None = None
+    issue_number: int | None = None
+    repo_slug: str | None = None
+
+    @classmethod
+    def admit(
+        cls,
+        issue_comment: IssueComment,
+        *,
+        trusted_login: str | None,
+        issue_number: int | None = None,
+        repo_slug: str | None = None,
+    ) -> PinnedAdmission:
+        """Authenticate author and marker, then admit schema version.
+
+        Without a trusted account nothing authenticates: with `trusted_login`
+        None every comment answers NO_COMMENT, so a reader that could not
+        learn whose token it holds never takes anybody's record as the state.
+        """
+        raw_payload = cls._authenticate(issue_comment, trusted_login)
+        if raw_payload is None:
+            return cls(
+                status=AdmissionStatus.NO_COMMENT,
+                issue_number=issue_number,
+                repo_slug=repo_slug,
+            )
+        return cls._evaluate_payload(raw_payload, issue_comment.id, issue_number, repo_slug)
+
+    @property
+    def is_supported(self) -> bool:
+        return self.status is AdmissionStatus.SUPPORTED
+
+    @property
+    def is_refused(self) -> bool:
+        return self.status in (AdmissionStatus.UNSUPPORTED, AdmissionStatus.MALFORMED)
+
+    @classmethod
+    def payload_refusal(cls, payload: dict) -> str | None:
+        """Why the next reading would refuse `payload` as a record, or None where it admits it.
+
+        The one statement of the payload rule, for every reader or writer
+        holding a payload rather than a comment: JSON's `true` and `1.0` are
+        not the integer 1 to this reader, whatever Python's `==` says, a NaN or
+        an infinity is a value JSON has no spelling for, and nesting past the
+        recursion limit is past this reader's own bound, so a record carrying
+        either is a comment no reader here parses.
+        """
+        if SCHEMA_VERSION_KEY not in payload:
+            return "missing schema_version"
+        version = payload[SCHEMA_VERSION_KEY]
+        if isinstance(version, bool) or not isinstance(version, int):
+            kind = "boolean" if isinstance(version, bool) else type(version).__name__
+            return f"schema_version is {kind} rather than integer"
+        if version != SUPPORTED_SCHEMA_VERSION:
+            return f"unsupported schema_version {version} (supported: {SUPPORTED_SCHEMA_VERSION})"
+        try:
+            json.dumps(cls.spellable(payload), allow_nan=False)
+        except (ValueError, RecursionError) as error:
+            return f"a value JSON cannot spell ({error})"
+        return None
+
+    @classmethod
+    def spellable(cls, payload: Any) -> Any:
+        """`payload` itself, raising ValueError or RecursionError where it carries what no reading here takes.
+
+        The value half of the payload rule, for a caller that spells a payload
+        a value at a time before it holds a whole record: run first, it is what
+        keeps any encoder from meeting nesting it could overflow on.
+
+        Python's decoder takes `NaN`, `Infinity`, and `-Infinity`, and turns a
+        literal past the float range, such as `1e309`, into an infinity: none
+        is a number JSON has a spelling for. And how deep the decoder nests
+        before it refuses depends on the interpreter and the stack it runs on:
+        some stop far past the recursion limit, and some build nesting their
+        own encoder then overflows on. So the recursion limit is this reader's
+        own bound, the same everywhere, and nothing past it reaches an
+        encoder. Walked a level at a time, with each level's numbers handed to
+        the encoder flat, so neither the walk nor the encoder recurses.
+        """
+        nested = [payload]
+        for _ in range(sys.getrecursionlimit()):
+            dicts = [container.values() for container in nested if isinstance(container, dict)]
+            sequences = [container for container in nested if isinstance(container, (list, tuple))]
+            members = [member for container in (*dicts, *sequences) for member in container]
+            json.dumps([number for number in members if isinstance(number, float)], allow_nan=False)
+            nested = [member for member in members if isinstance(member, (dict, list, tuple))]
+            if not nested:
+                return payload
+        raise RecursionError(f"nesting past the recursion limit of {sys.getrecursionlimit()}")
+
+    @classmethod
+    def _authenticate(
+        cls,
+        issue_comment: IssueComment,
+        trusted_login: str | None,
+    ) -> str | None:
+        body = issue_comment.body or ""
+        if PINNED_STATE_MARKER not in body:
+            return None
+        author_login = getattr(getattr(issue_comment, "user", None), "login", None)
+        if trusted_login is None or author_login != trusted_login:
+            return None
+        match = PINNED_STATE_BODY_RE.match(body)
+        return None if match is None else match.group(1)
+
+    @classmethod
+    def _evaluate_payload(
+        cls,
+        raw_payload: str,
+        comment_id: int,
+        issue_number: int | None,
+        repo_slug: str | None,
+    ) -> PinnedAdmission:
+        try:
+            payload = cls.spellable(json.loads(raw_payload))
+        # Past the syntax error, the decoder refuses what it will not build: an
+        # integer longer than the interpreter's digit limit is a ValueError, and
+        # nesting deeper than it recurses a RecursionError. What it does build
+        # is refused alike where a number in it is not finite or it nests past
+        # the recursion limit. Each is a record no reader can take, so it is
+        # refused like any other.
+        except (ValueError, RecursionError) as error:
+            log.warning(
+                "repo=%s issue=#%s pinned state JSON unparseable in comment #%s: %s",
+                repo_slug, issue_number, comment_id, error,
+            )
+            return cls(
+                status=AdmissionStatus.MALFORMED,
+                comment_id=comment_id,
+                refusal_reason=f"malformed JSON ({error})",
+                issue_number=issue_number,
+                repo_slug=repo_slug,
+            )
+        if not isinstance(payload, dict):
+            log.warning(
+                "repo=%s issue=#%s pinned state is %s rather than an object in comment #%s",
+                repo_slug, issue_number, type(payload).__name__, comment_id,
+            )
+            return cls(
+                status=AdmissionStatus.MALFORMED,
+                comment_id=comment_id,
+                refusal_reason=f"payload is {type(payload).__name__} rather than an object",
+                issue_number=issue_number,
+                repo_slug=repo_slug,
+            )
+        found_ver = payload.get(SCHEMA_VERSION_KEY)
+        reason = cls.payload_refusal(payload)
+        if reason is not None:
+            log.warning(
+                "repo=%s issue=#%s pinned state schema_version %r invalid in comment #%s: %s",
+                repo_slug, issue_number, found_ver, comment_id, reason,
+            )
+            return cls(
+                status=AdmissionStatus.UNSUPPORTED,
+                comment_id=comment_id,
+                found_version=found_ver,
+                refusal_reason=reason,
+                issue_number=issue_number,
+                repo_slug=repo_slug,
+            )
+        state = PinnedState(
+            comment_id=comment_id,
+            state_data=payload,
+            parsed=True,
+            supported=True,
+            admission_status=AdmissionStatus.SUPPORTED,
+            found_version=found_ver,
+            issue_number=issue_number,
+            repo_slug=repo_slug,
+        )
+        state.synced = json.dumps(payload, sort_keys=True)
+        return cls(
+            status=AdmissionStatus.SUPPORTED,
+            comment_id=comment_id,
+            state=state,
+            found_version=found_ver,
+            issue_number=issue_number,
+            repo_slug=repo_slug,
+        )
+
+
+admit_pinned_comment = PinnedAdmission.admit
+
+
 class PinnedEdit(enum.Enum):
     """What a strict rewrite of the pinned comment came to.
 
@@ -80,7 +347,7 @@ class PinnedEdit(enum.Enum):
     UNCONFIRMED says a request went out that may or may not have landed:
     GitHub's comment edit is a whole-body PATCH with no condition on what it
     replaces, so a response that never came back, or came back carrying
-    another body, leaves the record reading either way. The other three were
+    another body, leaves the record reading either way. The others were
     answered before anything was sent, so the comment is exactly as it was.
     """
 
@@ -93,6 +360,11 @@ class PinnedEdit(enum.Enum):
     # The comment no longer reads as the payload the rewrite was derived over,
     # or no longer parses at all.
     MOVED = "moved"
+    # The issue's record parses and is refused admission -- the comment named,
+    # or an authenticated one ahead of it that every reader takes instead; one
+    # that will not parse is MOVED -- or the state the rewrite would write is
+    # one the next reading would refuse.
+    UNSUPPORTED = "unsupported"
     UNCONFIRMED = "unconfirmed"
 
 
@@ -105,13 +377,20 @@ class PinnedState:
     attribute used throughout the workflow.
 
     ``parsed`` is whether the payload this carries came out of the comment or
-    stood in for one that would not parse. It is a field of its own because
-    the substitute is indistinguishable from the real thing: a corrupted
-    pinned comment reads back as ``{}``, which is exactly what an issue the
-    orchestrator has not recorded anything for reads back as. A caller
-    rewriting the comment wants that -- an empty payload is what it is about
-    to replace -- but a caller DECIDING on the absence of a recorded branch or
-    pull request would be deciding on a record it never read.
+    stood in for one that would not parse, and ``supported`` whether the
+    comment's record was admitted at all -- false for that stand-in and for a
+    record that parses under a version other than the supported one, and
+    false for any state built as unparsed, whatever it is told, so a stand-in
+    is refused wherever it was built. They are fields of their own because the stand-in is indistinguishable from the
+    real thing: a refused comment reads back as ``{}``, which is exactly what
+    an issue the orchestrator has not recorded anything for reads back as.
+    Nothing replaces it -- neither writer lays a state over a refused comment
+    or posts one beside it, so the comment stays as it stands -- and a caller
+    DECIDING on the absence of a recorded branch or pull request would be
+    deciding on a record it never read. ``admission_status``,
+    ``found_version``, ``supported_version``, ``refusal_reason``,
+    ``issue_number``, and ``repo_slug`` are what a caller reports such a
+    refusal with, locally.
 
     ``synced`` is what the comment carried the last time this state was read
     from it or written over it, spelled as its JSON spells it so nothing
@@ -141,6 +420,13 @@ class PinnedState:
     comment_id: int | None = None
     state_data: dict = field(default_factory=dict)
     parsed: bool = True
+    supported: bool = True
+    admission_status: AdmissionStatus = AdmissionStatus.SUPPORTED
+    found_version: Any = None
+    supported_version: int = SUPPORTED_SCHEMA_VERSION
+    refusal_reason: str | None = None
+    issue_number: int | None = None
+    repo_slug: str | None = None
 
     def __init__(
         self,
@@ -148,15 +434,9 @@ class PinnedState:
         state_data: Any = _MISSING_STATE,
         *,
         parsed: bool = True,
-        **legacy_fields: Any,
+        **extra_fields: Any,
     ) -> None:
-        legacy_state = legacy_fields.pop("data", _MISSING_STATE)
-        if legacy_fields:
-            unexpected_name = next(iter(legacy_fields))
-            raise TypeError(
-                "PinnedState() got an unexpected keyword argument "
-                f"{unexpected_name!r}",
-            )
+        legacy_state = extra_fields.pop("data", _MISSING_STATE)
         if state_data is not _MISSING_STATE and legacy_state is not _MISSING_STATE:
             raise TypeError("PinnedState() got multiple values for state data")
         selected_state = legacy_state if state_data is _MISSING_STATE else state_data
@@ -164,7 +444,22 @@ class PinnedState:
             selected_state = {}
         self.comment_id = comment_id
         self.state_data = selected_state
+        told_supported = extra_fields.pop("supported", True)
         self.parsed = parsed
+        self.supported = parsed and told_supported
+        self.admission_status = extra_fields.pop(
+            "admission_status", AdmissionStatus.of(parsed=parsed, supported=self.supported),
+        )
+        self.found_version = extra_fields.pop("found_version", None)
+        self.supported_version = extra_fields.pop("supported_version", SUPPORTED_SCHEMA_VERSION)
+        self.refusal_reason = extra_fields.pop("refusal_reason", None)
+        self.issue_number = extra_fields.pop("issue_number", None)
+        self.repo_slug = extra_fields.pop("repo_slug", None)
+        if extra_fields:
+            unexpected_name = next(iter(extra_fields))
+            raise TypeError(
+                f"PinnedState() got an unexpected keyword argument {unexpected_name!r}",
+            )
         self.synced = None
         self.withheld = False
 
@@ -202,8 +497,10 @@ class PinnedState:
         equal to `1` and `1.0` equal to `1` at any depth: each of those is a
         different record to the reader that decides on it.
         """
+        if not (self.supported and self.parsed):
+            return False
         spelled = json.dumps(self.state_data, sort_keys=True)
-        return self.parsed and spelled == json.dumps(state_data, sort_keys=True)
+        return spelled == json.dumps(state_data, sort_keys=True)
 
     def get(self, key: str, default: Any = None) -> Any:
         """Return a workflow-state field or its default."""
@@ -212,20 +509,6 @@ class PinnedState:
     def set(self, key: str, state_value: Any) -> None:
         """Set one workflow-state field."""
         self.state_data[key] = state_value
-
-
-def _is_state_comment(
-    issue_comment: IssueComment, state_comment_id: int | None,
-) -> bool:
-    """Whether this comment is the pinned one, by identity or by marker.
-
-    Identity where the caller can name it. The marker is the stand-in for a
-    caller that cannot, and it answers a wider question than it looks: every
-    comment that merely QUOTES the marker reads as the state comment too.
-    """
-    if state_comment_id is None:
-        return PINNED_STATE_MARKER in (issue_comment.body or "")
-    return issue_comment.id == state_comment_id
 
 
 def pinned_state_body(state_data: dict) -> str:
@@ -270,64 +553,42 @@ def pinned_state_from_comment(
     *,
     trusted_login: str | None,
     issue_number: int,
+    repo_slug: str | None = None,
 ) -> PinnedState | None:
-    """Parse one authenticated, state-only pinned comment candidate.
-
-    A payload that is not a workflow state -- one that will not parse, and one
-    that parses into an array, a string, a number, or `null` -- still resolves
-    to the comment carrying it, with an empty state and `parsed` withheld. The
-    comment id is what lets the next write overwrite the corruption in place
-    rather than leave a second pinned comment beside it; the flag is what
-    keeps a reader from spending that empty payload as a record of an issue
-    with nothing pinned.
-    """
-    body = issue_comment.body or ""
-    if PINNED_STATE_MARKER not in body:
-        return None
-    author_login = getattr(
-        getattr(issue_comment, "user", None),
-        "login",
-        None,
+    """Parse one authenticated, state-only pinned comment candidate."""
+    admission = admit_pinned_comment(
+        issue_comment,
+        trusted_login=trusted_login,
+        issue_number=issue_number,
+        repo_slug=repo_slug,
     )
-    if trusted_login is not None and author_login != trusted_login:
+    if admission.status is AdmissionStatus.NO_COMMENT:
         return None
-    state_match = PINNED_STATE_BODY_RE.match(body)
-    if state_match is None:
-        return None
-    payload = _state_payload(state_match.group(1), issue_number)
-    if payload is None:
-        return PinnedState(comment_id=issue_comment.id, parsed=False)
-    reading = PinnedState(
-        comment_id=issue_comment.id,
-        state_data=payload,
+    if admission.status is AdmissionStatus.SUPPORTED:
+        return admission.state
+    if admission.status is AdmissionStatus.MALFORMED:
+        return PinnedState(
+            comment_id=admission.comment_id,
+            state_data={},
+            parsed=False,
+            supported=False,
+            admission_status=AdmissionStatus.MALFORMED,
+            found_version=None,
+            refusal_reason=admission.refusal_reason,
+            issue_number=issue_number,
+            repo_slug=repo_slug,
+        )
+    return PinnedState(
+        comment_id=admission.comment_id,
+        state_data={},
+        parsed=True,
+        supported=False,
+        admission_status=AdmissionStatus.UNSUPPORTED,
+        found_version=admission.found_version,
+        refusal_reason=admission.refusal_reason,
+        issue_number=issue_number,
+        repo_slug=repo_slug,
     )
-    reading.synced = json.dumps(payload, sort_keys=True)
-    return reading
-
-
-def _state_payload(payload: str, issue_number: int) -> dict | None:
-    """The workflow state one pinned payload carries, or None if it carries none.
-
-    Two ways to carry none, answered the same: JSON that does not parse, and
-    JSON that parses into something no state can be read out of. An array, a
-    string, a number, and `null` are all valid JSON the bot could have written
-    -- a truncated write, a hand-edited comment -- and none of them has the
-    `get` every reader of a state calls. Handing one back would move the
-    failure from here, where it can be reported, to whichever reader touched
-    it first.
-    """
-    try:
-        parsed_state = json.loads(payload)
-    except json.JSONDecodeError:
-        log.warning("issue=#%s pinned state JSON unparseable", issue_number)
-        return None
-    if isinstance(parsed_state, dict):
-        return parsed_state
-    log.warning(
-        "issue=#%s pinned state is a %s rather than an object",
-        issue_number, type(parsed_state).__name__,
-    )
-    return None
 
 
 class GitHubStateMixin(GitHubIssuePollingMixin):
@@ -336,15 +597,18 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
     def read_pinned_state(self, issue: Issue) -> PinnedState:
         """Return the first authenticated, state-only pinned comment."""
         trusted_login = getattr(self, "_bot_login", None)
+        repo = getattr(issue, "repository", None)
+        repo_slug = getattr(repo, "full_name", None) or getattr(self, "_repo_slug", None)
         for issue_comment in issue.get_comments():
-            pinned_state = pinned_state_from_comment(
+            reading = pinned_state_from_comment(
                 issue_comment,
                 trusted_login=trusted_login,
                 issue_number=issue.number,
+                repo_slug=repo_slug,
             )
-            if pinned_state is not None:
-                return pinned_state
-        return PinnedState()
+            if reading is not None:
+                return reading
+        return PinnedState(issue_number=issue.number, repo_slug=repo_slug)
 
     def write_pinned_state(
         self,
@@ -354,6 +618,21 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         """Create or replace the issue's authoritative state-only comment.
 
         A `withheld` state is not written at all, and is answered unchanged.
+        So is every state written by a client that does not know whose token
+        it holds: it can authenticate no comment, so it could not tell a
+        refused record from none and would post a pin beside one. So is every
+        state the walk below finds a record refused admission for -- the
+        comment the caller's id names, or one ahead of it, or one anywhere
+        where that id names no state comment: neither writer may overwrite
+        that comment, create a replacement beside it, or silently stamp it as
+        current. A state carrying no version is stamped with the supported
+        one, and a state the next reading would refuse -- another version, a
+        value JSON cannot spell, nesting past the recursion limit -- is not
+        written either.
+
+        The named comment is rewritten only where that same walk admitted it;
+        one that is gone or no longer state is replaced by a new comment, as
+        an issue with nothing pinned is given its first.
         """
         if state.withheld:
             log.warning(
@@ -361,19 +640,31 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
                 "writing nothing over the pinned comment", issue.number,
             )
             return state
-        body = pinned_state_body(state.data)
-        if state.comment_id is None:
-            created_comment = issue.create_comment(body)
-            state.comment_id = created_comment.id
-            state.synced = json.dumps(state.data, sort_keys=True)
+        if getattr(self, "_bot_login", None) is None:
+            log.warning(
+                "issue=#%s has no trusted account to authenticate its pinned comment by; "
+                "writing nothing", issue.number,
+            )
             return state
-        for issue_comment in issue.get_comments():
-            if issue_comment.id == state.comment_id:
-                issue_comment.edit(body)
-                state.synced = json.dumps(state.data, sort_keys=True)
-                return state
-        created_comment = issue.create_comment(body)
-        state.comment_id = created_comment.id
+        located = self._pinned_comment(issue, state.comment_id)
+        if located is not None and not located[1].supported:
+            refused = located[1]
+            log.warning(
+                "repo=%s issue=#%s holds %s pinned comment #%s (%s); writing nothing",
+                refused.repo_slug, issue.number, refused.admission_status.value,
+                refused.comment_id, refused.refusal_reason,
+            )
+            return state
+        state.data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
+        refusal = PinnedAdmission.payload_refusal(state.data)
+        if refusal is not None:
+            log.warning("issue=#%s state to pin is refused (%s); writing nothing", issue.number, refusal)
+            return state
+        body = pinned_state_body(state.data)
+        if located is None:
+            state.comment_id = issue.create_comment(body).id
+        else:
+            located[0].edit(body)
         state.synced = json.dumps(state.data, sort_keys=True)
         return state
 
@@ -390,17 +681,30 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         derived `state` from a reading and has to land on that reading or
         nowhere. It never posts: a comment that is gone, or that is no longer
         the authenticated state-only comment it was, is answered MISSING
-        rather than recreated -- a record recreated from a derivation is one
-        nobody read, pinned beside whatever replaced the comment it was
-        derived from. The walk that finds the comment is also the last reading before
-        the edit, so a comment another writer moved since `over` was read --
-        compared as the comment's JSON spells it, where `null` is not an
-        absent field and `true` is not `1` -- is answered MOVED and left as it
-        stands.
+        rather than recreated. The walk that finds the comment is also the
+        last reading before the edit, so a comment another writer moved since
+        `over` was read -- compared as the comment's JSON spells it, where
+        `null` is not an absent field and `true` is not `1` -- is answered
+        MOVED and left as it stands.
+
+        Nothing is sent over a record refused admission -- answered
+        UNSUPPORTED, or MOVED where it will not parse at all -- nor for a state
+        the next reading would refuse, another version, a value JSON cannot
+        spell, or nesting past the recursion limit, answered UNSUPPORTED. A
+        state carrying no version is stamped with the supported one. A client
+        that does not know whose token it holds authenticates no comment, so
+        its walk finds none and it answers MISSING.
 
         The two requests are the primitives below, so the in-memory double
         answers through this same policy over its own records.
         """
+        state.data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
+        if PinnedAdmission.payload_refusal(state.data) is not None:
+            log.warning(
+                "issue=#%s rewrite is refused (%s); sending nothing",
+                issue.number, PinnedAdmission.payload_refusal(state.data),
+            )
+            return PinnedEdit.UNSUPPORTED
         try:
             located = self._pinned_comment(issue, state.comment_id)
         except Exception:
@@ -413,7 +717,7 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
             return PinnedEdit.MISSING
         target, reading = located
         if not reading.reads_as(over):
-            return PinnedEdit.MOVED
+            return PinnedEdit.UNSUPPORTED if reading.parsed and not reading.supported else PinnedEdit.MOVED
         body = pinned_state_body(state.data)
         try:
             answered = self._send_pinned_edit(target, body)
@@ -424,9 +728,7 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
                 issue.number,
             )
             answered = None
-        if answered == body:
-            return PinnedEdit.EDITED
-        return PinnedEdit.UNCONFIRMED
+        return PinnedEdit.EDITED if answered == body else PinnedEdit.UNCONFIRMED
 
     def comments_after(
         self,
@@ -455,11 +757,17 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         those answers and not the others.
         """
         read = issue.get_comments() if comments is None else comments
+        if state_comment_id is None:
+            conversation = [
+                issue_comment for issue_comment in read
+                if PINNED_STATE_MARKER not in (issue_comment.body or "")
+            ]
+        else:
+            conversation = [issue_comment for issue_comment in read if issue_comment.id != state_comment_id]
         return [
             issue_comment
-            for issue_comment in read
-            if not _is_state_comment(issue_comment, state_comment_id)
-            and (after_id is None or issue_comment.id > after_id)
+            for issue_comment in conversation
+            if after_id is None or issue_comment.id > after_id
         ]
 
     def latest_comment_id(self, issue: Issue) -> int | None:
@@ -473,23 +781,34 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
     def _pinned_comment(
         self, issue: Issue, comment_id: int | None,
     ) -> tuple[IssueComment, PinnedState] | None:
-        """The comment carrying `comment_id` and what it reads as, or None.
+        """The comment a write naming `comment_id` answers to, and what it reads as, or None.
 
-        None as well where that comment is no longer what `read_pinned_state`
-        would take as the record -- a body edited into prose, or an author the
-        read does not trust -- since a rewrite of it would be the record of
-        nobody's reading.
+        Every comment the walk passes is admitted through the one owner, so
+        the reading a writer decides on is the read it lands from: nothing a
+        writer sends rests on an earlier walk of the thread. The named comment
+        is answered where it is still what `read_pinned_state` would take as a
+        record -- authored by the trusted account, nothing but the marker --
+        whatever it was admitted as. An authenticated comment refused admission
+        is answered in its place where it comes ahead of it, and wherever it is
+        on a thread on which no id is named or the named comment is not state:
+        a caller holding a stale id never reaches past a refused record, nor
+        posts a replacement beside one. None is a thread carrying neither: the
+        named comment gone, edited into prose, or by an author the read does
+        not trust, since a rewrite of that would be the record of nobody's
+        reading.
         """
         trusted_login = getattr(self, "_bot_login", None)
+        repo_name = getattr(getattr(issue, "repository", None), "full_name", None)
+        repo_slug = repo_name or getattr(self, "_repo_slug", None)
         for issue_comment in issue.get_comments():
-            if issue_comment.id != comment_id:
-                continue
             reading = pinned_state_from_comment(
                 issue_comment,
                 trusted_login=trusted_login,
                 issue_number=issue.number,
+                repo_slug=repo_slug,
             )
-            return None if reading is None else (issue_comment, reading)
+            if reading is not None and (issue_comment.id == comment_id or not reading.supported):
+                return issue_comment, reading
         return None
 
     def _send_pinned_edit(self, issue_comment: IssueComment, body: str) -> str:

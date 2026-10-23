@@ -9,7 +9,11 @@ import unittest
 from types import MappingProxyType
 
 from orchestrator.agents.models import ToolLifecycle
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import (
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+    PinnedState,
+)
 from orchestrator.workflow.engine import (
     pinned_commit_models as _commit_models,
     prompts as _prompts,
@@ -99,7 +103,8 @@ def _retirement(*session_ids: str, pending: bool = True, reason: str | None = QU
 
 # The park a human still owes and the watermark it was taken over.
 PARKED_RECORDS = MappingProxyType({
-    key: CONTEXT_RECORDS[key] for key in ("awaiting_human", "park_reason", KEY_LAST_ACTION_COMMENT_ID)
+    SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
+    **{key: CONTEXT_RECORDS[key] for key in ("awaiting_human", "park_reason", KEY_LAST_ACTION_COMMENT_ID)},
 })
 
 # Records spelled readably but for one field, each naming the retired

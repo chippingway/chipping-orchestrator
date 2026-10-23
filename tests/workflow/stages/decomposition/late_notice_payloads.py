@@ -6,6 +6,8 @@ from __future__ import annotations
 from orchestrator.github.pinned_state import (
     MAX_PINNED_BODY,
     PINNED_STATE_MARKER,
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
     pinned_state_body,
 )
 from orchestrator.workflow.stages.decomposition import (
@@ -244,6 +246,7 @@ def _legacy_record(terminators: int = 0, room_left: int = _LEGACY_ROOM_LEFT) -> 
     migration the sentence the park owes did not cause and cannot undo.
     """
     recorded = {
+        SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
         **generation_state(late_generation()),
         KEYS.verdict: "single",
         KEYS.run_cycle_id: late_generation().cycle_id,

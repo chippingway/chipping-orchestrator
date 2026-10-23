@@ -26,6 +26,10 @@ from orchestrator.git.base_sync.rewrite_handoffs import (
 from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.git.ref_transport import _RefRead
 from orchestrator.git.verification.status import _WorktreeStatus
+from orchestrator.github.pinned_state import (
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+)
 from orchestrator.workflow.engine import rewrite_finish as _finish
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
 from orchestrator.workflow.state import WorkflowLabel
@@ -81,6 +85,7 @@ def owed(previous: str = ANCHOR, rewritten: str = LANDED, *, pr: int = PR_NUMBER
 def attempt_record(**overrides: object) -> dict:
     """The record an attempt that rebased PR #42 from `ANCHOR` onto `LANDED` pinned, with `overrides`."""
     record = {
+        SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
         KEY_PR: PR_NUMBER,
         "branch": BRANCH,
         KEY_REVIEW_ROUND: SPENT_ROUND,

@@ -169,7 +169,13 @@ class InertRecordTest(_fix.RestartCase, unittest.TestCase):
         self.assertEqual(self.github.posted_comments, [])
         self.assertEqual(self.github.label_history, [])
         self.assertEqual(self.github.write_state_calls, 0)
-        self.assertEqual(self._pinned(), dict(_fix.CARRIED_OVER))
+        self.assertEqual(
+            self._pinned(),
+            {
+                _fix.SCHEMA_VERSION_KEY: _fix.SUPPORTED_SCHEMA_VERSION,
+                **_fix.CARRIED_OVER,
+            },
+        )
 
     def test_an_unsettled_ending_is_not_restarted(self) -> None:
         # The fresh cycle keeps no ledger, so restarting over an obligation

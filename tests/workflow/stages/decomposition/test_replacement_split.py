@@ -17,6 +17,7 @@ import unittest
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 
+from orchestrator.github.pinned_state import SCHEMA_VERSION_KEY
 from orchestrator.workflow.late_split import (
     ancestry as _ancestry,
     lineage as _lineage,
@@ -59,7 +60,7 @@ _STRAY_ANCESTRY_KEY = "late_ancestry_depth"
 _GENERATION = "generation"
 
 # What every seed carries beside the lineage, and the group that lineage is.
-_SEEDED_LINK = frozenset((_split.KEY_PARENT_NUMBER, _split.KEY_CREATED_AT))
+_SEEDED_LINK = frozenset((_split.KEY_PARENT_NUMBER, _split.KEY_CREATED_AT, SCHEMA_VERSION_KEY))
 
 _ANCESTRY_KEYS = frozenset(_lineage.LATE_ANCESTRY_KEYS)
 

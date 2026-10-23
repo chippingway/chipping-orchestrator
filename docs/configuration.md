@@ -232,12 +232,13 @@ a format some issue, record, or artifact still carries -- is deployed without mi
 any release does. Take an inventory of the pollers, their supervision and updates, the selected version or commit, the
 repositories and `WORKTREES_DIR`, and the issues, pull requests, branches, worktrees, and recovery records they own.
 Stop and hold every poller with its agents, supervisor, and updates; exclude or retire what the selected build cannot
-read, old issues with no pinned comment that would look like fresh pickup among them, since an obsolete bare label on
-one is not authoritative state and nothing migrates it; keep pinned comments, branches, worktrees, host records, and
-the audit log for manual disposition; then install, check, and start the selected build deliberately. Converting
-earlier-format JSONL or Postgres analytics data, continuing an agent session recorded in an earlier format, and
-returning an older binary to newer workflow state are not supported procedures. The package and source-checkout steps
-are in
+read, among them every issue whose pinned comment carries no integer `schema_version` of `1` -- every one a build
+predating that field wrote, which the selected build refuses and leaves as it stands -- and old issues with no pinned
+comment that would look like fresh pickup, since an obsolete bare label on one is not authoritative state and nothing
+migrates it; keep pinned comments, branches, worktrees, host records, and the audit log for manual disposition; then
+install, check, and start the selected build deliberately. Converting earlier-format JSONL or Postgres analytics data,
+continuing an agent session recorded in an earlier format, and returning an older binary to newer workflow state are
+not supported procedures. The package and source-checkout steps are in
 [`configuration/operations.md#deploying-without-migration`](configuration/operations.md#deploying-without-migration).
 
 ## Required

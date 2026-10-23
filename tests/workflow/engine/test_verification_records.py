@@ -137,7 +137,7 @@ _SHAPES = (
 
 def _issue() -> PinnedState:
     """The pinned comment of an issue with a pull request and no evidence yet."""
-    return PinnedState(comment_id=1, state_data={"pr_number": support.PR_NUMBER})
+    return PinnedState(comment_id=1, state_data={"schema_version": 1, "pr_number": support.PR_NUMBER})
 
 
 def _filling_the_record() -> str:

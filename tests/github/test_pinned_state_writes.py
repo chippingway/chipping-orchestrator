@@ -13,12 +13,21 @@ from __future__ import annotations
 
 import json
 import unittest
+from dataclasses import dataclass
+from itertools import product
 from types import MappingProxyType
 
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.client import GitHubClient
+from orchestrator.github.comments import ORCHESTRATOR_COMMENT_MARKER
+from orchestrator.github.pinned_state import PINNED_STATE_TEMPLATE, PinnedState
+from orchestrator.workflow.engine import comments as _engine_comments
 from tests.github.pinned_state_test_support import (
     BOT,
+    ORDINARY_PROSE,
+    RAW_TERMINATORS,
+    REFUSED_PAYLOADS,
     bot_comment,
+    cut_short,
     marker,
     state_client,
 )
@@ -43,17 +52,62 @@ _REPLY = "a human answering the park notice"
 # owner's own template: the marker GitHub hides the comment behind, the payload
 # with its keys sorted, and the terminator. Live issues carry exactly this
 # text, so it is the compatibility contract rather than a rendering detail.
+_SCHEMA_VERSION = "schema_version"
 _RECORD_BODY = (
     '<!--orchestrator-state {"branch": '
-    '"orchestrator/chippingway__chipping-orchestrator/issue-5"}-->'
+    '"orchestrator/chippingway__chipping-orchestrator/issue-5", "schema_version": 1}-->'
 )
 _REWRITTEN_BODY = (
     '<!--orchestrator-state {"branch": '
-    '"orchestrator/chippingway__chipping-orchestrator/issue-5", "review_round": 2}-->'
+    '"orchestrator/chippingway__chipping-orchestrator/issue-5", "review_round": 2, "schema_version": 1}-->'
 )
 
-_RECORD = MappingProxyType({_BRANCH_KEY: _BRANCH})
-_REWRITTEN = MappingProxyType({_BRANCH_KEY: _BRANCH, _ROUND_KEY: 2})
+_RECORD = MappingProxyType({_BRANCH_KEY: _BRANCH, _SCHEMA_VERSION: 1})
+_RECORD_DICT = dict(_RECORD)
+_REWRITTEN = MappingProxyType({_BRANCH_KEY: _BRANCH, _ROUND_KEY: 2, _SCHEMA_VERSION: 1})
+_STALE_ID = 999
+# A current pin ahead of the record, the one every reader takes.
+_CURRENT_ID = 100
+
+# Authenticated records the reader refuses, as their comments carry them.
+_UNSUPPORTED_BODY = marker({_SCHEMA_VERSION: 2, _BRANCH_KEY: _BRANCH})
+_REFUSED_RECORDS = MappingProxyType({
+    "unsupported version": _UNSUPPORTED_BODY,
+    "missing version": marker({_BRANCH_KEY: _BRANCH}, raw=True),
+    "malformed": "<!--orchestrator-state {bad json}-->",
+    "a constant JSON cannot spell": PINNED_STATE_TEMPLATE.format(payload='{"schema_version": 1, "usage_total": NaN}'),
+    "an array carrying the terminator": PINNED_STATE_TEMPLATE.format(payload='["-->"]'),
+    "an array quoting the ordinary marker": PINNED_STATE_TEMPLATE.format(
+        payload=json.dumps([ORCHESTRATOR_COMMENT_MARKER]),
+    ),
+    "an object cut open on a dangling escape": PINNED_STATE_TEMPLATE.format(
+        payload='{"schema_version": 1, "note": "unfinished\\',
+    ),
+    "a raw record cut short": PINNED_STATE_TEMPLATE.format(
+        payload=cut_short({_SCHEMA_VERSION: 1, _BRANCH_KEY: _BRANCH, "note": RAW_TERMINATORS}),
+    ),
+    "a raw record quoting the ordinary marker, cut short": PINNED_STATE_TEMPLATE.format(
+        payload=cut_short({
+            _SCHEMA_VERSION: 1, _BRANCH_KEY: _BRANCH, "note": f"{ORCHESTRATOR_COMMENT_MARKER}{RAW_TERMINATORS}",
+        }),
+    ),
+})
+
+# Comments ahead of any record that carry the state marker and are no record:
+# a third party's forgery, and ones the orchestrator posted whose text an agent
+# opened with the marker and prose -- shaped as an array or an object -- that
+# carries the ordinary comment marker outside any JSON string.
+_NOT_RECORDS = MappingProxyType({
+    "a third party's": FakeComment(
+        id=1, body=marker({_BRANCH_KEY: _ATTACKER_BRANCH}), user=FakeUser("mallory"),
+    ),
+    "an ordinary bot comment's": bot_comment(1, _engine_comments._with_orch_marker(
+        PINNED_STATE_TEMPLATE.format(payload=f'["x"] {ORCHESTRATOR_COMMENT_MARKER} ordinary explanation '),
+    )),
+    "an ordinary bot comment's prose": bot_comment(1, _engine_comments._with_orch_marker(
+        PINNED_STATE_TEMPLATE.format(payload=ORDINARY_PROSE),
+    )),
+})
 
 
 def _issue(*comments: FakeComment) -> FakeIssue:
@@ -67,6 +121,25 @@ def _issue(*comments: FakeComment) -> FakeIssue:
     issue = make_issue(_ISSUE, comments=list(comments))
     issue.commenter = FakeUser(BOT)
     return issue
+
+
+@dataclass
+class _EditedOnRead(FakeIssue):
+    """A thread whose last comment a maintainer rewrites to `edit` as it is read, counting the reads.
+
+    The rewrite lands on every read, so a writer deciding on one read and
+    landing from another would be the one to tell the two apart.
+    """
+
+    edit: str | None = None
+    reads: int = 0
+
+    def get_comments(self) -> list[FakeComment]:
+        """The thread as GitHub answers it, with the maintainer's rewrite already on it."""
+        self.reads += 1
+        if self.edit is not None:
+            self.comments[-1].body = self.edit
+        return super().get_comments()
 
 
 def _human_reply(comment_id: int = _REPLY_ID) -> FakeComment:
@@ -109,21 +182,25 @@ class WritePinnedStateTest(unittest.TestCase):
     def test_a_named_record_is_rewritten_in_place(self) -> None:
         # The steady case. The comment the state names is edited, so the
         # thread is left with the same comments it had and the record keeps
-        # the id every reader and watermark already has.
-        record = bot_comment(_RECORDED_ID, _RECORD_BODY)
-        reply = _human_reply()
-        issue = _issue(reply, record)
-        state = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
+        # the id every reader and watermark already has -- with no record
+        # ahead of it, and behind an ordinary comment whose prose opens on a
+        # forged marker, which is no record to stop the write at.
+        for ahead in ((), (_NOT_RECORDS["an ordinary bot comment's prose"],)):
+            with self.subTest(ahead=len(ahead)):
+                record = bot_comment(_RECORDED_ID, _RECORD_BODY)
+                reply = _human_reply()
+                issue = _issue(*ahead, reply, record)
+                state = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
 
-        self.client.write_pinned_state(issue, state)
+                self.client.write_pinned_state(issue, state)
 
-        self.assertEqual(
-            [comment.id for comment in issue.comments],
-            [_REPLY_ID, _RECORDED_ID],
-        )
-        self.assertEqual(record.body, _REWRITTEN_BODY)
-        self.assertEqual(reply.body, _REPLY)
-        self.assertEqual(state.comment_id, _RECORDED_ID)
+                self.assertEqual(
+                    [comment.id for comment in issue.comments],
+                    [*(comment.id for comment in ahead), _REPLY_ID, _RECORDED_ID],
+                )
+                self.assertEqual(record.body, _REWRITTEN_BODY)
+                self.assertEqual(reply.body, _REPLY)
+                self.assertEqual(state.comment_id, _RECORDED_ID)
 
     def test_a_vanished_record_is_replaced(self) -> None:
         # A maintainer deleted the pinned comment. The id the state carries
@@ -179,32 +256,31 @@ class WritePinnedStateTest(unittest.TestCase):
 
         self.assertEqual(
             (built, json.loads(state.synced), json.loads(read.synced)),
-            (None, _RECORD, _RECORD),
+            (None, _RECORD_DICT, _RECORD_DICT),
         )
 
     def test_a_forged_record_is_not_the_one_written(self) -> None:
-        # A third party got the marker onto the thread before the orchestrator
-        # ever recorded anything, which is the window a manually labelled issue
-        # sits in. The write posts its own record, and the read that follows
-        # has to come back with THAT comment: adopting the forgery would hand
-        # the next tick somebody else's branch out of its own durable state.
-        forged = FakeComment(
-            id=1,
-            body=marker({_BRANCH_KEY: _ATTACKER_BRANCH}),
-            user=FakeUser("mallory"),
-        )
-        issue = _issue(forged)
-        state = PinnedState(data=dict(_RECORD))
+        # The marker reached the thread before the orchestrator ever recorded
+        # anything, which is the window a manually labelled issue sits in. The
+        # write posts its own record, and the read that follows has to come
+        # back with THAT comment: adopting the forgery would hand the next
+        # tick somebody else's branch out of its own durable state, and
+        # refusing it as a record would leave the issue with none at all.
+        for case, forged in _NOT_RECORDS.items():
+            with self.subTest(case=case):
+                issue = _issue(forged)
+                state = PinnedState(data=dict(_RECORD))
 
-        self.client.write_pinned_state(issue, state)
-        read = self.client.read_pinned_state(issue)
+                self.client.write_pinned_state(issue, state)
+                read = self.client.read_pinned_state(issue)
 
-        self.assertEqual(read.comment_id, state.comment_id)
-        self.assertEqual(read.get(_BRANCH_KEY), _BRANCH)
+                self.assertEqual(len(issue.comments), 2)
+                self.assertEqual(read.comment_id, state.comment_id)
+                self.assertEqual(read.get(_BRANCH_KEY), _BRANCH)
 
 
-class WithheldStateTest(unittest.TestCase):
-    """A state a guarded commit was refused over is never written whole."""
+class UnwrittenStateTest(unittest.TestCase):
+    """States the whole-state writer sends nothing for, whatever the thread carries."""
 
     def test_a_withheld_state_writes_nothing(self) -> None:
         # The comment moved under the decision the state was taken on, so
@@ -222,6 +298,22 @@ class WithheldStateTest(unittest.TestCase):
             (written, record.body, len(issue.comments), state.synced),
             (state, _RECORD_BODY, 2, None),
         )
+
+    def test_an_unknown_account_writes_nothing(self) -> None:
+        # A client that does not know whose token it holds authenticates no
+        # comment, so it could not tell a refused record from none: it neither
+        # rewrites the record its state names nor posts one beside it.
+        client = GitHubClient.__new__(GitHubClient)
+        for comment_id in (_RECORDED_ID, None):
+            with self.subTest(comment_id=comment_id):
+                record = bot_comment(_RECORDED_ID, _RECORD_BODY)
+                issue = _issue(_human_reply(), record)
+                state = PinnedState(comment_id=comment_id, data=dict(_REWRITTEN))
+
+                self.assertIs(client.write_pinned_state(issue, state), state)
+
+                self.assertEqual(record.body, _RECORD_BODY)
+                self.assertEqual((len(issue.comments), state.synced), (2, None))
 
 
 class LatestCommentIdTest(unittest.TestCase):
@@ -271,6 +363,84 @@ class LatestCommentIdTest(unittest.TestCase):
         self.assertEqual(
             self.client.latest_comment_id(issue), state.comment_id,
         )
+
+
+class WritePinnedStateAdmissionTest(unittest.TestCase):
+    """Admission rules applied to write_pinned_state."""
+
+    def setUp(self) -> None:
+        self.client = state_client()
+
+    def assert_writes_nothing(self, issue: FakeIssue, staged: PinnedState) -> None:
+        """Write `staged`, answered unchanged, with nothing on the thread edited or posted."""
+        before = [(comment.id, comment.body) for comment in issue.comments]
+
+        self.assertIs(self.client.write_pinned_state(issue, staged), staged)
+
+        self.assertEqual([(comment.id, comment.body) for comment in issue.comments], before)
+        self.assertIsNone(staged.synced)
+
+    def test_first_write_stamps_schema_version(self) -> None:
+        # A genuinely new pin carrying no schema_version is stamped with schema_version: 1
+        issue = _issue(_human_reply())
+        fresh_state = PinnedState(data={"branch": _BRANCH})
+
+        self.client.write_pinned_state(issue, fresh_state)
+
+        self.assertEqual(fresh_state.data.get(_SCHEMA_VERSION), 1)
+        self.assertEqual(len(issue.comments), 2)
+        posted = issue.comments[-1]
+        self.assertIn('"schema_version": 1', posted.body)
+
+    def test_a_refused_record_is_never_written_over(self) -> None:
+        # Whatever id the caller holds -- the record's, none, or a stale one --
+        # the refused record stays as it is and nothing is posted beside it.
+        for case, comment_id in product(_REFUSED_RECORDS, (_RECORDED_ID, None, _STALE_ID)):
+            with self.subTest(case=case, comment_id=comment_id):
+                record = bot_comment(_RECORDED_ID, _REFUSED_RECORDS[case])
+                staged = PinnedState(comment_id=comment_id, data={_BRANCH_KEY: _BRANCH, _SCHEMA_VERSION: 1})
+                self.assert_writes_nothing(_issue(_human_reply(), record), staged)
+
+    def test_a_refused_target_behind_the_pin_stands(self) -> None:
+        # The caller's id names a refused record behind the current pin every
+        # reader takes: what the write would rewrite is admitted too, not only
+        # the pin ahead of it.
+        for case, body in _REFUSED_RECORDS.items():
+            with self.subTest(case=case):
+                current = bot_comment(_CURRENT_ID, _RECORD_BODY)
+                staged = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
+                self.assert_writes_nothing(_issue(_human_reply(), current, bot_comment(_RECORDED_ID, body)), staged)
+
+    def test_a_write_lands_from_the_read_it_admits(self) -> None:
+        # One walk both admits the record and finds it, so what the thread
+        # carries on that read decides: a record a maintainer turned refused
+        # by then stands, and a current one is rewritten, with no second read
+        # for either to change between.
+        for edit, landed in ((_UNSUPPORTED_BODY, _UNSUPPORTED_BODY), (None, _REWRITTEN_BODY)):
+            with self.subTest(edited=edit is not None):
+                issue = _EditedOnRead(
+                    _ISSUE,
+                    comments=[_human_reply(), bot_comment(_RECORDED_ID, _RECORD_BODY)],
+                    commenter=FakeUser(BOT),
+                    edit=edit,
+                )
+
+                staged = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
+
+                self.client.write_pinned_state(issue, staged)
+
+                self.assertEqual(issue.reads, 1)
+                self.assertEqual(issue.comments[-1].body, landed)
+
+    def test_a_refused_payload_is_not_written(self) -> None:
+        # The next reading would refuse what it pinned, so neither a supported
+        # record nor an issue with none is written for it; only a missing
+        # version is stamped.
+        for refused, recorded in product(REFUSED_PAYLOADS, (True, False)):
+            with self.subTest(refused=refused, recorded=recorded):
+                thread = (bot_comment(_RECORDED_ID, _RECORD_BODY),) if recorded else ()
+                staged = PinnedState(comment_id=_RECORDED_ID, data={_BRANCH_KEY: "changed", **refused})
+                self.assert_writes_nothing(_issue(_human_reply(), *thread), staged)
 
 
 if __name__ == "__main__":

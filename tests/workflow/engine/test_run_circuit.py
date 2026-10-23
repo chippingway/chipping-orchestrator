@@ -14,7 +14,11 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import (
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+    PinnedState,
+)
 from tests.workflow.engine import (
     run_budget_test_support as budget,
     run_circuit_test_support as support,
@@ -149,7 +153,7 @@ class RefusedLaunchTest(unittest.TestCase):
         support.run_launch(launch)
 
         self.assertEqual(launch.invocations, 0)
-        self.assertEqual(launch.durable, {})
+        self.assertEqual(launch.durable, {SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION})
         self.assertIsNone(launch.state.get(support.USED))
 
     def test_a_refused_start_keeps_the_charge(self) -> None:

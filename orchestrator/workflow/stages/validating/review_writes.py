@@ -245,7 +245,12 @@ def lands_the_launch(
     comment that will not read, and an edit never confirmed may not have
     landed.
     """
-    bound = PinnedState(comment_id=state.comment_id, state_data=dict(handover.resolved_over))
+    bound = PinnedState(
+        comment_id=state.comment_id,
+        state_data=dict(handover.resolved_over),
+        parsed=state.parsed,
+        supported=state.supported,
+    )
     commit = _commits.ReportCommit(gh, issue, bound)
     staged = commit.staging()
     _review_records._records_the_launch(staged, handover.subject)

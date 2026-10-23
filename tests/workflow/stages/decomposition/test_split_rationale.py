@@ -11,7 +11,7 @@ from unittest.mock import patch
 from orchestrator.github.pinned_state import PinnedState, pinned_state_body, pinned_state_from_comment
 from orchestrator.workflow.stages.decomposition import state as _state
 from orchestrator.workflow.stages.decomposition.late_result_models import MAX_RATIONALE, RATIONALE_TRUNCATION_MARKER
-from tests.support.fakes import FakeComment, FakeGitHubClient, FakeIssue, make_issue
+from tests.support.fakes import DEFAULT_BOT_LOGIN, FakeComment, FakeGitHubClient, FakeIssue, FakeUser, make_issue
 from tests.workflow.fixtures import (
     KEY_AWAITING_HUMAN,
     KEY_PARENT_NUMBER,
@@ -167,8 +167,8 @@ class SplitRationaleCheckpointTest(_SplitRationaleCase):
     def _read_back(self, record: dict) -> str | None:
         """The rationale a later reader takes off the pinned comment this record is written as."""
         pinned = pinned_state_from_comment(
-            FakeComment(id=_STATE_COMMENT_ID, body=pinned_state_body(record)),
-            trusted_login=None,
+            FakeComment(id=_STATE_COMMENT_ID, body=pinned_state_body(record), user=FakeUser(DEFAULT_BOT_LOGIN)),
+            trusted_login=DEFAULT_BOT_LOGIN,
             issue_number=PARENT_NUMBER,
         )
         return _state._recorded_split_rationale(pinned)

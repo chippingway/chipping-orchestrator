@@ -469,7 +469,8 @@ orchestrator/
                         so alike text anybody may use to suppress what it stands for -- and the reserved prefix
                         every receipt this orchestrator hides shares, so content somebody else wrote can be refused
                         before it is embedded, plus the ordinary marker every comment this orchestrator posts
-                        carries, defined here so a GitHub-layer owner can render a whole comment body; the
+                        carries, defined here so a GitHub-layer owner can render a whole comment body and the
+                        pinned-state parser can tell an ordinary comment from the state comment by it; the
                         low-level comment and review readers stay raw
     developer_reports.py
                         the developer-report comment format: a report is appended as its own comment rather than
@@ -533,11 +534,31 @@ orchestrator/
                         and leave the rest of the record as visible issue text, and with that escape stood down for a
                         payload it would put past the limit, since the record is what a later tick reads while the
                         escape only decides how the comment LOOKS, and a write refused for a rendering takes whatever
-                          park, notice or outcome it was carrying with it -- and the length GitHub takes, its parser
-  -- which identifies a state-only comment whatever payload it carries
-                        and keeps the one carrying no readable state, whether it would not parse or parsed
-                        into anything but an object, apart from an issue that recorded nothing, since both read
-                        back as `{}` -- and the comment watermarks beside it, whose thread read tells the pinned
+                        park, notice or outcome it was carrying with it -- and the length GitHub takes, its parser and
+                        schema-admission contract (`admit_pinned_comment`) -- which authenticates the bot author and
+                        that the whole body is the state marker before admitting anything, the ordinary comment marker
+                        `comments.py` defines bounding where a payload may run: whatever the payload is, closed or cut
+                        short, it may carry that marker inside a JSON string and never between strings or at the body's
+                        end, and a string cut open runs to the terminator even where the cut fell inside an escape, so a
+                        damaged record is identified rather than passed over whatever its strings quote -- save one cut
+                        to end exactly on a quoted marker, which is byte for byte an ordinary comment -- while ordinary
+                        prose opening on a forged marker is no record; admits only an object carrying integer
+                        schema_version equal to 1; refuses missing, non-integer, float, boolean, string, or unsupported
+                        integer versions, malformed JSON -- whatever the reader will not decode included: an integer
+                        past the digit limit, a number that is not finite such as `NaN` or `1e309`, nesting past the
+                        recursion limit, a bound of the reader's own -- and non-object payloads; answers one of four
+                        outcomes (`AdmissionStatus`: no comment, supported, unsupported, malformed), a refusal carrying
+                        the comment id, repository, issue number, found and supported versions, and reason for a caller
+                        to report locally; preserves the original comment unchanged on GitHub rather than overwriting
+                        it; stamps genuinely new pins with version 1 on first write; states the payload rule once
+                        (`PinnedAdmission.payload_refusal`: the version, no value JSON cannot spell, no nesting past the
+                        recursion limit) for a reader or writer holding a payload rather than a comment, and its value
+                        half (`PinnedAdmission.spellable`) for a caller spelling a payload a value at a time; and
+                        authenticates nothing where the client does not know whose token it holds --
+                        and keeps the one carrying no readable state, whether it would not parse or parsed into an
+                        unsupported record, apart from an issue that recorded nothing, since both read back as `{}`, and
+                        never takes a state built as unparsed for a supported one, wherever it was built --
+                        and the comment watermarks beside it, whose thread read tells the pinned
                         comment by the ID a caller can name where it has one and by the marker in a body
                         otherwise: the marker also hides every comment merely QUOTING it, which is right for a
                         reader after conversation and wrong for one after a receipt it posted itself. That cut is
@@ -552,11 +573,17 @@ orchestrator/
                         something could not otherwise tell an issue that never wrote a field from one whose
                         field a hand edit truncated. The record is written two ways. The legacy write lands a state
                         wherever it can -- in place, or as a new comment where none is named or the named one is
-                        gone -- which every caller owning the whole record relies on. The strict edit a guarded
-                        commit lands through rewrites the named comment in place only while the walk that finds it
-                        still reads it, parsed, as the payload the rewrite was derived over, compared as the
+                        gone or no longer state -- which every caller owning the whole record relies on. Neither sends
+                        a state the next reading would refuse, and neither writes over a record refused admission:
+                        both decide on one walk of the thread that admits every comment it passes, the one rewritten
+                        included, and land from that same read, so a stale id never steers either onto a refused
+                        record or past one. The strict edit
+                        a guarded commit lands through rewrites the named comment in place only while the walk that
+                        finds it still reads it, parsed, as the payload the rewrite was derived over, compared as the
                         comment's JSON spells both (`PinnedState.reads_as`); it never recreates a comment that is
-                        gone or no longer the authenticated state-only one, and answers EDITED only where GitHub's
+                        gone or no longer the authenticated state-only one, answers UNSUPPORTED where the record every
+                        reader takes -- the named comment, or a refused one ahead of it a stale id would reach past --
+                        parses and is refused admission (MOVED where it will not parse), and EDITED only where GitHub's
                         response carries the body sent -- a lost response, a refused request, and an answer carrying
                         another body are all UNCONFIRMED, since the record may read either way. Its two requests
                         are primitives the in-memory double overrides, so the double answers through this policy.

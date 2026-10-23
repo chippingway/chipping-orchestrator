@@ -358,7 +358,7 @@ class HandleValidatingReviewerFailureTest(
         # report could be about: no reviewer is spawned over it, whatever it
         # would have answered, and the round is refused for the report it
         # lacks rather than reviewed with none.
-        for pr_value in ("malformed-pr", 1e309, True):
+        for pr_value in ("malformed-pr", 17.5, True):
             with self.subTest(pr_number=pr_value):
                 failure_github, failure_issue = self._seeded(pr_number=pr_value)
                 mocks = self._run_validating(

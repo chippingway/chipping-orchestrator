@@ -16,6 +16,8 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.github.pinned_state import (
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
     PinnedState,
     pinned_state_body,
     pinned_state_from_comment,
@@ -374,9 +376,12 @@ class WireContractTest(unittest.TestCase):
         self.assertIn('"agent_run_reservation": "reserved"', body)
 
     def _reparsed(self, state: PinnedState) -> PinnedState:
+        state_data = dict(state.data)
+        if SCHEMA_VERSION_KEY not in state_data:
+            state_data[SCHEMA_VERSION_KEY] = SUPPORTED_SCHEMA_VERSION
         comment = FakeComment(
             id=state.comment_id,
-            body=pinned_state_body(state.data),
+            body=pinned_state_body(state_data),
             user=FakeUser(_BOT_LOGIN),
         )
         return pinned_state_from_comment(

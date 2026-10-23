@@ -659,18 +659,47 @@ worker-thread clients), **and** its entire body is the state marker — exactly 
 - **Author, not marker presence.** Any account can post — or edit an older comment to carry — the hidden state marker.
   Trusting the first marker by document order would let an outsider preempt the real pinned state and steer agent
   session fields, branch / PR selection, and terminal branch cleanup (CWE-345). A foreign author's marker is skipped
-  before its body is parsed, so it cannot even shadow state with malformed JSON.
+  before its body is parsed, so it cannot even shadow state with malformed JSON. A client that does not know that
+  account authenticates no comment at all rather than fall back to the marker alone: it reads no record and writes
+  none, since it could not tell a refused record from an issue with nothing pinned.
 - **State-only body, not embedded substring.** The author check alone is not enough: the orchestrator posts ordinary
   comments (e.g. decomposer rationale via `_post_issue_comment`) whose text is attacker-influenced, and does so before
   the real state comment exists on a manually-labeled issue. Such a comment that merely embeds a marker in prose is not
-  state-only, so it is never mistaken for state — only a comment that is *nothing but* the marker qualifies.
-- **Legacy-safe, no migration.** Existing pinned comments were written by this same account and are state-only by
-  construction, so both checks keep honoring them; state writes keep targeting the trusted comment id once found.
+  state-only, so it is never mistaken for state — only a comment that is *nothing but* the marker qualifies. Where the
+  payload runs is decided by the ordinary comment marker, which every other comment the orchestrator posts carries —
+  appended at its end, or wherever its text already put it — and which a state comment carries only inside a JSON
+  string, a key or value it had no room to escape. Whatever the payload is — an object closed by its brace or cut short
+  of it, an array, a string, `7` — it is read as JSON strings and the text between them: a string spans anything, raw
+  terminators and that marker included, and one cut open runs to the terminator, even where the cut fell inside an
+  escape; the text between strings never spans the marker, and the body may not end on it. So a corrupted record a
+  truncated write or a hand edit left — `[]`, `["-->"]`, a raw object cut short — is identified and refused whatever
+  its strings quote, save one cut exactly where it ends on a quoted marker, which is byte for byte an ordinary comment
+  carrying the appended one; ordinary prose opening on a forged marker — terminated or not, or followed by the
+  appended marker — never reads as state. The one ordinary comment that still reads as a record is one whose text is
+  built as JSON quoting the marker inside a string, which nothing in a comment's content can tell from a record that
+  quotes it.
+- **Version-1 admission and refusal.** Authenticated comments undergo schema-version admission
+  (`github.pinned_state.admit_pinned_comment`): only an object carrying an actual integer `schema_version` equal to
+  `1` is admitted as current state. Missing versions, booleans, strings, floating-point numbers including `1.0`,
+  unsupported integers, malformed JSON, and non-object payloads are refused, JSON the reader will not decode (an
+  integer past the digit limit, a number that is not finite such as `NaN` or `1e309`, nesting past the recursion
+  limit, a bound the reader holds itself whatever the interpreter's decoder would build) included, so no payload
+  raises out of admission without its comment's identity. Refused records are preserved unchanged
+  on GitHub and retain refusal reasons and version metadata locally; neither `write_pinned_state` nor
+  `edit_pinned_state` may overwrite them, create replacements beside them, or silently stamp them as current.
+  Both decide on one walk of the thread that admits every comment it passes, the one they rewrite included, and land
+  from that same read, so a stale comment id cannot steer a write onto a refused record, and no second read leaves a
+  gap for a record turned refused between the admission and the write. Genuinely new pins are stamped with
+  `schema_version: 1` on their first write.
 - **The strict edit authenticates its target again.** The in-place edit a guarded commit lands through
-  (`edit_pinned_state`) rewrites the comment it names only while that comment still passes both checks above and still
-  reads as the record the write was derived over. It never posts: a pinned comment that was deleted, or edited into
+  (`edit_pinned_state`) rewrites the comment it names only while that comment still passes both checks above, is
+  admitted as supported, and still reads as the record the write was derived over. An authenticated comment refused
+  admission ahead of it stops the edit, so a stale id never reaches past it to a later comment; an outsider's comment
+  ahead is no record and blocks nothing. Neither writer sends a state the next reading would refuse. It never posts:
+  a pinned comment
+  that was deleted, or edited into
   anything that is no longer state, is refused rather than recreated beside whatever replaced it. The legacy write keeps
-  recreating a vanished record for the callers that rely on it.
+  recreating a vanished record for the callers that rely on it when no authoritative record exists.
 - **Independent of the comment boundary.** This authenticates *which comment is state*; `ALLOWED_ISSUE_AUTHORS`
   authenticates *which comments are input*. Both are enforced independently, and the state boundary does not depend on
   which logins the allowlist names.
@@ -681,7 +710,10 @@ The section above authenticates *which comment is state*. It does not make that 
 backing the token wrote it, but a maintainer's hand edit, a half-written record a crash left, and a remote that moved
 since all leave a trusted comment claiming something GitHub no longer agrees with. What a publication does is
 irreversible there — a force-push over somebody's work, a second pull request opened over work the first already
-carries — so the publication side proves the record against the remote rather than acting on it.
+carries — so the publication side proves the record against the remote rather than acting on it. An authenticated
+comment refused admission licenses nothing at all: it reads back empty and flagged unparsed or unsupported, every
+guarded commit over it refuses, and a verification-evidence write over it holds rather than landing
+([C-03](contracts.md#c-03-persisted-and-externally-consumed-formats)).
 
 - **An agent's own verdict cannot waive the added-line ceiling.** `late_exempt_sha` records that a late adjudication
   ruled a committed candidate one coherent change, and an adjudicator is an agent — so on its own it says a decision

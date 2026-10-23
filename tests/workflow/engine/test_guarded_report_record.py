@@ -16,9 +16,17 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
 
-from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState, pinned_state_body
+from orchestrator.github.pinned_state import (
+    MAX_PINNED_BODY,
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+    PinnedState,
+    pinned_state_body,
+)
 from orchestrator.workflow.engine import (
     pinned_commit as _pinned_commit,
+    pinned_commit_models as _commit_models,
+    report_commits as _commits,
     report_delivery as _delivery,
     report_delivery_state as _delivery_state,
     report_record_values as _record_values,
@@ -53,9 +61,16 @@ _EVIDENCE_SINCE = MappingProxyType({_EVIDENCE: {"revision": 4}})
 # Room past the report for every write a record reserves, and then some.
 _ROOMY = 20000
 
+# A record refused admission, the record a human repairs it to under the same
+# comment, and a write of the tick's own staged over the refused reading.
+_REFUSED = MappingProxyType({SCHEMA_VERSION_KEY: 2})
+_REPAIRED = MappingProxyType({SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION})
+_SESSION_WRITE = _commits.ReportWrite(owned=frozenset((_SESSION,)), decided_on=frozenset())
+
 # What the tick reading the comment finds: the reply to an undeliverable-report
 # park, which the report it brings retires.
 _PARKED = MappingProxyType({
+    SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
     delivery_support.BASELINE: support.REQUIREMENTS,
     delivery_support.AWAITING_HUMAN: True,
     delivery_support.PARK_REASON: _delivery.UNDELIVERABLE_REPORT,
@@ -397,9 +412,46 @@ class ParkCapacityTest(unittest.TestCase):
                     self.assertEqual(tick.pinned(), found)
 
 
+class RefusedReadingTest(unittest.TestCase):
+    """A tick that read a record refused admission lands nothing over it, however the comment reads since."""
+
+    def test_a_repaired_comment_authorizes_nothing(self) -> None:
+        # The comment is repaired in place between the tick's refused reading
+        # and the write: the guard is that reading, so neither the preparation
+        # an effect waits on nor the commit goes ahead over a record nobody
+        # read as current, and the tick's state is kept out of every
+        # whole-state write.
+        for road in ("prepares", "lands"):
+            with self.subTest(road=road):
+                commit, outcome = _repaired_after_refusal(road)
+
+                self.assertEqual(
+                    (outcome.status, outcome.refusal),
+                    (_commit_models.CommitStatus.REFUSED, _commit_models.CommitRefusal.UNSUPPORTED),
+                )
+                self.assertEqual(commit.gh.pinned_data(commit.issue.number), dict(_REPAIRED))
+                self.assertEqual((commit.gh.write_state_calls, commit.state.withheld), (0, True))
+
+
+def _repaired_after_refusal(road: str) -> tuple[_commits.ReportCommit, _commit_models.CommitOutcome]:
+    """A write staged over a refused reading and taken down `road` once the comment is repaired; what it came to."""
+    github, issue = delivery_support.seeded_issue()
+    github.seed_state(issue, raw=True, **_REFUSED)
+    commit = _commits.ReportCommit(github, issue, github.read_pinned_state(issue))
+    staged = commit.staging()
+    staged.set(_SESSION, "a session the tick staged")
+    repaired = PinnedState(comment_id=commit.state.comment_id, state_data=dict(_REPAIRED))
+    github._pinned[issue.number] = repaired
+    return commit, getattr(commit, road)(staged, _SESSION_WRITE)
+
+
 def _at_the_brim(beside: MappingProxyType) -> PinnedState:
     """A comment whose park, with `beside` written next to it, renders exactly as long as one comment holds."""
-    record = {delivery_support.BASELINE: support.REQUIREMENTS, delivery_support.CROWDING: ""}
+    record = {
+        SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
+        delivery_support.BASELINE: support.REQUIREMENTS,
+        delivery_support.CROWDING: "",
+    }
     rendered = len(pinned_state_body({**record, **_PARK_FLAGS, **beside}))
     record[delivery_support.CROWDING] = delivery_support.FILLER * (MAX_PINNED_BODY - rendered)
     return PinnedState(state_data=record)

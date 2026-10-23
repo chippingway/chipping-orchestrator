@@ -109,7 +109,9 @@ def _confirmed(state: PinnedState):
     """The guard over the reading `state` last confirmed, decided on the attempt and its evidence."""
     from orchestrator.workflow.engine import pinned_commit_models as _commit_models
     synced = state.data if state.synced is None else json.loads(state.synced)
-    reading = PinnedState(comment_id=state.comment_id, state_data=synced, parsed=state.parsed)
+    reading = PinnedState(
+        comment_id=state.comment_id, state_data=synced, parsed=state.parsed, supported=state.supported,
+    )
     return _commit_models.PinnedCommit.capture(reading, prerequisites=_decided_on())
 
 

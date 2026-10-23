@@ -37,8 +37,9 @@ receipt for an effect that cannot be made one operation with recording it, and
 the author is part of it -- text anybody may post is text anybody may use to
 suppress the sentence it stands for, whether the receipt is a hidden marker or
 the sentence itself. A client with no authenticated login to compare against
-takes the content alone, which is the same fallback the pinned-state read
-takes.
+takes the content alone. The pinned-state read takes no such fallback: with no
+login it authenticates no comment at all, since a record it took from anybody
+would be the durable state every later tick decides on.
 """
 from __future__ import annotations
 
@@ -140,7 +141,9 @@ def authored_by_us(comment: Any, *, bot_login: str | None) -> bool:
 
     A client with no authenticated login of its own answers True. There is
     nothing to compare against there, so the content is the whole of what can
-    be checked -- the same fallback the pinned-state read takes.
+    be checked. The pinned-state read refuses that fallback and authenticates
+    no comment without a login (`github.pinned_state`): its answer is the
+    durable state itself rather than a receipt for one effect.
     """
     if bot_login is None:
         return True

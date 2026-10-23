@@ -10,6 +10,8 @@ from types import MappingProxyType
 from orchestrator.github.pinned_state import (
     MAX_PINNED_BODY,
     PINNED_STATE_MARKER,
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
     PinnedState,
     pinned_state_body,
     pinned_state_from_comment,
@@ -27,7 +29,7 @@ from orchestrator.workflow.stages.decomposition.late_result_models import (
     _LateAdjudication,
     _LateDisposition,
 )
-from tests.support.fakes import FakeComment
+from tests.support.fakes import DEFAULT_BOT_LOGIN, FakeComment, FakeUser
 from tests.workflow.stages.decomposition import (
     late_accepted_notice_support as _notice,
     late_settlement_support as _settlement,
@@ -39,6 +41,8 @@ from tests.workflow.stages.decomposition import (
 _COMMENT_CLOSE = "-->"
 
 _STATE_COMMENT_ID = 900
+
+_SCHEMA_RECORD = MappingProxyType({SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION})
 
 _FILLER = "r"
 
@@ -218,7 +222,7 @@ class RecordedRationaleTest(unittest.TestCase):
         # lineage bound is recorded as the question it became -- so nothing is
         # written beside one, and what a hand edit put there is not read back,
         # while the question itself still answers.
-        state = PinnedState()
+        state = PinnedState(state_data=dict(_SCHEMA_RECORD))
         _session._record_late_result(state, _LateAdjudication(
             verdict=LateVerdict.QUESTION,
             category=LateVerdictCategory.SCOPE_AMBIGUOUS,
@@ -265,7 +269,7 @@ class RationaleBoundTest(unittest.TestCase):
         self.assertTrue(_CUT_FILLER.endswith(RATIONALE_TRUNCATION_MARKER))
         for named, written, kept in _LONG_RATIONALES:
             with self.subTest(case=named):
-                state = PinnedState()
+                state = PinnedState(state_data=dict(_SCHEMA_RECORD))
 
                 self.assertTrue(_session._record_late_result(state, _LateAdjudication(
                     verdict=LateVerdict.SINGLE,
@@ -283,7 +287,7 @@ class RationaleBoundTest(unittest.TestCase):
         # both go in exactly as the agent wrote them.
         for adjudication, whole_key, whole in _WHOLE_BESIDE_A_CUT:
             with self.subTest(verdict=adjudication.verdict):
-                state = PinnedState()
+                state = PinnedState(state_data=dict(_SCHEMA_RECORD))
 
                 self.assertTrue(_session._record_late_result(state, adjudication))
                 self.assertEqual(state.get(whole_key), whole)
@@ -322,13 +326,13 @@ class RationaleBoundTest(unittest.TestCase):
         # Rendered by the owner that writes the comment and read back by the
         # one that parses it: the wrapper closes where it should, and the
         # value a reader rebuilds is the bounded one the record kept.
-        state = PinnedState()
+        state = PinnedState(state_data=dict(_SCHEMA_RECORD))
         _session._record_late_result(state, _ADVERSARIAL_SINGLE)
         body = pinned_state_body(state.data)
 
         parsed = pinned_state_from_comment(
-            FakeComment(id=_STATE_COMMENT_ID, body=body),
-            trusted_login=None,
+            FakeComment(id=_STATE_COMMENT_ID, body=body, user=FakeUser(DEFAULT_BOT_LOGIN)),
+            trusted_login=DEFAULT_BOT_LOGIN,
             issue_number=_support.LATE_ISSUE_NUMBER,
         )
 

@@ -21,7 +21,11 @@ from __future__ import annotations
 import contextlib
 import tempfile
 
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import (
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+    PinnedState,
+)
 from orchestrator.workflow.engine import (
     content_hash as _content_hash,
     report_record_state as _record_state,
@@ -104,7 +108,10 @@ class ReportTransactionCase:
         )
         self.gh = FakeGitHubClient([self.issue])
         self.gh.add_pr(self.pull_request)
-        self.state = PinnedState(comment_id=1)
+        self.state = PinnedState(
+            comment_id=1,
+            state_data={SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION},
+        )
         # Written through the gate's own owner, which puts all three members
         # down: a fixture spelling two of them would seed a PARTIAL group, and
         # the receipt's damage reader is right to call that damage.
