@@ -191,6 +191,11 @@ def set_workflow_label(
 ) -> None:
     """Replace only the workflow label and emit its stage-enter event.
 
+    `None` clears the workflow label, and only `None` does: every other value
+    is coerced first, so an empty string, `0`, or any other value that is not
+    a canonical label raises before the guard reads the issue or a request
+    leaves.
+
     A write that returns leaves `issue` reading the labels it wrote, so a
     second relabel through the same object in one tick is guarded against
     the state the first one left. A write GitHub refuses raises before either
@@ -208,7 +213,8 @@ def set_workflow_label(
     adjudication or cleanup. Label-name validation still applies.
     """
     new_workflow_label = (
-        _label_reading.coerce_workflow_label(new_label) if new_label else None
+        None if new_label is None
+        else _label_reading.coerce_workflow_label(new_label)
     )
     if new_workflow_label is not None and guarded:
         _transition_guard.guard_transition(
@@ -216,9 +222,9 @@ def set_workflow_label(
             new_workflow_label,
             config.WORKFLOW_TRANSITION_GUARD,
         )
-    # Only the labels this write actually owns come off. A bare tag beside a
-    # namespaced one belongs to the repository, not to the orchestrator, so it
-    # survives -- see `replaced_label_names`.
+    # Only the labels this write actually owns come off: the current workflow
+    # labels. A bare name such as `fixing` belongs to the repository, alone or
+    # beside the canonical label, so it survives -- see `replaced_label_names`.
     label_names = [issue_label.name for issue_label in issue.labels]
     replaced = _label_reading.replaced_label_names(label_names)
     kept_labels = [name for name in label_names if name not in replaced]
@@ -251,10 +257,11 @@ def _last_workflow_labeling(issue: Issue, bot_login: str) -> str | None:
     workflow label is one it writes itself, and a collaborator is free to
     apply and remove the same names by hand -- reading one of those back would
     let somebody outside the workflow forge the record of a write it never
-    made. And the label has to be in the workflow vocabulary: a control label
+    made. And the label has to be a canonical workflow label: a control label
     is an operator's modifier rather than a state, so a `paused` applied over
     a terminal must not displace it, and anything a repository names its own
-    issues by is not this vocabulary at all.
+    issues by is not this vocabulary at all -- a bare `implementing` an
+    earlier build applied included, since it names no current state.
     """
     latest = None
     for issue_event in issue.get_events():

@@ -59,15 +59,18 @@ read-back in [C-12]. Treat `WORKTREES_DIR` as state and follow its cleanup rules
 
 **Why:** Routing stays predictable without erasing repository metadata.
 
-**Limits:** Human edits can leave multiple workflow labels; readers tolerate them, preferring current spellings
-such as `workflow:ready` over legacy bare labels such as `ready`. Legacy tags used by the repository may survive a
-relabel. Guard exemptions are listed in the label specification.
+**Limits:** A workflow label is a current `WorkflowLabel` member or its exact canonical string, and a control label a
+`ControlLabel` one; seven carry no prefix and are canonical as spelled: `in_review`, `question`, `discussion`, `done`,
+`rejected`, `backlog`, and `paused`. Every other name is repository metadata, an obsolete bare spelling such as `ready`
+or `fixing` included: it selects no stage, authorizes no artifact ownership, and survives every relabel, alone or
+beside the canonical label of the state it resembles. Human edits can leave multiple workflow labels; readers tolerate
+them. Guard exemptions are listed in the label specification.
 
 **Specs:** [labels and guards](state-machine/labels-and-state.md#workflow-labels),
-[legacy labels](state-machine.md#legacy-labels-and-the-migration-off-them).
+[obsolete labels](state-machine.md#obsolete-bare-labels).
 
 **Checks:** [label writes](../tests/github/test_workflow_label_write.py),
-[guards](../tests/workflow/test_state_guards.py).
+[guards](../tests/workflow/test_state_guards.py), [resolution](../tests/workflow/test_label_namespace.py).
 
 ## C-03: Persisted and externally consumed formats
 
@@ -85,8 +88,8 @@ The 1.0 release preparation supports current formats only: breaking changes have
 no promised conversion or continuity. Cleanup that removes a historical format, alias, or Python call signature needs no
 compatibility reader, migration, or final 0.x release. A contract for current output does not oblige readers to accept
 earlier formats, nor functions to accept callers' obsolete argument aliases. This decision sets no compatibility or
-deprecation policy for later releases. Historical forms the runtime still reads, such as the legacy labels in [C-02],
-stay documented in their specifications until their owners remove them.
+deprecation policy for later releases. Historical forms the runtime still reads stay documented in their
+specifications until their owners remove them.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning

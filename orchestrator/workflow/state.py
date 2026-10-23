@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Define the workflow and control label strings and their namespace boundary.
 
-Live GitHub labels keep their exact wire values. Stage names strip the
-namespace for analytics, audit events, and sessions; legacy names describe
-the corresponding bare spelling without changing the label vocabulary.
+Live GitHub labels keep their exact wire values, and those values are the
+whole vocabulary: a bare name that is not one of them is a repository label,
+whatever state it resembles. Stage names strip the namespace for analytics,
+audit events, and sessions.
 """
 from __future__ import annotations
 
@@ -60,18 +61,3 @@ def stage_name(label: str | WorkflowLabel | None) -> str | None:
     if label is None:
         return None
     return str(label).removeprefix(_LABEL_NAMESPACE)
-
-
-def legacy_label_name(
-    label: str | WorkflowLabel | ControlLabel,
-) -> str | None:
-    """Return the pre-namespace spelling of a label, or None if it has none.
-
-    Every namespaced label has one, control labels included: the namespace is
-    exactly what the migration adds, so what it strips is what the repository
-    carried before. A label already spelled bare never had a second spelling.
-    """
-    label_name = str(label)
-    if not label_name.startswith(_LABEL_NAMESPACE):
-        return None
-    return label_name.removeprefix(_LABEL_NAMESPACE)

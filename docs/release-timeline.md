@@ -101,7 +101,7 @@ Published **2026-10-22**. Sources: [release notes][v0.14.0] and [tagged changes]
   those passes. Answer provider-limit parks with `/orchestrator continue` after the quota resets; an Antigravity
   developer resumes the work in a fresh conversation under its original command.
 - Review legacy workflow labels before restarting: bootstrap leaves them in place and the closed-issue sweep does not
-  query their bare spellings. See [legacy-label behavior](state-machine.md#legacy-labels-and-the-migration-off-them).
+  query their bare spellings. See [legacy-label behavior](state-machine.md#obsolete-bare-labels).
 - Claude usage after the correction can be higher than earlier records for the same output. Historical output-token
   counts and estimated costs remain unchanged, and an issue spanning the upgrade mixes both accounting methods;
   see the [usage parser](observability.md#usage-parser-orchestratorobservabilityusage).

@@ -17,8 +17,8 @@ Each rule below names the check that holds it. The last is a convention the tree
 see, and is called out as such.
 
 - **Callers name the state and tick owners directly.** `workflow/state.py` defines the label vocabulary,
-  `label_reading.py` resolves its spellings, `transitions.py` declares the graph, and `transition_guard.py` guards
-  writes. The public `workflow.tick` shim resolves `workflow.engine.tick.tick` inside the call. The initializer
+  `label_reading.py` resolves its canonical labels, `transitions.py` declares the graph, and `transition_guard.py`
+  guards writes. The public `workflow.tick` shim resolves `workflow.engine.tick.tick` inside the call. The initializer
   re-exports labels and guards but imports no engine or stage, so `github/` and `git/` can import the vocabulary
   without loading the engine or pointing back into their own initialization. `tests/workflow/test_imports.py` probes
   the import paths in a clean interpreter, and `tests/repository/test_layering.py` holds the direction under them.
@@ -54,9 +54,10 @@ unlabeled entry, which `engine/pickup.py` answers rather than a stage package.
 ```
 workflow/                   publishes labels, transition guards, and the lazy per-repo tick entry point
   state.py                  the exact `WorkflowLabel` / `ControlLabel` strings and the `workflow:` namespace boundary;
-                            stage tags and legacy spellings retain the vocabulary used by live issues and event sinks
-  label_reading.py           canonical and legacy label lookup, canonical-first issue state, strict coercion, and the
-                            exact set of labels a workflow write replaces without removing unrelated bare labels
+                            `stage_name` gives the bare stage tag the event sinks and sessions record
+  label_reading.py          canonical-only label lookup, the first canonical label as an issue's state, strict
+                            coercion that refuses obsolete bare names, and the current workflow labels a write
+                            replaces, so every other label -- an obsolete bare name included -- stays
   transitions.py            the forward spine and declared interrupt sources, including cancelled `done` to `rejected`;
                             publication and base-refresh eligibility read the same stage sets used by those edges
   transition_guard.py       the same-label allowance and off/warn/enforce write guard, with strict rejection details and
@@ -2394,9 +2395,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             says which side of publication it was entered on under, the frozen context only the
                             marked half carries, and the refused reading's own step and line, the one free text on
                             a late record -- and the fields a duplicate record is deduplicated on
-    telemetry.py            the dual audit / analytics emission, the stage tag resolved against the label
-                            vocabulary, the refusal turned into a logged non-emission, and the guard on each half
-                            that keeps a sink from reaching workflow
+    telemetry.py            the dual audit / analytics emission, the stage checked against the known stage tags and
+                            canonical labels and recorded as its tag, the refusal turned into a logged non-emission,
+                            and the guard on each half that keeps a sink from reaching workflow
   stages/
     conflicts/              `workflow:resolving_conflict`
       handler.py            the order one tick asks its questions in: the missing-`pr_number` park, the terminal

@@ -17,8 +17,8 @@ from orchestrator.workflow.state import ControlLabel, WorkflowLabel
 from tests.support.fakes import FakeIssue, FakeLabel
 
 _HTTP_FORBIDDEN = 403
-_LEGACY_IMPLEMENTING = "implementing"
-_LEGACY_COMMUNITY_CONTRIBUTION = "community_contribution"
+_OBSOLETE_IMPLEMENTING = "implementing"
+_OBSOLETE_COMMUNITY_CONTRIBUTION = "community_contribution"
 _LABEL_SPECS = _labels.WORKFLOW_LABEL_SPECS + _labels.CONTROL_LABEL_SPECS
 # The one creation the bootstrap may make for each canonical label, in the
 # order it walks them: the exact name, color, and description of its spec.
@@ -31,23 +31,23 @@ _CREATIONS = MappingProxyType({
 _BOOTSTRAP_REQUESTS = frozenset(("get_labels", "create_label"))
 
 # Repository definitions -> how many of them the bootstrap finds canonical.
-# Only an exact canonical name counts: a pre-namespace spelling beside or
+# Only an exact canonical name counts: an obsolete bare spelling beside or
 # instead of the canonical label, or a label of the repository's own, is not
 # one. The seven unprefixed names ARE canonical, so they are found rather than
 # created a second time under the namespace.
 _DEFINITION_CASES = (
     (
         "only obsolete",
-        (_LEGACY_IMPLEMENTING, _LEGACY_COMMUNITY_CONTRIBUTION),
+        (_OBSOLETE_IMPLEMENTING, _OBSOLETE_COMMUNITY_CONTRIBUTION),
         0,
     ),
     (
         "both",
         (
             "workflow:implementing",
-            _LEGACY_IMPLEMENTING,
+            _OBSOLETE_IMPLEMENTING,
             "workflow:community_contribution",
-            _LEGACY_COMMUNITY_CONTRIBUTION,
+            _OBSOLETE_COMMUNITY_CONTRIBUTION,
         ),
         2,
     ),
@@ -91,7 +91,8 @@ def _missing_creations(defined_names: tuple[str, ...]) -> list[object]:
 
 # Issue label sets -> the workflow member `workflow_label` reads past any
 # control modifiers (a control label coexists with the workflow state), and
-# past a pre-namespace label sitting beside a namespaced one in either order.
+# past an obsolete bare name beside a canonical label in either order. An
+# obsolete name alone is no state, so that issue reads as unlabeled.
 _WORKFLOW_LABEL_CASES = (
     ((WorkflowLabel.IMPLEMENTING,), WorkflowLabel.IMPLEMENTING),
     (
@@ -99,14 +100,16 @@ _WORKFLOW_LABEL_CASES = (
         WorkflowLabel.IMPLEMENTING,
     ),
     (
-        (_LEGACY_IMPLEMENTING, WorkflowLabel.VALIDATING),
+        (_OBSOLETE_IMPLEMENTING, WorkflowLabel.VALIDATING),
         WorkflowLabel.VALIDATING,
     ),
     (
-        (WorkflowLabel.VALIDATING, _LEGACY_IMPLEMENTING),
+        (WorkflowLabel.VALIDATING, _OBSOLETE_IMPLEMENTING),
         WorkflowLabel.VALIDATING,
     ),
-    ((_LEGACY_IMPLEMENTING,), WorkflowLabel.IMPLEMENTING),
+    ((_OBSOLETE_IMPLEMENTING,), None),
+    ((_OBSOLETE_IMPLEMENTING, ControlLabel.PAUSED), None),
+    ((WorkflowLabel.QUESTION,), WorkflowLabel.QUESTION),
     ((ControlLabel.BACKLOG,), None),
     ((), None),
 )
@@ -126,10 +129,10 @@ class WorkflowLabelPredicateTest(unittest.TestCase):
     """`workflow_label` reports the FSM state, ignoring control modifiers.
 
     A control label coexists with the workflow state rather than masking it, so
-    a paused, implementing issue still reports the implementing state. A bare
-    pre-namespace label answers only when nothing namespaced does: the
-    orchestrator writes only namespaced labels, so one beside a bare tag is
-    the current state whichever order GitHub lists them in.
+    a paused, implementing issue still reports the implementing state. Only a
+    canonical label is a state, the unprefixed ones such as `question`
+    included; an obsolete bare name such as `implementing` is repository
+    metadata and never answers, alone or beside a canonical label.
     """
 
     def test_reads_member_past_control_labels(self) -> None:
@@ -142,14 +145,34 @@ class WorkflowLabelPredicateTest(unittest.TestCase):
 
 
 class IssueHasLabelTest(unittest.TestCase):
+    """A control label matches however a human cased it; a workflow state
+    matches only its exact canonical label, so a recased or bare stage name
+    is a repository label."""
+
     def test_matches_case_insensitively(self) -> None:
         issue = _issue_with("Implementing")
-        self.assertTrue(_labels.issue_has_label(issue, _LEGACY_IMPLEMENTING))
+        self.assertTrue(_labels.issue_has_label(issue, _OBSOLETE_IMPLEMENTING))
         self.assertTrue(_labels.issue_has_label(issue, "IMPLEMENTING"))
 
     def test_absent_label_is_false(self) -> None:
         self.assertFalse(_labels.issue_has_label(_issue_with("ready"), "done"))
         self.assertFalse(_labels.issue_has_label(_issue_with(), "ready"))
+
+    def test_a_state_matches_only_canonically(self) -> None:
+        for label_name, wanted, expected in (
+            ("question", WorkflowLabel.QUESTION, True),
+            ("Question", WorkflowLabel.QUESTION, False),
+            ("workflow:implementing", WorkflowLabel.IMPLEMENTING, True),
+            ("Workflow:Implementing", WorkflowLabel.IMPLEMENTING, False),
+            (_OBSOLETE_IMPLEMENTING, WorkflowLabel.IMPLEMENTING, False),
+        ):
+            with self.subTest(label=label_name):
+                self.assertIs(
+                    _labels.issue_has_workflow_label(
+                        _issue_with(label_name), wanted,
+                    ),
+                    expected,
+                )
 
 
 class HardSkipControlLabelTest(unittest.TestCase):
@@ -214,7 +237,7 @@ class EnsureWorkflowLabelsTest(unittest.TestCase):
     def test_refused_creation_stops_bootstrap(self) -> None:
         # A refusal is no cue to fall back on the obsolete definitions: they
         # stay as they are, and the denied write is not retried per spec.
-        definitions = self._define("decomposing", _LEGACY_IMPLEMENTING)
+        definitions = self._define("decomposing", _OBSOLETE_IMPLEMENTING)
         self.gh.repo.create_label.side_effect = _forbidden()
 
         self.gh.ensure_workflow_labels()

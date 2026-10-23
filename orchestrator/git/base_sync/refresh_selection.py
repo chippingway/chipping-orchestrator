@@ -171,7 +171,7 @@ def _in_a_read_only_stage(
     parked = state.get(_AWAITING_HUMAN) and not state.get(_PENDING_PUSH_SHA)
     park_reason = state.get(_PARK_REASON) if parked else None
     for stage_label in _READ_ONLY_STAGE_LABELS:
-        if _labels.issue_has_label(issue, stage_label):
+        if _labels.issue_has_workflow_label(issue, stage_label):
             log.debug(
                 "issue=#%d has %r label; skipping base sync (read-only stage)",
                 issue_number,
@@ -214,7 +214,7 @@ def _stands_on_an_unhanded_commit(
     label that hands the issue on.
     """
     if not any(
-        _labels.issue_has_label(issue, stage_label)
+        _labels.issue_has_workflow_label(issue, stage_label)
         for stage_label in _DECIDED_STAGE_LABELS
     ):
         return False

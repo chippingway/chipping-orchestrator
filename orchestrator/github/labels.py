@@ -6,6 +6,9 @@ Bootstrap creates the canonical labels a repository lacks and leaves every
 other definition, with the issues carrying it, as it found it. The cache keeps
 each label it resolves for the client's life and remembers no failed lookup,
 so the next closed sweep asks for that label again.
+
+A workflow state is matched by its exact canonical label, through the shared
+resolver; an operator's control label is matched however a human cased it.
 """
 from __future__ import annotations
 
@@ -16,7 +19,7 @@ from github.Issue import Issue
 from github.Label import Label
 
 from orchestrator.github.aliases import StaticMethodAlias
-from orchestrator.workflow.label_reading import issue_workflow_label
+from orchestrator.workflow.label_reading import issue_workflow_label, label_for_name
 from orchestrator.workflow.state import ControlLabel, WorkflowLabel
 
 log = logging.getLogger("orchestrator.github")
@@ -91,6 +94,19 @@ def issue_has_label(issue: Issue, label_name: str) -> bool:
     )
 
 
+def issue_has_workflow_label(issue: Issue, wanted: str) -> bool:
+    """Return whether an issue carries this exact canonical workflow label.
+
+    Read through the shared resolver rather than case-insensitively as
+    `issue_has_label` reads a control: a repository's `Question` or a bare
+    `implementing` names no state, so it holds no stage's checkout either.
+    """
+    return any(
+        label_for_name(getattr(issue_label, "name", None)) == wanted
+        for issue_label in (issue.labels or [])
+    )
+
+
 def hard_skip_control_label(issue: Issue) -> str | None:
     """Return the first control label that suppresses issue processing."""
     for control_label in HARD_SKIP_CONTROL_LABELS:
@@ -102,8 +118,9 @@ def hard_skip_control_label(issue: Issue) -> str | None:
 def workflow_label(issue: Issue) -> WorkflowLabel | None:
     """Return an issue's workflow label, excluding control labels.
 
-    The namespaced spelling wins over a pre-namespace one on the same issue,
-    whichever order GitHub lists them in -- see `issue_workflow_label`.
+    Only a canonical label counts, so an issue whose sole stage-like label is
+    a bare name such as `ready` reads as unlabeled -- see
+    `issue_workflow_label`.
     """
     return issue_workflow_label(
         issue_label.name for issue_label in issue.labels

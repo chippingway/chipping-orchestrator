@@ -1,10 +1,10 @@
 # Workflow labels, per-tick flow, and pinned state
 
 This page is the authoritative spelling of the state machine's public contract: the label set and how a wire label is
-spelled apart from the stage under it, the migration off the pre-namespace spellings, what one tick reads and writes
-per issue, and every pinned-state key a handler depends on. Live GitHub issues carry these strings, so a rename here
-is a deliberate format change under [C-03](../contracts.md#c-03-persisted-and-externally-consumed-formats) rather than
-a refactor.
+spelled apart from the stage under it, the obsolete bare labels no reader takes for a state, what one tick reads and
+writes per issue, and every pinned-state key a handler depends on. Live GitHub issues carry these strings, so a rename
+here is a deliberate format change under [C-03](../contracts.md#c-03-persisted-and-externally-consumed-formats) rather
+than a refactor.
 
 The handlers that act on them are in [`delivery-stages.md`](delivery-stages.md) and
 [`conversation-stages.md`](conversation-stages.md); the compact label-lifecycle reference is in
@@ -14,10 +14,11 @@ The handlers that act on them are in [`delivery-stages.md`](delivery-stages.md) 
 ## Workflow labels
 
 Label writes follow [C-02](../contracts.md#c-02-workflow-labels-and-transitions). Repository labels such as `bug` or
-`enhancement` lie outside the workflow set. Readers prefer the current workflow labels listed below over legacy bare
-tags (for example, `workflow:ready` over `ready`) and tolerate multiple labels added by humans. A write may deliberately
-clear the workflow label, including between the two writes that reapply a restart's target label; recovery handles a
-crash in that unlabeled state. Label names are part of the public contract because live GitHub issues carry them.
+`enhancement` lie outside the workflow set, and so does an obsolete bare name such as `ready`: only the current
+workflow labels listed below are states ([obsolete bare labels](#obsolete-bare-labels)). Readers tolerate multiple
+workflow labels added by humans, taking the first one GitHub lists. A write may deliberately clear the workflow label,
+including between the two writes that reapply a restart's target label; recovery handles a crash in that unlabeled
+state. Label names are part of the public contract because live GitHub issues carry them.
 
 A state's label and the stage under it are spelled apart throughout this file. `workflow:<tag>` is the **wire label**:
 the literal string on the GitHub issue, which is what a label write puts there, the transition guard checks, the
@@ -25,6 +26,10 @@ pollable-issue queries ask for, and the per-tick dispatcher partitions on. A bar
 that runs while an issue carries that label, the subpackage under `orchestrator/workflow/stages/` holding it, and the
 identifier analytics rows, audit event payloads, and agent-session attribution carry. The labels that were never
 namespaced — `in_review`, `question`, `discussion`, and the `done` / `rejected` terminals — read the same either way.
+On an issue only the wire label names a state, so a bare tag there is a repository label unless it is one of those
+five. An emitter handed a stage rather than a label checks it at its own boundary instead: the late-split telemetry
+accepts a known stage tag or an exact canonical label, refuses everything else, and records the tag either way
+([late-split records](../observability/event-streams.md#late-split-records-both-sinks)).
 
 The prefix is a collision guard, not the membership test — being a `WorkflowLabel` member is. A `workflow:`-prefixed
 name that is not one resolves to no state at all: the `workflow:dependencies` / `workflow:github_actions` /
@@ -96,16 +101,19 @@ enum just gives the names one authoritative definition. The labels the orchestra
 directly. The automatic `workflow:community_contribution` control is namespaced with the rest of what the
 orchestrator applies. The
 namespace stops at the GitHub boundary, and `stage_name` on the same owner is what strips a wire label back to the
-stage tag every sink below that boundary records. A repository whose labels predate the namespace still carries the
-bare spellings; how it moves off them is [below](#legacy-labels-and-the-migration-off-them).
+stage tag every sink below that boundary records. A bare name matching a namespaced state is no spelling of it; what
+each reader does with one is [below](#obsolete-bare-labels).
 
 Two guards run at `GitHubClient.set_workflow_label` (the single label-write chokepoint; `create_child_issue` bypasses
 `set_workflow_label` and shares only the typo guard for its direct write, coercing each child label through
 `label_reading.coerce_workflow_label` — the same strictness):
 
-- **Typo guard (always strict).** A label name not in `WorkflowLabel` raises immediately, so a typo cannot be applied as
-  a literal label that the next tick would treat as unlabeled-pickup. `create_child_issue` coerces each birth label the
-  same way, so split children are born with only a valid workflow label and any control label is rejected.
+- **Typo guard (always strict).** A label name not in `WorkflowLabel` raises immediately, an obsolete bare name such
+  as `fixing` included, so neither can be applied as a literal label that the next tick would treat as
+  unlabeled-pickup. Only `None` clears the label: any other value is coerced, so an empty string, `0`, or a value
+  that is not a string raises here too rather than stripping the issue's state past the transition guard.
+  `create_child_issue` coerces each birth label the same way, so split children are born with only a valid workflow
+  label and any control label is rejected.
 - **Transition guard (`WORKFLOW_TRANSITION_GUARD` = `off` / `warn` / `enforce`, default `warn`).** An illegal
   `current → new` relabel is checked by `transition_guard.guard_transition` against `transitions.ALLOWED_TRANSITIONS`.
   `warn` logs the rejected edge through the
@@ -126,9 +134,9 @@ are therefore each guarded against the state the one before left, and a write Gi
 labels or the event move. Any other object fetched for the same issue still carries the labels it was fetched with.
 
 `ALLOWED_TRANSITIONS` is a forward spine (e.g. `workflow:implementing → workflow:validating → workflow:documenting`)
-plus interrupt / detour edges declared per-target. It is keyed by `WorkflowLabel` members, so a pre-namespace label
-resolves to its member before the guard sees it and is checked against the same edges. Operator relabels via the
-GitHub UI bypass both guards, so the guard never fights a human.
+plus interrupt / detour edges declared per-target. It is keyed by `WorkflowLabel` members and checks from the
+canonical reading of the issue, so an issue whose only stage-like label is an obsolete bare name is checked as
+unlabeled. Operator relabels via the GitHub UI bypass both guards, so the guard never fights a human.
 
 Fourteen of those edges belong to the late size gate and are declared ahead of the handlers that write them.
 `workflow:implementing → workflow:decomposing` is the route a clean committed candidate measured past the threshold
@@ -209,64 +217,61 @@ stays inert. The pinned state those transitions move an issue through is [below]
 - `done` — Terminal success; PR merged, umbrella resolved, or a `question` issue closed.
 - `rejected` — Terminal rejection; PR or issue closed without merge.
 
-### Legacy labels and the migration off them
+<a id="legacy-labels-and-the-migration-off-them"></a>
 
-A repository whose labels predate the namespace carries the bare spellings on live issues. Nothing moves them over
-wholesale: the label bootstrap only creates what is missing, and an open issue comes off its bare label one relabel
-at a time, kept reachable until then by the routing read below. A closed issue carrying nothing but a bare label is
-reached by no sweep, so it keeps that label as it was left.
+### Obsolete bare labels
 
-`runtime.startup.connect_clients` runs the bootstrap once per configured repo at process start, not mid-tick.
-`ensure_workflow_labels` lists the repository's labels once and creates each label of both vocabularies whose exact
-canonical name is not among them. A pre-namespace spelling is never looked up, so for a namespaced label there are
-three answers and only one write:
+`workflow/label_reading.py` is the resolver issue routing, label writes, the label history, the base refresh's stage
+holds, and artifact ownership go through, the real client and the in-memory double alike, and it resolves a current
+`WorkflowLabel` member or its exact canonical string and nothing else. A bare name an earlier build wrote for a state
+that is namespaced now — `decomposing`, `ready`, `blocked`, `umbrella`, `implementing`, `validating`, `documenting`,
+`fixing`, `resolving_conflict`, and the control `community_contribution` — is no spelling of that state. It is
+repository metadata, read and kept exactly like `bug`:
 
-- **The namespaced label already exists** → nothing happens, and a bare label still defined on the repository beside
-  it stays defined.
-- **Only the pre-namespace spelling exists** → the namespaced label is created beside it. The bare definition is
-  neither renamed nor deleted, so every issue holding it keeps it — the closed ones and the `backlog` / `paused`
-  parked ones included.
-- **Neither exists** → the namespaced label is created fresh.
+- **Routing.** `github.labels.workflow_label` reads an issue's labels through `issue_workflow_label`, which answers the
+  first canonical label GitHub lists and reads past every other name. An issue carrying an obsolete name beside a
+  canonical label is in the canonical label's state whichever order GitHub returns them in; one carrying only an
+  obsolete name has no workflow label, so the dispatcher hands it to pickup like any unlabeled issue.
+- **Writes.** `replaced_label_names` takes off the current workflow labels and nothing else, so a relabel leaves an
+  obsolete name where it was — alone, or beside the canonical label of the very state it resembles — as it leaves
+  `bug` and the control labels. `coerce_workflow_label` refuses an obsolete name as it refuses a typo, so no write puts
+  one on an issue, `create_child_issue`'s birth labels included.
+- **Guard.** The transition guard checks from the canonical reading, so an issue whose only stage-like label is an
+  obsolete name is guarded as unlabeled: the name buys no edge out of the stage it resembles.
+- **Base refresh.** The refresh's holds for the read-only `question` / `discussion` stages, and for a commit
+  `workflow:implementing` or `workflow:decomposing` still owes a step, ask for the exact canonical label through
+  `github.labels.issue_has_workflow_label`, so neither an obsolete name nor a recased one such as `Question` holds a
+  checkout. The operator's `backlog` / `paused` controls still match however a human cased them.
+- **History and ownership.** `last_workflow_label_applied` counts only the canonical labels this account applied, so
+  an obsolete name it applied under an earlier build is no state it put the issue in. Artifact maintenance reads the
+  same way: a closed issue carrying only an obsolete name has no workflow label, so its artifacts are kept, and one
+  beside `done` or `rejected` is not a second state.
+- **Sweeps.** The community sweep's dedup marker is [`workflow:community_contribution`](#workflow-labels) alone, and a
+  bare `community_contribution` on a PR is kept where it is beside the marker the sweep adds. The closed-issue sweep
+  asks for each swept label by its canonical name alone, so it never reaches a closed issue carrying only an obsolete
+  name and leaves the issue and its label as they are — see
+  [Pollable issues and finalization](#pollable-issues-and-finalization).
 
-Every other definition is left the same way. At the repository level a leftover pre-namespace spelling and a name the
-repository picked for itself are the same thing, so the bootstrap edits, deletes, and reassigns neither, and issues
-still carrying a bare label come off it one relabel at a time under the rules below, not on a second bootstrap pass.
 The seven labels that were never namespaced — `in_review`, `question`, `discussion`, `done`, `rejected`, and the
-`backlog` / `paused` controls — are canonical under their bare spelling, so the bootstrap skips one that already
-exists or creates it bare, never under the namespace.
+`backlog` / `paused` controls — are canonical under their bare spelling and are not obsolete: the five states route
+and come off a relabel like every other current workflow label, and the two controls hold an issue as described
+[above](#workflow-labels).
 
-A PAT without `Issues: Read and write` cannot create. A refused listing skips the bootstrap; a refused creation is
-logged and the rest of the bootstrap is abandoned, leaving the repository without the labels it was missing until the
-permission is granted and the process restarts. The orchestrator keeps polling either way. Open issues still
-carrying a bare label, and a human re-adding one by hand, are what the read below exists for.
+Nothing migrates an obsolete label, neither the definition nor the issues carrying it.
+`runtime.startup.connect_clients` runs the bootstrap once per configured repo at process start, not mid-tick:
+`ensure_workflow_labels` lists the repository's labels once and creates each label of both vocabularies whose exact
+canonical name is not among them. Every other definition — an obsolete bare one or a name the repository picked for
+itself — is never looked up, edited, renamed, or deleted, so every issue carrying it keeps it. The unprefixed canonical
+labels are skipped where they exist and created bare where they do not, never under the namespace. A PAT without
+`Issues: Read and write` cannot create: a refused listing skips the bootstrap, and a refused creation is logged and
+abandons the rest of it, leaving the repository without the labels it was missing until the permission is granted and
+the process restarts. The orchestrator keeps polling either way.
 
-One read takes either spelling, and it is what keeps an open issue carrying only a bare label reachable:
-
-- **Routing.** `github.labels.workflow_label` reads an issue's labels through `issue_workflow_label`, which resolves a
-  bare tag back to its `WorkflowLabel`, so an issue still carrying the old label reaches its handler and the next
-  label write rewrites it to the namespaced spelling. (`label_for_name` is the same lookup on the write side, where
-  `coerce_workflow_label` accepts either spelling for a label about to be applied.)
-
-The community sweep does not read a bare label: its dedup marker is
-[`workflow:community_contribution`](#workflow-labels) alone, and a bare `community_contribution` on a PR is the
-repository's own label, kept where it is beside the marker the sweep adds.
-
-An issue can therefore carry both spellings at once, and the namespaced one always wins — `issue_workflow_label`
-scans for it across every label before it will settle for a bare tag, so the order GitHub happens to return them in
-cannot change the answer. The write side mirrors that read. `replaced_label_names` takes off the namespaced labels
-always; a bare tag joins them only when it names a state coming off anyway — because the namespaced spelling of that
-same state sits beside it, or because the issue has no namespaced label at all and the bare one *is* its
-pre-migration state. So a bare `blocked` or `ready` the repository uses for its own triage, on an issue whose state
-is already namespaced, is read past and left in place: that protection is the point of the namespace, and it would be
-worth nothing if a relabel deleted the label anyway. The one case the two spellings cannot be told apart is a bare tag
-on an issue with no namespaced label — there it is taken as the pre-migration state, which is what lets the issue
-keep routing.
-
-The closed-issue sweep does not read a bare label either. It asks for each swept label, recovery and cleanup alike, by
-its canonical name alone, so it never reaches a closed issue whose only workflow label is a pre-namespace spelling:
-that spelling is not current state ([C-03](../contracts.md#c-03-persisted-and-externally-consumed-formats)), and the
-sweep leaves the issue and its label as they are — see
-[Pollable issues and finalization](#pollable-issues-and-finalization).
+An old issue with no pinned state and only an obsolete label therefore looks exactly like new work: it carries no
+workflow label and no pinned comment, so it enters ordinary pickup, which takes it up from scratch when an
+`ALLOWED_ISSUE_AUTHORS` login filed it. The label is not authoritative state, and no implicit migration reads it as
+one. How an operator keeps such an issue away from pickup before deploying is in
+[Exclude or retire unsupported work](../configuration/operations.md#exclude-or-retire-unsupported-work).
 
 <a id="per-tick-flow-workflowtick"></a>
 
@@ -755,9 +760,8 @@ counted ends the sync the same way, except over a pinned anchor, where the check
 eight recovery sweep labels — `workflow:implementing`, `workflow:documenting`, `workflow:validating`, `in_review`,
 `workflow:fixing`, `workflow:resolving_conflict`, `question`, `discussion` — or one of the four cleanup ones,
 `workflow:decomposing`, `workflow:umbrella`, `workflow:ready`, and `workflow:blocked`. Each is queried under its
-canonical name only, the three canonical under their bare spelling included, so a closed issue whose only workflow
-label is a pre-namespace spelling is not yielded (see
-[Legacy labels and the migration off them](#legacy-labels-and-the-migration-off-them)). The open poll and every closed
+canonical name only, the three canonical under their bare spelling included, so a closed issue carrying only an
+obsolete bare label is not yielded (see [Obsolete bare labels](#obsolete-bare-labels)). The open poll and every closed
 query feed one seen-number set, so an issue two of them return — a closed issue a human left on two swept labels, or
 one closed between the open poll and the sweep — is yielded once. The closed-issue sweep makes external manual merges
 and operator closes finalize cleanly:

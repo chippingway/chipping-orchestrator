@@ -501,30 +501,32 @@ orchestrator/
                         queries also list by the `_pull_request` slot PyGithub filled from the page, since the
                         public property would spend a detail GET on every real issue to answer, asking that
                         property only of a row whose slot is missing or in a shape it does not recognize -- with
-                        each swept label asked for by its canonical name alone, so a closed issue whose only
-                        workflow label is a pre-namespace spelling is not swept. Sits directly above `issues` in
+                        each swept label asked for by its canonical name alone, so a closed issue carrying only
+                        an obsolete bare label is not swept. Sits directly above `issues` in
                         the client's mixin chain, which is the owner it reads its label sets and its issue-state
                         spellings from
-    issues.py           issue writes, the query options, the wire issue-state vocabulary, the closed predicate
-                        every reader of it asks through, the every-state, no-label walk that finds the first
-                        issue carrying a marker -- the reading a receipt lookup needs and the only one that
-                        sees an issue a human has since closed or relabelled -- or every one of them, for a
-                        caller that has to know its match is the only one, and the labels whose CLOSED
-                        issues a sweep still owes a pass: the recovery set whose terminal arc has not drained,
-                        and the cleanup set, which is where a late adjudication runs plus where an interrupted
-                        cancellation can be left -- read from here by the poller that queries them and by the
-                        dispatcher that routes a closed issue on them alike; plus the one question about an
-                        issue's PAST this client answers -- which workflow label THIS orchestrator applied to
-                        it LAST -- which is what a removed label leaves no other trace of, and what tells one
-                        attempt at a state from an earlier one, since every state this workflow moves an issue
-                        to is itself an application; the actor is filtered on the same account the pinned
-                        comment is authenticated under, so a name a collaborator applied by hand is not a
-                        write of this orchestrator's; control labels are excluded, and no account, no
-                        evidence, and an unreadable walk all answer alike
-    labels.py           label vocabulary, bootstrap specs, the bootstrap that creates the canonical labels a
-                        repository lacks without looking up, editing, or deleting any other definition, and cached
-                        reads that keep each label they resolve and remember no failed lookup, so a label the
-                        sweep could not resolve, or could not ask about, is asked for again on the next sweep
+    issues.py           issue writes (a relabel replaces only the current workflow labels, and a child is born on a
+                        coerced canonical label), the query options, the wire issue-state vocabulary, the closed
+                        predicate every reader of it asks through, the every-state, no-label walk that finds the first
+                        issue carrying a marker -- the reading a receipt lookup needs and the only one that sees an
+                        issue a human has since closed or relabelled -- or every one of them, for a caller that has to
+                        know its match is the only one, and the labels whose CLOSED issues a sweep still owes a pass:
+                        the recovery set whose terminal arc has not drained, and the cleanup set, which is where a late
+                        adjudication runs plus where an interrupted cancellation can be left -- read from here by the
+                        poller that queries them and by the dispatcher that routes a closed issue on them alike; plus
+                        the one question about an issue's PAST this client answers -- which workflow label THIS
+                        orchestrator applied to it LAST -- which is what a removed label leaves no other trace of, and
+                        what tells one attempt at a state from an earlier one, since every state this workflow moves an
+                        issue to is itself an application; the actor is filtered on the same account the pinned comment
+                        is authenticated under, so a name a collaborator applied by hand is not a write of this
+                        orchestrator's; only canonical workflow labels count, so control labels and obsolete bare names
+                        are excluded, and no account, no evidence, and an unreadable walk all answer alike
+    labels.py           label vocabulary, bootstrap specs, the issue predicates (a workflow state matched by its
+                        exact canonical label through the shared resolver, a control label however a human cased
+                        it), the bootstrap that creates the canonical labels a repository lacks without looking up,
+                        editing, or deleting any other definition, and cached reads that keep each label they
+                        resolve and remember no failed lookup, so a label the sweep could not resolve, or could not
+                        ask about, is asked for again on the next sweep
     pinned_state.py     the pinned durable-state model, the comment body it is written as -- with the wrapper's own
                         terminator escaped in the SERIALIZED payload and never in the value, since a recorded
                         explanation or a preserved pull-request body carrying `-->` would close that comment early
@@ -849,17 +851,17 @@ orchestrator/
                         `rewrite_recovery.py`, `rewrite_retry.py`, `rewrite_landed.py`, `rewrite_finish.py`) order
                         for a pushed branch
       refresh_selection.py
-                        which discovered directories name an issue, whether that issue reads at all, and the
-                        order the refusals that end a sync before any rewrite are asked in: the hard-skip, the
-                        records the `frozen` owner answers for, the read-only stages and the parks they leave
-                        behind, and last -- because it is the only one that costs a read of the checkout -- the
-                        commit a stage still owes a step, which is also where the label scope on the two
-                        freezes no write ever ends is applied. Beside an auto-rebase anchor only the late claims
-                        the reconciliation answers freeze the walk and a read-only park is set aside: the
-                        dispatcher holds every handler that would end the rest, so none of them may freeze the
-                        recovery out as well -- and once a recovery takes the anchor down and lets the tick go
-                        on, the coordinator asks the whole selection again before any rebase behind it
-                        (`workflow/engine/base_rewrite.py`)
+                        which discovered directories name an issue, whether that issue reads at all, and the order
+                        the refusals that end a sync before any rewrite are asked in: the hard-skip, the records the
+                        `frozen` owner answers for, the read-only stages and the parks they leave behind, and last
+                        -- because it is the only one that costs a read of the checkout -- the commit a stage still
+                        owes a step, which is also where the label scope on the two freezes no write ever ends is
+                        applied. Each stage hold asks for its exact canonical label, so a recased or bare stage name
+                        holds nothing. Beside an auto-rebase anchor only the late claims the reconciliation answers
+                        freeze the walk and a read-only park is set aside: the dispatcher holds every handler that
+                        would end the rest, so none of them may freeze the recovery out as well -- and once a
+                        recovery takes the anchor down and lets the tick go on, the coordinator asks the whole
+                        selection again before any rebase behind it (`workflow/engine/base_rewrite.py`)
       frozen.py         which records hold a checkout still and what ends each freeze: the ones that freeze a
                         branch by their presence -- the late reading, the approval, and the terms of a squash
                         mid-rewrite among them, each read as the whole GROUP its write puts down rather than as
@@ -1453,12 +1455,13 @@ orchestrator/
                         the branches it could not list as unused
       claims.py         the GitHub side of the same question, asked about the issue: the issue fetch, the
                         authenticated pinned read and the two checks that its payload is a state at all, the
-                        exactly-one-terminal-label rule an ending has to pass, and the open pull requests still
-                        standing on a branch or on the recorded number. The branch claims are asked of both
-                        layouts this orchestrator publishes an issue under whether or not the host still holds
-                        them, and they name no base, since a thread retargeted onto another base stands on the
-                        branch just as squarely. Every read is behind its own boundary, the lazy fields
-                        included, and every boundary answers with a retention rather than a default
+                        exactly-one-terminal-label rule an ending has to pass, read over canonical labels alone so
+                        an obsolete bare name neither ends an issue nor makes it ambiguous, and the open pull
+                        requests still standing on a branch or on the recorded number. The branch claims are
+                        asked of both layouts this orchestrator publishes an issue under whether or not the host
+                        still holds them, and they name no base, since a thread retargeted onto another base
+                        stands on the branch just as squarely. Every read is behind its own boundary, the lazy
+                        fields included, and every boundary answers with a retention rather than a default
       commit_claims.py  the same side asked about one commit: whether a terminal pull request exactly accounts
                         for a branch tip the base does not carry. The lookup is by object id rather than by
                         branch name, so a pull request that used this branch for some earlier round does not

@@ -45,7 +45,10 @@ def _set_workflow_label(
     *,
     guarded: bool = True,
 ) -> None:
-    resolved_label = _label_reading.coerce_workflow_label(new_label) if new_label else None
+    resolved_label = (
+        None if new_label is None
+        else _label_reading.coerce_workflow_label(new_label)
+    )
     if resolved_label is not None and guarded:
         _transition_guard.guard_transition(
             client.workflow_label(issue),
@@ -56,12 +59,12 @@ def _set_workflow_label(
     retained = [
         label for label in issue.labels if label.name not in replaced
     ]
-    if resolved_label:
+    if resolved_label is not None:
         retained.append(FakeLabel(resolved_label))
     if not client._stale_label_cache:
         issue.labels = retained
     client.label_history.append((issue.number, resolved_label))
-    if resolved_label:
+    if resolved_label is not None:
         client.emit_event(
             "stage_enter",
             issue_number=issue.number,
