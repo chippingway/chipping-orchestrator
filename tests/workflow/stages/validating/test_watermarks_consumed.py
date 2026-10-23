@@ -32,6 +32,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import verified_approvals as _verified
 from tests.workflow.fixtures import (
     _FAKE_WT,
     _TEST_SPEC,
@@ -228,6 +229,7 @@ class HandoffSkipsConsumedRepliesTest(unittest.TestCase, _PatchedWorkflowMixin):
                 gh,
                 issue,
                 run_agent=_agent(),
+                **_verified.proving(gh, issue),
             )
 
         # Manual-merge-only: no merge call. The HITL ping fires because

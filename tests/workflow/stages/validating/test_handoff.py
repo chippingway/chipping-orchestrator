@@ -18,7 +18,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow.agent_failure_values import agy_quota_stop
+from tests.workflow import agent_failure_values as _agent_failures, verified_approvals as _verified
 from tests.workflow.fixtures import (
     _agent,
     _open_pr_for,
@@ -202,7 +202,7 @@ class ValidatingPushedFixesStayOnValidatingTest(
 
         with self.assertLogs("orchestrator.workflow", level="WARNING"):
             self._run_validating(
-                gh, issue, run_agent=agy_quota_stop(), dirty_files=("stray.py",),
+                gh, issue, run_agent=_agent_failures.agy_quota_stop(), dirty_files=("stray.py",),
                 push_branch=True, head_shas=[BEFORE_FIX_SHA, AFTER_FIX_SHA],
             )
 
@@ -433,6 +433,7 @@ class _ValidatingToInReviewFixtureMixin(_PatchedWorkflowMixin):
                 github,
                 issue,
                 run_agent=_agent(),
+                **_verified.proving(github, issue),
             )
 
     def _assert_ready_ping(self, github) -> None:

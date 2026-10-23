@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, FakePRReview, FakeUser, make_issue
+from tests.workflow import verified_approvals as _verified
 from tests.workflow.fixtures import _agent, _issue_branch, _PatchedWorkflowMixin
 
 REVIEW_SUMMARY_ISSUE = 90
@@ -21,7 +22,7 @@ COMMENT_REVIEW_ID = 4243
 APPROVAL_REVIEW_ID = 4244
 EMPTY_REVIEW_ID = 4245
 READY_MESSAGE = "ready for review/merge"
-REVIEWED_SHA = "cafe1234"
+REVIEWED_SHA = "cafe1234" * 5
 CHECKS_SUCCESS = "success"
 RUN_AGENT = "run_agent"
 HUMAN_LOGIN = "alice"
@@ -141,12 +142,14 @@ class InReviewPRReviewSummaryTest(
         github = scenario.github
         scenario.pull_request.approved = True
         scenario.pull_request.approval_head_sha = REVIEWED_SHA
+        _verified.verifies_the_approval(github, scenario.issue)
 
         with patch.object(config, DEBOUNCE_SETTING, REVIEW_DEBOUNCE_SECONDS):
             mocks = self._run_in_review(
                 github,
                 scenario.issue,
                 run_agent=_agent(),
+                **_verified.proving(github, scenario.issue),
             )
 
         mocks[RUN_AGENT].assert_not_called()

@@ -31,7 +31,10 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow import drift_reports as _drift_world
 from tests.workflow.fixtures import MEASURED_CANDIDATE_SHA, _agent
-from tests.workflow.stages.validating import squash_rebase_journey_support as _journey
+from tests.workflow.stages.validating import (
+    readiness_journey_support as _readiness,
+    squash_rebase_journey_support as _journey,
+)
 
 HEAD = _journey.HEAD
 
@@ -152,12 +155,15 @@ class _ChangedDocsJourney(_journey._SquashRebaseJourney):
         """Approve, squash, and settle the carry, leaving the label on `workflow:documenting`.
 
         Nothing spawned on the way is kept, and what the issue has spent by
-        then is `charged`, so a case reads its runs and charges from here on.
+        then is `charged`, so a case reads its runs and charges from here on;
+        how far the threads were told by then is `walked`, which a case reads
+        the timeline from.
         """
         self.approves()
         self.later()
         self.spawns.clear()
         self.charged = self.spent()
+        self.walked = _readiness.high_water(self)
 
     def changes_the_docs(self, push=None, **run_options) -> None:
         """One dispatch of the docs pass, committing `DOCS_HEAD` on the squash; its push lands unless `push` says.
@@ -247,11 +253,9 @@ class _ChangedDocsWalk(_ChangedDocsJourney):
         self.assertIn(DOCS_HEAD, handed)
 
     def assert_quiet_after(self) -> None:
-        """Three more dispatches move, spawn, and tell nothing."""
-        standing = self._standing()
-        for _ in range(3):
-            self.dispatched()
-        self.assertEqual(self._standing(), standing)
+        """Three more dispatches move, spawn, verify, write, and tell nothing, the last thing told the ready ping."""
+        self.assertEqual(self.told()[-1], (_readiness.READY,))
+        self.assert_quiet()
 
     def assert_one_of_each(self, head: str = DOCS_HEAD, rounds: int = 1, walked: tuple = DOCUMENTED_AGAIN) -> None:
         """The walk ended in `in_review` on `head` with one run of each role charged, and nothing owed or parked.
@@ -261,8 +265,11 @@ class _ChangedDocsWalk(_ChangedDocsJourney):
         notice anywhere saying a report could not be delivered; fresh evidence
         on `head` current; `head` stamped documented by the pass that found
         nothing to change; and `rounds` review rounds spent -- the one the
-        hand-back spends, unless a base rewrite put the count back since.
+        hand-back spends, unless a base rewrite put the count back since. The
+        pull request was told it is ready once, last, and only behind the
+        report of `head`, its reviewer's own run of `head`, and that pass.
         """
+        self.assert_refreshed_into_review(head, self.walked)
         self.assertEqual(self.labels()[-len(walked):], walked)
         self.assertEqual(self.roles(), ONE_OF_EACH)
         self.assertEqual(self.spent_since(self.charged)[0], len(ONE_OF_EACH))
@@ -280,8 +287,3 @@ class _ChangedDocsWalk(_ChangedDocsJourney):
         owed = (pinned[_CURRENT_REPORT]["sha"], pinned[REWRITE_DEBT], pinned[_PARK_REASON])
         self.assertEqual(owed, (head, None, None))
         self.assertEqual(pinned[_REVIEW_ROUND], rounds)
-
-    def _standing(self) -> tuple:
-        """Where the issue stands: its label, and how much its pull request and thread were told."""
-        told = len(self.pull_request.issue_comments)
-        return self.labels()[-1], told, len(self.github.posted_comments)

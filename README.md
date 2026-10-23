@@ -40,8 +40,9 @@ approval without passing evidence covering every configured `VERIFY_COMMANDS` co
 pass that commits documentation changes sends the pull request back to `workflow:validating`, where the developer
 reports on the new head and a fresh reviewer verifies it before another docs pass. One that changes nothing hands the
 pull request on only while the approval's verification evidence still proves current behind it; evidence that no
-longer does is invalidated, and the pull request goes back for a fresh review. Oversized changes, conflicts, retries,
-and human decisions take explicit side paths; pull requests are never merged automatically.
+longer does is invalidated, and the pull request goes back for a fresh review. In `in_review` a human is told the pull
+request is ready only over current passing evidence proved again at that moment. Oversized changes, conflicts,
+retries, and human decisions take explicit side paths; pull requests are never merged automatically.
 
 See the [state-machine overview][states] for labels and transitions, and the
 [workflow guide][workflow] for agent roles and session behavior.

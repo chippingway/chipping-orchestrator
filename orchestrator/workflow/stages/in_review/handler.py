@@ -80,7 +80,9 @@ def _handle_in_review(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Is
     mergeable PR whose current head completed the reviewer-approved
     final-docs handoff (or carries a real GitHub APPROVED review), with
     no standing human CHANGES_REQUESTED on that head, earns a one-shot
-    HITL ping per head SHA so the human knows the PR is ready. An
+    HITL ping per head SHA so the human knows the PR is ready -- once the
+    issue's current verification evidence proves current and passing for
+    that head at the ping itself, whichever of the two qualified it. An
     unmergeable PR parks awaiting human attention (no `resolving_conflict`
     route from this stage).
 

@@ -35,7 +35,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow import published_reports as _published_reports
+from tests.workflow import published_reports as _published_reports, verified_approvals as _verified
 from tests.workflow.fixtures import (
     _agent,
     _PatchedWorkflowMixin,
@@ -280,6 +280,7 @@ class _SquashApprovalFixtureMixin(_PatchedWorkflowMixin):
                 github,
                 issue,
                 run_agent=_agent(),
+                **_verified.proving(github, issue),
             )
 
     def _assert_ready_ping(self, github, mocks) -> None:

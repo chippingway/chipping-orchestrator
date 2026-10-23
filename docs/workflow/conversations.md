@@ -748,6 +748,20 @@ with the approval it answers for, and the issue goes back to a fresh reviewer ra
 nobody could take holds the pass. Evidence that is missing, malformed, edited, or otherwise unproven never counts as
 passing: it takes that same road back. A reply over recovered commits publishes them, and is never this shortcut.
 
+The ready ping `in_review` posts once the head is approved rests on that evidence too, and on nothing less: a docs
+stamp on the head and a GitHub approval of it each only qualify the head, and either way the ping waits on the
+current evidence proved whole again at the ping itself -- the same binding the docs pass proves, the head it answers
+for being the head the ping names -- and on its artifact passing as an approval's must, at least one command, every
+one exiting 0, and every configured `VERIFY_COMMANDS` command among them
+([the readiness proof](../state-machine/delivery-stages.md#the-readiness-proof-at-the-ping)), taken once more
+behind the ping's own checkpoints as the last thing asked before the post. An armed ping the thread never received
+takes the same proof before it is posted. Evidence that is missing, failed, incomplete, or
+records that nothing ran, under any configuration, never announces readiness, and neither does evidence a push, a
+configuration change, an edit of the issue, the report, or the artifact, or a later revision has moved past: the
+ping is withheld with nothing posted and nothing written past an arming already landed, and the stage's own
+hand-back and drift routes answer what they own. A reading nobody could take, or a pull request merged or closed
+while the proof reads, holds the ping the same way.
+
 ## Foreground execution and asynchronous command guidance
 
 Every developer and commit-producing prompt — initial implementation, automated reviewer fixes, requirements drift,

@@ -592,6 +592,14 @@ back to `workflow:validating` without resuming dev (documenting). Both halves of
 `workflow/engine/drift.py` owner the stage leaves import directly, so a patch aimed at the hook targets that owner.
 `_handle_fixing`, `_handle_question`, and `_handle_discussion` skip the drift hook.
 
+`in_review` never merges. Beside its parks, the one thing it tells a human is that the pull request is ready: a ping
+posted only over the issue's current verification evidence proved whole again at the ping
+(`workflow/stages/in_review/merge_gate.py`, through `workflow/engine/verification_proof.py`), passing and covering the
+configured commands, whichever route -- the final-docs stamp or a GitHub approval -- qualified the head. The proof is
+taken ahead of the ping's guarded checkpoints and once more behind them, the last request before the post, and a
+refused or unread proof posts nothing and writes nothing of its own
+([the readiness proof](state-machine/delivery-stages.md#the-readiness-proof-at-the-ping)).
+
 Which owner holds each decision inside a stage, which helpers it borrows from a sibling stage or from `git/`, and the
 checks that keep a stage answering on one module are in
 [`architecture/workflow-modules.md`](architecture/workflow-modules.md). For per-stage internal flow — pickup, drift

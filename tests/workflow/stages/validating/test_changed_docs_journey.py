@@ -10,8 +10,9 @@ is asked for that report alone, which settles as REPORT: READY without a reply
 or a commit, and leaves the approved report standing as it was written; the
 fresh reviewer is handed the new report and has to bring evidence of its own
 on the docs commit, and only then does the next final-docs pass run, finding
-nothing left to write, and hand the issue to `in_review`. No stale-report park
-is taken, and one run of each role is charged.
+nothing left to write, and hand the issue to `in_review` -- where the pull
+request is told it is ready, once, and not before. No stale-report park is
+taken, and one run of each role is charged.
 
 The same holds through a crash in every window the hand-back and the report
 behind it open: a push whose answer was lost, a hand-back write that never
@@ -107,9 +108,11 @@ class ChangedDocsJourneyTest(_docs._ChangedDocsWalk, unittest.TestCase):
         # The docs commit retires what the approval rested on and owes a
         # report of itself; the developer writes it with nobody asked, the
         # approved report left as it was; the reviewer is handed it and
-        # approves the docs commit on a run of its own; and the next docs pass
-        # changes nothing and hands the issue to `in_review`. Later ticks
-        # spawn, charge, and post nothing more.
+        # approves the docs commit on a run of its own, through one run of the
+        # approval's verification gate; and the next docs pass changes nothing
+        # and hands the issue to `in_review`, which pings it as ready over
+        # that run. Later ticks spawn, verify, charge, write, and post nothing
+        # more.
         self.walks_into_documenting()
         approved = self.pull_request.issue_comments[0].body
 

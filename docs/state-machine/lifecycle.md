@@ -555,8 +555,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
        GitHub-approved current head        awaiting_human stays false;
        + no human CHANGES_REQUESTED        armed with a receipt before the
        + head SHA not yet pinged           post and recorded behind it, so
-                                           one already on the thread is
-                                           recorded, not posted again)
+       + current passing evidence of the   one already on the thread is
+         head, proved at the ping          recorded, not posted again;
+                                           refused or unread: no ping,
+                                           no write past the arming)
      unmergeable                        ─► park (unmergeable); a
                                             subsequent human comment
                                             routes to workflow:fixing

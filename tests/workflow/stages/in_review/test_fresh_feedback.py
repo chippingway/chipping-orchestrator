@@ -27,6 +27,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import verified_approvals as _verified
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     LABEL_FIXING,
@@ -50,7 +51,7 @@ DRIFT_FEEDBACK_ISSUE = 1660
 DRIFT_FEEDBACK_PR = 1661
 DRIFT_FEEDBACK_ID = 7000
 DRIFT_FEEDBACK_WATERMARK = 6999
-REVIEWED_SHA = "cafe1234"
+REVIEWED_SHA = "cafe1234" * 5
 CHECKS_SUCCESS = "success"
 HUMAN_LOGIN = "alice"
 
@@ -259,9 +260,9 @@ class InReviewRoutesFreshFeedbackToFixingTest(
 
     def test_no_feedback_pings_for_manual_merge(self) -> None:
         # The in_review -> fixing route must NOT preempt the mergeable /
-        # HITL-ping path: an approved, mergeable, green PR with no fresh
-        # PR comments earns a one-shot HITL ping (the orchestrator never
-        # merges) and stays open.
+        # HITL-ping path: an approved, mergeable, green PR over current
+        # passing evidence, with no fresh PR comments, earns a one-shot HITL
+        # ping (the orchestrator never merges) and stays open.
         pr = FakePR(
             number=FRESH_FEEDBACK_PR,
             head_branch=FRESH_FEEDBACK_BRANCH,
@@ -271,11 +272,13 @@ class InReviewRoutesFreshFeedbackToFixingTest(
             approved=True,
         )
         gh, issue, _ = self._seed_in_review_with_pr(pr=pr)
+        _verified.verifies_the_approval(gh, issue)
 
         self._run_in_review(
             gh,
             issue,
             run_agent=_agent(),
+            **_verified.proving(gh, issue),
         )
 
         # No merge, no fixing route, no terminal flip.
