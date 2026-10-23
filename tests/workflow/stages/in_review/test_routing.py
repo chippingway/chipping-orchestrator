@@ -20,6 +20,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import published_reports as _published_reports, verified_approvals as _verified
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     _agent,
@@ -37,7 +38,9 @@ REVIEW_DEBOUNCE_SECONDS = 600
 MERGED_ISSUE = 40
 MERGED_PR = 99
 READY_MESSAGE = "ready for review/merge"
-REVIEWED_SHA = "cafe1234"
+REVIEWED_SHA = "cafe1234" * 5
+# A head a push moves the pull request on to.
+PUSHED_SHA = "beefcafe" * 5
 CHECKS_SUCCESS = "success"
 RUN_AGENT = "run_agent"
 READY_PING_SHA = "ready_ping_sha"
@@ -114,6 +117,16 @@ class _InReviewRoutingFixtureMixin(_PatchedWorkflowMixin):
             state.update(extra_state)
         gh.seed_state(issue_number, **state)
         return gh, issue
+
+    def _verified(self, github, issue) -> None:
+        """The approval of the report the pull request carries, resting on settled passing evidence of its head."""
+        _verified.verifies_the_approval(github, issue)
+
+    def _run_proved(self, github, issue, **run_options):
+        """One in_review tick over the checkout on this host and the branch fetched where the PR stands."""
+        return self._run_in_review(
+            github, issue, run_agent=_agent(), **_verified.proving(github, issue), **run_options,
+        )
 
     def _open_pr(self, **kwargs):
         defaults = {
@@ -220,6 +233,7 @@ class InReviewReadyPingRoutingTest(
                 "docs_verdict": "no_change",
             },
         )
+        self._verified(gh, issue)
         recorder = _RecordsThePing(gh)
 
         with (
@@ -227,11 +241,7 @@ class InReviewReadyPingRoutingTest(
             patch.object(gh, "edit_pinned_state", recorder.edit),
             patch.object(gh, "comment", recorder.comment),
         ):
-            mocks = self._run_in_review(
-                gh,
-                issue,
-                run_agent=_agent(),
-            )
+            mocks = self._run_proved(gh, issue)
 
         self.assertEqual(
             recorder.made,
@@ -300,46 +310,37 @@ class InReviewReadyPingRoutingTest(
         # ready-for-merge PR doesn't spam the HITL handles on every poll.
         pr = self._open_pr(approved=True, mergeable=True, check_state=CHECKS_SUCCESS)
         gh, issue = self._seed(pr=pr)
+        self._verified(gh, issue)
 
-        self._run_in_review(
-            gh,
-            issue,
-            run_agent=_agent(),
-        )
+        self._run_proved(gh, issue)
         after_first = (list(gh.posted_comments), gh.write_state_calls)
         for _ in range(2):
-            self._run_in_review(
-                gh,
-                issue,
-                run_agent=_agent(),
-            )
+            self._run_proved(gh, issue)
 
+        self.assertEqual(len(self._ready_ping_comments(gh)), 1)
         self.assertEqual((gh.posted_comments, gh.write_state_calls), after_first)
 
     def test_in_review_mergeable_repings_new_head(self) -> None:
         # A new commit on the PR branch shifts pr.head.sha; the ping is
-        # keyed on the SHA we last pinged for, so the next tick must
-        # re-ping on the new head.
+        # keyed on the SHA we last pinged for, so a later tick re-pings on
+        # the new head -- but only once evidence answers for it: a GitHub
+        # approval of a head nobody verified pings nobody, and a report of
+        # that head approved over passing evidence of it earns the ping.
         pr = self._open_pr(approved=True, mergeable=True, check_state=CHECKS_SUCCESS)
         gh, issue = self._seed(pr=pr)
+        self._verified(gh, issue)
 
-        self._run_in_review(
-            gh,
-            issue,
-            run_agent=_agent(),
-        )
-        pings_first = self._ready_ping_comments(gh)
-        pr.head = FakePRRef(sha="beefcafe")
-        self._run_in_review(
-            gh,
-            issue,
-            run_agent=_agent(),
-        )
+        self._run_proved(gh, issue)
+        pr.head.sha = PUSHED_SHA
+        self._run_proved(gh, issue)
+        pinged = len(self._ready_ping_comments(gh))
+        _published_reports.republishes_the_report(gh, issue)
+        self._verified(gh, issue)
+        self._run_proved(gh, issue)
 
-        pings_total = self._ready_ping_comments(gh)
-        self.assertEqual(len(pings_first), 1)
-        self.assertEqual(len(pings_total), 2)
-        self.assertEqual(gh.pinned_data(ROUTING_ISSUE).get(READY_PING_SHA), "beefcafe")
+        reverified = len(self._ready_ping_comments(gh))
+        self.assertEqual((pinged, reverified), (1, 2))
+        self.assertEqual(gh.pinned_data(ROUTING_ISSUE).get(READY_PING_SHA), PUSHED_SHA)
 
     def test_stale_final_docs_do_not_ping_new_head(self) -> None:
         # The final-docs marker is a head-SHA approval signal. If another
@@ -354,7 +355,7 @@ class InReviewReadyPingRoutingTest(
                 READY_PING_SHA: REVIEWED_SHA,
             },
         )
-        pr.head = FakePRRef(sha="beefcafe")
+        pr.head = FakePRRef(sha=PUSHED_SHA)
 
         self._run_in_review(
             gh,
@@ -375,6 +376,7 @@ class InReviewReadyPingRoutingTest(
             pr=self._open_pr(approved=True, mergeable=True, check_state=CHECKS_SUCCESS),
             extra_state={PR_LAST_COMMENT_ID: CONCURRENT_COMMENT_WATERMARK},
         )
+        self._verified(race_github, race_issue)
         # Pre-seed the human comment with an id ABOVE the watermark but
         # BELOW the ping id (the fake comment-id counter starts at 1000,
         # so the next id allocated by `_post_issue_comment` will be the
@@ -391,11 +393,7 @@ class InReviewReadyPingRoutingTest(
             "_post_issue_comment",
             _PostWithConcurrentComment(human_comment),
         ):
-            self._run_in_review(
-                race_github,
-                race_issue,
-                run_agent=_agent(),
-            )
+            self._run_proved(race_github, race_issue)
 
         # Watermark must NOT have advanced past the human comment.
         self.assertLess(

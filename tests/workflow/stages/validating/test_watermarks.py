@@ -22,7 +22,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow import published_reports as _published_reports
+from tests.workflow import published_reports as _published_reports, verified_approvals as _verified
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     MEASURED_CANDIDATE_SHA,
@@ -264,6 +264,7 @@ class _PrePickupHandoffFixtureMixin(_PatchedWorkflowMixin):
                 github,
                 issue,
                 run_agent=_agent(),
+                **_verified.proving(github, issue),
             )
 
     def _assert_ready_path(self, github, mocks) -> None:
@@ -480,7 +481,8 @@ class RunLimitToInReviewTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.pr.approved = True
         self.issue.labels = [FakeLabel(LABEL_IN_REVIEW)]
         with patch.object(config, DEBOUNCE_SETTING, REVIEW_DEBOUNCE_SECONDS):
-            return self._run_in_review(self.github, self.issue, run_agent=_agent())
+            proved = _verified.proving(self.github, self.issue)
+            return self._run_in_review(self.github, self.issue, run_agent=_agent(), **proved)
 
     def _they_say(self, body: str) -> int:
         identified = self.github.next_reply_id(self.issue)

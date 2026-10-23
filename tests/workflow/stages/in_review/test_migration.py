@@ -20,6 +20,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import verified_approvals as _verified
 from tests.workflow.fixtures import (
     _agent,
     _issue_branch,
@@ -46,7 +47,7 @@ FIXING = "workflow:fixing"
 # being old is no evidence there that anybody read it.
 PRE_PICKUP_PR_COMMENT_ID = 890
 PRE_PICKUP_PR_BODY = "this reuses the schema we rejected last quarter"
-REVIEWED_SHA = "cafe1234"
+REVIEWED_SHA = "cafe1234" * 5
 HUMAN_LOGIN = "alice"
 BACKEND_CLAUDE = "claude"
 DEV_SESSION = "dev-sess"
@@ -230,10 +231,12 @@ class LegacyInReviewWatermarkSeedTest(
         # not park or otherwise block the handler from posting the HITL ping.
         gh, issue, pr = self._legacy_setup()
         # Drop the human review feedback (a PR nobody is owed an answer on)
-        # and mark the PR as approved on the current head so the gate passes.
+        # and mark the PR as approved on the current head, over passing
+        # evidence of it, so the gate passes.
         pr.reviews = []
         pr.review_comments = []
         pr.approved = True
+        _verified.verifies_the_approval(gh, issue)
 
         with patch.object(
             config,
@@ -244,6 +247,7 @@ class LegacyInReviewWatermarkSeedTest(
                 gh,
                 issue,
                 run_agent=_agent(),
+                **_verified.proving(gh, issue),
             )
 
         # No merge (humans drive the merge); HITL ping fires for the

@@ -22,6 +22,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import verified_approvals as _verified
 from tests.workflow.fixtures import (
     LABEL_FIXING,
     LABEL_IN_REVIEW,
@@ -45,7 +46,7 @@ PR_CONVERSATION = "pr_conversation"
 # When the grant command was written: long enough ago that no quiet window is
 # still waiting on it, so the only thing keeping it out of a route is what it is.
 GRANTED_AT = datetime.fromtimestamp(0, tz=UTC)
-CONTROL_HEAD_SHA = "control-sha"
+CONTROL_HEAD_SHA = "c0417201" * 5
 LEGACY_LOOP_ISSUE = 431
 LEGACY_LOOP_PR = 433
 INLINE_COLLISION_ISSUE = 160
@@ -87,6 +88,11 @@ FEEDBACK_SURFACES = (
 )
 
 
+# The heads the marker-filter cases stand their pull requests on.
+MARKED_HEAD_SHA = "eadf5a00" * 5
+LEGACY_LOOP_HEAD_SHA = "553237e1" * 5
+
+
 class _DebouncedInReviewMixin(_PatchedWorkflowMixin):
     def _run_debounced(self, github, issue):
         with patch.object(config, DEBOUNCE_SETTING, REVIEW_DEBOUNCE_SECONDS):
@@ -94,6 +100,7 @@ class _DebouncedInReviewMixin(_PatchedWorkflowMixin):
                 github,
                 issue,
                 run_agent=_agent(),
+                **_verified.proving(github, issue),
             )
 
     def _assert_ready_ping(self, github) -> None:
@@ -288,7 +295,7 @@ class OrchestratorMarkerFeedbackFilterTest(
         pr = FakePR(
             number=MARKER_FILTER_PR,
             head_branch=_issue_branch(MARKER_FILTER_ISSUE),
-            head=FakePRRef(sha="ready-sha"),
+            head=FakePRRef(sha=MARKED_HEAD_SHA),
             mergeable=True,
             check_state=CHECKS_SUCCESS,
             issue_comments=[
@@ -312,16 +319,17 @@ class OrchestratorMarkerFeedbackFilterTest(
             pr_last_review_summary_id=0,
             # Deliberately omit id=3000 to model stale / incomplete state.
             orchestrator_comment_ids=[PICKUP_COMMENT_ID, PR_OPEN_COMMENT_ID],
-            docs_checked_sha="ready-sha",
+            docs_checked_sha=MARKED_HEAD_SHA,
             docs_verdict="no_change",
         )
+        _verified.verifies_the_approval(gh, issue)
 
         mocks = self._run_debounced(gh, issue)
 
         mocks[RUN_AGENT].assert_not_called()
         self.assertNotIn((MARKER_FILTER_ISSUE, LABEL_FIXING), gh.label_history)
         self.assertEqual(gh.merge_calls, [])
-        self.assertEqual(gh.pinned_data(MARKER_FILTER_ISSUE).get(READY_PING_SHA), "ready-sha")
+        self.assertEqual(gh.pinned_data(MARKER_FILTER_ISSUE).get(READY_PING_SHA), MARKED_HEAD_SHA)
         self._assert_ready_ping(gh)
 
     def test_legacy_marker_only_loop_is_filtered(self) -> None:
@@ -352,7 +360,7 @@ class OrchestratorMarkerFeedbackFilterTest(
         self.assertEqual(gh.merge_calls, [])
         self.assertEqual(
             gh.pinned_data(LEGACY_LOOP_ISSUE).get(READY_PING_SHA),
-            "553237e1",
+            LEGACY_LOOP_HEAD_SHA,
         )
         self._assert_ready_ping(gh)
 
@@ -369,7 +377,7 @@ class OrchestratorMarkerFeedbackFilterTest(
         scenario.pull_request = FakePR(
             number=LEGACY_LOOP_PR,
             head_branch=_issue_branch(LEGACY_LOOP_ISSUE),
-            head=FakePRRef(sha="553237e1"),
+            head=FakePRRef(sha=LEGACY_LOOP_HEAD_SHA),
             mergeable=True,
             check_state=CHECKS_SUCCESS,
             issue_comments=[
@@ -411,9 +419,10 @@ class OrchestratorMarkerFeedbackFilterTest(
             # pickup_comment_id deliberately missing -- the issue was
             # picked up via operator relabel out of `question`.
             orchestrator_comment_ids=scenario.tracked_ids,
-            docs_checked_sha="553237e1",
+            docs_checked_sha=LEGACY_LOOP_HEAD_SHA,
             docs_verdict="no_change",
         )
+        _verified.verifies_the_approval(scenario.github, scenario.issue)
         return scenario.github, scenario.issue
 
 
@@ -473,6 +482,7 @@ class OperatorControlFeedbackFilterTest(
             docs_checked_sha=CONTROL_HEAD_SHA,
             docs_verdict="no_change",
         )
+        _verified.verifies_the_approval(gh, issue)
         return gh, issue
 
 
@@ -634,6 +644,8 @@ class _AllowlistFeedbackFixtureMixin(_PatchedWorkflowMixin):
             pr_last_review_comment_id=0,
             pr_last_review_summary_id=0,
         )
+        with patch.object(config, "ALLOWED_ISSUE_AUTHORS", (ALLOWED_LOGIN,)):
+            _verified.verifies_the_approval(gh, issue)
         return gh, issue
 
     def _run_allowed_in_review(self, github, issue):
@@ -645,6 +657,7 @@ class _AllowlistFeedbackFixtureMixin(_PatchedWorkflowMixin):
                 github,
                 issue,
                 run_agent=_agent(),
+                **_verified.proving(github, issue),
             )
 
     def _assert_allowed_feedback(self, bookmark_key, github) -> None:

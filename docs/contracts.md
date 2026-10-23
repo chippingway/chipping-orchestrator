@@ -203,13 +203,15 @@ Credential filtering does not enforce push authority; see [C-11].
 **Why:** Changed requirements or reports invalidate approval even on an unchanged head.
 
 **Limits:** Evidence and approval may carry across a rewrite only when the verification protocol proves they apply
-to the new revision.
+to the new revision. The ready ping announces an approval only over current passing evidence proved at the ping.
 
 **Specs:** [reports](workflow.md#developer-report-contract-in-developer-prompts),
-[verification](workflow/conversations.md#the-reviewer-verification-contract).
+[verification](workflow/conversations.md#the-reviewer-verification-contract),
+[readiness](state-machine/delivery-stages.md#the-readiness-proof-at-the-ping).
 
 **Checks:** [subjects](../tests/workflow/engine/test_review_subjects.py),
-[verification](../tests/workflow/engine/test_verification_current.py).
+[verification](../tests/workflow/engine/test_verification_current.py),
+[readiness](../tests/workflow/stages/in_review/test_readiness_proof.py).
 
 ## C-10: Pauses and parks
 

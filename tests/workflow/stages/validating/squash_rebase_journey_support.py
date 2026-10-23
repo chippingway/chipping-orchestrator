@@ -35,6 +35,7 @@ from tests.workflow.git_owners import seam_patch
 from tests.workflow.repo_values import _FAKE_WT, _TEST_SPEC
 from tests.workflow.stages.validating import (
     evidence_round_test_support as _round,
+    readiness_journey_support as _readiness,
     review_verdict_test_support as _world,
     squash_evidence_test_support as _squash,
 )
@@ -54,12 +55,12 @@ REBASED_REPORT = "Rebased onto the moved base; the approved change reads as befo
 
 ADVANCED_REPORT = "Rebased again onto the base that moved since; nothing else changed and the suite passes."
 
-# The roles `spawned` records a run under.
-REFRESHER = "refresher"
+# The roles `spawned` records a run under, as the walk's timeline names them.
+REFRESHER = _readiness.REFRESHER
 
-REVIEWER = "reviewer"
+REVIEWER = _readiness.REVIEWER
 
-DOCUMENTER = "documenter"
+DOCUMENTER = _readiness.DOCUMENTER
 
 # What a docs pass that changed nothing answers.
 DOCS = (DOCUMENTER, _agent(last_message="DOCS: NO_CHANGE"))
@@ -69,6 +70,9 @@ LAG = 2
 
 # The notice the reviewer road parks an undeliverable report with.
 UNDELIVERABLE_NOTICE = "cannot be delivered"
+
+# The seam every local verification run goes through.
+_VERIFY = "_run_verify_commands"
 
 
 def refresh(text: str = REBASED_REPORT) -> tuple:
@@ -123,7 +127,11 @@ class _BaseGit:
 
 
 class _Staged:
-    """One run a dispatch spawns, recorded on the case by role with the prompt it was handed."""
+    """One run a dispatch spawns, recorded on the case by role with the prompt it was handed.
+
+    Recorded as well beside how far the threads had been told when it was
+    spawned (`happened`), which is where it stands on the walk's timeline.
+    """
 
     def __init__(self, case, role: str, answer) -> None:
         self._case = case
@@ -132,21 +140,30 @@ class _Staged:
 
     def __call__(self, _backend, prompt, *_called, **_options):
         self._case.spawns.append((self._role, prompt))
+        self._case.happened.append((_readiness.high_water(self._case), self._role))
         return self._answer
 
 
-class _SquashRebaseJourney(_squash.SquashedRoundWorld):
-    """The squashed round walked into review and on through the base refreshes that rebase it."""
+class _SquashRebaseJourney(_readiness.ReadinessReadings, _squash.SquashedRoundWorld):
+    """The squashed round walked into review and on through the base refreshes that rebase it.
+
+    Every run a dispatch spawns is kept on the timeline (`happened`), and
+    every local verification run a dispatch makes is counted (`verifications`).
+    """
 
     def setUp(self) -> None:
         super().setUp()
         self.spawns: list[tuple[str, str]] = []
+        self.happened: list[tuple[int, str]] = []
+        self.verifications = 0
 
     def walks_into_review(self) -> None:
         """Approve, squash, settle the carry, pass the docs unchanged, and ping for merge.
 
         Nothing spawned on the way is kept, and what the issue has spent by
-        then is `charged`, so a case reads its runs and charges from here on.
+        then is `charged`, so a case reads its runs and charges from here on;
+        how far the threads were told by then is `walked`, which a case reads
+        the timeline from.
         """
         self.approves()
         self.later()
@@ -154,6 +171,7 @@ class _SquashRebaseJourney(_squash.SquashedRoundWorld):
         self.dispatched()
         self.spawns.clear()
         self.charged = self.spent()
+        self.walked = _readiness.high_water(self)
 
     def dispatched(self, *staged: tuple, **run_options) -> dict:
         """One whole dispatch of the issue's label, whose runs answer `staged` -- role and result -- in order."""
@@ -161,13 +179,15 @@ class _SquashRebaseJourney(_squash.SquashedRoundWorld):
         run_options.setdefault("head_shas", (head,))
         run_options.setdefault("fetched_branch_tip", head)
         runs = _fix_world._Runs(*(_Staged(self, *run) for run in staged))
-        return self._run(
+        mocks = self._run(
             lambda: _issue_processing._route_issue_to_handler(
                 self.github, _TEST_SPEC, self.issue, self.github.workflow_label(self.issue),
             ),
             run_agent=MagicMock(side_effect=runs),
             **run_options,
         )
+        self.verifications += mocks[_VERIFY].call_count
+        return mocks
 
     def base_refresh(self, onto: str | None = None, *, push=None, **run_options) -> None:
         """One per-tick base refresh, the base moved under the pull request's head by a rebase onto `onto`.
@@ -176,6 +196,8 @@ class _SquashRebaseJourney(_squash.SquashedRoundWorld):
         recovery finishes an attempt on. The push lands unless `push` stands
         in for it. `run_options` are the run's own readings beside those --
         `checkout_tree=None` leaves every tree to the reading a case installed.
+        How far the threads were told once it is over is `refreshed`, which a
+        case reads the timeline from.
         """
         head = self.pull_request.head.sha
         git = _BaseGit(self.pull_request, LAG if onto else 0)
@@ -195,6 +217,7 @@ class _SquashRebaseJourney(_squash.SquashedRoundWorld):
                 push_branch=push or _drift_world._LandingPush(self.pull_request),
                 **run_options,
             )
+        self.refreshed = _readiness.high_water(self)
 
     def approved_into_review(self, head: str, output: str = _world.SUITE_OUTPUT) -> None:
         """Dispatch until another reviewer, approving on `head`, is spawned, then the docs pass and the ping behind it.

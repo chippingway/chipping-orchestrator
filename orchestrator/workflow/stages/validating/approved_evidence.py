@@ -24,14 +24,15 @@ commit the evidence was never bound to, so the head, checkout, and subject it
 was proved against are gone. So the claim is recorded beside the approved
 subject (`records`), and every later road that would move the approval on --
 the squash tail's relabel, the recovery of a squash an earlier tick did not
-finish, the documenting stage's opening, the merge gate -- holds it to every
-part of that proof the rewrite left standing (`stands`): off the records, the
-evidence it names still the current evidence, exactly; no revision past it
-spent, whether that newer transaction settled or is still owed; its handoff
-still describing it; and the verification context it was minted under still
-the one configured -- and off the pull request it was published on, which the
-rewrite did not touch, its artifact re-read at the comment it settled as,
-still the one that settled, passing and covering the configuration. A later
+finish, the documenting stage's opening, the merge gate, which proves the
+current evidence whole besides -- holds it to every part of that proof the
+rewrite left standing (`stands`): off the records, the evidence it names still
+the current evidence, exactly; no revision past it spent, whether that newer
+transaction settled or is still owed; its handoff still describing it; and the
+verification context it was minted under still the one configured -- and off
+the pull request it was published on, which the rewrite did not touch, its
+artifact re-read at the comment it settled as, still the one that settled,
+passing and covering the configuration. A later
 revision recorded or settled, the current record retired, the configuration
 moved, or the artifact deleted or edited is evidence the approval was never
 given, and the move is not taken over it; an artifact nobody could read holds

@@ -10,9 +10,11 @@ approved one edited or removed at its location -- is handed back to
 both, so the report that approval covers earns a ping of its own on the very
 head the last one named. So is an approval of other requirements than the ones
 the drift baseline holds. A location nobody could read pings nobody, and
-neither does a subject that moves while the ping is being decided -- a report
-edited or settled over, or the issue edited -- nor is the state the tick holds
-written over it.
+neither does anything a human moves while the ping is being decided -- the
+report or the issue edited, or the approval's verification artifact edited or
+deleted -- nor is the state the tick holds written over it. A later report
+settles between ticks, never inside one, and the tick behind it hands the
+issue back before any ping is decided.
 """
 
 from __future__ import annotations
@@ -23,11 +25,13 @@ from unittest.mock import patch
 from orchestrator.workflow.stages.validating import review_report as _review_report
 from tests.workflow import (
     drift_reports as _drift_world,
-    published_reports as _published_reports,
     reviewed_reports as world,
 )
 from tests.workflow.fixtures import LABEL_DOCUMENTING, LABEL_VALIDATING, REVIEW_APPROVED_MESSAGE
-from tests.workflow.stages.in_review import ready_ping_test_support as _ping_support
+from tests.workflow.stages.in_review import (
+    readiness_test_support as _readiness_support,
+    ready_ping_test_support as _ping_support,
+)
 
 ISSUE = 1_798
 
@@ -43,11 +47,6 @@ PUSHED_HEAD = "d0c5" * 10
 def _pings(case) -> list[str]:
     """The ready pings the case's issue thread has been sent so far."""
     return world.ready_pings(case.github)
-
-
-def _settles_a_later_report(case) -> None:
-    """Another road settling the next report, on the head the pull request carries."""
-    _published_reports.republishes_the_report(case.github, case.issue, world.SECOND_REPORT)
 
 
 def _edits_the_issue(case) -> None:
@@ -169,7 +168,7 @@ class ReportFreshnessTest(unittest.TestCase, world._ReviewedReports):
         return (len(world.ready_pings(self.github)), self._stamps()[0])
 
 
-class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):
+class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports, _readiness_support.EvidenceMoves):
     """The approved report is read again before the approval is relied on."""
 
     def test_a_report_changed_in_place_goes_back(self) -> None:
@@ -213,17 +212,19 @@ class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports):
                 self.assertIn(f"> {world.FIRST_REPORT}", world.prompt(self.reviewed()))
 
     def test_a_change_while_merging_pings_nobody(self) -> None:
-        # The subject reads as approved when the tick begins, and moves while
-        # GitHub answers whether the pull request is mergeable: a human edits
-        # the report, another road settles a later one on the same head, or a
-        # human edits the issue. The ping is not taken, nothing the tick holds
-        # is written over the later report, and the next tick answers the
-        # change instead of pinging: a changed report goes back for review,
-        # and an edit goes down the drift road.
+        # The subject reads as approved when the tick begins, and a human
+        # moves it while GitHub answers whether the pull request is
+        # mergeable: the report edited, the issue edited, or the approval's
+        # verification artifact edited or deleted. The ping is not taken,
+        # and the next tick answers the change instead of pinging: a changed
+        # report goes back for review, an edit goes down the drift road, and
+        # evidence that no longer stands is announced over by nobody, the
+        # issue left where it is.
         for name, change, current, answered in (
             ("report edited", world.edits_report, 2, LABEL_VALIDATING),
-            ("later report settled", _settles_a_later_report, 3, LABEL_VALIDATING),
             ("issue edited", _edits_the_issue, 2, LABEL_DOCUMENTING),
+            ("artifact edited", _readiness_support.EvidenceMoves.edits_the_artifact, 2, LABEL_DOCUMENTING),
+            ("artifact deleted", _readiness_support.EvidenceMoves.deletes_the_artifact, 2, LABEL_DOCUMENTING),
         ):
             with self.subTest(name):
                 self._approved_and_documented(pinged=False)

@@ -1752,8 +1752,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             then the same proof. Its readers are the reviewer's hand-off of current evidence
                             (`stages/validating/review_evidence.py`), the approval's proof over the evidence its
                             verdict names (`approved_evidence.py`), the squash handoff's proof of a settled carry
-                            before the label moves over it (`squash_evidence.py`), and a final-docs pass that changed
-                            nothing, before it keeps the evidence (`stages/documenting/retention.py`)
+                            before the label moves over it (`squash_evidence.py`), a final-docs pass that changed
+                            nothing, before it keeps the evidence (`stages/documenting/retention.py`), and the
+                            in_review ready ping, before it tells a human the head is ready
+                            (`stages/in_review/merge_gate.py`)
     verification_current.py whether the current record is still what the pull request carries: no revision past it
                             spent (a newer transaction, its artifact posted or not, supersedes it), the handoff
                             describing it, and the comment it recorded, re-read, our artifact with every binding
@@ -4554,24 +4556,33 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the gates in front of the one HITL ready-ping an approved, unvetoed
                             head earns per head SHA, which is no park and carries no mark; a fresh approval retires
-                            the stamp, so a report re-reviewed on an unchanged head is pinged again. A ping already
-                            armed over the head is recovered first, and any new post waits on the subject the approval
-                            covered read again at the ping itself -- the report at its location, the requirements over
-                            the issue read afresh against the approval's revision and the baseline, the head over the
-                            pull request read afresh (`review_coverage.py`) -- since the requests before it are time
-                            another road can settle a later report in, a human edit the report or the issue in, or a
-                            push move the head in; refused or unread, nobody is pinged and nothing written. The park
-                            asks the pinned comment for the report records before it writes
+                            the stamp, so a report re-reviewed on an unchanged head is pinged again. A docs stamp or a
+                            GitHub approval only qualifies the head: a ping already armed over it is recovered first,
+                            and any new post -- a first attempt or a recovered one -- waits on the readiness proof
+                            taken at the ping itself: the current evidence proved whole
+                            (`engine/verification_proof.py`, the issue read afresh) and answering for the head the
+                            ping names, its artifact passing and covering `VERIFY_COMMANDS`, nothing-ran never
+                            passing (`stages/validating/approved_evidence.py`), and the subject the approval covered
+                            read last (`review_coverage.py`), then the pull request's state and head together
+                            (`engine/terminal_reading.py`), since a merge or close keeps the head. The
+                            requests before it are time a human can edit the report, the issue, or the artifact in,
+                            or a push move the head in; refused, unread, or ended, nobody is pinged, nothing is
+                            written, and the next tick's routes answer it. The publication is handed the same proof
+                            to take once more behind its checkpoints, immediately ahead of the post. The park asks
+                            the pinned comment for the report records before it writes
       ready_ping.py         the ready ping's publication, in the order a later tick can always finish from: an arming
                             that lands `ready_ping_pending` -- the head and a receipt minted for it -- as a guarded
                             checkpoint before anything is posted, the settlement prepared over a fresh reading with its
-                            ledger entry reserved, the post carrying the receipt in a hidden marker, and the settlement
+                            ledger entry reserved, the merge gate's readiness proof taken once more as the last
+                            request before the post -- refused or unread, nothing posted and the arming left
+                            standing -- the post carrying the receipt in a hidden marker, and the settlement
                             -- `ready_ping_sha` stamped, the pending record dropped, the comment entered in the ledger
-                            -- landed behind it, each decided on the records the approval was read over, the docs
-                            stamps that qualified the head, and the ping's own fields. A ping pending over the head is
-                            looked for on the issue thread first, among this orchestrator's own comments: found, it is
-                            settled with no second post; on a thread nobody could read it is held; and read without
-                            it, it is posted under the same receipt once the gate has asked its eligibility again. A
+                            -- landed behind it, each decided on the records the readiness proof was read over, the
+                            docs stamps that qualified the head, and the ping's own fields. A ping pending over the
+                            head is looked for on the issue thread first, among this orchestrator's own comments:
+                            found, it is settled with no second post; on a thread nobody could read it is held; and
+                            read without it, it is posted under the same receipt once the gate has asked its
+                            eligibility again, the whole readiness proof among it. A
                             post that raises is looked for at once. Anything but a measured or confirmed write stops
                             the ping with the tick's state withheld, and the receipt -- retired by a fresh approval --
                             is what tells a retry from the ping that approval re-arms on the same head
@@ -5541,7 +5552,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             still owed, its handoff describing it, the verification context it was minted under still
                             the configured one, and its artifact, re-read on the pull request it was published on,
                             still the one that settled, passing and covering the configuration; unread holds. A
-                            squash's carry points that record at the carried transaction (`squash_evidence.py`)
+                            squash's carry points that record at the carried transaction (`squash_evidence.py`). The
+                            artifact's own refusal (`_artifact_refusal`) -- at least one command, every one exiting
+                            0, `VERIFY_COMMANDS` covered -- is what a docs pass that changed nothing
+                            (`stages/documenting/retention.py`) and the in_review ready ping
+                            (`stages/in_review/merge_gate.py`) hold evidence they proved current to
       unverified_approvals.py whether an approval rests on evidence it may be acted on over, asked only of a
                             persisted approval, by the disposition -- which every returned approval reaches, as does
                             the recovery of one an earlier tick left waiting (`review_resume.py`): the approval proved

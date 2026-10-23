@@ -194,7 +194,8 @@ stays inert. The pinned state those transitions move an issue through is [below]
   `workflow:fixing` before the dev spawn.
 - `in_review` — A PR is open and ready for human review. The orchestrator never merges from here — humans drive the
   merge. A mergeable PR whose current head completed the reviewer-approved final-docs handoff (or carries a real GitHub
-  APPROVED review), with no standing human CHANGES_REQUESTED on that head, earns a one-shot HITL ping per head SHA.
+  APPROVED review), with no standing human CHANGES_REQUESTED on that head, earns a one-shot HITL ping per head SHA,
+  posted only over the issue's current verification evidence proved current and passing for that head at the ping.
 - `workflow:fixing` — The dev fix-loop is active. Entered on unread in-review feedback OR a `CHANGES_REQUESTED`
   verdict. A successful fix bounces directly back to `workflow:validating` so the reviewer re-approves.
 - `workflow:resolving_conflict` — The orchestrator is resolving a rebase conflict on a PR branch against

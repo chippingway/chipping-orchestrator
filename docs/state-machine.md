@@ -722,11 +722,17 @@ no longer describes. The handler scans four feedback surfaces over three id name
 conversation share one, so each is read against its own cursors before the two merge — and routes to
 `workflow:fixing` without advancing the watermarks, falls back to the drift check, and otherwise posts the one-shot
 `:bell:` HITL ping when the head is mergeable, docs-complete or GitHub-approved, and carries no standing human
-CHANGES_REQUESTED — and only while the approval, read again at the ping itself, still covers the report, the
-requirements, and the head standing then. The ping is armed with a receipt in a guarded write before it is posted and
-recorded behind the post, so one whose answer or record was lost is found on the thread rather than posted twice, and
-a thread nobody can read holds it: [the ready-ping publication contract][ready-ping]. Full flow:
-[`state-machine/delivery-stages.md`][in-review].
+CHANGES_REQUESTED — and only over the issue's current verification evidence proved whole again at the ping itself:
+the latest revision with its handoff and artifact intact, bound to this repository, the pull request and branch, the
+head the ping names and its full tree, the configured verification context, the settled report, the applicable review
+subject, and the requirements, its artifact passing with every configured command covered and nothing-ran never
+counting, the approval still covering the report, the requirements, and the head standing then, and the pull
+request still open on that head ([the readiness proof][readiness]). A refused proof withholds the ping and an unread
+one holds it, posting nothing and writing nothing of its own either way. The ping is armed with a receipt in a guarded
+write before it is posted and recorded behind the post, so one whose answer or record was lost is found on the thread
+rather than posted twice — a recovered post taking the same proof — and a thread nobody can read holds it; the proof
+is taken once more behind the arming and the settlement's preparation, the last thing asked before the post:
+[the ready-ping publication contract][ready-ping]. Full flow: [`state-machine/delivery-stages.md`][in-review].
 
 ### `_handle_fixing` (label `workflow:fixing`)
 
@@ -806,6 +812,7 @@ the shared awaiting-human park — is in [`state-machine/lifecycle.md`](state-ma
 [validating]: state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating
 [in-review]: state-machine/delivery-stages.md#_handle_in_review-label-in_review
 [ready-ping]: state-machine/delivery-stages.md#the-ready-ping-publication-contract
+[readiness]: state-machine/delivery-stages.md#the-readiness-proof-at-the-ping
 [fixing]: state-machine/delivery-stages.md#_handle_fixing-label-workflowfixing
 [resolving-conflict]: state-machine/delivery-stages.md#_handle_resolving_conflict-label-workflowresolving_conflict
 [question]: state-machine/conversation-stages.md#_handle_question-label-question

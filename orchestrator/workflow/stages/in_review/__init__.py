@@ -24,10 +24,12 @@ comments to build its prompt. `drift` is the body edit nobody commented about,
 and a pushed fix, a no-commit `ACK:`, and a report with no commit all hand back
 to `validating` with `review_round` reset, since the approval it already earned
 was against the old requirements. `merge_gate` is the last answer: a mergeable,
-approved, unvetoed head earns one HITL ping per head SHA, and everything else
-waits. `ready_ping` is how that ping goes out: armed in a write of its own
-before it is posted and recorded behind the post, so a ping whose answer or
-record was lost is found on the thread by its receipt rather than posted twice.
+approved, unvetoed head earns one HITL ping per head SHA, and only over the
+issue's current verification evidence proved current and passing for that head
+at the ping itself; everything else waits. `ready_ping` is how that ping goes
+out: armed in a write of its own before it is posted and recorded behind the
+post, so a ping whose answer or record was lost is found on the thread by its
+receipt rather than posted twice.
 
 `surfaces` is underneath all of that: it is where the one id space GitHub
 numbers the issue thread and the PR conversation in is read as the two

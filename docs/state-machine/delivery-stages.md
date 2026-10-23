@@ -5199,25 +5199,27 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        notice, and stamping `last_action_comment_id` at the notice id would put that reply under both cursors the
        next scan reads.
      - `True` → check `gh.pr_has_changes_requested(pr, head_sha=head_sha)` (a standing human CHANGES_REQUESTED on the
-       current head vetoes the ping). The ping requires either `docs_checked_sha == pr.head.sha` with `docs_verdict` set
-       OR `gh.pr_is_approved(pr, head_sha=pr.head.sha)` (a human/bot APPROVED review on the current head). When the
-       gate passes, post a one-shot `:bell:` ping de-duplicated by `ready_ping_sha` — which a fresh approval
-       retires, so a report re-reviewed on an unchanged head is pinged again. A ping an earlier tick armed over the
-       head and never recorded is looked for on the thread first, and settled where it landed rather than posted
-       again ([the ready-ping publication contract](#the-ready-ping-publication-contract)). Any new post waits until
-       the subject the approval covered has been read again right before it (`merge_gate._still_ready`): the
-       approved report still reads at its location, the issue read afresh still carries the requirements the
-       approval was given and `user_content_hash` holds, and the pull request read afresh still stands on the head
-       the ping names (`review_coverage._approval_holds`), the evidence the approval was proved over included; and
-       the ping's own writes — the arming ahead of the post and the settlement behind it — are guarded commits that
-       land only while the pinned comment still carries the report, verification evidence, and approval records in
-       hand and points the issue at the same pull request. The
-       mergeability, review, report, and evidence requests ahead of the ping are time in which another road can
-       settle a later report or record a later verification revision, a human can edit that report or the issue, or
-       a push can move the head; any of those, or a reading nobody could take, pings nobody and writes nothing -- so
-       no older revision floor is written back over a later one -- and the next tick hands
-       the issue back, resumes the developer on the edit, weighs the new head, or reads it again. The ping is NOT a
-       park: `awaiting_human` stays false so subsequent ticks still react to new comments / an external merge.
+       current head vetoes the ping). The head is qualified by either `docs_checked_sha == pr.head.sha` with
+       `docs_verdict` set OR `gh.pr_is_approved(pr, head_sha=pr.head.sha)` (a human/bot APPROVED review on the current
+       head). Either route only qualifies the head: neither says it was verified, and both have to pass [the readiness
+       proof](#the-readiness-proof-at-the-ping) before anything is posted. When the gate passes, post a one-shot
+       `:bell:` ping de-duplicated by `ready_ping_sha` — which a fresh approval retires, so a report re-reviewed on an
+       unchanged head is pinged again. A ping an earlier tick armed over the head and never recorded is looked for on
+       the thread first, and settled where it landed rather than posted again ([the ready-ping publication
+       contract](#the-ready-ping-publication-contract)). Any new post — a first attempt, or an armed one the thread
+       reads without — waits on the readiness proof (`merge_gate._still_ready`), taken ahead of the arming and once
+       more behind the arming and the settlement's preparation, immediately ahead of the post; and the ping's own
+       writes — the arming ahead of the post and the settlement behind it — are guarded commits that land only while
+       the pinned comment still carries the report, verification evidence, and approval records the proof was read
+       over and points the issue at the same pull request. The mergeability, review, report, and evidence requests
+       ahead of the ping, and the checkpoints themselves, are time in which a human can edit the report, the issue, or
+       the evidence's artifact, a push can move the head, or the pull request can be merged or closed; any of those
+       the proof finds, or a reading nobody could take, pings nobody and writes nothing past an arming already
+       landed, and the next tick hands the issue back, resumes the developer on the edit, weighs the new head,
+       finishes the terminal, or reads it again. A later report or verification revision settles between ticks,
+       never inside one: the writer claim excludes a second orchestrator writer, and the next tick's hand-back or
+       proof answers it. The ping is NOT a park: `awaiting_human` stays false so subsequent ticks still react to new
+       comments / an external merge.
        Unlike park branches, the ready ping does NOT call `_bump_in_review_watermarks`. It posts an issue comment
        like a park does, but it is not a park and owes the thread no "everything below here is read" claim: the ping
        is recorded in `orchestrator_comment_ids`, and carries the hidden orchestrator marker whether or not that
@@ -5236,7 +5238,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
   `workflow:validating` (drift — a pushed fix, an ACK no-commit reply, or a report with no commit — or a stale
   approval: a developer report still owed, or a handoff marker whose relabel did not land; each resets
   `review_round=0`), OR a HITL park (unmergeable, missing pr_number, drift-resume
-  failure), OR a HITL ping (no relabel), OR a no-op tick.
+  failure), OR a HITL ping over evidence the readiness proof found current and passing (no relabel), OR a no-op
+  tick — a ping the proof withholds or holds among them.
 
 **Recovery follow-up.** Both callers of `_try_recover_validating_transient_park` — the `workflow:validating`
 awaiting-human branch and the `workflow:fixing` parked branch — post one short issue comment on a `cleared` / `pushed`
@@ -5322,6 +5325,51 @@ reply demoted it.
 state. The PR comment that triggers a route to `workflow:fixing` is the human signal; awaiting-human is reserved for
 *unrecoverable* states (unmergeable / missing pr_number).
 
+### The readiness proof at the ping
+
+The `:bell:` ping tells a human the pull request is ready for review and merge, so it is posted only over the
+issue's current verification evidence proved whole at the ping itself (`merge_gate._still_ready`), whichever route
+qualified the head — the final-docs stamp or a GitHub approval
+([C-09](../contracts.md#c-09-reports-review-subjects-and-verification)). A first attempt and a recovered one — an
+arming the thread reads without its comment — take the same proof, and take it twice: once ahead of the arming, so
+nothing is written over a head that is not ready, and once more behind the arming and the settlement's preparation,
+the last thing asked before the post, since those checkpoints guard the pinned comment alone and a push, an edit, or
+a deleted artifact landing while they are written is nothing they would see. A comment already found on the thread is
+a record of what was said, and is settled without it.
+
+- **Current**: the proof every reader about to rely on current evidence takes
+  (`verification_proof.current_evidence_verdict`), with the issue read afresh. The record is still the latest
+  revision this issue has spent, its handoff describes it, and its artifact, re-read on the pull request, is still the
+  one that settled. The pull request is open in the configured repository, built from it, on the recorded branch,
+  and standing on the head the evidence answers for; the branch is fetched and level with that head, and this host's
+  checkout stands there; the tested commit and that head both read as the tested full tree. The verification context
+  is the one configured now, the review subject is the applicable recorded one, the settled developer report reads
+  intact at its location under a trusted author, and the issue's requirements are the revision the evidence was
+  bound to. The head the evidence answers for has to be the head the ping names.
+- **Passing**: current is not passing. The artifact, re-read on the pull request the proof read, carries at least one
+  command, every one exiting 0, with every configured `VERIFY_COMMANDS` command among them exactly as configured
+  (`approved_evidence._artifact_refusal`). An artifact recording that nothing ran is never passing evidence, under an
+  empty configuration too, and neither is an issue recording no current evidence at all.
+- **Last word**: behind every one of those requests the subject the approval covered is read once more
+  (`review_coverage._approval_holds`): the evidence claim the approval records, the report it covers, the
+  requirements over the issue read afresh, and the pull request read afresh standing on the head the ping names.
+  Behind that, the pull request is read once more by the terminals' own reading
+  (`terminal_reading._linked_pull_request`), its state and head together: a merge or close leaves the head where it
+  was, so only that state sees one landing during the proof's requests.
+- **Refused**: a refusal the proof demonstrates — a push, a moved branch or tree, another repository or a fork's
+  head, a changed configuration, edited requirements, an edited or replaced report, a review subject no longer
+  recorded, superseded evidence, a handoff that no longer describes the record, an edited or deleted artifact, or
+  evidence that is missing, failed, incomplete, or records that nothing ran — withholds the ping and writes nothing
+  of its own: refused ahead of the arming, nothing is written at all; refused behind it, the arming stands for the
+  next tick to read and the prepared settlement is written nowhere. The next tick's existing routes answer what they
+  own: the stale-approval hand-back a changed report, the drift
+  resume an edit, a new head's own review a push. A refusal none of them answers leaves the issue in review with no
+  ping until a human acts on it.
+- **Held**: a reading nobody could take — the pull request, its thread, the issue, the branch comparison, a tree
+  read, or a request or git invocation that raises — and a pull request found merged or closed hold the ping the same
+  way, with nothing posted and no write of their own; the next tick asks again, and its terminals answer an ended pull
+  request. Neither is ever read as readiness, and neither hands anything back.
+
 ### The ready-ping publication contract
 
 The `:bell:` ping step 6 posts (`workflow/stages/in_review/ready_ping.py`) is an effect with bookkeeping behind it,
@@ -5335,26 +5383,29 @@ of those recoverable without telling a human twice
   reading taken once the claim was held, or over what the tick's own last confirmed write landed
   (`PinnedState.synced`), and adopts, reconciles, or repairs nothing another orchestrator writer wrote. A record
   that reads otherwise was moved by an external change -- a maintainer's hand edit -- and refuses the write.
-- **Order**: arm, prepare, post, settle. The arming lands `ready_ping_pending` -- the head and a receipt minted for
-  this ping -- as a checkpoint of its own, and only a write GitHub confirmed licenses the post. The settlement --
+- **Order**: arm, prepare, prove, post, settle. The arming lands `ready_ping_pending` -- the head and a receipt minted
+  for this ping -- as a checkpoint of its own, and only a write GitHub confirmed licenses the post. The settlement --
   `ready_ping_sha` stamped on the head, `ready_ping_pending` dropped, and the comment's id entered in
   `orchestrator_comment_ids` -- is prepared over a fresh reading before the post, with that ledger entry reserved at
   its widest, and landed behind the post. Both are guarded commits (`report_commits.ReportCommit`) decided on the
-  report, pull-request, verification evidence, and approval records the approval was read over
+  report, pull-request, verification evidence, and approval records the readiness proof was read over
   (`review_comment._IN_HAND_RECORDS`), the `docs_checked_sha` and `docs_verdict` that qualified the head, and the two
-  ping fields themselves.
+  ping fields themselves. Between the preparation and the post [the readiness proof](#the-readiness-proof-at-the-ping)
+  is taken once more, the last request ahead of the post: refused or unread, nothing is posted, the arming stands,
+  and the preparation is written nowhere.
 - **Identity**: the comment carries the receipt in `<!--orchestrator-ready-ping:receipt=<receipt>-->`, and only a
   comment this orchestrator authored carries it: a copy anybody pastes is never taken for the ping. A fresh
   approval retires `ready_ping_pending` with `ready_ping_sha` (`review_subjects.record_approved`), so the ping it earns
   on the very head an earlier one named is armed under a new receipt, and the earlier comment -- recorded or not --
   is never taken for it.
 - **Recovery**: a tick whose gates in front of the ping pass over the head `ready_ping_pending` names reads the issue
-  thread before it reads the approval again at the ping. A comment carrying the receipt is that ping, settled with no
+  thread before it takes the readiness proof at the ping. A comment carrying the receipt is that ping, settled with no
   second post; it records what was already said, so it needs no eligibility. A thread nobody could read proves
   neither the post nor its absence and holds the ping, with nothing posted or written. A thread read without it is a
-  ping still owed: it is a new post, so it waits on the approval's re-read at the ping (`merge_gate._still_ready`)
-  behind gates this tick asked afresh, and only then is posted, under the same receipt. A post that raises is looked
-  for on the thread at once, and settled where it landed.
+  ping still owed: it is a new post, so it waits on [the readiness proof](#the-readiness-proof-at-the-ping) at the
+  ping (`merge_gate._still_ready`) behind gates this tick asked afresh, and again behind its preparation, and only
+  then is posted, under the same receipt; evidence that no longer proves leaves the arming standing and posts
+  nothing. A post that raises is looked for on the thread at once, and settled where it landed.
 - **Supported interruptions**: an arming or preparation refused -- an unreadable, replaced, moved, or full comment --
   or an arming never confirmed posts nothing. A post whose answer was lost, a settlement refused or never confirmed,
   and a poller killed between the post and the settlement each leave one comment on the thread, which the same tick
@@ -5363,7 +5414,8 @@ of those recoverable without telling a human twice
 - **What it leaves alone**: no watermark moves for the ping -- it is no park, and its ledger entry and hidden
   orchestrator marker keep a later feedback scan, over a ping whose record never landed too, from reading it as a
   human's, so a reply written beside it is still unread feedback. Pause, mergeability, a human's standing
-  CHANGES_REQUESTED, and GitHub approval routing gate it exactly as before, and the orchestrator never merges.
+  CHANGES_REQUESTED, and GitHub approval routing gate it exactly as before, none of them standing in for the
+  readiness proof, and the orchestrator never merges.
 
 ## `_handle_fixing` (label `workflow:fixing`)
 - **Trigger**: each tick while label is `workflow:fixing`. Two routes set this label:

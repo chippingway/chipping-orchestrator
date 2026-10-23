@@ -36,7 +36,9 @@ holds with nobody run. Walked whole -- the approval, its squash, the docs pass,
 once before any reviewer sees it, through a push whose answer was lost, an
 interrupted publication, and a second base advance alike; one that comes while
 a report is still in flight waits for that report to settle about the head it
-was written for.
+was written for. The pull request is told it is ready once, and only behind
+that report, the reviewer's own run of the head it describes, and the docs
+pass; quiet ticks after it do nothing at all.
 """
 
 from __future__ import annotations
@@ -760,7 +762,11 @@ class SquashedRefreshHoldTest(unittest.TestCase, _support._SquashedReports):
 
 
 class SquashedRebaseJourneyTest(_journey._SquashRebaseJourney, unittest.TestCase):
-    """An approved report squashed and put in review is reported afresh, once, for each head a base rebase leaves."""
+    """An approved report squashed and put in review is reported afresh, once, for each head a base rebase leaves.
+
+    And pinged as ready only once that report is reviewed over evidence of
+    the head the rebase published, and documented.
+    """
 
     def test_a_rebased_squash_is_refreshed_once(self) -> None:
         # The rebase's debt names the squash as the head it replaced while the
@@ -770,9 +776,10 @@ class SquashedRebaseJourneyTest(_journey._SquashRebaseJourney, unittest.TestCase
         # standing there describes the approved commit -- and publishes and
         # settles it once, leaving that report as it was written. The tick
         # after pays the debt and hands the reviewer the fresh report, whose
-        # approval goes on through the docs pass to `in_review`, nothing
+        # approval on its own run of the rebased head goes on through the
+        # docs pass to `in_review`, where that head is pinged, nothing
         # undeliverable parked or asked of a human on the way. Later ticks
-        # spawn, charge, post, and review nothing more.
+        # spawn, verify, charge, write, post, and review nothing more.
         self.walks_into_review()
         approved = self.pull_request.issue_comments[0].body
         self.base_refresh(_journey.REBASED)
@@ -781,18 +788,17 @@ class SquashedRebaseJourneyTest(_journey._SquashRebaseJourney, unittest.TestCase
 
         self._assert_refreshed_over(approved)
         self.approved_into_review(_journey.REBASED)
-        standing = self._standing()
-        for _ in range(3):
-            self.dispatched()
-        self.assertEqual((self.roles(), self._standing()), (REFRESHED_AND_REVIEWED, standing))
+        self.assert_quiet()
+        self.assertEqual(self.roles(), REFRESHED_AND_REVIEWED)
         self._assert_one_report_each(_journey.REBASED_REPORT)
 
     def test_an_interruption_ends_in_one_report(self) -> None:
         # A push whose answer was lost is finished by the next base refresh,
         # which records the debt and hands the issue back; a publication cut
         # short is finished by the next dispatch, found by its receipt. Either
-        # way the developer is asked once, the report lands once, and the
-        # reviewer is handed it with nothing parked.
+        # way the developer is asked once, the report lands once, the
+        # reviewer is handed it with nothing parked, and the pull request is
+        # told it is ready once, behind all of it.
         for name, push, interrupted in JOURNEY_INTERRUPTIONS:
             with self.subTest(name):
                 self.setUp()
@@ -814,7 +820,9 @@ class SquashedRebaseJourneyTest(_journey._SquashRebaseJourney, unittest.TestCase
         # on the first rebased head, the head the second advance published is
         # reported once before its reviewer runs, that reviewer is handed only
         # the report of that head, and no report was ever bound to, or left
-        # standing on, a head no developer read.
+        # standing on, a head no developer read. Nobody is told the pull
+        # request is ready about that head until its own report is reviewed
+        # over a run of it and documented, and then once.
         for name, first, spawned, replaced in SECOND_ADVANCES:
             with self.subTest(name):
                 self.setUp()
@@ -871,8 +879,11 @@ class SquashedRebaseJourneyTest(_journey._SquashRebaseJourney, unittest.TestCase
 
         The debt is paid, the report the last reviewer was handed is `latest`,
         no notice anywhere says a report could not be delivered, and every run
-        spawned since the walk into review was charged once.
+        spawned since the walk into review was charged once. From the last
+        base refresh on, the head it published was reported, reviewed over the
+        reviewer's own run of it, and documented, and only then pinged, once.
         """
+        self.assert_refreshed_into_review(self.pull_request.head.sha, self.refreshed)
         bodies = [posted.body for posted in self.pull_request.issue_comments]
         said = bodies + [notice for _, notice in self.github.posted_comments]
         published = [
@@ -891,8 +902,3 @@ class SquashedRebaseJourneyTest(_journey._SquashRebaseJourney, unittest.TestCase
             (1, self.pull_request.head.sha, None, False, len(self.spawns)),
         )
         self.assertIn(f"> {latest}", self.spawned(_journey.REVIEWER)[-1])
-
-    def _standing(self) -> tuple:
-        """Where the issue stands: its label, and how much its pull request and thread were told."""
-        told = len(self.pull_request.issue_comments)
-        return self.labels()[-1], told, len(self.github.posted_comments)

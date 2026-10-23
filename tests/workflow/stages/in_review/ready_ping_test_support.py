@@ -20,6 +20,7 @@ from orchestrator.github.comments import ORCHESTRATOR_COMMENT_MARKER
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakePR, FakePRRef, FakeUser, make_issue
+from tests.workflow import verified_approvals as _verified
 from tests.workflow.fixtures import _agent, _issue_branch, _PatchedWorkflowMixin
 
 ISSUE = 41
@@ -90,10 +91,10 @@ def failing(case, how: str, *, settling: bool):
 
 
 class _ReadyPingFixture(_PatchedWorkflowMixin):
-    """An issue in review whose pull request is mergeable, approved, and unvetoed on `HEAD`."""
+    """An issue in review whose pull request is mergeable, approved, and unvetoed on `HEAD`, over passing evidence."""
 
     def seeded(self) -> None:
-        """Seed the issue with its drift baseline and every cursor in place, unpinged."""
+        """Seed the issue with its drift baseline, every cursor in place, and settled evidence of `HEAD`, unpinged."""
         github = FakeGitHubClient()
         issue = make_issue(ISSUE, label="in_review")
         github.add_issue(issue)
@@ -107,12 +108,16 @@ class _ReadyPingFixture(_PatchedWorkflowMixin):
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
             **dict.fromkeys(_CURSORS, 0),
         )
+        _verified.verifies_the_approval(github, issue)
         self.github = github
         self.issue = issue
 
     def tick(self):
-        """One in_review tick."""
-        return self._run_in_review(self.github, self.issue, run_agent=_agent())
+        """One in_review tick, over the checkout on this host and the branch fetched where the pull request stands."""
+        return self._run_in_review(
+            self.github, self.issue, run_agent=_agent(),
+            issue_checkout=_verified.CHECKOUT, fetched_branch_tip=self.pull_request.head.sha,
+        )
 
     def pinned(self) -> dict:
         """The issue's pinned record as it stands."""

@@ -32,8 +32,9 @@ is owed over, since a push landing meanwhile is a commit nobody approved
 (`_approval_holds`). The squash tail asks it before moving the label past the
 reviewer, whether an approval or the recovery of a squash an earlier tick did
 not finish sent it there; the settled handoff asks it before moving a label
-that tail left owed; and `in_review` asks it before the approval may stand
-behind a ready ping.
+that tail left owed; and `in_review` asks it last before the approval may
+stand behind a ready ping, behind the whole proof of the current evidence it
+takes there first.
 
 The disposition service every returned verdict goes to holds it to its
 subject the same way (`_verdict_still_stands`) -- ahead of the

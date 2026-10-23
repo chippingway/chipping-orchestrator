@@ -10,13 +10,15 @@ with nothing posted past an arming or preparation that did not land. The tick
 that follows reads what landed: a ping pending whose comment the thread
 already carries is recorded rather than posted again, a thread nobody could
 read holds it, and one that reads without it is posted once, under the
-receipt it was armed with, once every gate has passed again.
+receipt it was armed with, once every gate has passed again -- the readiness
+proof among them, so a head no evidence answers for is never pinged.
 """
 from __future__ import annotations
 
 import unittest
 from unittest.mock import patch
 
+from tests.workflow import published_reports as _published_reports, verified_approvals as _verified
 from tests.workflow.stages.in_review import ready_ping_test_support as support
 
 # Each way an edit is left unanswered, and whether it landed anyway.
@@ -34,6 +36,24 @@ RECEIPT = "receipt"
 
 # A head a push moves the pull request on to.
 PUSHED_HEAD = "beefcafe" * 5
+
+
+def _reverified(case) -> None:
+    """A report of the head the pull request stands on now settled, and approved over passing evidence of it."""
+    _published_reports.republishes_the_report(case.github, case.issue)
+    _verified.verifies_the_approval(case.github, case.issue)
+
+
+def _receipts(case) -> list:
+    """The receipt each ready ping on the thread carries, oldest first."""
+    said = "".join(posted.body for posted in case.pings())
+    return support.RECEIPT.findall(said)
+
+
+def _recorded(case) -> tuple:
+    """The head the pinned comment records as pinged, and the ping it records as pending."""
+    pinned = case.pinned()
+    return pinned[support.READY_PING_SHA], pinned[support.PENDING]
 
 
 class UnlandedArmingTest(unittest.TestCase, support._ReadyPingFixture):
@@ -217,22 +237,31 @@ class PendingPingRecoveryTest(unittest.TestCase, support._ReadyPingFixture):
 
                 self.assert_settled()
 
-    def test_a_new_head_is_pinged_past_a_pending_one(self) -> None:
+    def test_a_new_head_is_pinged_once_verified(self) -> None:
         # The ping over one head is posted and its record refused, and a push
         # moves the pull request on before the next tick: the pending ping
         # names a head that no longer stands, so its comment answers nothing
-        # about the new one, which is armed and pinged in its own right.
+        # about the new one -- and no evidence answers for the new head, so
+        # nothing is posted or written over it, approved on GitHub or not.
+        # Once a report of the new head is approved over passing evidence of
+        # it, that approval retires the pending record, and the new head is
+        # pinged once under a receipt of its own.
         self.seeded()
         with support.failing(self, support.REFUSED, settling=True):
             self.tick()
         self.pull_request.head.sha = PUSHED_HEAD
+        writes = self.github.write_state_calls
 
         self.tick()
+        held = (len(self.pings()), self.github.write_state_calls - writes)
+        _reverified(self)
+        self.tick()
 
-        pinned = self.pinned()
-        recorded = (pinned[support.READY_PING_SHA], pinned[support.PENDING])
-        self.assertEqual(len(self.pings()), 2)
-        self.assertEqual(recorded, (PUSHED_HEAD, None))
+        receipts = _receipts(self)
+        distinct = set(receipts)
+        self.assertEqual(held, (1, 0))
+        self.assertEqual((len(receipts), len(distinct)), (2, 2))
+        self.assertEqual(_recorded(self), (PUSHED_HEAD, None))
 
     def test_a_copied_receipt_is_not_the_ping(self) -> None:
         # A human pastes a ping pending over the head onto the thread, receipt
@@ -240,6 +269,7 @@ class PendingPingRecoveryTest(unittest.TestCase, support._ReadyPingFixture):
         # feedback, and nobody's ping either, since this orchestrator did not
         # write it -- the ping is posted once, under that receipt.
         self.seeded()
+        ledger = list(self.pinned()[support.LEDGER])
         with support.failing(self, support.LOST, settling=False):
             self.tick()
         receipt = self.pinned()[support.PENDING][RECEIPT]
@@ -247,12 +277,11 @@ class PendingPingRecoveryTest(unittest.TestCase, support._ReadyPingFixture):
 
         self.tick()
 
-        own = [said.id for said in self.pings()]
-        own.remove(copied)
-        pinned = self.pinned()
-        recorded = pinned[support.READY_PING_SHA]
-        self.assertEqual((len(own), recorded), (1, support.HEAD))
-        self.assertEqual(pinned[support.LEDGER], own)
+        own = [said.id for said in self.pings() if said.id != copied]
+        ledger.extend(own)
+        self.assertEqual(len(own), 1)
+        self.assertEqual(_recorded(self), (support.HEAD, None))
+        self.assertEqual(self.pinned()[support.LEDGER], ledger)
         self.assertEqual(self.github.label_history, [])
 
     def test_a_reply_beside_a_lost_ping_is_feedback(self) -> None:

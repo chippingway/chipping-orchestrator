@@ -8,7 +8,7 @@ can die between the post and the write behind it, and that write can be
 refused or never confirmed. Recorded only after, a ping whose record never
 landed would be posted again by the next tick, and a human told twice. So the
 ping goes out in an order a later tick can always finish from: arm, prepare,
-post, settle (`publishes`).
+prove, post, settle (`publishes`).
 
 Arming lands `ready_ping_pending` -- the head the ping names and a receipt
 minted for it -- as a checkpoint of its own, and the comment carries that
@@ -21,12 +21,20 @@ that ledger entry reserved at its widest, so a comment that would not take it
 -- unreadable, replaced, moved, or full -- is told nothing; and it is landed
 behind the post. Both writes are guarded commits over the reading the tick
 last confirmed (`report_commits.ReportCommit`), decided on the records the
-approval was read over (`review_comment._IN_HAND_RECORDS`), the docs stamps
-that qualified the head, and the ping's own two fields: a record that reads
-otherwise was moved by no write of this tick's, and refuses the write with
-nothing put back, adopted, or repaired. Anything but a candidate measured or a
-write confirmed stops the ping there, with the tick's state withheld from
+readiness proof was read over (`review_comment._IN_HAND_RECORDS`), the docs
+stamps that qualified the head, and the ping's own two fields: a record that
+reads otherwise was moved by no write of this tick's, and refuses the write
+with nothing put back, adopted, or repaired. Anything but a candidate measured
+or a write confirmed stops the ping there, with the tick's state withheld from
 every whole-state write behind it.
+
+Those checkpoints guard the pinned comment and nothing else, and each is a
+request: a push, an edit of the issue or the report, or the verification
+artifact deleted or edited while they are written is one no record shows. So
+the readiness proof the merge gate takes is taken once more behind them, the
+last thing asked before the post (`publishes`' `proves`): refused or unread,
+nothing is posted, the arming stands for the next tick to read, and the
+settlement prepared is written nowhere.
 
 A ping pending over the head the gate would ping is looked for on the issue
 thread before anything else is asked of it (`recovers`). A comment of this
@@ -35,9 +43,10 @@ was lost, or one whose settlement was refused, lost, or never reached -- and
 is settled without another post: it is a record of what was said, which needs
 no eligibility. A thread nobody could read proves neither, and holds the ping
 for a later tick. One that reads without it is a ping never made: the merge
-gate asks its eligibility again, and only then is it posted, under the same
-receipt. A post that raises is looked for the same way at once, and settled
-where it landed.
+gate asks its eligibility again -- the whole readiness proof over the
+evidence among it -- and only then is it posted, under the same receipt and
+behind the same last proof. A post that raises is looked for the same way at
+once, and settled where it landed.
 
 The receipt is what tells a retry from a fresh approval. A fresh approval
 retires the pending record beside `ready_ping_sha`
@@ -55,6 +64,7 @@ from __future__ import annotations
 import logging
 import re
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from orchestrator import config
@@ -90,8 +100,9 @@ _RECEIPT_SPELLING = re.compile("[0-9a-f]{16}")
 # the receipt, so one receipt that is a prefix of another claims no comment of it.
 _MARKER = "<!--orchestrator-ready-ping:receipt={receipt}-->"
 
-# What every write of the ping is decided on: the records the approval was read
-# over, the docs stamps that qualified the head, and the ping's own two fields.
+# What every write of the ping is decided on: the records the readiness proof
+# was read over, the docs stamps that qualified the head, and the ping's own two
+# fields.
 _DECIDED_ON = frozenset((
     *_review_comment._IN_HAND_RECORDS,
     "docs_checked_sha",
@@ -117,7 +128,7 @@ _GOES_ON = frozenset((_commit_models.CommitStatus.PREPARED, _commit_models.Commi
 def recovers(ctx: _models._InReviewContext, head_sha: str) -> bool:
     """Settle a ping pending over `head_sha` that the thread already carries; whether the tick is answered.
 
-    Asked by the merge gate ahead of the approval's re-read, since settling a
+    Asked by the merge gate ahead of the readiness proof, since settling a
     ping already made posts nothing. A thread nobody could read answers the
     tick too, with nothing posted or written: it proves neither that the ping
     was made nor that it was not. False where no ping is pending over the head,
@@ -143,18 +154,20 @@ def recovers(ctx: _models._InReviewContext, head_sha: str) -> bool:
     return True
 
 
-def publishes(ctx: _models._InReviewContext, head_sha: str) -> None:
-    """Tell a human `head_sha` is ready: arm, prepare, post, settle.
+def publishes(ctx: _models._InReviewContext, head_sha: str, proves: Callable[[], bool]) -> None:
+    """Tell a human `head_sha` is ready: arm, prepare, prove, post, settle.
 
     Asked by the merge gate once every gate in front of the ping has passed,
-    the approval has been read again at the ping, and no comment carrying a
+    the readiness proof has been taken at the ping, and no comment carrying a
     ping pending over `head_sha` was found (`recovers`). That pending ping is
-    posted under its own receipt; otherwise one is armed first.
+    posted under its own receipt; otherwise one is armed first. `proves` is
+    that readiness proof, taken again behind the checkpoints and immediately
+    ahead of the post: it says whether the ping may still go out.
     """
     ping = _Ping.over(ctx, head_sha)
     receipt = _pending_receipt(ctx.state, head_sha) or ping.arms()
     if receipt is not None:
-        ping.posts(receipt)
+        ping.posts(receipt, proves)
 
 
 def _pending_receipt(state: PinnedState, head_sha: str) -> str | None:
@@ -233,12 +246,19 @@ class _Ping:
             return None
         return receipt
 
-    def posts(self, receipt: str) -> None:
-        """Prepare the settlement, post the ping under `receipt`, and settle it where it landed."""
+    def posts(self, receipt: str, proves: Callable[[], bool]) -> None:
+        """Prepare the settlement, prove the ping still stands, post it under `receipt`, and settle it where it landed.
+
+        The proof is the last request ahead of the post, so nothing the
+        checkpoints spent their requests over -- the head, the issue, the
+        report, the artifact -- can move unseen between them. Refused or
+        unread, nothing is posted and the arming stands: the next tick reads
+        the thread without the ping and asks again.
+        """
         prepared = self.commit.prepares(
             self.stamped(self.commit.staging()), _SETTLING, ledger_entry=True,
         )
-        if _stops(self.ctx, prepared, "settlement's preparation"):
+        if _stops(self.ctx, prepared, "settlement's preparation") or not proves():
             return
         ctx = self.ctx
         words = (
