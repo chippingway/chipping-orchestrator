@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
+from orchestrator import config
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from tests.support.fakes import (
     FakeGitHubClient,
     make_issue,
@@ -16,6 +19,7 @@ from tests.workflow.fixtures import (
     LABEL_READY,
     _agent,
     _manifest,
+    _reported,
 )
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
@@ -82,6 +86,10 @@ RESUMED_USAGE_ISSUE_NUMBER = 621
 NO_COMMENT_USAGE_ISSUE_NUMBER = 622
 INTERRUPTED_USAGE_ISSUE_NUMBER = 623
 DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER = 624
+REFUSED_SPLIT_ISSUE_NUMBER = 625
+REFUSED_HANDOFF_ISSUE_NUMBER = 626
+UNREADABLE_HANDOFF_ISSUE_NUMBER = 627
+ANOTHER_VERSION = 2
 
 SINGLE_MANIFEST_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
 SPLIT_MANIFEST = _manifest(
@@ -171,6 +179,72 @@ class DecompositionWorktreeTest(
         mocks[RUN_AGENT].assert_not_called()
         mocks[CLEANUP_DECOMPOSE_WORKTREE].assert_not_called()
 
+    def test_a_refused_split_write_keeps_worktree(self) -> None:
+        # A human edits the parent's record into a version admission refuses
+        # while the split releases its first child, so the parent's own write
+        # behind that release is refused. The refusal is no failure for the
+        # next dependency poll to retry: the dispatcher abandons the handler
+        # on it, and the decomposer's worktree is kept rather than torn down.
+        gh = FakeGitHubClient()
+        issue = make_issue(REFUSED_SPLIT_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        gh.add_issue(issue)
+
+        edits = _EditedOnRelease(gh)
+        with patch.object(config, CONFIG_DECOMPOSE, True), patch.object(gh, "set_workflow_label", edits):
+            mocks = self._run(
+                lambda: _issue_processing._process_issue(gh, _TEST_SPEC, issue),
+                run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=SPLIT_MANIFEST),
+            )
+
+        self.assertEqual(gh.pinned_data(REFUSED_SPLIT_ISSUE_NUMBER)["schema_version"], ANOTHER_VERSION)
+        mocks[CLEANUP_DECOMPOSE_WORKTREE].assert_not_called()
+
+    def test_a_refused_handoff_keeps_worktree(self) -> None:
+        # With decomposition off, a parked decomposer hands the issue to the
+        # developer, and a human edits the record into a version admission
+        # refuses while that run is out. The report's guarded commit is
+        # refused rather than raised, so the handler ends as an ordinary one;
+        # the teardown asks the record itself and keeps the worktree.
+        gh = FakeGitHubClient()
+        issue = make_issue(REFUSED_HANDOFF_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        gh.add_issue(issue)
+        gh.seed_state(
+            REFUSED_HANDOFF_ISSUE_NUMBER, pickup_comment_id=100, awaiting_human=True, park_reason="decomposer_dirty",
+        )
+
+        with patch.object(config, CONFIG_DECOMPOSE, False):
+            mocks = self._run(
+                lambda: _issue_processing._process_issue(gh, _TEST_SPEC, issue),
+                run_agent=_EditedWhileRunning(gh, REFUSED_HANDOFF_ISSUE_NUMBER),
+                has_new_commits=[False, True],
+            )
+
+        self.assertEqual(gh.pinned_data(REFUSED_HANDOFF_ISSUE_NUMBER)["schema_version"], ANOTHER_VERSION)
+        mocks[CLEANUP_DECOMPOSE_WORKTREE].assert_not_called()
+
+    def test_an_unreadable_teardown_keeps_worktree(self) -> None:
+        # The handoff above, its report's guarded commit refused over the
+        # human's edit, with the record unreadable by the time the teardown
+        # asks it again. That read proves no admission, and the run has
+        # already met a refused record, so the worktree is kept too.
+        gh = FakeGitHubClient()
+        issue = make_issue(UNREADABLE_HANDOFF_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        gh.add_issue(issue)
+        gh.seed_state(
+            UNREADABLE_HANDOFF_ISSUE_NUMBER, pickup_comment_id=100, awaiting_human=True, park_reason="decomposer_dirty",
+        )
+        reads = _UnreadableAfterARefusal(gh)
+
+        with patch.object(config, CONFIG_DECOMPOSE, False), patch.object(gh, "read_pinned_state", reads):
+            mocks = self._run(
+                lambda: _issue_processing._process_issue(gh, _TEST_SPEC, issue),
+                run_agent=_EditedWhileRunning(gh, UNREADABLE_HANDOFF_ISSUE_NUMBER),
+                has_new_commits=[False, True],
+            )
+
+        self.assertEqual(reads.refused, [UNREADABLE_HANDOFF_ISSUE_NUMBER], "the report's commit read the edit")
+        mocks[CLEANUP_DECOMPOSE_WORKTREE].assert_not_called()
+
     def test_decompose_handles_non_string_rationale(self) -> None:
         # JSON-valid manifest with a non-string rationale (`[1,2,3]`,
         # `{}`, `42`) must not crash the handler at `.strip()` after
@@ -201,3 +275,49 @@ class DecompositionWorktreeTest(
             ":mag:",
         )
         self.assertIn("(no rationale provided)", rationale_comment)
+
+
+class _EditedOnRelease:
+    """The client's relabel, with a human's edit of the parent's record landing as a child is released."""
+
+    def __init__(self, gh: FakeGitHubClient) -> None:
+        self._gh = gh
+        self._relabels = gh.set_workflow_label
+
+    def __call__(self, issue, label, **options):
+        """Relabel, and edit the parent's record into another version behind a child's release."""
+        self._relabels(issue, label, **options)
+        if issue.number != REFUSED_SPLIT_ISSUE_NUMBER and label == LABEL_READY:
+            edited = dict(self._gh.pinned_data(REFUSED_SPLIT_ISSUE_NUMBER), schema_version=ANOTHER_VERSION)
+            self._gh.seed_state(REFUSED_SPLIT_ISSUE_NUMBER, raw=True, **edited)
+
+
+class _EditedWhileRunning:
+    """The agent runner, with a human's edit of the issue's record landing while the run is out."""
+
+    def __init__(self, gh: FakeGitHubClient, issue_number: int) -> None:
+        self._gh = gh
+        self._issue_number = issue_number
+
+    def __call__(self, *run_args, **run_options):
+        """Edit the record into another version, and return the developer's finished run."""
+        edited = dict(self._gh.pinned_data(self._issue_number), schema_version=ANOTHER_VERSION)
+        self._gh.seed_state(self._issue_number, raw=True, **edited)
+        return _agent(session_id=DEV_SESSION, last_message=_reported(IMPLEMENTED_MESSAGE))
+
+
+class _UnreadableAfterARefusal:
+    """The client's pinned read, failing every reading of an issue after one admission refuses."""
+
+    def __init__(self, gh: FakeGitHubClient) -> None:
+        self._gh = gh
+        self._reads = gh.read_pinned_state
+        self.refused: list[int] = []
+
+    def __call__(self, issue):
+        """Read the record, and leave it unreadable behind a reading admission refuses."""
+        reading = self._reads(issue)
+        if not reading.supported:
+            self.refused.append(issue.number)
+            self._gh.pinned_failures.unreadable.add(issue.number)
+        return reading

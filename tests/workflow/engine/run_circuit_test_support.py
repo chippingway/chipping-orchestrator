@@ -16,7 +16,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.agents.models import AgentResult
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github import pinned_refusal as _pinned_refusal, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     run_charge_state as _run_charge_state,
     run_limit_values as _run_limit_values,
@@ -107,14 +107,17 @@ class Launch:
 
     `observed` is the durable pinned payload as it stood each time a process
     was invoked, so a case can ask both whether the run happened and what the
-    issue had already recorded when it did.
+    issue had already recorded when it did. `refused` is whether the launch
+    raised the refusal of a pinned record admission refuses instead of
+    answering, which leaves `answer` unset.
     """
 
     gh: _circuit_client.CircuitGitHubClient
     issue: FakeIssue
-    state: PinnedState
+    state: _pinned_state.PinnedState
     answer: AgentResult | None = None
     observed: list[dict] = field(default_factory=list)
+    refused: bool = False
 
     @property
     def invocations(self) -> int:
@@ -169,7 +172,7 @@ def seeded(gh: _circuit_client.CircuitGitHubClient | None = None, **pinned) -> L
     client = gh or _circuit_client.CircuitGitHubClient()
     issue = make_issue(ISSUE_NUMBER, label=LABEL_IMPLEMENTING)
     client.add_issue(issue)
-    client.write_pinned_state(issue, PinnedState(data=dict(pinned)))
+    client.write_pinned_state(issue, _pinned_state.PinnedState(data=dict(pinned)))
     client.writes.clear()
     return Launch(gh=client, issue=issue, state=client.read_pinned_state(issue))
 
@@ -213,7 +216,10 @@ def run_launch(
                 "run_agent",
                 side_effect=_Invocation(launch, outcome),
             ):
-        launch.answer = _usage._run_agent_tracked(
-            launch.gh, budget, **{**named, **request_fields},
-        )
+        try:
+            launch.answer = _usage._run_agent_tracked(
+                launch.gh, budget, **{**named, **request_fields},
+            )
+        except _pinned_refusal.RecordRefused:
+            launch.refused = True
     return launch

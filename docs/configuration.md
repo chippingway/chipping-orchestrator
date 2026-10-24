@@ -537,7 +537,9 @@ examples.
   ([`configuration/operations.md`](configuration/operations.md#restarting-an-issue-whose-cycle-was-cancelled)) — and
   the per-tick sweep labels open PRs from anyone outside the list with
   `workflow:community_contribution` and @-mentions `HITL_HANDLE` once per PR (bot-authored PRs such as Dependabot are
-  excluded via `user.type == "Bot"`). It is also a comment trust boundary: comments from authors outside the list
+  excluded via `user.type == "Bot"`, and an issue's own PRs — the token's own account's, and any on this repository's
+  `orchestrator/` branches — are never swept, listed or not). It is also a comment trust boundary: comments from
+  authors outside the list
   stay visible on GitHub but are dropped from the conversation text fed to every agent prompt
   (implement / review / documentation / decompose / question / discussion / conflict, the awaiting-human resumes, and
   the `in_review` / `fixing` PR-feedback loop), from the base-sync auto-rebase retry-unpark signal, and from the
@@ -1280,7 +1282,10 @@ pinned into an in-flight session — are in
   the stage wrote before the spawn.
 - `workflow:community_contribution` — Applied automatically (not by an operator) by the per-tick open-PR sweep: any
   open PR whose author is outside `ALLOWED_ISSUE_AUTHORS` is labeled and `HITL_HANDLE` is @-mentioned once per PR so a
-  human reviews the community-submitted work. Bot authors (Dependabot, Renovate, CI bots) are skipped. It carries the
+  human reviews the community-submitted work. Bot authors (Dependabot, Renovate, CI bots) are skipped, and so are an
+  issue's own PRs — those the token's own account opened, and any standing on a branch of this repository under
+  `orchestrator/`, which a publication adopts whoever opened it — since they belong to their issues' own dispatch. It
+  carries the
   `workflow:` prefix — unlike the two controls above — because the orchestrator writes it itself, and only that
   spelling marks a PR as already pinged: a bare `community_contribution` is a repository label like any other, so a PR
   carrying only it is pinged and labeled as an unmarked PR is, and keeps the bare label.

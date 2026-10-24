@@ -3,7 +3,9 @@
 """Persist and report the park a spent lifetime launch allowance requires.
 
 The supplied ledger decides exhaustion. This owner records the park before
-its budget event and notice, reconciles bot-authored delivery on the thread,
+its budget event and notice, and says neither where the park's write did not
+land -- refused by raising over a record admission refuses, or quietly --
+reconciles bot-authored delivery on the thread,
 and replays an owed notice without granting or spending any additional run.
 Every one of those records the thread read only through our own identified
 comments: a refused launch is often a resume whose frozen replies sit below
@@ -22,6 +24,7 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
     park_watermarks as _park_watermarks,
+    record_admission as _record_admission,
     run_budget as _run_budget,
     run_budget_models as _run_budget_models,
     run_limit_state as _run_limit_state,
@@ -39,14 +42,19 @@ def _park_exhausted(
     state: PinnedState,
     ledger: AgentRunLedger,
     launch: _run_budget_models.AgentRunLaunch,
-) -> None:
-    """Stop this issue on its spent ledger, and say so once.
+) -> bool:
+    """Stop this issue on its spent ledger, say so once, and answer whether the park stands.
 
     The whole durable half goes down BEFORE a word of it is said: a notice on
     a thread that no pinned state backs is the worst of both endings -- nothing
     reconciles it, because nothing knows it is owed, and the next tick runs
     the issue again beneath a comment saying it had stopped. The caller's own
-    write follows and carries whatever the delivery settled.
+    write follows and carries whatever the delivery settled. A park write the
+    comment did not take says nothing at all: over a record a human edited
+    into one admission refuses since the charge read it, the writer raises
+    `pinned_refusal.RecordRefused`, which propagates; a quiet refusal -- a
+    state the next reading would refuse -- answers False, so the caller
+    carries none of it.
 
     A park already standing and already explained is re-taken silently, and
     recorded as standing rather than said again: the ledger is re-read on
@@ -71,12 +79,18 @@ def _park_exhausted(
     taken = not _run_limit_state._park_stands(state)
     if not _run_limit_state._stage_park(state, ledger):
         _emit_phase(gh, issue, _run_limit_values.RunLimitPhase.STANDING)
-        return
-    gh.write_pinned_state(issue, state)
+        return True
+    if not _record_admission.written(gh, issue, state):
+        log.error(
+            "issue=#%d its pinned comment took no record of the park its spent "
+            "agent-run allowance owes; saying nothing", issue.number,
+        )
+        return False
     if taken:
         _run_budget._emit_exhaustion(gh, issue, ledger, launch)
     if _reconcile_notice(gh, issue, state) is _run_limit_values.NoticeReading.UNSAID:
         _deliver_notice(gh, issue, state)
+    return True
 
 
 def _deliver_notice(

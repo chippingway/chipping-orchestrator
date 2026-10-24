@@ -13,8 +13,9 @@ from github.Repository import Repository
 
 from orchestrator.github import labels as _labels
 from orchestrator.github.client import GitHubClient
+from orchestrator.github.pinned_state import AdmissionStatus, admit_pinned_comment
 from orchestrator.workflow.state import ControlLabel, WorkflowLabel
-from tests.support.fakes import FakeIssue, FakeLabel
+from tests.support.fakes import DEFAULT_BOT_LOGIN, FakeComment, FakeIssue, FakeLabel, FakeUser
 
 _HTTP_FORBIDDEN = 403
 _OBSOLETE_IMPLEMENTING = "implementing"
@@ -29,6 +30,10 @@ _CREATIONS = MappingProxyType({
 # The only repository requests a bootstrap makes. Any other -- an issue read
 # above all -- is a road to some issue's label assignments.
 _BOOTSTRAP_REQUESTS = frozenset(("get_labels", "create_label"))
+
+# A pinned record the orchestrator's own account wrote before records carried
+# a version: authentic, and refused admission.
+_UNVERSIONED_RECORD = '<!--orchestrator-state {"branch": "orchestrator/acme__widget/issue-1"}-->'
 
 # Repository definitions -> how many of them the bootstrap finds canonical.
 # Only an exact canonical name counts: an obsolete bare spelling beside or
@@ -223,6 +228,32 @@ class EnsureWorkflowLabelsTest(unittest.TestCase):
                     len(_CREATIONS) - found_count,
                 )
                 self._assert_untouched(definitions)
+
+    def test_an_unsupported_issue_keeps_its_labels(self) -> None:
+        # The repository a pre-namespace build left: an issue wearing the
+        # obsolete spelling, its pinned record refused admission. Bootstrap
+        # creates the canonical label beside the obsolete definition and asks
+        # no issue anything, so that issue keeps exactly the labels and the
+        # record it carried -- the obsolete name kept, the canonical one not
+        # added -- for a human to dispose of.
+        definitions = self._define(_OBSOLETE_IMPLEMENTING)
+        record = FakeComment(id=1, body=_UNVERSIONED_RECORD, user=FakeUser(DEFAULT_BOT_LOGIN))
+        issue = _issue_with(_OBSOLETE_IMPLEMENTING)
+        issue.comments.append(record)
+        self.gh.repo.get_issue.return_value = issue
+        self.gh.repo.get_issues.return_value = [issue]
+
+        self.gh.ensure_workflow_labels()
+
+        self.assertIs(
+            admit_pinned_comment(record, trusted_login=DEFAULT_BOT_LOGIN).status, AdmissionStatus.UNSUPPORTED,
+        )
+        self.assertIn(_CREATIONS[WorkflowLabel.IMPLEMENTING], self.gh.repo.create_label.call_args_list)
+        self.assertEqual(
+            ([label.name for label in issue.labels], issue.comments, record.body),
+            ([_OBSOLETE_IMPLEMENTING], [record], _UNVERSIONED_RECORD),
+        )
+        self._assert_untouched(definitions)
 
     def test_unreadable_labels_skip_the_bootstrap(self) -> None:
         self.gh.repo.get_labels.side_effect = _forbidden()

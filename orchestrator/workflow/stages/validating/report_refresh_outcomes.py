@@ -58,6 +58,7 @@ from pathlib import Path
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.workflow.engine import (
     guards as _guards,
     report_delivery as _report_delivery,
@@ -234,6 +235,9 @@ def _moved_under_the_run(refresh: _models._ReportRefresh) -> bool:
         return True
     try:
         moved = refresh.requirements_moved(refresh.gh.get_issue(refresh.issue.number))
+    except _pinned_refusal.RecordRefused:
+        # A record admission refuses is the dispatcher's to answer, not this catch's.
+        raise
     except Exception:
         log.exception(
             "issue=#%d could not read its requirements again after its report "

@@ -64,6 +64,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import record_admission as _record_admission
 from orchestrator.workflow.stages.discussion import state as _state
 
 
@@ -81,7 +82,7 @@ class _DiscussionRun:
     def start(
         cls, gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
     ) -> _DiscussionRun:
-        state = gh.read_pinned_state(issue)
+        state = _record_admission.admitted_state(gh, issue)
         return cls(
             gh=gh,
             spec=spec,

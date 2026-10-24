@@ -101,7 +101,14 @@ of up to N ticks before a child is activated, a parent completes, or drift on ei
 every tick. Only issue numbers cross the thread boundary — each
 worker mints its own `GitHubClient` and re-fetches the issue, under the issue's host-local writer claim, which a
 second poller on the host holding the issue answers by skipping it that tick, keeping only a close it read; a family
-handler writes a child only under that child's claim, and the base refresh syncs a worktree only under its issue's. The
+handler writes a child only under that child's claim, and the base refresh syncs a worktree only under its issue's.
+Under that claim, ahead of every dispatch guard and handler, the issue's pinned comment is read and admitted: a record
+admission refuses — an unsupported or missing version, or one that will not parse — stops the pass on every dispatch
+path with nothing written, launched, charged, or relabelled, and a local warning names the repository, the issue, and
+the version found against the one supported; an issue with no authenticated pinned comment is fresh and starts. A
+reading or write taken past that gate is held to admission too: a stage handler whose own reading or whole-state write
+meets a record a human's edit left refused is abandoned there, no agent launch is charged over one, and a family
+parent releases no child whose record is refused. The
 cap exemptions, the
 `duplicate_active` gate, the writer claim, and what each step reads and writes are in
 [`state-machine/labels-and-state.md`][per-tick]; the multi-repo dispatch and
@@ -265,9 +272,10 @@ Per-issue durable state is a single **pinned comment** on the issue (`<!--orches
 trusted as state only when the orchestrator's own account authored it and its whole body is the marker, and admitted
 only when it is a JSON object carrying an actual integer `schema_version` equal to `1`. Genuinely new pins are stamped
 with version 1 on first write; unsupported or malformed comments are preserved unchanged on GitHub and never
-overwritten, replaced beside, or silently stamped as current. Its keys group
-into agent identity, decomposition, PR / branch, the drift baseline, the HITL park, the in-review watermarks, the
-final-docs handoff, fix routing, the crash-recovery anchors, counters and timestamps, the per-issue usage meter, the
+overwritten, replaced beside, or silently stamped as current, and ordinary dispatch refuses their issue whole. Its
+keys group into agent identity, decomposition, PR / branch, the drift baseline, the HITL park, the in-review
+watermarks, the final-docs handoff, fix routing, the crash-recovery anchors, counters and timestamps, the per-issue
+usage meter, the
 lifetime agent-run ledger beside it — what the issue is allowed, what it has spent, and the launch holding a charge,
 charged at the one boundary every agent process is invoked from —
 the `agent_run_limit` park a spent one leaves and the sentence that park owes the thread,

@@ -49,6 +49,12 @@ one an undersized revision leaves behind: the candidate no longer trips the
 ceiling, so every gate keyed to size waves it through while nobody has
 established that the issue is still there. Both doors are shut on it until
 that read is reconciled or the cycle is cancelled.
+
+The pinned comment every one of those questions is asked of is the
+dispatcher's own reading, taken here under the writer claim its dispatch seam
+holds, and it answers None -- a refusal -- for a comment it could not read and
+for one admission refuses, so no dispatch guard is asked about a record nobody
+read.
 """
 from __future__ import annotations
 
@@ -59,12 +65,15 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import comments as _comments, record_admission as _record_admission
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
+
+# What the dispatcher does with a record admission refuses.
+_DISPATCH_REFUSED = "refusing to dispatch it and leaving the issue as it stands"
 
 _RESTORED_NOTICE = (
     "{mentions} :lock: this issue's committed implementation is still being "
@@ -196,16 +205,29 @@ def _restore_decomposing_label(
 
 
 def _dispatch_state(gh: GitHubClient, issue: Issue) -> PinnedState | None:
-    """The pinned comment the dispatcher's guards read, or None if it could not.
+    """The pinned comment the dispatcher's guards read, or None if it could not or may not.
 
     None is a refusal, not an absence, and every caller treats it as one. The
     costs are not symmetric: dispatching on an unread comment risks publishing
     an unadjudicated candidate or resuming a child against a ref that is gone,
     while refusing costs one tick of one issue during an outage in which
     nothing else was making progress either.
+
+    A record admission refused -- an unsupported version or a payload that
+    will not parse (`github.pinned_state`) -- is refused the same way, and it
+    is the authoritative reading that decides: the dispatcher takes this under
+    the issue's writer claim, after whatever the poll or a scheduling
+    classification read. That reading comes back empty, which is exactly what
+    an issue the orchestrator never met reads as, so every road behind it --
+    the restart, the reconciliations, the greeting, the stage handler -- would
+    otherwise act on a record nobody read. Nothing is written for it: the
+    comment, the labels, and the issue's artifacts are left for a human to
+    dispose of, and the one trace is the local line `record_admission` says it
+    in. A comment that is not authenticated state at all is no record, so a
+    fresh issue still starts.
     """
     try:
-        return gh.read_pinned_state(issue)
+        state = gh.read_pinned_state(issue)
     except Exception:
         log.exception(
             "issue=#%s pinned state could not be read; refusing to dispatch "
@@ -213,6 +235,9 @@ def _dispatch_state(gh: GitHubClient, issue: Issue) -> PinnedState | None:
             getattr(issue, "number", "?"),
         )
         return None
+    if _record_admission.refuses(issue, state, _DISPATCH_REFUSED):
+        return None
+    return state
 
 
 def _holds_the_label(

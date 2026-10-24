@@ -31,7 +31,7 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
-from orchestrator.workflow.engine import terminals as _terminals
+from orchestrator.workflow.engine import record_admission as _record_admission, terminals as _terminals
 from orchestrator.workflow.stages.conflicts import (
     models as _models,
     parks as _conflict_parks,
@@ -64,7 +64,7 @@ def _handle_resolving_conflict(
     `review_round`; validation must re-approve the rebased branch before
     any merge gate can pass.
     """
-    state = gh.read_pinned_state(issue)
+    state = _record_admission.admitted_state(gh, issue)
     ctx = _models._ConflictContext(gh, spec, issue, state)
     pr_number = state.get("pr_number")
 

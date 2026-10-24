@@ -10,12 +10,18 @@ Everything else runs inside the teardown context, and that context is why both
 worktree teardowns live on this owner. The question stage never pushes, so the
 per-issue checkout is scratch space that has to disappear on every safe exit --
 including the ones that raise, which is what wrapping the run in a context
-manager buys. Setting `keep_worktree` from the assessment BEFORE the park is
-published is the other half: an unsafe outcome's tree survives even when posting
-its comment fails. The order is load-bearing in both directions -- tearing down
-too eagerly destroys the evidence an operator was parked to inspect, and tearing
-down too late leaves a stale checkout that a later `question` -> `implementing`
-relabel would restore.
+manager buys -- save the one that meets a pinned record admission refuses
+(`pinned_refusal.RecordRefused`, which a human's edit since the dispatch read
+the record can leave): that issue's checkout and branch are kept for the human
+who disposes of the record, as everything else it holds is -- and both
+teardowns read the record again before they run, so a refusal no raise
+carried, or a read that fails, keeps them too. Setting `keep_worktree` from
+the assessment BEFORE the park is published is the other half: an unsafe
+outcome's tree survives even when posting its comment fails.
+The order is load-bearing in both directions -- tearing down too eagerly
+destroys the evidence an operator was parked to inspect, and tearing down too
+late leaves a stale checkout that a later `question` -> `implementing` relabel
+would restore.
 """
 from __future__ import annotations
 
@@ -25,18 +31,31 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming, terminal as _worktree_terminal
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.github.client import GitHubClient
-from orchestrator.workflow.engine import issue_usage as _issue_usage, usage as _usage
+from orchestrator.workflow.engine import (
+    issue_usage as _issue_usage,
+    record_admission as _record_admission,
+    usage as _usage,
+)
 from orchestrator.workflow.stages.question import models as _models, outcomes as _outcomes, run as _run
 from orchestrator.workflow.state import WorkflowLabel
 
 
 def _teardown_question_worktree(run: _models._QuestionRun) -> None:
-    """Remove the scratch checkout and the branch it sits on.
+    """Remove the scratch checkout and the branch it sits on, unless the record reads refused, or unreadable, now.
+
+    The record is asked at the teardown itself
+    (`record_admission.teardown_admitted`) on both roads here -- the closed
+    finalize and the run's exit: a human's edit can land behind the last write
+    either road made, and a guarded commit refused over one mid-run answers
+    rather than raises, so how the road ended proves nothing about the record.
 
     The branch name is resolved rather than derived so a worktree created under
     the legacy naming scheme is still the one torn down.
     """
+    if not _record_admission.teardown_admitted(run.gh, run.issue):
+        return
     _worktree_terminal._cleanup_question_worktree(
         run.spec,
         run.issue.number,
@@ -81,9 +100,13 @@ def _cleanup_question_run(run: _models._QuestionRun) -> None:
 @contextlib.contextmanager
 def _question_run_cleanup(run: _models._QuestionRun):
     """Tear down the question worktree once the run finishes, even on error
-    (unless the run marked its tree keep-on-inspection)."""
+    (unless the run marked its tree keep-on-inspection, or met a record
+    admission refuses, whose artifacts are a human's to dispose of)."""
     try:
         yield
+    except _pinned_refusal.RecordRefused:
+        run.keep_worktree = True
+        raise
     finally:
         _cleanup_question_run(run)
 

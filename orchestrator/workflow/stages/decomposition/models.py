@@ -22,7 +22,9 @@ from github.Issue import Issue
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import decomposition as _worktree_decomposition
+from orchestrator.github import client as _client, pinned_refusal as _pinned_refusal
 from orchestrator.github.issues import issue_is_closed
+from orchestrator.workflow.engine import record_admission as _record_admission
 from orchestrator.workflow.stages.decomposition.replacement_lineage import ReplacementLineage
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -35,17 +37,35 @@ class _DecomposerRunPlan:
 
 @dataclass
 class _DecomposerCleanup:
-    """Close one decomposer worktree unless its run requests inspection."""
+    """Close one decomposer worktree unless its run requests inspection, or its record is not admitted now."""
 
+    gh: _client.GitHubClient
     spec: _config_models.RepoSpec
-    issue_number: int
+    issue: Issue
     run_plan: _DecomposerRunPlan
 
     def close(self) -> None:
-        if not self.run_plan.keep_worktree:
-            _worktree_decomposition._cleanup_decompose_worktree(
-                self.spec, self.issue_number,
-            )
+        """Tear the worktree down, unless the run kept it or the record reads refused, or unreadable, now.
+
+        The record is asked at the teardown itself (`record_admission.teardown_admitted`):
+        a guarded commit refused over a record a human edited mid-run answers
+        rather than raises, so the run can reach this exit as an ordinary one,
+        and a read that fails cannot say it did not.
+        """
+        if self.run_plan.keep_worktree or not _record_admission.teardown_admitted(self.gh, self.issue):
+            return
+        _worktree_decomposition._cleanup_decompose_worktree(self.spec, self.issue.number)
+
+    def keeps_on_refusal(self, exc_type, exc_value, traceback) -> bool:
+        """Keep the worktree where the run ended on a pinned record admission refuses, and swallow nothing.
+
+        An exit callback pushed behind `close`, so it runs first: a human's
+        edit since the dispatch read the record leaves the issue's artifacts
+        theirs to dispose of, the decomposer's checkout among them.
+        """
+        if exc_type is not None and issubclass(exc_type, _pinned_refusal.RecordRefused):
+            self.run_plan.keep_worktree = True
+        return False
 
 
 @dataclass(frozen=True)

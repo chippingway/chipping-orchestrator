@@ -44,7 +44,7 @@ from orchestrator.agents.models import AgentResult, TerminalFailure, is_signal_i
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
-from orchestrator.workflow.engine import guards as _guards, usage as _usage
+from orchestrator.workflow.engine import guards as _guards, record_admission as _record_admission, usage as _usage
 from orchestrator.workflow.stages.documenting import (
     drift as _drift,
     failed_pass as _failed_pass,
@@ -147,7 +147,7 @@ def _documenting_run(ctx: _models._DocumentingContext, wt):
 
 
 def _handle_documenting(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
-    state = gh.read_pinned_state(issue)
+    state = _record_admission.admitted_state(gh, issue)
     pr_number = state.get("pr_number")
 
     if _preconditions._documenting_preconditions_handled(

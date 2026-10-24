@@ -528,6 +528,9 @@ orchestrator/
                         editing, or deleting any other definition, and cached reads that keep each label they
                         resolve and remember no failed lookup, so a label the sweep could not resolve, or could not
                         ask about, is asked for again on the next sweep
+    pinned_refusal.py   the refusal (`RecordRefused`) raised where something meant to act on a pinned record admission
+                        refuses: the whole-state write over one, with nothing written, and a stage handler's admitted
+                        reading in `workflow/engine/record_admission.py`; a dispatch catches it around the handler
     pinned_state.py     the pinned durable-state model, the comment body it is written as -- with the wrapper's own
                         terminator escaped in the SERIALIZED payload and never in the value, since a recorded
                         explanation or a preserved pull-request body carrying `-->` would close that comment early
@@ -577,7 +580,8 @@ orchestrator/
                         a state the next reading would refuse, and neither writes over a record refused admission:
                         both decide on one walk of the thread that admits every comment it passes, the one rewritten
                         included, and land from that same read, so a stale id never steers either onto a refused
-                        record or past one. The strict edit
+                        record or past one. The legacy write RAISES over such a record (`pinned_refusal.py`) rather
+                        than answering, so a caller stops before whatever the write was for. The strict edit
                         a guarded commit lands through rewrites the named comment in place only while the walk that
                         finds it still reads it, parsed, as the payload the rewrite was derived over, compared as the
                         comment's JSON spells both (`PinnedState.reads_as`); it never recreates a comment that is
@@ -1401,7 +1405,9 @@ orchestrator/
                         and the branches beside them name, the classification of which of those may be
                         reclaimed, and the bounded pass that spends one of those classifications
       naming.py         slug sanitization, git-ref-safe branch segments, and pinned or legacy branch resolution:
-                        the exact set of names one issue's branch can be published under
+                        the exact set of names one issue's branch can be published under, and the `orchestrator/`
+                        namespace they all live in -- the only one a pinned branch is honored in, and the one the
+                        community sweep tells an issue's own pull request by
       paths.py          the two paths an issue can have been checked out at -- the per-repository one and the flat
                         one that predates the slug in the path -- and the
                         `issue-<n>` read that runs back the other way -- canonical spellings only, so a padded or

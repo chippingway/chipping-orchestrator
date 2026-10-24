@@ -4,12 +4,13 @@
 from __future__ import annotations
 
 import unittest
+from typing import NamedTuple
 from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.github.labels import COMMUNITY_CONTRIBUTION_LABEL
 from orchestrator.workflow.engine import community
-from tests.support.fakes import FakeGitHubClient
+from tests.support.fakes import DEFAULT_BOT_LOGIN, FakeGitHubClient
 from tests.workflow.engine.community_test_support import (
     ALLOWED_LOGIN,
     ALLOWLIST_CONFIG,
@@ -17,6 +18,7 @@ from tests.workflow.engine.community_test_support import (
     OUTSIDER_LOGIN,
     TEST_SPEC,
     make_pr,
+    pr_head,
     record_label_lookups,
 )
 
@@ -27,6 +29,36 @@ _OUTSIDER_LOGIN = OUTSIDER_LOGIN
 _TEST_SPEC = TEST_SPEC
 _pr = make_pr
 _record_label_lookups = record_label_lookups
+
+
+# The issue branch a publication adopts an open pull request on, whoever opened
+# it, and two heads that are no issue's: a branch outside the namespace, and a
+# fork carrying the issue branch's name.
+_ISSUE_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-21"
+_FEATURE_BRANCH = "feature/idea"
+_FORK = "someone/chipping-orchestrator"
+
+_OWN_PR = 6
+
+
+class _ArtifactCase(NamedTuple):
+    """One pull request the sweep meets, the client's own login, and whether it is swept."""
+
+    name: str
+    author: str
+    head_branch: str
+    fork: str | None
+    own_login: str | None
+    swept: bool
+
+
+_ARTIFACT_CASES = (
+    _ArtifactCase("opened by the token's account", DEFAULT_BOT_LOGIN, _FEATURE_BRANCH, None, DEFAULT_BOT_LOGIN, False),
+    _ArtifactCase("adopted on an issue branch", OUTSIDER_LOGIN, _ISSUE_BRANCH, None, DEFAULT_BOT_LOGIN, False),
+    _ArtifactCase("a fork's branch of that name", OUTSIDER_LOGIN, _ISSUE_BRANCH, _FORK, DEFAULT_BOT_LOGIN, True),
+    _ArtifactCase("outside the namespace", OUTSIDER_LOGIN, _FEATURE_BRANCH, None, DEFAULT_BOT_LOGIN, True),
+    _ArtifactCase("a client knowing no login", DEFAULT_BOT_LOGIN, _FEATURE_BRANCH, None, None, True),
+)
 
 
 def _label_names(pr) -> list[str]:
@@ -128,3 +160,27 @@ class SweepCommunityContributionPRsTest(unittest.TestCase):
             [pr_number for pr_number, _ in gh.posted_pr_comments], [4],
         )
         self.assertEqual(set(looked_up), {COMMUNITY_CONTRIBUTION_LABEL})
+
+    def test_an_issue_s_own_pr_is_never_swept(self) -> None:
+        # A pull request that is an issue's own artifact -- the token's own
+        # account opened it, or it stands on this repository's
+        # orchestrator-owned branch, which a publication adopts whoever opened
+        # it -- earns no ping and no label, allowlisted or not: the issue's
+        # pinned record may be one admission refuses, and its dispatch then
+        # writes nothing to it. A fork's branch of the same name, a branch
+        # outside the namespace, and a client that knows no login of its own
+        # leave nothing to tell an artifact by, so those are swept.
+        for artifact in _ARTIFACT_CASES:
+            with self.subTest(case=artifact.name):
+                self.assertEqual(_swept(artifact), (artifact.swept, int(artifact.swept)))
+
+
+def _swept(artifact: _ArtifactCase) -> tuple[bool, int]:
+    """Whether one sweep labelled the case's pull request, and how many pings it posted."""
+    client = FakeGitHubClient(bot_login=artifact.own_login)
+    head = pr_head(artifact.head_branch, artifact.fork)
+    pr = _pr(_OWN_PR, author=artifact.author, head=head)
+    client.add_pr(pr)
+    with patch.object(config, _ALLOWLIST_CONFIG, (_ALLOWED_LOGIN,)):
+        community._sweep_community_contribution_prs(client, _TEST_SPEC)
+    return client.pr_has_label(pr, COMMUNITY_CONTRIBUTION_LABEL), len(client.posted_pr_comments)

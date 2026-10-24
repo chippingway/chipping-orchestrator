@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from orchestrator import config
-from orchestrator.github import comments as _github_comments, events as _events
+from orchestrator.github import comments as _github_comments, events as _events, pinned_refusal as _pinned_refusal
 from orchestrator.github.pinned_state import (
     PINNED_STATE_MARKER,
     SCHEMA_VERSION_KEY,
@@ -334,15 +334,16 @@ class _WorkflowStateService:
     ) -> PinnedState:
         """Pin `state`, as the real writer does; one it refuses is not written or counted.
 
-        Refused as the real writer refuses: a `withheld` state, any state over
-        a record refused admission, and a state the next reading would refuse,
-        after a missing version is stamped.
+        Refused as the real writer refuses: a `withheld` state and a state the
+        next reading would refuse, after a missing version is stamped, answered
+        unchanged, and any state over a record refused admission, which raises
+        `RecordRefused` as the real writer does.
         """
         if state.withheld:
             return state
         existing = self._pinned.get(issue.number)
         if existing is not None and not existing.supported:
-            return state
+            raise _pinned_refusal.RecordRefused(f"issue #{issue.number} holds a pinned record admission refuses")
         state.data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
         if PinnedAdmission.payload_refusal(state.data) is not None:
             return state

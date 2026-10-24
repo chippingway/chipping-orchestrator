@@ -68,7 +68,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import terminals as _terminals
+from orchestrator.workflow.engine import record_admission as _record_admission, terminals as _terminals
 from orchestrator.workflow.stages.conflicts import handoff as _conflict_handoff
 from orchestrator.workflow.stages.validating import (
     awaiting_resume as _awaiting_resume,
@@ -142,7 +142,7 @@ def _ends_before_review(
 
 
 def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
-    state = gh.read_pinned_state(issue)
+    state = _record_admission.admitted_state(gh, issue)
     # The move `resolving_conflict` claimed it owed this stage has been made by
     # the time this stage runs, so a claim a lost write left is retired before
     # anything else: standing, the next conflict episode over the same head

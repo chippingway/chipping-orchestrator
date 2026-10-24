@@ -682,6 +682,29 @@ than a second source of truth: where the two disagree, the handler pages are aut
      conflict_round >= MAX_CONFLICT_ROUNDS ─► park awaiting human
      pr merged externally / closed unmerged ─► done / rejected (terminal)
 
+   every dispatched issue, labelled or not, under its writer claim and ahead
+   of every guard and handler below (the admission gate):
+     pinned record admission   ─► nothing: no restart, mark, park,
+       refuses (a missing,         reconciliation, greeting, or handler, so
+       unsupported, or             nothing is launched, charged, published,
+       non-integer version, or a   commented, pinned, relabelled, closed, or
+       payload that will not       reopened -- one local line naming the
+       parse)                      version found against the one supported,
+                                   and every tick refuses it again until a
+                                   human disposes of the record. Decided on
+                                   the reading taken under the claim,
+                                   whatever the poll read before it
+     no authenticated pinned   ─► fresh: starts as ever
+       comment
+     a human's edit after the  ─► the handler is abandoned where its own
+       gate's reading              reading, a whole-state write, or an agent
+                                   launch's charge meets the refused record,
+                                   with nothing past it done; question and
+                                   decomposing keep their scratch checkout,
+                                   each teardown asking the record again and
+                                   keeping it where that reading is refused
+                                   or fails
+
    any dispatched issue but done|rejected, behind the agent-run-limit hold and
    ahead of a live adjudication's step aside and the reuse guard (the seed hold):
      the body of an issue we   ─► a seed that is not what the last whole
@@ -946,7 +969,11 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   child's seed, link, pointer, ledger slot,
                                   text, and receipt pass; one refusal
                                   releases none and parks the parent once
-                                  (replacement_lineage_unproved)
+                                  (replacement_lineage_unproved). A child
+                                  record that admission refuses, or that
+                                  nobody could read, under the child's own
+                                  claim releases none either, but parks
+                                  and writes nothing -- said in the log only
 
    workflow:umbrella (each due dependency poll, open issues only; DEPENDENCY_POLL_EVERY_N_TICKS):
      all children = done       ─► settle what the late split still owes the
@@ -1040,7 +1067,11 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   child's seed, link, pointer, ledger slot,
                                   text, and receipt pass; one refusal
                                   releases none and parks the parent once
-                                  (replacement_lineage_unproved)
+                                  (replacement_lineage_unproved). A child
+                                  record that admission refuses, or that
+                                  nobody could read, under the child's own
+                                  claim releases none either, but parks
+                                  and writes nothing -- said in the log only
 
    closed on workflow:decomposing | workflow:umbrella | workflow:ready |
    workflow:blocked (cleanup sweep, on the CLOSED_ISSUE_SWEEP_EVERY_N_TICKS

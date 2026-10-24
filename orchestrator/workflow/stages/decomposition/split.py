@@ -23,6 +23,7 @@ from dataclasses import replace
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.decomposition import (
@@ -171,11 +172,16 @@ def _activate_initial_split_children(
 
     So the first release is held to exactly what a later one is, each child
     read as it stands now. Best-effort: a failure leaves the children
-    `blocked` for the parent's next dependency poll.
+    `blocked` for the parent's next dependency poll -- save the writer's
+    refusal of a parent record admission refuses, which is no failure to
+    retry: it propagates, so the dispatcher abandons the handler before any
+    exit road of its own, the worktree's teardown among them.
     """
     children = [number for number, _ in plan.created]
     try:
         _activation._activate_created_children(gh, spec, issue, state, children)
+    except _pinned_refusal.RecordRefused:
+        raise
     except Exception:
         log.exception(
             "issue=#%s could not release its new children; the parent's dependency walk will retry on its next poll",

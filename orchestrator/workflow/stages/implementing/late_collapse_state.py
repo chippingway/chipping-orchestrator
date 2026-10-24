@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
     formats as _formats,
@@ -81,6 +82,9 @@ def _records_the_collapse(
         return f"the squash could not be recorded before it ran ({refused})"
     try:
         gate.gh.write_pinned_state(gate.issue, gate.state)
+    except _pinned_refusal.RecordRefused:
+        # A record admission refuses is the dispatcher's to answer, not this catch's.
+        raise
     except Exception:
         log.warning(
             "issue=#%d could not record the squash it was about to make of "

@@ -19,7 +19,8 @@ What each prompt grants and forbids, and how a session is continued across round
   `_FAMILY_AWARE_LABELS` so fan-out concurrency is preserved.
 - **Internal flow**:
   1. **Terminal close.** If the issue is closed, stamp `question_closed_at`, set label `done`, write pinned state, tear
-     down the per-issue worktree + local branch via `_cleanup_question_worktree`. Do NOT spawn the agent.
+     down the per-issue worktree + local branch via `_cleanup_question_worktree` (kept where the record, read again at
+     the teardown, is refused or cannot be read). Do NOT spawn the agent.
   2. **Awaiting-human resume.** If `awaiting_human`, scan for new comments past `last_action_comment_id`. No new
      comments → return (the `_question_run_cleanup` context manager still tears down any worktree from a prior safe
      tick). New comments → advance the watermark BEFORE spawning, then resume the locked session via
@@ -42,7 +43,12 @@ What each prompt grants and forbids, and how a session is continued across round
        `question_answer`, tear the worktree down.
 
   The `_question_run_cleanup` context manager runs `_cleanup_question_worktree` unless one of the three unsafe-park
-  branches set `keep_worktree=True`.
+  branches set `keep_worktree=True`, or the run met a pinned record admission refuses — a human's edit since the
+  dispatch read it, met at the handler's own reading, a write, or the agent-run charge, which raise `RecordRefused`:
+  that issue's worktree and branch are kept for whoever disposes of the record. Both teardowns, this one and the
+  terminal close's, also read the record themselves before they run (`record_admission.teardown_admitted`), so a
+  refusal a guarded commit answered rather than raised, or a human's edit landing behind the close's write, keeps them
+  too, and so does a reading that fails, which cannot prove the record admitted.
 - **Cross-stage interaction (relabel to `workflow:implementing`).**
   [`_handle_implementing`](delivery-stages.md#_handle_implementing-label-workflowimplementing) carries an
   explicit guard:

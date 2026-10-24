@@ -24,6 +24,29 @@ from tests.workflow.engine import (
     run_circuit_test_support as support,
 )
 
+# The version a human's edit leaves the record under: one admission refuses.
+_EDITED_VERSION = 2
+
+# A park already standing on a spent allowance, its notice still owed: taking it
+# again stages nothing new, so its write would leave the record as it reads.
+_STANDING_PARK = (
+    (support.USED, support.ALLOWANCE),
+    (support.AWAITING_HUMAN, True),
+    (support.PARK_REASON, support.PARK_AGENT_RUN_LIMIT),
+    ("agent_run_limit_notice", {"message": "Still owed", "allowance": support.ALLOWANCE, "spent": support.ALLOWANCE}),
+)
+
+# A write the comment did not take, as (the write refused, what the record had
+# recorded, the writes landed ahead of it, the runs the caller is left with):
+# the reservation, the start behind a reservation that landed, the park of an
+# allowance already spent, and that park taken again over itself.
+_UNTAKEN_WRITES = (
+    ("reservation", (), 0, None),
+    ("start", (), 1, 1),
+    ("park", ((support.USED, support.ALLOWANCE),), 0, support.ALLOWANCE),
+    ("unchanged park", _STANDING_PARK, 0, support.ALLOWANCE),
+)
+
 
 class ChargedLaunchTest(unittest.TestCase):
     """What an ordinary launch pays, and when it has paid it."""
@@ -169,19 +192,44 @@ class RefusedLaunchTest(unittest.TestCase):
         self.assertEqual(launch.state.get(support.USED), 1)
 
     def test_an_unusable_pinned_read_invokes_nothing(self) -> None:
-        # A request that failed leaves no count to charge against, and a
-        # comment that will not parse reads back as an issue that has spent
-        # nothing -- charging on it would hand out a whole fresh lifetime.
-        for refusal in ("unreadable", "unparsed"):
+        # A request that failed leaves no count to charge against, and is
+        # answered as a run that never started. A comment admission refuses --
+        # one that will not parse, or one a human edited into another version
+        # since the dispatch admitted it -- reads back as an issue that has
+        # spent nothing, and charging on it would hand out a whole fresh
+        # lifetime: that launch raises the refusal, so the handler asking for
+        # it is abandoned rather than sent down its own exit roads.
+        for refusal, refused in (("unreadable", False), ("unparsed", True), ("unsupported", True)):
             with self.subTest(refusal=refusal):
                 launch = support.seeded()
                 setattr(launch.gh, refusal, True)
 
                 support.run_launch(launch)
 
-                self.assertEqual(launch.invocations, 0)
-                self.assertEqual(launch.gh.writes, [])
-                self.assertTrue(launch.answer.interrupted)
+                self.assertEqual((launch.invocations, launch.gh.writes), (0, []))
+                self.assertEqual(launch.refused, refused)
+                self.assertTrue(refused or launch.answer.interrupted)
+
+    def test_an_untaken_write_invokes_nothing(self) -> None:
+        # A human edits the record into a version admission refuses just
+        # ahead of a write the launch rests on -- the reservation, the start
+        # behind a reservation that landed, or a spent allowance's park, new
+        # or taken again unchanged -- and the writer refuses that write by
+        # raising, which the launch lets through. No process is invoked, no
+        # notice or park event is said for a park the comment did not take,
+        # and the caller carries only what it took.
+        for refused, spent, after, carried in _UNTAKEN_WRITES:
+            with self.subTest(refused=refused):
+                launch = support.seeded(**dict(spent))
+                launch.gh.edit_before_write(after=after)
+
+                support.run_launch(launch, allowance=support.ALLOWANCE)
+
+                self.assertEqual((launch.invocations, launch.refused), (0, True))
+                self.assertEqual(launch.gh.posted_comments, [], "no notice is said")
+                self.assertEqual(launch.events(support.RUN_LIMIT_EVENT), [], "no park is recorded")
+                self.assertEqual(launch.state.get(support.USED), carried)
+                self.assertEqual(launch.durable[SCHEMA_VERSION_KEY], _EDITED_VERSION, "the edit stands")
 
     def _assert_it_reads_as_a_run_that_never_ran(self, launch) -> None:
         # Interrupted, so every spawning handler returns without writing

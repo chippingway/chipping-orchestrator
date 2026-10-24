@@ -86,10 +86,12 @@ def _in_hand() -> dict:
 
 
 # Every fresh reading that is not the comment the tick read: one that will not
-# parse, a read that failed, the comment replaced -- with the handed records or
-# a later settlement -- and the comment gone. None of them is ever written to.
+# parse, one a human edited into a version admission refuses, a read that
+# failed, the comment replaced -- with the handed records or a later settlement
+# -- and the comment gone. None of them is ever written to.
 NO_COMMENT_IN_HAND = (
     ("unparsed", PinnedState(parsed=False)),
+    ("unsupported", PinnedState(comment_id=PINNED_ID, supported=False)),
     ("unread", ConnectionError("the request failed")),
     ("replaced, records unchanged", _pinned(_current(HANDED), REPLACEMENT_ID)),
     ("replaced, records moved", _pinned(_current(SETTLED), REPLACEMENT_ID)),

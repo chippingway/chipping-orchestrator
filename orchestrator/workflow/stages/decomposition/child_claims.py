@@ -16,15 +16,25 @@ So each of those writes is made under the child's claim, taken without waiting
 in front of the read it decides on and held through the write. A refusal is not
 the child's: each caller answers it as it answers a child it may not act on
 yet, and a later pass asks again.
+
+A write that is all or nothing across children -- the release walk -- reads
+each child's own record under those claims and holds it to admission before
+writing any (`admitted_children`): a record admission refuses reads back empty
+-- what a child nobody seeded reads as -- so a parent deciding on it would
+start a child whose record nobody read.
 """
 from __future__ import annotations
 
 import contextlib
 import logging
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
+
+from github.Issue import Issue
 
 from orchestrator.github.client import GitHubClient
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.scheduler import writer_claims as _writer_claims
+from orchestrator.workflow.engine import record_admission as _record_admission
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -73,3 +83,30 @@ def held_children(
             claims.enter_context(held_child(gh, owner_number, number))
             for number in child_numbers
         )
+
+
+def admitted_children(
+    gh: GitHubClient, owner_number: int, children: Mapping[int, Issue],
+) -> dict[int, PinnedState] | None:
+    """Each child's pinned record, read under the claims the caller holds, or None where any may not be acted on.
+
+    For a write that is all or nothing across children, asked once every claim
+    is held and in front of the first write. A record admission refuses is
+    said locally, never on the child, and a read that fails is logged; either
+    answers None, so the caller writes nothing to any of them and a later pass
+    asks again.
+    """
+    readings: dict[int, PinnedState] = {}
+    for number, child in children.items():
+        try:
+            reading = gh.read_pinned_state(child)
+        except Exception:
+            log.exception(
+                "issue=#%s leaving child #%s for a later pass: its pinned "
+                "comment could not be read", owner_number, number,
+            )
+            return None
+        if _record_admission.refuses(child, reading, f"issue #{owner_number} leaving it unwritten"):
+            return None
+        readings[number] = reading
+    return readings

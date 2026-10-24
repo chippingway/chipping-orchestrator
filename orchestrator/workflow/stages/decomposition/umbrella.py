@@ -30,6 +30,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
+    record_admission as _record_admission,
     retiring_cycles as _retiring_cycles,
     usage as _usage,
 )
@@ -239,7 +240,7 @@ def _handle_umbrella(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Iss
     `ready` -- there is no implementation pass for an umbrella, so the
     only terminal path is "every child resolved -> close".
     """
-    state = gh.read_pinned_state(issue)
+    state = _record_admission.admitted_state(gh, issue)
 
     # An umbrella parent NEVER enters implementation -- it just closes when
     # every child resolves -- so a body edit cannot be picked up by any

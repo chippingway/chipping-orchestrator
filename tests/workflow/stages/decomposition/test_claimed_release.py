@@ -4,9 +4,10 @@
 
 A walk takes each child's writer claim before it vouches for any, reads each
 again behind its claim, and releases all of them or none: a child another
-poller on this host holds, one it moved since the parent's scan, or one the
-read behind the claims cannot reach holds the whole walk, parks nothing, and
-leaves the next walk to try again.
+poller on this host holds, one it moved since the parent's scan, one the read
+behind the claims cannot reach, or one whose pinned record admission refuses or
+nobody could read holds the whole walk, parks nothing, and leaves the next walk
+to try again.
 """
 from __future__ import annotations
 
@@ -20,6 +21,9 @@ from tests.workflow.fixtures import KEY_AWAITING_HUMAN, LABEL_DONE, LABEL_READY
 from tests.workflow.stages.decomposition import child_claim_test_support as _support
 
 _FIRST, _SECOND = _support.CHILDREN
+
+# A version this build does not admit, on a record a child's seed would carry.
+_ANOTHER_VERSION = 2
 
 
 class ClaimedReleaseTest(unittest.TestCase):
@@ -71,6 +75,36 @@ class ClaimedReleaseTest(unittest.TestCase):
         self.assertEqual(self.github.label_history, [])
         self.assertEqual(held, [(_FIRST, []), (_SECOND, [])])
 
+    def test_a_refused_child_record_releases_none(self) -> None:
+        # Read again under its claim, the second child's record is one
+        # admission refuses: nothing vouches for it, so neither child is
+        # released, nothing is written to it, and the parent is not parked --
+        # what the child needs is a human disposing of its record, not anything
+        # this split could repair. The refusal is said locally.
+        self.github.seed_state(_SECOND, raw=True, schema_version=_ANOTHER_VERSION, parent_number=_support.PARENT)
+        refused = self.github.pinned_data(_SECOND)
+
+        with self.assertLogs(_support.WORKFLOW_LOG, level="WARNING") as logged:
+            held = _support.walked(self.github, self.parent)
+            said = _said_refused(logged.output)
+
+        self.assertEqual(self.github.label_history, [], "neither child is released")
+        self.assertEqual(held, [(_FIRST, []), (_SECOND, [])])
+        self.assertEqual(self.github.pinned_data(_SECOND), refused, "nothing is written to the child")
+        self.assertEqual(self.github.posted_comments, [], "nothing is posted")
+        self.assertIsNone(self.github.pinned_data(_support.PARENT).get(KEY_AWAITING_HUMAN), "nothing parks")
+        self.assertTrue(said)
+
+    def test_an_unread_child_record_releases_none(self) -> None:
+        self.github.pinned_failures.unreadable.add(_SECOND)
+
+        with self.assertLogs(_support.WORKFLOW_LOG):
+            held = _support.walked(self.github, self.parent)
+
+        self.assertEqual(self.github.label_history, [])
+        self.assertEqual(held, [(_FIRST, []), (_SECOND, [])])
+        self.assertIsNone(self.github.pinned_data(_support.PARENT).get(KEY_AWAITING_HUMAN))
+
     def test_a_raising_walk_gives_claims_back(self) -> None:
         refused = _support.RefusedWrite(self.github, self.github.set_workflow_label)
 
@@ -84,6 +118,11 @@ class ClaimedReleaseTest(unittest.TestCase):
         _support.walked(self.github, self.parent)
 
         self.assertEqual(self.github.label_history, list(_support.RELEASED))
+
+
+def _said_refused(output: list[str]) -> bool:
+    """Whether a warning names the refused child's pinned comment."""
+    return any(f"issue=#{_SECOND} pinned comment" in line for line in output)
 
 
 if __name__ == "__main__":

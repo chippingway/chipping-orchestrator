@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 
 from orchestrator.agents.models import AgentResult
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -232,11 +233,17 @@ def _park_spent(
     A park that could not be taken still refuses the launch. The allowance is
     spent either way, and the poll comes back to a park that was never
     recorded -- while a spawn let through because the announcement failed is a
-    run nothing gets back.
+    run nothing gets back. Nothing of a park the comment did not take is
+    carried back to the caller either. A park the writer refused because a
+    human edited the record into one admission refuses raises
+    `pinned_refusal.RecordRefused`, which is let through, so the handler is
+    abandoned rather than told only that nothing was invoked.
     """
     recorded = dict(durable.data)
     try:
-        _run_limit._park_exhausted(gh, budget.issue, durable, ledger, launch)
+        parked = _run_limit._park_exhausted(gh, budget.issue, durable, ledger, launch)
+    except _pinned_refusal.RecordRefused:
+        raise
     except Exception:
         log.exception(
             "issue=#%d has spent every agent run it is allowed, and the park "
@@ -244,4 +251,5 @@ def _park_spent(
             budget.issue.number,
         )
         return
-    _run_charge_state._merge_circuit_fields(recorded, durable, budget.state)
+    if parked:
+        _run_charge_state._merge_circuit_fields(recorded, durable, budget.state)

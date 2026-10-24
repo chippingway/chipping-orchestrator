@@ -483,12 +483,18 @@ parent ↔ child state) into ONE bucket submit per repo that drains sequentially
 cannot starve the parent umbrella issue, and submits everything else one callable per issue. Whichever way an issue
 is executed, its pass runs under the issue's [writer claim](#process-model), and an issue another poller on the host
 holds is skipped that tick, keeping only a close the poll read for it. A family handler writes its children under
-each child's own claim.
+each child's own claim. The pinned comment the dispatch guards decide on is read and admitted under that claim, ahead
+of every guard and handler (`late_relabel._dispatch_state`, asked by `workflow/engine/dispatch_guards.py`): a record
+admission refuses stops the pass with nothing written and a local warning, whatever the poll read before the claim.
+Every stage handler starts on its own reading through `workflow/engine/record_admission.py`, which abandons the
+handler where a human's edit left that reading refused, and a release walk admits each child's record under the
+child's claim before it starts any.
 
 Per-issue durable state lives in a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`).
 It is state only where the orchestrator's own account wrote it and its whole body is the marker, and a record only where
 its JSON object carries an integer `schema_version` of `1` (`github/pinned_state.py`): a comment refused admission is
-kept as it stands, never written over or replaced beside, and licenses nothing ([pinned state][pinned-state]).
+kept as it stands, never written over or replaced beside, and licenses nothing, ordinary dispatch of its issue
+included; a whole-state write over one raises, so its caller stops ([pinned state][pinned-state]).
 The label and the pinned JSON are the dispatch input, beside the one host-local record every developer launch reads
 first, the quota retirement record an Antigravity launch arms, and the resolution of it a poller holds in memory while
 the record will not take it ([design constraints](#design-constraints)).

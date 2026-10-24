@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import (
     _TEST_SPEC,
@@ -74,6 +76,9 @@ CLOSED_EMPTY_ISSUE_NUMBER = 52
 CLOSED_USAGE_ISSUE_NUMBER = 53
 CLOSED_USAGE_TOKENS = 8800
 CLOSED_USAGE_COST_USD = 0.19
+CLOSED_EDITED_ISSUE_NUMBER = 54
+CLOSED_EDITED_PICKUP_COMMENT_ID = 100
+ANOTHER_VERSION = 2
 ANSWER_CLEANUP_ISSUE_NUMBER = 100
 SILENT_CLEANUP_ISSUE_NUMBER = 101
 STALE_RESUME_ISSUE_NUMBER = 102
@@ -131,6 +136,23 @@ def _receipt_projection(gh, issue):
     ]
     receipt_comment = next(comment for comment in issue.comments if comment.body.startswith(":receipt:"))
     return receipts, receipt_comment
+
+
+class _EditedBehindTheWrite:
+    """The client's whole-state write, with a human's edit of the record landing just behind its first one."""
+
+    def __init__(self, gh: FakeGitHubClient) -> None:
+        self._gh = gh
+        self._writes = gh.write_pinned_state
+        self.edited = False
+
+    def __call__(self, issue, state):
+        """Write, then edit the record into another version behind the first write."""
+        self._writes(issue, state)
+        if not self.edited:
+            self.edited = True
+            edited = dict(self._gh.pinned_data(issue.number), schema_version=ANOTHER_VERSION)
+            self._gh.seed_state(issue.number, raw=True, **edited)
 
 
 class HandleQuestionClosedIssueTerminalTest(
@@ -277,3 +299,26 @@ class HandleQuestionClosedIssueTerminalTest(
             receipt_comment.id,
             gh.pinned_data(issue.number).get("orchestrator_comment_ids", []),
         )
+
+    def test_an_edit_behind_the_close_keeps_checkout(self) -> None:
+        # A human edits the record into a version admission refuses just as
+        # the finalize's write lands. The teardown reads the record itself
+        # rather than trusting that write, so the checkout and its branch are
+        # kept for whoever disposes of the record.
+        gh = FakeGitHubClient()
+        issue = make_issue(CLOSED_EDITED_ISSUE_NUMBER, label=LABEL_QUESTION)
+        issue.closed = True
+        gh.add_issue(issue)
+        gh.seed_state(issue.number, pickup_comment_id=CLOSED_EDITED_PICKUP_COMMENT_ID)
+        edits = _EditedBehindTheWrite(gh)
+
+        with patch.object(gh, "write_pinned_state", edits):
+            mocks = self._run(
+                lambda: _issue_processing._process_issue(gh, _TEST_SPEC, issue),
+                run_agent=_agent(last_message=UNEXPECTED_AGENT_MESSAGE),
+            )
+
+        self.assertTrue(edits.edited, "the finalize reached its write")
+        self.assertEqual(gh.pinned_data(issue.number)["schema_version"], ANOTHER_VERSION)
+        mocks[RUN_AGENT].assert_not_called()
+        mocks[CLEANUP_QUESTION_WORKTREE].assert_not_called()

@@ -22,7 +22,10 @@ forbids is in [`../workflow.md`](../workflow.md).
   leaves an issue whose workflow label a human removed exactly where they left it, saying so once a tick; the way
   back in is applying a workflow label by hand. The one unlabeled issue with a pinned comment that *is* answered is
   the [restart](labels-and-state.md#late-generation-state), which reaches the same two labels by projecting the
-  pinned comment it already has rather than through this path's greeting, fresh state, and author allowlist.
+  pinned comment it already has rather than through this path's greeting, fresh state, and author allowlist. A pinned
+  comment admission refuses reads back empty, as an issue nobody met does, so it never reaches this greeting: the
+  [dispatch gate](labels-and-state.md#per-tick-flow-workflowengineticktick) refuses that issue first, labelled or
+  not, with nothing written.
 - **Input**: issue title/body/comments; `config.DECOMPOSE` (default on); `config.ALLOWED_ISSUE_AUTHORS` (required —
   startup refuses a list that names nobody).
 - **Action**: an issue authored by anyone outside `ALLOWED_ISSUE_AUTHORS` is silently skipped (log only); otherwise
@@ -601,7 +604,12 @@ because there it is the claim that this stage has already rerouted rather than a
      (`invoked=False` — the agent-run circuit refused it) short-circuits ahead of this check and of the pause
      re-check above it: nothing in that worktree is its doing, and a `decomposer_dirty` park in its name would
      overwrite the durable `agent_run_limit` one the refusal took
-     ([The agent-run circuit](labels-and-state.md#the-agent-run-circuit)).
+     ([The agent-run circuit](labels-and-state.md#the-agent-run-circuit)). A charge that meets a pinned record
+     admission refuses raises `RecordRefused` instead, abandoning the handler; the worktree, otherwise torn down on
+     every exit, is kept for whoever disposes of that record. The teardown also reads the record itself before it
+     runs (`record_admission.teardown_admitted`), so a refusal a guarded commit answered rather than raised — the
+     `DECOMPOSE=off` handoff's report, say — keeps it too, and so does a reading there that fails, which cannot prove
+     the record admitted.
   7. **Parse the manifest** via `_parse_manifest` (regex captures the fenced ` ```orchestrator-manifest ` block):
      - invalid manifest → park `decomposer_invalid_manifest` with the parse error. A `split` is held to the fresh-reply
        rules (`_fresh_split_manifest_error`): every child states a `depends_on` list of indexes into the children
@@ -654,7 +662,8 @@ because there it is the claim that this stage has already rerouted rather than a
        the same fresh scan of each child's label, so a child a human rejected or closed short of a terminal while its
        siblings were still being created parks the parent and none is relabelled, and with the same lineage recheck
        and per-child recognition as any later release — flipping `workflow:blocked` → `workflow:ready` (best-effort,
-       since that walk also treats no-dep children as deps-satisfied on the next poll).
+       since that walk also treats no-dep children as deps-satisfied on the next poll; a parent record admission
+       refuses by then is no failure to retry: its `RecordRefused` abandons the handler, the worktree kept).
 - **Output**: parent → `workflow:ready` / `workflow:blocked` / `workflow:umbrella` / `workflow:implementing`, OR a
   HITL park.
 
@@ -710,13 +719,17 @@ because there it is the claim that this stage has already rerouted rather than a
      longer held or released, a base gone, an ancestry damaged) releases none and parks the parent
      `replacement_lineage_unproved`, once. Every child the walk would release is held to the recognition step 3's
      recovery applies before the first of them is relabelled, with its parent link required rather than
-     backfilled: a comment that will not parse, a `parent_number` that is not this parent's number (a float or a
+     backfilled: a `parent_number` that is not this parent's number (a float or a
      bool equal to it included), an ancestry that is not the whole group it was owed (any of it, for an issue no late
      split charged), a pointer the parent's ledger no longer keeps for it (the ref released, or the child off
      `late_consumers`), a title or body naming any other ref, a register naming it more than once, or a receipt other
      than the one its split stamped for its slot — the one the dispatcher would hold its seed to once it runs —
-     releases none of them and parks the same way. That costs one pinned read per released child. `_handle_umbrella`
-     walks through the same checks, and so does the split's own same-tick release.
+     releases none of them and parks the same way. Ahead of that, on a late split's register as on an ordinary
+     split's, every child's record is read under its claim and admitted: one admission refuses (a comment that will
+     not parse, or one under a version this build does not admit), or one nobody could read, releases none of them
+     either, but parks nothing and writes nothing to the child, saying so only in the log, since what it needs is a
+     human disposing of that record. That costs one pinned read per released child. `_handle_umbrella` walks through
+     the same checks, and so does the split's own same-tick release.
 - **Output**: parent → `workflow:ready` (all done and nothing a late split recorded still held), OR a sibling
   unblocked, OR a HITL park, OR a no-op for a child still waiting on its dependencies or a parent still holding a
   ref.
