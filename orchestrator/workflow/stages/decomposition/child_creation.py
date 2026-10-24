@@ -16,7 +16,12 @@ child's own writer claim, onto the record the child carries by then: another
 poller on this host may have reached it first and held it for the seed it
 lacked. A child that poller is still writing is left unseeded on the plan
 (`_SplitPlan.unseeded`) and the loop goes on, for the split's recovery to seed
-under the claim and finalize on a later tick.
+under the claim and finalize on a later tick. So is a child whose record, read
+under that claim, admission refuses (`child_claims.ChildRefused`): nothing is
+written to it -- no link, no stamp, no lineage, no park lifted, no version
+stamped onto a record that carried none -- and the refusal is said only in the
+log. A genuinely fresh child, with no authenticated pinned comment at all, is
+seeded as its first record, which the writer stamps with the supported version.
 """
 from __future__ import annotations
 
@@ -56,10 +61,13 @@ def _write_child_pinned_state(
     dispatcher puts on a child whose seed is missing -- sits on the one pinned
     comment every reader takes, and a fresh record would land in a second
     comment beside it that no reader takes, leaving the child held unseeded.
+    That reading is held to admission before anything is added to it, and the
+    write is refused over a record admission refuses by then: either raises
+    `child_claims.ChildRefused` with nothing written.
     """
-    child_state = gh.read_pinned_state(new_issue)
+    child_state = _child_claims.admitted_child(parent_number, new_issue, gh.read_pinned_state(new_issue))
     _complete_seed(child_state, parent_number, ancestry)
-    gh.write_pinned_state(new_issue, child_state)
+    _child_claims.write_seed(gh, parent_number, new_issue, child_state)
 
 
 def _complete_seed(child_state: PinnedState, parent_number: int, ancestry: LateAncestry | None) -> None:
@@ -131,8 +139,10 @@ def _seed_created_child(
     on this host holds is no failure: the child is already recorded, so it is
     left on the plan as unseeded and the loop goes on -- the caller that sees
     `plan.unseeded` leaves the split to its recovery, which seeds it under the
-    claim once that poller lets go. Only a seed that could not be written
-    parks.
+    claim once that poller lets go. A record admission refuses is left the same
+    way, since what it needs is a human disposing of it rather than a park of
+    this split's: the recovery seeds the child once a record admission takes
+    is back on it. Only a seed that could not be written parks.
     """
     _, child = plan.created[-1]
     try:
@@ -143,6 +153,8 @@ def _seed_created_child(
                 )
             else:
                 plan.unseeded.append(new_issue.number)
+    except _child_claims.ChildRefused:
+        plan.unseeded.append(new_issue.number)
     except Exception:
         log.exception(
             "issue=#%s could not seed pinned state on child #%d",

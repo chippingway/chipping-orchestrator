@@ -11,9 +11,9 @@ receipt (`split_receipts`), and reuse instructions where it is owed the
 parent's snapshot. Children without dependencies are released after the
 summary (`split_summary`) and parent label land, through the walk a later poll
 runs. A split that had to leave a child unseeded, because another poller on
-this host held it, publishes none of the three: its recovery seeds the child,
-posts the summary, and finalizes the parent, and the parent's dependency walk
-releases.
+this host held it or its pinned record is one admission refuses, publishes none
+of the three: its recovery seeds the child, posts the summary, and finalizes
+the parent, and the parent's dependency walk releases.
 """
 from __future__ import annotations
 
@@ -106,7 +106,8 @@ def _create_child_issues(
     Returns the populated split plan on success, or None when the lineage
     could not be proved or a create/seed step failed and the parent was
     parked, or when a child was left unseeded for the recovery to finish
-    (caller must return).
+    (caller must return) -- a seed left uncompleted is never reported as one
+    that landed, so nothing publishes the split on it.
 
     Crash-safe sequence:
       0. Decide the late lineage the children inherit, off the record this
@@ -140,6 +141,8 @@ def _create_child_issues(
          the split then stops short of its finalize, which leaves the
          parent `decomposing` with every child recorded -- the state the
          recovery seeds that child from, under its claim, and finalizes.
+         A child whose record, read under its claim, admission refuses is
+         left unseeded the same way, with nothing written to it.
     """
     lineage = _replacement_lineage.read_replacement_lineage(state, issue, spec)
     refusal = lineage.refusal or _unsupported_reuse(lineage, parsed)
@@ -153,8 +156,8 @@ def _create_child_issues(
             return None
     if plan.unseeded:
         log.info(
-            "issue=#%s leaving its split to recovery: another poller on this "
-            "host held %s when it went to seed them",
+            "issue=#%s leaving its split to recovery: %s could not be seeded -- held by another poller on "
+            "this host, or carrying a pinned record admission refuses",
             issue.number, _state._issue_ref_list(plan.unseeded),
         )
         return None

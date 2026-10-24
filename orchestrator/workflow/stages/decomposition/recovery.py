@@ -44,11 +44,18 @@ keeps every child of that split unstarted.
 
 Each child is repaired under its own writer claim or not at all: one another
 poller on this host is writing stops the recovery there without a park, and
-the next tick resumes it. That is also how a split that met such a child at
-its seed is completed: it creates and records every child, leaves that one
-unseeded, and stops short of its summary, its finalize, and its first release.
-This recovery seeds that child and makes the first two once that poller lets
-go, and the parent's next dependency walk the release.
+the next tick resumes it. So does a child whose own pinned record, read under
+that claim, admission refuses: nothing is written to it, the refusal is said
+only in the log, and no summary or finalize is published past it, since what
+it needs is a human disposing of that record rather than a reply to a park of
+this split's. That is also how a split that met such a child at its seed is
+completed: it creates and records every child, leaves that one unseeded, and
+stops short of its summary, its finalize, and its first release. This recovery
+seeds that child and makes the first two once that poller lets go, or once a
+record admission takes is back on it, and the parent's next dependency walk
+the release. A child adopted by its receipt is recorded on the parent alone
+and seeded here like any other, so one whose record admission refuses stays
+recorded and unwritten.
 """
 from __future__ import annotations
 
@@ -109,14 +116,17 @@ def _repair_recovered_child(
     through its write, because both are the child's record. A child another poller on this host
     is writing is not one this tick may repair, and not one it may finalize
     past either -- so the recovery stops where it stands, parking nothing,
-    and the next tick's recovery asks again. The children repaired before it
-    carry exactly what they were owed.
+    and the next tick's recovery asks again. A child whose record admission
+    refuses stops it the same way (`child_claims.ChildRefused`). The children
+    repaired before it carry exactly what they were owed.
     """
     try:
         with _child_claims.held_child(gh, issue.number, child_number) as held:
             if not held:
                 return False
             refusal = _split_repair._seed_orphan_child_state(gh, issue, state, child_number, lineage)
+    except _child_claims.ChildRefused:
+        return False
     except Exception:
         log.exception(
             "issue=#%s could not repair orphan child #%s during "

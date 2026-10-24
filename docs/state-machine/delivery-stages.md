@@ -565,13 +565,17 @@ because there it is the claim that this stage has already rerouted rather than a
      again. The recovered summary is the one step 7 would have posted, rationale included: the rationale is read back
      off `split_rationale` with no decomposer run, and a record without the key, as an older binary left it, or one
      holding `null`, a blank, or a non-string says it was not recorded. Each child is repaired under its own writer
-     claim, and one another poller on the host holds stops the recovery there — nothing parked, summarized, or
-     finalized — for the next tick to resume. A parent whose record no longer proves that
-     lineage, or a child it cannot recognize as its own — an unparsed comment, a `parent_number` that is not exactly
-     this issue's number (only a missing one is backfilled), text naming a snapshot ref the split cannot keep, any
-     other group (any at all on an ordinary split's child), a register naming it twice, or a receipt other than the one
-     the split stamped for its slot; the full list is
-     [the split's contract](../workflow/roles.md#what-an-ordinary-re-decomposition-holds-its-children-to) — parks
+     claim, and one another poller on the host holds stops the recovery there — nothing parked, summarized, or finalized
+     — for the next tick to resume. So does a child whose pinned record, read under that claim, admission refuses —
+     unversioned, under a version this build does not admit, or a comment that will not parse — or whose write a human's
+     edit since left the writer to refuse: nothing is written to it (no link, lineage, lifted park, or version stamp),
+     the refusal is said in one local line and never on the child, and every recovery tick stops there until a record
+     admission takes is back on it, which a child adopted by its receipt above is held to as well. A parent whose record
+     no longer proves that lineage, or a child it cannot recognize as its own — a `parent_number` that is not exactly
+     this issue's number (only a missing one is backfilled), text naming a snapshot ref the split cannot keep, any other
+     group (any at all on an ordinary split's child), a register naming it twice, or a receipt other than the one the
+     split stamped for its slot; the full list is [the split's
+     contract](../workflow/roles.md#what-an-ordinary-re-decomposition-holds-its-children-to) — parks
      `replacement_lineage_unproved` instead. Nothing is written to that child, so none of its children is finalized into
      the walk that starts them. Two owners take those markers away from this recovery: an issue already parked awaiting
      a human, and one carrying a live late generation — the split transaction writes the same two markers and resumes
@@ -649,10 +653,14 @@ because there it is the claim that this stage has already rerouted rather than a
        to the record the child carries by then, lifting the `replacement_lineage_unproved` hold another poller on the
        host may have parked there first; a child that poller still holds is left unseeded while the rest are
        created, and the split then posts no summary, writes no label, and releases nothing, leaving step 3 to seed it
-       under the claim, post the summary, and finalize on a later tick. A child owed that snapshot is created with the
-       reuse instructions a late split's own children carry appended after its receipt — the ref, its local mirror,
-       the commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer
-       reads. Otherwise post the split's summary — the children, then the decomposer's rationale read back off
+       under the claim, post the summary, and finalize on a later tick. The record the seed adds to is the one read
+       under that claim and admitted: a child with no authenticated pinned comment is seeded with its first record,
+       stamped `schema_version: 1`, and one whose record admission refuses — found under the claim, or met by the write
+       — is left unseeded the same way, with nothing written to it and the refusal said only in the log, so no summary,
+       label, or release is published over a seed that did not land. A child owed that snapshot is created with the
+       reuse instructions a late split's own children carry appended after its receipt — the ref, its local mirror, the
+       commit, the base it was cut against, and how to read and reuse it — since the body is what its implementer reads.
+       Otherwise post the split's summary — the children, then the decomposer's rationale read back off
        `split_rationale` (on an umbrella and on a parent that is not one alike) in a Markdown fence no line of it can
        close, so its own fences and HTML comment openers are shown rather than obeyed, or a sentence saying it was not
        recorded where that holds no text — ending on the hidden receipt

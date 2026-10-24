@@ -3,9 +3,11 @@
 """Durable late-child walk records, cancellation seals, and ancestry seeding.
 
 The parent records every created issue before seeding it, and seeds it only
-under the child's own writer claim. A close seen inside the child read prevents
-its write, and a resumed walk seals only after every possible unrecorded child
-has been accounted for.
+under the child's own writer claim, off the child's record read behind that
+claim and held to admission. A close seen inside the child read prevents its
+write, a record admission refuses parks the split as a refused claim does with
+nothing written to the child, and a resumed walk seals only after every
+possible unrecorded child has been accounted for.
 """
 from __future__ import annotations
 
@@ -48,6 +50,9 @@ _CHILD_CREATE_PARK = (
     "this issue; the next tick adopts them and continues from the same "
     "manifest without re-running any agent."
 )
+
+# How the park names a child whose own pinned record admission refuses.
+_UNADMITTED_CHILD = "{described}, whose pinned record this orchestrator does not admit,"
 
 
 @dataclass
@@ -253,13 +258,21 @@ def _seeded(
     is writing -- or any claim this transaction cannot take -- is one it
     cannot seed, and that is answered as the seed that could not be made:
     the same park, which the next attempt supersedes and resumes from the
-    same recorded verdict, adopting the children already recorded.
+    same recorded verdict, adopting the children already recorded. A child
+    whose record, read under the claim, admission refuses -- an adopted one
+    included -- is answered the same way (`child_claims.ChildRefused`), with
+    nothing written to it and nothing said on it: the park is the parent's,
+    and the next attempt seeds the child once a record admission takes is
+    back on it.
     """
     described = f"child #{child_issue.number} ({child.get('title')!r})"
     try:
         with _child_claims.held_child(context.gh, context.issue.number, child_issue.number) as held:
             if held:
                 return _seed_child_state(context, walk, child_issue, child)
+    except _child_claims.ChildRefused:
+        _parked(context, _UNADMITTED_CHILD.format(described=described))
+        return False
     except Exception:
         log.exception(
             "issue=#%d could not seed child #%d with its ancestry",
@@ -301,14 +314,21 @@ def _seed_child_state(
     and the answer travels back rather than stopping here: this is the LAST
     step of one child's turn, so a caller told it succeeded would open the
     next slice's issue against a cycle that has just ended.
+
+    The reading is held to admission behind the latch, since a cycle the
+    close ended owes even a child whose record is refused nothing but that
+    cancellation. A refused one raises `child_claims.ChildRefused` before
+    anything is added to it, and so does the write over a record a human's
+    edit since then left admission to refuse.
     """
-    child_state = context.gh.read_pinned_state(child_issue)
+    reading = context.gh.read_pinned_state(child_issue)
     if _late_owner._latch_stops(context) is not None:
         log.warning(
             "issue=#%d was observed closed while child #%d was being read; "
             "writing nothing to it", context.issue.number, child_issue.number,
         )
         return False
+    child_state = _child_claims.admitted_child(context.issue.number, child_issue, reading)
     if not child_state.get(_state._PARENT_NUMBER):
         child_state.set(_state._PARENT_NUMBER, context.issue.number)
         child_state.set(_state._AWAITING_HUMAN, False)
@@ -318,7 +338,7 @@ def _seed_child_state(
     _lineage.write_late_ancestry(
         child_state, _late_child_content._child_ancestry(context, child, walk.snapshot_ref),
     )
-    context.gh.write_pinned_state(child_issue, child_state)
+    _child_claims.write_seed(context.gh, context.issue.number, child_issue, child_state)
     return True
 
 

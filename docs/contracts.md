@@ -100,7 +100,9 @@ Historical forms the runtime still reads stay documented in their specifications
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
 specification says what a reader does with it. Close observation, recovery, and cleanup read an unsupported record as
-neither a fresh owner nor a cycle with nothing left owed, and write nothing for it. Current-format authentication
+neither a fresh owner nor a cycle with nothing left owed, and write nothing for it. A parent's split seeds, recovery,
+and dependency release read an unsupported child as neither a fresh child to seed nor one to start: nothing is written
+to it, and the seed or release stays uncompleted. Current-format authentication
 [C-04], writer claims and artifact ownership [C-05], guarded and uncertain-write recovery [C-06], approval evidence
 [C-09], pinned session commands [C-14], lifetime run accounting [C-15], and the audit-log recovery exception [C-12]
 remain required. Optional fields the current format defines and current transactions a crash or lost write interrupted
@@ -121,7 +123,8 @@ are current state, not historical compatibility.
 **Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py),
 [refused closes](../tests/workflow/engine/test_dispatch_refused_record_cleanup.py),
 [dispatch admission](../tests/workflow/engine/test_dispatch_record_admission.py),
-[later readings](../tests/workflow/engine/test_dispatch_admitted_rereads.py).
+[later readings](../tests/workflow/engine/test_dispatch_admitted_rereads.py),
+[child seeds](../tests/workflow/stages/decomposition/test_claimed_seeds.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -152,14 +155,19 @@ resolve different roots. Artifact maintenance needs
 [exclusive access to that host's worktrees](architecture.md#process-model). Handle crashes, external changes, and
 records written before acquiring the claim; [C-06] covers lost or refused writes and comment capacity. Close
 observation, recovery, and cleanup admit the record they act on from a read under the issue's claim, the poll's
-alongside one included; a close held in memory never stands in for that record.
+alongside one included; a close held in memory never stands in for that record. A parent's seed or repair of a child,
+an adopted one included, and its release of a group of children admit each child's record from a read under that
+child's claim, held through the write; an earlier family scan never stands in for it, and a release admits every
+child it would start before starting any.
 
 **Specs:** [ownership](architecture.md#design-constraints), [claims](architecture.md#process-model),
-[poller setup](configuration/operations.md#running-more-than-one-poller).
+[poller setup](configuration/operations.md#running-more-than-one-poller),
+[family writes](state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick).
 
 **Checks:** [dispatch claims](../tests/workflow/engine/test_dispatch_writer_claims.py),
 [claimed admission](../tests/workflow/engine/test_dispatch_record_admission.py),
-[host exclusion](../tests/runtime/test_exclusion.py).
+[host exclusion](../tests/runtime/test_exclusion.py),
+[claimed release](../tests/workflow/stages/decomposition/test_claimed_release.py).
 
 ## C-06: Guarded writes and recoverable effects
 

@@ -442,6 +442,19 @@ process's scheduler reports active, so another poller's refresh or dispatch hold
 refresh as well ([Base refresh](#base-refresh)). The supported topology and the namespace's access assumptions are in
 [`../configuration/operations.md#running-more-than-one-poller`](../configuration/operations.md#running-more-than-one-poller).
 
+A parent's seed or repair of a child holds the child's reading taken under its claim to admission before it adds
+anything, and a release admits each child it would start before it starts any. A record admission refuses — an
+unversioned one, one under a version this build does not admit, or one that will not parse, whether found under the
+claim or met by the write a human's edit since left it to refuse — is answered as the held child is: an ordinary split
+leaves it unseeded and publishes no summary, finalize, or release, its recovery stops there each tick without parking,
+and a late split parks `late_children_failed`, naming the child on the parent alone. Nothing is written to the child, so
+its record is never stamped as version 1, its parks stay, its accounting and session are untouched, and its label stays;
+the refusal is said in one local line naming the child's comment and the version found, never on the child. A child
+adopted after an interrupted create is recorded on the parent off its receipt and seeded on the same terms. A genuinely
+fresh child, with no authenticated pinned comment, is admitted, and its seed is its first record, which the writer
+stamps with version 1. The earlier family scan decides none of this: the record is read behind the claim, so a human's
+edit before it counts.
+
 Only issue numbers cross the thread boundary — each scheduler worker mints a fresh `GitHubClient` via
 `gh._for_worker_thread()` and re-fetches its Issue against that client. The mint itself sends no request: the clone
 reuses the parent's token and bot login on a requester of its own, and its repository is lazy. The first read of

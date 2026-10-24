@@ -7,7 +7,9 @@ again behind its claim, and releases all of them or none: a child another
 poller on this host holds, one it moved since the parent's scan, one the read
 behind the claims cannot reach, or one whose pinned record admission refuses or
 nobody could read holds the whole walk, parks nothing, and leaves the next walk
-to try again.
+to try again. The record decided on is the one read behind the claims, on a
+late split's own register as on an ordinary split's, and a genuinely fresh
+child -- no pinned record at all -- is admitted.
 """
 from __future__ import annotations
 
@@ -24,6 +26,13 @@ _FIRST, _SECOND = _support.CHILDREN
 
 # A version this build does not admit, on a record a child's seed would carry.
 _ANOTHER_VERSION = 2
+
+# What a human's edit leaves on the second child as its claim is granted,
+# beside what the walk then releases.
+_EDITED_ON_CLAIM = (
+    ("refused", ()),
+    ("admitted", _support.RELEASED),
+)
 
 
 class ClaimedReleaseTest(unittest.TestCase):
@@ -118,6 +127,80 @@ class ClaimedReleaseTest(unittest.TestCase):
         _support.walked(self.github, self.parent)
 
         self.assertEqual(self.github.label_history, list(_support.RELEASED))
+
+
+class ClaimedReadingTest(unittest.TestCase):
+    """The same family, whose second child's record a human edits as its claim is granted."""
+
+    def setUp(self) -> None:
+        github, parent = _support.blocked_family()
+        self.github = github
+        self.parent = parent
+
+    def test_the_walk_reads_behind_its_claims(self) -> None:
+        # The scan is taken first and each record only behind the claims. A
+        # human's edit landing as the second child's claim is granted decides
+        # the walk whatever that record read like before it: one left refused
+        # holds both children, one left admitted -- over a record admission
+        # refused when the walk began -- releases both.
+        for edit, released in _EDITED_ON_CLAIM:
+            with self.subTest(edit=edit):
+                self.setUp()
+                if released:
+                    self._refuse(_SECOND)
+                scan = _parents._read_child_labels(self.github, self.parent, list(_support.CHILDREN))
+
+                with _support.EditedOnClaim(self._admit if released else self._refuse).installed():
+                    _support.walked(self.github, self.parent, scan)
+
+                self.assertEqual(self.github.label_history, list(released))
+                self.assertIsNone(self.github.pinned_data(_support.PARENT).get(KEY_AWAITING_HUMAN))
+
+    def _refuse(self, number: int) -> None:
+        """Leave the second child's record one admission refuses, as a human's edit would; any other is left."""
+        if number == _SECOND:
+            self.github.seed_state(_SECOND, raw=True, schema_version=_ANOTHER_VERSION, parent_number=_support.PARENT)
+
+    def _admit(self, number: int) -> None:
+        """Leave the second child's record the supported seed its split owes it; any other is left."""
+        if number == _SECOND:
+            self.github.seed_state(_SECOND, parent_number=_support.PARENT)
+
+
+class RegisteredReleaseTest(unittest.TestCase):
+    """A late split's own register, whose release asks no lineage, over a genuinely fresh first child.
+
+    No lineage is asked of these children, so the claimed reading's admission
+    is the one question their records answer: a child with no pinned record
+    at all, or a supported one, is started, and one admission refuses holds
+    the whole walk with nothing written to or said on either and nothing
+    parked.
+    """
+
+    def test_a_fresh_child_starts(self) -> None:
+        github, parent = _support.blocked_family(registered=True)
+        github.seed_state(_SECOND, parent_number=_support.PARENT)
+
+        with self.assertNoLogs(_support.WORKFLOW_LOG, level="WARNING"):
+            _support.walked(github, parent)
+
+        self.assertEqual(github.label_history, list(_support.RELEASED))
+        self.assertEqual(github.pinned_data(_FIRST), {}, "the fresh child is released with nothing written")
+
+    def test_a_refused_member_holds_the_register(self) -> None:
+        for shape in _support.UNADMITTED:
+            with self.subTest(second=shape):
+                github, parent = _support.blocked_family(registered=True)
+                github.seed_state(_SECOND, raw=True, **_support.UNADMITTED[shape], awaiting_human=True)
+                before = [_support.standing(github, number) for number in _support.CHILDREN]
+
+                with self.assertLogs(_support.WORKFLOW_LOG, level="WARNING") as logged:
+                    _support.walked(github, parent)
+                    self.assertTrue(_said_refused(logged.output), "the refusal is said locally")
+
+                self.assertEqual(github.label_history, [], "neither child is released")
+                self.assertEqual([_support.standing(github, number) for number in _support.CHILDREN], before)
+                self.assertIsNone(github.pinned_data(_support.PARENT).get(KEY_AWAITING_HUMAN), "nothing parks")
 
 
 def _said_refused(output: list[str]) -> bool:
