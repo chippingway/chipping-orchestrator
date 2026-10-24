@@ -4,7 +4,9 @@
 
 An exception preserves the receipt and is re-raised. A completed pass
 still keeps the latch when its durable ending remains owed, including
-work that no current sweep label would enumerate.
+work that no current sweep label would enumerate, and whenever the owner's
+read back establishes nothing -- a request that failed, or a pinned record
+admission refuses, which the sweep left untouched and marked nothing on.
 """
 from __future__ import annotations
 
@@ -70,10 +72,16 @@ def _kept_cleanup_reading(
     end, which the next tick's own cleanup pass settles. It is re-latched
     `fresh`, since the answer decides the reading anew, and a drop postponed
     for it before may not outlive a decision to keep it.
+
+    An answer that established nothing -- a read that failed, or a record
+    admission refuses -- keeps the reading too, on any label and whether or
+    not the issue is open, and says nothing more: its reader said why, and an
+    ending owed under no swept label is not what it found.
     """
     observations.observe_close(spec.slug, issue_number, fresh=True)
     late_close_reading = importlib.import_module(_stage_targets._LATE_CLOSE_READING_OWNER)
-    if late_close_reading._cleanup_settled(gh, spec, issue_number):
+    settled = late_close_reading._cleanup_settled(gh, spec, issue_number)
+    if settled:
         observations.settle_close(spec.slug, issue_number)
-        return
-    _dispatch_closure._said_deferred(spec, issue_number, _ENDING_UNFINISHED)
+    elif settled is not None:
+        _dispatch_closure._said_deferred(spec, issue_number, _ENDING_UNFINISHED)

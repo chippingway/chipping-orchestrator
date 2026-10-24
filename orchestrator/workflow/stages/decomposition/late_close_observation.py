@@ -9,7 +9,9 @@ cancellation before any new work can start.
 Each of them answers as a pass under the issue's writer claim: a close is tied
 to the cycle a read confirms, a receipt memo names the cycle it was posted
 for, and a close another poller on this host -- or this process -- restarted
-the cycle past ends nothing.
+the cycle past ends nothing. A record admission refuses ties a close to no
+cycle and is owed no receipt: the reading is kept, as a read that failed
+keeps it, and nothing is posted or remembered for it.
 """
 from __future__ import annotations
 
@@ -25,6 +27,7 @@ from orchestrator.github import (
     pinned_state as _pinned_state,
 )
 from orchestrator.workflow.engine import (
+    close_admission as _close_admission,
     observation_receipts as _observation_receipts,
     observations as _observations,
 )
@@ -108,7 +111,9 @@ def _record_observed_close(
     other saw the retirement behind it and left the thread saying nothing, so
     the reading survived in memory alone and a restart took it. One read
     answers both, and a read that established nothing keeps the reading --
-    which is the answer a request that failed is entitled to give.
+    which is the answer a request that failed is entitled to give, and the
+    one a record admission refuses gets: it names no cycle and discharges
+    nothing, so no receipt is posted or remembered and the reading is kept.
 
     `polled` is the object the caller already has, where it has one. The
     enumeration writes the receipt from the issue it just listed rather than
@@ -138,7 +143,7 @@ def _record_observed_close(
         _observation_receipts.receipt_written(claim, cycle)
     else:
         _observation_receipts.release_receipt_post(claim)
-    return cycle is not None
+    return cycle is not None or not said
 
 
 def _observed_close_posted(
@@ -156,7 +161,10 @@ def _observed_close_posted(
     this reading's own receipt for that very cycle is already there
     (`landed`), or there is nothing for it to say -- an owner with no cycle a
     close would end, which is a state no later reader needs a receipt for and
-    the caller drops the reading on.
+    the caller drops the reading on. A record admission refuses names no cycle
+    and discharges nothing (`None, False`): it is no record of an owner with
+    nothing to end, whatever this process holds about the cycle it does not
+    name, so nothing is scoped or posted and the caller keeps the reading.
 
     A close that is not this cycle's to post for is answered for and NOT
     discharged, since a later close may yet be. The scope is taken
@@ -175,7 +183,7 @@ def _observed_close_posted(
     state = gh.read_pinned_state(issue)
     cycle = _late_close_reading._ending_cycle(spec, issue_number, state)
     if cycle in {None, landed}:
-        return cycle, True
+        return cycle, not _close_admission.refuses(state, "posting no close receipt and keeping the observation")
     standing = _issues.issue_is_closed(issue) and _issues.issue_is_closed(gh.get_issue(issue_number))
     if _late_close_reading._ending_cycle(spec, issue_number, gh.read_pinned_state(issue)) != cycle:
         return cycle, False

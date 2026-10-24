@@ -7,7 +7,9 @@ record says nothing at all in between -- no cycle identity, which is the one
 thing every reader of a close consults. A poll that reads it there is reading
 a record whose worker is still holding the question open, so what it may not
 do is call the reading spent: the barrier behind the write would find nothing
-latched, and the observation would be gone with no durable half either.
+latched, and the observation would be gone with no durable half either. Nor
+may the window speak for a record admission refuses: it is no record of the
+cycle being retired, and is posted nothing for it.
 """
 from __future__ import annotations
 
@@ -18,7 +20,7 @@ from orchestrator.workflow.engine import retiring_cycles as _retiring_cycles
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import refused_submit_support as _support
 from tests.workflow.engine.refused_submit_support import Retiring, Scheduler
-from tests.workflow.observation_support import ObservedCloseCase, receipt_for
+from tests.workflow.observation_support import ObservedCloseCase, left_on_github, receipt_for, refuse_record
 
 
 class RetirementInFlightTest(ObservedCloseCase, unittest.TestCase):
@@ -61,6 +63,23 @@ class RetirementInFlightTest(ObservedCloseCase, unittest.TestCase):
             [body for _, body in github.posted_comments],
         )
         self.assertEqual(len(github.posted_comments), 1)
+
+    def test_a_refused_record_window_posts_nothing(self) -> None:
+        # The window is this process's memory of a cycle, and the record it
+        # would scope a receipt to is one admission refuses: the memory does
+        # not stand in for it, and the reading is kept with nothing posted.
+        github = _support.closed_owner(live=True)
+        refuse_record(github, _support.OWNER_NUMBER)
+        before = left_on_github(github, _support.OWNER_NUMBER)
+        retiring = _retiring_cycles.retiring(_support.SPEC.slug, _support.OWNER_NUMBER, _support.CYCLE_ID)
+
+        with self.assertLogs(_support.WORKFLOW_LOG), retiring.held():
+            _support.offered(github, Scheduler(admits=False))
+
+        self.assertEqual(left_on_github(github, _support.OWNER_NUMBER), before)
+        self.assertEqual(
+            self._observed(_support.SPEC.slug), frozenset((_support.OWNER_NUMBER,)),
+        )
 
     def _retired_under_a_worker(self, github: FakeGitHubClient) -> None:
         """Refuse this tick's submit against a record mid-retirement."""

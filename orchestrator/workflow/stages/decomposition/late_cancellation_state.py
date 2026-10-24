@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Persist late-cycle cancellation and reconstruct an interrupted retirement identity.
 
-The cancelled phase and cleared owner claim are durable before telemetry.
+The cancelled phase and cleared owner claim are durable before telemetry, and
+every checkpoint an ending writes has to land before the step behind it acts:
+one the pinned comment did not take raises, with nothing depending on it done.
 Reconstruction keeps surviving obligations and derives ancestry for this issue.
 """
 from __future__ import annotations
@@ -118,6 +120,23 @@ def _persisted(
     state: _pinned_state.PinnedState,
     generation: _late_models.LateGeneration,
 ) -> None:
-    """Make one step of this pass durable before the next one acts."""
+    """Make one step of this pass durable before the next one acts, or stop the pass.
+
+    Every step behind a checkpoint -- the held pull request closed, a branch
+    or a ref deleted, a checkout torn down, the terminal written -- acts on
+    the record saying what the checkpoint wrote, so a write the comment did
+    not take ends the pass rather than being a step of it. The writer answers
+    one it refused without saying so: over a record admission refuses, which a
+    human can edit the comment into after the pass read it, under the writer
+    claim the pass holds; over a withheld state; or with no account to
+    authenticate by. What it does leave is `synced`, which only a write that
+    lands sets -- so it is cleared first, and a write that leaves it clear
+    raises. Whatever holds the pass hands the failure back as it would any
+    other: the cleanup observation keeps its reading, a receipt scan's claim
+    is given back, and the tick's per-issue isolation logs it. The next pass
+    reads the record afresh.
+    """
     _late_state.write_late_generation(state, generation)
-    gh.write_pinned_state(issue, state)
+    state.synced = None
+    if gh.write_pinned_state(issue, state).synced is None:
+        raise RuntimeError(f"issue #{issue.number}'s pinned comment did not take a late-cycle checkpoint")

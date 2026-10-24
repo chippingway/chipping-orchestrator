@@ -12,7 +12,8 @@ it retires the cycle, so a close landing there wears a label whose handler is
 an ordinary terminal. Nothing about the route says a late cycle is standing
 under it, so the reading is established from the RECORD instead, by the
 enumeration that read the issue closed, and the refusal keeps what that read
-decided.
+decided. A record admission refuses decides nothing: the reading is kept on
+every side of the submit, and nothing is posted or written for it.
 """
 from __future__ import annotations
 
@@ -30,7 +31,11 @@ from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import refused_submit_support as _support
 from tests.workflow.engine.refused_submit_support import RefusingOnce, Retiring, Scheduler
 from tests.workflow.fixtures import LABEL_IMPLEMENTING
-from tests.workflow.observation_support import ObservedCloseCase, receipt_for
+from tests.workflow.observation_support import ObservedCloseCase, left_on_github, receipt_for, refuse_record
+
+# What a closed owner's reading leaves this process holding once nothing
+# settled it: the owner, owed to the next tick.
+_OWED = frozenset((_support.OWNER_NUMBER,))
 
 
 class RefusedClosedSubmitTest(ObservedCloseCase, unittest.TestCase):
@@ -313,6 +318,53 @@ class AdmittedPassKeepsTheReadingTest(_AdmittedCase, unittest.TestCase):
         self.assertEqual(
             self._observed(_support.SPEC.slug), frozenset((_support.OWNER_NUMBER,)),
         )
+
+
+class RefusedRecordSubmitTest(ObservedCloseCase, unittest.TestCase):
+    """A closed owner whose record admission refuses, either side of the submit.
+
+    It reads back with no cycle, which a current record would have the
+    reading dropped on as ending nothing. This one says nothing of the kind,
+    so the reading is held where the poll took it -- by the refusal, and by
+    the admitted pass on its way out, reopened or not -- with nothing posted
+    or written over the record.
+    """
+
+    def setUp(self) -> None:
+        self._refused_owner()
+
+    def test_a_refused_submit_keeps_it_unwritten(self) -> None:
+        with self.assertLogs(_support.WORKFLOW_LOG):
+            _support.offered(self.github, Scheduler(admits=False))
+
+        self.assertEqual(self._observed(_support.SPEC.slug), _OWED)
+        self.assertEqual(left_on_github(self.github, _support.OWNER_NUMBER), self.before)
+
+    def test_an_admitted_pass_keeps_it_on_its_way_out(self) -> None:
+        module_name, handler_name = _stage_targets._STAGE_HANDLER_TARGETS[LABEL_IMPLEMENTING]
+        for reopened in (False, True):
+            with self.subTest(reopened=reopened):
+                self._refused_owner()
+                scheduler = Scheduler(admits=True)
+                _support.offered(self.github, scheduler)
+                self.github.get_issue(_support.OWNER_NUMBER).closed = not reopened
+
+                with self.assertLogs(_support.WORKFLOW_LOG), patch.object(
+                    importlib.import_module(module_name), handler_name, Mock(),
+                ):
+                    scheduler.task()
+
+                self.assertEqual(self._observed(_support.SPEC.slug), _OWED)
+                self.assertEqual(
+                    left_on_github(self.github, _support.OWNER_NUMBER), {**self.before, "closed": not reopened},
+                )
+
+    def _refused_owner(self) -> None:
+        """The live owner with its record refused, in a process that has seen nothing."""
+        self._fresh_process()
+        self.github = _live_owner()
+        refuse_record(self.github, _support.OWNER_NUMBER)
+        self.before = left_on_github(self.github, _support.OWNER_NUMBER)
 
 
 def _live_owner() -> FakeGitHubClient:

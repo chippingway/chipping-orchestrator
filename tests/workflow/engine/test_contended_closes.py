@@ -9,7 +9,8 @@ takes, so a cycle is tied to it only where the record is read first and the
 issue behind it still reads closed, with the record read again behind that
 naming the same cycle -- or where the holder noted on its claim that it is
 retiring the cycle the record says was dropped. Every other reading is held
-unresolved, and one whose record names no cycle leaves whatever an earlier
+unresolved -- a record admission refuses among them, whatever the holder
+noted -- and one whose record names no cycle leaves whatever an earlier
 reading kept.
 
 Called directly, so each reading can be staged exactly; the dispatch suites
@@ -35,7 +36,7 @@ from orchestrator.workflow.stages.decomposition import (
 from tests.support.fakes import FakeGitHubClient
 from tests.support.writer_claims import held_elsewhere, signed_by_another_poller
 from tests.workflow.fixtures import _TEST_SPEC
-from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.observation_support import ObservedCloseCase, refuse_record
 from tests.workflow.stages.decomposition.late_test_support import (
     CYCLE_ID,
     LATE_ISSUE_NUMBER,
@@ -289,6 +290,29 @@ class ContendedCloseTest(_ContendedCase, unittest.TestCase):
                 self._kept()
                 self.assertEqual(self._observed(_SLUG), frozenset((LATE_ISSUE_NUMBER,)))
                 self.assertEqual(self._scope(), CYCLE_ID)
+
+    def test_a_refused_record_is_held_unresolved(self) -> None:
+        # A record admission refuses reads back with no cycle, live or
+        # retired underneath, and neither the holder's note nor anything else
+        # names one for it: the close is kept for the pass under the claim,
+        # tied to nothing, and nothing is written.
+        for retired in (False, True):
+            with self.subTest(retired=retired):
+                self.setUp()
+                if retired:
+                    self._retired()
+                refuse_record(self.github, LATE_ISSUE_NUMBER)
+                written = self._written()
+                with (
+                    held_elsewhere(self.github.repo_id, LATE_ISSUE_NUMBER, retiring=CYCLE_ID),
+                    self.assertLogs(_WORKFLOW_LOG),
+                ):
+                    self._kept()
+
+                self.assertEqual(self._observed(_SLUG), frozenset((LATE_ISSUE_NUMBER,)))
+                self.assertIsNone(self._scope())
+                self.assertEqual(self._written(), written, _WRITES_NOTHING)
+
 
 class NotedRetirementTest(_ContendedCase, unittest.TestCase):
     """An owner another poller retired the cycle off, read while that poller holds it."""

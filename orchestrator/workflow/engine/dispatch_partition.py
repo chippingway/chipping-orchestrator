@@ -5,8 +5,9 @@
 Closed fanout entries receive their durable observation before submission,
 under the issue's writer claim, and only their latch where that claim is
 refused, tied to the cycle it ends only where a read behind the record still
-finds the issue closed. A missing issue in the poll response remains scheduled
-when a prior close has not been settled.
+finds the issue closed. One whose pinned record admission refuses keeps its
+latch with nothing written for it. A missing issue in the poll response
+remains scheduled when a prior close has not been settled.
 """
 from __future__ import annotations
 
@@ -105,7 +106,8 @@ def _sorted_pollable(
     names a cycle the close would end; the same pinned read answers whether
     the reading is owed at all -- an issue whose record says there is nothing
     to end has its latch dropped again here, so the machinery is carried only
-    by the owners that actually need it.
+    by the owners that actually need it. A record admission refuses says
+    neither, so its reading stays latched and nothing goes on the thread.
 
     Wherever a reading travels with the route: every closed reading and every
     owed one, a closed issue whose label could not be read included, which the

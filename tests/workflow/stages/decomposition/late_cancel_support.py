@@ -70,24 +70,8 @@ class ClosedOwnerCase(_PatchedWorkflowMixin):
     def _holding_plan_pr(
         self, seeded: SeededUmbrella, preserved: bool = True, **pr_fields,
     ) -> None:
-        """Give this owner the open plan PR its cycle marked and preserved.
-
-        `preserved=False` is the damaged record rather than a partial one:
-        the identity and the description it displaced are written as ONE
-        thing, so a number standing without a body is a hold nothing here can
-        show it ever took.
-        """
-        github = seeded.github
-        state = github.read_pinned_state(seeded.parent)
-        holding = replace(
-            _late_state.read_late_generation(state),
-            plan_pr_number=PLAN_PR_NUMBER,
-            plan_pr_body=PLAN_PR_BODY if preserved else None,
-        )
-        _late_state.write_late_generation(state, holding)
-        github.seed_state(PARENT_NUMBER, **state.data)
-        pr_fields.setdefault("body", _late_hold_text._hold_body(holding))
-        seed_plan_pr(github, **pr_fields)
+        """Give this owner the open plan PR its cycle marked and preserved."""
+        hold_plan_pr(seeded.github, seeded.parent, preserved=preserved, **pr_fields)
 
     def _swept(self, seeded: SeededUmbrella, *sweep_args, **answers):
         """Run one cleanup sweep over this closed owner."""
@@ -119,6 +103,26 @@ class ClosedOwnerCase(_PatchedWorkflowMixin):
             if record.get("event") == family
             and resource in (None, record.get("resource"))
         ]
+
+
+def hold_plan_pr(github, owner, *, preserved: bool = True, **pr_fields) -> None:
+    """Give an owner's recorded cycle the open plan PR it marked and preserved.
+
+    `preserved=False` is the damaged record rather than a partial one: the
+    identity and the description it displaced are written as ONE thing, so a
+    number standing without a body is a hold nothing here can show it ever
+    took.
+    """
+    state = github.read_pinned_state(owner)
+    holding = replace(
+        _late_state.read_late_generation(state),
+        plan_pr_number=PLAN_PR_NUMBER,
+        plan_pr_body=PLAN_PR_BODY if preserved else None,
+    )
+    _late_state.write_late_generation(state, holding)
+    github.seed_state(owner.number, **state.data)
+    pr_fields.setdefault("body", _late_hold_text._hold_body(holding))
+    seed_plan_pr(github, **pr_fields)
 
 
 def settled_umbrella() -> SeededUmbrella:

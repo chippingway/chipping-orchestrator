@@ -1891,6 +1891,23 @@ and handed off -- and this is what it guarantees and what stops it.
   retry, so the pass after it writes what this one could not. Anything else with no cycle is left alone: every
   umbrella the initial decomposer made carries no generation and no stamp, and a hand-back writes no
   `umbrella_resolved_at` to finish.
+- **A pinned record admission refuses is neither, and this pass does nothing over it.** It reads back empty, which is
+  exactly what an owner no cycle touched reads as, so every answer here would be given for a record nobody read. The
+  pass's one read is taken under the issue's writer claim, and a refused record stops it there: nothing is marked,
+  adopted, finished, relabelled, or reclaimed, the issue and its pull request are left open or closed as they stand,
+  and the one trace is a local line naming the repository, the issue, and the version found
+  (`workflow/engine/close_admission.py`). The close observation around the pass answers that record the same way and
+  writes nothing for it either — no receipt is posted or remembered, a contender ties the close to no cycle, and
+  neither a retirement in flight nor a scope this process holds names one for it — but keeps the reading, as a read
+  that established nothing keeps it, on every label and whether or not the issue is open again: the refused pass
+  marked nothing, so a reopen leaves the dispatcher's guard no cancelled cycle to own and a swept label brings back
+  only another refusal. Kept, the reading is what ends the cycle once a record admission accepts is back on the issue
+  — the cleanup it routes the next pass to marks that cycle, under the same proof that ties any unscoped close to the
+  record's cycle — at the cost of a refused cleanup pass every tick until then, or until the process exits. A record
+  that turns refused under the pass, a human editing the comment after the pass read it, stops the pass at the next
+  checkpoint instead: the mark, the held pull request's outcome, each obligation's decision, and the retirement behind
+  the terminal each have to land before the step behind them acts, and one the comment does not take raises, so the
+  pull request is not closed, nothing is deleted or torn down, and no terminal is written behind it.
 - **Why it is not the label's handler**: every one of the four names a stage handler that would resume the workflow
   the close ended — one spawns the decomposer, one walks the dependency graph and activates children, one hands the
   issue to a developer. The dispatcher
@@ -1923,7 +1940,7 @@ and handed off -- and this is what it guarantees and what stops it.
   for as long as the ending is owed, which for a live consumer can be indefinitely. An owner that is *open* again
   hands it back too, because the sweep may not advance a reopened issue and the dispatcher's own guard owns it. What
   is kept is an owner that is closed, still owes something, and wears a label no query asks for; a read that could
-  not answer is kept for the same reason, since it established nothing.
+  not answer, or a record admission refuses, is kept on any label and open or closed, since it established nothing.
 - **What the ending owes outlives the process holding that reading, so the label is repaired too.** The sweep
   queries four labels, and an owner can be moved outside all of them — by a hand relabel, or by an operator putting
   a closed owner onto a terminal over a cycle that still owes something. Inside this process the held reading is
@@ -2037,7 +2054,8 @@ and handed off -- and this is what it guarantees and what stops it.
   pinned read behind it confirming the close where the record names a cycle it would end. The first pinned read
   answers whether the reading is owed at all — an issue whose record says there is nothing to end has its latch
   dropped again right there, so the machinery is carried only by the owners that need it (and the admitted pass skips
-  its own end-of-pass probe, since the poll already asked that record).
+  its own end-of-pass probe, since the poll already asked that record). A record admission refuses says no such thing:
+  its reading stays latched, and nothing goes on the thread.
 - **That drop is POSTPONED while a worker holds the issue.** "Nothing to end" is read off the late cycle, which is the
   right answer for the protocol this record was built for and the wrong one for the barriers standing immediately before
   a push: those ask the same latch, and every publication they guard carries no cycle — a first push has none yet, and

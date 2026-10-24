@@ -42,7 +42,11 @@ poller, or this process, has since moved to a fresh one is not this close's to
 end -- nor is any cycle a close no read could tie to one.
 
 An issue with no recorded generation is every issue the initial decomposer
-ever made, and it leaves without a write of its own.
+ever made, and it leaves without a write of its own. An issue whose pinned
+record admission refuses is not one of those, though it reads back the same:
+it is refused before anything here reads it, and left exactly as it stands --
+no mark, adoption, terminal, label, or reclamation, and no reading of it as an
+owner with nothing left to end (`close_admission`).
 
 Nothing here decides a terminal by measuring the workflow. The umbrella's own
 branch is where a settled ledger earns a `done`, and an issue a human already
@@ -68,7 +72,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import observations as _observations
+from orchestrator.workflow.engine import close_admission as _close_admission, observations as _observations
 from orchestrator.workflow.late_split import models as _late_models, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
@@ -119,8 +123,21 @@ def _handle_closed_owner_cleanup(
     this visit is memory, and the label is the only durable thing that reaches
     a closed issue, so an ending left under a label outside the queried four
     would otherwise be finished by no later process.
+
+    All of it rests on the one read below, taken under the issue's writer
+    claim, and a record admission refuses stops the pass right there: it
+    reads back with no cycle, so every answer above would be given for a
+    record nobody read, and the held observation -- which may name a cycle
+    this process remembers -- does not stand in for it. Nothing is written,
+    marked, relabelled, or reclaimed, and the reading is left to the
+    observation that routed it. A record a human edits into one admission
+    refuses behind this read is met at the first checkpoint the ending writes
+    after it: that write does not land, and the pass stops there
+    (`late_cancellation_state._persisted`).
     """
     state = gh.read_pinned_state(issue)
+    if _close_admission.refuses(state, "running no cleanup over it"):
+        return
     generation = _late_state.read_late_generation(state)
     if not generation.is_present:
         generation = _late_close_observation._retired_close_adopted(

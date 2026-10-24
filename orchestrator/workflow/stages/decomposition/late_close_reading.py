@@ -3,7 +3,10 @@
 """Read owner closure, cycle identity, receipt evidence, and completed cleanup.
 
 A cycle being retired can still own an observed close. Unreadable owners
-keep their observations until a later pass establishes where the ending stands.
+keep their observations until a later pass establishes where the ending stands,
+and so do owners whose pinned record admission refuses, whatever their label
+and whether they are open again: such a record names no cycle a close would
+end, and is never read as one with nothing left to end.
 """
 from __future__ import annotations
 
@@ -19,6 +22,7 @@ from orchestrator.github import (
     pinned_state as _pinned_state,
 )
 from orchestrator.workflow.engine import (
+    close_admission as _close_admission,
     observations as _observations,
     retiring_cycles as _retiring_cycles,
 )
@@ -54,8 +58,8 @@ _SWEPT_LABELS = frozenset(_issues.CLEANUP_ROUTE_LABELS)
 
 def _cleanup_settled(
     gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
-) -> bool:
-    """Whether the ending a cleanup pass was routed for is actually over.
+) -> bool | None:
+    """Whether the ending a cleanup pass was routed for is actually over, or None.
 
     What the dispatcher asks before it drops the close a cleanup was carrying,
     and the reason it has to ask at all: a pass can return having finished
@@ -92,6 +96,19 @@ def _cleanup_settled(
     this path exists to keep, and a request that failed establishes nothing
     about the ending -- so it keeps the observation and the next tick asks
     again, which costs one cleanup pass over an owner that may owe nothing.
+
+    A record admission refuses is answered the same way, and ahead of both
+    answers above, because neither holds for it: the sweep refused it too, so
+    no cancellation was marked for the dispatcher's guard to own on a reopened
+    issue, and a swept label brings back only another refusal. Handed back,
+    the reading would be gone by the time a supported record is back on the
+    issue, and the cycle it names would resume as though never closed; kept,
+    it is what ends that cycle there. Until then it costs a refused cleanup
+    pass per tick, or until the process carrying it exits.
+
+    None is that answer -- a read that established nothing, failed or refused
+    -- which the caller keeps the reading on without calling the ending owed:
+    its reader has already said why. False is an ending still owed.
     """
     try:
         reading = _owner_reading(gh, issue_number)
@@ -101,8 +118,10 @@ def _cleanup_settled(
             "pass; holding the observation, since nothing establishes the "
             "ending finished", spec.slug, issue_number,
         )
-        return False
+        return None
     issue, state = reading
+    if _close_admission.refuses(state, "keeping the observation its cleanup was routed by"):
+        return None
     if not _issues.issue_is_closed(issue):
         return True
     if gh.workflow_label(issue) in _SWEPT_LABELS:
@@ -143,7 +162,9 @@ def _ending_is_over(
 
     A record with no cycle at all is over by definition: an umbrella the
     initial decomposer made never had one, and a retirement that dropped one
-    is an ending that already ran.
+    is an ending that already ran. A record admission refuses reads back with
+    no cycle too, and is neither, which is why `_cleanup_settled` refuses it
+    before asking this.
     """
     generation = _late_state.read_late_generation(state)
     if not generation.is_present:
@@ -182,9 +203,15 @@ def _ending_cycle(
     None for a cycle already marked over as well as for no cycle at all:
     the ending is already on the record and the sweep its label names is
     what runs it, so the reading buys nothing a later pass has not got.
+
+    None, too, for a record admission refused: it reads back with no cycle,
+    and neither a retirement in flight nor a scope this process holds stands
+    in for the one it does not name. That None is no record saying there is
+    nothing to end, so a caller that would drop the reading on it asks
+    admission first (`close_admission`).
     """
     generation = _late_state.read_late_generation(state)
-    if generation.cancelled:
+    if generation.cancelled or not state.supported:
         return None
     if generation.is_present:
         return generation.cycle_id
@@ -241,7 +268,8 @@ def _owns_a_live_cycle(
     retiring right now is not saying that at all, so the retirement window is
     part of the question. None is a read that established NOTHING, which is
     not the same claim, and the caller keeps the observation it latched
-    rather than dropping it on a request that failed.
+    rather than dropping it on a request that failed -- or on a record
+    admission refused, which says nothing either way.
     """
     try:
         state = gh.read_pinned_state(gh.get_issue(issue_number))
@@ -251,5 +279,7 @@ def _owns_a_live_cycle(
             "would end; keeping the observation the poll took",
             spec.slug, issue_number,
         )
+        return None
+    if _close_admission.refuses(state, "keeping the observation the poll took"):
         return None
     return _ending_cycle(spec, issue_number, state) is not None

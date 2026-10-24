@@ -1051,6 +1051,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
    adjudication runs; the other two are where a decomposition outcome that
    landed after the close can leave its ending, and only their CLOSED issues
    are asked about):
+     pinned record admission   ─► nothing: no mark, notice, close, delete,
+       refuses                     label, or teardown -- one local line, and
+                                   the observed close stays held until a
+                                   supported record is back; one turned
+                                   refused mid-pass stops the pass at the
+                                   first checkpoint the comment does not take
      any generation            ─► mark the cycle cancelled, once, before any
                                    external call; emit one late_cancellation
                                    from that write
