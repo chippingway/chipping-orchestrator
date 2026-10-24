@@ -717,9 +717,10 @@ since all leave a trusted comment claiming something GitHub no longer agrees wit
 irreversible there — a force-push over somebody's work, a second pull request opened over work the first already
 carries — so the publication side proves the record against the remote rather than acting on it. An authenticated
 comment refused admission licenses nothing at all: it reads back empty and flagged unparsed or unsupported, ordinary
-dispatch of its issue stops before any guard or handler with nothing written, every guarded commit over it refuses,
-a verification-evidence write over it holds rather than landing, and a parent's split seed, recovery repair, or
-dependency release of a child carrying one writes nothing to that child and leaves the split unpublished
+dispatch of its issue stops before any guard or handler with nothing written, the base refresh rebases, pushes,
+resets, and recovers nothing in its worktree, every guarded commit over it refuses, a verification-evidence write over
+it holds rather than landing, and a parent's split seed, recovery repair, or dependency release of a child carrying
+one writes nothing to that child and leaves the split unpublished
 ([C-03](contracts.md#c-03-persisted-and-externally-consumed-formats)).
 
 - **An agent's own verdict cannot waive the added-line ceiling.** `late_exempt_sha` records that a late adjudication

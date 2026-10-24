@@ -23,6 +23,7 @@ from tests.workflow.engine import (
     rewrite_finish_moves as moves,
     verification_evidence_test_support as support,
 )
+from tests.workflow.observation_support import refuse_record
 
 _HOLD = ReportEvidenceVerdict.HOLD
 
@@ -46,6 +47,8 @@ _STANDINGS = (
 )
 
 _EARLIER = ReportEvidence(_DEFER, "proved again and refused")
+
+_UNREAD = "the issue or its pinned comment could not be read again to prove the evidence"
 
 
 class ProofAgainTest(unittest.TestCase, captured_support.CapturedEvidenceCase):
@@ -116,6 +119,30 @@ class LastWordTest(unittest.TestCase, captured_support.CapturedEvidenceCase):
         self.assertEqual((moved, held.holds), (_EARLIER, True))
         self.assert_dormant()
 
+
+class RefusedReadingTest(unittest.TestCase, captured_support.CapturedEvidenceCase):
+    """A pinned comment a human's edit left refused is read again as one nobody could read.
+
+    It reads back empty, so taken as a reading every record the binding rests
+    on would have moved; refused, it proves nothing either way, and the route
+    holds for a later tick, whose refresh refuses the issue before any route.
+    """
+
+    def setUp(self) -> None:
+        captured_support.CapturedEvidenceCase.setUp(self)
+        self.world.base = _BaseStanding.STANDING
+
+    def test_a_refused_record_holds(self) -> None:
+        finish = self.landed()
+        binding = self.captured.binding
+        refuse_record(self.gh, self.issue.number)
+
+        proved = self.asks(_proof.proves_again, finish, binding)
+        moved, held = self.asks(_proof.last_word, finish, binding, landing=False)
+
+        self.assertEqual((proved.verdict, proved.refusal), (_HOLD, _UNREAD))
+        self.assertEqual((moved, held.refusal), (None, _UNREAD))
+        self.assert_dormant()
 
 if __name__ == "__main__":
     unittest.main()

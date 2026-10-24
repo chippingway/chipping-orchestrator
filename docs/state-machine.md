@@ -161,7 +161,11 @@ or pushed -- and that holds for the rebase behind an interrupted attempt's recov
 asked again once the anchor is down. Each worktree
 is synced under its issue's writer claim — the one every dispatch path takes, on the same key — held from before the
 issue is read until its route ends, recovery and settlement included, so an issue another poller on the host is
-dispatching or refreshing is left untouched for the tick and synced on a later one. A pre-PR
+dispatching or refreshing is left untouched for the tick and synced on a later one. Under that claim the issue's
+pinned comment is admitted before any route reads a branch, a pull request, or a recovery anchor off it: over a record
+admission refuses no route runs at all — no rebase, push, reset, recovery, notice, publication, relabel, or
+settlement — and its checkout, branches, pull request, labels, and comment stay as they stand, the refusal said only
+in a local warning; the base fetch every worktree shares licenses nothing on them. A pre-PR
 worktree rebases locally; a PR-having one in `workflow:validating` / `workflow:documenting` / `in_review` /
 `workflow:fixing` pushes the clean rebase with a pinned `--force-with-lease`, resets `review_round`, records the report
 the landed head is owed (`developer_report_rewrite_debt`) ahead of the write that clears its attempt, and relabels to
@@ -272,7 +276,8 @@ Per-issue durable state is a single **pinned comment** on the issue (`<!--orches
 trusted as state only when the orchestrator's own account authored it and its whole body is the marker, and admitted
 only when it is a JSON object carrying an actual integer `schema_version` equal to `1`. Genuinely new pins are stamped
 with version 1 on first write; unsupported or malformed comments are preserved unchanged on GitHub and never
-overwritten, replaced beside, or silently stamped as current, and ordinary dispatch refuses their issue whole. Its
+overwritten, replaced beside, or silently stamped as current, ordinary dispatch refuses their issue whole, and the
+base refresh runs no route over that issue's worktree. Its
 keys group into agent identity, decomposition, PR / branch, the drift baseline, the HITL park, the in-review
 watermarks, the final-docs handoff, fix routing, the crash-recovery anchors, counters and timestamps, the per-issue
 usage meter, the

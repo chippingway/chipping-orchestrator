@@ -355,8 +355,8 @@ of it ([Exclude or retire unsupported work](../configuration/operations.md#exclu
 issue with no authenticated pinned comment is fresh and starts as ever, and a current record keeps every check behind
 admission. That gate is ordinary dispatch's: the cleanup route a closed owner takes instead of its stage and the close
 recovery wrapped around a pass hold their own readings to admission
-([closed-owner cleanup](delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own)), and the base refresh reads
-its records outside it.
+([closed-owner cleanup](delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own)), and so does the base
+refresh, for the reading it routes a worktree on ([Base refresh](#base-refresh)).
 
 The claim keeps every other orchestrator writer off the issue, but not a human, who can edit the comment after the gate
 read it. So every reading the pass takes past the gate is held to admission as well. Each stage handler starts on its
@@ -483,6 +483,24 @@ refreshing it, a writer of this process's own, or a namespace nothing can be loc
 nothing read, rebased, pushed, published, labeled, written, or recorded, and the next tick's refresh asks again, while
 every other worktree is synced. Nothing under the claim asks for it a second time: the one road the dispatcher reaches
 too, the answer a standing anchor is owed, runs there under the dispatch claim the worker already holds.
+
+The issue's pinned comment is read under that claim and admitted before anything is asked of it, behind only an
+operator's `paused` / `backlog`, which holds the issue with its comment unread. A record admission refuses — a missing,
+unsupported, or non-integer version, or a payload that will not parse — reads back empty, exactly as a branch nobody has
+pushed and an attempt nobody interrupted read: taken as current, its absent `pr_number` would send the checkout to the
+pre-PR rebase, and its absent anchor would say no recovery is owed. So no route runs over it — no pre-PR or PR rebase,
+push, reset or restore of the checkout, recovery checkpoint, notice, evidence or report publication, relabel, or
+settlement of an interrupted rewrite — and nothing is pinned or recorded: the checkout, its local and remote branches,
+the pull request, the labels, and the comment stay exactly as they stand. The one trace is the local warning dispatch's
+own refusal is said in, on the `orchestrator.workflow` channel rather than the refresh's `orchestrator.base_sync`
+(`workflow/engine/record_admission.py`), naming the repository, the issue, the comment, its admission status, and the
+version found against the one supported; nothing is posted. The base fetch ahead of the walk is shared by every worktree
+and moves only `<remote>/<base>` in the clone, so it licenses nothing on such an issue. A human's edit after that
+reading is met at the route's next pinned write, which the whole-state writer refuses by raising `RecordRefused` and a
+guarded commit by refusing, each with nothing written, so nothing behind that write runs, and a landed rewrite's finish
+that reads the comment again to prove its evidence holds over such a reading as over one nobody could take. An issue
+with no authenticated pinned comment is no record and is routed as ever, and a current record's routes, an interrupted
+attempt's recovery among them, are unchanged.
 
 Two paths depending on whether a PR exists:
 
@@ -933,7 +951,8 @@ raises `RecordRefused`, from `github/pinned_refusal.py`, so its caller stops). G
 stamped with `schema_version: 1` on their first write, and neither writer sends a state the next reading would refuse —
 another version, a value JSON cannot spell, or nesting past the recursion limit. Ordinary dispatch refuses an issue
 whose comment is refused admission before any guard or handler reads it
-([Per-tick flow](#per-tick-flow-workflowengineticktick)).
+([Per-tick flow](#per-tick-flow-workflowengineticktick)), and the base refresh runs no route over its worktree
+([Base refresh](#base-refresh)).
 
 Most writers rewrite the whole record from the state they read (`write_pinned_state`), which lands wherever it can — in
 place, or as a new comment where none is named or the named one is gone or no longer state. A **guarded commit**

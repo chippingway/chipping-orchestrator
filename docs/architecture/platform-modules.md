@@ -97,7 +97,9 @@ last is held by the loader itself rather than by a check.
   `git/measurement/` owners that log, which all report on the same token, `ls-remote`, fetch, push, and diff
   plumbing),
   `orchestrator.base_sync` (`git/base_sync/state.py`, and the workflow's per-tick refresh on
-  `workflow/engine/base_refresh.py`, so one filter follows a refresh into the owners here),
+  `workflow/engine/base_refresh.py`, so one filter follows a refresh into the owners here — save a pinned record
+  admission refuses, which the refresh reports on `orchestrator.workflow` through `workflow/engine/record_admission.py`,
+  the line dispatch says the same refusal in),
   `orchestrator.worktree_lifecycle` (the `git/worktrees/` owners that log, plus `runtime/artifacts.py`,
   `runtime/artifact_schedule.py`, and `runtime/artifact_records.py` above them — when a maintenance pass ran, why it
   did not (including a window that closed before its pass could start), and the record one candidate's answer could
@@ -875,7 +877,9 @@ orchestrator/
                         however large an agent made the content behind it. Reads the argv prefix and the
                         environment off `commands` rather than restating either
     base_sync/          the auto-rebase of every worktree the workflow's per-tick refresh walks
-                        (`workflow/engine/base_refresh.py`): the selection it asks first, the pre-PR rebase it
+                        (`workflow/engine/base_refresh.py`) over a pinned record admission takes -- the refresh
+                        admits the record it reads under the issue's claim before anything here is asked of it,
+                        and routes nothing over one admission refuses: the selection it asks first, the pre-PR rebase it
                         runs, and the gates, rebase, candidate, push or observation, and recovery readings and
                         parks its base-rewrite coordinator (`workflow/engine/base_rewrite.py`) and the workflow's
                         publication, recovery, and finish beside it (`workflow/engine/rewrite_publication.py`,
@@ -883,7 +887,9 @@ orchestrator/
                         for a pushed branch
       refresh_selection.py
                         which discovered directories name an issue, whether that issue reads at all, and the order
-                        the refusals that end a sync before any rewrite are asked in: the hard-skip, the records the
+                        the refusals that end a sync before any rewrite are asked in -- every one of them past the
+                        hard-skip asked only of a record the workflow's refresh has admitted, since a refused one
+                        reads back empty, as a branch nobody pushed would: the hard-skip, the records the
                         `frozen` owner answers for, the read-only stages and the parks they leave behind, and last
                         -- because it is the only one that costs a read of the checkout -- the commit a stage still
                         owes a step, which is also where the label scope on the two freezes no write ever ends is

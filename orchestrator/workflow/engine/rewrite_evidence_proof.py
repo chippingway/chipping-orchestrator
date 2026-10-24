@@ -19,7 +19,9 @@ could confirm ends without it, leaving no transaction behind it to abandon.
 the issue is fetched again, since the one a finish holds carries the title and
 body read when the tick began, and the pinned comment is read again, and the
 whole proof (`verification_proof.binding_verdict`) is taken over them. An
-issue or a pinned comment nobody could read again HOLDS. The proof reads the
+issue or a pinned comment nobody could read again HOLDS, and so does a comment
+admission refuses: it reads back empty, so taken as a reading every record the
+binding rests on would read as moved. The proof reads the
 pull request first and stops at a reading nobody could take, so a proof that
 holds is answered beside the review and report records the comment it read
 carries (`verification_proof.recorded_verdict`): a subject or settled report
@@ -322,7 +324,12 @@ def _landing_refusals(
 
 
 def _reads_again(finish: LandedFinish) -> tuple[Issue, PinnedState] | None:
-    """The issue as GitHub carries it now and its pinned comment read over it, or None where either would not read."""
+    """The issue as GitHub carries it now and its pinned comment read over it, or None where either would not read.
+
+    A comment admission refuses is answered as one that would not read: it
+    reads back empty, so taken as a reading its records would all have moved,
+    and a record a human's edit left refused proves nothing either way.
+    """
     try:
         issue = finish.gh.get_issue(finish.issue.number)
     except Exception:
@@ -333,4 +340,4 @@ def _reads_again(finish: LandedFinish) -> tuple[Issue, PinnedState] | None:
     except Exception:
         log.exception(_UNREADABLE, finish.issue.number, "its pinned comment", finish.head)
         return None
-    return (issue, state) if state.parsed else None
+    return (issue, state) if state.supported else None

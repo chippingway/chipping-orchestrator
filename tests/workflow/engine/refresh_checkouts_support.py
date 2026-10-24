@@ -72,30 +72,39 @@ class Checkouts:
         self._root = Path(case.enterContext(tempfile.TemporaryDirectory(prefix="orch-refresh-checkouts-")))
         self.numbers = numbers
         for number in numbers:
-            self.path(number).mkdir()
+            (self._root / f"{_ISSUE_PREFIX}{number}").mkdir()
         self.carried: set[int] = set()
         self.failing: set[int] = set()
         self.fetch = MagicMock(return_value=_git_result())
         self.rebase = MagicMock(side_effect=self._rebases)
         self.push = MagicMock(return_value=True)
+        self._dirty = MagicMock(return_value=[])
+        self._hardened = MagicMock(return_value=_git_result())
+        self._read: list[int | None] = []
         _gate_reads(case)
-
-    def path(self, number: int) -> Path:
-        """Issue `number`'s checkout."""
-        return self._root / f"{_ISSUE_PREFIX}{number}"
 
     def walked(self):
         """The refresh's git for one pass over these checkouts."""
         return _patch_base_sync(
             target_fetch=self.fetch,
             worktrees_root=MagicMock(return_value=self._root),
-            dirty=MagicMock(return_value=[]),
+            dirty=self._dirty,
             git=self._lag,
             head_sha=self._head,
             rebase=self.rebase,
             push=self.push,
-            hardened=MagicMock(return_value=_git_result()),
+            hardened=self._hardened,
         )
+
+    def touched(self) -> set[int | None]:
+        """Every issue whose checkout this git was asked about: read, checked, rebased, reset, or pushed."""
+        asked = [
+            *(recorded.args[0] for recorded in self._dirty.call_args_list),
+            *(recorded.args[1] for recorded in self.rebase.call_args_list),
+            *(recorded.args[1] for recorded in self.push.call_args_list),
+            *(recorded.kwargs.get("cwd") for recorded in self._hardened.call_args_list),
+        ]
+        return {*map(_issue_of, asked), *self._read}
 
     def published(self) -> dict[int, tuple[_Push, ...]]:
         """Each issue's pushes, in the order they went out."""
@@ -114,11 +123,13 @@ class Checkouts:
         return True, []
 
     def _lag(self, *_args, cwd=None, **_kwargs):
+        self._read.append(_issue_of(cwd))
         if _issue_of(cwd) in self.carried:
             return _git_result(stdout=_LEVEL)
         return _git_result(stdout=_BEHIND)
 
     def _head(self, worktree) -> str:
+        self._read.append(_issue_of(worktree))
         return AFTER_SHA if _issue_of(worktree) in self.carried else BEFORE_SHA
 
 

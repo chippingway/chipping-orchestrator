@@ -696,11 +696,14 @@ which paths reach an issue decides what keeps it away:
 - **Dispatch and refresh.** An open issue whose workflow label routes it reaches the stage handler that label names,
   and the base refresh before each tick can rebase its worktree. A build that admits only version-1 records
   [refuses dispatch](../state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick) of an issue whose
-  pinned comment it cannot admit, writing nothing for it, but its refresh does not ask. `paused`, or `backlog`, holds
-  both, at dispatch, scheduling, and the refresh ([control labels](../configuration.md#control-labels)). Hold a
-  decomposed family as a whole: a parent's handler writes its children too, under each child's own claim. Its seeds,
-  recovery repairs, and releases write nothing to a child whose pinned comment it cannot admit, but the merge finalize
-  of a closed child and the notice that a reclaimed snapshot is gone do not ask.
+  pinned comment it cannot admit, writing nothing for it, and its
+  [refresh](../state-machine/labels-and-state.md#base-refresh) leaves that issue's checkout, branches, and pull request
+  as they stand, saying so in a local warning each tick; only the base fetch every worktree shares still runs. An
+  issue with no pinned comment is not refused this way. `paused`, or `backlog`, holds both, at dispatch, scheduling,
+  and the refresh, which then reads no comment and says nothing ([control labels](../configuration.md#control-labels)).
+  Hold a decomposed family as a whole: a parent's handler writes its children too, under each child's own claim. Its
+  seeds, recovery repairs, and releases write nothing to a child whose pinned comment it cannot admit, but the merge
+  finalize of a closed child and the notice that a reclaimed snapshot is gone do not ask.
 - **Closed-issue recovery and cleanup.** The closed-issue sweep finalizes a closed issue still on a stage label, and
   `paused` holds that as it holds dispatch. It asks for canonical label names only, so neither it nor the closed-owner
   sweep below reaches a closed issue carrying only an obsolete bare label

@@ -6,11 +6,16 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.workflow.engine import issue_processing as _issue_processing, tick
+from orchestrator.workflow.engine import (
+    base_refresh as _base_refresh,
+    issue_processing as _issue_processing,
+    tick,
+    usage as _usage,
+)
 from tests.git.base_sync.sync_test_support import _git_result
 from tests.support.fakes import make_issue
 from tests.support.writer_claims import held_elsewhere
-from tests.workflow.engine import tick_parallel_test_support as support
+from tests.workflow.engine import refused_checkouts_support as refused, tick_parallel_test_support as support
 from tests.workflow.engine.dispatch_scheduler_workers import patch_base_refresh
 from tests.workflow.engine.refresh_checkouts_support import (
     AFTER_SHA,
@@ -38,6 +43,24 @@ HELD = 9
 _HANDLED_LABELS = (LABEL_IN_REVIEW, LABEL_VALIDATING, LABEL_IMPLEMENTING)
 
 _UNREACHABLE_BASE = 128
+
+_WORKFLOW_LOG = "orchestrator.workflow"
+
+# The version each refused record is pinned under: none, as a release before
+# version 1 pinned one, or one this build does not know.
+_ANOTHER_VERSION = 2
+_PINNED_UNDER = (
+    (refused.PUBLISHED, _ANOTHER_VERSION),
+    (refused.PRE_PR, None),
+    (refused.INTERRUPTED, _ANOTHER_VERSION),
+)
+
+# What is said of each refused record: the refresh leaves it standing, and the
+# dispatch refuses it.
+_BOTH_SAID = frozenset((refused.LEFT_STANDING, refused.NOT_DISPATCHED))
+
+# What admission reads each of those comments as.
+_REFUSED_AS = "unsupported"
 
 
 class TickInvokesBaseRefreshTest(unittest.TestCase):
@@ -168,6 +191,74 @@ class RefreshThroughTickTest(WriterClaimDispatchCase):
             labels=_HANDLED_LABELS, refresh=checkouts.walked(),
         )
         return set(stand_in.ran_on)
+
+
+class RefusedRecordTickTest(WriterClaimDispatchCase):
+    """A whole tick over real checkouts whose issues' pinned records admission refuses.
+
+    Everything under the tick is real -- the refresh and the dispatch, the
+    admission each holds its reading to, every handler behind them, and the
+    production pinned-state reader and writers over the comments pinned on
+    each thread -- but the agent runner, the base the size gate measures
+    against, and the transport, which a bare repository on disk answers.
+    """
+
+    def setUp(self) -> None:
+        self.fresh_repository()
+        self.world = refused.RefusedCheckouts(self, self.github)
+        for number, version in _PINNED_UNDER:
+            self.world.pin(number, version)
+        self.agent = self.enterContext(patch.object(_usage, "_run_agent_tracked"))
+        self.assertEqual(
+            {issue_number: standing[1] for issue_number, standing in self.world.on_github().items()},
+            dict.fromkeys(refused.REFUSED, _REFUSED_AS),
+            "the production reader refuses every comment pinned",
+        )
+
+    def test_only_the_shared_base_fetch_moves(self) -> None:
+        # The fetch moves this clone's base ref onto the advance, and nothing
+        # an issue owns moves with it: no rebase, reset, push, or recovery, no
+        # agent or run charged, and nothing written, posted, or relabelled --
+        # every thread, its pinned comment's bytes included, reads as it did.
+        # Each refusal is said by the refresh and by the dispatch.
+        on_disk = self.world.disk.standing()
+        on_github = self.world.on_github()
+        refresh = self.world.refreshed()
+        self.assertEqual(self.world.disk.base(), self.world.base_before, "nothing has fetched the advance yet")
+
+        with self.assertLogs(_WORKFLOW_LOG, level="WARNING") as logged:
+            self.ticked(StandInHandler(), limit=1, scheduled=False, labels=(), refresh=refresh)
+            said = self.world.said(logged.output)
+
+        self.assertEqual(self.world.disk.base(), self.world.base_after, "the base fetch ran")
+        self.assertEqual(self.world.disk.standing(), on_disk)
+        self.assertEqual(self.world.on_github(), on_github)
+        self.assertEqual(self.world.disk.push.leases, [])
+        self.agent.assert_not_called()
+        self.assertEqual(said, dict.fromkeys(refused.REFUSED, _BOTH_SAID))
+
+    def test_a_current_record_is_recovered(self) -> None:
+        # The interrupted rebase's own record, current, is what the refresh
+        # recovers from: the replay is published under the anchor's lease and
+        # the anchor taken down, while the refused issues stay as they stand.
+        self.world.pin(refused.INTERRUPTED, refused.SUPPORTED_VERSION)
+        heads = self.world.disk.standing()["heads"]
+        interrupted = self.world.records[refused.INTERRUPTED]
+
+        with self.assertLogs(_WORKFLOW_LOG, level="WARNING"):
+            _base_refresh._refresh_base_and_worktrees(self.github, self._spec())
+
+        published = self.world.disk.remote_head(interrupted[refused.KEY_BRANCH])
+        recovered = self.github.read_pinned_state(self.github.get_issue(refused.INTERRUPTED))
+        self.assertEqual(self.world.disk.push.leases, [interrupted[refused.KEY_ANCHOR]])
+        self.assertEqual(published, interrupted[refused.KEY_REPLAY])
+        self.assertIsNone(recovered.get(refused.KEY_ANCHOR))
+        self.assertEqual(self.world.disk.standing()["heads"], heads)
+
+    def _spec(self, parallel_limit: int = 1):
+        """The repository on disk, which this case ticks one issue at a time."""
+        self.assertEqual(parallel_limit, self.world.disk.spec.parallel_limit)
+        return self.world.disk.spec
 
 
 if __name__ == "__main__":

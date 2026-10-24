@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, call, patch
 from orchestrator.config import models as _config_models
 from orchestrator.workflow.engine import base_refresh
 from tests.git.base_sync.sync_test_support import _git_result, _patch_base_sync
-from tests.support.fakes import FakeGitHubClient, make_issue
+from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
 from tests.support.writer_claims import held_elsewhere
 from tests.workflow.engine.refresh_checkouts_support import (
     AFTER_SHA,
@@ -30,6 +30,7 @@ SLUG = "acme/widget"
 BASE_BRANCH = "main"
 LABEL_IMPLEMENTING = "workflow:implementing"
 LABEL_VALIDATING = "workflow:validating"
+LABEL_PAUSED = "paused"
 
 # Multi-remote spec exercised by the per-spec authed-fetch regression.
 PRIVATE_SLUG = "acme/widget-private"
@@ -44,6 +45,42 @@ FETCH_COMMAND = "fetch"
 
 # An issue whose worktree sits beside a held one's, which nothing holds.
 FREE_ISSUE = 8
+
+_WORKFLOW_LOG = "orchestrator.workflow"
+_VERSION_KEY = "schema_version"
+
+# Checkouts whose issues' pinned records admission refuses, each where a route
+# would act on it read as current, and the version each is pinned under: a
+# pull request whose record lost its version, a pre-PR branch and an auto
+# rebase interrupted before its push recorded under a version this build does
+# not know -- and a pull request an operator holds, whose record lost its
+# version too.
+_UNVERSIONED_PR = 21
+_NEWER_PRE_PR = 22
+_NEWER_ANCHOR = 23
+_PAUSED_PR = 24
+_ANOTHER_VERSION = 2
+_PINNED_UNDER = ((_UNVERSIONED_PR, None), (_NEWER_PRE_PR, _ANOTHER_VERSION), (_NEWER_ANCHOR, _ANOTHER_VERSION))
+_REFUSED = frozenset((_UNVERSIONED_PR, _NEWER_PRE_PR, _NEWER_ANCHOR, _PAUSED_PR))
+
+# The current pull request and the current pre-PR branch walked beside them.
+_CURRENT_PR = 25
+_CURRENT_PRE_PR = 26
+
+# The interrupted rebase's anchor -- the head its push would be leased against
+# -- and the replay it left, by the keys the attempt records them under.
+_ANCHOR = "a1c40f2e" * 5
+_INTERRUPTED = (
+    ("pending_auto_base_rebase_push_sha", _ANCHOR),
+    ("pending_auto_base_rebase_rewrite_sha", AFTER_SHA),
+    ("pending_auto_base_rebase_rewrite_pr", pr_of(_NEWER_ANCHOR)),
+    ("pending_auto_base_rebase_rewrite_stage", "in_review"),
+)
+
+# What the refresh says it does with a refused record, and where its warning
+# reports the version found.
+_LEFT_STANDING = "running no base refresh route over it"
+_FOUND_VERSION = "found schema_version"
 
 
 class _ActiveIn:
@@ -300,6 +337,103 @@ class SyncWorktreeWithBaseTest(unittest.TestCase):
             )
         rebase.assert_not_called()
 
+
+class RefusedRecordRefreshTest(unittest.TestCase):
+    """Checkouts whose issues' pinned records admission refuses, walked beside current ones.
+
+    Each refused record reads back empty, which is what a branch nobody has
+    pushed and an attempt nobody interrupted read as. The walk still fetches
+    the base once for every checkout, and still carries the current ones over.
+    """
+
+    def setUp(self) -> None:
+        self.spec = _config_models.RepoSpec(
+            slug=SLUG, target_root=Path("/tmp/refresh-target"), base_branch=BASE_BRANCH,
+        )
+        self.gh = FakeGitHubClient()
+        for number in (_UNVERSIONED_PR, _NEWER_ANCHOR, _PAUSED_PR, _CURRENT_PR):
+            seed_open_pr(self.gh, number)
+        for number in (_NEWER_PRE_PR, _CURRENT_PRE_PR):
+            self.gh.add_issue(make_issue(number, label=LABEL_IMPLEMENTING))
+            self.gh.seed_state(number, branch=f"orchestrator/acme__widget/issue-{number}")
+        self.gh.get_issue(_PAUSED_PR).labels.append(FakeLabel(LABEL_PAUSED))
+        for number, version in (*_PINNED_UNDER, (_PAUSED_PR, None)):
+            self._pin(number, version)
+        self.checkouts = Checkouts(self, *_REFUSED, _CURRENT_PR, _CURRENT_PRE_PR)
+
+    def test_a_refused_record_gets_no_route(self) -> None:
+        # No refused checkout is read, rebased, reset, or pushed, and nothing
+        # is written, posted, or relabelled for one; the held one is not even
+        # read, so nothing is said of it. The current pull request is
+        # published and the current pre-PR branch rebased all the same.
+        standing = self._standing()
+        spied = patch.object(self.gh, "read_pinned_state", wraps=self.gh.read_pinned_state)
+        reads = self.enterContext(spied)
+
+        with self.assertLogs(_WORKFLOW_LOG, level="WARNING") as logged, self.checkouts.walked():
+            base_refresh._refresh_base_and_worktrees(self.gh, self.spec)
+            said = self._said(logged.output)
+
+        self.assertEqual(self.checkouts.fetch.call_count, 1, "the shared base fetch still runs")
+        self.assertEqual(self.checkouts.touched() & _REFUSED, set())
+        self.assertEqual(self._standing(), standing)
+        self.assertEqual(observed(self.gh, self.checkouts), Walked(
+            rebased=[_CURRENT_PR, _CURRENT_PRE_PR],
+            published={_CURRENT_PR: ONE_PUBLICATION},
+            relabelled=[(_CURRENT_PR, LABEL_VALIDATING)],
+            noticed=[pr_of(_CURRENT_PR)],
+            announced={_CURRENT_PR: [AFTER_SHA]},
+            rounds={
+                _UNVERSIONED_PR: ROUND_BEFORE, _NEWER_PRE_PR: None, _NEWER_ANCHOR: ROUND_BEFORE,
+                _PAUSED_PR: ROUND_BEFORE, _CURRENT_PR: 0, _CURRENT_PRE_PR: None,
+            },
+        ))
+        self.assertEqual(said, self._reported())
+        self.assertNotIn(call(self.gh.get_issue(_PAUSED_PR)), reads.call_args_list)
+
+    def _pin(self, number: int, version: int | None) -> None:
+        """Pin the issue's record as it stands under `version`, or under none -- the anchor's beside it."""
+        record = {**self.gh.pinned_data(number), _VERSION_KEY: version}
+        if number == _NEWER_ANCHOR:
+            record.update(_INTERRUPTED)
+        if version is None:
+            record.pop(_VERSION_KEY)
+        self.gh.seed_state(number, raw=True, **record)
+
+    def _standing(self) -> dict:
+        """Each refused issue's record, labels, and thread."""
+        return {
+            number: (
+                self.gh._pinned[number],
+                [label.name for label in self.gh.get_issue(number).labels],
+                [(comment.id, comment.body) for comment in self.gh.get_issue(number).comments],
+            )
+            for number in _REFUSED
+        }
+
+    def _said(self, output: list[str]) -> dict:
+        """The versions found and supported each refused issue's refresh warning reports, or None where none does."""
+        said = dict.fromkeys(_REFUSED)
+        repo_slug = self.gh.repo_slug
+        for line in output:
+            for number in _REFUSED:
+                named = f"repo={repo_slug} issue=#{number} pinned comment"
+                if named in line and _LEFT_STANDING in line:
+                    said[number] = _versions_in(line)
+        return said
+
+    def _reported(self) -> dict:
+        """What each warning should report: the version found, against the one a current record carries."""
+        supported = self.gh.pinned_data(_CURRENT_PR)[_VERSION_KEY]
+        reported = {number: f"{_FOUND_VERSION} {found!r}, supported {supported}" for number, found in _PINNED_UNDER}
+        return {**reported, _PAUSED_PR: None}
+
+
+
+def _versions_in(line: str) -> str:
+    """The versions a refusal warning reports: the one found, and the one supported."""
+    found = line.index(_FOUND_VERSION)
+    return line[found:line.index(":", found)]
 
 if __name__ == "__main__":
     unittest.main()

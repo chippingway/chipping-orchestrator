@@ -12,16 +12,14 @@ run as ever.
 """
 from __future__ import annotations
 
-import contextlib
 import functools
 import unittest
 from types import MappingProxyType
-from unittest.mock import patch
 
 from orchestrator.github.pinned_state import SUPPORTED_SCHEMA_VERSION, PinnedState
-from orchestrator.scheduler import writer_claims
 from orchestrator.workflow.stages.decomposition import split_receipts as _split_receipts
 from tests.support.fakes import make_issue
+from tests.workflow.engine.grant_edit_support import edited_at_grant
 from tests.workflow.engine.writer_claim_test_support import (
     CANONICAL_SLUG,
     DISPATCH_MODES,
@@ -157,7 +155,7 @@ class ClaimedAdmissionTest(WriterClaimDispatchCase):
             with self.subTest(mode=mode):
                 stand_in = StandInHandler()
 
-                with patch.object(writer_claims, "issue_writer", self._moving_at_the_grant()):
+                with edited_at_grant(self._moving_at_the_grant()):
                     self.ticked(stand_in, limit=limit, scheduled=scheduled)
 
                 self.assertEqual(stand_in.ran, [_ADMITTED_BY_THE_GRANT])
@@ -167,43 +165,21 @@ class ClaimedAdmissionTest(WriterClaimDispatchCase):
                     "the refused record is left unwritten and nothing is posted on it",
                 )
 
-    def _moving_at_the_grant(self) -> _EditedAtGrant:
-        """Both issues seeded as the poll reads them, and the claim that moves each record as it is granted."""
+    def _moving_at_the_grant(self) -> dict:
+        """Both issues seeded as the poll reads them, and the edit that moves each record as its claim is granted."""
         self.fresh_repository()
         self.github.add_issue(make_issue(_REFUSED_BY_THE_GRANT, label=LABEL_IMPLEMENTING))
         self.github.add_issue(make_issue(_ADMITTED_BY_THE_GRANT, label=LABEL_IMPLEMENTING))
         self.github.seed_state(_REFUSED_BY_THE_GRANT, **_RECORDED)
         self.github.seed_state(_ADMITTED_BY_THE_GRANT, raw=True, **_RECORDED)
-        return _EditedAtGrant({
+        return {
             _REFUSED_BY_THE_GRANT: functools.partial(
                 self.github.seed_state, _REFUSED_BY_THE_GRANT, raw=True, **_RECORDED,
             ),
             _ADMITTED_BY_THE_GRANT: functools.partial(
                 self.github.seed_state, _ADMITTED_BY_THE_GRANT, **_RECORDED,
             ),
-        })
-
-
-class _EditedAtGrant:
-    """The writer claim, with a record edited the moment a claim on its issue is granted.
-
-    What the claimed reading has to see and nothing earlier can: a record that
-    moved between the poll and the grant. Each edit is made once, on the
-    first grant on its issue.
-    """
-
-    def __init__(self, edits: dict) -> None:
-        self._edits = dict(edits)
-        self._granting = writer_claims.issue_writer
-
-    @contextlib.contextmanager
-    def __call__(self, repo_id: int, issue_number: int, **claim_options):
-        """Take the claim, and make the issue's edit once it is held."""
-        with self._granting(repo_id, issue_number, **claim_options) as held:
-            edit = self._edits.pop(issue_number, None) if held else None
-            if edit is not None:
-                edit()
-            yield held
+        }
 
 
 def _unparsed(github, issue_number: int) -> None:

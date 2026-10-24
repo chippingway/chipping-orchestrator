@@ -3,7 +3,9 @@
 """The refresh-time route a PR-having worktree takes back to merge-ready.
 
 This is the workflow's base-rewrite coordinator, entered from the per-tick
-refresh beside it under the issue's writer claim that refresh holds. It holds
+refresh beside it under the issue's writer claim that refresh holds, and only
+over a pinned record that refresh admitted under it -- a refused one, read
+back empty, would name no pull request and no anchor to recover. It holds
 no git and no GitHub write of its own; what it owns is the order the git
 `base_sync` owners below it and the publication beside it are called in, and
 that order is the contract. Every gate in ``eligibility`` is asked before
