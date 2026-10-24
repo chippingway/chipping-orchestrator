@@ -277,8 +277,9 @@ Per-issue durable state is a single **pinned comment** on the issue (`<!--orches
 trusted as state only when the orchestrator's own account authored it and its whole body is the marker, and admitted
 only when it is a JSON object carrying an actual integer `schema_version` equal to `1`. Genuinely new pins are stamped
 with version 1 on first write; unsupported or malformed comments are preserved unchanged on GitHub and never
-overwritten, replaced beside, or silently stamped as current, ordinary dispatch refuses their issue whole, and the
-base refresh runs no route over that issue's worktree. Its
+overwritten, replaced beside, or silently stamped as current, ordinary dispatch refuses their issue whole, the
+base refresh runs no route over that issue's worktree, and the terminal-artifact maintenance pass keeps every checkout
+and branch of that issue, however it ended. Its
 keys group into agent identity, decomposition, PR / branch, the drift baseline, the HITL park, the in-review
 watermarks, the final-docs handoff, fix routing, the crash-recovery anchors, counters and timestamps, the per-issue
 usage meter, the

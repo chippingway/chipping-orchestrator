@@ -29,9 +29,11 @@ import signal
 import unittest
 from unittest.mock import patch
 
+from orchestrator import cli, config
+from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceReason
 from orchestrator.runtime import artifacts, exclusion, shutdown, startup
 from tests.cli.composition_test_support import RUN, composed_run
-from tests.runtime import polling_test_support as _support
+from tests.runtime import polling_test_support as _support, refused_pass_support as _refused
 
 _PASS_ATTR = "run_maintenance_pass"
 _CLIENT_ATTR = "GitHubClient"
@@ -175,6 +177,39 @@ class SharedHostTest(unittest.TestCase):
             self.assertEqual(run.main(), 0)
 
         self.assertEqual(exclusive, [False])
+
+
+class RefusedRecordRunTest(_refused.RefusedPassCase):
+    """The maintenance-only run keeps what admission or a writer claim refuses, on a real host.
+
+    The one case here that lets the pass run: the composed run is pointed at
+    the host the git fixtures built and connected to their client, so the run
+    reaches the teardown through every gate a launch puts in front of it. The
+    unpinned issue is held by another poller on this host throughout.
+    """
+
+    def test_it_keeps_the_refused_and_the_contended(self) -> None:
+        standing, on_github = self.issues.standing(), self.issues.on_github()
+        with (
+            composed_run([self.spec.slug]),
+            patch.object(config, "default_repo_specs", return_value=[self.spec]),
+            patch.object(config, "WORKTREES_DIR", self.world.worktrees),
+            patch.object(startup, _CLIENT_ATTR, return_value=self.gh),
+            self.contended(),
+        ):
+            run = self.recorded(cli.main, list(_CLEANUP_ARGS))
+
+        self.assertEqual(run.answer, 0)
+        self.assertEqual(run.records, {
+            _refused.REFUSED: (MaintenanceOutcome.RETAINED, MaintenanceReason.UNPROVEN),
+            _refused.ADMITTED: (MaintenanceOutcome.CLEANED, MaintenanceReason.RECLAIMED),
+            _refused.UNPINNED: (MaintenanceOutcome.RETAINED, MaintenanceReason.WRITER_CLAIM_REFUSED),
+        })
+        self.assertEqual(self.issues.standing(), {
+            **standing, _refused.ADMITTED: _refused.GONE,
+        })
+        self.assertEqual(self.issues.on_github(), on_github)
+        self.assertEqual(self.issues.said(run.output), 1, run.output)
 
 
 def _exclusivity_granted() -> bool:

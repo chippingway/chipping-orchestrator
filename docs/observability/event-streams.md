@@ -709,7 +709,7 @@ recorded then. Nothing here is a retry list, and no record is a promise that any
   string, because the two kinds are not distinguishable as text: with `WORKTREES_DIR` set to `orchestrator`, a
   checkout's path and its issue's branch are the same characters. The vocabulary splits three ways.
   `branch_checked_out`, `remote_delete_failed`, and `local_delete_failed` are spelled on a branch and nowhere else,
-  so they always name one, however that host spells its checkouts. `reclaimed`, the two claim reasons, the two
+  so they always name one, however that host spells its checkouts. `reclaimed`, the three claim reasons, the two
   quiet-period ones, and `worktree_removal_failed` never name a branch. `unproven`, `tip_moved`, and `tip_unreadable`
   can be about either artifact, so those alone are measured against the candidate's own checkout paths and drop a
   subject that is both — the record has to say which artifact it means. The value written is then the name re-derived
@@ -728,6 +728,7 @@ recorded then. Nothing here is a retry list, and no record is a promise that any
 | `activity_unreadable` | `retained` | That modification-time reading could not be taken. |
 | `active_claim` | `retained` | Something is running for this issue right now. |
 | `claim_unreadable` | `retained` | The guard that answers whether anything is could not be asked. |
+| `writer_claim_refused` | `retained` | The issue's writer claim on this host is held elsewhere or could not be taken. |
 | `tip_moved` | `retained` | An artifact left the proved commit between the proof and the mutation. |
 | `tip_unreadable` | `retained` | That last reading failed, or nothing cleared a commit for a named artifact. |
 | `branch_checked_out` | `retained` | Some worktree of the clone is still standing on the branch. |
@@ -741,8 +742,8 @@ each names an artifact, and an artifact is a branch *or* a checkout path. They a
 they fall into — a question that was asked and answered no (an open pull request, a dirty tree, a tree hiding files
 its own rules cover, commits nothing accounts for), a question that could not be put (an issue, a pinned comment, a
 pull-request lookup, a git read), and a question answered with something nobody can act on (an issue in two workflow
-states at once, a pinned comment holding something that is not a state, a checkout on a branch this issue never
-published) — are what the remediation section below is organized by.
+states at once, a pinned comment holding something that is not a state or a record under a version this build does not
+admit, a checkout on a branch this issue never published) — are what the remediation section below is organized by.
 
 What each one asks an operator to do is in
 [`../configuration/operations.md#reading-a-cleanup-result`](../configuration/operations.md#reading-a-cleanup-result).

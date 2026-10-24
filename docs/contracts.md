@@ -105,11 +105,13 @@ specification says what a reader does with it. Close observation, recovery, and 
 neither a fresh owner nor a cycle with nothing left owed, and write nothing for it. A parent's split seeds, recovery,
 and dependency release read an unsupported child as neither a fresh child to seed nor one to start, and its merge
 finalize, snapshot notices, and snapshot delete read one as neither a child to finalize or tell nor a consumer done with
-the ref: nothing is written to it, the seed, release, or notice stays uncompleted, and the ref stays. Current-format
-authentication [C-04], writer claims and artifact ownership [C-05], guarded and uncertain-write recovery [C-06],
-approval evidence [C-09], pinned session commands [C-14], lifetime run accounting [C-15], and the audit-log recovery
-exception [C-12] remain required. Optional fields the current format defines and current transactions a crash or lost
-write interrupted are current state, not historical compatibility.
+the ref: nothing is written to it, the seed, release, or notice stays uncompleted, and the ref stays. Artifact
+maintenance reads an unsupported record as no record at all to classify on, never as an issue that pinned nothing:
+every checkout and branch of its issue stays, however the issue ended, and nothing is deleted or written for it.
+Current-format authentication [C-04], writer claims and artifact ownership [C-05], guarded and uncertain-write recovery
+[C-06], approval evidence [C-09], pinned session commands [C-14], lifetime run accounting [C-15], and the audit-log
+recovery exception [C-12] remain required. Optional fields the current format defines and current transactions a crash
+or lost write interrupted are current state, not historical compatibility.
 
 **Specs:** [state](state-machine/labels-and-state.md#pinned-state),
 [branches](security.md#scheduled-artifact-reclamation),
@@ -121,6 +123,7 @@ write interrupted are current state, not historical compatibility.
 [evidence](security.md#what-a-trusted-pinned-record-still-cannot-license),
 [dispatch admission](state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick),
 [refresh admission](state-machine/labels-and-state.md#base-refresh),
+[artifact admission](configuration/operations.md#what-clears-a-candidate-and-what-keeps-it),
 [deployment without migration](configuration/operations.md#deploying-without-migration),
 [close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own).
 
@@ -131,7 +134,8 @@ write interrupted are current state, not historical compatibility.
 [child seeds](../tests/workflow/stages/decomposition/test_claimed_seeds.py),
 [refresh admission](../tests/workflow/engine/test_base_refresh.py),
 [refreshed tick](../tests/workflow/engine/test_tick_refresh.py),
-[snapshot consumers](../tests/workflow/stages/decomposition/test_claimed_reclamation.py).
+[snapshot consumers](../tests/workflow/stages/decomposition/test_claimed_reclamation.py),
+[artifact admission](../tests/git/worktrees/test_maintenance_admission.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -167,7 +171,9 @@ an adopted one included, its merge finalize of a closed child, its snapshot noti
 of children, and its delete of a snapshot admit each child's record from a read under that child's claim, held through
 the effect; an earlier family scan never stands in for it, and a release or a delete admits every child it would act
 on before acting on any. The base refresh admits the record it routes a worktree on from its read under the claim it
-holds through that route.
+holds through that route. Artifact maintenance takes each candidate's issue claim before it reads the issue, admits the
+record it classifies on from that read, and holds the claim through the teardown; a candidate whose claim is refused
+is left untouched. The scheduler barrier, host exclusivity, and every other maintenance gate stay required beside it.
 
 **Specs:** [ownership](architecture.md#design-constraints), [claims](architecture.md#process-model),
 [poller setup](configuration/operations.md#running-more-than-one-poller),
@@ -176,6 +182,7 @@ holds through that route.
 **Checks:** [dispatch claims](../tests/workflow/engine/test_dispatch_writer_claims.py),
 [claimed admission](../tests/workflow/engine/test_dispatch_record_admission.py),
 [refresh claims](../tests/workflow/engine/test_base_refresh_contention.py),
+[maintenance claims](../tests/git/worktrees/test_maintenance_guards.py),
 [host exclusion](../tests/runtime/test_exclusion.py),
 [claimed release](../tests/workflow/stages/decomposition/test_claimed_release.py),
 [claimed finalize](../tests/workflow/stages/decomposition/test_claimed_closed_children.py).

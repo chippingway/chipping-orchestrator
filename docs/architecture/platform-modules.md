@@ -104,7 +104,8 @@ last is held by the loader itself rather than by a check.
   `runtime/artifact_schedule.py`, and `runtime/artifact_records.py` above them — when a maintenance pass ran, why it
   did not (including a window that closed before its pass could start), and the record one candidate's answer could
   not be written as are facts about the same artifacts the owners under it report on, so an operator filtering for what
-  happened to a finished issue's checkout is told about the day the host was too busy to attempt one), and
+  happened to a finished issue's checkout is told about the day the host was too busy to attempt one; a pinned record
+  admission refuses is said here too, by `git/worktrees/claims.py`, in the shape of the line dispatch says it in), and
   `orchestrator.branch_publication` (`git/publication/rewrite.py`). A
   module moved between packages does not take its channel with it, and each of the four names is asserted where
   its owner is tested —
@@ -174,7 +175,9 @@ orchestrator/
                         readings go down with it, asked per candidate: whether anything is running for that issue,
                         and whether the run may still act at all -- the run's stop flag, the scheduler's close, and
                         the budget bounding how long one pass may hold the host, which is what the process waiting
-                        for it is owed
+                        for it is owed. The issue writer claim and the pinned record's admission are the pass's own,
+                        taken under every one of those gates rather than handed down, so neither launch form relaxes
+                        them
     artifact_schedule.py when a polling run owes itself that pass: the in-memory due gate between polling passes,
                         on the monotonic interval or -- taking precedence where set -- the local window, named by the
                         date it opened on and read again from inside both holds, so only a pass that starts spends
@@ -807,8 +810,9 @@ orchestrator/
                         by a held barrier costs the caller its next polling pass, which is why it is reported apart
                         from a closed scheduler
     writer_claims.py    the host-local writer claim every dispatch path takes for one repository issue, a family
-                        handler takes for each child it writes, and the base refresh takes for each worktree it syncs,
-                        all on the one key in the one namespace. An exclusive `flock` per
+                        handler takes for each child it writes, the base refresh takes for each worktree it syncs, and
+                        the artifact maintenance pass takes for each candidate it classifies and tears down, all on
+                        the one key in the one namespace. An exclusive `flock` per
                         issue in `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric id as the
                         client answers it -- never a name, which a rename changes under a running poller -- and the
                         issue number, and taken without waiting. A contender is refused rather than kept waiting, and a
@@ -1494,7 +1498,10 @@ orchestrator/
                         whose backlink is missing, so an incomplete count refuses deletion rather than treating
                         the branches it could not list as unused
       claims.py         the GitHub side of the same question, asked about the issue: the issue fetch, the
-                        authenticated pinned read and the two checks that its payload is a state at all, the
+                        authenticated pinned read held to admission -- a record unversioned, under a version this
+                        build does not admit, or no state at all keeps the candidate however the issue ended, said
+                        in one local line naming the repository, the issue, and the version found against the one
+                        supported, while an issue with no pinned comment is classified as ever -- the
                         exactly-one-terminal-label rule an ending has to pass, read over canonical labels alone so
                         an obsolete bare name neither ends an issue nor makes it ambiguous, and the open pull
                         requests still standing on a branch or on the recorded number. The branch claims are
@@ -1520,8 +1527,9 @@ orchestrator/
                         ownership and cleanliness gates for each checkout, followed by the proof for its own
                         HEAD. A deleted branch can leave the checkout holding the only copy through its reflog;
                         it is excused only when a reported branch stands on the same commit and proves it too
-      eligibility.py    the side-effect-free classifier: issue state and open pull-request claims first, then
-                        checkout and branch retention proofs with one base reading for the whole candidate.
+      eligibility.py    the side-effect-free classifier: issue state, pinned-record admission, and open
+                        pull-request claims first, then checkout and branch retention proofs with one base reading
+                        for the whole candidate.
                         Returns every retention reason or the exact commit each artifact was cleared at, so
                         two checkout layouts with different HEADs are each proven before either may be removed
       remote_inventory.py
@@ -1544,9 +1552,13 @@ orchestrator/
                         attempt at all -- so the pinned local delete reports a ref that is not there as the
                         refusal git gave it rather than papering over it
       maintenance_guards.py
-                        injected activity and continuation guards, and the quiet period every checkout must
-                        satisfy. Unreadable guards refuse action. Continuation is asked before each candidate
-                        and again immediately before its first mutation, after the costly eligibility reads
+                        injected activity and continuation guards, the issue writer claim taken from
+                        `scheduler/writer_claims.py` -- a host record rather than a reading of the process, so
+                        imported rather than injected, and refused alike whoever holds it, where its namespace takes
+                        no lock, or where the repository id it is keyed on will not read -- and the quiet period
+                        every checkout must satisfy. Unreadable guards refuse action. Continuation is asked before
+                        each candidate and again immediately before its first mutation, after the costly
+                        eligibility reads
       checkout_removal.py
                         remove each checkout only after re-reading the exact HEAD the classification cleared.
                         A moved or unreadable tip, missing proof, or failed removal stops the candidate
@@ -1554,8 +1566,10 @@ orchestrator/
                         require a complete checkout listing and refuse any branch still checked out. Delete on
                         the remote before the clone, re-reading each tip against its proof immediately before
                         the mutation. A failed remote delete leaves the local branch discoverable for another pass
-      maintenance.py    the bounded pass: active claim, classification, quiet period, final continuation guard,
-                        then all checkouts before any branch. Records one result per candidate through
+      maintenance.py    the bounded pass: active claim, then -- under the issue's writer claim, held from the
+                        classification's first reading of the issue through the teardown -- classification, quiet
+                        period, final continuation guard, then all checkouts before any branch. A refused claim
+                        keeps the candidate with nothing read or touched. Records one result per candidate through
                         `maintenance_results`; a candidate not reached has no result. No retry queue, issue label,
                         pinned state, comment, or session is changed, so an interrupted pass can be rediscovered
   skills/
@@ -1618,7 +1632,8 @@ off a facade:
   `ref_discovery` for namespace listings and `attribution` for claims against the clone groups.
   Mutations live on `reclaim`, which calls `commands`, `locks`, and `ref_transport`. `checkout_removal` and
   `branch_removal` spend the verdict's tips immediately before those mutations; `maintenance` orders their work
-  after eligibility and the injected guards on `maintenance_guards`. The workflow layer is never imported here.
+  after eligibility and the injected guards on `maintenance_guards`, under the issue writer claim that owner takes
+  from `scheduler/writer_claims.py`. The workflow layer is never imported here.
   `runtime/artifacts.py` schedules the pass, takes the scheduler hold, and injects those guards; through
   `runtime/exclusion.py`, it claims the host against processes no scheduler hold can see.
 - `base_sync/` — `models` and `state` carry only data, save the optional answers a recovery context may hold: for its

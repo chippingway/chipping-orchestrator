@@ -305,6 +305,17 @@ repeat a pass. What bounds the pass itself:
   request stands on either branch spelling or on the recorded number, and each artifact's tip is re-read immediately
   before the mutation it gates and compared against the commit that was proved. An artifact that moved in between is
   kept for the next pass rather than deleted, and each delete is additionally leased at that commit (below).
+- **One orchestrator writer from the first reading to the last deletion.** Each candidate is taken under its issue's
+  host-local writer claim — the one every dispatch and the base refresh take, on the same key — before the issue is
+  read, and the claim is held through the teardown, so no other orchestrator writer on this host can relabel the issue
+  or rewrite its record between the reading and the deletions spent on it. A claim another holder has, or one that
+  cannot be taken at all, leaves the candidate exactly as it stands for a later pass.
+- **A pinned record admission refuses keeps everything.** An authenticated pinned comment that is unversioned, under
+  a version this build does not admit, or no state at all is never read as an issue that recorded nothing: its
+  candidate is kept even when the issue is closed on a terminal label and every artifact would otherwise qualify. No
+  checkout is removed, no branch is deleted in the clone or on the remote, and nothing is written to the issue, its
+  pull requests, or the comment. The refusal is reported on this host's log with the repository, the issue, and the
+  version found against the one supported, and the record and its artifacts stay for manual disposition.
 - **Every pull-request lookup is owner-qualified.** A branch query names the head as
   `<this repository's owner>:<branch>` rather than the bare branch name, so a fork carrying a branch of the same name
   is never read as this candidate's pull request — neither as an open one that would keep the artifact, nor as an
@@ -722,10 +733,11 @@ irreversible there — a force-push over somebody's work, a second pull request 
 carries — so the publication side proves the record against the remote rather than acting on it. An authenticated
 comment refused admission licenses nothing at all: it reads back empty and flagged unparsed or unsupported, ordinary
 dispatch of its issue stops before any guard or handler with nothing written, the base refresh rebases, pushes,
-resets, and recovers nothing in its worktree, every guarded commit over it refuses, a verification-evidence write over
-it holds rather than landing, a parent's split seed, recovery repair, or dependency release of a child carrying one
-writes nothing to that child and leaves the split unpublished, and a parent's merge finalize or snapshot notice writes
-nothing to such a child, nor deletes the snapshot it was cut from
+resets, and recovers nothing in its worktree, the terminal-artifact maintenance pass keeps every checkout and branch
+of its issue, every guarded commit over it refuses, a verification-evidence write over it holds rather than landing, a
+parent's split seed, recovery repair, or dependency release of a child carrying one writes nothing to that child and
+leaves the split unpublished, and a parent's merge finalize or snapshot notice writes nothing to such a child, nor
+deletes the snapshot it was cut from
 ([C-03](contracts.md#c-03-persisted-and-externally-consumed-formats)).
 
 - **An agent's own verdict cannot waive the added-line ceiling.** `late_exempt_sha` records that a late adjudication

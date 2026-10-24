@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Classify discovered artifacts without changing issues, refs, or checkouts.
 
-Issue state and open pull requests are checked before artifact content. The
-checkout and branch retention owners prove what survives removal, and this
-classifier returns both the reasons to retain and every exact tip it cleared.
-An unreadable claim or proof always retains the candidate."""
+Issue state, pinned-record admission, and open pull requests are checked
+before artifact content. The checkout and branch retention owners prove what
+survives removal, and this classifier returns both the reasons to retain and
+every exact tip it cleared. An unreadable claim or proof, and a pinned record
+admission refuses, always retain the candidate. The maintenance pass asks it
+under the issue's writer claim it holds through the teardown."""
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -127,9 +129,12 @@ def _classify_artifacts(
 
     The remote gates come first and each one settles the verdict on its own.
     An issue that could not be fetched, one that has not ended, and one whose
-    pinned state could not be read are all answers about whether this
-    candidate is a candidate at all, and reading the host's artifacts under
-    any of them would spend git processes on a question already closed.
+    pinned state could not be read or is a record admission refuses are all
+    answers about whether this candidate is a candidate at all, and reading
+    the host's artifacts under any of them would spend git processes on a
+    question already closed. A refused record keeps the candidate however
+    the issue ended: nothing it names was read, so nothing it would have
+    kept can be proved gone.
 
     The pinned state is read after the ending is established rather than
     beside the issue, for the same reason: it costs a comment listing on
