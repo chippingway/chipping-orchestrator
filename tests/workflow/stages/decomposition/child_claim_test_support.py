@@ -43,6 +43,10 @@ MERGED_PARENT = 95
 MERGED_CHILD = 951
 _MERGED_PR = 9510
 
+# What the merged child's record carries: the pull request that merged, and
+# the parent that split it off.
+MERGED_RECORD = MappingProxyType({"pr_number": _MERGED_PR, "parent_number": MERGED_PARENT})
+
 
 def blocked_family(
     gh: FakeGitHubClient | None = None, *, registered: bool = False,
@@ -71,8 +75,12 @@ def walked(gh: FakeGitHubClient, parent: FakeIssue, scan=None) -> list:
     return _activation._activate_ready_children(gh, _TEST_SPEC, parent, gh.read_pinned_state(parent), scan)
 
 
-def blocked_on_a_merged_child() -> tuple[FakeGitHubClient, FakeIssue]:
-    """A `blocked` parent whose one child an external merge closed on `validating`."""
+def blocked_on_a_merged_child(*, recorded: bool = True) -> tuple[FakeGitHubClient, FakeIssue]:
+    """A `blocked` parent whose one child an external merge closed on `validating`.
+
+    `recorded=False` leaves the child genuinely fresh -- no pinned record at
+    all -- so nothing names the pull request that merged.
+    """
     gh = FakeGitHubClient()
     parent = make_issue(MERGED_PARENT, label=LABEL_BLOCKED)
     gh.add_issue(parent)
@@ -84,9 +92,21 @@ def blocked_on_a_merged_child() -> tuple[FakeGitHubClient, FakeIssue]:
         merged=True,
         state="closed",
     ))
-    gh.seed_state(MERGED_CHILD, pr_number=_MERGED_PR, parent_number=MERGED_PARENT)
+    if recorded:
+        gh.seed_state(MERGED_CHILD, **MERGED_RECORD)
     gh.seed_state(MERGED_PARENT, children=[MERGED_CHILD])
     return gh, parent
+
+
+def said_refused(output: list[str], number: int) -> bool:
+    """Whether one warning names this issue's refused pinned comment, its repository, and both versions."""
+    return any(
+        f"issue=#{number} pinned comment" in line
+        and "repo=" in line
+        and "found schema_version" in line
+        and "supported 1" in line
+        for line in output
+    )
 
 
 def standing(gh: FakeGitHubClient, number: int) -> tuple:

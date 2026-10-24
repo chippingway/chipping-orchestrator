@@ -816,7 +816,8 @@ orchestrator/
                         refused too, where the artifact presence would let a poller go on unclaimed. Exclusive between
                         this process's threads as well: one lock per key is held for the process and its holders
                         counted, a second writer here is refused as `held_here`, and a holder asking `alongside` -- a
-                        close receipt, a consumer notice -- is let in beside a writer of this process's own. The last
+                        close receipt, a consumer notice, the consumer claims a snapshot delete holds through its
+                        notices -- is let in beside a writer of this process's own. The last
                         holder to leave unlocks and closes the descriptor, and the kernel drops it with a dead process;
                         no claim file is ever unlinked, since a path recreated over a held inode would let two processes
                         each hold the claim. Every acquisition reads what the last hold left -- its token, and the

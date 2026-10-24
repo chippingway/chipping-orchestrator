@@ -971,6 +971,14 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   latched before or seen during that write
                                   ends the cycle and keeps workflow:blocked
      any child = rejected      ─► park HITL on parent
+     any child closed without  ─► retry the PR-merge finalize under the
+       done|rejected|in_review    child's own claim, off its record read
+                                  and admitted there: merged -> child=done,
+                                  otherwise park HITL on parent. A child
+                                  another poller holds, or whose record
+                                  admission refuses, is neither finalized
+                                  nor counted, and nothing is written to it
+                                  -- said in the log only
      dep_graph walk: any workflow:blocked child with all deps=done
                                ─► child=workflow:ready, once the parent's
                                   lineage decision and EVERY releasable
@@ -1032,10 +1040,17 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   frees the branch: the two ledgers are
                                   written apart and refused apart
      snapshot delete           ─► entry=`reclaiming` BEFORE the delete, then
-                                  RE-READ every recorded consumer past that
-                                  write and act only if all still ended (a
-                                  reopen inside the window keeps the ref and
-                                  leaves the entry `reclaiming`); delete --
+                                  under EVERY recorded consumer's claim
+                                  (alongside this poller's own writer), held
+                                  through the delete and the TELLs, RE-READ
+                                  each consumer and its pinned record past
+                                  that write and act only if all still ended
+                                  and every record is admitted or absent (a
+                                  reopen inside the window, a consumer held
+                                  elsewhere, or one admission refuses --
+                                  closed on done or orphaned alike -- keeps
+                                  the ref and leaves the entry `reclaiming`,
+                                  said in the log only); delete --
                                   this host's MIRROR first, and one that will
                                   not go leaves the remote ref alone, so a
                                   surviving mirror can never mean a reclaimed
@@ -1052,8 +1067,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   whole by whoever writes it, a finalize sets
                                   its terminal label BEFORE its last write,
                                   and closed ready|blocked are swept by
-                                  nothing. A consumer it could not reach
-                                  leaves the entry `reclaiming`
+                                  nothing. A consumer it could not reach,
+                                  one held elsewhere, or one whose record
+                                  read under its claim admission refuses --
+                                  told nothing, even past a delete that
+                                  already landed -- leaves the entry
+                                  `reclaiming`
      `reclaiming` | `failed`   ─► retried past the consumer proof ONLY for a
        whose consumers are no      ref the remote no longer has: one read-only
        longer all ended            ask decides, and a surviving ref is kept
@@ -1107,11 +1126,13 @@ than a second source of truth: where the two disagree, the handler pages are aut
      branch / ref              ─► the umbrella terminal's rules, verbatim, on
                                    a scan this pass takes itself: retry the
                                    branch, and delete a held ref once every
-                                   consumer has ended. Reopened-before-delete
-                                   or an unreadable consumer keeps the ref;
-                                   the branch settles either way. No consumer
-                                   is written to, commented on, or relabelled:
-                                   a cancelled cycle owes its children nothing
+                                   consumer has ended. Reopened-before-delete,
+                                   an unreadable consumer, or one held or
+                                   refused admission under its claim keeps
+                                   the ref; the branch settles either way.
+                                   No consumer is written to, commented on,
+                                   or relabelled: a cancelled cycle owes its
+                                   children nothing
      nothing left owed         ─► label=rejected, which ends the cycle and
                                    takes the issue out of this sweep. Never
                                    spawns, activates a child, or closes

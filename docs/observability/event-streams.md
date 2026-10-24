@@ -1064,7 +1064,10 @@ records.
 
 `outcome: reclaiming` is progress rather than failure and is why the state reaches this stream at all: the decision
 goes down *before* the delete, so a record carrying it is an obligation whose ref may already be gone while a
-consumer it owes a receipt could not be told — the next visit finishes the telling and reports `reconciled`.
+consumer it owes a receipt could not be told — the next visit finishes the telling and reports `reconciled`. It is
+also what a ref still on the remote reads where a consumer, read under its claim just ahead of the delete, was held by
+another poller or carried a pinned record admission refuses: nothing was deleted or said, and the record moves on only
+on a visit that finds every consumer it owes admitted.
 
 **Family-typed events.** A record is built from a `LateEvent` on `workflow/late_split/events.py`, and each family
 declares which detail fields it requires and which it may carry (`_FAMILY_FIELDS`). Anything else raises

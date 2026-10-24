@@ -103,12 +103,13 @@ Unsupported input cannot serve as fresh work, current evidence, or authorization
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
 specification says what a reader does with it. Close observation, recovery, and cleanup read an unsupported record as
 neither a fresh owner nor a cycle with nothing left owed, and write nothing for it. A parent's split seeds, recovery,
-and dependency release read an unsupported child as neither a fresh child to seed nor one to start: nothing is written
-to it, and the seed or release stays uncompleted. Current-format authentication
-[C-04], writer claims and artifact ownership [C-05], guarded and uncertain-write recovery [C-06], approval evidence
-[C-09], pinned session commands [C-14], lifetime run accounting [C-15], and the audit-log recovery exception [C-12]
-remain required. Optional fields the current format defines and current transactions a crash or lost write interrupted
-are current state, not historical compatibility.
+and dependency release read an unsupported child as neither a fresh child to seed nor one to start, and its merge
+finalize, snapshot notices, and snapshot delete read one as neither a child to finalize or tell nor a consumer done with
+the ref: nothing is written to it, the seed, release, or notice stays uncompleted, and the ref stays. Current-format
+authentication [C-04], writer claims and artifact ownership [C-05], guarded and uncertain-write recovery [C-06],
+approval evidence [C-09], pinned session commands [C-14], lifetime run accounting [C-15], and the audit-log recovery
+exception [C-12] remain required. Optional fields the current format defines and current transactions a crash or lost
+write interrupted are current state, not historical compatibility.
 
 **Specs:** [state](state-machine/labels-and-state.md#pinned-state),
 [branches](security.md#scheduled-artifact-reclamation),
@@ -129,7 +130,8 @@ are current state, not historical compatibility.
 [later readings](../tests/workflow/engine/test_dispatch_admitted_rereads.py),
 [child seeds](../tests/workflow/stages/decomposition/test_claimed_seeds.py),
 [refresh admission](../tests/workflow/engine/test_base_refresh.py),
-[refreshed tick](../tests/workflow/engine/test_tick_refresh.py).
+[refreshed tick](../tests/workflow/engine/test_tick_refresh.py),
+[snapshot consumers](../tests/workflow/stages/decomposition/test_claimed_reclamation.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -161,10 +163,11 @@ resolve different roots. Artifact maintenance needs
 records written before acquiring the claim; [C-06] covers lost or refused writes and comment capacity. Close
 observation, recovery, and cleanup admit the record they act on from a read under the issue's claim, the poll's
 alongside one included; a close held in memory never stands in for that record. A parent's seed or repair of a child,
-an adopted one included, and its release of a group of children admit each child's record from a read under that
-child's claim, held through the write; an earlier family scan never stands in for it, and a release admits every
-child it would start before starting any. The base refresh admits the record it routes a worktree on from its read
-under the claim it holds through that route.
+an adopted one included, its merge finalize of a closed child, its snapshot notice to a consumer, its release of a group
+of children, and its delete of a snapshot admit each child's record from a read under that child's claim, held through
+the effect; an earlier family scan never stands in for it, and a release or a delete admits every child it would act
+on before acting on any. The base refresh admits the record it routes a worktree on from its read under the claim it
+holds through that route.
 
 **Specs:** [ownership](architecture.md#design-constraints), [claims](architecture.md#process-model),
 [poller setup](configuration/operations.md#running-more-than-one-poller),
@@ -174,7 +177,8 @@ under the claim it holds through that route.
 [claimed admission](../tests/workflow/engine/test_dispatch_record_admission.py),
 [refresh claims](../tests/workflow/engine/test_base_refresh_contention.py),
 [host exclusion](../tests/runtime/test_exclusion.py),
-[claimed release](../tests/workflow/stages/decomposition/test_claimed_release.py).
+[claimed release](../tests/workflow/stages/decomposition/test_claimed_release.py),
+[claimed finalize](../tests/workflow/stages/decomposition/test_claimed_closed_children.py).
 
 ## C-06: Guarded writes and recoverable effects
 
@@ -184,7 +188,8 @@ under the claim it holds through that route.
 
 **Limits:** Recovery rechecks prerequisites. An unreadable record or artifact does not prove the write failed. Close
 recovery answers a record admission refuses as an unreadable one: the close it read is kept, and nothing is posted,
-marked, or reclaimed over it.
+marked, or reclaimed over it. Snapshot recovery over a ref already gone tells no consumer admission refuses and keeps
+that notice owed rather than recording it delivered.
 A refused or unconfirmed write stops the steps that depend on it; a later tick reads state afresh. Guarded commits
 and direct writes check admission: neither writer may overwrite an unsupported or malformed authoritative comment,
 create a replacement beside it, or silently stamp it as current, whatever comment id its caller holds, and neither

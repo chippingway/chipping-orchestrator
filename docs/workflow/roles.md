@@ -1871,11 +1871,17 @@ label does: a child reopened while still wearing `done` is live again, and a rea
 delete the only copy of the work it came back for.
 
 The delete itself is a small transaction, because the proof above is a reading of live issues and a reading is not
-something a retry can reproduce. The entry is written `reclaiming` **before** the delete, and every recorded consumer
-is read once more *past that write and immediately ahead of the delete* — the scan the pass qualified the ref on was
-taken before the branch half ran and before anything was recorded, and each of those steps is a request a human can
-reopen a consumer during. A consumer that came back inside that window keeps the ref, and what is left is the delete
-request itself.
+something a retry can reproduce. The entry is written `reclaiming` **before** the delete, and every recorded consumer is
+read once more *past that write and immediately ahead of the delete* — the scan the pass qualified the ref on was taken
+before the branch half ran and before anything was recorded, and each of those steps is a request a human can reopen a
+consumer during. A consumer that came back inside that window keeps the ref, and what is left is the delete request
+itself. That last reading is no family scan: it is taken under every recorded consumer's writer claim — `alongside` a
+handler of this poller's own, as the receipt is — held through the delete and the receipts behind it, and each
+consumer's pinned record is read behind those claims and held to admission. A consumer another poller holds, or one
+whose record admission refuses, keeps the ref the same way — a consumer closed on `done` and an original the manifest no
+longer tracks alike, since a record this build cannot read belongs to a consumer it cannot say the ref no longer matters
+to — so the entry stays `reclaiming` and the ref stays on the remote for whoever disposes of that record. A consumer
+with no pinned record at all is fresh, and admitted.
 
 A later visit acts on that recorded decision for one thing only: finishing a delete the remote already took. Past
 the consumer proof it asks about the ref in one read and qualifies only if the remote no longer has it. A ref still
@@ -1894,9 +1900,11 @@ pointer back and take any park off, with nothing left to notice. A label is no p
 terminal finalize sets `done` / `rejected` **before** its last write, and closed `workflow:ready` /
 `workflow:blocked` are swept by nothing, so a consumer a human left on one never becomes terminal at all. A comment
 is appended rather than rewritten, cannot be lost to a concurrent writer, and reaches a consumer in every state a
-consumer can be in. A child the pass could not reach, or whose thread it could not read or post to, leaves the entry
-`reclaiming` rather than reconciling it, because reconciling is what stops anything coming back — and this owner is
-the only thing that would.
+consumer can be in. It is posted under the consumer's claim, over the consumer's pinned record read behind that claim
+and admitted. A child the pass could not reach, one whose record admission refuses — told nothing, even by the visit
+that finds the ref already gone — or one whose thread it could not read or post to, leaves the entry `reclaiming`
+rather than reconciling it, because reconciling is what stops anything coming back — and this owner is the only thing
+that would.
 
 What ACTS on it is the child's own guard, and it is the child's on purpose. It runs on the child's own **dispatch**,
 ahead of every handler and ahead of the terminal no-op — which is the point, because a consumer that ended wears
