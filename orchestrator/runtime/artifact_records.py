@@ -97,7 +97,7 @@ _BRANCH_REASONS = frozenset((
 # nothing here can attribute.
 #
 # Every reason in neither set names a checkout (the two quiet-period ones and
-# the removal that was refused), the issue itself (the two claim ones), or
+# the removal that was refused), the issue itself (the three claim ones), or
 # nothing at all (the teardown that finished).
 _EITHER_REASONS = frozenset((
     MaintenanceReason.UNPROVEN,

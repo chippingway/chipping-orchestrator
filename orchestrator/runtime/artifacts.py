@@ -24,8 +24,12 @@ checkout until the next scheduled attempt and nothing else: the next interval
 with no window set, or fifteen elapsed minutes later inside a window that is
 still open. Admission always reopens, because the hold
 is given back around the body whatever the body did. The pass keeps its own
-per-candidate claim check underneath all of that: this barrier is what makes
-the answer worth having, and that check is what makes a wrong answer harmless.
+per-candidate claim checks underneath all of that -- the scheduler's, and the
+issue's host-local writer claim it holds from its first reading of the issue
+through the teardown: this barrier is what makes the answer worth having, and
+those checks are what make a wrong answer harmless. Neither is relaxed for a
+pass run on demand, and neither is the admission of each issue's pinned
+record, which keeps every artifact of an issue whose record it refuses.
 
 A hold is a snapshot, and a signal can land the line after it was granted, so
 the grant is not the last word: whether this process may still act is asked
@@ -215,7 +219,9 @@ def _maintained(
     anything is running for one issue, and whether this pass may still act at
     all. The first is deliberate redundancy under a hold that already emptied
     the scheduler; the second is what makes the hold's answer keep meaning
-    something as the pass spends it.
+    something as the pass spends it. Each issue's writer claim is not handed
+    down: it is a host record every poller here meets on, so the pass takes
+    it itself.
 
     A repository whose turn comes after a stop is skipped rather than started,
     and the pass under it stops between candidates for the same reason.

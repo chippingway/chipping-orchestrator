@@ -168,6 +168,7 @@ _CASES = (
     ),
     _case(_maintenance_results.MaintenanceReason.WORKTREE_REMOVAL_FAILED, subject=_CHECKOUT),
     _case(_maintenance_results.MaintenanceReason.ACTIVE_CLAIM, subject=_ISSUE_SUBJECT),
+    _case(_maintenance_results.MaintenanceReason.WRITER_CLAIM_REFUSED, subject=_ISSUE_SUBJECT),
     _case(_maintenance_results.MaintenanceReason.UNPROVEN, subject=_FOREIGN_BRANCH),
 )
 

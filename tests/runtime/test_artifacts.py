@@ -22,6 +22,7 @@ from tests.runtime import (
     artifact_test_support as _artifacts,
     handover_test_support as _handover,
     polling_test_support as _support,
+    refused_pass_support as _refused,
 )
 
 _BARRIER_ATTR = "_QUIESCENCE_TIMEOUT_SECONDS"
@@ -575,6 +576,55 @@ class ScheduledWindowTest(_artifacts._MaintenanceTestCase):
             self.assertFalse(gate.due())
             clocks.reach(_schedule.local(_NEXT_NIGHT_UNDER_WAY))
             self.assertTrue(gate.due())
+
+
+class RefusedRecordPassTest(_refused.RefusedPassCase):
+    """Both entry points keep what admission or a writer claim refuses, on a real host.
+
+    The scheduled pass a polling run fits between polling passes, its presence
+    handed over for it, and the on-demand pass under the host held outright:
+    the first meets the unpinned issue held by another poller, the second
+    meets it once that poller has let go. The refused record keeps its issue
+    whole through both, while the two records admission takes are reclaimed as
+    ever.
+    """
+
+    def test_each_pass_keeps_the_refused_record(self) -> None:
+        self.enterContext(_schedule.windowed(None))
+        standing, on_github = self.issues.standing(), self.issues.on_github()
+        with self.contended():
+            scheduled = self.scheduled_pass()
+        on_demand = self.on_demand_pass()
+
+        self.assertEqual(scheduled.records, {
+            _refused.REFUSED: (MaintenanceOutcome.RETAINED, MaintenanceReason.UNPROVEN),
+            _refused.ADMITTED: (MaintenanceOutcome.CLEANED, MaintenanceReason.RECLAIMED),
+            _refused.UNPINNED: (MaintenanceOutcome.RETAINED, MaintenanceReason.WRITER_CLAIM_REFUSED),
+        })
+        self.assertEqual(on_demand.records, {
+            _refused.REFUSED: (MaintenanceOutcome.RETAINED, MaintenanceReason.UNPROVEN),
+            _refused.UNPINNED: (MaintenanceOutcome.CLEANED, MaintenanceReason.RECLAIMED),
+        })
+        self.assertEqual(self.issues.standing(), {
+            **standing, _refused.ADMITTED: _refused.GONE, _refused.UNPINNED: _refused.GONE,
+        })
+        self.assertEqual(self.issues.on_github(), on_github)
+        self.assertEqual(self.issues.said(scheduled.output), 1, scheduled.output)
+
+    def scheduled_pass(self) -> _refused.Recorded:
+        """The pass a polling run fits between two polling passes, its presence handed over for it."""
+        with exclusion.polling_presence() as presence:
+            return self.recorded(
+                artifacts.run_maintenance_when_due,
+                RuntimeState(host_claim=presence), self.clients, self.scheduler, artifact_schedule.DueGate(),
+            )
+
+    def on_demand_pass(self) -> _refused.Recorded:
+        """The pass the maintenance-only run makes over a host it has taken outright."""
+        with exclusion.artifact_exclusivity() as host:
+            return self.recorded(
+                artifacts.run_maintenance_pass, RuntimeState(host_claim=host), self.clients, self.scheduler,
+            )
 
 
 if __name__ == "__main__":

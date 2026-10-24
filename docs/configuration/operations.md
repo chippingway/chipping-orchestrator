@@ -719,7 +719,8 @@ which paths reach an issue decides what keeps it away:
   [maintenance pass](#reclaiming-a-finished-issues-artifacts) reclaims the worktree and branches of a closed issue on
   one terminal label whatever its control labels or obsolete bare labels say, though only what its gates prove nothing
   else needs, and keeps those of a closed issue carrying only an obsolete bare label, which has no workflow label to
-  own them by. Closing an
+  own them by, and those of one whose pinned comment the selected build refuses, saying so in a local warning each
+  pass. Closing an
   issue retires it into these paths, not out of them: retire that way only work whose records the selected build
   reads, and keep the rest out with its repository.
 - **Community pull requests.** The per-tick community sweep writes to open pull requests from authors outside
@@ -1385,7 +1386,9 @@ need the isolation described under
   the same claim for each worktree it syncs, before it reads the issue, and holds it until that worktree's rebase,
   push, park, or crash recovery is done, so a refresh and a dispatch — or two pollers' refreshes — never write one
   issue at once; a refresh that finds the issue held skips that worktree for the tick with no read, rebase, push, or
-  write, and syncs the rest. A close a refused poll read for the issue
+  write, and syncs the rest. The terminal-artifact maintenance pass takes the same claim for each candidate before it
+  reads the issue and holds it through the deletions, and keeps a candidate whose issue is held with nothing read or
+  deleted. A close a refused poll read for the issue
   costs a pinned read, an issue read behind it, and a pinned read behind that, and is kept in its own memory and
   nowhere else: a reopen before then cannot take the reading away, and a later tick sweeps it under the claim. It is
   tied to the late cycle the record names only where the issue still reads closed behind that read and the record read
@@ -2209,25 +2212,32 @@ Every gate fails closed, and they are asked cheapest first. Nothing is deleted u
 
 1. **Nothing is running for this issue.** The live scheduler is asked per candidate, underneath the barrier that
    already emptied it. An unreadable answer keeps the candidate.
-2. **The issue has really ended.** It is closed, it carries exactly one terminal workflow label, and its pinned state
-   parses. Two workflow labels at once, a pinned comment holding something that is not a state, an issue or a comment
-   that could not be read: each keeps the candidate.
-3. **No pull request still stands on it.** Open pull requests are looked up for both branch spellings and for the
+2. **No other orchestrator writer holds the issue.** The issue's writer claim — the one every dispatch and the base
+   refresh take, in `WORKTREES_DIR/.issue-writer-claims/` — is taken before the issue is read and held through every
+   gate below and the deletions, so nothing else on this host relabels the issue or rewrites its pinned comment in
+   between. A claim another holder has, or one that cannot be taken at all, keeps the candidate with nothing read.
+3. **The issue has really ended.** It is closed, it carries exactly one terminal workflow label, and its pinned comment
+   is one this build admits — a version-1 record, or none at all. Two workflow labels at once, an issue or a comment
+   that could not be read, and a pinned comment admission refuses — unversioned, under a version this build does not
+   admit, or holding something that is not a state — each keep the candidate. A refused comment keeps it even on an
+   issue closed on `done` or `rejected` whose artifacts every other gate would clear: it reads back as empty as an
+   issue that recorded nothing, and taken that way the pull request and branch it names would go unasked.
+4. **No pull request still stands on it.** Open pull requests are looked up for both branch spellings and for the
    recorded number, whatever base they target. A human reviewing a branch is standing on it even though the issue
    underneath has ended. Every branch lookup is **owner-qualified** — the query head is
    `<this repository's owner>:<branch>`, never the bare branch name — so a fork that happens to carry a branch of the
    same name is not mistaken for this candidate's pull request, in either direction: a fork's open PR cannot keep an
    artifact this repository owns, and it cannot be read as the ended PR that accounts for a commit. The recorded
    number is read straight off this repository for the same reason.
-4. **Every commit an artifact holds survives its deletion.** A branch's tip and the commit a checkout's own HEAD is on
+5. **Every commit an artifact holds survives its deletion.** A branch's tip and the commit a checkout's own HEAD is on
    each have to be contained in the configured base or in a pull request that has ended. The remote is asked what the
    branch is at whatever the base says, because the two answer different questions — a merged tip can sit under a
    branch somebody has since pushed past.
-5. **The checkout carries nothing of its own.** It has to be this issue's own branch, prove it holds nothing modified
+6. **The checkout carries nothing of its own.** It has to be this issue's own branch, prove it holds nothing modified
    or untracked, and prove it hides nothing besides: a path the repository's own `.gitignore` covers — a `.env`, a
    virtualenv, a build directory — keeps the whole candidate, because `git worktree remove` would take all of it and
    git does not count it as dirty.
-6. **Nothing has touched the checkout for an hour.** Its own directory (for what is created or removed at the top of
+7. **Nothing has touched the checkout for an hour.** Its own directory (for what is created or removed at the top of
    it) and its index and reflog (for the edit-and-commit that moves neither) are read against a one-hour quiet period.
    That period is a constant, not a knob: what a shorter one buys is the chance to delete a tree somebody is standing
    in.
@@ -2284,13 +2294,23 @@ channel by the writer itself rather than on the lifecycle channel — so an oper
   [reason-code table](../observability/event-streams.md#terminal_artifact_cleanup-records):
   - `active_claim` / `recent_activity` are self-clearing — work was in flight, or the checkout had been touched inside
     the hour. Nothing to do.
+  - `writer_claim_refused` is another orchestrator writer holding the issue's writer claim on this host — a dispatch,
+    a base refresh, another poller's pass — and clears itself once it lets go. Where the `orchestrator.scheduler`
+    log's `writer claim skip` line for that issue says `reason=unusable`, or the lifecycle log says the claim could not
+    be keyed, nothing holds it: the claim namespace, or the repository's id, could not be read, and that is the host or
+    the token to fix.
   - `tip_moved` is a race that also clears itself: something moved the artifact between the proof and the mutation.
   - `unproven` is the classification's own answer, and the log line beside it names the artifact it kept the candidate
     for. Look at that artifact: an open pull request still on the branch (close or merge it), a checkout carrying
     modified, untracked, or ignored files (take what you want off it — an ignored `.env` or a stray build directory is
     the common one), commits the base and every ended pull request do not account for (push them somewhere that
     outlives the branch, or accept the artifact stays), an issue that is not closed, or a workflow label that is not
-    exactly one terminal.
+    exactly one terminal. `state_unsupported` and `state_malformed` are a pinned comment this build refuses — an
+    object unversioned or under a version it does not admit, and a body that is no state at all — and a warning on
+    `orchestrator.worktree_lifecycle` names the repository, the issue, the comment, and the version found against the
+    one supported. The pass reclaims nothing of that issue's for as long as the comment stands, so the record and its
+    artifacts are yours to dispose of by hand, as
+    [deploying without migration](#preserve-records-for-manual-disposition) describes.
   - The `*_unreadable` reasons are a read that failed rather than a fact about the artifact: an expired token, a
     repository this installation cannot see, a remote that was down, a git command that would not run. They clear
     themselves when the underlying read works, and the log line beside them says which artifact could not be read.

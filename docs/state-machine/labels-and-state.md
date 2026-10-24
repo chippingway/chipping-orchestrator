@@ -440,7 +440,9 @@ finalizes on a later tick, with no human. Only a seed write that fails parks (`c
 split's placement parks on a held child, as its failed seed does (`late_children_failed`), for the next attempt to
 supersede. The pre-tick base refresh takes the same claim for each worktree it syncs, after skipping the issues its own
 process's scheduler reports active, so another poller's refresh or dispatch holding the issue keeps it out of this one's
-refresh as well ([Base refresh](#base-refresh)). The supported topology and the namespace's access assumptions are in
+refresh as well ([Base refresh](#base-refresh)). The terminal-artifact maintenance pass takes it too, for each candidate
+from before it reads the issue through the deletions, and keeps a candidate whose issue another holder has with
+nothing read or deleted. The supported topology and the namespace's access assumptions are in
 [`../configuration/operations.md#running-more-than-one-poller`](../configuration/operations.md#running-more-than-one-poller).
 
 A parent's seed or repair of a child holds the child's reading taken under its claim to admission before it adds
@@ -965,8 +967,10 @@ raises `RecordRefused`, from `github/pinned_refusal.py`, so its caller stops). G
 stamped with `schema_version: 1` on their first write, and neither writer sends a state the next reading would refuse —
 another version, a value JSON cannot spell, or nesting past the recursion limit. Ordinary dispatch refuses an issue
 whose comment is refused admission before any guard or handler reads it
-([Per-tick flow](#per-tick-flow-workflowengineticktick)), and the base refresh runs no route over its worktree
-([Base refresh](#base-refresh)).
+([Per-tick flow](#per-tick-flow-workflowengineticktick)), the base refresh runs no route over its worktree
+([Base refresh](#base-refresh)), and the terminal-artifact maintenance pass keeps every checkout and branch of its
+issue, closed on a terminal label or not, reading the comment under the issue's writer claim
+([what keeps a candidate](../configuration/operations.md#what-clears-a-candidate-and-what-keeps-it)).
 
 Most writers rewrite the whole record from the state they read (`write_pinned_state`), which lands wherever it can — in
 place, or as a new comment where none is named or the named one is gone or no longer state. A **guarded commit**
