@@ -32,6 +32,7 @@ from tests.workflow.engine.unfinished_cleanup_support import (
     UnfinishedCleanupCase,
 )
 from tests.workflow.fixtures import LABEL_READY, LABEL_REJECTED
+from tests.workflow.observation_support import left_on_github, refuse_record
 
 _OWED = frozenset((OWNER_NUMBER,))
 
@@ -97,6 +98,30 @@ class DirectCleanupFailureTest(DeferralCase, unittest.TestCase):
 
                 self.assertTrue(self._cancelled())
                 self.assertEqual(self._observed(REPO_SLUG), frozenset())
+
+
+class DirectRefusedRecordTest(DeferralCase, unittest.TestCase):
+    """A closed owner whose pinned record admission refuses, on a schedulerless tick.
+
+    Both direct modes reach the same sweep through observation holds of their
+    own, and neither writes anything for it -- on the poll that reads it
+    closed, the pass, or the exit that asks whether its ending is over.
+    """
+
+    def test_both_direct_modes_leave_it_as_it_stands(self) -> None:
+        for limit in _DIRECT_LIMITS:
+            with self.subTest(limit=limit):
+                self.setUp()
+                refuse_record(self.github, OWNER_NUMBER)
+                before = left_on_github(self.github, OWNER_NUMBER)
+
+                with self.assertLogs(WORKFLOW_LOG) as logged:
+                    ticked_directly(self, limit)
+                    said = list(logged.output)
+
+                self.assertEqual(left_on_github(self.github, OWNER_NUMBER), before)
+                self.stage.assert_not_called()
+                self.assertTrue(any("running no cleanup" in line for line in said), said)
 
 
 class DirectRecoveryLabelTest(UnfinishedCleanupCase, unittest.TestCase):

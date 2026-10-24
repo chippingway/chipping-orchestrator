@@ -8,7 +8,9 @@ the latch is scoped to a cycle only where the record is read first and the
 issue, read behind it, is still closed -- with the record read again behind
 that, naming the same cycle; a close that cannot be confirmed is held
 unresolved and ends no cycle on its own. A retirement the holder noted on the
-claim stands in for the cycle the record has stopped naming.
+claim stands in for the cycle the record has stopped naming -- on a record
+admission accepted, since one it refuses confirms nothing and is held
+unresolved the same way.
 
 Reached from every dispatch seam the claim refuses with a closed reading in
 hand (`issue_processing._writer_claim`), and from nowhere else.
@@ -25,7 +27,11 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.scheduler import claim_notes as _claim_notes
-from orchestrator.workflow.engine import observations as _observations, stage_targets as _stage_targets
+from orchestrator.workflow.engine import (
+    close_admission as _close_admission,
+    observations as _observations,
+    stage_targets as _stage_targets,
+)
 from orchestrator.workflow.late_split import endings as _endings, state as _late_state
 
 log = logging.getLogger("orchestrator.workflow")
@@ -64,13 +70,14 @@ def _kept_contended_close(
     or one already marked over -- adds nothing, and leaves any older latch on
     the issue as it was for the pass under the claim to answer. One that is
     open again by the read behind the record, and one whose reads failed,
-    never found the record holding still, or found it naming a cycle and then
-    none, are held UNRESOLVED: still routed to a pass under the claim, so the
-    reading survives the contention, but ending no cycle on its own, since the
-    cycle that pass finds may be the fresh one. That pass ends a cycle with it
-    only where the issue is closed again under the claim. Every latch it keeps
-    is a `fresh` reading, which withdraws a settlement this process's own
-    publication hold is still postponing.
+    found a record admission refuses, never found the record holding still,
+    or found it naming a cycle and then none, are held UNRESOLVED: still
+    routed to a pass under the claim, so the reading survives the contention,
+    but ending no cycle on its own, since the cycle that pass finds may be the
+    fresh one. That pass ends a cycle with it only where the issue is closed
+    again under the claim. Every latch it keeps is a `fresh` reading, which
+    withdraws a settlement this process's own publication hold is still
+    postponing.
 
     The holder's retirement note is asked before the first read and again
     behind every read, record and issue alike and whatever the record says,
@@ -171,7 +178,14 @@ def _ended_cycle(
     the record was read, and one standing behind each read since -- and the
     note standing now, behind the read of `state`, joins it whatever the
     record says.
+
+    A record admission refuses raises instead. It reads back with no cycle,
+    and that is not the record saying the close ends none: neither a note
+    nor a retirement in flight may name a cycle for it, so the close is held
+    unresolved for the pass under the claim, which refuses it in turn.
     """
+    if _close_admission.refuses(state, "tying the close it read to no cycle"):
+        raise RuntimeError(f"issue #{issue_number}'s record is one admission refuses")
     notes.add(_claim_notes.noted_retirement(gh.repo_id, issue_number))
     late_close_reading = importlib.import_module(_stage_targets._LATE_CLOSE_READING_OWNER)
     cycle = late_close_reading._ending_cycle(spec, issue_number, state)

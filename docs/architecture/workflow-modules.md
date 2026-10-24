@@ -463,13 +463,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             with any closed reading carried there; and whether a pass's refetch leaves its admission
     dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and keep the
                             enumeration's own disposition when a worker submission is refused -- re-recording only a
-                            cleanup it still holds, alongside this process's worker and with no read moment
+                            cleanup it still holds, alongside this process's worker and with no read moment; a close
+                            on a pinned record admission refuses is retained with nothing written for it
     cleanup_observation.py keep a close through cleanup exceptions and unsettled endings, including an ending owed
-                            under a label no sweep queries; settle only after the defining stage proves it complete
+                            under a label no sweep queries; settle only after the defining stage proves it complete,
+                            which it never does over a read that failed or a record admission refuses, on any label
+                            and open or closed
     dispatch_partition.py  combine fresh poll results and still-owed closes, record every closed reading's receipt
                             before submission, a family-bucket fallback's included, under the issue's writer claim --
-                            only the latch where it is refused -- carry the moment read before the listing to each
-                            closed reading's worker, and include deferred issues that enumeration did not yield
+                            only the latch where it is refused, and where the record is one admission refuses --
+                            carry the moment read before the listing to each closed reading's worker, and include
+                            deferred issues that enumeration did not yield
     issue_processing.py    the issue writer claim every dispatch seam takes before its refetch, guards, close recovery,
                             and handler, keyed on the client's rename-proof `repo_id`, with a contender skipping the
                             issue whole, leaving its latch and holds as found, and keeping a closed reading its caller
@@ -509,9 +513,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             record is read again, a bounded number of times), or to the retired cycle the holder noted
                             on the claim -- the note is asked before the first read and behind every read, whatever the
                             record says, and one found is kept for the rest of the reads, past a release stamped over
-                            it; a close reopened, restarted past, unreadable, never confirmed, or read behind a record
-                            that named a cycle and then none is held unresolved, and a record naming no cycle at every
-                            read leaves an older latch as it was
+                            it; a close reopened, restarted past, unreadable, refused admission, never confirmed, or
+                            read behind a record that named a cycle and then none is held unresolved, and a record
+                            naming no cycle at every read leaves an older latch as it was
+    close_admission.py      the admission the close owners outside the ordinary stage guard ask of the record they
+                            read under the issue's writer claim -- the receipt and the probe behind it, a contender's
+                            tie to a cycle, the closed-owner sweep, and the check that an ending is over: a record it
+                            refuses is answered as a read that established nothing, kept in the latch with nothing
+                            written, and said in one local line naming the repository, issue, and version found
     observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos naming the cycle their
                             receipt was for, which a claim carries rather than being declined by it; thread scans owed
                             once per owner and cycle and again once another poller held the issue since the walk,
@@ -2890,7 +2899,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             including the branch reclamation left for cleanup when the supersession is undone
       late_cleanup_state.py pass and reclamation values, obligation updates, and the shared close barrier that
                             persists cancellation once, for a close that ends this cycle, while retaining the current
-                            generation and its debts
+                            generation and its debts; each decision the pass records goes through the cancellation
+                            owner's checkpoint, so one the comment does not take stops the delete it orders
       late_cleanup_reading.py
                             owed branches, held snapshots, opaque-ledger refusal, fresh consumer scans, and exact
                             generation-derived snapshot ownership; a consumer whose lookup, state, or labels cannot be
@@ -2943,16 +2953,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             crash took the label off, retried for as long as the remote refuses it because the owner
                             keeps the swept label until it lands; and a swept label put BACK on an owner still owing
                             the remote that a hand relabel moved outside all four, since after a restart the label is
-                            the only thing that reaches a closed issue
+                            the only thing that reaches a closed issue. None of it runs over a pinned record admission
+                            refuses: the pass stops at its one read, writing and reclaiming nothing
       late_cancellation_reading.py
                             outstanding cleanup and pull-request obligations, unprovable holds, and the combined
                             settled-ledger proof required before a cancelled cycle may end or restart
       late_cancellation_state.py
                             persist cancellation before telemetry and reconstruct a retired cycle from retained
-                            obligations and this issue's ancestry; already-cancelled generations remain unchanged
+                            obligations and this issue's ancestry; already-cancelled generations remain unchanged; the
+                            checkpoint every ending's step is written through confirms the write landed and raises
+                            where the comment did not take it -- a record turned refused, a withheld state -- before
+                            anything that depends on it acts
       late_close_reading.py fresh owner and cycle readings, close-receipt markers, and the proof that cleanup ended;
                             a retirement in flight can still supply the cycle a concurrent close must name, and so can
-                            a latch scoped to the cycle the record says a retirement dropped
+                            a latch scoped to the cycle the record says a retirement dropped -- neither for a record
+                            admission refuses, which names no cycle, proves no ending over, and keeps the reading
       late_close_observation.py
                             claim and post observed-close receipts, adopt them after a process restart -- the mark
                             written inside the scan claim, so a refused mark is walked for again -- and turn fresh or
@@ -2961,7 +2976,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that moved there binds nothing -- posted only for a cycle the held close ends and remembered
                             per cycle, scans are owed per cycle and again behind another poller's hold, a retired cycle
                             is adopted from a close scoped to it, and the dependency-walk barrier and poll guard end no
-                            cycle restarted since the close -- the guard stopping the tick
+                            cycle restarted since the close -- the guard stopping the tick; a record admission refuses
+                            is posted and remembered no receipt, and its reading is kept
       late_cancellation_pr.py
                             release and close the held pull request with a cycle receipt, persist changed obligations,
                             report their outcome, and verify the publication again after cleanup

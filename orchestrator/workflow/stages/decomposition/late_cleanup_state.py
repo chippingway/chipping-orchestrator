@@ -4,7 +4,8 @@
 
 One pass keeps its issue and scan together. Resource updates retain failed
 readings, and a close is made durable once before reclamation continues
-with the cancelled generation.
+with the cancelled generation. Every decision the pass records lands before
+the delete it orders: one the pinned comment did not take stops the pass.
 """
 from __future__ import annotations
 
@@ -20,7 +21,6 @@ from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.late_split import (
     formats as _formats,
     obligations as _obligations,
-    state as _late_state,
 )
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
@@ -55,9 +55,12 @@ class _Pass:
     scan: _ChildScan
 
     def persist(self, generation: LateGeneration) -> None:
-        """Make one step of this pass durable before the next one acts."""
-        _late_state.write_late_generation(self.state, generation)
-        self.gh.write_pinned_state(self.issue, self.state)
+        """Make one step of this pass durable before the next one acts, or stop the pass.
+
+        Written through the cancellation owner's checkpoint, so a decision the
+        comment did not take raises before the delete it would have ordered.
+        """
+        _late_cancellation_state._persisted(self.gh, self.issue, self.state, generation)
 
 
 @dataclass(frozen=True)

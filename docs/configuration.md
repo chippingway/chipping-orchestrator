@@ -575,7 +575,9 @@ examples.
   decide that pull request — a verdict `N>1` therefore picks up that many ticks later as well. A closed snapshot
   owner behaves the same way: it keeps its `workflow:decomposing` / `workflow:umbrella` label, so the cleanup sweep
   revisits it every pass until its obligation ledger is fully reconciled, and `N>1` stretches how long a superseded
-  branch or an unreclaimed snapshot ref survives by that many ticks.
+  branch or an unreclaimed snapshot ref survives by that many ticks. A closed owner whose pinned comment the build
+  refuses is the exception: a close observed on it stays held in memory, so it gets a refused cleanup pass every tick
+  whatever `N` is, until the comment is dealt with or the poller restarts.
 - `DEPENDENCY_POLL_EVERY_N_TICKS` — default `5`. how many ticks apart an **open** `workflow:blocked` /
   `workflow:umbrella` issue is dispatched (see [GitHub rate limits](#github-rate-limits) below). Both handlers are
   dependency walks that spawn nothing, but each pass reads every child, so a repo holding waiting parents and children

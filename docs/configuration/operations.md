@@ -704,7 +704,10 @@ which paths reach an issue decides what keeps it away:
   `workflow:decomposing`, `workflow:umbrella`, `workflow:ready`, or `workflow:blocked` goes to the
   [closed-owner sweep](../state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own) instead,
   which ends the cycle, closes the pull request it held, reclaims what its ledger owes the remote, and writes
-  `rejected`; a control label defers those steps but not the cancellation it records in the pinned comment. The
+  `rejected`; a control label defers those steps but not the cancellation it records in the pinned comment. Over an
+  owner whose pinned comment the selected build refuses, that sweep and the close receipt a poll would post write
+  nothing, and its pull request, branch, and snapshot ref stay where they are; a close the poll read on it is held in
+  memory, costing a refused pass every tick until the comment is dealt with or the poller restarts. The
   [maintenance pass](#reclaiming-a-finished-issues-artifacts) reclaims the worktree and branches of a closed issue on
   one terminal label whatever its control labels or obsolete bare labels say, though only what its gates prove nothing
   else needs, and keeps those of a closed issue carrying only an obsolete bare label, which has no workflow label to

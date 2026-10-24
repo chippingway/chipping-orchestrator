@@ -41,7 +41,7 @@ def refusing() -> Mock:
     return Mock(return_value=_snapshot_refs.SnapshotOutcome.REFUSED)
 
 
-def cleanup_settled(github, spec, issue_number: int) -> bool:
+def cleanup_settled(github, spec, issue_number: int) -> bool | None:
     """Ask the seam itself whether a cleanup's reading may be handed back.
 
     Driven directly for the one answer no whole tick can stage: what the

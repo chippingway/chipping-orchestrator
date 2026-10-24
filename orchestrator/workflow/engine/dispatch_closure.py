@@ -5,7 +5,9 @@
 The shared observation registry retains a close until its cycle is settled.
 Receipt recording is resolved on its stage owner, and a refused worker
 submission leaves the obligation as the enumeration's own reconciliation left
-it, for the next poll.
+it, for the next poll. A close on an issue whose pinned record admission
+refuses is retained with nothing written for it, since that record says
+neither what a receipt would name nor that nothing is owed.
 """
 from __future__ import annotations
 
@@ -51,10 +53,11 @@ def _recorded_at_poll(
     and everything after it is a request that can fail. Dropped again only
     where the record positively says there is nothing to end -- a closed issue
     with no late cycle is owed a turn, not an observation, and carrying one
-    would send it through a cleanup pass it never earned. `read_at` is a
-    moment no later than the read `issue` is, which the latch keeps as a
-    `fresh` reading; without one this is an owed reading retried, which
-    withdraws nothing.
+    would send it through a cleanup pass it never earned. A record admission
+    refuses never says that, and is kept with nothing posted for it.
+    `read_at` is a moment no later than the read `issue` is, which the latch
+    keeps as a `fresh` reading; without one this is an owed reading retried,
+    which withdraws nothing.
 
     Answers whether the reading was kept, so a caller that has to hold one
     across the pass it is handing it to knows whether it is holding anything.

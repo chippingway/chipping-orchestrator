@@ -344,7 +344,12 @@ handler and can stop the tick outright, and a CLOSED issue on `workflow:decompos
 `workflow:ready`, or `workflow:blocked` goes to the cleanup sweep instead of the stage its label names — the first
 two because a late adjudication runs there, the other two because a decomposition outcome that landed after its
 owner was observed closed can leave that adjudication's ending under one of them. Both are on the delivery-stages
-page below. The delivery stages — pickup through the PR loop — are in
+page below. The sweep acts on no pinned record admission refuses, and neither does the close observation and
+recovery around any closed reading: each reads the record under the issue's writer claim and answers a refused one
+as a read that established nothing, posting, marking, adopting, relabelling, finishing, or reclaiming nothing for it
+and holding the close as it would hold one whose record could not be read
+([closed-owner cleanup sweep](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own)).
+The delivery stages — pickup through the PR loop — are in
 [`state-machine/delivery-stages.md`](state-machine/delivery-stages.md); the two operator-applied conversation stages
 are in [`state-machine/conversation-stages.md`](state-machine/conversation-stages.md). Which module owns each handler
 is in [`architecture/workflow-modules.md`](architecture/workflow-modules.md), and the dispatch that reaches one in

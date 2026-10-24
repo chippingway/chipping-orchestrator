@@ -334,7 +334,8 @@ capacity-exempt bucket); the next poll admits either afresh, under the caps and 
 it too, for the one thing it writes: the pinned read and close receipt behind a closed fan-out issue, and the same pair
 a refused cleanup submit spends on a reading still held. Those two ask for it *alongside* — granted beside a worker of
 this same process that holds the issue, since the receipt is an added comment built to land beside one, and an
-ordinary exclusive attempt against every other process.
+ordinary exclusive attempt against every other process. Over a record admission refuses, that read posts nothing,
+remembers nothing, and keeps the reading, which that record neither ties to a cycle nor says is owed nothing.
 
 An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published, relabelled,
 written, run, or accounted for, and the submit's publication hold and any latched close are left as they were. A close
@@ -354,7 +355,10 @@ record named a cycle and then none is kept *unresolved*. The next tick routes th
 claim. A scoped close marks the cancellation if its cycle is still the record's — and puts a retired one back and
 cancels it — and is settled with nothing marked if the holder has since started a fresh cycle, unless the issue is read
 closed again after the holder let go, which is a close of the fresh cycle; an unresolved one marks only a cycle the
-issue reads closed over under the claim, and is settled with nothing marked on an issue open again.
+issue reads closed over under the claim, and is settled with nothing marked on an issue open again. A record
+admission refuses is read as one whose reads failed: neither a note on the claim nor a retirement in flight names a
+cycle for it, the close is kept unresolved, and the cleanup pass under the claim refuses the record in turn, writing,
+marking, and reclaiming nothing.
 
 The same proof binds a close this process's own poll read. Every acquisition signs the claim file with a per-process
 token, every hold stamps the moment it let go on the host's monotonic clock, and an acquisition that finds another
@@ -821,7 +825,9 @@ busy.
   other pass revisits a closed issue. It is the one sweep entry that resumes no workflow: what it ends is the late
   cycle, and it reaches a terminal only once that cycle owes the remote nothing (see above). An issue on any of the
   four with no late cycle at all costs the pass its one pinned read and nothing else — it is not written to, not
-  relabelled, and not commented on.
+  relabelled, and not commented on. One whose pinned record admission refuses gets no more, whatever cycle its
+  comment still carries — nothing is marked, finished, relabelled, or reclaimed for it — though a close the poll read
+  on it stays held, routing a refused pass to it every tick until a current record is back or the process exits.
 
 The closed-issue sweep issues one closed-issue query per sweep label the repository defines, per repo, every tick —
 a fixed request cost that drives GitHub primary-rate-limit exhaustion on multi-repo hosts. The four cleanup labels

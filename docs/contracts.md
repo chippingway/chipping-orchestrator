@@ -97,11 +97,12 @@ Historical forms the runtime still reads stay documented in their specifications
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
-specification says what a reader does with it. Current-format authentication [C-04], writer claims and artifact
-ownership [C-05], guarded and uncertain-write recovery [C-06], approval evidence [C-09], pinned session commands [C-14],
-lifetime run accounting [C-15], and the audit-log recovery exception [C-12] remain required. Optional fields the current
-format defines and current transactions a crash or lost write interrupted are current state, not historical
-compatibility.
+specification says what a reader does with it. Close observation, recovery, and cleanup read an unsupported record as
+neither a fresh owner nor a cycle with nothing left owed, and write nothing for it. Current-format authentication
+[C-04], writer claims and artifact ownership [C-05], guarded and uncertain-write recovery [C-06], approval evidence
+[C-09], pinned session commands [C-14], lifetime run accounting [C-15], and the audit-log recovery exception [C-12]
+remain required. Optional fields the current format defines and current transactions a crash or lost write interrupted
+are current state, not historical compatibility.
 
 **Specs:** [state](state-machine/labels-and-state.md#pinned-state),
 [branches](security.md#scheduled-artifact-reclamation),
@@ -111,9 +112,11 @@ compatibility.
 [events](observability/event-streams.md#audit-event-log-event_log_path),
 [loggers](../.agents/skills/develop/SKILL.md#workflow-owners-and-stage-modules),
 [evidence](security.md#what-a-trusted-pinned-record-still-cannot-license),
-[deployment without migration](configuration/operations.md#deploying-without-migration).
+[deployment without migration](configuration/operations.md#deploying-without-migration),
+[close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own).
 
-**Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py).
+**Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py),
+[refused closes](../tests/workflow/engine/test_dispatch_refused_record_cleanup.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -142,7 +145,9 @@ cleanup; those also require
 The default `WORKTREES_DIR` follows the first configured repository, so pollers with different repository lists can
 resolve different roots. Artifact maintenance needs
 [exclusive access to that host's worktrees](architecture.md#process-model). Handle crashes, external changes, and
-records written before acquiring the claim; [C-06] covers lost or refused writes and comment capacity.
+records written before acquiring the claim; [C-06] covers lost or refused writes and comment capacity. Close
+observation, recovery, and cleanup admit the record they act on from a read under the issue's claim, the poll's
+alongside one included; a close held in memory never stands in for that record.
 
 **Specs:** [ownership](architecture.md#design-constraints), [claims](architecture.md#process-model),
 [poller setup](configuration/operations.md#running-more-than-one-poller).
@@ -156,7 +161,9 @@ records written before acquiring the claim; [C-06] covers lost or refused writes
 
 **Why:** An unconfirmed write proves neither success nor absence of an effect.
 
-**Limits:** Recovery rechecks prerequisites. An unreadable record or artifact does not prove the write failed.
+**Limits:** Recovery rechecks prerequisites. An unreadable record or artifact does not prove the write failed. Close
+recovery answers a record admission refuses as an unreadable one: the close it read is kept, and nothing is posted,
+marked, or reclaimed over it.
 A refused or unconfirmed write stops the steps that depend on it; a later tick reads state afresh. Guarded commits
 and direct writes check admission: neither writer may overwrite an unsupported or malformed authoritative comment,
 create a replacement beside it, or silently stamp it as current, whatever comment id its caller holds, and neither
@@ -173,7 +180,8 @@ Writer exclusion comes from [C-05].
 [recovery checkpoints](../tests/git/base_sync/test_persistence.py),
 [captured-run abandonment](../tests/workflow/engine/test_rewrite_landing_moved.py),
 [finalization checkpoints](../tests/workflow/engine/test_rewrite_finish_writes.py),
-[ready-ping recovery](../tests/workflow/stages/in_review/test_ready_ping_recovery.py).
+[ready-ping recovery](../tests/workflow/stages/in_review/test_ready_ping_recovery.py),
+[refused close recovery](../tests/workflow/stages/decomposition/test_late_refused_closes.py).
 
 ## C-07: Publication authority and exact revisions
 
