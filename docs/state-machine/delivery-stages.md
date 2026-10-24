@@ -1370,8 +1370,8 @@ because there it is the claim that this stage has already rerouted rather than a
   keeps the title and body the tick read -- and its pinned comment read afresh, and the whole binding proved again
   over them (`workflow/engine/rewrite_evidence_proof.py`): a pull request, remote branch, or checkout that moved, a
   changed configuration, a review subject or settled report replaced, a title or body edited on GitHub while the
-  commands ran, or an issue or comment nobody could read again makes the result **moved**, eligible for nothing
-  whatever it said. Otherwise a run that binds
+  commands ran, or an issue or comment nobody could read again -- a comment admission refuses among them -- makes the
+  result **moved**, eligible for nothing whatever it said. Otherwise a run that binds
   (`verification_local_runs.py`) is **fresh**, orchestrator-executed evidence of the rewritten head carrying exactly
   its commands, exit statuses, and outputs; a
   passing run whose transcript no artifact can carry records nothing and leaves the evidence to the reviewer; and

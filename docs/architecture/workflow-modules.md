@@ -32,7 +32,8 @@ see, and is called out as such.
 - **Operator log channels, spelled literally.** The engine, `late_split/`, and stage owners report on
   `orchestrator.workflow`, `workflow/transition_guard.py` on `orchestrator.state_machine`, and
   `engine/base_refresh.py` on `orchestrator.base_sync`, the channel of every git base-sync owner a refresh route runs
-  through. A module moved between packages does not take its channel with it — `tests/workflow/test_imports.py`
+  through — save a refused pinned record, which the refresh says on `engine/record_admission.py`'s line as dispatch
+  does. A module moved between packages does not take its channel with it — `tests/workflow/test_imports.py`
   walks the package and checks every owner that declares a logger.
 - **Nothing sits flat beside the package.** The retired spellings — `orchestrator.state_machine`,
   `orchestrator.workflow_drift`, `orchestrator.workflow_messages`, and the export and dependency manifests — resolve
@@ -494,7 +495,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and record timed evaluation analytics on success and failure
     record_admission.py    the admission every reading a dispatch acts on past its gate is held to, and the one
                             local line a refusal is said in (repository, issue, comment, admission status, and found
-                            and supported versions), which the gate's own refusal uses too; every stage handler
+                            and supported versions), which the gate's own refusal and the base refresh's
+                            (`base_refresh.py`) use too; every stage handler
                             starts on `admitted_state`, which raises `github/pinned_refusal.RecordRefused` where a human
                             edited the comment into a refused record after the gate read it, so the handler does nothing
                             past that read -- the writer raises the same refusal over such a record; `written`, a
@@ -1594,7 +1596,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     rewrite_evidence_proof.py
                             the readings a landed head's evidence route is held to, asked by the policy
                             (`rewrite_evidence.py`) and by `rewrite_finish_captured.py`: the binding proved again over
-                            the issue and comment read afresh, the review and report records heard beside a proof that
+                            the issue and comment read afresh -- a comment admission refuses holding as one nobody
+                            could read -- the review and report records heard beside a proof that
                             stopped at an unread reading (`proves_again`); the head held to the base tip its replay was
                             recorded as made onto (`standing_refusal`, over `git/base_sync/rewrite_facts.py`) -- a base
                             moved or unread holds, rewound under the head or never recorded defers; and the last word
@@ -2057,6 +2060,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             other writer on the host -- taken behind that guard and before the issue is read, on the
                             key every dispatch path takes, and held through whichever route follows, so a refused
                             issue is skipped with nothing read or written and synced on a later tick -- the
+                            admission of the pinned comment read under that claim, behind only an operator's
+                            hard-skip and ahead of every question asked of the record, so one admission refuses gets
+                            no route at all and its checkout, branches, pull request, labels, and comment stay as
+                            they stand, said only in `record_admission.py`'s local line -- the
                             dirty-tree refusal a pre-PR rebase owes, the base-lag probe, and the route: the git
                             `pre_pr` rebase for a branch nobody has pushed yet, the base-rewrite coordinator below
                             for one a pull request carries -- reached even with no lag, so a pinned anchor's

@@ -359,9 +359,10 @@ interpreter of its own finds nothing wrong, and exit.
   pre-tick base refresh takes the same claim on the same key for each worktree it syncs, behind the scheduler's
   active-issue skip and before it reads the issue, and holds it through the whole route — the pre-PR rebase, the PR
   rebase and its push, the unreadable-checkout park, and an interrupted attempt's recovery and settlement — so a refresh
-  contends with a dispatch, and with another poller's refresh, as two dispatches do. Nothing under it takes the claim
-  again: the anchor answer the dispatcher reaches too runs there under the dispatch claim. A refresh refused the claim
-  reads and writes nothing for the issue, and syncs it on a later tick. The claim is never waited for: a contender
+  contends with a dispatch, and with another poller's refresh, as two dispatches do. The pinned record it reads under
+  the claim is admitted before any route reads it, and one admission refuses gets no route. Nothing under it takes the
+  claim again: the anchor answer the dispatcher reaches too runs there under the dispatch claim. A refresh refused the
+  claim reads and writes nothing for the issue, and syncs it on a later tick. The claim is never waited for: a contender
   skips the issue with no effect but a close it
   read, which it keeps in its own latch and retries on a later tick; different issues never contend. That latch is tied
   to a late cycle only where the record is read first, the issue still reads closed behind it, and the record read again
@@ -495,8 +496,9 @@ stays uncompleted.
 Per-issue durable state lives in a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`).
 It is state only where the orchestrator's own account wrote it and its whole body is the marker, and a record only where
 its JSON object carries an integer `schema_version` of `1` (`github/pinned_state.py`): a comment refused admission is
-kept as it stands, never written over or replaced beside, and licenses nothing, ordinary dispatch of its issue
-included; a whole-state write over one raises, so its caller stops ([pinned state][pinned-state]).
+kept as it stands, never written over or replaced beside, and licenses nothing, ordinary dispatch of its issue and
+the base refresh of its worktree included; a whole-state write over one raises, so its caller stops
+([pinned state][pinned-state]).
 The label and the pinned JSON are the dispatch input, beside the one host-local record every developer launch reads
 first, the quota retirement record an Antigravity launch arms, and the resolution of it a poller holds in memory while
 the record will not take it ([design constraints](#design-constraints)).
@@ -1143,7 +1145,7 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
   each `workflow.engine.tick.tick`. Cadence: once
   per tick per repo: one `git fetch <spec.remote_name> <spec.base_branch>`, then per-worktree dispatch — a pre-PR
   worktree rebases locally, and a PR-having one behind base is rebased and pushed in the refresh itself, each under the
-  issue's writer claim.
+  issue's writer claim and only over a pinned record admission takes.
 - **`_handle_*` per issue** — function call. Trigger: the issue's workflow label. Cadence: once per tick per pollable
   issue, except an open `workflow:blocked` / `workflow:umbrella` issue, which is dispatched only on the ticks
   `DEPENDENCY_POLL_EVERY_N_TICKS` makes due (default every fifth, the first included); concurrent up to
@@ -1211,6 +1213,7 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
    │       worktrees whose handler is still in flight in scheduler,       │
    │       then sync each other one under its issue's writer claim        │
    │       (held by another poller → skipped, retried next tick)          │
+   │       (pinned record admission refuses → no route, warned)           │
    │     classify each pollable issue and submit to scheduler:            │
    │       open `workflow:blocked` / `workflow:umbrella` on a tick        │
    │         DEPENDENCY_POLL_EVERY_N_TICKS skips → dropped first          │

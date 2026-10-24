@@ -91,10 +91,12 @@ no promised conversion or continuity. Pinned-state admission accepts only versio
 carrying non-integer, float, boolean, string, or unsupported integer versions are refused, preserved unchanged, and
 cannot authorize work or dependent effects; ordinary dispatch refuses such an issue from the reading taken under its
 writer claim, before any guard, reconciliation, or handler acts, and holds every later reading it acts on to admission
-too. Genuine new pins are stamped with version 1 on first write. Cleanup that removes a historical format, alias, or
-Python call signature needs no compatibility reader, migration, or final 0.x release. A contract for current output does
-not oblige readers to accept earlier formats, nor functions to accept callers' obsolete argument aliases. This decision
-sets no compatibility or deprecation policy for later releases.
+too. The base refresh refuses one the same way, before any route reads a branch, pull request, or recovery anchor off
+it, and the base fetch every worktree shares licenses nothing on its checkout or refs. Genuine new pins are stamped
+with version 1 on first write. Cleanup that removes a historical format, alias, or Python call signature needs no
+compatibility reader, migration, or final 0.x release. A contract for current output does not oblige readers to accept
+earlier formats, nor functions to accept callers' obsolete argument aliases. This decision sets no compatibility or
+deprecation policy for later releases.
 Historical forms the runtime still reads stay documented in their specifications until their owners remove them.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
@@ -117,6 +119,7 @@ are current state, not historical compatibility.
 [loggers](../.agents/skills/develop/SKILL.md#workflow-owners-and-stage-modules),
 [evidence](security.md#what-a-trusted-pinned-record-still-cannot-license),
 [dispatch admission](state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick),
+[refresh admission](state-machine/labels-and-state.md#base-refresh),
 [deployment without migration](configuration/operations.md#deploying-without-migration),
 [close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own).
 
@@ -124,7 +127,9 @@ are current state, not historical compatibility.
 [refused closes](../tests/workflow/engine/test_dispatch_refused_record_cleanup.py),
 [dispatch admission](../tests/workflow/engine/test_dispatch_record_admission.py),
 [later readings](../tests/workflow/engine/test_dispatch_admitted_rereads.py),
-[child seeds](../tests/workflow/stages/decomposition/test_claimed_seeds.py).
+[child seeds](../tests/workflow/stages/decomposition/test_claimed_seeds.py),
+[refresh admission](../tests/workflow/engine/test_base_refresh.py),
+[refreshed tick](../tests/workflow/engine/test_tick_refresh.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -158,7 +163,8 @@ observation, recovery, and cleanup admit the record they act on from a read unde
 alongside one included; a close held in memory never stands in for that record. A parent's seed or repair of a child,
 an adopted one included, and its release of a group of children admit each child's record from a read under that
 child's claim, held through the write; an earlier family scan never stands in for it, and a release admits every
-child it would start before starting any.
+child it would start before starting any. The base refresh admits the record it routes a worktree on from its read
+under the claim it holds through that route.
 
 **Specs:** [ownership](architecture.md#design-constraints), [claims](architecture.md#process-model),
 [poller setup](configuration/operations.md#running-more-than-one-poller),
@@ -166,6 +172,7 @@ child it would start before starting any.
 
 **Checks:** [dispatch claims](../tests/workflow/engine/test_dispatch_writer_claims.py),
 [claimed admission](../tests/workflow/engine/test_dispatch_record_admission.py),
+[refresh claims](../tests/workflow/engine/test_base_refresh_contention.py),
 [host exclusion](../tests/runtime/test_exclusion.py),
 [claimed release](../tests/workflow/stages/decomposition/test_claimed_release.py).
 

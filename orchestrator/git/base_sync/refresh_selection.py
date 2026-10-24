@@ -17,6 +17,12 @@ Which records freeze a branch, and what ends each freeze, is the `frozen`
 owner's. What is added here is where in that order each is asked and -- for
 the two no write ever ends -- whether the stage that still has to act on the
 commit holds the issue.
+
+Every question past the hard-skip reads the pinned record, so the workflow's
+refresh admits that record before it asks any of them
+(`workflow/engine/base_refresh.py`): one admission refuses reads back empty,
+which here would answer as a record that holds nothing, and the refresh
+routes no worktree over it at all.
 """
 from __future__ import annotations
 

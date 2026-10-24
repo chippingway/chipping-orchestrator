@@ -32,6 +32,8 @@ from tests.git.base_sync.refresh_scenarios import (
 from tests.git.base_sync.report_debt_test_support import stands_on
 from tests.git.base_sync.sync_test_support import _git_result
 from tests.support.writer_claims import claimable, held_elsewhere, unusable_namespace
+from tests.workflow.engine.grant_edit_support import edited_at_grant
+from tests.workflow.observation_support import refuse_record
 
 ISSUE = support.ISSUE
 
@@ -40,6 +42,13 @@ HARDENED_PATCH = "hardened"
 _RESET_TO_THE_ANCHOR = (support.RESET_COMMAND, support.HARD_RESET_FLAG, support.BEFORE_SHA)
 
 RELABEL_ONLY = "crash_recovery_relabel_only"
+
+_WORKFLOW_LOG = "orchestrator.workflow"
+
+# The local line a refused record leaves on this issue, and what the refresh
+# says it does with the record.
+_REFUSED_RECORD = f"issue=#{ISSUE} pinned comment"
+_LEFT_STANDING = "running no base refresh route over it"
 
 # Another issue of the same repository, and the same issue number in another
 # repository: neither shares this issue's claim.
@@ -175,6 +184,74 @@ class ClaimScopeTest(_ContendedSyncCase):
         _assert_clean_publication(self, self, scenario)
         _assert_clean_state_comments(self, self)
         self.assertTrue(claimable(self.gh.repo_id, ISSUE), "and the claim goes with the route")
+
+
+class ClaimedAdmissionTest(_ContendedSyncCase):
+    """The record read under the claim decides, over the landing an interrupted attempt left.
+
+    Refused, that record reads back empty, so neither its anchor nor the
+    landing it names is seen: nothing is read off the checkout or the remote,
+    and nothing is settled, announced, relabelled, or written, whether the
+    record lost its version or no longer parses. Current, the recovery
+    finishes the landing once, as it always has.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._seed_pr_issue(**support._pending_attempt(support.REBASED_SHA), review_round=3)
+        stands_on(self.gh, support.REBASED_SHA)
+        self.current = self.gh.pinned_data(ISSUE)
+        self.scenario = _landed_recovery_scenario(support.REBASED_SHA)
+
+    def test_the_reading_at_the_grant_decides(self) -> None:
+        # Current until the claim is granted and refused under it: nothing is
+        # done and the refusal is said. Refused until the grant and repaired
+        # under it: the landing is finished once.
+        refused_at_the_grant = edited_at_grant({ISSUE: lambda: refuse_record(self.gh, ISSUE)})
+        with refused_at_the_grant, self.assertLogs(_WORKFLOW_LOG, level="WARNING") as logged:
+            self.scenario.run(self)
+            said = _refusals(logged.output)
+
+        self._assert_untouched(self.scenario, _unversioned(self.current))
+        self.assertEqual(len(said), 1)
+
+        with edited_at_grant({ISSUE: lambda: self.gh.seed_state(ISSUE, **self.current)}):
+            self.scenario.run(self)
+
+        self._assert_finished_once()
+
+    def test_a_held_unparsed_record_waits_unread(self) -> None:
+        # Held elsewhere, the issue is not read at all, so there is no refusal
+        # to say; let go, the refusal is said once and nothing else happens.
+        refuse_record(self.gh, ISSUE, parsed=False)
+
+        with self.assertLogs(_WORKFLOW_LOG, level="WARNING") as logged:
+            self._held_then_released(self.scenario)
+            said = _refusals(logged.output)
+
+        self._assert_untouched(self.scenario, {})
+        self.assertEqual(len(said), 1, "said once let go, and not while held")
+
+    def _assert_finished_once(self) -> None:
+        """One relabel, one notice, one finish, and no anchor left."""
+        self.assertEqual(self.gh.label_history, [(ISSUE, support.LABEL_VALIDATING)])
+        self.assertEqual(len(self.gh.posted_pr_comments), 1)
+        finishes = [
+            event.get(support.METHOD_FIELD) for event in self.gh.recorded_events
+            if event.get(support.EVENT_FIELD) == support.EVENT_BASE_REBASED
+        ]
+        self.assertEqual(finishes, [RELABEL_ONLY])
+        self.assertIsNone(self.gh.pinned_data(ISSUE).get(support.KEY_PENDING_PUSH_SHA))
+
+
+def _unversioned(record: dict) -> dict:
+    """`record` as a release before version 1 pinned it: the same fields, and no version."""
+    return {key: field_value for key, field_value in record.items() if key != "schema_version"}
+
+
+def _refusals(output: list[str]) -> list[str]:
+    """The warnings naming this issue's refused record and the refresh leaving it as it stands."""
+    return [line for line in output if _REFUSED_RECORD in line and _LEFT_STANDING in line]
 
 
 class _RivalPollers:

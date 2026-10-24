@@ -7,15 +7,17 @@ worktree that survived the previous tick, and what runs here is the sequence
 that fetch starts: an in-flight scheduler claim keeps a worktree out from
 under the worker still holding it, the issue's host-local writer claim keeps
 it out from under every other poller on the host and every other holder in
-this process, the git `refresh_selection` owner answers whether the issue
-behind a discovered directory lets its branch be touched at all, a dirty
-pre-PR tree is left alone, and the lag against base says whether there is
-anything to carry over.
+this process, an issue whose pinned comment admission refuses is left as it
+stands before anything is asked of that comment, the git `refresh_selection`
+owner answers whether the issue behind a discovered directory lets its branch
+be touched at all, a dirty pre-PR tree is left alone, and the lag against
+base says whether there is anything to carry over.
 What survives is routed by whether pinned state already carries a PR --
 the git `pre_pr` owner rebases the local branch nobody has pushed yet, while
 the base-rewrite coordinator beside this one has to keep the pushed head and
-the reviewer's SHA in step. The writer claim is held across whichever of those
-routes is taken, to its end.
+the reviewer's SHA in step. The writer claim is held across the issue and
+comment reading those answers are taken from and whichever of those routes is
+taken, to its end.
 
 The tick enters here because which issue's worktree may be touched, under
 whose claim, and by which route are the workflow's decisions; the git layer
@@ -25,12 +27,16 @@ observation of a push the recovery finds already landed, and the recovery's
 readings, refusals, and parks. Every finish of what landed is the workflow's.
 Its lines report on `orchestrator.base_sync`, the channel of every git owner a
 route runs through, so one operator filter follows a refresh from its fetch to
-its last write.
+its last write. The one exception is a refused record, said on the
+`record_admission` owner's line, so a refusal reads the same whether dispatch
+or this refresh met it.
 """
 from __future__ import annotations
 
 import logging
 from pathlib import Path
+
+from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport as _branch_transport, commands as _commands
@@ -42,12 +48,16 @@ from orchestrator.git.base_sync import (
 )
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import paths as _paths
-from orchestrator.github import client as _client
-from orchestrator.scheduler import writer_claims as _writer_claims
-from orchestrator.scheduler.service import IssueScheduler
-from orchestrator.workflow.engine import base_rewrite as _base_rewrite
+from orchestrator.github import client as _client, pinned_state as _pinned_state
+from orchestrator.scheduler import service as _scheduler_service, writer_claims as _writer_claims
+from orchestrator.workflow.engine import base_rewrite as _base_rewrite, record_admission as _record_admission
 
 log = logging.getLogger("orchestrator.base_sync")
+
+# What the refresh does with a reading admission refuses.
+_REFRESH_REFUSED = (
+    "running no base refresh route over it and leaving its checkout, branches, and pull request as they stand"
+)
 
 
 def _worktree_behind_base(
@@ -93,6 +103,15 @@ def _sync_worktree_with_base(
     pinned write, event, or report debt. Only this issue is skipped, and the
     next tick's refresh asks again.
 
+    The claim keeps every other orchestrator writer off the comment, but not
+    a human, who can edit it after the reading every route is chosen on was
+    admitted. Such an edit is met at the route's next pinned write: the
+    whole-state writer raises `RecordRefused` over it with nothing written,
+    which the walk reports as this issue's failure, and a guarded commit
+    refuses it, so nothing behind that write runs. A landed rewrite's finish
+    that reads the comment again to prove its evidence holds over such a
+    reading, as over one nobody could take.
+
     Nothing under it asks for the claim again, since a second writer would be
     refused by this hold. The one road below that the dispatcher reaches too
     -- the answer a standing anchor is owed -- is reached there under the
@@ -110,14 +129,43 @@ def _sync_worktree_with_base(
         _sync_claimed_worktree(gh, spec, worktree, issue_number)
 
 
+def _admitted_state(gh: _client.GitHubClient, issue: Issue) -> _pinned_state.PinnedState | None:
+    """The pinned comment a route may be chosen on, read under the caller's claim, or None where no route may be.
+
+    Nothing is asked of the comment before admission is. A record admission
+    refuses -- a missing or unsupported version, or a payload that will not
+    parse -- reads back empty, which is exactly what a branch nobody has
+    pushed and an attempt nobody interrupted read as: taken as current, its
+    absent `pr_number` would send the checkout to the pre-PR rebase, and its
+    absent anchor would say no recovery is owed, so every route would act on
+    a record nobody read. A refused one is said in the one local line
+    `record_admission` says every such refusal in, never posted, and the
+    issue's checkout, branches, pull request, labels, and comment are left
+    exactly as they stand. A comment that is not authenticated state at all
+    is no record, so an issue with none is routed as ever.
+
+    An operator's hard-skip is asked ahead of the comment, as the dispatcher
+    asks it ahead of its own reading: a held issue costs no read and says no
+    refusal, whatever its comment carries.
+    """
+    if _selection._hard_skipped(issue, issue.number):
+        return None
+    state = gh.read_pinned_state(issue)
+    if _record_admission.refuses(issue, state, _REFRESH_REFUSED):
+        return None
+    return state
+
+
 def _sync_claimed_worktree(
     gh: _client.GitHubClient, spec: _config_models.RepoSpec, worktree: Path, issue_number: int,
 ) -> None:
     """Route one worktree whose issue's writer claim this refresh holds.
 
-    Pre-PR worktrees are rebased locally when clean. PR worktrees always
-    reach the base-rewrite coordinator so a pinned crash-recovery anchor is
-    honored even when local HEAD already contains the latest base.
+    The issue is read here, under that claim, and only a pinned comment
+    admission takes is routed on (`_admitted_state`). Pre-PR worktrees are
+    rebased locally when clean. PR worktrees always reach the base-rewrite
+    coordinator so a pinned crash-recovery anchor is honored even when local
+    HEAD already contains the latest base.
 
     A lag that cannot be counted at all ends the sync, with one exception: a
     pinned anchor. There the failure IS the answer -- the checkout the
@@ -130,8 +178,8 @@ def _sync_claimed_worktree(
     if issue is None:
         return
 
-    state = gh.read_pinned_state(issue)
-    if _selection._issue_skips_base_sync(
+    state = _admitted_state(gh, issue)
+    if state is None or _selection._issue_skips_base_sync(
         issue, issue_number, state, worktree,
     ):
         return
@@ -166,7 +214,7 @@ def _sync_discovered_worktree(
     spec: _config_models.RepoSpec,
     worktree: Path,
     issue_number: int,
-    scheduler: IssueScheduler | None,
+    scheduler: _scheduler_service.IssueScheduler | None,
 ) -> None:
     """Sync one discovered worktree unless its handler is still active.
 
@@ -195,7 +243,7 @@ def _refresh_base_and_worktrees(
     gh: _client.GitHubClient,
     spec: _config_models.RepoSpec,
     *,
-    scheduler: IssueScheduler | None = None,
+    scheduler: _scheduler_service.IssueScheduler | None = None,
 ) -> None:
     """Fetch `origin/<base>` once for the spec and bring every existing
     per-issue worktree up to date.
@@ -270,6 +318,12 @@ def _refresh_base_and_worktrees(
     waiting before the issue is read and held through the route it takes; an
     issue somebody else holds is skipped this tick with nothing read or
     written, and every other worktree is synced all the same.
+
+    The fetch is the one effect shared by every worktree, and it moves only
+    the remote-tracking base ref. It licenses nothing on any one issue: an
+    issue whose pinned comment admission refuses gets no route at all, so its
+    checkout, local and remote branches, pull request, labels, and comment
+    stay exactly as the fetch found them.
     """
     fetch_r = _branch_transport._authed_target_fetch(spec, spec.base_branch)
     if fetch_r.returncode != 0:
