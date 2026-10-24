@@ -6,13 +6,15 @@ A case drives a stage through the in-memory client and reads back what it
 pinned, so a record the double would overwrite where production preserves it
 is a case asserting on a write production never makes. A record that would not
 parse -- built the way a case builds one, as an unparsed state and nothing
-more -- and one refused admission both stand: the whole-state write is
-answered unchanged and counted nowhere, and the record reads back refused.
+more -- and one refused admission both stand: the whole-state write raises
+`RecordRefused` as the real writer does, counted nowhere, and the record reads
+back refused.
 """
 from __future__ import annotations
 
 import unittest
 
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.github.pinned_state import SCHEMA_VERSION_KEY, AdmissionStatus, PinnedState
 from tests.support.fakes import FakeGitHubClient, make_issue
 
@@ -52,7 +54,8 @@ class PinnedRefusalTest(unittest.TestCase):
                 refuses(client, issue)
                 pinned = client._pinned[_ISSUE]
 
-                client.write_pinned_state(issue, PinnedState(pinned.comment_id, {_BRANCH_KEY: _STAGED}))
+                with self.assertRaises(_pinned_refusal.RecordRefused):
+                    client.write_pinned_state(issue, PinnedState(pinned.comment_id, {_BRANCH_KEY: _STAGED}))
 
                 self.assertEqual(client.write_state_calls, 0)
                 self.assertIs(client._pinned[_ISSUE], pinned)

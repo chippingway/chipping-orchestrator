@@ -82,7 +82,12 @@ Three non-workflow **control labels** modify behavior without occupying the work
 - `workflow:community_contribution` is applied by the per-tick open-PR sweep (on the `workflow/engine/community.py`
   owner, which the tick drives before per-issue dispatch): any open PR whose author is not in `ALLOWED_ISSUE_AUTHORS`
   is labeled and `HITL_HANDLE` is @-mentioned once per PR. Bot-authored PRs (Dependabot, Renovate, CI bots) are
-  skipped via GitHub's `user.type == "Bot"` flag — they open PRs structurally and are not community contributions. The
+  skipped via GitHub's `user.type == "Bot"` flag — they open PRs structurally and are not community contributions. So
+  is every PR that is an issue's own artifact, listed or not: one the orchestrator's own token account opened,
+  matched exactly against the login pinned state is authenticated by, and one standing on a branch of this repository
+  in the orchestrator-owned `orchestrator/` namespace, which a publication adopts whoever opened it (a fork's branch of
+  the same name is no branch of this repository). Such a PR is written only by that issue's own dispatch, which leaves
+  it untouched where the issue's pinned comment is [refused admission](#per-tick-flow-workflowengineticktick). The
   orchestrator does not otherwise drive these PRs. The label is the sweep's own dedup marker rather than an operator
   control, which is why it is namespaced where `backlog` / `paused` are not, and the namespaced spelling is the only
   one the sweep asks for: a bare `community_contribution` is a repository label it neither reads nor removes, so a PR
@@ -337,6 +342,36 @@ this same process that holds the issue, since the receipt is an added comment bu
 ordinary exclusive attempt against every other process. Over a record admission refuses, that read posts nothing,
 remembers nothing, and keeps the reading, which that record neither ties to a cycle nor says is owed nothing.
 
+Behind the refetch under the claim, and ahead of every dispatch guard, reconciliation, and handler, the pass reads the
+issue's pinned comment and admits it ([Pinned state](#pinned-state)); the guards decide on that reading, so what the
+poll or a scheduling classification read before the claim admits nothing, and a record that moved before the grant is
+decided as it reads under it. A record admission refuses — a missing, unsupported, or non-integer version, or a payload
+that will not parse — stops the pass there, on every dispatch path, labelled or not, open or closed: no restart is
+projected, no close or cancellation marked, no run-limit or seed park taken, no reconciliation, greeting, or stage
+handler run, so nothing is launched, charged, published, checked out, commented, pinned, relabelled, closed, or reopened
+for it. The one trace is a local warning naming the repository, the issue, the comment, its admission status, and the
+version found against the one supported; nothing is posted, and every later tick refuses it again until a human disposes
+of it ([Exclude or retire unsupported work](../configuration/operations.md#exclude-or-retire-unsupported-work)). An
+issue with no authenticated pinned comment is fresh and starts as ever, and a current record keeps every check behind
+admission. That gate is ordinary dispatch's: the cleanup route a closed owner takes instead of its stage and the close
+recovery wrapped around a pass hold their own readings to admission
+([closed-owner cleanup](delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own)), and the base refresh reads
+its records outside it.
+
+The claim keeps every other orchestrator writer off the issue, but not a human, who can edit the comment after the gate
+read it. So every reading the pass takes past the gate is held to admission as well. Each stage handler starts on its
+own reading through `workflow/engine/record_admission.py`, and one admission refuses abandons the handler there
+(`RecordRefused`, caught around the handler call) with nothing past it posted, relabelled, pinned, or launched. An edit
+landing after that reading is met by the handler's next whole-state write instead, which raises the same refusal with
+nothing written, so the handler is abandoned there, before anything that write was for — no best-effort catch around
+such a write takes the refusal for a failure to retry on a later tick; the charge every agent launch is taken through
+raises it too, however deep in a handler that reading or write is, and the two handlers that tear a scratch checkout
+down on every exit keep it, asking the record again at the teardown itself, since a guarded commit answers such a
+record rather than raising, and keeping it where that reading fails too
+([the agent-run circuit](#the-agent-run-circuit)).
+A family parent's release walk admits each child's record, read under that child's claim, before it releases any
+(below). None of these reconciles or repairs anything: the next tick's gate refuses the issue again.
+
 An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published, relabelled,
 written, run, or accounted for, and the submit's publication hold and any latched close are left as they were. A close
 the poll read for it is the one thing kept, in this process's latch alone — no receipt is posted — so a human reopening
@@ -388,22 +423,23 @@ withdraws nothing.
 A family-aware handler writes issues other than its own, so those writes take the target's claim as well, and decide on
 what they read behind it. The walk that relabels a `workflow:blocked` child `workflow:ready` claims every child it would
 release, then reads each again — its scan was taken before any claim, and another poller may have relabelled, finished,
-or closed one in between — and releases none if one is held, cannot be read, or no longer reads open and
-`workflow:blocked`, parking nothing; the next walk scans again. Recovery's orphan repair stops short of a held child
-without parking; a merged child's finalize reads each claimed child again and counts it by that reading, so one another
-poller finalized, relabelled, or reopened since the scan is never finalized twice, and leaves a held child as scanned,
-counted neither done nor closed by hand; and the snapshot-reclaimed notice leaves a held consumer's obligation owed. An
-ordinary split's seed is read and added to under the child's claim, never written as a fresh record: a poller that
-reached the child first may have held it for the seed it lacks, parked on the one pinned comment every reader takes, and
-the seed lifts that park in the same write. A child that poller still holds is left unseeded while the split creates the
-rest, and the split stops short of its summary and finalize, leaving the parent `workflow:decomposing` with every child
-recorded — exactly what the [half-finished recovery](delivery-stages.md#_handle_decomposing-label-workflowdecomposing)
-seeds under the claim and finalizes on a later tick, with no human. Only a seed write that fails parks
-(`child_seed_failed`), and only a late split's placement parks on a held child, as its failed seed does
-(`late_children_failed`), for the next attempt to supersede. The pre-tick base refresh takes the same claim for each
-worktree it syncs, after skipping the issues its own process's scheduler reports active, so another poller's refresh
-or dispatch holding the issue keeps it out of this one's refresh as well ([Base refresh](#base-refresh)). The
-supported topology and the namespace's access assumptions are in
+or closed one in between — and releases none if one is held, cannot be read, no longer reads open and
+`workflow:blocked`, or carries a pinned record admission refuses or nobody could read, on a late split's register as on
+an ordinary split's, parking nothing and saying the refusal only in its log; the next walk scans again. Recovery's
+orphan repair stops short of a held child without parking; a merged child's finalize reads each claimed child again and
+counts it by that reading, so one another poller finalized, relabelled, or reopened since the scan is never finalized
+twice, and leaves a held child as scanned, counted neither done nor closed by hand; and the snapshot-reclaimed notice
+leaves a held consumer's obligation owed. An ordinary split's seed is read and added to under the child's claim, never
+written as a fresh record: a poller that reached the child first may have held it for the seed it lacks, parked on the
+one pinned comment every reader takes, and the seed lifts that park in the same write. A child that poller still holds
+is left unseeded while the split creates the rest, and the split stops short of its summary and finalize, leaving the
+parent `workflow:decomposing` with every child recorded — exactly what the
+[half-finished recovery](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) seeds under the claim and
+finalizes on a later tick, with no human. Only a seed write that fails parks (`child_seed_failed`), and only a late
+split's placement parks on a held child, as its failed seed does (`late_children_failed`), for the next attempt to
+supersede. The pre-tick base refresh takes the same claim for each worktree it syncs, after skipping the issues its own
+process's scheduler reports active, so another poller's refresh or dispatch holding the issue keeps it out of this one's
+refresh as well ([Base refresh](#base-refresh)). The supported topology and the namespace's access assumptions are in
 [`../configuration/operations.md#running-more-than-one-poller`](../configuration/operations.md#running-more-than-one-poller).
 
 Only issue numbers cross the thread boundary — each scheduler worker mints a fresh `GitHubClient` via
@@ -879,9 +915,12 @@ beside it, or silently stamp it as current, whatever comment id the caller holds
 thread that admits every comment it passes and is the read they land from: the comment the caller's id names is
 rewritten only where that walk admits it, and a refused one ahead of it — or anywhere, where no id is named or the named
 comment is not state — stops the write, so a stale id never reaches past a refused record, nor posts a replacement
-beside one (the strict edit answers `UNSUPPORTED`, or `MOVED` where that record will not parse). Genuinely new pins are
+beside one (the strict edit answers `UNSUPPORTED`, or `MOVED` where that record will not parse; the whole-state write
+raises `RecordRefused`, from `github/pinned_refusal.py`, so its caller stops). Genuinely new pins are
 stamped with `schema_version: 1` on their first write, and neither writer sends a state the next reading would refuse —
-another version, a value JSON cannot spell, or nesting past the recursion limit.
+another version, a value JSON cannot spell, or nesting past the recursion limit. Ordinary dispatch refuses an issue
+whose comment is refused admission before any guard or handler reads it
+([Per-tick flow](#per-tick-flow-workflowengineticktick)).
 
 Most writers rewrite the whole record from the state they read (`write_pinned_state`), which lands wherever it can — in
 place, or as a new comment where none is named or the named one is gone or no longer state. A **guarded commit**
@@ -3516,14 +3555,15 @@ The keys that matter for the state machine fall into a few groups:
   unlike the retry cap beside it there is no window under it to elapse: a lifetime total is spent once and no clock
   returns it, so the park IS the ending rather than a pause in it. The durable half goes down before a word of it is
   said, for the reason the retry cap's does — a notice on a thread no pinned state backs is one nothing would ever
-  reconcile. `agent_run_limit_notice` is a record rather than a bare sentence: the message, the `allowance` in force,
-  and the runs `spent` against it. The reason under this park never varies, so the pair of counts is the only thing
-  that can tell one exhaustion from another — a recorded sentence about the reading the ledger still shows is kept
-  **verbatim** (the thread is searched for exactly that text, so rewording it would find nothing and say it twice),
-  and one about any other reading is replaced, since it quotes an allowance or a spend the issue has moved off.
-  `agent_run_limit_displaced` is the park this one went up in front of — `{"awaiting_human": bool, "park_reason":
-  str | null}`, read off the durable state the circuit refused on and recorded only when the park is TAKEN (a park
-  re-taken over itself would record itself). It is what the grant below puts back.
+  reconcile — and where the comment does not take it, as over a record a human edited into a version admission refuses,
+  neither the notice nor the budget record of the park is said. `agent_run_limit_notice` is a record rather than a bare
+  sentence: the message, the `allowance` in force, and the runs `spent` against it. The reason under this park never
+  varies, so the pair of counts is the only thing that can tell one exhaustion from another — a recorded sentence about
+  the reading the ledger still shows is kept **verbatim** (the thread is searched for exactly that text, so rewording it
+  would find nothing and say it twice), and one about any other reading is replaced, since it quotes an allowance or a
+  spend the issue has moved off. `agent_run_limit_displaced` is the park this one went up in front of —
+  `{"awaiting_human": bool, "park_reason": str | null}`, read off the durable state the circuit refused on and recorded
+  only when the park is TAKEN (a park re-taken over itself would record itself). It is what the grant below puts back.
   Before it is said again the thread is read for it, and only a comment **this orchestrator wrote** above the
   `last_action_comment_id` watermark counts as the receipt (`github.comments.authored_by_us`, the same author check
   every park-notice reconciliation gates on); a thread that could not be READ is its own answer and the tick says
@@ -3824,12 +3864,17 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
   the caller is holding is mid-tick — a reviewer spec staged ahead of the spawn, a moved reply watermark, a charged
   retry slot, a session id about to be replaced — and belongs to the handler's own single write at the end of the
   run. The merge is what keeps that write from putting the charge back the way its read found it.
-- **Nothing is invoked unless the charge landed.** An unreadable or unparsable pinned comment, a refused write, and a
-  spent allowance all return an `AgentResult` with `interrupted=True` **and `invoked=False`**, and emit no
-  `agent_spawn` / `agent_exit`: there is no run to bookend. Handlers already read the first through
-  `_ignore_if_interrupted` and return without writing durable state. Only the spent allowance is a decision about
-  the issue, so only it takes the park above — on the freshly read state, whose durable write the park owner makes
-  itself — and the dispatcher's hold stops the issue on the next tick.
+- **Nothing is invoked unless the charge landed.** An unreadable pinned comment, a write that failed or that the writer
+  answered quietly — which the charge tells from a landing by that very attempt (`record_admission.written`) — and a
+  spent allowance all return an `AgentResult` with `interrupted=True` **and `invoked=False`**, and emit no `agent_spawn`
+  / `agent_exit`: there is no run to bookend. Handlers already read the first through `_ignore_if_interrupted` and
+  return without writing durable state. Only the spent allowance is a decision about the issue, so only it takes the
+  park above — on the freshly read state, whose durable write the park owner makes itself — and the dispatcher's hold
+  stops the issue on the next tick. A comment admission refuses — unparsable, or under a version this build does not
+  admit, as a human's edit can leave it mid-tick — met at the charge's own reading, or by the writer at the reservation,
+  the start, or the park, RAISES `RecordRefused` instead, and the dispatcher abandons the handler on it: a handler told
+  only that nothing was invoked would go on down its own exit roads, so the `question` and decomposer handlers, which
+  tear their scratch checkout down on every exit, keep it for the human who disposes of the record.
 - **`invoked=False` is not the same claim as `interrupted`, and four roads need the difference.** The initial
   decomposer, the late adjudicator, `question`, and `discussion` inspect the checkout *before* they ask about
   interruption, deliberately: a run the shutdown sweep killed can have written before it died, and a contaminated

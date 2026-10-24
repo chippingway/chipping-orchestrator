@@ -484,7 +484,7 @@ def _records_stand(
 def _read(
     gh: GitHubClient, issue: Issue, state: PinnedState, purpose: str,
 ) -> PinnedState | None:
-    """The comment `state` was read from, read afresh and parsed, or None logged.
+    """The comment `state` was read from, read afresh and admitted, or None logged.
 
     None as well where the fresh reading is another comment -- the pinned
     comment replaced, or gone -- since every write the tick makes goes to the
@@ -499,10 +499,11 @@ def _read(
             "tick with nothing written", issue.number, purpose,
         )
         return None
-    if not durable.parsed:
+    if not durable.supported:
         log.error(
-            "issue=#%d its pinned comment will not parse where it is read to "
-            "%s; ending the tick with nothing written", issue.number, purpose,
+            "issue=#%d its pinned comment is refused admission (%s) where it is "
+            "read to %s; ending the tick with nothing written",
+            issue.number, durable.admission_status.value, purpose,
         )
         return None
     if durable.comment_id != state.comment_id:

@@ -14,9 +14,14 @@ from dataclasses import dataclass
 
 from github.Issue import Issue
 
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import pinned_commit as _pinned_commit, run_ledger_values as _run_ledger_values
+from orchestrator.workflow.engine import (
+    pinned_commit as _pinned_commit,
+    record_admission as _record_admission,
+    run_ledger_values as _run_ledger_values,
+)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -25,6 +30,9 @@ log = logging.getLogger("orchestrator.workflow")
 # pinned state legitimately carries, so it cannot stand for one that is not
 # there.
 _UNSET = object()
+
+# What a launch whose charge meets a record admission refuses does about it.
+_CHARGE_ABANDONED = "abandoning the launch and the stage handler that asked for it"
 
 
 @dataclass(frozen=True)
@@ -98,12 +106,19 @@ def _durable_state(gh: GitHubClient, issue: Issue) -> PinnedState | None:
     """The pinned state a charge may be written onto, or nothing.
 
     Two readings are refused rather than charged. A request that failed leaves
-    no count to charge against at all. A pinned comment that would not parse
-    reads back empty, which is indistinguishable from an issue that has spent
-    nothing -- so a charge taken on it would both hand the issue a fresh
-    lifetime and overwrite whatever the comment was still holding. Neither is
-    worth a spawn: an agent run is minutes of somebody's compute, and the poll
-    comes back.
+    no count to charge against at all, and is answered None: the launch is
+    refused as a run that never started, and the poll comes back. A pinned
+    comment admission refuses -- one that would not parse, or one under a
+    version this build does not admit -- reads back empty, which is
+    indistinguishable from an issue that has spent nothing, so a charge taken
+    on it would both hand the issue a fresh lifetime and overwrite whatever the
+    comment was still holding. That one RAISES (`pinned_refusal.RecordRefused`)
+    rather than answering: this is the one boundary every agent launch is
+    charged at, so a comment a human edited into a refused record mid-tick
+    launches nothing however deep in a handler the launch is -- and a handler
+    told only "never invoked" would go on to its own exit roads, a scratch
+    checkout's teardown among them, over an issue whose every artifact is now
+    a human's to dispose of. The dispatcher abandons the handler on it.
     """
     try:
         durable = gh.read_pinned_state(issue)
@@ -114,14 +129,8 @@ def _durable_state(gh: GitHubClient, issue: Issue) -> PinnedState | None:
             issue.number,
         )
         return None
-    if not durable.parsed:
-        log.error(
-            "issue=#%d carries a pinned comment that will not parse; invoking "
-            "nothing rather than charging an agent run against a count no "
-            "read produced",
-            issue.number,
-        )
-        return None
+    if _record_admission.refuses(issue, durable, _CHARGE_ABANDONED):
+        raise _pinned_refusal.RecordRefused(f"issue #{issue.number} refused admission at its agent-run charge")
     return durable
 
 
@@ -139,14 +148,35 @@ def _persist(
     learns is only what this write actually landed: a refused request leaves
     the issue exactly as it was, so nothing is merged and the caller's own
     state goes on describing a charge nobody took.
+
+    The writer raises `pinned_refusal.RecordRefused` over a record a human
+    edited into one admission refuses since the charge read it, with nothing
+    written, and that refusal propagates past this owner so the handler is
+    abandoned rather than told only that nothing was invoked. Every other
+    failure it raises is a write nobody took, answered False. Its quiet
+    refusals -- a withheld state, a state the next reading would refuse --
+    return without raising, so the write is asked whether that very attempt
+    landed (`record_admission.written`) rather than trusted for not raising.
+    Each of these invokes nothing: the reservation and the start are each a
+    write a process may only follow.
     """
     try:
-        gh.write_pinned_state(budget.issue, durable)
+        landed = _record_admission.written(gh, budget.issue, durable)
+    except _pinned_refusal.RecordRefused:
+        raise
     except Exception:
         log.exception(
             "issue=#%d could not record the agent run its next launch is "
             "charged; invoking nothing rather than spawning a run the ledger "
             "would never see",
+            budget.issue.number,
+        )
+        return False
+    if not landed:
+        log.error(
+            "issue=#%d its pinned comment took no record of the agent run its "
+            "next launch is charged; invoking nothing rather than spawning a "
+            "run the ledger would never see",
             budget.issue.number,
         )
         return False

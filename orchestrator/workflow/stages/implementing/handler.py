@@ -39,6 +39,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     drift as _engine_drift,
     guards as _guards,
+    record_admission as _record_admission,
     retry_budget as _retry_budget,
     terminal_reading as _terminal_reading,
     terminals as _terminals,
@@ -298,7 +299,7 @@ def _handle_detected_implementing_drift(
 
 
 def _handle_implementing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
-    state = gh.read_pinned_state(issue)
+    state = _record_admission.admitted_state(gh, issue)
     # A retry-cap park whose sentence was never said, first of all: the park
     # routes this tick to a resume or to nothing, and neither road passes the
     # gate that took it, so a notice left owed here is owed forever.

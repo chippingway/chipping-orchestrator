@@ -35,7 +35,11 @@ from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import guards as _guards, terminals as _terminals
+from orchestrator.workflow.engine import (
+    guards as _guards,
+    record_admission as _record_admission,
+    terminals as _terminals,
+)
 from orchestrator.workflow.stages.in_review import (
     drift as _drift,
     feedback as _feedback,
@@ -98,7 +102,7 @@ def _handle_in_review(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Is
     the drift exit: the single docs pass is deferred to the final-docs
     handoff after reviewer approval.
     """
-    state = gh.read_pinned_state(issue)
+    state = _record_admission.admitted_state(gh, issue)
     pr_number = state.get("pr_number")
 
     if pr_number is None:

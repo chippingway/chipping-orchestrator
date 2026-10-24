@@ -37,6 +37,7 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.github import (
     client as _client,
+    pinned_refusal as _pinned_refusal,
     pinned_state as _pinned_state,
     pull_request_reports as _pr_reports,
 )
@@ -208,6 +209,9 @@ def _holds_moved_requirements(
         moved = _engine_drift._detect_user_content_change(
             gh, gh.get_issue(issue.number), state,
         )
+    except _pinned_refusal.RecordRefused:
+        # A record admission refuses is the dispatcher's to answer, not this catch's.
+        raise
     except Exception:
         log.exception(
             "issue=#%s could not be re-read for its requirements before the "

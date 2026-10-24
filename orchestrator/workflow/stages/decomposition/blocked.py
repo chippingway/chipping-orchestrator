@@ -36,6 +36,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
+    record_admission as _record_admission,
     retiring_cycles as _retiring_cycles,
     usage as _usage,
 )
@@ -60,7 +61,7 @@ def _handle_ready(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue)
     `implementing`, so the validating handoff watermark and the in_review
     legacy migration have an anchor comment they can key on.
     """
-    state = gh.read_pinned_state(issue)
+    state = _record_admission.admitted_state(gh, issue)
     # User-content drift before implementation has started: route back to
     # decomposing so the manifest is re-derived against the new body. A
     # non-umbrella parent can reach `ready` after every child resolves
@@ -201,7 +202,7 @@ def _handle_blocked(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issu
     claim, so every write this tick makes to a child is made under that
     claim too, and the release walk reads the child again behind it.
     """
-    state = gh.read_pinned_state(issue)
+    state = _record_admission.admitted_state(gh, issue)
     children = state.get(_state._CHILDREN) or []
 
     if _parents._route_parent_drift(gh, issue, state):

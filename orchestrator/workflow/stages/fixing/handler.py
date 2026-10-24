@@ -73,6 +73,7 @@ from orchestrator.git.worktrees import naming as _naming, paths as _worktree_pat
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import (
     guards as _guards,
+    record_admission as _record_admission,
     report_delivery as _report_delivery,
     terminals as _terminals,
 )
@@ -514,7 +515,7 @@ def _bounce_without_feedback(
 
 
 def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
-    state = gh.read_pinned_state(issue)
+    state = _record_admission.admitted_state(gh, issue)
 
     pr = _fixing_preflight(gh, spec, issue, state)
     if pr is None:

@@ -89,10 +89,12 @@ a deliberate change updates the affected contracts, specifications, and tests wi
 The 1.0 release preparation supports current formats only: breaking changes have already landed, and earlier state has
 no promised conversion or continuity. Pinned-state admission accepts only version 1; records missing `schema_version` or
 carrying non-integer, float, boolean, string, or unsupported integer versions are refused, preserved unchanged, and
-cannot authorize work or dependent effects. Genuine new pins are stamped with version 1 on first write. Cleanup that
-removes a historical format, alias, or Python call signature needs no compatibility reader, migration, or final 0.x
-release. A contract for current output does not oblige readers to accept earlier formats, nor functions to accept
-callers' obsolete argument aliases. This decision sets no compatibility or deprecation policy for later releases.
+cannot authorize work or dependent effects; ordinary dispatch refuses such an issue from the reading taken under its
+writer claim, before any guard, reconciliation, or handler acts, and holds every later reading it acts on to admission
+too. Genuine new pins are stamped with version 1 on first write. Cleanup that removes a historical format, alias, or
+Python call signature needs no compatibility reader, migration, or final 0.x release. A contract for current output does
+not oblige readers to accept earlier formats, nor functions to accept callers' obsolete argument aliases. This decision
+sets no compatibility or deprecation policy for later releases.
 Historical forms the runtime still reads stay documented in their specifications until their owners remove them.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
@@ -112,11 +114,14 @@ are current state, not historical compatibility.
 [events](observability/event-streams.md#audit-event-log-event_log_path),
 [loggers](../.agents/skills/develop/SKILL.md#workflow-owners-and-stage-modules),
 [evidence](security.md#what-a-trusted-pinned-record-still-cannot-license),
+[dispatch admission](state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick),
 [deployment without migration](configuration/operations.md#deploying-without-migration),
 [close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own).
 
 **Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py),
-[refused closes](../tests/workflow/engine/test_dispatch_refused_record_cleanup.py).
+[refused closes](../tests/workflow/engine/test_dispatch_refused_record_cleanup.py),
+[dispatch admission](../tests/workflow/engine/test_dispatch_record_admission.py),
+[later readings](../tests/workflow/engine/test_dispatch_admitted_rereads.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -153,6 +158,7 @@ alongside one included; a close held in memory never stands in for that record.
 [poller setup](configuration/operations.md#running-more-than-one-poller).
 
 **Checks:** [dispatch claims](../tests/workflow/engine/test_dispatch_writer_claims.py),
+[claimed admission](../tests/workflow/engine/test_dispatch_record_admission.py),
 [host exclusion](../tests/runtime/test_exclusion.py).
 
 ## C-06: Guarded writes and recoverable effects
@@ -167,7 +173,8 @@ marked, or reclaimed over it.
 A refused or unconfirmed write stops the steps that depend on it; a later tick reads state afresh. Guarded commits
 and direct writes check admission: neither writer may overwrite an unsupported or malformed authoritative comment,
 create a replacement beside it, or silently stamp it as current, whatever comment id its caller holds, and neither
-sends a state the next reading would refuse; strict edits remain non-creating.
+sends a state the next reading would refuse; strict edits remain non-creating, and a direct write over such a comment
+raises, so the steps depending on it stop.
 Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
@@ -181,7 +188,8 @@ Writer exclusion comes from [C-05].
 [captured-run abandonment](../tests/workflow/engine/test_rewrite_landing_moved.py),
 [finalization checkpoints](../tests/workflow/engine/test_rewrite_finish_writes.py),
 [ready-ping recovery](../tests/workflow/stages/in_review/test_ready_ping_recovery.py),
-[refused close recovery](../tests/workflow/stages/decomposition/test_late_refused_closes.py).
+[refused close recovery](../tests/workflow/stages/decomposition/test_late_refused_closes.py),
+[admitted read-back](../tests/workflow/engine/test_dispatch_current_recovery.py).
 
 ## C-07: Publication authority and exact revisions
 

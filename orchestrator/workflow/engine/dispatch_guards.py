@@ -2,9 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Apply pinned-state, cancellation, lifetime, and publication guards before dispatch.
 
-Restart and cancellation precede ordinary stage routing. Stage-owned
-reconciliation remains lazily resolved, and a pinned but unlabeled issue
-is not greeted again. The developer-report transaction and the
+The pinned record is admitted first: a record admission refuses -- an
+unsupported version or a payload that will not parse -- stops the dispatch
+with nothing written, ahead of every guard and reconciliation below. Restart
+and cancellation precede ordinary stage routing. Stage-owned reconciliation
+remains lazily resolved, and a pinned but unlabeled issue is not greeted
+again. The developer-report transaction and the
 verification-evidence transaction behind it are the reconciliations here that
 belong to no stage, so they are bound at module scope rather than resolved
 through `stage_targets.py`. So is the report debt a rewritten pull-request head
@@ -67,6 +70,17 @@ def _pinned_state_refuses(
     ONE read, ten questions, because the read is what costs -- a comment
     walk per labelled issue per dispatch, on top of the one that issue's own
     handler makes.
+
+    That read is admitted before any question is asked of it. A record
+    admission refuses -- an unsupported schema version, or a payload that will
+    not parse -- reads back empty, which is what an issue nobody has met
+    reads as, so every question below would be answered for a record nobody
+    read: a restart projected, a reconciliation or a park written, a greeting
+    posted, and the stage handler run as though the issue were fresh. So the
+    dispatch-state reader refuses it as it refuses a read that failed, from
+    the reading taken under the writer claim this dispatch already holds, and
+    the tick stops with nothing written -- no mark a closed reading asks for
+    either, since there is no cycle on record to mark.
 
     The first is a restart an operator has authorized. A settled cancellation
     whose `rejected` has been taken off is a fresh cycle waiting to be
@@ -179,9 +193,9 @@ def _pinned_state_refuses(
     asked directly behind that ledger: the receipt in its body names its
     parent and the lineage that split seeded it with, and its pinned comment
     carries no such link, a late ancestry missing, partial, or naming
-    anything else, or half a snapshot pointer -- or will not parse at all,
-    which is held with nothing written over it. Every road that could run it
-    -- `ready` and `implementing` as much as `decomposing`, pickup for one
+    anything else, or half a snapshot pointer -- a comment that will not
+    parse never reaches it, being refused at the read. Every road that could
+    run it -- `ready` and `implementing` as much as `decomposing`, pickup for one
     whose label was taken off, and the adjudication of a candidate of its own
     -- would read it as an issue no split made, or at another depth, and mint
     whatever it starts there, so it is held here, ahead of the step aside a

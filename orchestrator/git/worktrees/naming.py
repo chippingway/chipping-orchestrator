@@ -20,6 +20,11 @@ _SAFE_CHAR = "_"
 
 _SLUG_DIGEST_LEN = 16
 
+# The namespace every issue branch this orchestrator publishes lives under, and
+# the only one a pinned branch is honored in: a name outside it is no issue's
+# branch here, whatever a record says.
+_OWNED_NAMESPACE = "orchestrator/"
+
 
 def _sanitize_slug(slug: str) -> str:
     """Turn an `owner/name` repo slug into a single filesystem-safe segment.
@@ -211,7 +216,7 @@ def _resolve_branch_name(
     state cannot redirect us at an arbitrary branch.
     """
     pinned = state.get("branch")
-    if isinstance(pinned, str) and pinned.startswith("orchestrator/"):
+    if isinstance(pinned, str) and pinned.startswith(_OWNED_NAMESPACE):
         return pinned
     if state.get("pr_number") is not None:
         # Legacy in-flight PR: branch was not persisted, but a PR

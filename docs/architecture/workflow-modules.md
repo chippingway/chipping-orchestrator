@@ -141,7 +141,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             them itself: one opened by somebody else carries no pinned state for a handler to
                             consult, so nothing dispatches it. `ALLOWED_ISSUE_AUTHORS` decides there is anything
                             to sweep at all -- empty, the sweep returns before it costs a request -- and every
-                            open PR from outside it earns one `workflow:community_contribution` label and one
+                            open PR from outside it, save an issue's own -- one the token's own account opened
+                            (matched as the pinned state's author is), or one standing on a branch of this
+                            repository in the orchestrator-owned namespace (`git/worktrees/naming.py`), which a
+                            publication adopts whoever opened it; each is left to its issue's dispatch and that
+                            dispatch's admission -- earns one `workflow:community_contribution` label and one
                             HITL ping, with the ping posted BEFORE the label that dedups it, since a label
                             written ahead of a comment that failed would suppress that ping forever. Only that
                             namespaced label is read as the mark, so a PR carrying just a bare
@@ -425,6 +429,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             an implementing plan PR does not prove that implementation work ended
     dispatch_guards.py      pinned-state admission, restart before cancellation, publication reconciliation, and
                             operator controls; an already-pinned unlabeled issue is left where its labels put it.
+                            The record is admitted first, from the reading the dispatch-state reader on
+                            `stages/decomposition/late_relabel.py` takes under the writer claim: a record admission
+                            refuses -- an unsupported version or a comment that will not parse -- stops the tick
+                            with nothing written, ahead of every guard, reconciliation, and handler below.
                             A standing auto-rebase anchor holds the handler, on the adjudication's own road too,
                             and is asked again behind the reconciliation; whether it holds and what a held tick
                             is owed are `base_sync/recovery_holds.py`'s, handed the proof a park that keeps the
@@ -479,8 +487,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             issue whole, leaving its latch and holds as found, and keeping a closed reading its caller
                             hands in through `contended_closes`; apply controls, select cleanup or guarded stage
                             dispatch -- a closed reading on an issue its pass reads open again, or a label outside the
-                            pass's admitted lane, reaching no stage -- hold publication through the handler, and record
-                            timed evaluation analytics on success and failure
+                            pass's admitted lane, reaching no stage, and a pinned record admission refuses, read under
+                            the claim, reaching no guard -- hold publication through the handler, abandon a handler
+                            that meets a record admission refuses -- at its own reading, or at a write the writer
+                            refused over it -- where it met it (`github/pinned_refusal.RecordRefused`),
+                            and record timed evaluation analytics on success and failure
+    record_admission.py    the admission every reading a dispatch acts on past its gate is held to, and the one
+                            local line a refusal is said in (repository, issue, comment, admission status, and found
+                            and supported versions), which the gate's own refusal uses too; every stage handler
+                            starts on `admitted_state`, which raises `github/pinned_refusal.RecordRefused` where a human
+                            edited the comment into a refused record after the gate read it, so the handler does nothing
+                            past that read -- the writer raises the same refusal over such a record; `written`, a
+                            whole-state write answered by whether that very attempt landed, since the writer answers its
+                            other refusals by returning; and `teardown_admitted`, the reading a scratch checkout's
+                            teardown takes at the effect, keeping the checkout where the record reads refused or
+                            cannot be read
     dispatch_workers.py    take the writer claim at each worker entry, outside the observation scope it wraps, then
                             refetch on the worker's own client and semaphore -- or the sequential loop's -- keeping
                             ordinary and cleanup observation scopes; an ordinary pass that finds a close latched since
@@ -1950,9 +1971,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     run_budget.py           budget events emitted only after the transition is durable; audit and analytics writes are
                             guarded independently so either may fail without costing the other or the tick
     run_charge_state.py     the issue and caller-state context of a launch charge, fresh pinned reads, guarded durable
-                            writes, and a merge of only the fields that charge changed; an unreadable or failed record
-                            refuses invocation. A launch owed once (`OwedLaunch`) names the count it is owed at and
-                            the caller's hold on it -- requests to resolve again, and a judgment of each reading --
+                            writes, and a merge of only the fields that charge changed; an unreadable or failed record,
+                            or a reservation or start the comment did not take -- a quiet refusal that very attempt
+                            tells from a landing (`record_admission.written`) -- refuses invocation and is merged into
+                            nothing; a record admission refuses, met at the charge's reading or by the writer, raises
+                            `github/pinned_refusal.RecordRefused` past this owner so the handler is abandoned. A
+                            launch owed once (`OwedLaunch`) names the count it is owed at and the caller's hold on it --
+                            requests to resolve again, and a judgment of each reading --
                             and a fresh reading whose recorded start of such a launch names that count, where the
                             caller's own state does not, is that launch made by another road
                             (`AgentRunBudget.made_elsewhere`)
@@ -2006,10 +2031,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the notice, and settlement clears the sentence without lifting the park or changing the
                             charge. Taking the park records the park it stands in front of, read off the durable
                             state the circuit refused on, and `_restore_displaced` is how the grant puts that one back
-    run_limit.py            persist a supplied exhaustion reading before its budget event and notice, reconcile
-                            bot-authored delivery, and replay the sentence still owed; this owner grants and spends no
-                            additional run. The notice is a bounded park and its repair walks the same way, entering
-                            the found notice in the id ledger first, so replies a refused resume froze stay unread
+    run_limit.py            persist a supplied exhaustion reading before its budget event and notice -- neither said,
+                            and nothing handed back to the caller, where the comment did not take the park --
+                            reconcile bot-authored delivery, and replay the sentence still owed; this owner grants and
+                            spends no additional run. The notice is a bounded park and its repair walks the same way,
+                            entering the found notice in the id ledger first, so replies a refused resume froze stay
+                            unread
     terminal_reading.py    one guarded linked-PR reading for both endings, retaining failed reads and deferring a
                             merged publication to its merge path when recovering a human-closed issue
     terminal_context.py    the issue, publication, pinned state, and stage one ending is attributed to, with its
@@ -2584,7 +2611,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             entry, the late route asked before anything else after it, the spent-budget park held
                             behind that and ahead of every road that would walk past one, the drift / recovery /
                             kill-switch order before the agent, and the pause, dirty-worktree, and interruption
-                            checks after it
+                            checks after it; the worktree's teardown on every exit, kept where the run met a pinned
+                            record admission refuses or the record reads refused, or cannot be read, at the teardown
+                            itself (`models._DecomposerCleanup`)
       retry_cap.py          the standing spent-budget park an initial decomposition meets: the hold that ends the
                             tick having written, spawned, and said nothing -- so the manifest, the children, the
                             locked session, the pull request, and the late record stay as they were -- the refusal
@@ -2658,7 +2687,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       child_claims.py       the writer claim a parent's handler takes on a child before writing it -- one child, or
                             all a release walk would start at once -- keyed on the client's rename-proof `repo_id` as
                             the dispatch claim is, and logged when refused; each caller answers a refusal as it
-                            answers a child it may not act on yet
+                            answers a child it may not act on yet. Under those claims, the admitted readings of every
+                            child an all-or-nothing write would act on (`admitted_children`): one admission refuses,
+                            or one nobody could read, holds the whole write and is said only in the log
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- in one write before it is seeded, under the child's own writer claim, with
@@ -2718,8 +2749,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             child scan and behind the same rejected and manually-closed parks, the split's own
                             same-tick release runs; every child it would release claimed for writing and read again
                             before the first is vouched for, and vouched for and relabelled off that reading -- one
-                            held by another poller, unreadable, or no longer open and `blocked` releasing none and
-                            parking nothing; and the held-dependency line it logs
+                            held by another poller, unreadable, no longer open and `blocked`, or carrying a pinned
+                            record admission refuses or nobody could read, on a late split's register as on an
+                            ordinary split's, releasing none and parking nothing; and the held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet; a parent whose children all resolved settles what a late split
                             still owes the remote before it goes back to its own work, and waits on `blocked` while a
@@ -3197,7 +3229,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_relabel.py       the `workflow:decomposing` label a live generation pins -- one still oversized, or one
                             whose owner read is still owed: the kill-switch route it refuses, and the dispatch it
                             refuses -- with the hand relabel it repairs -- when a human has moved the label out from
-                            under an open adjudication
+                            under an open adjudication; and the dispatcher's own reading of the pinned comment, which
+                            refuses one that could not be read or that admission refuses, logging the repository,
+                            issue, and found and supported versions locally and writing nothing
       late_restart_effects.py
                             deduplicate and adopt restart notices by cycle receipt, then establish the chosen label;
                             reapply a foreign label so the fresh cycle has the restart's own history boundary
@@ -4631,7 +4665,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             hand-back puts down, asked by the report reservation so a field added moves it too
     question/               `question`
       handler.py            the order one tick asks its questions in, the closed-issue finalize that outranks them,
-                            and both worktree teardowns
+                            and both worktree teardowns -- each skipped where the record reads refused, or cannot be
+                            read, at the teardown itself, and the exit one also where the run met a pinned record
+                            admission refuses (`github/pinned_refusal.RecordRefused`) -- whose checkout and branch are
+                            a human's to dispose of
       run.py                the resume and fresh-spawn routes, the tracked spawn they share, and the park funnel every
                             exit lands on -- which is also where the bounded correlation every park reports is
                             built: the road off the tick's own record, the role, the pinned conversation, and any

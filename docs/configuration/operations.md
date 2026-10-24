@@ -694,9 +694,11 @@ which paths reach an issue decides what keeps it away:
   To a build that still routes the bare spelling, the same issue instead reaches the stage handler the label names
   with no record behind it. Apply `backlog` to each of those that is not new work.
 - **Dispatch and refresh.** An open issue whose workflow label routes it reaches the stage handler that label names,
-  and the base refresh before each tick can rebase its worktree. `paused`, or `backlog`, holds both, at dispatch,
-  scheduling, and the refresh ([control labels](../configuration.md#control-labels)). Hold a decomposed family as a
-  whole: a parent's handler writes its children too, under each child's own claim.
+  and the base refresh before each tick can rebase its worktree. A build that admits only version-1 records
+  [refuses dispatch](../state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick) of an issue whose
+  pinned comment it cannot admit, writing nothing for it, but its refresh does not ask. `paused`, or `backlog`, holds
+  both, at dispatch, scheduling, and the refresh ([control labels](../configuration.md#control-labels)). Hold a
+  decomposed family as a whole: a parent's handler writes its children too, under each child's own claim.
 - **Closed-issue recovery and cleanup.** The closed-issue sweep finalizes a closed issue still on a stage label, and
   `paused` holds that as it holds dispatch. It asks for canonical label names only, so neither it nor the closed-owner
   sweep below reaches a closed issue carrying only an obsolete bare label
@@ -715,7 +717,8 @@ which paths reach an issue decides what keeps it away:
   issue retires it into these paths, not out of them: retire that way only work whose records the selected build
   reads, and keep the rest out with its repository.
 - **Community pull requests.** The per-tick community sweep writes to open pull requests from authors outside
-  `ALLOWED_ISSUE_AUTHORS`, and no control label holds it. To a build whose
+  `ALLOWED_ISSUE_AUTHORS` — save, to a build that skips an issue's own, those the token's own account opened and
+  any standing on a branch of the repository under `orchestrator/` — and no control label holds it. To a build whose
   [sweep](../state-machine/labels-and-state.md#workflow-labels) takes only `workflow:community_contribution` as the
   mark of an earlier HITL ping, one carrying only the pre-namespace `community_contribution` is unmarked: its first
   sweep @-mentions `HITL_HANDLE` on it again and adds the namespaced label beside the bare one, which stays. Accept

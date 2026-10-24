@@ -6,8 +6,12 @@ Every dispatch seam enters an issue under its host-local writer claim, keyed
 on the repository's numeric id and taken before the refetch and the close
 recovery wrapped around this processing, and a contender skips the issue
 whole, keeping only a closed reading in this process's latch, tied to the
-cycle it ends only where a read proves it. The publication claim surrounds
-the handler, and evaluation analytics run on both success and failure.
+cycle it ends only where a read proves it. The record the guards decide on
+is read under that claim, so the poll's classification admits nothing: a
+record admission refuses stops the pass before any guard, reconciliation,
+or handler acts, and a handler whose own reading a later edit left refused
+is abandoned where it read it. The publication claim surrounds the handler,
+and evaluation analytics run on both success and failure.
 Hard-skip controls preserve their observed close exception before that
 processing begins.
 """
@@ -21,7 +25,7 @@ from collections.abc import Iterator
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
-from orchestrator.github.client import GitHubClient
+from orchestrator.github import client as _client, pinned_refusal as _pinned_refusal
 from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.workflow.engine import (
@@ -42,7 +46,7 @@ _TERMINAL_LABELS = (WorkflowLabel.DONE, WorkflowLabel.REJECTED)
 
 @contextlib.contextmanager
 def _writer_claim(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     spec: _config_models.RepoSpec,
     issue_number: int,
     *,
@@ -80,7 +84,7 @@ def _writer_claim(
 
 
 def _route_issue_to_handler(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
@@ -100,7 +104,8 @@ def _route_issue_to_handler(
     Two routes are taken ahead of the table. A closed issue on a cleanup-swept
     label goes to the sweep owner, because its label names a handler that would
     resume the workflow its close ended. And what the issue's own pinned
-    comment records can stop the tick outright -- a restart an operator has
+    comment records can stop the tick outright -- a record admission refuses,
+    which stops it with nothing written, a restart an operator has
     authorized over a settled cancellation, a live adjudication the label was
     moved out from under, a snapshot this child was cut from and the remote no
     longer has, a cancelled cycle this owner has still to settle, or an
@@ -130,6 +135,13 @@ def _route_issue_to_handler(
     reads outside the lane it was admitted to (`_PollReading.lane`) is left to
     the next poll ahead of the guards, and so is a closed reading's issue that
     reads open again, behind the guard that applies the close to a live cycle.
+
+    The handler reads the pinned comment again as it starts, through
+    `record_admission.admitted_state`, and a human can have edited it since the
+    guards read it. A reading admission refuses there raises `RecordRefused`,
+    caught here, so the handler is abandoned with nothing past that read done
+    and the pass ends as an ordinary one: the refusal is said, and the next
+    tick's guards refuse the issue again.
     """
     if reading.cleanup_only or _poll_reading._cleanup_sweep_only(issue, label):
         _stage_targets._call_handler(gh, spec, issue, _stage_targets._CLEANUP_SWEEP_TARGET)
@@ -156,7 +168,11 @@ def _route_issue_to_handler(
         return
     target = _stage_targets._STAGE_HANDLER_TARGETS.get(label)
     if target is not None:
-        _stage_targets._call_handler(gh, spec, issue, target)
+        # A handler that meets a record admission refuses -- a human edited the
+        # comment since the guards read it -- is abandoned where it met it: at
+        # its own reading, or at a write the writer refused over that record.
+        with contextlib.suppress(_pinned_refusal.RecordRefused):
+            _stage_targets._call_handler(gh, spec, issue, target)
     elif label not in _TERMINAL_LABELS:
         log.warning(
             "repo=%s issue=#%s label=%r not implemented yet; leaving alone",
@@ -165,7 +181,7 @@ def _route_issue_to_handler(
 
 
 def _process_issue(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     spec: _config_models.RepoSpec,
     issue: Issue,
     *,

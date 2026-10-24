@@ -585,7 +585,11 @@ The security posture:
   GitHub-App accounts (Dependabot, Renovate, CI bots) structurally via GitHub's `user.type == "Bot"` flag, independent
   of the allowlist. The comment trust boundary itself does not: on the
   prompt / resume / PR-feedback surfaces a bot is gated like any other author — trusted only when its own login is
-  explicitly listed. So an intentionally allowlisted automation account still works; an unlisted one does not.
+  explicitly listed. So an intentionally allowlisted automation account still works; an unlisted one does not. The
+  community sweep also leaves alone every pull request that is an issue's own artifact: one the token's own account
+  opened, matched against the login [pinned state is authenticated by](#pinned-state-authentication), and one standing
+  on a branch of this repository in the orchestrator-owned `orchestrator/` namespace, which a publication adopts
+  whoever opened it. What is written to such a pull request is that issue's dispatch to decide.
 - **The pickup half has exactly one bypass, and it is a repository permission.** The allowlist's other job is gating
   *automatic pickup* of an unlabeled issue — the one route a stranger reaches by filing one. The restart of a late
   split whose cancellation completed does not ask it. That path is reachable only by an operator **removing** the
@@ -686,7 +690,8 @@ worker-thread clients), **and** its entire body is the state marker — exactly 
   limit, a bound the reader holds itself whatever the interpreter's decoder would build) included, so no payload
   raises out of admission without its comment's identity. Refused records are preserved unchanged
   on GitHub and retain refusal reasons and version metadata locally; neither `write_pinned_state` nor
-  `edit_pinned_state` may overwrite them, create replacements beside them, or silently stamp them as current.
+  `edit_pinned_state` may overwrite them, create replacements beside them, or silently stamp them as current, and the
+  whole-state write raises `RecordRefused` over one rather than returning, so its caller stops.
   Both decide on one walk of the thread that admits every comment it passes, the one they rewrite included, and land
   from that same read, so a stale comment id cannot steer a write onto a refused record, and no second read leaves a
   gap for a record turned refused between the admission and the write. Genuinely new pins are stamped with
@@ -711,8 +716,9 @@ backing the token wrote it, but a maintainer's hand edit, a half-written record 
 since all leave a trusted comment claiming something GitHub no longer agrees with. What a publication does is
 irreversible there — a force-push over somebody's work, a second pull request opened over work the first already
 carries — so the publication side proves the record against the remote rather than acting on it. An authenticated
-comment refused admission licenses nothing at all: it reads back empty and flagged unparsed or unsupported, every
-guarded commit over it refuses, and a verification-evidence write over it holds rather than landing
+comment refused admission licenses nothing at all: it reads back empty and flagged unparsed or unsupported, ordinary
+dispatch of its issue stops before any guard or handler with nothing written, every guarded commit over it refuses,
+and a verification-evidence write over it holds rather than landing
 ([C-03](contracts.md#c-03-persisted-and-externally-consumed-formats)).
 
 - **An agent's own verdict cannot waive the added-line ceiling.** `late_exempt_sha` records that a late adjudication

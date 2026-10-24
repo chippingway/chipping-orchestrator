@@ -34,7 +34,10 @@ run's changes stay inspectable rather than being discarded as untrustworthy.
 
 The worktree is torn down by an `ExitStack` callback rather than at each exit,
 because `keep_worktree` is decided in the middle of that sequence and every
-path after it -- including one that raises -- has to honor the decision.
+path after it -- including one that raises -- has to honor the decision. One
+raise decides it too: a run that meets a pinned record admission refuses
+(`pinned_refusal.RecordRefused`) keeps the worktree for the human who disposes
+of that record.
 """
 from __future__ import annotations
 
@@ -49,6 +52,7 @@ from orchestrator.git.worktrees import creation as _worktree_creation, decomposi
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     guards as _guards,
+    record_admission as _record_admission,
     retry_budget as _retry_budget,
 )
 from orchestrator.workflow.stages.decomposition import (
@@ -184,7 +188,7 @@ def _late_adjudication_owns_the_tick(
 
 
 def _handle_decomposing(gh: _client.GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
-    state = gh.read_pinned_state(issue)
+    state = _record_admission.admitted_state(gh, issue)
     # Ahead of the late route as well as the gates below it: a retry-cap park
     # is this budget's, not the size gate's, and the sentence it owes is owed
     # whichever of the two questions wearing this label the tick is about.
@@ -198,12 +202,14 @@ def _handle_decomposing(gh: _client.GitHubClient, spec: config.RepoSpec, issue: 
     if _retry_cap._park_owns_the_tick(gh, issue, state):
         return
     cleanup = _DecomposerCleanup(
+        gh=gh,
         spec=spec,
-        issue_number=issue.number,
+        issue=issue,
         run_plan=_DecomposerRunPlan(agent_result=None),
     )
     with ExitStack() as cleanup_stack:
         cleanup_stack.callback(cleanup.close)
+        cleanup_stack.push(cleanup.keeps_on_refusal)
         cleanup.run_plan = _prepare_decomposer_run(
             gh,
             spec,

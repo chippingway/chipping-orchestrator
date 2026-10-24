@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from itertools import product
 from types import MappingProxyType
 
-from orchestrator.github.client import GitHubClient
+from orchestrator.github import client as _github_client, pinned_refusal as _pinned_refusal
 from orchestrator.github.comments import ORCHESTRATOR_COMMENT_MARKER
 from orchestrator.github.pinned_state import PINNED_STATE_TEMPLATE, PinnedState
 from orchestrator.workflow.engine import comments as _engine_comments
@@ -303,7 +303,7 @@ class UnwrittenStateTest(unittest.TestCase):
         # A client that does not know whose token it holds authenticates no
         # comment, so it could not tell a refused record from none: it neither
         # rewrites the record its state names nor posts one beside it.
-        client = GitHubClient.__new__(GitHubClient)
+        client = _github_client.GitHubClient.__new__(_github_client.GitHubClient)
         for comment_id in (_RECORDED_ID, None):
             with self.subTest(comment_id=comment_id):
                 record = bot_comment(_RECORDED_ID, _RECORD_BODY)
@@ -371,11 +371,20 @@ class WritePinnedStateAdmissionTest(unittest.TestCase):
     def setUp(self) -> None:
         self.client = state_client()
 
-    def assert_writes_nothing(self, issue: FakeIssue, staged: PinnedState) -> None:
-        """Write `staged`, answered unchanged, with nothing on the thread edited or posted."""
+    def assert_writes_nothing(self, issue: FakeIssue, staged: PinnedState, *, refused: bool = False) -> None:
+        """Write `staged` with nothing on the thread edited or posted: answered unchanged, or raising where `refused`.
+
+        Over a record admission refuses the write raises `RecordRefused`
+        rather than answering, so a caller cannot go on to what the write was
+        for over a record nobody can read.
+        """
         before = [(comment.id, comment.body) for comment in issue.comments]
 
-        self.assertIs(self.client.write_pinned_state(issue, staged), staged)
+        if refused:
+            with self.assertRaises(_pinned_refusal.RecordRefused):
+                self.client.write_pinned_state(issue, staged)
+        else:
+            self.assertIs(self.client.write_pinned_state(issue, staged), staged)
 
         self.assertEqual([(comment.id, comment.body) for comment in issue.comments], before)
         self.assertIsNone(staged.synced)
@@ -394,12 +403,13 @@ class WritePinnedStateAdmissionTest(unittest.TestCase):
 
     def test_a_refused_record_is_never_written_over(self) -> None:
         # Whatever id the caller holds -- the record's, none, or a stale one --
-        # the refused record stays as it is and nothing is posted beside it.
+        # the refused record stays as it is, nothing is posted beside it, and
+        # the write raises.
         for case, comment_id in product(_REFUSED_RECORDS, (_RECORDED_ID, None, _STALE_ID)):
             with self.subTest(case=case, comment_id=comment_id):
                 record = bot_comment(_RECORDED_ID, _REFUSED_RECORDS[case])
                 staged = PinnedState(comment_id=comment_id, data={_BRANCH_KEY: _BRANCH, _SCHEMA_VERSION: 1})
-                self.assert_writes_nothing(_issue(_human_reply(), record), staged)
+                self.assert_writes_nothing(_issue(_human_reply(), record), staged, refused=True)
 
     def test_a_refused_target_behind_the_pin_stands(self) -> None:
         # The caller's id names a refused record behind the current pin every
@@ -409,13 +419,14 @@ class WritePinnedStateAdmissionTest(unittest.TestCase):
             with self.subTest(case=case):
                 current = bot_comment(_CURRENT_ID, _RECORD_BODY)
                 staged = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
-                self.assert_writes_nothing(_issue(_human_reply(), current, bot_comment(_RECORDED_ID, body)), staged)
+                thread = _issue(_human_reply(), current, bot_comment(_RECORDED_ID, body))
+                self.assert_writes_nothing(thread, staged, refused=True)
 
     def test_a_write_lands_from_the_read_it_admits(self) -> None:
         # One walk both admits the record and finds it, so what the thread
         # carries on that read decides: a record a maintainer turned refused
-        # by then stands, and a current one is rewritten, with no second read
-        # for either to change between.
+        # by then stands and the write raises, and a current one is rewritten,
+        # with no second read for either to change between.
         for edit, landed in ((_UNSUPPORTED_BODY, _UNSUPPORTED_BODY), (None, _REWRITTEN_BODY)):
             with self.subTest(edited=edit is not None):
                 issue = _EditedOnRead(
@@ -427,7 +438,12 @@ class WritePinnedStateAdmissionTest(unittest.TestCase):
 
                 staged = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
 
-                self.client.write_pinned_state(issue, staged)
+                try:
+                    self.client.write_pinned_state(issue, staged)
+                except _pinned_refusal.RecordRefused:
+                    self.assertIsNotNone(edit, "only a record turned refused raises")
+                else:
+                    self.assertIsNone(edit, "a record turned refused raises")
 
                 self.assertEqual(issue.reads, 1)
                 self.assertEqual(issue.comments[-1].body, landed)

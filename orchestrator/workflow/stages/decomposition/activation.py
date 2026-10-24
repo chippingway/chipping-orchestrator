@@ -54,7 +54,10 @@ for, since vouching reads the child's record and the release writes its label,
 and each is read again under it, since the scan the walk chose them from was
 read before any claim was taken. One refused claim, or one child no longer
 open and `blocked` by then, releases none of them, as one lapse does --
-without the park, because the next walk scans again.
+without the park, because the next walk scans again. So does one child whose
+own pinned record, read under its claim, admission refuses or nobody could
+read: on a late split's register too, where no lineage is asked, the walk
+starts nothing over a record nobody read and says why only in its own log.
 """
 from __future__ import annotations
 
@@ -171,24 +174,24 @@ class _ChildActivation:
         self.stopped = True
         return True
 
-    def entitlement_lapsed(self, child: Issue, number: int) -> bool:
+    def entitlement_lapsed(self, child: Issue, number: int, child_state: PinnedState) -> bool:
         """Whether this child is no longer one its split's lineage vouches for, as it stands now.
 
-        Read as it stands now, since any of it may have changed since the
+        Read as it stands now -- `child_state` is the admitted reading taken
+        under the child's claim -- since any of it may have changed since the
         split wrote it, and held to exactly what a recovery holds it to
         (`ReplacementLineage.repair`): anything that recovery would refuse or
         have to write -- a missing link or seed, a pointer the ledger no
         longer keeps, a lost slot -- and a receipt other than the one stamped
         for its slot (`split_seeds.stamp_lapse`) is a child that may not start.
-        A child of an ordinary split is held the same way, so every release
-        costs one read of its pinned comment. A lapse latches, and says why.
+        A child of an ordinary split is held the same way. A lapse latches,
+        and says why.
         """
         if self.stopped:
             return True
         if self.lineage is None:
             return False
         texts = (getattr(child, "title", None), getattr(child, "body", None))
-        child_state = self.gh.read_pinned_state(child)
         seed = self.lineage.repair(
             self.state, self.owner.number, number, child_state, _late_child_content._named_snapshots(*texts),
         )
@@ -258,13 +261,25 @@ class _ChildActivation:
         that fails, or a child no longer open and `blocked` releases none of
         them, as a lapse does, and parks nothing, since none is one -- the
         next walk scans again.
+
+        Each child's own pinned record is read under its claim as well and
+        admitted before any is vouched for, on a late split's register as on
+        an ordinary split's: a child whose record admission refuses, or whose
+        record cannot be read, releases none of them either, says so locally,
+        and parks nothing, since what it needs is a human disposing of that
+        record rather than anything this split could repair.
         """
         with _child_claims.held_children(self.gh, self.owner.number, releasable) as claimed:
             current = _parents._read_child_labels(self.gh, self.owner, releasable) if claimed else None
             if current is None or not all(map(current.waiting, releasable)):
                 self.held.extend((number, []) for number in releasable)
                 return
-            if any(self.entitlement_lapsed(current.issues[number], number) for number in releasable):
+            records = _child_claims.admitted_children(
+                self.gh, self.owner.number, {number: current.issues[number] for number in releasable},
+            )
+            if records is None or any(
+                self.entitlement_lapsed(current.issues[number], number, records[number]) for number in releasable
+            ):
                 self.held.extend((number, []) for number in releasable)
                 return
             for number in releasable:

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.workflow.late_split import (
     exemption_reading as _exemption_reading,
     rewrite_reading as _rewrite_reading,
@@ -214,6 +215,9 @@ def _persisted(gate: _late_gate_models._Gate, before: dict) -> bool:
         return True
     try:
         gate.gh.write_pinned_state(gate.issue, gate.state)
+    except _pinned_refusal.RecordRefused:
+        # A record admission refuses is the dispatcher's to answer, not this catch's.
+        raise
     except Exception:
         log.warning(
             "issue=#%d could not record the transfer it granted onto %s; "

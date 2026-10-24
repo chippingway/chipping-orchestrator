@@ -13,6 +13,7 @@ from dataclasses import replace
 
 from github.Issue import Issue
 
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import state as _late_state
@@ -227,6 +228,9 @@ def _taken_hold(
     _late_state.write_late_generation(state, holding)
     try:
         gh.write_pinned_state(issue, state)
+    except _pinned_refusal.RecordRefused:
+        # A record admission refuses is the dispatcher's to answer, not this catch's.
+        raise
     except Exception:
         log.exception(
             "issue=#%d could not preserve the body of PR #%d; refusing "

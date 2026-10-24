@@ -38,6 +38,7 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.workflow.late_split import (
     events as _events,
     rewrite_reading as _rewrite_reading,
@@ -155,6 +156,9 @@ def _forgets_the_reported_proof(
     _rewrites.forget_transfer_proof(gate.state)
     try:
         gate.gh.write_pinned_state(gate.issue, gate.state)
+    except _pinned_refusal.RecordRefused:
+        # A record admission refuses is the dispatcher's to answer, not this catch's.
+        raise
     except Exception:
         log.warning(
             "issue=#%d reported the transfer onto %s and could not drop the "

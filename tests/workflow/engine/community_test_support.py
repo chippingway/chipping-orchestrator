@@ -6,7 +6,7 @@ from __future__ import annotations
 from functools import partial
 from unittest.mock import patch
 
-from tests.support.fakes import FakeGitHubClient, FakeLabel, FakePR, FakeUser
+from tests.support.fakes import FakeGitHubClient, FakeLabel, FakePR, FakePRRef, FakePRRepo, FakeUser
 from tests.workflow.repo_values import _TEST_SPEC
 
 OUTSIDER_LOGIN = "outsider"
@@ -23,12 +23,20 @@ def make_pr(
     author: str,
     labels=(),
     user_type: str = "User",
+    head: FakePRRef | None = None,
 ) -> FakePR:
+    """One open pull request, standing on `head` where a case names one."""
     return FakePR(
         number=number,
+        head=head or FakePRRef(),
         user=FakeUser(author, type=user_type),
         labels=[FakeLabel(name) for name in labels],
     )
+
+
+def pr_head(branch: str, fork: str | None = None) -> FakePRRef:
+    """A head on `branch` of the repository `fork` names, or with none, of the one it is added to."""
+    return FakePRRef(ref=branch, repo=FakePRRepo(full_name=fork or ""))
 
 
 def fail_first_label_write(calls, original, pr, label) -> None:

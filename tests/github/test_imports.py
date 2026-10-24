@@ -33,6 +33,7 @@ _MODULES = (
     "orchestrator.github.issue_polling",
     "orchestrator.github.issues",
     "orchestrator.github.labels",
+    "orchestrator.github.pinned_refusal",
     "orchestrator.github.pinned_state",
     "orchestrator.github.pull_requests",
     "orchestrator.github.pull_request_reads",

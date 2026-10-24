@@ -7,7 +7,9 @@ authored by the account backing the orchestrator token are admitted as
 supported state. Authenticated comments with missing, non-integer, or
 unsupported versions, malformed JSON, or non-object payloads are refused and
 preserved unchanged on GitHub: neither writer may overwrite them, create
-replacements beside them, or silently stamp them as current. Genuinely new pins
+replacements beside them, or silently stamp them as current, and the
+whole-state writer raises over one (`pinned_refusal.RecordRefused`) so its
+caller stops before whatever the write was for. Genuinely new pins
 are stamped with schema_version: 1 on first write, and neither writer sends a
 state the next reading would refuse. A client that does not know whose token
 it holds authenticates no comment and writes none.
@@ -38,7 +40,7 @@ from typing import Any
 from github.Issue import Issue
 from github.IssueComment import IssueComment
 
-from orchestrator.github import comments as _comments
+from orchestrator.github import comments as _comments, pinned_refusal as _pinned_refusal
 from orchestrator.github.issue_polling import GitHubIssuePollingMixin
 
 log = logging.getLogger("orchestrator.github")
@@ -620,15 +622,18 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         A `withheld` state is not written at all, and is answered unchanged.
         So is every state written by a client that does not know whose token
         it holds: it can authenticate no comment, so it could not tell a
-        refused record from none and would post a pin beside one. So is every
-        state the walk below finds a record refused admission for -- the
-        comment the caller's id names, or one ahead of it, or one anywhere
-        where that id names no state comment: neither writer may overwrite
-        that comment, create a replacement beside it, or silently stamp it as
-        current. A state carrying no version is stamped with the supported
-        one, and a state the next reading would refuse -- another version, a
-        value JSON cannot spell, nesting past the recursion limit -- is not
-        written either.
+        refused record from none and would post a pin beside one. A state the
+        walk below finds a record refused admission for -- the comment the
+        caller's id names, or one ahead of it, or one anywhere where that id
+        names no state comment -- is not written either, and that refusal
+        RAISES (`pinned_refusal.RecordRefused`) rather than answering: neither
+        writer may overwrite that comment, create a replacement beside it, or
+        silently stamp it as current, and a caller answered quietly would go
+        on to whatever the write was for over a record nobody can read -- one
+        a human's edit since the caller's reading is enough to leave. A state
+        carrying no version is stamped with the supported one, and a state the
+        next reading would refuse -- another version, a value JSON cannot
+        spell, nesting past the recursion limit -- is not written either.
 
         The named comment is rewritten only where that same walk admitted it;
         one that is gone or no longer state is replaced by a new comment, as
@@ -654,7 +659,7 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
                 refused.repo_slug, issue.number, refused.admission_status.value,
                 refused.comment_id, refused.refusal_reason,
             )
-            return state
+            raise _pinned_refusal.RecordRefused(f"issue #{issue.number} holds a pinned comment admission refuses")
         state.data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
         refusal = PinnedAdmission.payload_refusal(state.data)
         if refusal is not None:
