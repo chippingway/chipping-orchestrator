@@ -113,7 +113,23 @@ def unusable_namespace() -> Iterator[None]:
             yield
 
 
-def claimable(repo_id: int, issue_number: int) -> bool:
-    """Whether a writer could take this issue right now."""
-    with writer_claims.issue_writer(repo_id, issue_number) as held:
-        return held
+def claimable(repo_id: int, issue_number: int, *, elsewhere: bool = False) -> bool:
+    """Whether a writer could take this issue right now -- here, or as another poller on this host would.
+
+    `elsewhere` asks on a file description of its own, as `held_elsewhere`
+    holds one, so a hold of this process's -- one let in `alongside` a writer
+    included, which a writer here would be let in beside -- answers as it
+    answers another process. It leaves nothing on the file.
+    """
+    if not elsewhere:
+        with writer_claims.issue_writer(repo_id, issue_number) as held:
+            return held
+    claim_path = writer_claims.claim_path(repo_id, issue_number)
+    claim_path.parent.mkdir(parents=True, exist_ok=True)
+    with claim_path.open("a", encoding=_ENCODING) as claim_file:
+        try:
+            fcntl.flock(claim_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        fcntl.flock(claim_file, fcntl.LOCK_UN)
+    return True

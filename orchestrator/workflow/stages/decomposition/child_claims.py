@@ -6,29 +6,32 @@ The claim a dispatch takes covers the issue it was dispatched for and no other,
 and a decomposed parent's handler writes its children too: the walk that
 relabels a `blocked` child `ready`, the seeds that give a child its parent link
 and ancestry, the finalize of a child whose pull request merged, and the notice
-that tells a consumer its snapshot is gone. A second poller on this host
-dispatching one of those children holds the CHILD's claim, not the parent's, so
-a parent that wrote past it would race the child's own handler for one pinned
-comment and one label set -- the race the family bucket keeps out of one
-process, and the claim keeps out of two.
+that tells a consumer its snapshot is gone -- and it deletes the snapshot those
+consumers were cut from, a decision about every one of them. A second poller on
+this host dispatching one of those children holds the CHILD's claim, not the
+parent's, so a parent that acted past it would race the child's own handler for
+one pinned comment and one label set -- the race the family bucket keeps out of
+one process, and the claim keeps out of two.
 
-So each of those writes is made under the child's claim, taken without waiting
-in front of the read it decides on and held through the write. A refusal is not
-the child's: each caller answers it as it answers a child it may not act on
-yet, and a later pass asks again.
+So each of those effects is made under the child's claim, taken without waiting
+in front of the read it decides on and held through the effect -- every
+consumer's at once for a snapshot's delete, and through the notices behind it.
+A refusal is not the child's: each caller answers it as it answers a child it
+may not act on yet, and a later pass asks again.
 
-Every one of those writes that decides on the child's own pinned record holds
-the reading it takes under the claim to admission: a record admission refuses
-reads back empty -- what a child nobody seeded reads as -- so a parent deciding
-on it would seed, repair, or start a child whose record nobody read, and its
-seed would stamp an unversioned record as current. A seed or a repair asks of
-one child (`admitted_child`) and writes it through `write_seed`, and both
-raise `ChildRefused` -- the second where a human's edit since that reading left
-a record the writer refuses -- so its caller answers the refusal as the
-uncompleted seed it is. A write that is all or nothing across children -- the
-release walk -- reads each child's record under those claims and admits it
-before writing any (`admitted_children`). The refusal is said in one local
-line, never on the child, and nothing is written to it.
+Every one of those effects holds the child's own pinned record, read under the
+claim, to admission: a record admission refuses reads back empty -- what a
+child nobody seeded reads as -- so a parent deciding on it would seed, repair,
+start, finalize, or tell a child whose record nobody read, or take the ref it
+was cut from, and its seed would stamp an unversioned record as current. A
+finalize, a notice, a seed, or a repair asks of one child (`admitted_child`),
+and a seed or a repair writes it through `write_seed`; both raise
+`ChildRefused` -- the second where a human's edit since that reading left a
+record the writer refuses -- so its caller answers the refusal as the effect
+it could not complete. An effect that is all or nothing across children -- the
+release walk, a snapshot's delete -- reads each child's record under those
+claims and admits it before acting on any (`admitted_children`). The refusal is
+said in one local line, never on the child, and nothing is written to it.
 """
 from __future__ import annotations
 
@@ -48,14 +51,14 @@ log = logging.getLogger("orchestrator.workflow")
 
 
 class ChildRefused(Exception):
-    """A child's pinned record admission refuses, met by a parent's seed or repair of that child.
+    """A child's pinned record admission refuses, met by a parent's effect on that child.
 
     Raised by `admitted_child` and `write_seed`, with nothing written to the
     child and the refusal already said locally. Not a
     `pinned_refusal.RecordRefused`, which the dispatcher catches as a refusal
     of the issue it dispatched: a child's refusal abandons no parent handler,
-    so each caller answers it as the seed it could not complete, as it answers
-    a child whose claim was refused.
+    so each caller answers it as the seed, finalize, or notice it could not
+    complete, as it answers a child whose claim was refused.
     """
 
 
@@ -89,18 +92,23 @@ def held_child(
 
 @contextlib.contextmanager
 def held_children(
-    gh: GitHubClient, owner_number: int, child_numbers: Iterable[int],
+    gh: GitHubClient,
+    owner_number: int,
+    child_numbers: Iterable[int],
+    *,
+    alongside: bool = False,
 ) -> Iterator[bool]:
     """Hold these children's writer claims for the body, and say if all were granted.
 
     For a write that is all or nothing across children, as a release walk
     is. Taken in order and stopped at the first refusal, since one is enough
     to hold the write back; the claims already taken are given back as the
-    body ends.
+    body ends. `alongside` is `held_child`'s, for a step whose only write to
+    any of them is a comment built to land beside its handler.
     """
     with contextlib.ExitStack() as claims:
         yield all(
-            claims.enter_context(held_child(gh, owner_number, number))
+            claims.enter_context(held_child(gh, owner_number, number, alongside=alongside))
             for number in child_numbers
         )
 

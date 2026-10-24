@@ -83,6 +83,11 @@ def _reclaimable(
     `_replacements_unaccounted` for the replacements an ordinary split of the same
     owner adds to it. Asked first, because every proof below is only as
     complete as the list it walks.
+
+    It reads issues and labels and nothing else, and a delete may not rest on
+    that alone: the reclamation asks it again under every consumer's writer
+    claim and holds each consumer's pinned record, read behind those claims,
+    to admission before it takes the ref (`late_snapshot_reclamation._may_take`).
     """
     if _late_cleanup_reading._unwritable(generation) or generation.obligations.is_opaque:
         return False

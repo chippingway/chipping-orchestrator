@@ -94,6 +94,12 @@ def _asked_snapshots(
     the remote still holds is a ref a reopened consumer may still be cutting
     from -- and the decision to take it, however durably recorded, does not
     outrank the reading in front of it.
+
+    Qualifying a ref decides nothing about deleting it. This scan is taken
+    under no consumer's claim and reads no consumer's pinned record, so the
+    delete is decided again on a reading of its own, taken under every
+    consumer's claim, which a held consumer or one whose record admission
+    refuses answers by keeping the ref.
     """
     held = _late_cleanup_reading._held_snapshots(generation)
     if not held:

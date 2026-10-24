@@ -696,7 +696,13 @@ because there it is the claim that this stage has already rerouted rather than a
   4. Any child `rejected` → park parent awaiting human.
   5. Any child closed but its label is not `done` / `rejected` / `in_review` → retry `_finalize_if_pr_merged` (covers
      an externally-merged child whose own handler has not yet finalized) before falling through to the manually-closed
-     park.
+     park. The finalize is asked under the child's writer claim, off the child and its pinned record read again behind
+     it, and that record is held to admission: a child another poller holds, and one whose record admission refuses —
+     unversioned, under a version this build does not admit, or unparseable — is neither finalized nor counted as
+     closed by hand. Nothing is written to it — no label, close or reopen, comment, pinned write, or checkout and branch
+     teardown — the refusal is said in one local line naming the repository, the child, and the version found against
+     the one supported, and the parent parks nothing over it, waiting until a later walk reads a record admission
+     takes. A child with no pinned record at all is fresh, admitted, and counted as it reads.
   6. Every child `done` → flip parent → `workflow:ready`. A parent that still records a late split's generation —
      the umbrella a split made, re-decomposed by a genuine edit into a manifest that keeps work for the parent — first
      runs the settlement the umbrella's terminal runs (see
@@ -870,6 +876,18 @@ because there it is the claim that this stage has already rerouted rather than a
   human can reopen a consumer during. A consumer that came back inside that window keeps the ref: nothing is asked of
   the remote, the entry stays `reclaiming`, and the terminal is held. What is left is the delete request itself,
   which is irreducible.
+- **That last reading is taken under every consumer's claim, over records admission takes.** The scan the pass
+  qualified the ref on was taken under no claim, and the delete is a decision about every issue cut from the ref, so
+  each recorded consumer's writer claim is taken — `alongside` a handler of this poller's own, as the notices are —
+  in front of the re-read, and held through the delete and the notices behind it. Behind those claims each consumer's
+  pinned record is read and held to admission. A consumer another poller holds, and one whose record admission refuses,
+  keeps the ref exactly as a reopened one does — nothing is deleted, the entry stays `reclaiming`, the terminal or the
+  parent's hand-off is held, and the refusal is said only in the log — and that holds for a consumer closed on `done`
+  and for an original the parent's current manifest no longer tracks alike, since a consumer whose record this build
+  cannot read is one it cannot say the ref no longer matters to. The ref stays on the remote for whoever disposes of
+  that record; once every consumer reads admitted on a later pass, the delete goes ahead as above. A consumer with no
+  pinned record at all is fresh and admitted. The ownership proof, the leased delete, the consumer-ledger membership,
+  and the recovery below are unchanged.
 - **A recorded decision buys one thing.** A later visit acts on a `reclaiming` or `failed` entry only to **finish a
   delete the remote already took**: past the consumer proof it costs one read-only ask about the ref itself and
   qualifies only if the remote no longer has it. A ref still there is one a reopened child may still be cutting
@@ -879,7 +897,10 @@ because there it is the claim that this stage has already rerouted rather than a
 - **The children are told before the entry closes, and told with a comment.** After a delete the remote accepted,
   and before the entry is written `reconciled`, every recorded consumer gets one comment saying the snapshot has been
   reclaimed and that reuse now needs an explicit new split cycle. It carries a hidden marker naming this owner, cycle,
-  and generation, so a consumer already holding one of ours is not told twice. The ref is never recreated.
+  and generation, so a consumer already holding one of ours is not told twice. The ref is never recreated. Each
+  comment is posted under the consumer's claim over its pinned record read behind that claim and admitted: one whose
+  record admission refuses is told nothing and said only in the log, and its notice stays owed — so the entry stays
+  `reclaiming` rather than reading as delivered, even on the recovery that finds the ref already gone.
 - **A cancelled cycle tells none of them.** The receipt is what a live split owes children it is still responsible
   for; an ending a human's close forced is responsible for none, and leaves each of them exactly as it found it —
   the entry reconciles on the delete alone. Nothing about the ref goes unsaid: the transport drops this host's
@@ -892,9 +913,9 @@ because there it is the claim that this stage has already rerouted rather than a
   write, and closed `workflow:ready` / `workflow:blocked` are swept by nothing, so a consumer left on one never
   becomes terminal at all. A comment is appended rather than rewritten, reaches a consumer in every state a consumer
   can be in, and cannot be lost. What acts on it is the child's own guard (below). A consumer the pass could not
-  reach, or whose thread it could not read or post to, leaves the entry `reclaiming` rather than reconciling it —
-  reconciling is what stops anything coming back, and for a closed owner this pass is the only thing that would. A
-  refused delete tells nobody.
+  reach, one another poller holds, one whose record admission refuses, or one whose thread it could not read or post
+  to, leaves the entry `reclaiming` rather than reconciling it — reconciling is what stops anything coming back, and
+  for a closed owner this pass is the only thing that would. A refused delete tells nobody.
 
 ## The agent-run-limit hold (every dispatch, ahead of every handler)
 - **Trigger**: `_route_issue_to_handler` on any OPEN issue whose pinned comment carries `awaiting_human` with
@@ -2334,7 +2355,10 @@ and handed off -- and this is what it guarantees and what stops it.
      and says on every visit what is still holding it.
 - **Consumer state is re-read, never latched**: this pass fetches every recorded consumer fresh, and a consumer
   reopened before the delete lands has a live claim again, so the ref stays. A consumer whose read *fails* also
-  keeps its ref, while the branch half — which owes no consumer anything — is still settled on that same visit.
+  keeps its ref, while the branch half — which owes no consumer anything — is still settled on that same visit. So
+  does a consumer another poller holds, or whose pinned record, read under its claim ahead of the delete, admission
+  refuses — closed on `done` or not, tracked or orphaned
+  ([the claimed reading](#_handle_umbrella-label-workflowumbrella)), and nothing is written to it.
   The scan is taken only where a ref is actually held, so an owner with nothing but a branch left costs no
   per-consumer request.
 - **An issue with no recorded generation is left entirely alone**, which is every umbrella the initial decomposer

@@ -489,9 +489,10 @@ of every guard and handler (`late_relabel._dispatch_state`, asked by `workflow/e
 admission refuses stops the pass with nothing written and a local warning, whatever the poll read before the claim.
 Every stage handler starts on its own reading through `workflow/engine/record_admission.py`, which abandons the
 handler where a human's edit left that reading refused. A parent's seed or repair of a child admits the child's record
-under the child's claim before adding to it, and a release walk admits each child's record that way before it starts
-any (`stages/decomposition/child_claims.py`): a refused child is written nothing, and the seed or release it held
-stays uncompleted.
+under the child's claim before adding to it, a merged child's finalize and a consumer's snapshot notice admit it before
+acting, and a release walk, like a snapshot's delete, admits each child's record that way before it acts on any
+(`stages/decomposition/child_claims.py`): a refused child is written nothing, and the seed, finalize, notice, release,
+or delete it held stays uncompleted, a delete keeping the ref on the remote.
 
 Per-issue durable state lives in a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`).
 It is state only where the orchestrator's own account wrote it and its whole body is the marker, and a record only where

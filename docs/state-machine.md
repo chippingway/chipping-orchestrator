@@ -108,7 +108,8 @@ path with nothing written, launched, charged, or relabelled, and a local warning
 the version found against the one supported; an issue with no authenticated pinned comment is fresh and starts. A
 reading or write taken past that gate is held to admission too: a stage handler whose own reading or whole-state write
 meets a record a human's edit left refused is abandoned there, no agent launch is charged over one, and a family
-parent releases no child whose record is refused. The
+parent seeds, releases, finalizes, or tells no child whose record, read under that child's claim, is refused, nor
+deletes a snapshot such a consumer was cut from. The
 cap exemptions, the
 `duplicate_active` gate, the writer claim, and what each step reads and writes are in
 [`state-machine/labels-and-state.md`][per-tick]; the multi-repo dispatch and
@@ -459,13 +460,15 @@ on the same tick. Full flow: [`state-machine/delivery-stages.md`][ready].
 ### `_handle_blocked` (label `workflow:blocked`)
 
 The parent reads each child's current label: every child `done` flips the parent to `workflow:ready`, a `rejected` or
-manually-closed child parks it, and the dep-graph walk relabels any `workflow:blocked` child whose recorded dependencies
-are all `done` to `workflow:ready`, once every child it would release passes its split's lineage check and its record,
-read under its claim, is one admission takes (one refusal releases none). A child with no children of its own and a
-recorded `parent_number` is a no-op. A parent a late split's umbrella became once an edit re-decomposed it with work of
-its own settles that split's ledger the way the umbrella's terminal does before the flip, stays `blocked` while anything
-is still owed, and retires the split's cycle in a write of its own first, so its implementation starts a cycle of its
-own. Full flow: [`state-machine/delivery-stages.md`][blocked].
+manually-closed child parks it — once the merge finalize, under that child's claim and off its record read and admitted
+there, finds no merge to explain the close; a closed child whose record admission refuses is written nothing and counted
+neither way, so the parent waits on it — and the dep-graph walk relabels any `workflow:blocked` child whose recorded
+dependencies are all `done` to `workflow:ready`, once every child it would release passes its split's lineage check and
+its record, read under its claim, is one admission takes (one refusal releases none). A child with no children of its
+own and a recorded `parent_number` is a no-op. A parent a late split's umbrella became once an edit re-decomposed it
+with work of its own settles that split's ledger the way the umbrella's terminal does before the flip, stays `blocked`
+while anything is still owed, and retires the split's cycle in a write of its own first, so its implementation starts a
+cycle of its own. Full flow: [`state-machine/delivery-stages.md`][blocked].
 
 ### `_handle_umbrella` (label `workflow:umbrella`)
 
@@ -477,8 +480,11 @@ the last tick that could settle either — so the park a `rejected` or hand-clos
 on its way out, since nothing revisits an open umbrella either. The ref is proved against the consumers the split
 recorded rather than the children the umbrella tracks, so after a drift reroute has replaced the manifest the
 originals it orphaned — read afresh, never re-tracked — still decide it, beside the replacements the new split
-recorded there. Something still owed keeps the label, which is the retry. Full flow:
-[`state-machine/delivery-stages.md`][umbrella].
+recorded there. The delete is taken under every one of those consumers' writer claims, held through the notices behind
+it, and only where each consumer's record, read under its claim, is one admission takes or none at all: a consumer
+another poller holds, or one whose record admission refuses — closed on `done` or orphaned alike — keeps the ref, is
+told nothing even where an earlier delete already took it, and keeps that notice owed. Something still owed keeps the
+label, which is the retry. Full flow: [`state-machine/delivery-stages.md`][umbrella].
 
 ### `_handle_implementing` (label `workflow:implementing`)
 

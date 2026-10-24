@@ -702,8 +702,9 @@ which paths reach an issue decides what keeps it away:
   issue with no pinned comment is not refused this way. `paused`, or `backlog`, holds both, at dispatch, scheduling,
   and the refresh, which then reads no comment and says nothing ([control labels](../configuration.md#control-labels)).
   Hold a decomposed family as a whole: a parent's handler writes its children too, under each child's own claim. Its
-  seeds, recovery repairs, and releases write nothing to a child whose pinned comment it cannot admit, but the merge
-  finalize of a closed child and the notice that a reclaimed snapshot is gone do not ask.
+  seeds, recovery repairs, releases, merge finalizes of a closed child, and notices that a reclaimed snapshot is gone
+  write nothing to a child whose pinned comment it cannot admit, and no snapshot a consumer like that was cut from is
+  deleted while it stays unadmitted.
 - **Closed-issue recovery and cleanup.** The closed-issue sweep finalizes a closed issue still on a stage label, and
   `paused` holds that as it holds dispatch. It asks for canonical label names only, so neither it nor the closed-owner
   sweep below reaches a closed issue carrying only an obsolete bare label
@@ -1414,7 +1415,11 @@ need the isolation described under
   split's placement of a held child parks the parent, exactly as a seed that could not be written does. A child whose
   pinned record, read behind its claim, admission refuses is answered the same way: the seed, the recovery's repair,
   and the release write nothing to it and say why only in the log, and the split's summary, finalize, and release wait
-  until a record admission takes is back on that child, after which the next tick continues on its own.
+  until a record admission takes is back on that child, after which the next tick continues on its own. So do a merged
+  child's finalize, which leaves such a child neither finalized nor counted, and its snapshot notice, which stays owed.
+  A snapshot's delete holds every recorded consumer's claim, alongside this process's own worker, from its last reading
+  of them through the delete and its notices, so one held elsewhere or carrying a record admission refuses keeps the
+  ref on the remote, and the owner's terminal with it, until a later pass finds every consumer admitted.
 - **What the namespace assumes.** Every participating poller can read each repository's numeric id from GitHub, which is
   what makes two configured spellings of one repository, or a poller started before a rename and one started after it,
   meet on one key. They run as a user that can create and open files in that directory, and see it on a local filesystem

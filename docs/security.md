@@ -260,9 +260,13 @@ The late size gate preserves a superseded candidate under
 The refs hold objects, so they hold *content*: a snapshot is a copy of a candidate that was never published. It
 lives in the same repository under the same visibility as the branch it came from, and it is deleted once every
 recorded direct consumer has ended — at the umbrella's own terminal, on the park a rejected or hand-closed child
-earns that parent, or in the closed-owner cleanup sweep for an issue a human closed mid-cycle. A ref whose delete
-the remote refuses holds that terminal open rather than being silently abandoned. It is not a place to put
-anything the repository itself may not hold.
+earns that parent, or in the closed-owner cleanup sweep for an issue a human closed mid-cycle. The delete is taken
+under every one of those consumers' writer claims, held through the notices behind it, and only where each consumer's
+pinned record, read behind its claim, is one admission takes or there is none: a consumer whose record admission
+refuses — closed and wearing a terminal label, or an original the parent's manifest no longer tracks — keeps the ref
+on the remote for whoever disposes of that record, and is told nothing even where an earlier delete already took the
+ref. A ref whose delete the remote refuses holds that terminal open rather than being silently abandoned. It is not a
+place to put anything the repository itself may not hold.
 
 This host keeps its own copy under `refs/orchestrator/late-split-local/<repository>/…`, qualified so that two
 configured repositories sharing one clone cannot read each other's, and it is taken down **first** — the remote ref
@@ -719,8 +723,9 @@ carries — so the publication side proves the record against the remote rather 
 comment refused admission licenses nothing at all: it reads back empty and flagged unparsed or unsupported, ordinary
 dispatch of its issue stops before any guard or handler with nothing written, the base refresh rebases, pushes,
 resets, and recovers nothing in its worktree, every guarded commit over it refuses, a verification-evidence write over
-it holds rather than landing, and a parent's split seed, recovery repair, or dependency release of a child carrying
-one writes nothing to that child and leaves the split unpublished
+it holds rather than landing, a parent's split seed, recovery repair, or dependency release of a child carrying one
+writes nothing to that child and leaves the split unpublished, and a parent's merge finalize or snapshot notice writes
+nothing to such a child, nor deletes the snapshot it was cut from
 ([C-03](contracts.md#c-03-persisted-and-externally-consumed-formats)).
 
 - **An agent's own verdict cannot waive the added-line ceiling.** `late_exempt_sha` records that a late adjudication

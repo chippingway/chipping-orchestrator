@@ -3,9 +3,10 @@
 """Deliver snapshot reclamation receipts to consumers while the owner remains open.
 
 Each child's cycle-bound receipt is deduplicated from its thread under the
-child's writer claim. Close checks surround the reads and writes, and an
-unreachable child -- or one another poller on this host is writing -- keeps the
-notification obligation outstanding.
+child's writer claim, over the child's pinned record read behind that claim
+and held to admission. Close checks surround the reads and writes, and an
+unreachable child -- one another poller on this host is writing, or one whose
+record admission refuses -- keeps the notification obligation outstanding.
 """
 from __future__ import annotations
 
@@ -142,6 +143,12 @@ def _release(
     land beside one. A claim another poller on this host holds is one no
     handler of this process stands beside, so it answers False as an
     unreachable child does, and the obligation waits for a later pass.
+
+    The scan read no pinned record, and the claim is where the one this is
+    decided on is read: a child whose record admission refuses is said
+    locally and told nothing -- not even where the ref is already gone, since
+    a receipt is an act on that child's issue -- and answers False, so the
+    obligation stays on the ledger rather than reading as delivered.
     """
     child = proven.issues.get(int(consumer))
     if child is None:
@@ -154,7 +161,10 @@ def _release(
     try:
         with _child_claims.held_child(walk.gh, walk.issue.number, child.number, alongside=True) as held:
             if held:
+                _child_claims.admitted_child(walk.issue.number, child, walk.gh.read_pinned_state(child))
                 return _told(walk, child, marker, generation)
+    except _child_claims.ChildRefused:
+        return generation, False
     except Exception:
         log.exception(
             "issue=#%d could not tell consumer #%d its snapshot is gone",

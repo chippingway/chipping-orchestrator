@@ -369,8 +369,9 @@ raises it too, however deep in a handler that reading or write is, and the two h
 down on every exit keep it, asking the record again at the teardown itself, since a guarded commit answers such a
 record rather than raising, and keeping it where that reading fails too
 ([the agent-run circuit](#the-agent-run-circuit)).
-A family parent's release walk admits each child's record, read under that child's claim, before it releases any
-(below). None of these reconciles or repairs anything: the next tick's gate refuses the issue again.
+A family parent's release walk admits each child's record, read under that child's claim, before it releases any, and
+its seeds, merge finalize, snapshot notices, and snapshot delete admit the records they act on the same way (below).
+None of these reconciles or repairs anything: the next tick's gate refuses the issue again.
 
 An issue another poller on the host holds is skipped whole on every path: nothing is refetched, published, relabelled,
 written, run, or accounted for, and the submit's publication hold and any latched close are left as they were. A close
@@ -454,6 +455,19 @@ adopted after an interrupted create is recorded on the parent off its receipt an
 fresh child, with no authenticated pinned comment, is admitted, and its seed is its first record, which the writer
 stamps with version 1. The earlier family scan decides none of this: the record is read behind the claim, so a human's
 edit before it counts.
+
+A merged child's finalize and the snapshot-reclaimed notice decide on the child's record too, read behind the same claim
+and held to admission the same way. A closed child whose record admission refuses is not finalized, closed, relabelled,
+commented on, rewritten, or torn down, and the parent neither counts it done or closed by hand nor parks over it, so it
+waits on that child until a human disposes of the record. A consumer refused at its notice is told nothing and its
+notice stays owed on the parent's ledger, whether the delete landed on this pass or on an earlier one, so the entry is
+never recorded `reconciled` over an undelivered notice. A snapshot's delete is a decision about every consumer cut from
+it, so it takes each recorded consumer's claim — alongside a handler of the poller's own, as the notice does — in front
+of its last reading of them, admits every consumer's record behind those claims, and holds them through the delete and
+the notices behind it. One held elsewhere, or one admission refuses, keeps the ref on the remote — a consumer closed on
+`done` and an original the parent's current manifest no longer tracks alike — with the decision left `reclaiming` and
+the owner held on its label, for a later pass or a human to settle; the claims and the proof's other rules are asked
+again on every pass. A genuinely fresh consumer, with no authenticated pinned comment, is admitted.
 
 Only issue numbers cross the thread boundary — each scheduler worker mints a fresh `GitHubClient` via
 `gh._for_worker_thread()` and re-fetches its Issue against that client. The mint itself sends no request: the clone

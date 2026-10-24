@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Order and prove snapshot reclamation before deleting its exact remote ref.
 
-The reclaiming state is durable before a fresh consumer proof and deletion.
-A missing ref can finish interrupted receipt delivery, while cancellation
+The reclaiming state is durable before a fresh consumer proof and deletion,
+which are taken under every recorded consumer's writer claim, held through the
+notices behind the delete, over records those claims' readings admit. A
+missing ref can finish interrupted receipt delivery, while cancellation
 between effects leaves the generation marked and suppresses child notices.
 """
 from __future__ import annotations
@@ -18,6 +20,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.obligations import LateResource, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
+    child_claims as _child_claims,
     late_cleanup_proof as _late_cleanup_proof,
     late_cleanup_reading as _late_cleanup_reading,
     late_cleanup_state as _late_cleanup_state,
@@ -84,6 +87,13 @@ def _reclaim_snapshot(
     both tests and destroy the only copy of what that sibling was told to
     reuse. The name is re-derived here from the issue being walked and the
     record's own counters, and nothing else is deleted.
+
+    **The consumers are held while the proof is read and acted on.** The pass
+    qualified this ref on a scan no claim covered, and the delete is a
+    decision about every issue cut from it: each recorded consumer's writer
+    claim is taken, `alongside` a handler of this process's as the notices
+    are, in front of the fresh reading, and held through the delete and the
+    receipts behind it, so no other poller moves one of them in between.
     """
     issue_number = walk.issue.number
     if not _late_cleanup_reading._our_snapshot(issue_number, generation, ref):
@@ -95,24 +105,34 @@ def _reclaim_snapshot(
             generation, _late_cleanup_reading._SNAPSHOT, ref, LateResourceState.FAILED,
         )
     ordered = _ordered(walk, generation, ref)
-    proven = _late_cleanup_reading._consumer_scan(walk.gh, walk.issue, generation)
-    if not _may_take(walk, generation, ref, proven):
-        log.info(
-            "issue=#%d is not taking %s this visit: a consumer it records is "
-            "live again", issue_number, ref,
-        )
-        return ordered
-    # The scan above is a request per consumer and the probe behind it is
-    # another, so the poll can observe the close anywhere in there -- and what
-    # stands next is the delete itself. The mark goes down BEFORE it, because
-    # a ref that is gone while the record still reads live is a reclamation
-    # nothing afterwards can attribute to the cancellation that earned it.
-    ordered = _late_cleanup_state._observed_close(walk, ordered)
-    return _taken(walk, ordered, ref, proven)
+    with _child_claims.held_children(
+        walk.gh, issue_number, generation.obligations.consumers, alongside=True,
+    ) as claimed:
+        proven = _late_cleanup_reading._consumer_scan(walk.gh, walk.issue, generation)
+        if not _may_take(walk, generation, ref, proven, claimed=claimed):
+            log.info(
+                "issue=#%d is not taking %s this visit: a consumer it records "
+                "is live again, held by another writer, or holds a record "
+                "admission refuses", issue_number, ref,
+            )
+            return ordered
+        # The scan above is a request per consumer and the probe behind it is
+        # another, so the poll can observe the close anywhere in there -- and
+        # what stands next is the delete itself. The mark goes down BEFORE it,
+        # because a ref that is gone while the record still reads live is a
+        # reclamation nothing afterwards can attribute to the cancellation
+        # that earned it.
+        ordered = _late_cleanup_state._observed_close(walk, ordered)
+        return _taken(walk, ordered, ref, proven)
 
 
 def _may_take(
-    walk: _late_cleanup_state._Pass, generation: LateGeneration, ref: str, proven: _ChildScan,
+    walk: _late_cleanup_state._Pass,
+    generation: LateGeneration,
+    ref: str,
+    proven: _ChildScan,
+    *,
+    claimed: bool,
 ) -> bool:
     """The last reading before the delete, taken as late as one can be.
 
@@ -123,19 +143,30 @@ def _may_take(
     ahead of the delete it authorizes -- which leaves the delete request
     itself as the only window, and that one is irreducible.
 
+    That reading is only a proof where `claimed` -- every consumer's claim is
+    held -- and where every consumer's pinned record, read now under those
+    claims, is one admission takes. A consumer another poller is writing may
+    be moving, and one whose record admission refuses -- closed and wearing a
+    terminal label, or an original the manifest no longer tracks, alike --
+    is one this build cannot say the ref no longer matters to: it is said
+    locally and the ref is kept, for whoever disposes of that record. A
+    consumer with no pinned record at all is a fresh one and is admitted.
+
     A ref the remote no longer has is the one case that needs no proof: what
     is left is finishing a delete that already happened, and a consumer that
     came back to it is answered by the receipt and the child's own guard
-    rather than by keeping a ref nobody has.
+    rather than by keeping a ref nobody has -- a consumer the receipt may not
+    be posted on keeps that obligation owed instead.
 
     A refusal leaves the entry `reclaiming` rather than putting it back. The
     decision was taken and not carried out, which is exactly what that state
     means -- and it is read back by the rule that probes the ref before acting
     on it, so a ref still on the remote is kept until the consumers end again.
     """
-    if _late_cleanup_proof._reclaimable(walk.state, generation, proven):
-        return True
-    return _already_gone(walk, generation, ref)
+    if not (claimed and _late_cleanup_proof._reclaimable(walk.state, generation, proven)):
+        return _already_gone(walk, generation, ref)
+    admitted = _child_claims.admitted_children(walk.gh, walk.issue.number, proven.issues)
+    return admitted is not None or _already_gone(walk, generation, ref)
 
 
 def _taken(

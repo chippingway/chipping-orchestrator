@@ -20,11 +20,11 @@ on any other label keeps it for good and the parent would otherwise wait on it
 forever. The exception is an external merge, which is why each candidate is
 retried against the PR-merge finalize before it counts as manually closed --
 under the child's own writer claim, since the finalize writes the child, and
-off the child read again behind it. A closed child on a swept label is
-dispatched on its own as well, so another poller may have finalized,
-relabelled, or reopened it since the scan: it counts as it reads now and is
-never finalized twice. A child that poller is still writing counts as neither
-until a later walk.
+off the child and its pinned record read again behind it. A closed child on a
+swept label is dispatched on its own as well, so another poller may have
+finalized, relabelled, or reopened it since the scan: it counts as it reads now
+and is never finalized twice. A child that poller is still writing, and one
+whose record admission refuses, counts as neither until a later walk.
 
 A parent also re-checks the human's requirements here. Its own body may have
 been edited while children were running, and unlike an implementing issue there
@@ -150,17 +150,17 @@ def _park_rejected_children(
     return True
 
 
-def _remaining_manually_closed(
+def _closed_by_hand(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
     owner: Issue,
     scan: _ChildScan,
-    candidates: list[int],
-) -> list[int]:
-    """The closed candidates no merge explains, finalizing those a merge does.
+    number: int,
+) -> bool:
+    """Whether a closed candidate is one no merge explains, finalizing it where a merge does.
 
-    Each is asked under the child's own writer claim, since a finalize writes
-    the child's label, thread, and record, and asked of a reading taken behind
+    Asked under the child's own writer claim, since a finalize writes the
+    child's label, thread, and record, and asked of a reading taken behind
     that claim: the scan was read before any claim was, and another poller on
     this host may have finalized, relabelled, or reopened the child in
     between, so a finalize decided on the scan's reading would end a child a
@@ -169,19 +169,27 @@ def _remaining_manually_closed(
     another poller holds, or one the read cannot reach, is left as the scan
     read it -- neither finalized nor counted as closed by hand -- so the parent
     waits on it rather than parking over it, and the next walk asks again.
+
+    The finalize decides on the child's pinned record too -- the pull request
+    it names -- so that record, read behind the same claim, is held to
+    admission. One admission refuses is said locally and left the same way:
+    nothing is finalized, closed, relabelled, posted, or torn down for it, and
+    the parent neither counts it nor parks over it, since a pull request a
+    record nobody can read names is not one anything can say is unmerged.
     """
-    remaining: list[int] = []
-    for number in candidates:
-        with _child_claims.held_child(gh, owner.number, number) as held:
-            reread = held and scan.adopt(_read_child_labels(gh, owner, [number]))
-            if not reread or not scan.closed_unended(number, _ENDED_LABELS):
-                continue
-            child_issue = scan.issues[number]
-            if _terminals._finalize_if_pr_merged(gh, spec, child_issue, gh.read_pinned_state(child_issue)):
-                scan.labels[number] = _state._DONE
-            else:
-                remaining.append(number)
-    return remaining
+    with _child_claims.held_child(gh, owner.number, number) as held:
+        reread = held and scan.adopt(_read_child_labels(gh, owner, [number]))
+        if not reread or not scan.closed_unended(number, _ENDED_LABELS):
+            return False
+        child_issue = scan.issues[number]
+        try:
+            reading = _child_claims.admitted_child(owner.number, child_issue, gh.read_pinned_state(child_issue))
+        except _child_claims.ChildRefused:
+            return False
+        if _terminals._finalize_if_pr_merged(gh, spec, child_issue, reading):
+            scan.labels[number] = _state._DONE
+            return False
+        return True
 
 
 def _park_manually_closed_children(
@@ -209,9 +217,8 @@ def _park_manually_closed_children(
     child is the externally-merged transient that the closed-in_review sweep
     finalizes on the next tick, NOT a manual override.
     """
-    manually_closed = _remaining_manually_closed(gh, spec, issue, scan, [
-        number for number in scan.issues if scan.closed_unended(number, _ENDED_LABELS)
-    ])
+    candidates = [number for number in scan.issues if scan.closed_unended(number, _ENDED_LABELS)]
+    manually_closed = [number for number in candidates if _closed_by_hand(gh, spec, issue, scan, number)]
     if not manually_closed:
         return False
     if state.get(_state._AWAITING_HUMAN):

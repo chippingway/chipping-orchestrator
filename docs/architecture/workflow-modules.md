@@ -2691,16 +2691,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             lineage, a whole pointer only at that split's snapshot -- parked once, or held with nothing
                             written on a comment that will not parse; the seed a restart keeps; and the check recovery
                             and release make that a recorded child's receipt is the one stamped for its slot
-      child_claims.py       the writer claim a parent's handler takes on a child before writing it -- one child, or
-                            all a release walk would start at once -- keyed on the client's rename-proof `repo_id` as
-                            the dispatch claim is, and logged when refused; each caller answers a refusal as it
-                            answers a child it may not act on yet. Under those claims, the admitted reading a seed or
-                            repair adds to (`admitted_child`) and the write it lands through (`write_seed`), both
-                            raising `ChildRefused` -- never the dispatcher's `RecordRefused`, so a child's refusal
-                            abandons no parent handler -- over a record admission refuses, at the reading or at a
-                            write a human's edit since left the writer to refuse; and the admitted readings of every
-                            child an all-or-nothing write would act on (`admitted_children`): one admission refuses,
-                            or one nobody could read, holds the whole write. Every refusal is said only in the log
+      child_claims.py       the writer claim a parent's handler takes on a child before acting on it -- one child, or
+                            all a release walk would start or a snapshot's delete was cut for at once, `alongside`
+                            this process's own writer where the only write is a notice -- keyed on the client's
+                            rename-proof `repo_id` as the dispatch claim is, and logged when refused; each caller
+                            answers a refusal as it answers a child it may not act on yet. Under those claims, the
+                            admitted reading a finalize, a notice, a seed, or a repair decides on (`admitted_child`)
+                            and the write a seed or repair lands through (`write_seed`), both raising `ChildRefused`
+                            -- never the dispatcher's `RecordRefused`, so a child's refusal abandons no parent handler
+                            -- over a record admission refuses, at the reading or at a write a human's edit since left
+                            the writer to refuse; and the admitted readings of every child an all-or-nothing effect
+                            would act on (`admitted_children`): one admission refuses, or one nobody could read, holds
+                            the whole effect. Every refusal is said only in the log
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- in one write before it is seeded, under the child's own writer claim, with
@@ -2746,9 +2748,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       parents.py            the fresh child scan -- fresh as of its read, which another poller can outlive -- the
                             rejected and manually-closed parks it earns -- published apart from the scan, since one
                             caller settles its ledger on the way out of them, and a closed child's merge finalize taken
-                            under that child's writer claim off the child read again behind it, a held one counted
-                            neither done nor closed by hand -- and the parent's own drift reroute, which first writes
-                            the children it drops onto the ledger
+                            under that child's writer claim off the child and its admitted record read again behind it,
+                            a held one, or one whose record admission refuses, counted neither done nor closed by hand
+                            and written nothing -- and the parent's own drift reroute, which first writes the children
+                            it drops onto the ledger
       activation.py         the dep-graph walk that releases the next children, the child it passes over because GitHub
                             reports it closed or the scan holds no issue for it, the latch asked before EVERY relabel --
                             a relabel is a request, so a close observed after the first child was released may not
@@ -2968,9 +2971,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_consumer_release.py
                             deliver cycle-bound snapshot reclamation receipts once per child, checking closure around
                             every thread read and post, under the child's writer claim alongside this process's own
-                            writer; an unreachable child, or one another poller holds, keeps delivery outstanding
+                            writer and over the child's record read behind it and admitted; an unreachable child, one
+                            another poller holds, or one whose record admission refuses keeps delivery outstanding
       late_snapshot_reclamation.py
-                            persist reclamation intent, refresh the consumer proof, and delete the exact snapshot;
+                            persist reclamation intent, then under every recorded consumer's writer claim, held through
+                            the delete and its receipts, refresh the consumer proof, admit each consumer's record, and
+                            delete the exact snapshot; a held or refused consumer keeps the ref, the intent standing;
                             recover missing refs and interrupted receipts without recreating or repointing the ref
       late_reclamation.py   select owed work, apply close and publication barriers, and retain attempted and changed
                             entries separately so unchanged failures require no pinned-state rewrite; a held snapshot
