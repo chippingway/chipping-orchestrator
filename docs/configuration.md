@@ -607,10 +607,11 @@ examples.
   each one holding scheduler admission closed while it proved the host quiet. Nothing is persisted, so a restart
   costs at most one extra pass — a repeated pass reads the host again and reports whatever is already gone as done.
   Raising it only delays how long a finished issue's checkout survives; the pass never blocks workflow progress
-  either way, since a host it cannot prove quiet defers the whole pass. The setting bounds the polling process's own
-  passes; the one-shot mode below runs when asked and defers whenever a polling process is live on the host. What the
-  pass finds, what it deletes and in what order, what each per-candidate result means, and what an interrupted pass
-  needs afterwards (nothing) are in
+  either way, since a host it cannot prove quiet defers the whole pass. An issue whose pinned comment the build
+  refuses keeps every artifact on every pass, however it ended, until a human disposes of the record. The setting
+  bounds the polling process's own passes; the one-shot mode below runs when asked and defers whenever a polling
+  process is live on the host. What the pass finds, what it deletes and in what order, what each per-candidate result
+  means, and what an interrupted pass needs afterwards (nothing) are in
   [`configuration/operations.md#reclaiming-a-finished-issues-artifacts`](configuration/operations.md#reclaiming-a-finished-issues-artifacts);
   the bounded record each candidate earns on the analytics sink is
   [`observability/event-streams.md#terminal_artifact_cleanup-records`](observability/event-streams.md#terminal_artifact_cleanup-records).
@@ -1070,7 +1071,9 @@ The barrier is bounded by what a scheduler knows, and two things sit around it f
 is a snapshot, so the pass re-reads `state.running`, `scheduler.is_closed()` and its own host-hold budget **twice
 per candidate** — before it is looked at and again as the last thing before its first mutation, since the readings
 in between (the issue, its pull requests, the remote) are where a candidate's seconds go — and it keeps the
-scheduler's per-candidate `is_active` check underneath as defense in depth.
+scheduler's per-candidate `is_active` check underneath as defense in depth. Each candidate is then taken under its
+issue's writer claim, the one every dispatch and the base refresh take, before the issue is read and through the
+teardown: a candidate another holder has, or whose claim cannot be taken at all, is kept with nothing read or touched.
 
 Another *process* is outside all of it: its workers are in its own scheduler, so `runtime.exclusion` takes a `flock`
 claim on `WORKTREES_DIR/.artifact-maintenance.lock`. Every polling run holds it shared for its whole life, and

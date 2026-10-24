@@ -16,12 +16,13 @@ in ``probes``, the branch-to-repository rules in ``attribution`` and the
 checkout-to-repository ones in ``checkout_attribution``, and the answer they
 fill in ``models``. The classification that decides which of those candidates
 may be reclaimed lives in ``eligibility``, over the fail-closed local reads in
-``evidence``, the issue, pinned-state, and open-pull-request reads in
-``claims``, and the terminal pull request that accounts for one commit in
+``evidence``, the issue, admitted pinned-state, and open-pull-request reads
+in ``claims``, and the terminal pull request that accounts for one commit in
 ``commit_claims``. The maintenance pass that spends one of those
-classifications lives in ``maintenance``, over the widening of that scan with
-what the remote still carries in ``discovery`` and the three commit-pinned
-teardown steps in ``reclaim``. Every worktree name is defined on one of these
+classifications lives in ``maintenance``, under the issue writer claim
+``maintenance_guards`` takes, over the widening of that scan with what the
+remote still carries in ``discovery`` and the three commit-pinned teardown
+steps in ``reclaim``. Every worktree name is defined on one of these
 owners, and callers import the owner they need directly, so this initializer
 binds nothing and importing one owner never drags the others in.
 

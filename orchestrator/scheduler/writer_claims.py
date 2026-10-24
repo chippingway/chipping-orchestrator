@@ -17,10 +17,11 @@ do nothing for the issue this time and ask again on a later polling pass. It
 never waits, because what it would wait out is another poller's whole handler
 -- an agent run included -- and every other issue in its tick would wait with
 it. Every dispatch path takes it for the issue it dispatches, a family
-handler for each child it writes, and the per-tick base refresh for each
-worktree it syncs -- one key and one namespace for all three, so a refresh
-contends with a dispatch, and with another poller's refresh, exactly as two
-dispatches do.
+handler for each child it writes, the per-tick base refresh for each
+worktree it syncs, and the terminal-artifact maintenance pass for each
+candidate it classifies and tears down -- one key and one namespace for all
+four, so a refresh or a pass contends with a dispatch, and with another
+poller's refresh or pass, exactly as two dispatches do.
 
 It is exclusive between this process's own threads too: a key one thread holds
 as a writer is refused to a second writer here exactly as it is to another

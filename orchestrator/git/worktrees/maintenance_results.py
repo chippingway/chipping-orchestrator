@@ -59,6 +59,14 @@ class MaintenanceReason(StrEnum):
     pass re-runs from the start. `TIP_UNREADABLE` is that reading not coming
     back at all.
 
+    `WRITER_CLAIM_REFUSED` is the issue's host-local writer claim being
+    refused before anything about the issue was read: another poller on this
+    host, or a writer of this process's own, holds it, or the claim could not
+    be worked at all. It is kept apart from `ACTIVE_CLAIM` because it can be
+    a namespace an operator has to repair -- the claim's own skip line says
+    which -- while an active claim is this process's own worker, which always
+    clears itself.
+
     `BRANCH_CHECKED_OUT` is the one reason about a tree this candidate does
     not own. Some worktree of the clone is still standing on the branch --
     an operator's own, or one this scan could not attribute -- and the
@@ -78,6 +86,7 @@ class MaintenanceReason(StrEnum):
     ACTIVITY_UNREADABLE = "activity_unreadable"
     ACTIVE_CLAIM = "active_claim"
     CLAIM_UNREADABLE = "claim_unreadable"
+    WRITER_CLAIM_REFUSED = "writer_claim_refused"
     TIP_MOVED = "tip_moved"
     TIP_UNREADABLE = "tip_unreadable"
     BRANCH_CHECKED_OUT = "branch_checked_out"
@@ -122,6 +131,7 @@ _OUTCOMES = MappingProxyType({
     MaintenanceReason.ACTIVITY_UNREADABLE: MaintenanceOutcome.RETAINED,
     MaintenanceReason.ACTIVE_CLAIM: MaintenanceOutcome.RETAINED,
     MaintenanceReason.CLAIM_UNREADABLE: MaintenanceOutcome.RETAINED,
+    MaintenanceReason.WRITER_CLAIM_REFUSED: MaintenanceOutcome.RETAINED,
     MaintenanceReason.TIP_MOVED: MaintenanceOutcome.RETAINED,
     MaintenanceReason.TIP_UNREADABLE: MaintenanceOutcome.RETAINED,
     MaintenanceReason.BRANCH_CHECKED_OUT: MaintenanceOutcome.RETAINED,

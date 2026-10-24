@@ -26,6 +26,16 @@ it must come to exactly one state, and that state must be `done` or
 the label vocabulary is what the whole state machine routes on, so an issue
 in two states at once is a repository somebody is in the middle of editing,
 not a candidate.
+
+The pinned record is held to admission, whatever the labels say. One that
+admission refuses -- a missing or unsupported version, or a payload that is
+no state -- keeps the candidate even on an issue closed on a terminal label:
+it reads back empty, which is what an issue nothing was recorded for reads
+as, and taken that way the pull request and branch it names would go
+unasked. It is said in one local line naming the repository, the issue, and
+the version found against the one supported, and nothing is written for it.
+An issue with no pinned comment at all is no refusal and is classified as
+ever.
 """
 from __future__ import annotations
 
@@ -54,6 +64,9 @@ TERMINAL_LABELS = frozenset((WorkflowLabel.DONE, WorkflowLabel.REJECTED))
 
 _OPEN_PULL_REQUEST = "open"
 
+# What the pass does with a pinned record admission refuses.
+_RECORD_KEPT = "keeping every checkout and branch of the issue for whoever disposes of the record"
+
 
 def _fetched_issue(gh: GitHubClient, issue_number: int) -> Any | None:
     """The issue one candidate names, or None when GitHub would not say.
@@ -78,7 +91,7 @@ def _fetched_issue(gh: GitHubClient, issue_number: int) -> Any | None:
 def _read_state(
     gh: GitHubClient, issue: Any, issue_number: int,
 ) -> PinnedState | Retention:
-    """The issue's authenticated pinned state, or the reason it is not one.
+    """The issue's admitted pinned state, or the reason it is not one.
 
     Authenticated because the parse behind it is: the pinned comment is
     matched only when the bot itself wrote it and the body is the state
@@ -91,23 +104,27 @@ def _read_state(
     request and branch live in that comment, so a reclamation that treated an
     unreadable state as an empty one would go looking for neither.
 
-    The payload is checked for being a state at all, because authentication
-    does not make it one, and it is checked twice because it can fail to be
-    one in two ways. A comment carrying valid JSON the bot wrote -- `[]`,
-    `"x"` -- comes back as a `PinnedState` whose data has no `get`, and every
-    reader below would raise on it. A comment carrying JSON that does not
-    parse comes back EMPTY, which is the shape of an issue nothing was ever
-    recorded for: the parser stands `{}` in so a write can overwrite the
-    corruption in place, and `parsed` is how it says the payload is a
-    substitute rather than a reading.
+    Nor is a comment admission refuses, though it reads back just as EMPTY:
+    the parser stands `{}` in for a payload that will not parse, that is no
+    object, or that is an object under a missing or unsupported version, and
+    `supported` is how it says the payload is a substitute rather than a
+    reading. Spending the substitute as a record would be the sharper mistake
+    -- the recorded branch and pull request are exactly what it does not
+    carry, so a candidate whose claims live there would read as a candidate
+    with no claims at all, and an issue closed on a terminal label would have
+    its artifacts reclaimed on the strength of a record nobody read. The
+    refusal is said in the one local line naming the repository, the issue,
+    the comment, its admission status, and the version found against the one
+    supported, and the record is left for whoever disposes of it.
 
-    Both are `STATE_MALFORMED` rather than `STATE_UNREADABLE`, because what
-    an operator does with them differs from what they do with a failed
-    request: an API failure clears itself on the next tick, while a corrupted
-    pinned comment stays until a human edits it. Spending the substitute as a
-    record instead would be the sharper mistake -- the recorded branch and
-    pull request are exactly what it does not carry, so a candidate whose
-    claims live there would read as a candidate with no claims at all.
+    A payload that is no state at all is `STATE_MALFORMED` and an object
+    under a version this build does not admit is `STATE_UNSUPPORTED`, and
+    neither is `STATE_UNREADABLE`, because what an operator does with them
+    differs from what they do with a failed request: an API failure clears
+    itself on the next tick, while a refused pinned comment stays until a
+    human disposes of it. A state built in memory rather than parsed can
+    still carry a payload with no `get` on it, and every reader below would
+    raise on it, so it is checked for being an object as well.
 
     The reason is returned rather than raised, and the issue number comes from
     the candidate rather than off the issue, so that neither the answer nor
@@ -122,13 +139,14 @@ def _read_state(
             "artifacts", issue_number, exc_info=True,
         )
         return Retention(RetentionReason.STATE_UNREADABLE, subject)
-    if not state.parsed:
+    if not state.supported:
         log.warning(
-            "issue=#%d pinned state did not parse; refusing to classify its "
-            "artifacts against the empty payload standing in for it",
-            issue_number,
+            "repo=%s issue=#%d pinned comment #%s is %s (found schema_version %r, supported %s: %s); %s",
+            state.repo_slug, issue_number, state.comment_id, state.admission_status.value,
+            state.found_version, state.supported_version, state.refusal_reason, _RECORD_KEPT,
         )
-        return Retention(RetentionReason.STATE_MALFORMED, subject)
+        refused = RetentionReason.STATE_UNSUPPORTED if state.parsed else RetentionReason.STATE_MALFORMED
+        return Retention(refused, subject)
     if not isinstance(state.data, dict):
         log.warning(
             "issue=#%d pinned state is a %s rather than an object; refusing "

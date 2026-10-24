@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """A bounded maintenance pass over classified artifact candidates.
 
-Claims, eligibility, recent activity, and continuation are checked in order.
-Checkout and branch removal owners spend the same proven tips immediately
-before each mutation, stopping the candidate at the first refusal. Results
-record that ordered outcome without retaining a retry queue between passes."""
+Claims, eligibility, recent activity, and continuation are checked in order,
+and everything from the eligibility's first reading of the issue to the last
+teardown step runs under the issue's host-local writer claim. Checkout and
+branch removal owners spend the same proven tips immediately before each
+mutation, stopping the candidate at the first refusal. Results record that
+ordered outcome without retaining a retry queue between passes."""
 from __future__ import annotations
 
 import logging
@@ -65,6 +67,39 @@ def _maintained_candidate(
 ) -> _maintenance_results.MaintenanceResult | None:
     """Decide about one candidate, and act on it if everything clears it.
 
+    The scheduler's own claim is asked first, since it costs nothing, and the
+    issue's writer claim is then taken and held through everything that
+    reads the issue or touches its artifacts (`_claimed_candidate`). A
+    refused claim keeps the candidate with nothing about the issue read and
+    nothing on the host or the remote touched; the next pass asks again.
+    """
+    artifacts = candidate.artifacts
+    subject = f"#{artifacts.issue_number}"
+    active = _maintenance_guards._claim_reason(artifacts, claimed)
+    if active is not None:
+        return _maintenance_results._answered(candidate, active, subject)
+    with _maintenance_guards._issue_claim(gh, artifacts) as held:
+        if not held:
+            return _maintenance_results._answered(
+                candidate, _maintenance_results.MaintenanceReason.WRITER_CLAIM_REFUSED, subject,
+            )
+        return _claimed_candidate(gh, candidate, going)
+
+
+def _claimed_candidate(
+    gh: GitHubClient,
+    candidate: _candidates.MaintenanceCandidate,
+    going: _maintenance_guards.ContinuationGuard,
+) -> _maintenance_results.MaintenanceResult | None:
+    """Classify one candidate whose issue's writer claim this pass holds, and tear it down if it clears.
+
+    Under that claim because the classification reads the issue and its
+    pinned record, and the teardown is spent on that reading: no other
+    orchestrator writer on this host can relabel the issue or rewrite its
+    record between the two. A record admission refuses is answered by the
+    classification itself, as a retention, so it reaches no teardown however
+    the issue ended.
+
     The classification is taken here rather than handed in, because what it
     reads is what the mutations are pinned to: a verdict taken a tick earlier
     would clear commits the artifacts have since left, and the teardown would
@@ -85,9 +120,6 @@ def _maintained_candidate(
     it cannot, and buy microseconds of earlier exit for it.
     """
     artifacts = candidate.artifacts
-    active = _maintenance_guards._claim_reason(artifacts, claimed)
-    if active is not None:
-        return _maintenance_results._answered(candidate, active, f"#{artifacts.issue_number}")
     verdict = eligibility._classify_artifacts(gh, artifacts)
     if not verdict.eligible:
         return _maintenance_results._answered(

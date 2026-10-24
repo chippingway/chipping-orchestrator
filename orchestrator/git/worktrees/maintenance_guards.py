@@ -1,14 +1,17 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Activity and continuation gates around artifact maintenance.
+"""Activity, writer-claim, and continuation gates around artifact maintenance.
 
-Every unreadable guard refuses action. A claim protects a running issue,
-checkout activity protects recent work, and continuation stops a bounded pass."""
+Every unreadable guard refuses action. A claim protects a running issue, the
+issue's writer claim keeps every other orchestrator writer on this host off it
+from the first reading through the teardown, checkout activity protects recent
+work, and continuation stops a bounded pass."""
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
 from orchestrator.git.worktrees import (
     activity_evidence as _activity_evidence,
@@ -16,6 +19,8 @@ from orchestrator.git.worktrees import (
     maintenance_results as _maintenance_results,
     models as _models,
 )
+from orchestrator.github.client import GitHubClient
+from orchestrator.scheduler import writer_claims as _writer_claims
 
 log = logging.getLogger("orchestrator.worktree_lifecycle")
 
@@ -75,6 +80,45 @@ def _claim_reason(
         )
         return _maintenance_results.MaintenanceReason.CLAIM_UNREADABLE
     return _maintenance_results.MaintenanceReason.ACTIVE_CLAIM if active else None
+
+
+@contextlib.contextmanager
+def _issue_claim(
+    gh: GitHubClient, artifacts: _candidates.IssueArtifacts,
+) -> Iterator[bool]:
+    """Hold this candidate's issue writer claim for the body, or say it was not held.
+
+    The claim every dispatch path and the base refresh take for the issue,
+    on the one key in the one namespace, so a pass contends with them, and
+    with another poller's pass, exactly as two dispatches do. Imported rather
+    than injected, unlike the guards above: the claim is a host record under
+    `WORKTREES_DIR` rather than a reading of the process this pass runs
+    beside, and every holder on the host meets on the same file whoever
+    asks.
+
+    Taken without waiting, and `False` is answered the same way whatever
+    refused it -- a holder elsewhere, a writer of this process's own, a
+    namespace nothing can be locked in, or a repository whose id would not
+    read to key the claim on: the candidate is left exactly as it stands,
+    with nothing about the issue read. The refusal is said on the claim
+    owner's own line, and a key that could not be read is said here.
+    """
+    try:
+        repo_id = gh.repo_id
+    except Exception:
+        log.warning(
+            "issue=#%d repo=%s writer claim could not be keyed: the repository "
+            "id would not read; leaving its artifacts alone",
+            artifacts.issue_number, artifacts.spec.slug, exc_info=True,
+        )
+        repo_id = None
+    if repo_id is None:
+        yield False
+        return
+    with _writer_claims.issue_writer(
+        repo_id, artifacts.issue_number, repo_name=artifacts.spec.slug,
+    ) as held:
+        yield held
 
 
 def _activity_reason(

@@ -24,7 +24,11 @@ from orchestrator.git.worktrees import claims
 from orchestrator.git.worktrees.models import Retention, RetentionReason
 from orchestrator.github.pinned_state import (
     PINNED_STATE_TEMPLATE,
+    SCHEMA_VERSION_KEY,
+    SUPPORTED_SCHEMA_VERSION,
+    GitHubStateMixin,
     PinnedState,
+    pinned_state_body,
     pinned_state_from_comment,
 )
 from tests.git.worktrees import eligibility_test_support as _support
@@ -79,12 +83,29 @@ _CORRUPT_PAYLOADS = ("{bad json}", "[]", '"x"', "7", "null")
 # that reached the classifier without passing the parser at all.
 _FOREIGN_PAYLOADS = ([], "orchestrator/issue-314", 7, None)
 
+# Versions admission refuses on an object that otherwise records a branch and
+# a pull request: none at all, a later build's, and the spellings of 1 that
+# are not the integer 1.
+_REFUSED_VERSIONS = (None, SUPPORTED_SCHEMA_VERSION + 1, "1", 1.0, True)
+
+# The repository a refusal is said against.
+_REPO_SLUG = "acme/widget"
+
+# The client's pinned-state read, which these cases answer for it.
+_READ_STATE = "read_pinned_state"
+
 
 def _claims(gh, spec, branches=(BRANCH,), **pinned) -> tuple:
     """Every open pull request claiming this issue's artifacts."""
     return claims._open_pull_request_retentions(
         gh, spec, _support.ISSUE_NUMBER, branches, PinnedState(data=dict(pinned)),
     )
+
+
+def _record_under(version) -> dict:
+    """A record naming this issue's branch and pull request, under `version` or under none where it is None."""
+    stamped = {} if version is None else {SCHEMA_VERSION_KEY: version}
+    return {PINNED_BRANCH_KEY: BRANCH, "pr_number": RECORDED_PR_NUMBER, **stamped}
 
 
 class TerminalValidationTest(unittest.TestCase):
@@ -138,7 +159,7 @@ class PinnedStateTest(unittest.TestCase):
 
     def test_a_read_that_raised_is_unreadable(self) -> None:
         with patch.object(
-            self.gh, "read_pinned_state", side_effect=RuntimeError("no"),
+            self.gh, _READ_STATE, side_effect=RuntimeError("no"),
         ):
             unread = claims._read_state(self.gh, self.issue, _support.ISSUE_NUMBER)
 
@@ -157,7 +178,7 @@ class PinnedStateTest(unittest.TestCase):
             with self.subTest(payload=payload):
                 with patch.object(
                     self.gh,
-                    "read_pinned_state",
+                    _READ_STATE,
                     return_value=PinnedState(data=payload),
                 ):
                     malformed = claims._read_state(
@@ -188,7 +209,7 @@ class PinnedStateTest(unittest.TestCase):
                 self.assertEqual(corrupted.data, {})
 
                 with patch.object(
-                    self.gh, "read_pinned_state", return_value=corrupted,
+                    self.gh, _READ_STATE, return_value=corrupted,
                 ):
                     malformed = claims._read_state(
                         self.gh, self.issue, _support.ISSUE_NUMBER,
@@ -199,6 +220,61 @@ class PinnedStateTest(unittest.TestCase):
                         RetentionReason.STATE_MALFORMED, f"#{_support.ISSUE_NUMBER}",
                     ),
                 )
+
+
+class RecordAdmissionTest(unittest.TestCase):
+    """A pinned record admission refuses is no record to classify on, and no pin at all still is one."""
+
+    def setUp(self) -> None:
+        self.issue = _support._terminal_issue()
+        self.gh = _support._github(self.issue)
+
+    def test_a_refused_version_is_kept_and_said(self) -> None:
+        # An object under a version admission refuses reads back as empty as an
+        # issue that recorded nothing, so the pull request and branch it names
+        # would go unasked over an issue whose ending has already cleared.
+        for version in _REFUSED_VERSIONS:
+            with self.subTest(version=version):
+                refused = pinned_state_from_comment(
+                    FakeComment(
+                        id=CORRUPT_COMMENT_ID,
+                        body=pinned_state_body(_record_under(version)),
+                        user=FakeUser(BOT_LOGIN),
+                    ),
+                    trusted_login=BOT_LOGIN,
+                    issue_number=_support.ISSUE_NUMBER,
+                    repo_slug=_REPO_SLUG,
+                )
+                self.assertEqual(refused.data, {})
+
+                with (
+                    patch.object(self.gh, _READ_STATE, return_value=refused),
+                    self.assertLogs(claims.log.name, level="WARNING") as logs,
+                ):
+                    kept = claims._read_state(self.gh, self.issue, _support.ISSUE_NUMBER)
+                    said = "\n".join(logs.output)
+
+                self.assertEqual(kept, Retention(RetentionReason.STATE_UNSUPPORTED, f"#{_support.ISSUE_NUMBER}"))
+                self.assertIn(
+                    f"repo={_REPO_SLUG} issue=#{_support.ISSUE_NUMBER} pinned comment #{CORRUPT_COMMENT_ID} is "
+                    f"unsupported (found schema_version {version!r}, supported {SUPPORTED_SCHEMA_VERSION}",
+                    said,
+                )
+
+    def test_no_record_is_still_classified(self) -> None:
+        # Through the production reader, so the two empty readings are the ones
+        # a deployed poller takes: a thread nobody pinned anything on is fresh
+        # and classified as ever, and the same thread once an unsupported record
+        # is pinned on it is kept.
+        with patch.object(type(self.gh), _READ_STATE, GitHubStateMixin.read_pinned_state):
+            unpinned = claims._read_state(self.gh, self.issue, _support.ISSUE_NUMBER)
+            self.issue.create_comment(pinned_state_body({PINNED_BRANCH_KEY: BRANCH}))
+            with self.assertLogs(claims.log.name, level="WARNING"):
+                pinned = claims._read_state(self.gh, self.issue, _support.ISSUE_NUMBER)
+
+        self.assertIsInstance(unpinned, PinnedState)
+        self.assertEqual(unpinned.data, {})
+        self.assertEqual(pinned, Retention(RetentionReason.STATE_UNSUPPORTED, f"#{_support.ISSUE_NUMBER}"))
 
 
 class OpenPullRequestClaimTest(unittest.TestCase):

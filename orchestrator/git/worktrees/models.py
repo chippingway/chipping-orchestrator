@@ -67,18 +67,23 @@ class RetentionReason(StrEnum):
     a pinned comment, a pull-request lookup, a git read -- is the absence of
     one. And what was asked and answered
     something nobody here can act on -- an issue in two workflow states at
-    once, a pinned comment carrying something that is not a state, a checkout
-    on a branch this issue never published -- is neither.
+    once, a pinned comment carrying something that is not a state or a record
+    under a version this build does not admit, a checkout on a branch this
+    issue never published -- is neither.
 
     The third family is kept apart from the second for what an operator does
     with it. A read that failed is transient and clears itself; a pinned
     comment holding a JSON array never clears, and an operator sent to check
-    the API for it would find nothing wrong there.
+    the API for it would find nothing wrong there. Inside it, a payload that
+    is no state at all and an object under a version admission refuses stay
+    apart as well: the first is a corruption, the second a record some other
+    build wrote, and each is disposed of by hand in its own way.
     """
 
     ISSUE_UNREADABLE = "issue_unreadable"
     STATE_UNREADABLE = "state_unreadable"
     STATE_MALFORMED = "state_malformed"
+    STATE_UNSUPPORTED = "state_unsupported"
     ISSUE_OPEN = "issue_open"
     NO_WORKFLOW_LABEL = "no_workflow_label"
     AMBIGUOUS_WORKFLOW_LABEL = "ambiguous_workflow_label"

@@ -44,11 +44,12 @@ it, as the [operations runbook](configuration/operations.md#running-more-than-on
 is not recovered from GitHub alone ([what survives a restart](configuration/operations.md#what-survives-a-restart);
 [backups](security.md#backup-and-restore-drills)).
 
-Each issue has one orchestrator writer at a time. Different issues are worked in parallel, but every dispatch and every
-per-tick base refresh takes the issue's host-local [writer claim](#process-model) before it reads the issue and holds
-it through its last write, so no other orchestrator writer changes that issue's pinned comment or labels in the middle
-of an operation. Code under the claim may treat its own earlier writes as sequential checkpoints, and need not adopt,
-reconcile, or repair records a second orchestrator writer could have moved meanwhile. What it still handles is a
+Each issue has one orchestrator writer at a time. Different issues are worked in parallel, but every dispatch, every
+per-tick base refresh, and every artifact maintenance candidate takes the issue's host-local
+[writer claim](#process-model) before it reads the issue and holds it through its last write or deletion, so no other
+orchestrator writer changes that issue's pinned comment or labels in the middle of an operation. Code under the claim
+may treat its own earlier writes as sequential checkpoints, and need not adopt, reconcile, or repair records a second
+orchestrator writer could have moved meanwhile. What it still handles is a
 process lost between two writes, a write refused or whose answer was lost, a comment with no room left, and changes
 from outside the orchestrator: a human's comment, label, or issue edit, the pull request, the remote branch, the
 configuration, and the checkout on disk. A successor record another orchestrator operation wrote before the claim was
@@ -362,7 +363,11 @@ interpreter of its own finds nothing wrong, and exit.
   contends with a dispatch, and with another poller's refresh, as two dispatches do. The pinned record it reads under
   the claim is admitted before any route reads it, and one admission refuses gets no route. Nothing under it takes the
   claim again: the anchor answer the dispatcher reaches too runs there under the dispatch claim. A refresh refused the
-  claim reads and writes nothing for the issue, and syncs it on a later tick. The claim is never waited for: a contender
+  claim reads and writes nothing for the issue, and syncs it on a later tick. The artifact maintenance pass takes the
+  same claim on the same key for each candidate, behind the scheduler's own active-issue answer and before it reads
+  the issue, and holds it through the classification and the teardown; the pinned record it classifies on is admitted
+  from that reading, and one admission refuses keeps the candidate whole. A candidate refused the claim is kept with
+  nothing read or touched, and asked about again by a later pass. The claim is never waited for: a contender
   skips the issue with no effect but a close it
   read, which it keeps in its own latch and retries on a later tick; different issues never contend. That latch is tied
   to a late cycle only where the record is read first, the issue still reads closed behind it, and the record read again
@@ -400,7 +405,9 @@ interpreter of its own finds nothing wrong, and exit.
   first mutation — from the run's own stop flag, from the scheduler that granted the hold, and from the pass's own
   host-hold budget. The second reading is what closes the window the first leaves open: everything expensive (the
   issue, its pull requests, the remote reads every deletion is pinned to) happens in between, so a signal that lands
-  there ends the pass instead of being answered by a teardown. Past that reading one candidate is taken as a unit —
+  there ends the pass instead of being answered by a teardown. All of that, from the issue's first reading to the last
+  deletion, runs under the issue's writer claim, and a candidate whose pinned record admission refuses keeps every
+  artifact, however the issue ended. Past that reading one candidate is taken as a unit —
   its checkouts, then each of its branches on the remote and in the clone, every step pinned to the commit that was
   proved and idempotent — because a candidate half taken is the one state this vocabulary cannot report. The due
   gate lives in this process's memory, so nothing is persisted and a restart costs at most one extra pass — the pass
