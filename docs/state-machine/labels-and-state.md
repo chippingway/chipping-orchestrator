@@ -432,7 +432,9 @@ counts it by that reading, so one another poller finalized, relabelled, or reope
 twice, and leaves a held child as scanned, counted neither done nor closed by hand; and the snapshot-reclaimed notice
 leaves a held consumer's obligation owed. An ordinary split's seed is read and added to under the child's claim, never
 written as a fresh record: a poller that reached the child first may have held it for the seed it lacks, parked on the
-one pinned comment every reader takes, and the seed lifts that park in the same write. A child that poller still holds
+one pinned comment every reader takes, and the seed lifts that park in the same write. The drift baseline it carries is
+the one hashed off the create's answer before that claim was taken, so an edit since is drift, not the baseline, and
+one that record already carries is kept ([drift baseline](#pinned-state)). A child that poller still holds
 is left unseeded while the split creates the rest, and the split stops short of its summary and finalize, leaving the
 parent `workflow:decomposing` with every child recorded — exactly what the
 [half-finished recovery](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) seeds under the claim and
@@ -1324,8 +1326,14 @@ The keys that matter for the state machine fall into a few groups:
   the thread through the last of them, and only where the recorded value -- in either spelling the drift check
   accepts -- already covers the thread up to the watermark they were written past (`workflow/engine/rewrite_replies.py`,
   see [Base refresh](#base-refresh)), so an
-  adjudication the replay is handed to never reads an operator's retry as guidance. What a run may cross on the
-  issue thread is bounded beside it — see [the drift section](delivery-stages.md#user-content-drift-detection).
+  adjudication the replay is handed to never reads an operator's retry as guidance. An ordinary split's seed writes
+  it on each child it creates, to the fingerprint of the title and body the child's create answered — the slice,
+  the receipt, any snapshot reuse instructions, and the `Parent:` footer — with no comment, so an edit landing
+  between the create and the seed is drift rather than the baseline. A seed over a record already carrying one keeps
+  it, and a seed the split's recovery makes, an adopted child's included, writes none: nothing a recovery reads
+  proves what the child was created saying, and a receipt proves only which slice it was cut for. A child missing
+  one is held by no seed, admission, or release (`stages/decomposition/child_baseline.py`). What a run may cross on
+  the issue thread is bounded beside it — see [the drift section](delivery-stages.md#user-content-drift-detection).
 - **Observed reading.** `observed_user_content_hash` — the same fingerprint over a reading a stage acted on without
   consuming any of it, written only where no `user_content_hash` is recorded: by a late adjudication carrying on over a
   quiet reading. It moves no baseline. The drift check compares against it in place of the missing one, recording
@@ -4442,10 +4450,12 @@ rather than preserving.
   splitting stops at the same bound five generations down as it does at the root — a child that could not say how
   deep it is would read as a root and buy the lineage another generation, which is why an unreadable depth reads
   back unknown rather than 0. This group is also the WHOLE of what descends. A child is created with a pinned comment
-  of its own and seeded with exactly these keys, the parent link and the creation stamp — never with the parent's
-  `late_exempt_sha`, never with the `late_override_*` terms an operator authorized that parent's publication on, and
-  never with its measurement — so the first candidate a child commits reaches the size gate carrying no record that
-  skips a reading, and is measured from the frozen base across every path, over however many commits the slice took.
+  of its own and seeded with exactly these keys, the parent link and the creation stamp — beside the drift baseline an
+  ordinary split records off the child's own create, which is the child's and nothing of its parent's — never with the
+  parent's `late_exempt_sha`, never with the `late_override_*` terms an operator authorized that parent's publication
+  on, and never with its measurement — so the first candidate a child commits reaches the size gate carrying no
+  record that skips a reading, and is measured from the frozen base across every path, over however many commits the
+  slice took.
   A bypass that descended would publish the one thing a split exists to prevent: bulk nobody adjudicated, under a
   permission granted for a different change on a different issue. That absence is driven from the split that really
   creates one, in

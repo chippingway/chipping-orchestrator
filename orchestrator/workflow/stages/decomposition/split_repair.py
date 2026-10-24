@@ -9,6 +9,14 @@ before the parent's record is asked anything about it, and a record admission
 refuses -- at the reading, or at the write a human's edit since then leaves
 it to refuse -- raises `child_claims.ChildRefused` with nothing written to the
 child: no link, no lineage, no park lifted, and no version stamped onto it.
+
+The repair writes no drift baseline. The create's answer the split hashed one
+off is gone with the tick that made it, the parent keeps no manifest to render
+the creation content from, and the child's receipt proves which slice it was
+cut for, not what it said -- so its body, edited or not, is never read as what
+it was created saying. A baseline the split's own seed landed is kept as it
+stands, and a child seeded here without one is left with it missing, which
+holds nothing here.
 """
 from __future__ import annotations
 
@@ -47,6 +55,7 @@ def _seed_orphan_child_state(
     and of the finalize that would let anything start it. A child whose own
     record admission refuses is asked none of that: it raises
     `child_claims.ChildRefused`, since nothing on that record can be read.
+    Its drift baseline is left exactly as the record carries it, or missing.
     """
     child_issue = gh.get_issue(int(child_number))
     child_state = _child_claims.admitted_child(issue.number, child_issue, gh.read_pinned_state(child_issue))
@@ -63,6 +72,6 @@ def _seed_orphan_child_state(
     attributed = _state._links_to(child_state.get(_state._PARENT_NUMBER), issue.number)
     if attributed and seed.ancestry is None:
         return None
-    _child_creation._complete_seed(child_state, issue.number, seed.ancestry)
+    _child_creation._complete_seed(child_state, issue.number, seed.ancestry, baseline=None)
     _child_claims.write_seed(gh, issue.number, child_issue, child_state)
     return None

@@ -59,8 +59,12 @@ _STRAY_ANCESTRY_KEY = "late_ancestry_depth"
 # The seeding a case names the parent's own late record under.
 _GENERATION = "generation"
 
-# What every seed carries beside the lineage, and the group that lineage is.
-_SEEDED_LINK = frozenset((_split.KEY_PARENT_NUMBER, _split.KEY_CREATED_AT, SCHEMA_VERSION_KEY))
+# What every seed carries beside the lineage -- the parent link, its stamp, the
+# version, and the drift baseline the child's create answered -- and the group
+# that lineage is.
+_SEEDED_LINK = frozenset((
+    _split.KEY_PARENT_NUMBER, _split.KEY_CREATED_AT, SCHEMA_VERSION_KEY, "user_content_hash",
+))
 
 _ANCESTRY_KEYS = frozenset(_lineage.LATE_ANCESTRY_KEYS)
 
@@ -199,7 +203,7 @@ class InheritedLineageTest(unittest.TestCase):
     def test_a_seed_carries_nothing_of_the_gate(self) -> None:
         # The parent carries the whole bypass an operator granted a commit of
         # its own; what its children are seeded with is a parent link, a
-        # stamp, and a lineage, written fresh.
+        # stamp, a baseline, and a lineage, written fresh.
         bypass = _authorized_exemption(_support.CANDIDATE_SHA, _support.BASE_SHA)
         github, issue = _split.late_parent(_support.own_split(), **bypass)
 

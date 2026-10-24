@@ -64,6 +64,9 @@ _FOREIGN_REF = "refs/orchestrator/late-split/issue-4/cycle-2/gen-1"
 # Another split's receipt, quoted in a slice that copied the body of a child of that split.
 _QUOTED_RECEIPT = f"<!--orchestrator-split-child:issue={_OUTSIDER}:attempt=0123456789abcdef:index=0:lineage=none-->"
 
+# The one-slice answer, its slice opening on that quoted receipt.
+_QUOTING_MANIFEST = _split.ONE_REPLACEMENT_MANIFEST.replace('"body": "', f'"body": "{_QUOTED_RECEIPT}\\n\\n')
+
 
 @dataclass(frozen=True)
 class _Lapse:
@@ -117,14 +120,14 @@ def _put_under(github, issue, label) -> None:
     github.set_workflow_label(issue, label, guarded=False)
 
 
-def _split_once(ordinary: bool) -> tuple:
-    """A one-child split that ran whole; the client and its child.
+def _split_once(ordinary: bool, answer: str = _split.ONE_REPLACEMENT_MANIFEST) -> tuple:
+    """A one-child split of `answer` that ran whole; the client and its child.
 
     Of a late root holding the snapshot its own split preserved, unless
     `ordinary` splits an issue no late split charged.
     """
     github, issue = _split.late_parent(None if ordinary else _support.own_split())
-    _split.redecompose(github, issue, _split.ONE_REPLACEMENT_MANIFEST)
+    _split.redecompose(github, issue, answer)
     return github, github.created_child_issues[0]
 
 
@@ -203,8 +206,8 @@ class UnseededChildTest(unittest.TestCase):
         # A slice that quoted its parent's own body carries that body's receipt
         # ahead of the one the split stamped after it; the stamp is what the
         # seed is held to, and a whole seed runs.
-        github, child = _split_once(ordinary=True)
-        child.body = f"{_QUOTED_RECEIPT}\n\n{child.body}"
+        github, child = _split_once(ordinary=True, answer=_QUOTING_MANIFEST)
+        self.assertTrue(child.body.startswith(_QUOTED_RECEIPT))
         github.set_workflow_label(child, WorkflowLabel.READY, guarded=False)
 
         mocks = _split.redecompose(github, child, IMPLEMENTED_MESSAGE, tick=_dispatch)

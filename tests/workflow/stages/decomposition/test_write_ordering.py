@@ -10,9 +10,11 @@ from tests.support.fakes import (
 )
 from tests.workflow.fixtures import (
     LABEL_DECOMPOSING,
+    LABEL_READY,
     _agent,
     _manifest,
 )
+from tests.workflow.stages.decomposition import child_baseline_support as _baseline_support
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _ChildSeedOrderRecorder,
     _DecomposingWorkflowMixin,
@@ -70,6 +72,7 @@ ORPHAN_CHILD_NUMBER = 602
 STALE_PARK_COMMENT_ID = 999
 EXPECTED_COUNT_ORDER_ISSUE_NUMBER = 82
 CHILD_STATE_ORDER_ISSUE_NUMBER = 83
+CHILD_BASELINE_ORDER_ISSUE_NUMBER = 84
 WORKTREE_ISSUE_NUMBER = 70
 DIRTY_WORKTREE_ISSUE_NUMBER = 71
 AWAITING_WORKTREE_ISSUE_NUMBER = 73
@@ -85,6 +88,7 @@ SPLIT_MANIFEST = _manifest(
     '{"decision": "split", "children": ['
     '{"title": "A", "body": "a", "depends_on": []},{"title": "B", "body": "b", "depends_on": []}]}'
 )
+ONE_SLICE_MANIFEST = _manifest('{"decision": "split", "children": [{"title": "A", "body": "a", "depends_on": []}]}')
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
 
@@ -131,7 +135,7 @@ class DecompositionWriteOrderingTest(
         gh = FakeGitHubClient()
         issue = make_issue(CHILD_STATE_ORDER_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
         gh.add_issue(issue)
-        manifest = _manifest('{"decision": "split", "children": [{"title": "A", "body": "a", "depends_on": []}]}')
+        manifest = ONE_SLICE_MANIFEST
 
         recorder = _ChildSeedOrderRecorder(gh, issue.number)
         gh.write_pinned_state = recorder
@@ -150,3 +154,43 @@ class DecompositionWriteOrderingTest(
             1,
             "parent must record the child number before the child's pinned state is seeded",
         )
+
+    def test_a_child_is_baselined_before_release(self) -> None:
+        # The child's drift baseline lands in its seed -- its first pinned
+        # write, behind the parent's record of it -- so the split releases a
+        # child already baselined at what it was created saying, rather than
+        # leaving a later poll to take whatever it says by then.
+        gh = FakeGitHubClient()
+        issue = make_issue(CHILD_BASELINE_ORDER_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        gh.add_issue(issue)
+        seeds = _ChildSeedOrderRecorder(gh, issue.number)
+        gh.write_pinned_state = seeds
+        releases = _ReleaseRecorder(gh)
+        gh.set_workflow_label = releases
+
+        self._run_decomposing(
+            gh,
+            issue,
+            run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=ONE_SLICE_MANIFEST),
+        )
+
+        baseline = seeds.baselines[0]
+        self.assertEqual(
+            baseline, _baseline_support.reading(gh.created_child_issues[0]), "the seed records the baseline",
+        )
+        self.assertEqual(releases.baselines, [baseline], "and it is on the child at its release")
+
+
+class _ReleaseRecorder:
+    """A relabel that notes, as each issue goes `ready`, the drift baseline its record carries by then."""
+
+    def __init__(self, gh: FakeGitHubClient) -> None:
+        self.baselines: list[str | None] = []
+        self._gh = gh
+        self._relabel = gh.set_workflow_label
+
+    def __call__(self, target_issue, label, **options):
+        if label == LABEL_READY:
+            pinned = self._gh.pinned_data(target_issue.number)
+            self.baselines.append(pinned.get(_baseline_support.KEY_BASELINE))
+        return self._relabel(target_issue, label, **options)

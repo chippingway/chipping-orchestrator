@@ -23,7 +23,9 @@ crash-safe order children are created in, `split_summary` the summary a split
 or its recovery finalizes the parent with, once per split attempt and quoting
 the rationale the split recorded,
 `split_receipts` the receipt each child carries so one created and never
-recorded can be found again, `split_seeds` the dispatch hold on a child whose
+recorded can be found again, `child_baseline` the drift baseline a child is
+seeded with off what its create answered -- and only off that, so a seed
+without it in hand writes none -- `split_seeds` the dispatch hold on a child whose
 seed is not what that receipt says it was owed, `replacement_lineage` owns
 the late lineage and snapshot pointer those children are seeded with when the
 issue sits inside one -- and the park when either cannot be proved, and the

@@ -6,11 +6,12 @@ Each of these exists because the value it carries has to survive a boundary
 the call stack alone would lose it across: the worktree policy a run decides
 before it can raise, the agent identity a resume is locked to, the children a
 split has already created when the next one fails -- with the lineage it
-seeds each of them with, the attempt their receipts name, the rationale the
-parent records beside them, and the ones a seed under the child's claim had
-to leave for the split's recovery to seed and finalize -- and the child
-labels a parent scan read once, and takes again for a child a write reads
-anew under that child's claim, that several branches then ask about.
+seeds each of them with, the baseline each create answered, the attempt their
+receipts name, the rationale the parent records beside them, and the ones a
+seed under the child's claim had to leave for the split's recovery to seed and
+finalize -- and the child labels a parent scan read once, and takes again for
+a child a write reads anew under that child's claim, that several branches
+then ask about.
 """
 from __future__ import annotations
 
@@ -94,6 +95,11 @@ class _SplitPlan:
     # the split stops short of its finalize, and its recovery seeds them and
     # finalizes it.
     unseeded: list[int] = field(default_factory=list)
+    # Each created child's drift baseline, hashed off what its create answered
+    # before anything else was asked of it (`child_baseline.at_creation`), for
+    # the seed under the child's claim to record. Held in memory only: a seed
+    # left to the recovery is made without it.
+    baselines: dict[int, str] = field(default_factory=dict)
 
     @classmethod
     def start(

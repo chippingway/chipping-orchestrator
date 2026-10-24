@@ -22,14 +22,16 @@ children at, exactly as the write the crash lost would have recorded it. The
 entitlement comes from that lineage rather than from the child's text, which
 anyone may have edited since: every child of a split that points is owed the
 pointer. From there it is a recorded child like any other, held to the
-recovery's recognition and seeded before anything finalizes the split. One
-closed or relabelled is something a human acted on, and one ending on another
-receipt -- or on none whole -- is one nothing can attribute; one the register
-already names is another slice's child, and taking it again would record one
-issue twice; and a receipt more than one issue carries names no single child
-at all. None of them is adopted or created again: the answer names them for
-the park the split takes. A parent with no attempt this binary minted -- one
-an older binary split -- leaves nothing to look for.
+recovery's recognition and seeded before anything finalizes the split -- with
+no drift baseline, since the receipt proves which slice the child was cut for,
+not what it said. One closed or relabelled is something a human acted on, and
+one ending on another receipt -- or on none whole -- is one nothing can
+attribute; one the register already names is another slice's child, and taking
+it again would record one issue twice; and a receipt more than one issue
+carries names no single child at all. None of them is adopted or created
+again: the answer names them for the park the split takes. A parent with no
+attempt this binary minted -- one an older binary split -- leaves nothing to
+look for.
 
 The receipt also names the lineage the split owed its child -- root, depth,
 cycle, and generation under the parent it names, or none -- decided off the

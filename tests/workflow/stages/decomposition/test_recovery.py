@@ -33,6 +33,7 @@ from tests.workflow.fixtures import (
     _manifest,
 )
 from tests.workflow.stages.decomposition import (
+    child_baseline_support as _baseline_support,
     replacement_lineage_support as _support,
     replacement_split_support as _split,
 )
@@ -591,7 +592,11 @@ class ReplacementCrashTest(_ReplacementRecoveryCase):
 
         self.assertEqual(_split.replacements(self.github), [child])
         self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)
-        self.assertEqual(self.github.pinned_data(child)[KEY_PARENT_NUMBER], _support.PARENT)
+        # Linked, with no baseline: the create's answer died with the crash,
+        # and the receipt proves the slice, not what it said.
+        seeded = self.github.pinned_data(child)
+        linked = (seeded[KEY_PARENT_NUMBER], seeded.get(_baseline_support.KEY_BASELINE))
+        self.assertEqual(linked, (_support.PARENT, None))
         # Finalized only once repaired; the walk that starts it comes later.
         self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
 
@@ -808,7 +813,10 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
 
                 self._recover()
 
-                self.assertEqual(self.github.pinned_data(child)[KEY_PARENT_NUMBER], _support.PARENT)
+                seeded = self.github.pinned_data(child)
+                self.assertEqual(
+                    (seeded[KEY_PARENT_NUMBER], seeded.get(_baseline_support.KEY_BASELINE)), (_support.PARENT, None),
+                )
                 self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
 
     def _reads_unparsed(self, child: int):

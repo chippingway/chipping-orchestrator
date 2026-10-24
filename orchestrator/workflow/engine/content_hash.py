@@ -6,7 +6,9 @@ Pinned records, orchestrator output, bots, untrusted authors, and whole-comment
 operator commands are excluded before hashing. The legacy bare-continue mode
 lets the drift owner recognize a baseline without inventing a requirements edit.
 A caller that already read the title and body for a digest of its own hashes
-those same values, so an edit landing between two reads cannot split them."""
+those same values, so an edit landing between two reads cannot split them, and
+a split's seed hashes the title and body its child's create answered, with no
+comment, as that child's first baseline."""
 from __future__ import annotations
 
 import hashlib
@@ -166,6 +168,11 @@ def _hash_requirements(
     of its own -- hands the same values in here, so its digest and this hash
     describe one title and one body rather than two reads an edit could land
     between. What is filtered out is exactly what that entry point filters.
+
+    A split's seed hands in the title and body its child's create answered
+    and no comment at all -- what the drift check reads off that child while
+    nobody has edited it -- so the baseline it records is the content the
+    child was created with (`stages/decomposition/child_baseline`).
     """
     parts = [title, body]
     for issue_comment in comments:

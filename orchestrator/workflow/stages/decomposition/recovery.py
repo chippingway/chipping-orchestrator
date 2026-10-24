@@ -38,9 +38,13 @@ parent's record proves (`ReplacementLineage.repair`): a missing parent link
 or ancestry is seeded -- a child started without its ancestry would be read
 by its size gate as a fresh root at depth 0 -- a lost consumer slot is
 restored ahead of the seed, and the seeding write lifts the park the missing
-seed earned. A lineage no longer proved, or a child this split cannot
-recognize as its own (see `split_repair`), parks instead of finalizing, which
-keeps every child of that split unstarted.
+seed earned. It writes no drift baseline: the split's seed hashed one off the
+create's answer, which no recovery holds, so a baseline that seed landed is
+kept as it stands, and a child seeded here without one -- an adopted one
+included -- is finalized with it missing rather than given one hashed off
+whatever its body says by now. A lineage no longer proved, or a child this
+split cannot recognize as its own (see `split_repair`), parks instead of
+finalizing, which keeps every child of that split unstarted.
 
 Each child is repaired under its own writer claim or not at all: one another
 poller on this host is writing stops the recovery there without a park, and

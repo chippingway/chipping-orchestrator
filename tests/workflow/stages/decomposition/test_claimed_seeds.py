@@ -12,6 +12,9 @@ summary, finalize, or release on it, and its recovery waits for a record
 admission takes before it does. A seed write that fails parks the parent naming
 the child and gives that claim back, so the child is not left held by a split
 that has stopped writing it.
+
+Each seed records the child's drift baseline off what its create answered; a
+seed the recovery makes has no create's answer in hand and records none.
 """
 from __future__ import annotations
 
@@ -31,7 +34,10 @@ from tests.workflow.fixtures import (
     _agent,
     _manifest,
 )
-from tests.workflow.stages.decomposition import child_claim_test_support as _support
+from tests.workflow.stages.decomposition import (
+    child_baseline_support as _baseline_support,
+    child_claim_test_support as _support,
+)
 from tests.workflow.stages.decomposition.decomposing_test_support import _DecomposingWorkflowMixin
 
 _PARENT = 96
@@ -98,6 +104,7 @@ class ClaimedSeedTest(unittest.TestCase):
         first = self.github.created_child_issues[0].number
         self.assertFalse(seeded)
         self.assertEqual(refused.claimable_during, [False], "the seed is written under the child's claim")
+        self.assertEqual(self.github.pinned_data(first), {}, "nothing lands on the child, a baseline included")
         self.assertTrue(self.github.pinned_data(_PARENT)[KEY_AWAITING_HUMAN], "the parent is parked naming it")
         self.assertTrue(claimable(self.github.repo_id, first), "and the child's claim is given back")
 
@@ -125,6 +132,11 @@ class AdmittedSeedTest(unittest.TestCase, _DecomposingWorkflowMixin):
                 self.assertLessEqual(
                     _LIFTED.items(), self.github.pinned_data(held).items(),
                 )
+                self.assertEqual(
+                    [self.github.pinned_data(number).get(_baseline_support.KEY_BASELINE) for number in (fresh, held)],
+                    [_baseline_support.reading(self.github.get_issue(number)) for number in (fresh, held)],
+                    "each seed records the baseline of its child as created",
+                )
                 self.assertEqual(_support.standing(self.github, refused), _refused_standing(shape))
                 self._assert_unpublished([fresh, held, refused])
                 self.assertTrue(_names(said, refused), "the refusal is said locally")
@@ -147,7 +159,11 @@ class AdmittedSeedTest(unittest.TestCase, _DecomposingWorkflowMixin):
         self.github.seed_state(refused)
         self._run_decomposing(self.github, self.parent, run_agent=_agent())
 
-        self.assertEqual(self.github.pinned_data(refused)[KEY_PARENT_NUMBER], _PARENT)
+        seeded = self.github.pinned_data(refused)
+        self.assertEqual(
+            (seeded[KEY_PARENT_NUMBER], seeded.get(_baseline_support.KEY_BASELINE)), (_PARENT, None),
+            "the recovery links the child and records no baseline, holding no create's answer",
+        )
         self.assertEqual(self.github.label_history, [(_PARENT, LABEL_BLOCKED)])
         self.assertEqual(len(_summaries(self.github)), 1)
 

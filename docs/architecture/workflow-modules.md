@@ -560,8 +560,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             scheduler's hold outlasts its worker's writer claim
     content_hash.py         the user-content hash and filters for pinned records, orchestrator output, bots, untrusted
                             authors, and whole-comment operator commands, over the live thread or a read the caller
-                            already holds -- the title and body included, for a caller that digests them too; the
-                            legacy bare-continue mode recognizes an existing baseline
+                            already holds -- the title and body included, for a caller that digests them too, or a
+                            split child's create answer with no comment; the legacy bare-continue mode recognizes an
+                            existing baseline
     drift.py                baseline persistence and legacy normalization, the dev resume a requirements edit earns, and
                             the pre-implementation decomposition reset; no road here marks a thread read to its tip,
                             since a tip crosses what a bounded excerpt dropped and what landed while an agent was
@@ -2703,16 +2704,23 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the writer to refuse; and the admitted readings of every child an all-or-nothing effect
                             would act on (`admitted_children`): one admission refuses, or one nobody could read, holds
                             the whole effect. Every refusal is said only in the log
+      child_baseline.py     the drift baseline a split's child is seeded with: `user_content_hash` over the title and
+                            body its create answered -- slice, receipt, any snapshot reuse instructions, and `Parent:`
+                            footer -- with no comment, hashed by `engine/content_hash`'s own definition
+                            (`at_creation`), and the rule that records it once (`seed`): a record already carrying a
+                            baseline keeps it, and a seed with no create's answer in hand records none rather than
+                            hashing what the child says by then -- what a missing one means is `engine/drift.py`'s
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- in one write before it is seeded, under the child's own writer claim, with
-                            its parent link, creation stamp, and that lineage, never with the parent's measurement,
-                            exemption, or authorization, added to the record the child carries by then and lifting the
-                            park its missing seed earned -- the seed completion recovery's repair writes too; a child
-                            another poller holds, or whose record read under its claim admission refuses, is left
-                            unseeded on the plan for the recovery with nothing written to it, a genuinely fresh one is
-                            seeded with its first, version-1 record, and a failed create or seed write parks the
-                            parent for repair
+                            its parent link, creation stamp, that lineage, and the drift baseline its create answered
+                            (`child_baseline.py`), read off the create before the parent write, never with the
+                            parent's measurement, exemption, or authorization, added to the record the child carries
+                            by then and lifting the park its missing seed earned -- the seed completion recovery's
+                            repair writes too, with no baseline; a child another poller holds, or whose record read
+                            under its claim admission refuses, is left unseeded on the plan for the recovery with
+                            nothing written to it, a genuinely fresh one is seeded with its first, version-1 record,
+                            and a failed create or seed write parks the parent for repair
       split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
                             naming a snapshot ref its child would not be kept -- stamp each child's receipt and
                             append the snapshot's reuse instructions to the body of each child owed it, then persist
@@ -2742,9 +2750,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             child is repaired under its own writer claim, and one another poller holds -- or one whose
                             record, read under that claim, admission refuses, an adopted one included -- stops the
                             recovery with no park and nothing written to it, short of the summary and the finalize,
-                            for the next tick to resume
+                            for the next tick to resume; one whose record cannot be read parks before either. It
+                            writes no drift baseline: one the split's seed landed is kept, and a child it seeds is
+                            finalized with none
       split_repair.py       the seed write of that repair onto one recorded child, inside the hold `recovery.py` takes,
-                            off the child's reading admitted before the parent's record is asked about it
+                            off the child's reading admitted before the parent's record is asked about it -- with no
+                            drift baseline, since a receipt proves the child's slice, not what it was created saying
       parents.py            the fresh child scan -- fresh as of its read, which another poller can outlive -- the
                             rejected and manually-closed parks it earns -- published apart from the scan, since one
                             caller settles its ledger on the way out of them, and a closed child's merge finalize taken

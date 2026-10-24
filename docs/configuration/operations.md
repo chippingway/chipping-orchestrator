@@ -1938,7 +1938,8 @@ kept too, so the fresh attempt never pins or resumes one of them, even where a b
 spawn. A child an ordinary split created keeps its seed as well — its `parent_number` and its `late_ancestry_*` group,
 the snapshot pointer included — because the receipt in its body holds every later dispatch to that seed
 ([below](#re-decomposing-an-issue-inside-a-late-lineage)); nothing of the cancelled cycle's candidate, exemption, or
-authorization comes with it. Child issues the cancelled cycle created on GitHub are **not** touched: they are real
+authorization comes with it, and neither does the drift baseline its split recorded beside that seed, which goes with
+the rest. Child issues the cancelled cycle created on GitHub are **not** touched: they are real
 issues carrying real work, and what happens to them stays a human's decision.
 
 If you apply that same target label by hand while a restart is mid-transaction, you will see the orchestrator take

@@ -5,11 +5,17 @@
 The parent records each created child before its pinned state is seeded, and
 the write that records it is also the one that puts it on the snapshot's
 consumer ledger where the plan's lineage owes it a pointer. The seed is the
-parent link and that lineage: nothing of the parent's own size gate -- its
-measurement, its exemption, or an exact-commit authorization -- is carried
-across. The same seed completes a child the split's recovery repairs
-(`_complete_seed`). A create or a seed write that fails parks the parent with
-the corresponding receipt.
+parent link, that lineage, and the child's drift baseline: nothing of the
+parent's own size gate -- its measurement, its exemption, or an exact-commit
+authorization -- is carried across. The baseline is hashed off what the create
+answered, before the parent write or anything else is asked of the child
+(`child_baseline.at_creation`), so an edit landing between the create and the
+seed is drift the child's own check meets rather than the baseline it starts
+from; a record already carrying a baseline keeps it. The same seed completes a
+child the split's recovery repairs (`_complete_seed`), with no baseline: the
+create's answer is not kept past the tick that made it, and nothing a recovery
+reads proves what the child was created saying. A create or a seed write that
+fails parks the parent with the corresponding receipt.
 
 A child is dispatchable the moment it exists, so the seed is written under the
 child's own writer claim, onto the record the child carries by then: another
@@ -35,7 +41,11 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards, usage as _usage
 from orchestrator.workflow.late_split import lineage as _lineage
 from orchestrator.workflow.late_split.ancestry import LateAncestry
-from orchestrator.workflow.stages.decomposition import child_claims as _child_claims, state as _state
+from orchestrator.workflow.stages.decomposition import (
+    child_baseline as _child_baseline,
+    child_claims as _child_claims,
+    state as _state,
+)
 from orchestrator.workflow.stages.decomposition.models import _SplitPlan
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -51,10 +61,11 @@ def _child_initial_labels() -> list[str]:
 
 
 def _write_child_pinned_state(
-    gh: GitHubClient, new_issue: Issue, parent_number: int, ancestry: LateAncestry | None,
+    gh: GitHubClient, new_issue: Issue, parent_number: int, ancestry: LateAncestry | None, baseline: str,
 ) -> None:
-    """Seed a freshly-created child: the parent link, the creation stamp, and
-    the late ancestry its lineage owes it, if any.
+    """Seed a freshly-created child: the parent link, the creation stamp, the
+    late ancestry its lineage owes it, if any, and the baseline its create
+    answered.
 
     Read and added to rather than written fresh, under the claim the caller
     holds. Whatever another poller wrote to the child first -- the hold the
@@ -66,23 +77,28 @@ def _write_child_pinned_state(
     `child_claims.ChildRefused` with nothing written.
     """
     child_state = _child_claims.admitted_child(parent_number, new_issue, gh.read_pinned_state(new_issue))
-    _complete_seed(child_state, parent_number, ancestry)
+    _complete_seed(child_state, parent_number, ancestry, baseline)
     _child_claims.write_seed(gh, parent_number, new_issue, child_state)
 
 
-def _complete_seed(child_state: PinnedState, parent_number: int, ancestry: LateAncestry | None) -> None:
+def _complete_seed(
+    child_state: PinnedState, parent_number: int, ancestry: LateAncestry | None, baseline: str | None,
+) -> None:
     """Write what a recorded child's seed lacks, and take off the park its missing seed earned.
 
     The parent link only where it is missing, stamped as created now where
-    nothing stamped it, and the owed ancestry where the split or its repair
-    names one. A child recorded on a parent still creating or recovering its
-    split was never released, so the only parks it can be wearing are the ones
-    that missing seed earned: the dispatcher's hold on a seed its receipt does
-    not match, and the unattributed-child park a `blocked` tick takes on one
-    with no parent link. Left standing past the write that answers it, either
-    would meet the child at its implementer, which would wait on a reply
-    nobody owes. A record no park was written to is left without one, so a
-    seed nobody reached first is exactly the link, the stamp, and the lineage.
+    nothing stamped it, the owed ancestry where the split or its repair names
+    one, and the drift baseline where the caller holds the create's answer
+    and the record carries none (`child_baseline.seed`) -- never one a repair
+    could only hash off what the child says now. A child recorded on a parent
+    still creating or recovering its split was never released, so the only
+    parks it can be wearing are the ones that missing seed earned: the
+    dispatcher's hold on a seed its receipt does not match, and the
+    unattributed-child park a `blocked` tick takes on one with no parent link.
+    Left standing past the write that answers it, either would meet the child
+    at its implementer, which would wait on a reply nobody owes. A record no
+    park was written to is left without one, so a seed nobody reached first is
+    exactly the link, the stamp, the lineage, and the baseline.
     """
     if not _state._links_to(child_state.get(_state._PARENT_NUMBER), parent_number):
         child_state.set(_state._PARENT_NUMBER, parent_number)
@@ -90,6 +106,7 @@ def _complete_seed(child_state: PinnedState, parent_number: int, ancestry: LateA
             child_state.set(_state._CREATED_AT, _usage._now_iso())
     if ancestry is not None:
         _lineage.write_late_ancestry(child_state, ancestry)
+    _child_baseline.seed(child_state, baseline)
     if child_state.carries(_state._AWAITING_HUMAN) or child_state.carries(_state._PARK_REASON):
         child_state.set(_state._AWAITING_HUMAN, False)
         child_state.set(_state._PARK_REASON, None)
@@ -142,7 +159,10 @@ def _seed_created_child(
     claim once that poller lets go. A record admission refuses is left the same
     way, since what it needs is a human disposing of it rather than a park of
     this split's: the recovery seeds the child once a record admission takes
-    is back on it. Only a seed that could not be written parks.
+    is back on it. Either way the recovery seeds it with no baseline, which
+    leaves the baseline missing rather than manufactured. Only a seed that
+    could not be written parks -- and one that landed with its answer lost
+    carries the baseline the recovery then keeps.
     """
     _, child = plan.created[-1]
     try:
@@ -150,6 +170,7 @@ def _seed_created_child(
             if held:
                 _write_child_pinned_state(
                     gh, new_issue, issue.number, plan.lineage.child_ancestry(state, new_issue.number),
+                    plan.baselines[new_issue.number],
                 )
             else:
                 plan.unseeded.append(new_issue.number)
@@ -191,6 +212,7 @@ def _create_planned_child(
     except Exception:  # noqa: BLE001 - the failed create is parked for a human, not raised through
         _park_child_create_failure(gh, issue, state, idx, child)
         return False
+    plan.baselines[new_issue.number] = _child_baseline.at_creation(new_issue)
     plan.record(idx, new_issue.number, child)
     _persist_created_child(gh, issue, state, plan, new_issue.number)
     return _seed_created_child(gh, issue, state, plan, new_issue)
