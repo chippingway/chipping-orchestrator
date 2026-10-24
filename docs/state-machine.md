@@ -430,9 +430,12 @@ session replacing it quote off the record rather than out of the bounded thread.
 naming the child and the field, before any child or split marker is written. A split of an issue
 inside a late lineage seeds each child one level below it under the same root, pointed only at a snapshot the
 parent's own split still holds and records it on, and parks before creating anything where that lineage cannot be
-proved. Half-finished splits recover rather than re-spawn — adopting a child created and never recorded by the
-receipt in its body, and posting the split's summary, its rationale read back off the parent's record, only where
-its own receipt is not already on the thread — a
+proved. Every child's seed — at the split, in its recovery, or on a late split's placement — adds to the child's record
+read under the child's writer claim and admitted: a genuinely fresh child's seed is its first record, stamped with
+version 1, and a child whose record admission refuses is written nothing, said only in the log, and holds the split
+short of its summary, finalize, and release. Half-finished splits recover rather than re-spawn — adopting a child
+created and never recorded by the receipt in its body, and posting the split's summary, its rationale read back off the
+parent's record, only where its own receipt is not already on the thread — a
 `DECOMPOSE` kill switch falls through to `workflow:implementing`, and commits or a dirty tree
 park with the worktree kept. An issue standing on a `retry_cap` park is held ahead of all of that — the
 drift reset, the kill switch, and the human-reply resume each answer a park that is not this one — so it keeps
@@ -451,13 +454,13 @@ on the same tick. Full flow: [`state-machine/delivery-stages.md`][ready].
 ### `_handle_blocked` (label `workflow:blocked`)
 
 The parent reads each child's current label: every child `done` flips the parent to `workflow:ready`, a `rejected` or
-manually-closed child parks it, and the dep-graph walk relabels any `workflow:blocked` child whose recorded
-dependencies are all `done` to `workflow:ready`, once every child it would release passes its split's lineage check
-(one refusal releases none). A child with no children of its own and a recorded `parent_number` is a no-op. A
-parent a late split's umbrella became once an edit re-decomposed it with work of its own settles that
-split's ledger the way the umbrella's terminal does before the flip, stays `blocked` while anything is still owed,
-and retires the split's cycle in a write of its own first, so its implementation starts a cycle of its own. Full
-flow: [`state-machine/delivery-stages.md`][blocked].
+manually-closed child parks it, and the dep-graph walk relabels any `workflow:blocked` child whose recorded dependencies
+are all `done` to `workflow:ready`, once every child it would release passes its split's lineage check and its record,
+read under its claim, is one admission takes (one refusal releases none). A child with no children of its own and a
+recorded `parent_number` is a no-op. A parent a late split's umbrella became once an edit re-decomposed it with work of
+its own settles that split's ledger the way the umbrella's terminal does before the flip, stays `blocked` while anything
+is still owed, and retires the split's cycle in a write of its own first, so its implementation starts a cycle of its
+own. Full flow: [`state-machine/delivery-stages.md`][blocked].
 
 ### `_handle_umbrella` (label `workflow:umbrella`)
 

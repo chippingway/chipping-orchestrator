@@ -2066,31 +2066,34 @@ lineage beside it kept. A child carrying exactly the group it was owed is left a
 refuse: the title and body are what the implementer reads, so they are read exactly as a slice is before creation —
 every ref named under the namespace, whatever line or line ending it sits on, each as the whole name git would take it
 for, a mirror standing for the ref only under this repository's own segment — and a child naming any ref but the one the
-split still holds is not one this recovery may finalize. A child that split cannot recognize as its own is refused
-rather than overwritten: a pinned comment that would not parse (it reads back empty, exactly like the seed a crash
-deferred, and nothing on it can be checked), a `parent_number` that is not this issue's number — another issue's, or no
-positive integer at all, since a float or a bool compares equal to one without being one — text naming a snapshot ref
-the split no longer holds or never preserved (or another repository's mirror of one), or any other group — part of it, a
-field its reader would drop, another lineage — which a child's own size gate would read as whatever it says. A split of
-an issue no late split charged is held to the same recognition: its children are owed no lineage and no snapshot, so a
-recorded child of one is left as it stands only where its comment parses, its `parent_number` is this issue's number or
-not carried at all (a `null` is refused like any other non-number), it carries none of the group, and its text names no
-snapshot ref at all — and refused otherwise. Only once every child passes is the parent finalized into the walk that
-activates children; a record that no longer proves the lineage, or a child refused, parks the same way instead and
-leaves every child unstarted. That walk — which is also how the split itself releases its children with no dependency,
-in the tick that created them, over the same fresh read of every child's label and behind the same parks a rejected or
-hand-closed child earns, since a human can act on one while its siblings are still being created — asks the same
-decision again before it releases any of them, since a child starts off a record that may have changed since its seed,
-and, before the first release, holds every child it would release, as each
-then reads, to the recognition a recovery applies: its pinned comment has to parse, its `parent_number` has to be this
-issue's number, its ancestry has to be the whole group it was owed, its pointer only one the parent's ledger still keeps
-for it (the ref held, the child on `late_consumers`), and its title and body may name no ref but that one. A child a
-recovery would have to refuse or repair — a seed taken off, a pointer at a released ref, a consumer slot lost, another
-issue's ref added to its body — releases none of them. A child of an ordinary split is held to the same recognition,
-owed no lineage and no snapshot, so every child either walk releases costs one read of its pinned comment. Either
-refusal parks the parent, once. What the text is held to is naming no ref the split cannot keep, not keeping the
-instructions: a child whose reuse instructions a human took out of its body keeps its pointer and its slot on the ledger
-— a recovery puts back either one it finds missing — and is released uninstructed.
+split still holds is not one this recovery may finalize. A child whose pinned record admission refuses — one that would
+not parse, or one carrying no version or a version this build does not admit — reads back empty, exactly like the seed a
+crash deferred, and nothing on it can be checked: read under the child's claim, it is written nothing, and the recovery
+stops there without parking, as it does at a child another poller holds, until a record admission takes is back on it. A
+child that split cannot recognize as its own is refused rather than overwritten: a `parent_number` that is not this
+issue's number — another issue's, or no positive integer at all, since a float or a bool compares equal to one without
+being one — text naming a snapshot ref the split no longer holds or never preserved (or another repository's mirror of
+one), or any other group — part of it, a field its reader would drop, another lineage — which a child's own size gate
+would read as whatever it says. A split of an issue no late split charged is held to the same recognition: its children
+are owed no lineage and no snapshot, so a recorded child of one is left as it stands only where its record is admitted,
+its `parent_number` is this issue's number or not carried at all (a `null` is refused like any other non-number), it
+carries none of the group, and its text names no snapshot ref at all — and refused otherwise. Only once every child
+passes is the parent finalized into the walk that activates children; a record that no longer proves the lineage, or a
+child refused, parks the same way instead and leaves every child unstarted. That walk — which is also how the split
+itself releases its children with no dependency, in the tick that created them, over the same fresh read of every
+child's label and behind the same parks a rejected or hand-closed child earns, since a human can act on one while its
+siblings are still being created — asks the same decision again before it releases any of them, since a child starts off
+a record that may have changed since its seed, and, before the first release, holds every child it would release, as
+each then reads, to the recognition a recovery applies: its pinned record has to be one admission takes (one refused
+releases none and parks nothing), its `parent_number` has to be this issue's number, its ancestry has to be the whole
+group it was owed, its pointer only one the parent's ledger still keeps for it (the ref held, the child on
+`late_consumers`), and its title and body may name no ref but that one. A child a recovery would have to refuse or
+repair — a seed taken off, a pointer at a released ref, a consumer slot lost, another issue's ref added to its body —
+releases none of them. A child of an ordinary split is held to the same recognition, owed no lineage and no snapshot, so
+every child either walk releases costs one read of its pinned comment. Either refusal parks the parent, once. What the
+text is held to is naming no ref the split cannot keep, not keeping the instructions: a child whose reuse instructions a
+human took out of its body keeps its pointer and its slot on the ledger — a recovery puts back either one it finds
+missing — and is released uninstructed.
 
 A child created and never recorded — the crash between the create and the parent write that records it — is found again
 by what the split put in it. Every child's body carries a hidden receipt naming the parent, a `split_attempt` minted for

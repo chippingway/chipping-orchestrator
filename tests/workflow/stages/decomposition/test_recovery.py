@@ -784,22 +784,32 @@ class RecordedSeedTest(_ReplacementRecoveryCase):
                 self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
                 self.assertEqual(_split.parks(self.github), [PARK_LINEAGE_UNPROVED])
 
-    def test_an_unreadable_seed_is_never_finalized(self) -> None:
-        # Nothing on it can be checked, and a seed written over it would take
-        # whatever it carried with it -- whether or not its split owes it a
-        # lineage.
+    def test_a_refused_record_is_never_written(self) -> None:
+        # Read under the child's claim, a comment that will not parse is one
+        # admission refuses: nothing on it can be checked, and a seed written
+        # over it would take whatever it carried with it -- whether or not its
+        # split owes it a lineage. So nothing is written to it, nothing is
+        # finalized past it, and the parent is not parked, since what the
+        # child needs is a human disposing of that record. Once it is gone,
+        # the next recovery seeds the child as owed and finalizes.
         for parent in (_LATE_ROOT, _ORDINARY):
             with self.subTest(parent=parent):
                 self.setUp(parent)
                 child = self._die_seeding()
+                writes = self.github.write_state_calls
 
                 unparsed = patch.object(self.github, "read_pinned_state", side_effect=self._reads_unparsed(child))
-                with unparsed:
+                with unparsed, self.assertLogs("orchestrator.workflow", level="WARNING"):
                     self._recover()
 
-                self.assertEqual(self.github.pinned_data(child), {})
+                self.assertEqual(self.github.write_state_calls, writes, "no record is written")
                 self.assertEqual(self._labels(child), (LABEL_DECOMPOSING, LABEL_BLOCKED))
-                self.assertEqual(_split.parks(self.github), [PARK_LINEAGE_UNPROVED])
+                self.assertEqual(_split.parks(self.github), [])
+
+                self._recover()
+
+                self.assertEqual(self.github.pinned_data(child)[KEY_PARENT_NUMBER], _support.PARENT)
+                self.assertEqual(self._labels(child), (LABEL_UMBRELLA, LABEL_BLOCKED))
 
     def _reads_unparsed(self, child: int):
         """The client's pinned read, answering for `child` with a comment that would not parse."""

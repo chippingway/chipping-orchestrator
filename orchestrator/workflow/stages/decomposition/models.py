@@ -90,8 +90,9 @@ class _SplitPlan:
     # inheriting it.
     rationale: str | None = None
     # Created and recorded, but held by another poller on this host when the
-    # split went to seed them: the split stops short of its finalize, and its
-    # recovery seeds them and finalizes it.
+    # split went to seed them, or carrying a pinned record admission refuses:
+    # the split stops short of its finalize, and its recovery seeds them and
+    # finalizes it.
     unseeded: list[int] = field(default_factory=list)
 
     @classmethod

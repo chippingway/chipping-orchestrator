@@ -47,6 +47,11 @@ KEY_PARK_REASON = "park_reason"
 
 KEY_PARENT_NUMBER = "parent_number"
 
+CREATE_CHILD = "create_child_issue"
+
+# How the split's park names a child whose pinned record admission refuses.
+_UNADMITTED = "whose pinned record this orchestrator does not admit"
+
 # A park a child took for itself, after it had been attributed.
 _ITS_OWN_PARK = "implementing_timeout"
 
@@ -78,6 +83,46 @@ class ChildReachedFirstTest(LateSplitCase, unittest.TestCase):
         self.assertEqual(self._child_state(held)[KEY_PARENT_NUMBER], LATE_ISSUE_NUMBER)
 
 
+class RefusedChildTest(LateSplitCase, unittest.TestCase):
+    """A child whose own pinned record admission refuses is not this split's to seed.
+
+    Read under the child's claim, such a record is one nothing can vouch for:
+    seeded, it would be stamped as current with its park lifted. The split
+    records the child, writes nothing to it and says nothing on it, and parks
+    as a seed that could not be made -- the park the next attempt supersedes,
+    and the one that seeds it once a record admission takes is back on it.
+    """
+
+    def test_a_refused_orphan_is_adopted_unwritten(self) -> None:
+        with self.assertRaises(KeyboardInterrupt):
+            self._transact(killed=killed_after(self.github, CREATE_CHILD))
+        orphan = self.github.created_child_issues[0].number
+        self.github.seed_state(orphan, raw=True, awaiting_human=True)
+        refused = self._child_state(orphan)
+
+        with self.assertLogs(level="WARNING"):
+            parked = self._resume()
+
+        self.assertEqual(
+            (parked.disposition, self._pinned()[KEY_PARK_REASON], self._pinned()[KEY_CHILDREN]),
+            (_LateDisposition.PARKED, PARK_CHILDREN_FAILED, [orphan]),
+        )
+        self.assertEqual(self._child_state(orphan), refused, "nothing is written to it")
+        self.assertNotIn(orphan, [number for number, _ in self.github.posted_comments], "nothing is said on it")
+        self.assertIn(
+            f"#{orphan} ('A'), {_UNADMITTED}", self.github.posted_comments[-1][1], "the park on this issue names it",
+        )
+        self.assertEqual(len(self.github.created_child_issues), 1, "no child is opened past it")
+
+        self.github.seed_state(orphan)
+        settled = self._resume()
+
+        self.assertEqual(
+            (settled.disposition, self._child_state(orphan)[KEY_PARENT_NUMBER]),
+            (_LateDisposition.SETTLED, LATE_ISSUE_NUMBER),
+        )
+
+
 class ChildBoundaryTest(LateSplitCase, unittest.TestCase):
     """A child is recorded before anything else is done with it."""
 
@@ -86,7 +131,7 @@ class ChildBoundaryTest(LateSplitCase, unittest.TestCase):
         # parent has no implementation of its own to return to.
         with self.assertRaises(KeyboardInterrupt):
             self._transact(
-                killed=killed_before(self.github, "create_child_issue"),
+                killed=killed_before(self.github, CREATE_CHILD),
             )
 
         pinned = self._pinned()
@@ -101,7 +146,7 @@ class ChildBoundaryTest(LateSplitCase, unittest.TestCase):
         # adopts an issue the parent cannot name.
         with self.assertRaises(KeyboardInterrupt):
             self._transact(
-                killed=killed_after(self.github, "create_child_issue"),
+                killed=killed_after(self.github, CREATE_CHILD),
             )
 
         self.assertEqual(len(self.github.created_child_issues), 1)
@@ -133,7 +178,7 @@ class ChildBoundaryTest(LateSplitCase, unittest.TestCase):
         # nobody owes it.
         with self.assertRaises(KeyboardInterrupt):
             self._transact(
-                killed=killed_after(self.github, "create_child_issue"),
+                killed=killed_after(self.github, CREATE_CHILD),
             )
         orphan = self.github.created_child_issues[0]
         self._dispatch(orphan)

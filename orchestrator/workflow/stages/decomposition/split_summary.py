@@ -3,7 +3,8 @@
 """The summary an ordinary split posts on its parent as it finalizes, once per split attempt.
 
 Posted by the split, or by its recovery where the split stopped short -- a
-crash, or a child another poller on this host held. It ends on a hidden
+crash, a child another poller on this host held, or one whose pinned record
+admission refused. It ends on a hidden
 receipt naming the parent and the attempt, which a recovery posts behind only
 where no comment of ours carries it: a post GitHub refused is posted again,
 and one that landed ahead of a label write that did not is not posted twice.

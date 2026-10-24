@@ -30,7 +30,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                           none usable), and dep_graph, then per child:
                           create (receipt, and reuse instructions only
                           where protected), record it with its consumer
-                          slot, seed it one level down;
+                          slot, seed it one level down off its record read
+                          under its own claim (a fresh child's first record
+                          is stamped schema_version 1; one admission refuses
+                          is written nothing and left unseeded, and the split
+                          flips, summarizes, and releases nothing -- its
+                          recovery finishes it once a record is admitted);
                           parent=workflow:blocked
                           (or workflow:umbrella when manifest umbrella=true);
                           child[i] = workflow:ready if no deps (through the
@@ -46,7 +51,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
                               lost slot restored before its seed, a missing
                               seed written (and the park it earned lifted), a
                               pointer kept or dropped -- before the finalize.
-                              Anything it cannot vouch for parks instead
+                              Anything it cannot vouch for parks instead; a
+                              child held by another poller, or whose record
+                              read under its claim admission refuses, stops
+                              the recovery with nothing written and no park
      manifest invalid / question / timeout ─► park HITL
 
    Late size gate (every clean committed candidate, before it is published):

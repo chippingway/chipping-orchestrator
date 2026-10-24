@@ -4,7 +4,11 @@
 
 Its caller, `recovery`, holds the child across the read this decides on and
 the write it makes, since both are that child's record: under the child's
-writer claim, with nothing taken outside it.
+writer claim, with nothing taken outside it. That reading is held to admission
+before the parent's record is asked anything about it, and a record admission
+refuses -- at the reading, or at the write a human's edit since then leaves
+it to refuse -- raises `child_claims.ChildRefused` with nothing written to the
+child: no link, no lineage, no park lifted, and no version stamped onto it.
 """
 from __future__ import annotations
 
@@ -13,6 +17,7 @@ from github.Issue import Issue
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.decomposition import (
+    child_claims as _child_claims,
     child_creation as _child_creation,
     late_child_content as _late_child_content,
     replacement_lineage as _replacement_lineage,
@@ -39,10 +44,12 @@ def _seed_orphan_child_state(
     for its slot (`split_seeds.stamp_lapse`) -- and a child refused keeps
     exactly what it carried. One owed the snapshot the consumer ledger no
     longer names is recorded there again, in a parent write ahead of its seed
-    and of the finalize that would let anything start it.
+    and of the finalize that would let anything start it. A child whose own
+    record admission refuses is asked none of that: it raises
+    `child_claims.ChildRefused`, since nothing on that record can be read.
     """
     child_issue = gh.get_issue(int(child_number))
-    child_state = gh.read_pinned_state(child_issue)
+    child_state = _child_claims.admitted_child(issue.number, child_issue, gh.read_pinned_state(child_issue))
     seed = lineage.repair(
         state, issue.number, int(child_number), child_state,
         _late_child_content._named_snapshots(getattr(child_issue, "title", None), getattr(child_issue, "body", None)),
@@ -57,5 +64,5 @@ def _seed_orphan_child_state(
     if attributed and seed.ancestry is None:
         return None
     _child_creation._complete_seed(child_state, issue.number, seed.ancestry)
-    gh.write_pinned_state(child_issue, child_state)
+    _child_claims.write_seed(gh, issue.number, child_issue, child_state)
     return None

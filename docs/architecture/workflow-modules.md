@@ -2687,26 +2687,32 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       child_claims.py       the writer claim a parent's handler takes on a child before writing it -- one child, or
                             all a release walk would start at once -- keyed on the client's rename-proof `repo_id` as
                             the dispatch claim is, and logged when refused; each caller answers a refusal as it
-                            answers a child it may not act on yet. Under those claims, the admitted readings of every
+                            answers a child it may not act on yet. Under those claims, the admitted reading a seed or
+                            repair adds to (`admitted_child`) and the write it lands through (`write_seed`), both
+                            raising `ChildRefused` -- never the dispatcher's `RecordRefused`, so a child's refusal
+                            abandons no parent handler -- over a record admission refuses, at the reading or at a
+                            write a human's edit since left the writer to refuse; and the admitted readings of every
                             child an all-or-nothing write would act on (`admitted_children`): one admission refuses,
-                            or one nobody could read, holds the whole write and is said only in the log
+                            or one nobody could read, holds the whole write. Every refusal is said only in the log
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- in one write before it is seeded, under the child's own writer claim, with
                             its parent link, creation stamp, and that lineage, never with the parent's measurement,
                             exemption, or authorization, added to the record the child carries by then and lifting the
                             park its missing seed earned -- the seed completion recovery's repair writes too; a child
-                            another poller holds is left unseeded on the plan for the recovery, and a failed create
-                            or seed write parks the parent for repair
+                            another poller holds, or whose record read under its claim admission refuses, is left
+                            unseeded on the plan for the recovery with nothing written to it, a genuinely fresh one is
+                            seeded with its first, version-1 record, and a failed create or seed write parks the
+                            parent for repair
       split.py              decide the children's lineage and park an unprovable one before any marker -- or a slice
                             naming a snapshot ref its child would not be kept -- stamp each child's receipt and
                             append the snapshot's reuse instructions to the body of each child owed it, then persist
                             the expected count, the umbrella flag, the attempt, and the whole dependency graph in one
                             write, create the planned children, and publish the summary (`split_summary.py`) and
                             parent label before activating children without dependencies through `activation.py`'s
-                            walk -- or, where a child was left unseeded because another poller held it, publish
-                            none of them and leave the parent `decomposing` with every child recorded for
-                            `recovery.py` to seed that child and finalize
+                            walk -- or, where a child was left unseeded because another poller held it or its record
+                            is one admission refuses, publish none of them and leave the parent `decomposing` with
+                            every child recorded for `recovery.py` to seed that child and finalize
       split_summary.py      the summary an ordinary split finalizes its parent with, quoting the rationale read back
                             off the parent's record in a fence no line of it can close -- or saying none was recorded --
                             so the split and its recovery publish the same words, and ending on a receipt naming the
@@ -2724,9 +2730,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stamped for its slot, included -- the summary `split_summary.py` still owes ahead of the
                             finalize, the incomplete park, and the two owners that hold those markers instead -- a human
                             the issue is parked awaiting, and the late transaction while its generation is live; each
-                            child is repaired under its own writer claim, and one another poller holds stops the
-                            recovery with no park, short of the summary and the finalize, for the next tick to resume
-      split_repair.py       the seed write of that repair onto one recorded child, inside the hold `recovery.py` takes
+                            child is repaired under its own writer claim, and one another poller holds -- or one whose
+                            record, read under that claim, admission refuses, an adopted one included -- stops the
+                            recovery with no park and nothing written to it, short of the summary and the finalize,
+                            for the next tick to resume
+      split_repair.py       the seed write of that repair onto one recorded child, inside the hold `recovery.py` takes,
+                            off the child's reading admitted before the parent's record is asked about it
       parents.py            the fresh child scan -- fresh as of its read, which another poller can outlive -- the
                             rejected and manually-closed parks it earns -- published apart from the scan, since one
                             caller settles its ledger on the way out of them, and a closed child's merge finalize taken
@@ -2899,8 +2908,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             mirror kept whole with the repository segment it was fetched for -- and exact slice
                             receipts; reserved markers in proposed scope are refused before publication
       late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry
-                            under the child's writer claim -- a held child parks the split as a failed seed would --
-                            and seal a cancelled consumer ledger only once possible unrecorded children are accounted for
+                            under the child's writer claim, off the child's record read behind it and admitted behind
+                            the close latch -- a held child, or an adopted or created one whose record admission
+                            refuses, parks the split as a failed seed would with nothing written to it -- and seal a
+                            cancelled consumer ledger only once possible unrecorded children are accounted for
       late_child_adoption.py
                             recover the exact issue for a resumed slice or create it after the close latch; ambiguous,
                             closed, or already-started receipt holders are refused without creating another child
@@ -3254,8 +3265,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       models.py             the run plan and its worktree policy, the locked session, the split plan -- with the
                             lineage it seeds, the attempt its receipts name, the rationale the parent records, the
                             whole declared dependency graph, and the recorded children a seed under the child's claim
-                            left unseeded for the recovery to seed and finalize -- and the child scan, with the
-                            readings a release walk and a merge finalize ask of it and the later reading it adopts
+                            left unseeded -- held, or refused admission -- for the recovery to seed and finalize -- and
+                            the child scan, with the readings a release walk and a merge finalize ask of it and the
+                            later reading it adopts
       state.py              the pinned-state field names the owners share, `split_attempt` and `split_rationale`
                             among them, the held-child alias, the strict parent-link check, the one rule a split's
                             rationale is read by off its manifest and back off the record, and the issue-reference

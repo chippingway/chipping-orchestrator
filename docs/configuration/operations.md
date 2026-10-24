@@ -698,7 +698,9 @@ which paths reach an issue decides what keeps it away:
   [refuses dispatch](../state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick) of an issue whose
   pinned comment it cannot admit, writing nothing for it, but its refresh does not ask. `paused`, or `backlog`, holds
   both, at dispatch, scheduling, and the refresh ([control labels](../configuration.md#control-labels)). Hold a
-  decomposed family as a whole: a parent's handler writes its children too, under each child's own claim.
+  decomposed family as a whole: a parent's handler writes its children too, under each child's own claim. Its seeds,
+  recovery repairs, and releases write nothing to a child whose pinned comment it cannot admit, but the merge finalize
+  of a closed child and the notice that a reclaimed snapshot is gone do not ask.
 - **Closed-issue recovery and cleanup.** The closed-issue sweep finalizes a closed issue still on a stage label, and
   `paused` holds that as it holds dispatch. It asks for canonical label names only, so neither it nor the closed-owner
   sweep below reaches a closed issue carrying only an obsolete bare label
@@ -1406,7 +1408,10 @@ need the isolation described under
   another poller holds is left for a later pass, which parks nothing, and one that poller moved since the walk's scan is
   judged as it reads now: the release walk starts none of them, and the finalize counts it as it stands. An ordinary
   split creates the rest and leaves the held child's seed and its own finalize to the next tick's recovery. Only a late
-  split's placement of a held child parks the parent, exactly as a seed that could not be written does.
+  split's placement of a held child parks the parent, exactly as a seed that could not be written does. A child whose
+  pinned record, read behind its claim, admission refuses is answered the same way: the seed, the recovery's repair,
+  and the release write nothing to it and say why only in the log, and the split's summary, finalize, and release wait
+  until a record admission takes is back on that child, after which the next tick continues on its own.
 - **What the namespace assumes.** Every participating poller can read each repository's numeric id from GitHub, which is
   what makes two configured spellings of one repository, or a poller started before a rename and one started after it,
   meet on one key. They run as a user that can create and open files in that directory, and see it on a local filesystem

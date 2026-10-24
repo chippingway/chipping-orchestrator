@@ -214,6 +214,36 @@ class AdoptionTest(_UnrecordedChildCase):
         self.assertEqual(self._labels(orphan), _FINALIZED)
 
 
+    def test_a_refused_orphan_is_recorded_unwritten(self) -> None:
+        # By the time the recovery finds the orphan its record is one
+        # admission refuses. Adoption records it -- and keeps the snapshot
+        # for it -- off its receipt and the parent's lineage alone, and its
+        # seed, read under its claim, writes nothing to it, so the split is
+        # neither finalized nor parked past it; once a record admission takes
+        # is back on it, the next recovery seeds it and finalizes.
+        orphan = self._die_recording()
+        self.github.seed_state(orphan, raw=True, awaiting_human=True)
+        refused = self.github.pinned_data(orphan)
+
+        with self.assertLogs("orchestrator.workflow", level="WARNING"):
+            self._recover()
+
+        self.assertEqual(self._recorded(), _split.replacements(self.github), "the orphan is adopted")
+        self.assertIn(orphan, _split.consumers(self.github), "and the snapshot kept for it")
+        self.assertEqual(self.github.pinned_data(orphan), refused, "but nothing is written to it")
+        self.assertEqual(
+            (self._labels(orphan), _split.parks(self.github)),
+            (_UNFINALIZED, []),
+        )
+
+        self.github.seed_state(orphan)
+        self._recover()
+
+        self.assertEqual(
+            (_seed(self.github, orphan), self._labels(orphan)),
+            ((_support.PARENT, self.owed), _FINALIZED),
+        )
+
     def test_a_restamped_orphan_is_not_seeded(self) -> None:
         # The orphan's receipt is rewritten to owe another lineage than its
         # split owed -- none for a late root's child, one for an ordinary

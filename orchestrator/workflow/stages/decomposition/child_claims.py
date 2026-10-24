@@ -17,11 +17,18 @@ in front of the read it decides on and held through the write. A refusal is not
 the child's: each caller answers it as it answers a child it may not act on
 yet, and a later pass asks again.
 
-A write that is all or nothing across children -- the release walk -- reads
-each child's own record under those claims and holds it to admission before
-writing any (`admitted_children`): a record admission refuses reads back empty
--- what a child nobody seeded reads as -- so a parent deciding on it would
-start a child whose record nobody read.
+Every one of those writes that decides on the child's own pinned record holds
+the reading it takes under the claim to admission: a record admission refuses
+reads back empty -- what a child nobody seeded reads as -- so a parent deciding
+on it would seed, repair, or start a child whose record nobody read, and its
+seed would stamp an unversioned record as current. A seed or a repair asks of
+one child (`admitted_child`) and writes it through `write_seed`, and both
+raise `ChildRefused` -- the second where a human's edit since that reading left
+a record the writer refuses -- so its caller answers the refusal as the
+uncompleted seed it is. A write that is all or nothing across children -- the
+release walk -- reads each child's record under those claims and admits it
+before writing any (`admitted_children`). The refusal is said in one local
+line, never on the child, and nothing is written to it.
 """
 from __future__ import annotations
 
@@ -31,12 +38,25 @@ from collections.abc import Iterable, Iterator, Mapping
 
 from github.Issue import Issue
 
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.workflow.engine import record_admission as _record_admission
 
 log = logging.getLogger("orchestrator.workflow")
+
+
+class ChildRefused(Exception):
+    """A child's pinned record admission refuses, met by a parent's seed or repair of that child.
+
+    Raised by `admitted_child` and `write_seed`, with nothing written to the
+    child and the refusal already said locally. Not a
+    `pinned_refusal.RecordRefused`, which the dispatcher catches as a refusal
+    of the issue it dispatched: a child's refusal abandons no parent handler,
+    so each caller answers it as the seed it could not complete, as it answers
+    a child whose claim was refused.
+    """
 
 
 @contextlib.contextmanager
@@ -85,6 +105,36 @@ def held_children(
         )
 
 
+def admitted_child(owner_number: int, child: Issue, reading: PinnedState) -> PinnedState:
+    """`reading` -- the child's pinned record, read under the claim the caller holds -- where admission takes it.
+
+    Raises `ChildRefused` where admission refuses it, said locally first. A
+    child with no authenticated pinned comment is admitted: it is a genuinely
+    fresh child, whose first write the writer stamps with the supported version.
+    """
+    if _record_admission.refuses(child, reading, _left_unwritten(owner_number)):
+        raise ChildRefused(f"child #{child.number} of issue #{owner_number} refused admission")
+    return reading
+
+
+def write_seed(gh: GitHubClient, owner_number: int, child: Issue, child_state: PinnedState) -> None:
+    """Write a child's seed or repair whole, under the claim the caller holds.
+
+    The writer raises `pinned_refusal.RecordRefused` over a record admission
+    refuses -- a human's edit since the admitted reading is enough to leave
+    one -- and that refusal is the child's, not the parent's the dispatcher
+    would take it for, so it is raised again as `ChildRefused`.
+    """
+    try:
+        gh.write_pinned_state(child, child_state)
+    except _pinned_refusal.RecordRefused as refused:
+        log.warning(
+            "issue=#%s child #%s holds a pinned record admission refuses at its seed; %s",
+            owner_number, child.number, _left_unwritten(owner_number),
+        )
+        raise ChildRefused(f"child #{child.number} of issue #{owner_number} refused at its seed") from refused
+
+
 def admitted_children(
     gh: GitHubClient, owner_number: int, children: Mapping[int, Issue],
 ) -> dict[int, PinnedState] | None:
@@ -99,14 +149,18 @@ def admitted_children(
     readings: dict[int, PinnedState] = {}
     for number, child in children.items():
         try:
-            reading = gh.read_pinned_state(child)
+            readings[number] = admitted_child(owner_number, child, gh.read_pinned_state(child))
+        except ChildRefused:
+            return None
         except Exception:
             log.exception(
                 "issue=#%s leaving child #%s for a later pass: its pinned "
                 "comment could not be read", owner_number, number,
             )
             return None
-        if _record_admission.refuses(child, reading, f"issue #{owner_number} leaving it unwritten"):
-            return None
-        readings[number] = reading
     return readings
+
+
+def _left_unwritten(owner_number: int) -> str:
+    """What a parent does with a child whose record admission refuses, as the local line says it."""
+    return f"issue #{owner_number} writing nothing to it and leaving it for a later pass"
