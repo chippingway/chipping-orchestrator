@@ -197,7 +197,11 @@ Non-human content is filtered eight ways:
 early-return tick cannot silently absorb a later edit as the new baseline. Where a stage recorded a reading it acted on
 without consuming any of it as `observed_user_content_hash` — a late adjudication carrying on over a quiet reading of
 an issue with no baseline — that first encounter compares against the observed reading instead: the current value is
-persisted only where it still matches, and anything written since is reported as drift. It also carries a **legacy-hash
+persisted only where it still matches, and anything written since is reported as drift. A child an ordinary split
+created carries the baseline its seed recorded off the create's answer (see
+[`_handle_decomposing`](#_handle_decomposing-label-workflowdecomposing), step 7), so the first check it meets compares
+against what it was created saying; one the split's recovery seeded — an adopted one included — carries none, and its
+first encounter persists the current value as above. It also carries a **legacy-hash
 normalization** path: a baseline written by the pre-issue-#729 algorithm counted a bare `/orchestrator continue`
 comment, so after deploy it would compare unequal to the new hash even with no real edit. Before reporting drift the
 helper recomputes with the old algorithm (`_compute_user_content_hash(..., include_bare_continue=True)`); if that
@@ -577,10 +581,17 @@ because there it is the claim that this stage has already rerouted rather than a
      split stamped for its slot; the full list is [the split's
      contract](../workflow/roles.md#what-an-ordinary-re-decomposition-holds-its-children-to) — parks
      `replacement_lineage_unproved` instead. Nothing is written to that child, so none of its children is finalized into
-     the walk that starts them. Two owners take those markers away from this recovery: an issue already parked awaiting
-     a human, and one carrying a live late generation — the split transaction writes the same two markers and resumes
-     from its own durable facts, so finalizing on its behalf would hand a parent on before its snapshot, its
-     supersession, or what the remote is owed had been settled. Either way the tick ends having changed nothing.
+     the walk that starts them. The repair records no drift baseline: the create's answer the split hashed one off is
+     not kept past the split's own tick, the parent keeps no manifest, and a receipt proves the slice rather than its
+     words, so a `user_content_hash` the split's seed landed is kept as it stands, and a child seeded here — an adopted
+     one included, edited or not — is finalized with none rather than one hashed off what it says by then. A missing
+     baseline holds nothing here: no recognition, seed, or finalize asks for one. A seed whose write failed, or a
+     child record the recovery cannot read, parks `child_seed_failed` before any summary or finalize, so neither is
+     published until a recovery has read what landed. Two owners take those markers away from this recovery: an issue
+     already parked awaiting a human, and one carrying a live late generation — the split transaction writes the same
+     two markers and resumes from its own durable facts, so finalizing on its behalf would hand a parent on before its
+     snapshot, its supersession, or what the remote is owed had been settled. Either way the tick ends having changed
+     nothing.
   4. **DECOMPOSE kill switch.** If `config.DECOMPOSE` is off when this handler runs, clear decomposer-side park flags,
      ratchet `last_action_comment_id` past every visible comment, flip the label to `workflow:implementing`, and fall
      into `_handle_implementing`. Step 3 runs first so orphan children are not abandoned. An issue parked on
@@ -649,7 +660,12 @@ because there it is the claim that this stage has already rerouted rather than a
        `<owed>` the late lineage it is seeded with, or `none` — after its declared slice, record it in `children` —
        and in the same write on `late_consumers`, where the parent's own split holds the snapshot it will be pointed
        at — and seed the child's pinned state with `parent_number`, `created_at`, and that lineage, never the
-       parent's measurement, exemption, or authorization. The seed is made under the child's writer claim and added
+       parent's measurement, exemption, or authorization, beside its drift baseline: `user_content_hash` over the
+       title and body the create answered — the slice, the receipt, any reuse instructions, and the
+       `Parent: #<parent>` footer the client appends — with no comment, read off the create's answer before the
+       parent write or anything else asks about the child and hashed by the drift check's own definition, so an edit
+       landing between the create and the seed is drift the child's own check meets rather than its baseline. A
+       record already carrying a baseline keeps it. The seed is made under the child's writer claim and added
        to the record the child carries by then, lifting the `replacement_lineage_unproved` hold another poller on the
        host may have parked there first; a child that poller still holds is left unseeded while the rest are
        created, and the split then posts no summary, writes no label, and releases nothing, leaving step 3 to seed it
@@ -1790,8 +1806,10 @@ and handed off -- and this is what it guarantees and what stops it.
   the park's own write would replace whatever it carries.
 - **Runs**: a child whose seed is whole — written by the split or by its parent's recovery, either of which clears
   `awaiting_human` in the same write, or by hand — and one whose pointer its own reuse guard dropped, ref and commit
-  together, after its ref was released. A restart an operator authorizes on the child's own cancelled cycle keeps the
-  seed, so the restarted child runs on its next dispatch.
+  together, after its ref was released. The drift baseline a split's seed also records is no part of what this holds
+  a child to, so one its recovery seeded without a baseline runs too. A restart an operator authorizes on the child's
+  own cancelled cycle keeps the link and the lineage this holds it to, so the restarted child runs on its next
+  dispatch.
 - **Why it sits here**: a hand relabel or an edit's reroute reaches the child's own handler without its parent's walk,
   and every road that could run it — its own decomposition, its adjudication of a candidate of its own, `ready`,
   `implementing`, pickup — would read the record as an issue no split made, or one at another depth, and mint

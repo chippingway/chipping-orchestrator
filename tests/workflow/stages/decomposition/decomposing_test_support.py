@@ -17,6 +17,7 @@ from tests.workflow.fixtures import (
 KEY_DECOMPOSER_AGENT = "decomposer_agent"
 KEY_DECOMPOSER_SESSION_ID = "decomposer_session_id"
 KEY_CHILDREN = "children"
+KEY_USER_CONTENT_HASH = "user_content_hash"
 KEY_UMBRELLA = "umbrella"
 CLEANUP_DECOMPOSE_WORKTREE = "_cleanup_decompose_worktree"
 RUN_AGENT = "run_agent"
@@ -123,8 +124,11 @@ class _ExpectedChildCountRecorder:
 
 
 class _ChildSeedOrderRecorder:
+    """A pinned write that notes, at each child write, the children the parent records and the baseline it writes."""
+
     def __init__(self, gh: FakeGitHubClient, parent_number: int) -> None:
         self.snapshots: list[list] = []
+        self.baselines: list[str | None] = []
         self._gh = gh
         self._parent_number = parent_number
         self._write_state = gh.write_pinned_state
@@ -133,6 +137,7 @@ class _ChildSeedOrderRecorder:
         if target_issue.number != self._parent_number:
             parent_state = self._gh.pinned_data(self._parent_number)
             self.snapshots.append(list(parent_state.get(KEY_CHILDREN) or []))
+            self.baselines.append(state.get(KEY_USER_CONTENT_HASH))
         return self._write_state(target_issue, state)
 
 

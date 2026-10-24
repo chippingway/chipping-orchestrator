@@ -8,9 +8,12 @@ record the child: the issue exists, and nothing on the parent names it -- not
 naming its parent, the split's attempt, and its slice, so the recovery that
 finds the register short records the child it can find, holds it to the
 lineage like any other, and parks where it can find none it may take over.
+The receipt proves which slice the child was cut for, not what it said, so a
+child adopted by it is seeded with no drift baseline, edited or not.
 """
 from __future__ import annotations
 
+import itertools
 import unittest
 from types import MappingProxyType
 
@@ -20,6 +23,7 @@ from orchestrator.workflow.stages.decomposition import split_receipts as _split_
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeLabel
 from tests.workflow.stages.decomposition import (
+    child_baseline_support as _baseline_support,
     late_crash_support as _crash,
     replacement_lineage_support as _support,
     replacement_split_support as _split,
@@ -66,9 +70,10 @@ _CRASH_PARKED = (PARK_DECOMPOSITION_CRASH,)
 
 
 def _seed(github, child: int) -> tuple:
-    """The parent link and the ancestry one child's pinned comment records."""
+    """The parent link, the ancestry, and the drift baseline one child's pinned comment records."""
     seeded = github.read_pinned_state(github.get_issue(child))
-    return seeded.get(KEY_PARENT_NUMBER), _lineage.read_late_ancestry(seeded)
+    baseline = seeded.get(_baseline_support.KEY_BASELINE)
+    return seeded.get(KEY_PARENT_NUMBER), _lineage.read_late_ancestry(seeded), baseline
 
 
 def _close(orphan) -> None:
@@ -103,6 +108,9 @@ class _UnrecordedChildCase(unittest.TestCase):
         self.github = github
         self.issue = issue
         self.owed = owed
+        # What the recovery seeds the orphan with: the parent link, the owed
+        # ancestry, and no baseline.
+        self.seeded = (_support.PARENT, owed, None)
 
     def _die_recording(self, answer: str = _split.ONE_REPLACEMENT_MANIFEST, created: int = 1) -> int:
         """Run the split into the crash behind its `created`-th create, and report the child it opened."""
@@ -144,11 +152,15 @@ class AdoptionTest(_UnrecordedChildCase):
     def test_the_last_child_is_adopted(self) -> None:
         # Recorded, protected where its split owes it the snapshot, and seeded
         # as the split would have seeded it -- with no second issue opened for
-        # its slice -- then finalized, and released by the parent's next poll.
-        for parent in _PARENTS:
-            with self.subTest(parent=parent):
+        # its slice, and no baseline its receipt cannot prove, whether or not
+        # it was edited while the recovery was due -- then finalized, and
+        # released by the parent's next poll.
+        for parent, edited in itertools.product(_PARENTS, (False, True)):
+            with self.subTest(parent=parent, edited=edited):
                 self.setUp(parent)
                 orphan = self._die_recording()
+                if edited:
+                    self.github.get_issue(orphan).title = "A, and its docs"
 
                 self._recover()
                 finalized = self._labels(orphan)
@@ -157,7 +169,7 @@ class AdoptionTest(_UnrecordedChildCase):
                 protected = bool(self.owed.snapshot_ref)
                 self.assertEqual(self._register(), ([orphan], [orphan]))
                 self.assertEqual(orphan in _split.consumers(self.github), protected)
-                self.assertEqual(_seed(self.github, orphan), (_support.PARENT, self.owed))
+                self.assertEqual(_seed(self.github, orphan), self.seeded)
                 self.assertEqual((finalized, self._labels(orphan)), (_FINALIZED, _RELEASED))
                 self.assertEqual(_split.parks(self.github), [])
 
@@ -178,7 +190,7 @@ class AdoptionTest(_UnrecordedChildCase):
 
         self.assertNotIn(_support.SNAPSHOT_REF, created.body)
         self.assertIn(orphan, _split.consumers(self.github))
-        self.assertEqual(_seed(self.github, orphan), (_support.PARENT, self.owed))
+        self.assertEqual(_seed(self.github, orphan), self.seeded)
         self.assertEqual(self._labels(orphan), _RELEASED)
 
     def test_a_dying_recovery_is_retried(self) -> None:
@@ -196,7 +208,7 @@ class AdoptionTest(_UnrecordedChildCase):
         self.assertEqual(recorded, ([orphan], {}))
         self.assertEqual(self._register(), (recorded[0], recorded[0]))
         self.assertCountEqual(_split.consumers(self.github), [_support.ORIGINAL, orphan])
-        self.assertEqual(_seed(self.github, orphan), (_support.PARENT, self.owed))
+        self.assertEqual(_seed(self.github, orphan), self.seeded)
         self.assertEqual(self._labels(orphan), _FINALIZED)
 
     def test_an_adopted_dependent_waits(self) -> None:
@@ -241,7 +253,7 @@ class AdoptionTest(_UnrecordedChildCase):
 
         self.assertEqual(
             (_seed(self.github, orphan), self._labels(orphan)),
-            ((_support.PARENT, self.owed), _FINALIZED),
+            (self.seeded, _FINALIZED),
         )
 
     def test_a_restamped_orphan_is_not_seeded(self) -> None:

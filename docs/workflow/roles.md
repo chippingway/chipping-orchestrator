@@ -2013,8 +2013,8 @@ which is exactly how a lineage buys itself generations past `MAX_LINEAGE_DEPTH`.
 `replacement_lineage.py` asks `late_split/provenance.py` which lineage the issue's children inherit, and the answer is
 one of three.
 
-**None**, for an issue no late split charged: its children are seeded with a parent link and a creation stamp and
-nothing else, like the children of any split outside a lineage.
+**None**, for an issue no late split charged: its children are seeded with a parent link, a creation stamp, and the
+drift baseline each create answered, and no lineage at all, like the children of any split outside a lineage.
 
 **An inherited lineage**: each child is born one level below the parent under the same root, with an ancestry naming the
 parent and a cycle and generation to correlate by — the parent's own where its record keeps one, the one its own
