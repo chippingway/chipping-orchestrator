@@ -158,8 +158,9 @@ class RecoveredChildTest(_BoundaryCase):
     def test_a_held_child_runs_once_recovered(self) -> None:
         # Held while its seed is short of what its receipt owes, the child is
         # adopted and seeded by its parent's recovery, which lifts the park in
-        # the same write; the next poll releases it, and the tick after hands
-        # it to its implementer, which runs.
+        # the same write; the next poll releases it. Seeded with no baseline,
+        # which no recovery can prove, its `ready` tick sends it back to its
+        # decomposer, and the tick after runs that agent.
         for shape, left in _HELD_SEEDS.items():
             with self.subTest(shape=shape):
                 self._unrecorded(left)
@@ -167,12 +168,13 @@ class RecoveredChildTest(_BoundaryCase):
 
                 recovered = self._recovered()
                 _split.redecompose(self.github, self.parent, tick=_umbrella._handle_umbrella)
-                implemented = self._implemented()
+                ran = [self._released() for _ in range(2)]
 
                 self.assertEqual(held, 0)
                 self.assertEqual(recovered, (False, (PARK_HOLD,)))
                 self.assertEqual(self._ancestry(), _support.ROOT_REPLACEMENT)
-                self.assertEqual(implemented, 1)
+                self.assertEqual(ran, [0, 1])
+                self.assertEqual(self.github.workflow_label(self.child), WorkflowLabel.DECOMPOSING)
 
     def _unrecorded(self, left) -> None:
         """A one-child split dead behind its create, the child it opened carrying `left`."""
@@ -189,7 +191,7 @@ class RecoveredChildTest(_BoundaryCase):
         _split.redecompose(self.github, self.parent)
         return self.github.pinned_data(self.child.number)[KEY_AWAITING_HUMAN], self._parks()
 
-    def _implemented(self) -> int:
+    def _released(self) -> int:
         """The released child's next tick; how many agents it ran.
 
         This host still holds the snapshot the child is pointed at, which is

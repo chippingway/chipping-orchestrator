@@ -77,6 +77,11 @@ def _prepare_decomposer_run(
     issue: Issue,
     state: _pinned_state.PinnedState,
 ) -> _DecomposerRunPlan:
+    # A reroute `ready` landed is answered by this label, so its marker goes
+    # before anything below can run a decomposer or hand the issue back there.
+    if not _drift._retires_ready_reroute(gh, issue, state):
+        return _DecomposerRunPlan(agent_result=None)
+
     # User-content drift FIRST, so it runs BEFORE the half-finished recovery:
     # otherwise recovery could finalize against a stale manifest when the issue
     # was edited during a crash window.

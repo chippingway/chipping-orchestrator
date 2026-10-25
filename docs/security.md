@@ -255,7 +255,12 @@ The late size gate preserves a superseded candidate under
   That covers the receipts with no marker as well as the ones with: a park notice whose whole sentence is its identity
   is plain text anybody can paste back, and read from anybody it would mark a park explained that nobody ever
   explained — leaving an `awaiting_human` standing over a thread that was told nothing, on a park no later attempt
-  supersedes.
+  supersedes. The `workflow:ready` decision's receipts — its own pickup sentence, and the receipt marker its reroute
+  notice carries — ask for one thing more, because the token account may be a human's too and a pickup found is
+  entered in this orchestrator's comment ledger, which takes it out of the requirements: the comment also has to carry
+  the hidden marker every post of ours carries, or an id that ledger already records, so a human quoting the sentence
+  on the shared account stays requirements text
+  ([`_handle_ready`](state-machine/delivery-stages.md#_handle_ready-label-workflowready--workflowimplementing)).
 
 The refs hold objects, so they hold *content*: a snapshot is a copy of a candidate that was never published. It
 lives in the same repository under the same visibility as the branch it came from, and it is deleted once every

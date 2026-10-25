@@ -174,8 +174,10 @@ class UnseededChildTest(unittest.TestCase):
 
     def test_a_seed_lets_it_run(self) -> None:
         # Held under `ready`, then seeded as its parent's recovery would seed
-        # it -- the parent link, the lineage, and the park lifted with them --
-        # the next tick hands it to its implementer.
+        # it -- the parent link, the lineage, and the park lifted with them,
+        # and no baseline, which a recovery never has -- the next tick lets it
+        # go: back to its decomposer, which the tick after runs, since nothing
+        # proves it still says what it was created saying.
         github, child = _crashed(recovered=True)
         github.set_workflow_label(child, WorkflowLabel.READY, guarded=False)
         _split.redecompose(github, child, tick=_dispatch)
@@ -186,9 +188,13 @@ class UnseededChildTest(unittest.TestCase):
         held = github.pinned_data(child.number)
         github.seed_state(child.number, **{**held, **seed.data})
 
-        mocks = _split.redecompose(github, child, IMPLEMENTED_MESSAGE, tick=_dispatch)
+        ran = [
+            _split.redecompose(github, child, IMPLEMENTED_MESSAGE, tick=_dispatch)[RUN_AGENT].call_count
+            for _ in range(2)
+        ]
 
-        self.assertEqual(mocks[RUN_AGENT].call_count, 1)
+        self.assertEqual(ran, [0, 1])
+        self.assertEqual(github.workflow_label(child), WorkflowLabel.DECOMPOSING)
 
     def test_a_copied_receipt_holds_nothing(self) -> None:
         # A human pastes a child's body, receipt and all, into an issue of

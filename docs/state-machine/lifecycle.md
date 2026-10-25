@@ -57,6 +57,33 @@ than a second source of truth: where the two disagree, the handler pages are aut
                               the recovery with nothing written and no park
      manifest invalid / question / timeout ─► park HITL
 
+   Ready (every entry, on the issue fetched afresh, before any pickup,
+   consumption, or launch):
+     requirements unchanged      ─► pickup found again or posted once, the
+                                    title and body fetched ahead of it
+                                    compared; the thread read again behind it
+                                    and compared with the title and body
+                                    fetched behind that; watermark, pickup,
+                                    and baseline in ONE guarded write; the
+                                    record read back still carrying it, and
+                                    the title and body fetched ahead of the
+                                    relabel compared ──► workflow:implementing
+       an edit any of those      ─► rerouted as changed below (over the
+       comparisons shows            handoff, where it already landed)
+     requirements changed, or a  ─► manifest accounted for and reset beside
+       split's child with no        ready_reroute (orphans, why, receipt) in
+       baseline                     ONE guarded write; the record read back
+                                    still carrying it ──► workflow:decomposing,
+                                    its notice said once by its receipt; the
+                                    decomposing tick says a notice still owed
+                                    and drops the marker before anything else
+     write refused/unconfirmed,  ─► nothing announced, relabelled, consumed,
+       the record edited behind     or launched; the next tick reads the
+       it, or a first pin another   record that stands (a standing marker
+       pin shadows                  only finishes its relabel)
+     paused / backlog applied    ─► stops ahead of the next effect
+       meanwhile
+
    Late size gate (every clean committed candidate, before it is published):
      tree not provably clean      ─► never reaches the gate. A dirty one
                                      parks naming its paths; one `git status`

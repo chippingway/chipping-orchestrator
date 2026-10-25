@@ -529,8 +529,11 @@ whichever road reached it (`workflow/engine/rewrite_finish_writes.py`), every au
 clear, abandonment, and record of a gate's hold (`git/base_sync/checkpoints.py`), and a final-docs pass's completion,
 prepared before its notice and relabelled only behind a confirmed write (`workflow/stages/documenting/handoff.py`) --
 its hand-back of a published docs commit to `workflow:validating` included (`handback.py` beside it), and the evidence
-invalidation or hold that withholds a no-change one (`retention.py` beside it), and the in_review ready ping's arming
-ahead of its post and its settlement behind it (`workflow/stages/in_review/ready_ping.py`). It
+invalidation or hold that withholds a no-change one (`retention.py` beside it), the in_review ready ping's arming
+ahead of its post and its settlement behind it (`workflow/stages/in_review/ready_ping.py`), and the `workflow:ready`
+decision's reroute and handoff, each read back before its relabel (`workflow/stages/decomposition/ready.py`,
+`ready_handoff.py` beside it), with the `workflow:decomposing` tick's retirement of that reroute's marker
+(`drift.py` beside them). It
 derives a candidate over a fresh reading of the comment its caller captured, refuses with nothing written where that
 comment or a record the decision rests on moved, where admission refuses that comment or the candidate, or where
 another writer moved a field the caller is changing, measures

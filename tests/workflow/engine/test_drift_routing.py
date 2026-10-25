@@ -10,6 +10,7 @@ from orchestrator import config
 from orchestrator.workflow.engine import (
     content_hash as _content_hash,
     drift,
+    issue_processing as _issue_processing,
     pickup as _pickup,
     prompt_context as _prompt_context,
 )
@@ -157,6 +158,103 @@ class FirstTimeHashSeedingIsDurableTest(
 
         state = gh.pinned_data(support._BLOCKED_CHILD_ISSUE_NUMBER)
         self.assertIsNotNone(state.get(support.KEY_USER_CONTENT_HASH))
+
+
+class ReadyBaselineDecisionTest(unittest.TestCase):
+    """The drift check `ready` asks before anything implements, and what it calls a missing baseline."""
+
+    def test_a_staged_baseline_writes_nothing(self) -> None:
+        # Asked over a reading its caller holds, a first encounter and a legacy
+        # spelling each stage that reading's fingerprint on the state and write
+        # nothing: the caller's own checkpoint lands it.
+        for legacy in (False, True):
+            with self.subTest(legacy=legacy):
+                case = support._content_change_case(
+                    "body", "body",
+                    comments=(support.FakeComment(id=1, body=support.CONTINUE_COMMAND),),
+                    include_bare_continue=legacy,
+                )
+                if not legacy:
+                    case.state.data.pop(support.KEY_USER_CONTENT_HASH)
+
+                held = list(case.issue.comments)
+                changed = drift._detect_user_content_change(case.github, case.issue, case.state, reading=held)
+
+                self.assertIsNone(changed)
+                self.assertEqual(case.state.get(support.KEY_USER_CONTENT_HASH), case.current_hash)
+                self.assertEqual(case.github.write_state_calls, case.before_writes)
+
+    def test_only_a_string_reading_is_a_baseline(self) -> None:
+        # Either reading the check compares against counts, spelled as its
+        # writers spell it; a value of any other shape is no reading at all.
+        for record, unbaselined in (
+            ({}, True),
+            ({support.KEY_USER_CONTENT_HASH: 7}, True),
+            ({"observed_user_content_hash": None}, True),
+            ({support.KEY_USER_CONTENT_HASH: "a reading"}, False),
+            ({"observed_user_content_hash": "a reading"}, False),
+        ):
+            with self.subTest(record=record):
+                state = support.PinnedState(data=dict(record))
+                self.assertEqual(drift._unbaselined(state), unbaselined)
+
+
+class ReadyChildDispatchTest(unittest.TestCase, support._PatchedWorkflowMixin):
+    """A split's child with no baseline, dispatched onto `ready` as a tick dispatches it."""
+
+    def test_its_decomposer_runs_before_implementing(self) -> None:
+        # Its first tick reroutes it and runs nothing; its second runs the
+        # decomposer, which votes `single`; only its third runs an
+        # implementer, on requirements its reroute baselined.
+        gh, child = self._released()
+
+        ran = [
+            self._dispatched(gh, child, run_agent=support._agent(last_message=support.SINGLE_MANIFEST)),
+            self._dispatched(gh, child, run_agent=support._agent(last_message=support.SINGLE_MANIFEST)),
+            self._dispatched(
+                gh, child, run_agent=support._agent(last_message=support._reported()),
+                has_new_commits=[False, True], push_branch=True,
+            ),
+        ]
+
+        self.assertEqual(ran, [0, 1, 1])
+        self.assertEqual(
+            [label for number, label in gh.label_history if number == support.READY_CHILD][:3],
+            [support.LABEL_DECOMPOSING, support.LABEL_READY, support.LABEL_IMPLEMENTING],
+        )
+
+    def test_a_hold_defers_an_owed_reroute(self) -> None:
+        # A reroute whose reset landed and whose relabel did not, on an issue
+        # an operator holds: the dispatch relabels, says, and writes nothing
+        # until the hold comes off, and then finishes the reroute.
+        for hold in ("paused", "backlog"):
+            with self.subTest(hold=hold):
+                gh, child = self._released(ready_reroute={"orphans": [], "unbaselined": True})
+                child.labels.append(support.FakeLabel(hold))
+
+                held = self._dispatched(gh, child, run_agent=support._agent())
+                untouched = (list(gh.label_history), list(gh.posted_comments), gh.write_state_calls)
+                child.labels = [label for label in child.labels if label.name != hold]
+                self._dispatched(gh, child, run_agent=support._agent())
+
+                self.assertEqual((held, untouched), (0, ([], [], 0)))
+                self.assertEqual(gh.label_history, [(support.READY_CHILD, support.LABEL_DECOMPOSING)])
+
+    def _released(self, **pinned) -> tuple:
+        """The child, on `ready`, its record linking it to its parent and carrying no baseline beside `pinned`."""
+        child = support.make_issue(support.READY_CHILD, label=support.LABEL_READY, body="a slice")
+        gh = support.FakeGitHubClient()
+        gh.add_issue(child)
+        gh.seed_state(support.READY_CHILD, parent_number=support.READY_PARENT, **pinned)
+        return gh, child
+
+    def _dispatched(self, gh, child, **run) -> int:
+        """One dispatch of the child, through every guard a tick takes; how many agents it ran."""
+        mocks = self._run(
+            lambda: _issue_processing._process_issue(gh, support._TEST_SPEC, child),
+            **run,
+        )
+        return mocks[support.RUN_AGENT].call_count
 
 
 class BareAddAgentRunsIsNotDriftTest(

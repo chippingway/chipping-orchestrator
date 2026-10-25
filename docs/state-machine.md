@@ -337,8 +337,9 @@ fixing recovery's release, a reviewer round's launch, return, verdict, drop, and
 handoff (prepared before its feedback is posted), the drop, retirement, and park of a handed one, the recovery's
 writes over a verdict left waiting, every write of an approval's tail, its squash's own and a failed squash's park
 included, a final-docs pass's completion (prepared before its notice, and relabelled only behind a confirmed write)
-and the evidence invalidation or hold that withholds a no-change one, and the retirement of a failed developer
-conversation -- lays only the fields its caller owns over a fresh
+and the evidence invalidation or hold that withholds a no-change one, the retirement of a failed developer
+conversation, and the `workflow:ready` decision's reroute and handoff (each read back before its relabel) and the
+retirement of that reroute's marker -- lays only the fields its caller owns over a fresh
 reading instead, refusing with nothing written where the
 comment, a record the decision rests on, or a field the caller is changing moved, or where the whole candidate would
 not fit one comment.
@@ -415,7 +416,9 @@ written after that reading as one. An issue with no baseline recorded at all kee
 on over as `observed_user_content_hash` instead, which that first check compares against in its place, so an edit
 made while the adjudicator ran is a change there too rather than the baseline it takes. A child a split created
 arrives baselined at what its create answered (see `_handle_decomposing` below), so its first check compares rather
-than records, unless its split's recovery — or a late split's resumed walk — had to seed it without one.
+than records, unless its split's recovery — or a late split's resumed walk — had to seed it without one. `ready` never
+takes that missing baseline as one: a split's child whose record carries neither reading is rerouted to
+`workflow:decomposing` like a changed one, so nothing implements on words nobody can say it was created with.
 `_handle_fixing`, `_handle_question`, and
 `_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
 and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and
@@ -463,9 +466,23 @@ more adjudication. Full flow:
 
 ### `_handle_ready` (label `workflow:ready` → `workflow:implementing`)
 
-A pass-through: post the pickup comment if needed, ratchet `last_action_comment_id` past everything posted while the
-issue sat in `workflow:decomposing` / `workflow:blocked`, flip to `workflow:implementing`, and fall into that handler
-on the same tick. Full flow: [`state-machine/delivery-stages.md`][ready].
+A decision, then a handoff. Off the reading taken under the writer claim and admitted, and the issue fetched afresh, the
+trusted requirements are compared against the preserved baseline before anything is announced, consumed, or launched:
+changed ones — and a split's child carrying no baseline at all — go back to `workflow:decomposing` through the
+decomposition reset, landed as one guarded write with a `ready_reroute` marker before the relabel and its notice.
+Unchanged ones get the pickup comment where none is anchored, the ratchet of `last_action_comment_id` past everything
+posted while the issue sat in `workflow:decomposing` / `workflow:blocked`, and any baseline the check staged, in one
+guarded write, and only behind a confirmed one the record still reads as the flip to `workflow:implementing` and that
+handler on the same tick. The ratchet consumes exactly the thread reading the requirements were last compared on, read
+behind the pickup with the issue's title and body fetched again behind it, so a comment or an edit that landed while it
+was posted reroutes rather than being consumed. The issue fetched ahead of the pickup and ahead of the relabel is
+compared too, so a title or body edited behind an earlier request reroutes with no pickup announced, or over the
+handoff that landed with no implementer launched. A `paused` or `backlog` applied while the tick runs stops it ahead of
+the next effect, the launch behind its relabel included; a reroute's notice it stops is said by the
+`workflow:decomposing` tick ahead of retiring the marker. A refused or unconfirmed write stops everything behind it, and
+the next tick reads what landed: a marker finishes its relabel rather than reading the reset's baseline as unchanged,
+its notice found again by a receipt rather than said twice, and a pickup already posted is found again rather than
+posted twice. Full flow: [`state-machine/delivery-stages.md`][ready].
 
 ### `_handle_blocked` (label `workflow:blocked`)
 

@@ -88,7 +88,12 @@ evidence proof read, and the invalidation or hold that withholds it where that
 proof refused or could not be taken (`stages/documenting/retention.py`). So
 are the in_review ready ping's arming ahead of its post and its settlement
 behind it, decided on the records the approval was read over
-(`stages/in_review/ready_ping.py`).
+(`stages/in_review/ready_ping.py`), and the `ready` decision's reroute and
+handoff, decided on the baseline, observed reading, parent link, and reroute
+marker it read -- the reroute on every field its reset wipes as well, the
+handoff on its pickup anchor (`stages/decomposition/ready.py`,
+`ready_handoff.py`) -- with the `decomposing` tick's retirement of that marker,
+decided on the marker alone (`stages/decomposition/drift.py`).
 """
 from __future__ import annotations
 

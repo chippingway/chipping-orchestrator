@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support import fakes as _fakes
 from tests.workflow import fixtures as _helpers
@@ -13,20 +14,25 @@ BACKEND_CLAUDE = _helpers.BACKEND_CLAUDE
 KEY_AWAITING_HUMAN = _helpers.KEY_AWAITING_HUMAN
 KEY_LAST_ACTION_COMMENT_ID = _helpers.KEY_LAST_ACTION_COMMENT_ID
 LABEL_BLOCKED = _helpers.LABEL_BLOCKED
+LABEL_DECOMPOSING = _helpers.LABEL_DECOMPOSING
 LABEL_DOCUMENTING = _helpers.LABEL_DOCUMENTING
 LABEL_IMPLEMENTING = _helpers.LABEL_IMPLEMENTING
 LABEL_IN_REVIEW = _helpers.LABEL_IN_REVIEW
+LABEL_READY = _helpers.LABEL_READY
 LABEL_RESOLVING_CONFLICT = _helpers.LABEL_RESOLVING_CONFLICT
 LABEL_VALIDATING = _helpers.LABEL_VALIDATING
 _PatchedWorkflowMixin = _helpers._PatchedWorkflowMixin
 _TEST_SPEC = _helpers._TEST_SPEC
 _agent = _helpers._agent
+_reported = _helpers._reported
 
 FakeComment = _fakes.FakeComment
 FakeGitHubClient = _fakes.FakeGitHubClient
+FakeLabel = _fakes.FakeLabel
 FakePR = _fakes.FakePR
 FakeUser = _fakes.FakeUser
 make_issue = _fakes.make_issue
+PinnedState = _pinned_state.PinnedState
 
 KEY_USER_CONTENT_HASH = "user_content_hash"
 
@@ -114,6 +120,12 @@ _ADD_AGENT_RUNS_PR_NUMBER = 6003
 _ADD_AGENT_RUNS_COMMENT_ID = 1300
 _ADD_AGENT_RUNS_SPENT = 50
 _ADD_AGENT_RUNS_ALLOWANCE = 53
+
+# A split's child its parent released onto `ready`, and that parent.
+READY_CHILD = 620
+READY_PARENT = 619
+KEY_READY_REROUTE = "ready_reroute"
+SINGLE_MANIFEST = _helpers._manifest('{"decision": "single", "rationale": "fits one"}')
 
 
 @dataclass(frozen=True)

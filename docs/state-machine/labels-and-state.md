@@ -185,7 +185,9 @@ stays inert. The pinned state those transitions move an issue through is [below]
 - _(none)_ — Open issue not yet picked up by the orchestrator.
 - `workflow:decomposing` — The decomposer is deciding whether the issue is single-context or should become child
   issues.
-- `workflow:ready` — The issue is decomposed and has no unresolved blockers.
+- `workflow:ready` — The issue is decomposed and has no unresolved blockers. Its requirements are compared against
+  the preserved baseline before anything implements: changed ones — or a split's child carrying no baseline — go back
+  to `workflow:decomposing`, unchanged ones on to `workflow:implementing`.
 - `workflow:blocked` — The issue is waiting on child issues or dependency edges.
 - `workflow:umbrella` — Parent issue with no implementation of its own; closes to `done` when all children resolve.
 - `workflow:implementing` — The dev agent is producing commits in a per-issue worktree. A clean result advances to
@@ -984,8 +986,8 @@ reviewer round's launch, return, verdict, and park writes, a change request's ha
 every write of an approval's tail commit through, and which the finish of a base rewrite the base refresh published
 itself, every auto-rebase park and a recovery's clear and record of a gate's hold, a final-docs pass's completion
 and the evidence invalidation or hold that withholds a no-change one, the retirement of a failed developer
-conversation, and the in_review ready ping's arming and its settlement land through) is never written from its
-caller's state.
+conversation, the in_review ready ping's arming and its settlement, and the `workflow:ready` decision's reroute and
+handoff and the retirement of that reroute's marker land through) is never written from its caller's state.
 It is captured from the reading the caller decided on —
 the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent
 one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
@@ -1337,14 +1339,33 @@ The keys that matter for the state machine fall into a few groups:
   created saying. A receipt proves only which slice it was cut for, and the manifest a late parent retains no more,
   since the body it renders also names the configured base branch, remote, and mirror, which no record keeps — a child
   reading exactly as it renders now may have been edited to match a configuration changed since the create. A child
-  missing one is held by no seed, admission, or release (`stages/decomposition/child_baseline.py`). What a run may
-  cross on the issue thread is bounded beside it — see
-  [the drift section](delivery-stages.md#user-content-drift-detection).
+  missing one is held by no seed, admission, or release (`stages/decomposition/child_baseline.py`); `workflow:ready`
+  is where it is answered: a split's child carrying neither this nor the observed reading below is rerouted to
+  `workflow:decomposing` before anything implements, never handed on with its current words recorded as unchanged.
+  `ready` records it in its own guarded checkpoint: the handoff lands a first or normalized value the drift check
+  staged, and a reroute's reset lands the current fingerprint beside `ready_reroute`. What a run may cross on the issue
+  thread is bounded beside it — see [the drift section](delivery-stages.md#user-content-drift-detection).
 - **Observed reading.** `observed_user_content_hash` — the same fingerprint over a reading a stage acted on without
   consuming any of it, written only where no `user_content_hash` is recorded: by a late adjudication carrying on over a
   quiet reading. It moves no baseline. The drift check compares against it in place of the missing one, recording
   `user_content_hash` where the thread still matches and reporting drift where it does not, and ignores it once a
   baseline is recorded — so an umbrella a late split made meets a comment written while the adjudicator ran as an edit.
+  `ready` holds a split's child to it the same way, as a reading standing in for the missing baseline.
+- **A ready reroute owed its relabel.** `ready_reroute` — an object naming the children a `workflow:ready` reroute's
+  reset stopped tracking (`orphans`, a list of issue numbers), whether the baseline it compared against was missing
+  rather than moved (`unbaselined`, a boolean), and the receipt its notice carries (`receipt`, sixteen lowercase hex
+  digits) in the hidden marker `<!--orchestrator-ready-reroute:receipt=<receipt>-->` above the orchestrator-comment
+  marker, by which a later tick finds that notice on the thread — on a comment of this orchestrator's carrying it —
+  rather than saying it twice, an operator's relabel back to `workflow:ready` included. It is a current recovery field,
+  optional and absent on every issue no such reroute touched, and it needs no migration. The reroute writes it in the
+  same guarded commit as the reset it describes, before the relabel to `workflow:decomposing`; a `ready` tick reading
+  it knows the reset — its baseline included, which would otherwise read as requirements nobody changed — is already
+  in place, and finishes the relabel and its notice without comparing or writing again. The `workflow:decomposing`
+  tick says that notice where the thread does not carry its receipt yet, then drops the marker in a guarded commit of
+  its own ahead of its drift check, recovery, kill switch, and decomposer, and holds the tick where that commit does
+  not land or a hold is read behind the notice or the retirement, so no later entry to `workflow:ready` reads a
+  finished reroute (`stages/decomposition/ready.py`). A member of any other shape names no child and no missing
+  baseline in the notice, and a receipt of any other shape names no notice to look for, so that notice is said.
 - **The developer report a pull request is owed and the one it carries.** The additive
   `developer_report_delivery` / `developer_report_pending` / `developer_report_current` /
   `developer_report_handoff` group, each one nested object, and each absent on every issue that predates it. They

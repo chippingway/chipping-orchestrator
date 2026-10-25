@@ -1592,7 +1592,10 @@ it renders also names the configured base branch, remote, and mirror, which no r
 exactly as the manifest renders it now may be one edited to match a configuration changed since the create — and
 taking it as the baseline would read that edit as no change at all. Such a child, recorded or adopted by its receipt,
 is seeded with its baseline missing, edited or not. A baseline the child's record already carries is kept either way,
-so a seed whose answer was lost after it landed is not re-baselined over an edit made while the split was parked.
+so a seed whose answer was lost after it landed is not re-baselined over an edit made while the split was parked. A
+child released with its baseline missing is decomposed again before it implements: `workflow:ready` reroutes it
+rather than take its current words as unchanged
+([`_handle_ready`](../state-machine/delivery-stages.md#_handle_ready-label-workflowready--workflowimplementing)).
 
 **Only then the links and the supersession.** The parent says what it became and where its work went, exactly once,
 and both halves of "once" are needed. The generation's own `late_links_announced` flag is the cheap gate and the one

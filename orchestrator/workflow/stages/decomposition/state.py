@@ -14,7 +14,9 @@ and every reader that takes it as proof has to refuse the same values.
 one rule twice -- off the manifest it arrives in and off the record it is kept
 in -- so what a split writes is what `_recorded_split_rationale` hands back to
 every later reader: the summary a split or its recovery posts, and the
-developer prompts of a parent's own pass.
+developer prompts of a parent's own pass. `_READY_REROUTE` is spelled here
+because two owners key it: `ready` writes it with its reset, and the
+`decomposing` tick that reroute hands the issue to drops it.
 """
 from __future__ import annotations
 
@@ -78,6 +80,19 @@ _SPLIT_ATTEMPT = "split_attempt"
 _SPLIT_RATIONALE = "split_rationale"
 
 _CREATED_AT = "created_at"
+
+# A reroute `ready` landed and still owes its relabel to `decomposing`: the
+# children its reset stopped tracking, for the notice that names them, whether
+# the baseline it compared against was missing rather than moved, and the
+# receipt that notice carries, so a later `ready` tick finds it rather than
+# saying it twice.
+# Written in the same checkpoint as the reset it describes, so a `ready` tick
+# reading it knows the reset is already in place -- its baseline included, which
+# would otherwise read as requirements nobody changed -- and finishes the
+# relabel rather than handing the issue to implementation. Dropped by the
+# `decomposing` tick ahead of its drift check, recovery, and decomposer, so no
+# later entry to `ready` reads it (`stages/decomposition/ready.py`).
+_READY_REROUTE = "ready_reroute"
 
 _DONE = "done"
 

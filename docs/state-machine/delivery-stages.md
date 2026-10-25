@@ -203,13 +203,16 @@ created carries the baseline its seed recorded off the create's answer (see
 against what it was created saying; one the split's recovery seeded — an adopted one included — carries none, and its
 first encounter persists the current value as above. A late split's child carries the same off its own create — its
 budget among what it was created saying — and one a resumed walk seeded, recorded by an earlier pass or adopted by its
-receipt, carries none (see step 3). It also carries a **legacy-hash
-normalization** path: a baseline written by the pre-issue-#729 algorithm counted a bare `/orchestrator continue`
-comment, so after deploy it would compare unequal to the new hash even with no real edit. Before reporting drift the
-helper recomputes with the old algorithm (`_compute_user_content_hash(..., include_bare_continue=True)`); if that
-reproduces the stored baseline the delta is purely the algorithm change, so it persists the new baseline and reports no
-drift — a bare continue outstanding at deploy time cannot fire one false "issue body/content changed" route. On drift
-the action depends on lifecycle position:
+receipt, carries none (see step 3). `_handle_ready` is the one check that does not take such a child's first reading
+as its baseline: a split's child carrying neither reading is rerouted to `workflow:decomposing` there, before
+anything implements (see [that handler](#_handle_ready-label-workflowready--workflowimplementing)). It also
+carries a **legacy-hash normalization** path: a baseline written by the pre-issue-#729 algorithm counted a bare
+`/orchestrator continue` comment, so after deploy it would compare unequal to the new hash even with no real edit.
+Before reporting drift the helper recomputes with the old algorithm
+(`_compute_user_content_hash(..., include_bare_continue=True)`); if that reproduces the stored baseline the delta is
+purely the algorithm change, so it persists the new baseline and reports no drift — a bare continue outstanding at
+deploy time cannot fire one false "issue body/content changed" route. On drift the action depends on lifecycle
+position:
 
 - **`workflow:decomposing`** — handled inline at the top of `_handle_decomposing`: drop `decomposer_session_id`, wipe
   `children` / `dep_graph` / `expected_children_count` / `split_attempt` / `split_rationale` / `umbrella`, clear park
@@ -220,8 +223,12 @@ the action depends on lifecycle position:
   a human continues it.
 - **`workflow:ready` / `workflow:blocked` / `workflow:umbrella`** (no implementation has started) — route back to
   `workflow:decomposing` via `_route_drift_to_decomposing`: same state-wipe + notice, plus a label flip to
-  `workflow:decomposing`. `decomposer_agent` is preserved across this transition so a mid-flight `DECOMPOSE_AGENT` env
-  flip cannot retarget an in-flight issue. Any previously-tracked children are listed in the notice as ORPHANED — the
+  `workflow:decomposing`. `workflow:ready` takes the same reset as a guarded checkpoint instead, landed with its
+  `ready_reroute` marker before the relabel and the notice behind it, so a lost answer is finished from the marker
+  rather than read as unchanged, and the notice is said once, found again by its receipt (see
+  [`_handle_ready`](#_handle_ready-label-workflowready--workflowimplementing)).
+  `decomposer_agent` is preserved across this transition so a mid-flight `DECOMPOSE_AGENT` env flip cannot retarget an
+  in-flight issue. Any previously-tracked children are listed in the notice as ORPHANED — the
   orchestrator no longer tracks them, so the operator must close any that no longer apply. On an umbrella a late
   split made, what the check compares against is the baseline the late adjudication recorded when it last consumed a
   reply — frozen off the reading that reply arrived in, and durable before the split's handoff — so guidance a
@@ -540,7 +547,20 @@ because there it is the claim that this stage has already rerouted rather than a
      leaves the attempt where the human put it. What it buys is one attempt, spent at the same gate in step 5 that
      refused the last one. A thread this tick could not read hands out nothing and holds the park, since a grant
      made on a read that established nothing spends an attempt no human asked for.
-  2. **User-content drift check** (inline) — see drift section above.
+  2. **User-content drift check** (inline) — see drift section above. An issue
+     [`_handle_ready`](#_handle_ready-label-workflowready--workflowimplementing) rerouted here arrives with that reset
+     already landed beside its `ready_reroute` marker, so the marker is dropped first, in a guarded commit of its own
+     decided on the marker alone (`drift._retires_ready_reroute`): left standing, the next entry to `workflow:ready`
+     would read a finished reroute as one still owed and send the issue straight back. Ahead of it the reroute's notice
+     is said where no comment of this orchestrator's on the thread carries the receipt the marker names — a hold may
+     have stopped the `workflow:ready` tick between its relabel and its notice — so it is said once, and its ledger
+     entry rides the retirement. A thread nobody could read, a `paused` or `backlog` applied meanwhile — read ahead of
+     the notice, whether or not it is already on the thread, and again behind it — or a retirement that does not land
+     holds the tick — no recovery, kill switch, or decomposer — with the marker standing and, for an unlanded write, the
+     tick's state withheld, and the next tick asks again. A hold read once more behind a retirement that landed holds
+     the tick too, with the marker gone, so no decomposer runs until a tick with the hold off goes on with nothing left
+     to retire. The check behind it then compares against the baseline the reset recorded, so the reroute's own edit is
+     not met a second time.
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
      tick crashed mid-split, or left a child another poller held unseeded), the handler cannot safely respawn the
      decomposer. When `expected_children_count` is set
@@ -699,12 +719,96 @@ because there it is the claim that this stage has already rerouted rather than a
   HITL park.
 
 ## `_handle_ready` (label `workflow:ready` → `workflow:implementing`)
-- **Trigger**: each tick while the label is `workflow:ready`. Reached by a `single`-decision parent or a
-  freshly-created child.
-- **Action**: post the pickup comment if needed, bump `last_action_comment_id` to the latest visible comment id (so
-  comments posted while the issue sat in `workflow:decomposing` / `workflow:blocked` are marked consumed before the
-  implementer reads them at spawn), flip to `workflow:implementing`, fall through into `_handle_implementing` on the
-  same tick.
+- **Trigger**: each tick while the label is `workflow:ready` and no `paused` / `backlog` hold stands. Reached by a
+  child its parent released, a parent whose children are all `done`, and a `single`-decision issue.
+- **Input**: the pinned record read under the issue's writer claim and held to admission (`user_content_hash`,
+  `observed_user_content_hash`, `parent_number`, `pickup_comment_id`, `last_action_comment_id`, `ready_reroute`, and
+  the manifest fields a reroute resets). A record admission refuses abandons the handler with nothing done, and one
+  nobody could read fails the tick the same way.
+- **Internal flow** (`stages/decomposition/ready.py`, `ready_handoff.py`, `ready_readings.py`):
+  0. **One reading of the thread** — every comment but the pinned one — is taken first, behind the issue fetched afresh
+     — whose title and body, not the dispatched object's, every comparison uses — and handed to everything the decision
+     takes off it: the fingerprint, the receipts this orchestrator looks for, and, where nothing is announced in
+     between, the ratchet. A receipt counts only on a comment authored by this orchestrator's account that also carries
+     the hidden marker every post of ours carries, or whose id our ledger records: the account may be a human's too, and
+     a quotation of ours taken for ours would drop that human's words from the requirements. A thread nobody could read
+     holds the tick with nothing done. Ahead of each effect below — a reset landed, either relabel, a notice, a pickup
+     posted, a checkpoint landed (behind the reading it consumes), and the implementer's launch (behind its relabel) —
+     the issue is fetched again and a `paused` or `backlog` an operator applied while the tick ran stops it there
+     ([C-10](../contracts.md#c-10-pauses-and-parks)); an issue that cannot be fetched holds as well.
+  1. **A reroute still owed.** A record carrying `ready_reroute` is one whose reroute reset already landed and whose
+     relabel did not: the issue is relabelled to `workflow:decomposing`, with nothing compared, reset, or written
+     again, and the reroute's notice is said unless a comment of this orchestrator's on the thread already carries
+     the receipt the marker names. The reset carries the new baseline, so without the marker this tick would read
+     requirements nobody changed and hand the issue to implementation.
+  2. **The requirements decision**, asked before any pickup, consumption, or launch. A split's child — a record whose
+     `parent_number` names an issue — carrying neither `user_content_hash` nor `observed_user_content_hash` as a
+     string has no baseline proving it still says what its split cut it for, so it is rerouted without comparing; its
+     current words are never taken as an unchanged baseline here. Anything else is the drift check's own answer
+     ([above](#user-content-drift-detection)) over the reading, persisting nothing itself: an issue no split made
+     keeps the first-encounter answer, and a child the observed reading stands in for is compared against it.
+     Generated comments, bots, untrusted authors, and whole-comment operator commands stay out of the fingerprint
+     as everywhere.
+  3. **Changed, or unbaselined → the reroute.** The discarded manifest's children are accounted for first through
+     `stages/decomposition/drift._account_discarded` — every child a live late split may have pointed at the snapshot,
+     an unrecorded replacement found by its receipt included, written onto `late_consumers` — then the decomposition
+     reset is staged (`_reset_decomposition_for_drift`: baseline set to the current fingerprint, decomposer session
+     retired with its spec kept, `children` / `dep_graph` / split markers / park flags cleared; the late generation,
+     ancestry, and snapshot kept whole) beside `ready_reroute` — the orphaned children, whether the baseline was
+     missing, and a receipt minted for the notice. All of it lands as one guarded commit over the claimed reading,
+     decided on the fields the decision read and every field the reset wipes. Only a write GitHub confirmed, and the
+     record read back as that very comment still carrying the reset and its marker in every field the commit was decided
+     on, licenses the relabel to `workflow:decomposing` — an issue that pinned no comment gets its first record as step
+     4 describes, and a first pin another pin posted meanwhile shadows licenses nothing — and the notice goes out behind
+     the relabel, best-effort, carrying the receipt in the hidden marker
+     `<!--orchestrator-ready-reroute:receipt=<receipt>-->`: `:pencil2: issue content changed; …` naming any
+     orphans, or, for a child with no baseline, a notice saying no creation baseline is recorded. However often the
+     issue comes back to `workflow:ready` before the marker is retired — an operator's relabel included — step 1 finds
+     that notice by its receipt and says nothing more; a notice a hold stopped behind a relabel that landed, or whose
+     post failed, is said by the `workflow:decomposing` tick ahead of retiring the marker, by the same receipt, and a
+     notice whose post fails there too is abandoned once that retirement lands, nothing reading the marker after it.
+  4. **Unchanged → the handoff.** Where no `pickup_comment_id` is anchored, the reading is asked for this orchestrator's
+     own pickup sentence first — authored by this orchestrator, as every thread receipt is — and one found is anchored
+     rather than posted again (the receipt rule of step 0). Otherwise the handoff is prepared over the comment as it
+     stands, with the anchor, the watermark, and the notice's ledger entry reserved at their widest, and only then is
+     the pickup posted — over the issue fetched again right ahead of it, whose title and body are compared too, so one
+     edited while the decision read the thread or while the preparation ran takes step 3 with no pickup announced; an
+     issue that pinned no comment at all is prepared by a fresh reading that still finds none, so
+     a pin appearing since — one admission refuses above all — announces nothing and is never written beside. Then the
+     thread is read once more, last of all ahead of the checkpoint, the issue itself is fetched again behind it, and the
+     requirements are compared again on that reading and the fetched title and body: a trusted comment, or a title or
+     body edit, that landed while the pickup was posted is a change, and the issue takes step 3 instead, with nothing
+     consumed. Unchanged, `last_action_comment_id` is ratcheted to the newest comment on that same reading (so comments
+     posted while the issue sat in `workflow:decomposing` / `workflow:blocked` are marked consumed before the
+     implementer reads them at spawn), and nothing it did not compare is consumed. The anchor, stamp, ratchet, ledger
+     entry, and any baseline the check staged land as one guarded commit decided on the fields the decision read and the
+     anchor. Only behind a confirmed write, and the record read back still carrying it in every field the decision
+     rested on — a baseline a human removed since, above all, leaves the issue on `workflow:ready` for the next tick to
+     decide on — does the label flip to `workflow:implementing` — made on the issue fetched again right behind that
+     read-back, so a hold applied while it ran stops the relabel rather than being written away by labels read before it
+     — and `_handle_implementing` run on the same tick, on the issue its last hold check fetched; a comment landing
+     after the consumed reading is left unread for that stage to meet as an edit. That fetch ahead of the relabel is
+     compared too: a title or body edited while the checkpoint landed takes step 3 over the record the handoff landed —
+     its pickup and consumed reading kept — so the issue is never relabelled to `workflow:implementing` over
+     requirements already read as changed; behind the relabel the issue is that stage's, whose own drift check reads a
+     later edit. An issue that pinned no comment at all
+     gets its first, version-1 record from the whole-state writer instead, which raises over a record admission refuses
+     rather than post one beside it — and which creates a pin wherever its caller names none, so the record is read
+     again right before it, a pin any other hand posted since holding the handoff with nothing created beside it and the
+     next tick deciding on that record, and the first pin is read back as the issue's own record before anything rests
+     on it.
+- **Recovery**: a refused or unconfirmed checkpoint stops every notice, relabel, consumption, and launch behind it,
+  withholds the tick's state from any whole-state write, and leaves the comment for the next tick to read. A reroute
+  whose write landed with its answer lost is finished from its marker (step 1), its notice said once; one that never
+  landed is decided afresh. A handoff whose write landed reads its anchor back and posts nothing; one that never landed
+  finds its pickup on the thread. A record a human edited between two readings refuses the write it was decided for and
+  is read as it now stands next tick; one a human edited right behind a landed write, or a first pin another pin posted
+  meanwhile shadows, is read back as another record than the one landed and licenses nothing past it either, the next
+  tick deciding on the record that stands. A hold stops whichever step it meets, and the tick after it comes off carries
+  on from what landed. Unsupported records are never repaired or stamped here
+  ([C-03](../contracts.md#c-03-persisted-and-externally-consumed-formats)).
+- **Output**: `workflow:decomposing` (the reroute, its marker dropped by the `decomposing` tick it reaches), or
+  `workflow:implementing` with the implementer run, or nothing moved where a checkpoint did not land or a hold stood.
 
 ## `_handle_blocked` (label `workflow:blocked`)
 - **Trigger**: each tick `DEPENDENCY_POLL_EVERY_N_TICKS` makes due while the issue is open on `workflow:blocked` — the

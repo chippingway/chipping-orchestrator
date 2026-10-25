@@ -208,7 +208,8 @@ Writer exclusion comes from [C-05].
 [publication evidence](security.md#what-a-trusted-pinned-record-still-cannot-license),
 [base-rebase recovery](architecture.md#push-path-gitbranch_transport_push_branch),
 [base-rewrite finalization](state-machine/delivery-stages.md#the-base-rewrite-finalization-contract),
-[ready-ping publication](state-machine/delivery-stages.md#the-ready-ping-publication-contract).
+[ready-ping publication](state-machine/delivery-stages.md#the-ready-ping-publication-contract),
+[ready decision](state-machine/delivery-stages.md#_handle_ready-label-workflowready--workflowimplementing).
 
 **Checks:** [guarded commits](../tests/workflow/engine/test_pinned_commit.py),
 [recovery checkpoints](../tests/git/base_sync/test_persistence.py),
@@ -216,7 +217,8 @@ Writer exclusion comes from [C-05].
 [finalization checkpoints](../tests/workflow/engine/test_rewrite_finish_writes.py),
 [ready-ping recovery](../tests/workflow/stages/in_review/test_ready_ping_recovery.py),
 [refused close recovery](../tests/workflow/stages/decomposition/test_late_refused_closes.py),
-[admitted read-back](../tests/workflow/engine/test_dispatch_current_recovery.py).
+[admitted read-back](../tests/workflow/engine/test_dispatch_current_recovery.py),
+[ready recovery](../tests/workflow/stages/decomposition/test_ready_recovery.py).
 
 ## C-07: Publication authority and exact revisions
 
@@ -280,6 +282,7 @@ further runs are covered by [C-15].
 [retry budget](state-machine/labels-and-state.md#the-retry-budget).
 
 **Checks:** [live holds](../tests/workflow/engine/test_guards_paused.py),
+[ready holds](../tests/workflow/stages/decomposition/test_ready_holds.py),
 [review parks](../tests/workflow/stages/in_review/test_parked.py),
 [retry-cap parks](../tests/workflow/engine/test_retry_budget.py).
 

@@ -63,8 +63,8 @@ _ENDED_LABELS = (_state._DONE, "rejected", "in_review")
 def _route_parent_drift(
     gh: GitHubClient, issue: Issue, state: PinnedState
 ) -> bool:
-    """Route a decomposed parent (or blocked child) back to `decomposing`
-    on a user-content edit.
+    """Route a `blocked` or `umbrella` parent (or blocked child) back to
+    `decomposing` on a user-content edit.
 
     Returns True when drift was detected and the issue was re-routed
     (caller must return); False when the content is unchanged.
@@ -75,11 +75,12 @@ def _route_parent_drift(
     rather than silently absorbing the next edit as the new baseline. Both
     parent and child cases route to decomposing so the manifest is
     re-derived against the updated body: silently persisting the new
-    baseline for a child would let `_handle_ready` later see a matching
-    hash and skip the re-decomposer even when the edited body now needs
-    splitting. Parents with in-flight children list those children as
-    orphans in the notice (the new manifest may overlap; the operator
-    closes the obsolete ones manually).
+    baseline for a child would let `ready` later see a matching hash and
+    skip the re-decomposer even when the edited body now needs splitting.
+    Parents with in-flight children list those children as orphans in the
+    notice (the new manifest may overlap; the operator closes the obsolete
+    ones manually). `ready` asks its own guarded decision rather than this
+    one (`ready.py`).
     """
     new_hash = _drift._detect_user_content_change(gh, issue, state)
     if new_hash is None:

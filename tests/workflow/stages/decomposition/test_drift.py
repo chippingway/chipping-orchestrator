@@ -11,6 +11,7 @@ from orchestrator.workflow.stages.decomposition import (
     blocked as _blocked,
     drift as _drift_reset,
     run as _decomposing,
+    split_receipts as _split_receipts,
     umbrella as _umbrella,
 )
 from tests.support.fakes import (
@@ -25,7 +26,11 @@ from tests.workflow.fixtures import (
     _manifest,
     _PatchedWorkflowMixin,
 )
-from tests.workflow.stages.decomposition import late_cleanup_support as _late_support
+from tests.workflow.stages.decomposition import (
+    late_cleanup_support as _late_support,
+    ready_test_support as _ready_support,
+    replacement_lineage_support as _lineage_support,
+)
 from tests.workflow.stages.decomposition.decomposition_test_support import (
     _comment_with_marker,
     _comments_for_issue,
@@ -59,6 +64,9 @@ ORPHAN_NOTICE_WORD = "ORPHANED"
 LATE_KEY_PREFIX = "late_"
 KEY_LATE_CONSUMERS = "late_consumers"
 KEY_LATE_DEPTH = "late_lineage_depth"
+SPLIT_ATTEMPT = "0123456789abcdef"
+RECEIPT = "fedcba9876543210"
+REPLACEMENT_SLICE = "a replacement slice"
 REPLACEMENT_MANIFEST = _manifest(
     '{"decision": "split", "umbrella": true, "rationale": "re-planned", '
     '"children": [{"title": "A", "body": "a", "depends_on": []}, {"title": "B", "body": "b", "depends_on": []}]}'
@@ -133,6 +141,7 @@ def _umbrella_drift_fixture():
 class HandleReadyRoutesBackOnHashChangeTest(
     unittest.TestCase,
     _PatchedWorkflowMixin,
+    _ready_support.ReadyTicks,
 ):
     def test_body_drift_routes_ready_back(self) -> None:
         # `ready` is reached only after a `single` decomposition decision
@@ -222,6 +231,82 @@ class HandleReadyRoutesBackOnHashChangeTest(
             (STABLE_READY_ISSUE_NUMBER, LABEL_DECOMPOSING),
             gh.label_history,
         )
+
+    def test_a_late_parent_accounts_replacements(self) -> None:
+        # A parent a late split made, put back on `ready` by hand over a
+        # replacement split of its own: one replacement recorded, the next
+        # created and never recorded. A body edit reroutes it, and before the
+        # reset drops the register both replacements join the snapshot's
+        # consumer ledger beside the original -- the notice and the marker
+        # naming both -- while every other late field stands as it was.
+        gh, replacements = self._late_parent_over_replacements()
+        before = self._late_fields(gh)
+
+        self.assertEqual(self.ready_tick(gh, gh.get_issue(_lineage_support.PARENT)), 0)
+
+        pinned = gh.pinned_data(_lineage_support.PARENT)
+        notice = _comment_with_marker(gh, _lineage_support.PARENT, RESPAWN_NOTICE_MARKER)
+        self.assertEqual(pinned[KEY_LATE_CONSUMERS], sorted([_lineage_support.ORIGINAL, *replacements]))
+        self.assertEqual(
+            (pinned[KEY_CHILDREN], pinned.get("split_attempt"), pinned[_ready_support.KEY_REROUTE]["orphans"]),
+            ([], None, replacements),
+        )
+        self.assertEqual(self._late_fields(gh), before)
+        self.assertEqual(gh.label_history, [(_lineage_support.PARENT, LABEL_DECOMPOSING)])
+        self.assertTrue(all(f"#{number}" in notice for number in replacements))
+
+    def test_an_unlanded_retirement_holds_the_tick(self) -> None:
+        # The decomposing tick a reroute handed the issue to drops the marker
+        # before anything else. A retirement that does not land holds that
+        # tick -- no decomposer runs -- and the marker waits for the next one,
+        # which drops it and runs the decomposer.
+        gh = FakeGitHubClient()
+        child = _ready_support.ready_child(gh, ready_reroute=dict(_ready_support.CHANGED_REROUTE, receipt=RECEIPT))
+        gh.set_workflow_label(child, LABEL_DECOMPOSING, guarded=False)
+        gh.pinned_failures.refused.add(_ready_support.CHILD)
+
+        held = self.decomposing_tick(gh, child)
+        gh.pinned_failures.refused.clear()
+        kept = gh.pinned_data(_ready_support.CHILD).get(_ready_support.KEY_REROUTE)
+        ran = self.decomposing_tick(gh, child)
+
+        self.assertEqual((held, ran), (0, 1))
+        self.assertEqual(kept, dict(_ready_support.CHANGED_REROUTE, receipt=RECEIPT))
+        self.assertNotIn(_ready_support.KEY_REROUTE, gh.pinned_data(_ready_support.CHILD))
+
+    def _late_parent_over_replacements(self) -> tuple:
+        """The root of a late lineage on `ready`, its replacement split cut short; the client and both replacements."""
+        gh = FakeGitHubClient([make_issue(_lineage_support.PARENT, label="workflow:ready", body="the root, edited")])
+        receipts = [
+            _split_receipts.receipt(_lineage_support.PARENT, SPLIT_ATTEMPT, index, None)
+            for index in range(2)
+        ]
+        replacements = [
+            gh.create_child_issue(
+                title=REPLACEMENT_SLICE,
+                body=f"{REPLACEMENT_SLICE}\n\n{stamp}",
+                parent_number=_lineage_support.PARENT,
+                labels=["workflow:blocked"],
+            ).number
+            for stamp in receipts
+        ]
+        parent = _lineage_support.record(
+            _lineage_support.own_split(),
+            children=replacements[:1],
+            split_attempt=SPLIT_ATTEMPT,
+            expected_children_count=len(replacements),
+            user_content_hash=STALE_USER_CONTENT_HASH,
+        )
+        gh.seed_state(_lineage_support.PARENT, **parent.data)
+        return gh, replacements
+
+    def _late_fields(self, gh: FakeGitHubClient) -> dict:
+        """Every late field the parent's pinned comment carries but the consumer ledger, which a reroute extends."""
+        return {
+            key: recorded
+            for key, recorded in gh.pinned_data(_lineage_support.PARENT).items()
+            if key.startswith(LATE_KEY_PREFIX) and key != KEY_LATE_CONSUMERS
+        }
 
 
 class DecomposingHashChangeResetsSessionTest(
