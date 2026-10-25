@@ -727,7 +727,7 @@ because there it is the claim that this stage has already rerouted rather than a
   nobody could read fails the tick the same way.
 - **Internal flow** (`stages/decomposition/ready.py`, `ready_handoff.py`, `ready_readings.py`):
   0. **One reading of the thread** — every comment but the pinned one — is taken first, behind the issue fetched afresh
-     — whose title and body, not the dispatched object's, every comparison uses — and handed to everything the decision
+     — whose title and body, not the dispatched object's, the decision compares — and handed to everything the decision
      takes off it: the fingerprint, the receipts this orchestrator looks for, and, where nothing is announced in
      between, the ratchet. A receipt counts only on a comment authored by this orchestrator's account that also carries
      the hidden marker every post of ours carries, or whose id our ledger records: the account may be a human's too, and
@@ -735,7 +735,9 @@ because there it is the claim that this stage has already rerouted rather than a
      holds the tick with nothing done. Ahead of each effect below — a reset landed, either relabel, a notice, a pickup
      posted, a checkpoint landed (behind the reading it consumes), and the implementer's launch (behind its relabel) —
      the issue is fetched again and a `paused` or `backlog` an operator applied while the tick ran stops it there
-     ([C-10](../contracts.md#c-10-pauses-and-parks)); an issue that cannot be fetched holds as well.
+     ([C-10](../contracts.md#c-10-pauses-and-parks)); an issue that cannot be fetched holds as well. Ahead of the
+     handoff's pickup, its checkpoint, and its relabel to `workflow:implementing`, that fetch's title and body are
+     compared too, so an edit it shows reroutes there (step 4) rather than being announced or implemented.
   1. **A reroute still owed.** A record carrying `ready_reroute` is one whose reroute reset already landed and whose
      relabel did not: the issue is relabelled to `workflow:decomposing`, with nothing compared, reset, or written
      again, and the reroute's notice is said unless a comment of this orchestrator's on the thread already carries
