@@ -78,10 +78,14 @@ completion, prepared before its notice and landed before its relabel
 no-change one whose evidence does not prove (`stages/documenting/retention.py`),
 the retirement of a failed developer conversation, landed alone over a
 fresh reading for a tick whose own write may never happen
-(`stages/implementing/session_retirement.py`), and the in_review ready ping's
+(`stages/implementing/session_retirement.py`), the in_review ready ping's
 arming, landed before its post, and its settlement, prepared before the post
-and landed behind it (`stages/in_review/ready_ping.py`). Every other road
-still rewrites the whole record.
+and landed behind it (`stages/in_review/ready_ping.py`), and the `ready`
+decision's reroute and its handoff -- prepared before its pickup -- each read
+back before its relabel (`stages/decomposition/ready.py`,
+`ready_handoff.py`), with the `decomposing` tick's retirement of that
+reroute's marker (`stages/decomposition/drift.py`). Every other road still
+rewrites the whole record.
 
 The report's commits are captured over the reading a tick last synced with the
 comment (`PinnedState.synced`), so what the tick staged since is told from what

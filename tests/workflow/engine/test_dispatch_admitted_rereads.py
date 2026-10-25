@@ -68,6 +68,10 @@ _SCRATCH_TEARDOWNS = (
 # record: the gate's and the handler's own.
 _READINGS_BEFORE_THE_CHARGE = 2
 
+# The readings a `ready` dispatch takes before its handoff reads the comment
+# afresh to land on: the gate's and the handler's own.
+_READINGS_BEFORE_THE_HANDOFF = 2
+
 # Every label a stage handler is chosen by; the unlabeled pickup reads no record.
 _HANDLED = tuple(label for label in _stage_targets._STAGE_HANDLER_TARGETS if label is not None)
 
@@ -96,17 +100,18 @@ class HandlerRereadTest(unittest.TestCase):
 
     def test_a_refused_write_abandons_the_handler(self) -> None:
         # The `ready` handler reads the record current, and a human edits it
-        # into another version just ahead of the handler's first write. The
-        # writer raises over it, so no greeting is posted, the label does not
-        # move to implementation, and the pass ends as an ordinary one.
+        # into another version just ahead of the handler's first write -- the
+        # guarded handoff, which reads the comment afresh to land on. It is
+        # refused there, so no greeting is posted, the label does not move to
+        # implementation, nothing is pinned, and the pass ends as an ordinary
+        # one.
         github = FakeGitHubClient([make_issue(_ISSUE, label=LABEL_READY)])
         github.seed_state(_ISSUE, **_UNGREETED)
-        edits = _EditedBeforeAWrite(github)
+        edits = _EditedAfterReadings(github, _READINGS_BEFORE_THE_HANDOFF)
 
-        with patch.object(github, "write_pinned_state", edits):
+        with patch.object(github, "read_pinned_state", edits):
             _issue_processing._process_issue(github, _TEST_SPEC, github.get_issue(_ISSUE))
 
-        self.assertTrue(edits.edited, "the handler reached a write")
         self.assertEqual(_written(github), ([], [], 0), "nothing is said or moved past the refused write")
         self.assertEqual(github.pinned_data(_ISSUE), dict(_UNGREETED, schema_version=_ANOTHER_VERSION))
 
@@ -206,23 +211,6 @@ class _EditedAfterReadings:
             edited = dict(self._github.pinned_data(_ISSUE), schema_version=_ANOTHER_VERSION)
             self._github.seed_state(_ISSUE, raw=True, **edited)
         return reading
-
-
-class _EditedBeforeAWrite:
-    """The client's whole-state write, with a human's edit landing just ahead of its first one."""
-
-    def __init__(self, github: FakeGitHubClient) -> None:
-        self._github = github
-        self._writes = github.write_pinned_state
-        self.edited = False
-
-    def __call__(self, issue, state):
-        """Edit the record into another version ahead of the first write, then write."""
-        if not self.edited:
-            self.edited = True
-            edited = dict(self._github.pinned_data(issue.number), schema_version=_ANOTHER_VERSION)
-            self._github.seed_state(issue.number, raw=True, **edited)
-        return self._writes(issue, state)
 
 
 def _written(github: FakeGitHubClient) -> tuple:

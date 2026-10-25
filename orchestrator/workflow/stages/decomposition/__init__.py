@@ -29,10 +29,17 @@ without it in hand writes none -- `split_seeds` the dispatch hold on a child who
 seed is not what that receipt says it was owed, `replacement_lineage` owns
 the late lineage and snapshot pointer those children are seeded with when the
 issue sits inside one -- and the park when either cannot be proved, and the
-repair a recovery makes of each recorded child -- and `parents`,
+repair a recovery makes of each recorded child -- `parents`,
 `activation`, `blocked`, and `umbrella` own the parent-side polling that drives
-the tree to completion. `child_claims` holds the writer claim of each child a
-parent acts on and admits the child's record read behind it; a split that meets
+the tree to completion, and `ready` owns the decision every issue reaching
+`ready` is asked before it implements -- whether its requirements still read as
+the preserved baseline says, a split's child carrying none rerouted like a
+changed one -- with `ready_handoff` the guarded handoff an unchanged one takes,
+`ready_readings` the thread, hold, and receipt readings both are decided on,
+and `ready_notice` the notice a reroute owes, said once by whichever tick
+finishes it.
+`child_claims` holds the writer claim of each child a parent acts on and admits
+the child's record read behind it; a split that meets
 a child another poller holds, or one whose record admission refuses, leaves it
 unseeded and its own finalize to `recovery`, and a merge finalize, a snapshot
 notice, or a snapshot delete that meets one writes nothing to it and keeps the

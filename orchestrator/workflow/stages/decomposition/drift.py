@@ -34,14 +34,34 @@ ref for it, so it is written onto that ledger first (`_account_discarded`).
 The notice is posted before the reset touches state, so a tick that dies
 between the two re-detects the same edit next time rather than throwing a
 manifest away nobody was told about.
+
+An issue `ready` rerouted here arrives with that reset already landed, beside
+the marker saying its relabel was owed (`ready.py`). The label now answers
+it, so the marker is dropped before the reset is asked -- and before recovery,
+the kill switch, or a decomposer run -- in a guarded commit of its own
+(`_retires_ready_reroute`): left standing, the next entry to `ready` would read
+a finished reroute as one still owed and send the issue straight back here.
+The reroute's notice is said first where the thread does not carry it yet --
+a hold may have stopped the `ready` tick between its relabel and its notice --
+found by the receipt the marker names, so it is said once
+(`ready_notice.says`). A thread nobody could read, a hold read ahead of the
+notice, behind it, or behind the retirement, or a retirement that does not
+land holds the tick, and the next one asks again.
 """
 from __future__ import annotations
+
+import logging
 
 from github.Issue import Issue
 
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, drift as _engine_drift
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    drift as _engine_drift,
+    pinned_commit_models as _commit_models,
+    report_commits as _commits,
+)
 from orchestrator.workflow.late_split import (
     formats as _formats,
     keys as _keys,
@@ -49,9 +69,18 @@ from orchestrator.workflow.late_split import (
     state as _late_state,
 )
 from orchestrator.workflow.stages.decomposition import (
+    ready_notice as _ready_notice,
+    ready_readings as _ready_readings,
     session as _session,
     split_receipts as _split_receipts,
     state as _state,
+)
+
+log = logging.getLogger("orchestrator.workflow")
+
+# The retirement of a `ready` reroute's marker, decided on that marker alone.
+_RETIRING = _commits.ReportWrite(
+    owned=frozenset((_state._READY_REROUTE,)), decided_on=frozenset((_state._READY_REROUTE,)),
 )
 
 # What the discarded split wrote beside its register. The seal is a fact
@@ -92,6 +121,43 @@ def _clear_decomposition_manifest(state: PinnedState) -> None:
         state.set(marker, None)
     state.set(_state._AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)
+
+
+def _retires_ready_reroute(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
+    """Drop the marker of a reroute `ready` landed, now the label it owed reads `decomposing`; whether the tick goes on.
+
+    An issue carrying none costs nothing. The notice the marker records is
+    said first where the thread does not carry its receipt yet, and its
+    ledger entry rides the retirement. A thread nobody could read, or a hold
+    -- read ahead of the notice and again behind it -- holds the tick with
+    the marker standing; so does anything but a write GitHub confirmed, with
+    the tick's state withheld: a decomposer run, or a decision handing the
+    issue back to `ready`, would otherwise leave behind a marker that sends
+    the next entry to `ready` straight back here. A hold read once more
+    behind a retirement that landed holds the tick too, the marker gone: the
+    next tick, once the hold is off, has nothing to retire and goes on.
+    """
+    owed = state.get(_state._READY_REROUTE)
+    if owed is None:
+        return True
+    comments = _ready_readings.thread(gh, issue, state)
+    if comments is None or not _ready_notice.says(gh, issue, state, owed, comments):
+        return False
+    if _ready_readings.held(gh, issue):
+        return False
+    commit = _commits.ReportCommit(gh, issue, state)
+    staged = commit.staging()
+    staged.data.pop(_state._READY_REROUTE)
+    landed = commit.lands(staged, _RETIRING)
+    if landed.status is _commit_models.CommitStatus.COMMITTED:
+        return not _ready_readings.held(gh, issue)
+    state.withheld = True
+    log.warning(
+        "issue=#%d the retirement of its ready reroute came back %s; holding the tick, with the pinned comment "
+        "left as it stands for the next one to read",
+        issue.number, (landed.refusal or landed.status).value,
+    )
+    return False
 
 
 def _reset_decomposing_on_drift(

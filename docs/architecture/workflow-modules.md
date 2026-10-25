@@ -48,8 +48,9 @@ see, and is called out as such.
 
 `engine/`, `late_split/`, and every stage package publish nothing, so naming one costs no owner behind it. Each
 stage package is listed with the labels its handlers answer for: eight own one label each, and `decomposition/` owns
-four — `run.py` for `workflow:decomposing`, `blocked.py` for both `workflow:ready` and `workflow:blocked`, and
-`umbrella.py` for `workflow:umbrella`. That is twelve of the dispatch table's thirteen targets; the thirteenth is the
+four — `run.py` for `workflow:decomposing`, `blocked.py` for both `workflow:ready` and `workflow:blocked` (the
+`workflow:ready` handler reading the claimed record and handing it to `ready.py`), and `umbrella.py` for
+`workflow:umbrella`. That is twelve of the dispatch table's thirteen targets; the thirteenth is the
 unlabeled entry, which `engine/pickup.py` answers rather than a stage package.
 
 ```
@@ -569,7 +570,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             out. On a parked tick the check measures the
                             requirements by what the park had already read (`answered`), so replies to the park are
                             the frozen batch's, not drift. With no baseline recorded it compares against
-                            `observed_user_content_hash` where a stage kept one, rather than taking the thread as found
+                            `observed_user_content_hash` where a stage kept one, rather than taking the thread as found;
+                            asked over a thread reading its caller holds (`reading`), it fingerprints that reading and
+                            stages a first or normalized baseline for the caller's own checkpoint to land.
+                            `_unbaselined` is what a missing baseline is: a record carrying neither reading as a
+                            string, which `ready` reroutes a split's child on
     drift_delivery.py       the prompt a requirements edit is answered with and the record of what it quoted, frozen
                             together off ONE read and settled by whoever disposes the run: context the excerpt bound
                             dropped holds the watermark below it, a reply written while the agent was out is in
@@ -661,9 +666,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`rewrite_finish_writes.py`), every auto-rebase park and a recovery's clear and record
                             of a gate's hold (`git/base_sync/checkpoints.py`), a final-docs pass's completion
                             (`stages/documenting/handoff.py`) and the evidence invalidation or hold that withholds a
-                            no-change one (`stages/documenting/retention.py`), and the in_review ready ping's arming
-                            and settlement (`stages/in_review/ready_ping.py`) landing through it too, while every other
-                            road still writes its whole state: a candidate derived
+                            no-change one (`stages/documenting/retention.py`), the in_review ready ping's arming
+                            and settlement (`stages/in_review/ready_ping.py`), and the `workflow:ready` decision's
+                            reroute and handoff and the retirement of that reroute's marker
+                            (`stages/decomposition/ready.py`, `ready_handoff.py`, `drift.py`) landing through it too,
+                            while every other road still writes its whole state: a candidate derived
                             over a fresh reading of the
                             captured comment rather than written from the caller's state. A
                             write the caller did not declare refuses before anything is read; an unreadable,
@@ -738,7 +745,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             decided as well on every record its evidence proof read, beside the invalidation or hold
                             that withholds it (`stages/documenting/retention.py`) -- and the in_review ready ping its
                             arming ahead of the post and its settlement, prepared before the post and landed behind it
-                            (`stages/in_review/ready_ping.py`)
+                            (`stages/in_review/ready_ping.py`), as the `workflow:ready` decision does its reroute and
+                            its handoff, the handoff prepared before its pickup, each read back before its relabel
+                            (`stages/decomposition/ready.py`, `ready_handoff.py`), and the `workflow:decomposing` tick
+                            its retirement of that reroute's marker (`stages/decomposition/drift.py`)
     report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
                             `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
                             report ready for publication, and a report asserted to be on the pull request at a URL
@@ -2617,8 +2627,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     decomposition/          `workflow:decomposing`, `workflow:ready`, `workflow:blocked`, and `workflow:umbrella`
       run.py                one `decomposing` tick: the retry-cap notice a stranded park still owes replayed at
                             entry, the late route asked before anything else after it, the spent-budget park held
-                            behind that and ahead of every road that would walk past one, the drift / recovery /
-                            kill-switch order before the agent, and the pause, dirty-worktree, and interruption
+                            behind that and ahead of every road that would walk past one, the retirement of a
+                            `ready` reroute's marker and then the drift / recovery / kill-switch order before the
+                            agent, and the pause, dirty-worktree, and interruption
                             checks after it; the worktree's teardown on every exit, kept where the run met a pinned
                             record admission refuses or the record reads refused, or cannot be read, at the teardown
                             itself (`models._DecomposerCleanup`)
@@ -2648,6 +2659,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             survives it whole, so its orphaned children stay the snapshot's recorded consumers, and
                             the children a discarded replacement split may have pointed at that ref -- an unrecorded
                             one found by its receipt included -- are written onto its ledger first
+                            (`_account_discarded`, which `ready.py`'s reroute takes too); ahead of all of it, the
+                            notice a `ready` reroute still owes is said where its receipt is not on the thread
+                            (`ready_notice.py`) and the marker that reroute left is dropped in a guarded commit of its
+                            own (`_retires_ready_reroute`); an unreadable thread, a hold read ahead of the notice,
+                            behind it, or behind the retirement, or a retirement that does not land holds the tick
       manifest.py           the fenced-block envelope rules both modes are held to, the JSON decode, and the parse entry
                             point the stage routes on
       child_validation.py   child text and dependency shapes; dependency indices must be real integers naming another
@@ -2763,8 +2779,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             caller settles its ledger on the way out of them, and a closed child's merge finalize taken
                             under that child's writer claim off the child and its admitted record read again behind it,
                             a held one, or one whose record admission refuses, counted neither done nor closed by hand
-                            and written nothing -- and the parent's own drift reroute, which first writes the children
-                            it drops onto the ledger
+                            and written nothing -- and the drift reroute `blocked` and `umbrella` take, which first
+                            writes the children it drops onto the ledger
       activation.py         the dep-graph walk that releases the next children, the child it passes over because GitHub
                             reports it closed or the scan holds no issue for it, the latch asked before EVERY relabel --
                             a relabel is a request, so a close observed after the first child was released may not
@@ -2784,8 +2800,53 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             held by another poller, unreadable, no longer open and `blocked`, or carrying a pinned
                             record admission refuses or nobody could read, on a late split's register as on an
                             ordinary split's, releasing none and parking nothing; and the held-dependency line it logs
-      blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
-                            consumed-comment ratchet; a parent whose children all resolved settles what a late split
+      ready.py              what `workflow:ready` decides before anything implements, off the reading taken under the
+                            writer claim and admitted and the issue fetched afresh -- its current title and body, not
+                            the dispatched object's: requirements the drift check reads unchanged go to
+                            `ready_handoff.py`, while changed ones -- and a split's child carrying no baseline, whose
+                            current words are never taken as one -- are rerouted to `workflow:decomposing` through the
+                            decomposition reset (the discarded manifest's children accounted for first, the locked spec,
+                            late generation, ancestry, and snapshot kept), landed as one guarded commit with the
+                            `ready_reroute` marker -- over the record the handoff landed, where it read the change only
+                            behind its checkpoint -- and read back as that very comment still carrying both, before the
+                            relabel and its best-effort notice; a tick reading that marker finishes the relabel rather
+                            than reading the landed baseline as unchanged; a hold read again ahead of the commit and the
+                            relabel stops it, and the notice (`ready_notice.py`) behind the relabel
+      ready_notice.py       the notice a `ready` reroute owes its thread: the record its reset lands with -- orphans,
+                            why it ran, and a receipt minted for the notice (`minted`) -- and the saying of it
+                            (`says`), by the `ready` tick behind its relabel or the `decomposing` tick ahead of
+                            retiring the marker, either one looking for the receipt on its thread reading so the
+                            notice is said once, a hold -- asked first, said notice or not -- stopping it and the
+                            retirement behind it; a failed post is logged and tried again by the next tick finishing
+                            the reroute while the marker stands, and abandoned once a retirement lands behind a post
+                            that failed again
+      ready_handoff.py      the handoff an unchanged `ready` issue takes: the pickup -- found again on the decision's
+                            thread reading as this orchestrator's own sentence before another is posted -- the
+                            consumed-comment ratchet off one more reading taken behind it, on which -- with the title
+                            and body of the issue fetched behind that -- the requirements are compared again and a
+                            change handed back for the reroute, and any staged baseline, landed as one guarded commit
+                            prepared before the pickup -- for an issue that pinned nothing, a fresh reading still
+                            finding no pin, before the pickup and again right before its first, version-1 record is
+                            created by the whole-state writer -- and only behind a confirmed one, and the record read
+                            back as that very comment still carrying it in every field the decision rested on -- the
+                            read-back every ready checkpoint lands behind (`lands`), a first pin another pin shadows
+                            licensing nothing -- the relabel and the implementer run, a hold read again behind the
+                            consumed reading, behind that read-back right ahead of the relabel -- which is made on that
+                            fetch -- and behind the relabel ahead of the launch; the issues fetched ahead of the pickup
+                            and ahead of the relabel compared as well, a title or body edit either shows handed back
+                            for the reroute -- with no pickup posted, or over the handoff that landed with nothing
+                            relabelled or launched; and the stop every ready checkpoint shares (`stops`)
+      ready_readings.py     what the ready decision reads between its claimed record and its effects: the thread once,
+                            every comment but the pinned one, for the fingerprint, the ratchet, and its receipts
+                            (`thread`), holding the decision where it cannot be read; the issue fetched again ahead of
+                            each effect (`fresh`), its newest title and body and the object the effect is made on, a
+                            `paused` / `backlog` hold or an unreadable issue holding (`held`), and compared against the
+                            baseline ahead of the handoff's pickup and relabel, answering the fingerprint a title or
+                            body edit moved it to for the reroute (`compared`); and a receipt of this
+                            orchestrator's own on a reading (`found`), authored by its account and carrying the
+                            hidden generated marker or a ledger entry
+      blocked.py            the `workflow:blocked` poll and the `workflow:ready` handler, which reads the claimed record
+                            and hands it to `ready.py`; a parent whose children all resolved settles what a late split
                             still owes the remote before it goes back to its own work, and waits on `blocked` while a
                             recorded consumer keeps a ref, its consumer list cannot be read, or a damaged record
                             still carries a ledger; settled, it
@@ -3301,10 +3362,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             children a seed under the child's claim left unseeded -- held, or refused admission -- for
                             the recovery to seed and finalize -- and the child scan, with the readings a release walk
                             and a merge finalize ask of it and the later reading it adopts
-      state.py              the pinned-state field names the owners share, `split_attempt` and `split_rationale`
-                            among them, the held-child alias, the strict parent-link check, the one rule a split's
-                            rationale is read by off its manifest and back off the record, and the issue-reference
-                            renderer
+      state.py              the pinned-state field names the owners share, `split_attempt`, `split_rationale`, and
+                            `ready_reroute` among them, the held-child alias, the strict parent-link check, the one
+                            rule a split's rationale is read by off its manifest and back off the record, and the
+                            issue-reference renderer
     discussion/             `discussion`
       handler.py            the order one round asks its questions in: whether the conversation is over, whose turn it
                             is, what the checkout holds, and what the round left behind

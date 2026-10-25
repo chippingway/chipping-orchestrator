@@ -7,6 +7,17 @@ the first or normalized baseline, resumes implementation with the changed text,
 and clears split claims and the split's recorded rationale before routing
 pre-implementation drift to decomposition.
 
+It also says what a missing baseline means. Every check but one takes the first
+reading it meets as the baseline -- or the observed reading a stage recorded in
+its place -- and persists it. The one is `ready`'s, on a split's child
+(`stages/decomposition/ready.py`): a child is created carrying the requirements
+its split cut for it, so a child whose record carries neither reading
+(`_unbaselined`) has nothing proving it still says what it was created saying,
+and is routed to decomposition rather than given its current content as an
+unchanged baseline. That decision consumes exactly the thread it compared, so
+it hands the check its own reading, and lands the baseline in the checkpoint
+its handoff writes rather than in a write of the check's.
+
 What a resume consumes is decided by one frozen read, which `drift_delivery.py`
 beside this owner freezes with the prompt built from it -- on an open pull
 request as much as before one, over that road's second surface as well. No road
@@ -49,7 +60,7 @@ _SPLIT_MARKERS = (
 
 
 def _detect_user_content_change(
-    gh: GitHubClient, issue: Issue, state: PinnedState, *, answered=None,
+    gh: GitHubClient, issue: Issue, state: PinnedState, *, answered=None, reading=None,
 ) -> str | None:
     """Return the new hash if the user-visible content drifted since the
     prior stored value, or None when unchanged.
@@ -86,24 +97,32 @@ def _detect_user_content_change(
     -- the command the batch reserves and the marker it refuses included. So
     on a parked tick only a change the replies do not explain -- the title,
     the body, a comment the park had already read -- is drift.
+
+    `reading` is a read of the thread the caller already holds and decides
+    more on -- the `ready` decision, which consumes exactly the comments it
+    compared. The fingerprint and its legacy spelling are both taken off it,
+    and a first or normalized baseline is staged on `state` and written by
+    nobody here: the caller's own checkpoint lands it, and a caller that never
+    reaches that checkpoint licenses nothing on it either.
     """
     orchestrator_ids = _comments._orchestrator_ids(state)
-    current = _content_hash._compute_user_content_hash(issue, orchestrator_ids)
-    prior = state.get(_USER_CONTENT_HASH)
-    if not isinstance(prior, str):
-        prior = state.get(_OBSERVED_USER_CONTENT_HASH)
-        if not isinstance(prior, str) or prior == current:
-            state.set(_USER_CONTENT_HASH, current)
-            gh.write_pinned_state(issue, state)
-            return None
-    if current == prior:
-        return None
-    legacy = _content_hash._compute_user_content_hash(
-        issue, orchestrator_ids, include_bare_continue=True,
+    current = _content_hash._compute_user_content_hash(issue, orchestrator_ids, comments=reading)
+    # The recorded baseline, else the observed reading standing in for it, else
+    # none at all -- which the first encounter records as the reading it meets.
+    prior = next(
+        (
+            reading for reading in (state.get(_USER_CONTENT_HASH), state.get(_OBSERVED_USER_CONTENT_HASH))
+            if isinstance(reading, str)
+        ),
+        current,
     )
-    if legacy == prior:
-        state.set(_USER_CONTENT_HASH, current)
-        gh.write_pinned_state(issue, state)
+    if current == prior or prior == _content_hash._compute_user_content_hash(
+        issue, orchestrator_ids, include_bare_continue=True, comments=reading,
+    ):
+        if state.get(_USER_CONTENT_HASH) != current:
+            state.set(_USER_CONTENT_HASH, current)
+            if reading is None:
+                gh.write_pinned_state(issue, state)
         return None
     if answered is not None and prior in {
         _content_hash._compute_user_content_hash(
@@ -113,6 +132,21 @@ def _detect_user_content_change(
     }:
         return None
     return current
+
+
+def _unbaselined(state: PinnedState) -> bool:
+    """Whether the record carries no reading the drift check could compare against.
+
+    Neither a `user_content_hash` nor the observed reading a stage recorded in
+    its place, each held to its one spelling, a string: a value of any other
+    shape is no reading of the requirements. Asked of a split's child on
+    `ready`, where the check's first-encounter road would otherwise take
+    whatever the child says by then as the baseline it was created with.
+    """
+    return not any(
+        isinstance(state.get(key), str)
+        for key in (_USER_CONTENT_HASH, _OBSERVED_USER_CONTENT_HASH)
+    )
 
 
 def _build_user_content_change_prompt(
@@ -227,7 +261,7 @@ def _route_drift_to_decomposing(
     against the updated body.
 
     `orphan_children` is the parent's previously-tracked children list
-    (empty for `ready` / blocked-child cases): existing children are NOT
+    (empty for a blocked child): existing children are NOT
     closed on GitHub by this helper, but their record is dropped from the
     parent's pinned state so the new manifest does not collide with them.
     The notice posted on the issue lists the orphan numbers explicitly so
@@ -240,6 +274,9 @@ def _route_drift_to_decomposing(
     whatever the new manifest tracks.
 
     Caller writes pinned state (`gh.write_pinned_state`) after returning.
+    `ready` takes the reset and the notice apart instead
+    (`stages/decomposition/ready.py`), landing the reset as a guarded
+    checkpoint before its relabel and saying the notice behind it.
     """
     notice = _drift_to_decomposing_notice(orphan_children)
     _comments._post_issue_comment(gh, issue, state, notice)

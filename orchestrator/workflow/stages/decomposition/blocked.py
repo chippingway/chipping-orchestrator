@@ -16,10 +16,15 @@ back to starts a cycle of its own rather than resuming the one it was split
 in. The split's attempt goes with it, but not its rationale: what the split
 kept for the parent's own pass is what the parent goes back to.
 
-`ready` is the other end, and it is the entry point for both an auto-created
-child and a parent whose decomposer voted `single`. It seeds the same pickup
-anchor the unlabeled-issue start writes, then ratchets `last_action_comment_id`
-past every comment currently on the thread. That ratchet is what keeps
+`ready` is the other end, and it is the entry point for an auto-created child,
+a parent whose children are all done, and a parent whose decomposer voted
+`single`. Its handler only reads the claimed record and hands it to `ready`,
+which compares the requirements against the preserved baseline before
+anything implements: a change -- or a split's child with no baseline at all --
+is rerouted to `decomposing`, and an issue that reads unchanged is handed on
+behind a guarded checkpoint (`ready_handoff`). That handoff seeds the same
+pickup anchor the unlabeled-issue start writes and ratchets
+`last_action_comment_id` past every comment on the thread, which is what keeps
 decomposing-era feedback from being replayed as fresh PR feedback later: the
 implementer reads the whole thread at spawn, so by the time the PR reaches
 `in_review` those comments are already incorporated, and the watermark seed
@@ -38,7 +43,6 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     record_admission as _record_admission,
     retiring_cycles as _retiring_cycles,
-    usage as _usage,
 )
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
@@ -46,67 +50,25 @@ from orchestrator.workflow.stages.decomposition import (
     late_cleanup as _late_cleanup,
     late_close_observation as _late_close_observation,
     parents as _parents,
+    ready as _ready,
     state as _state,
     umbrella as _umbrella,
     umbrella_terminal as _umbrella_terminal,
 )
-from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.state import WorkflowLabel
 
 
 def _handle_ready(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
-    """`ready` is the entry point for an auto-created child or for a parent
-    whose decomposer voted `single`. Both cases need the same pickup-state
-    seeding the legacy `_handle_pickup` did before flipping to
-    `implementing`, so the validating handoff watermark and the in_review
-    legacy migration have an anchor comment they can key on.
+    """`ready` is the entry point for an auto-created child, a parent whose
+    children are all done, and a parent whose decomposer voted `single`.
+
+    What it decides is owned by `ready`: whether the requirements still read
+    as the baseline says, rerouting the issue to `decomposing` where they do
+    not, and otherwise the guarded handoff -- pickup, consumption, relabel --
+    behind which the implementer runs on this same tick. It is asked of the
+    reading taken under the issue's writer claim, held to admission here.
     """
-    state = _record_admission.admitted_state(gh, issue)
-    # User-content drift before implementation has started: route back to
-    # decomposing so the manifest is re-derived against the new body. A
-    # non-umbrella parent can reach `ready` after every child resolves
-    # (`_handle_blocked`'s all-done branch flips `blocked` -> `ready`), so
-    # the parent may STILL carry `children` / `dep_graph` /
-    # `expected_children_count` from the prior manifest. `_route_parent_drift`
-    # (via `_route_drift_to_decomposing`) wipes that tracking alongside the
-    # locked decomposer session, so the next `_handle_decomposing` tick's
-    # half-finished recovery branch does not fire and just flip the issue
-    # back to `blocked` without re-running the decomposer. It wipes the
-    # split's rationale too, which a parent otherwise keeps here as the work
-    # left for its own pass.
-    if _parents._route_parent_drift(gh, issue, state):
-        return
-    if state.get("pickup_comment_id") is None:
-        if not state.get(_state._CREATED_AT):
-            state.set(_state._CREATED_AT, _usage._now_iso())
-        pickup = _comments._post_issue_comment(
-            gh, issue, state,
-            ":robot: orchestrator picking this up; starting implementation.",
-        )
-        pickup_id = getattr(pickup, "id", None)
-        if pickup_id is not None:
-            state.set("pickup_comment_id", int(pickup_id))
-    # Mark every comment visible right now as "already consumed". For a
-    # parent that came through `decomposing` / `blocked`, `pickup_comment_id`
-    # was anchored on the original "decomposing" comment, so any human
-    # feedback posted while children were resolving sits AFTER pickup and
-    # would be classified as post-pickup, unconsumed feedback by the
-    # in_review watermark seed. The implementer reads the full thread via
-    # `_recent_comments_text` at spawn, so by the time the PR reaches
-    # `in_review` those comments have been incorporated; replaying them
-    # would resume the dev and bounce the PR back to validating instead
-    # of allowing merge. Bumping `last_action_comment_id` lets
-    # `_seed_watermark_past_self`'s `consumed_through` walk advance past
-    # them. The next park (or the validating handoff) will overwrite this
-    # value, so it's a transient marker for the in-progress handoff only.
-    latest = gh.latest_comment_id(issue)
-    if isinstance(latest, int):
-        prior = state.get(_state._LAST_ACTION_COMMENT_ID)
-        if not isinstance(prior, int) or latest > prior:
-            state.set(_state._LAST_ACTION_COMMENT_ID, latest)
-    gh.set_workflow_label(issue, WorkflowLabel.IMPLEMENTING)
-    gh.write_pinned_state(issue, state)
-    _implementing._handle_implementing(gh, spec, issue)
+    _ready.enters(gh, spec, issue, _record_admission.admitted_state(gh, issue))
 
 
 def _handle_empty_blocked_parent(

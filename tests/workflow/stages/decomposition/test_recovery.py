@@ -559,10 +559,16 @@ class _ReplacementRecoveryCase(unittest.TestCase):
         """The next decomposing tick, which a recovery answers without the decomposer."""
         _split.redecompose(self.github, self.issue)[RUN_AGENT].assert_not_called()
 
-    def _implementer_prompt(self, child: int) -> str:
-        """Pick one released child up, and hand back what its implementer is asked."""
+    def _first_prompt(self, child: int) -> str:
+        """Pick one released child up, and hand back what the first agent it runs is asked.
+
+        A recovered child carries no baseline, so its `ready` tick runs no
+        agent and sends it back to its decomposer, which the next tick runs.
+        """
         picked = self.github.get_issue(child)
-        mocks = _split.redecompose(self.github, picked, IMPLEMENTED_MESSAGE, _blocked._handle_ready)
+        rerouted = _split.redecompose(self.github, picked, IMPLEMENTED_MESSAGE, _blocked._handle_ready)
+        rerouted[RUN_AGENT].assert_not_called()
+        mocks = _split.redecompose(self.github, picked, IMPLEMENTED_MESSAGE)
         return mocks[RUN_AGENT].call_args.args[1]
 
     def _unprotect(self) -> None:
@@ -603,15 +609,15 @@ class ReplacementCrashTest(_ReplacementRecoveryCase):
     def test_a_lost_consumer_slot_is_restored(self) -> None:
         # The child's body tells it to reuse the ref, and the ledger no longer
         # records it: protection goes back on before anything can start it,
-        # so the implementer the next poll releases reads instructions for a
-        # ref that is kept for it.
+        # so the first agent the child runs once the next poll releases it
+        # reads instructions for a ref that is kept for it.
         child = self._die_seeding()
         self._unprotect()
 
         self._recover()
         protected = _split.consumers(self.github)
         _split.redecompose(self.github, self.issue, tick=_umbrella._handle_umbrella)
-        prompt = self._implementer_prompt(child)
+        prompt = self._first_prompt(child)
 
         self.assertEqual(protected, sorted([_support.ORIGINAL, child]))
         self.assertEqual(self._seeded(child), _support.ROOT_REPLACEMENT)

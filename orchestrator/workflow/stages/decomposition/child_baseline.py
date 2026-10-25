@@ -24,9 +24,10 @@ A late split's retained manifest proves no more: the body rendered off it
 also carries the configured base branch, remote, and mirror name, which no
 record keeps, so a child reading exactly as that manifest renders it now may
 be one edited to match a configuration changed since the create. What a
-missing baseline means is the drift check's to decide
-(`engine/drift`); here it holds nothing, since no seed, admission, or release
-reads it.
+missing baseline means is decided where the child reaches `ready`
+(`engine/drift._unbaselined`, `ready.py`), which decomposes it again rather
+than take its current words as the baseline; here it holds nothing, since no
+seed, admission, or release reads it.
 """
 from __future__ import annotations
 
