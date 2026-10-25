@@ -39,7 +39,7 @@ called with `sort_keys=True` so on-disk order is stable across writers.
 
 - **The tracked agent spawn** takes it as a literal from the stage that calls `_run_agent_tracked` (`stage="validating"`
   in the reviewer owner, `stage="fixing"` in the fixing one), so `agent_spawn` / `agent_exit` read no label at all.
-- **`stage_enter`** is handed the label `set_workflow_label` is applying, normalized through
+- **`stage_enter`** is handed the label `set_workflow_label` or `move_workflow_label` is applying, normalized through
   `workflow.state.stage_name` — the one emitter whose tag names where the issue is going rather than where it is.
 - **The events that describe an issue where it already sits** — the park funnel, the terminals, the base-sync writers
   — normalize the label it currently carries the same way.
@@ -52,7 +52,8 @@ two spellings and which labels have only one.
 capped in-memory tail (`recorded_events`, `_RECORDED_EVENTS_CAP = 500`) for tests and short-window debugging — the
 file is the durable record.
 
-- `stage_enter` — `set_workflow_label` (via `_emit_stage_enter`) for every label flip; extras: `stage`.
+- `stage_enter` — `set_workflow_label` and `move_workflow_label` (via `_emit_stage_enter`) for every label flip;
+  extras: `stage`.
 - `agent_spawn` / `agent_exit` — `_run_agent_tracked` (in `workflow/engine/usage.py`) wraps every `run_agent` call
   (decomposer, implementer, reviewer, dev-resume, conflict-resolution dev); extras: `agent` (backend), `agent_role`,
   `review_round`, `retry_count`. `session_id` and `agent_exit`-only fields are described below. A launch the

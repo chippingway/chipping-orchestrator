@@ -26,13 +26,15 @@ finalized, relabelled, or reopened it since the scan: it counts as it reads now
 and is never finalized twice. A child that poller is still writing, and one
 whose record admission refuses, counts as neither until a later walk.
 
-A parent also re-checks the human's requirements here. Its own body may have
-been edited while children were running, and unlike an implementing issue there
-is no later stage to notice; the reroute back to `decomposing` re-derives the
-manifest against what the body says now. The children it stops tracking are
+An umbrella also re-checks the human's requirements here. Its own body may
+have been edited while children were running, and unlike an implementing issue
+there is no later stage to notice; the reroute back to `decomposing` re-derives
+the manifest against what the body says now. The children it stops tracking are
 orphaned rather than forgotten where a late split made them: that split's
 generation survives the reroute, and its consumer ledger still names them --
-replacements included, written there before the reroute drops them.
+replacements included, written there before the reroute drops them. A
+`blocked` parent asks no such thing: it goes back to `ready` once its children
+are done, and `ready` compares the requirements before anything implements.
 """
 from __future__ import annotations
 
@@ -63,8 +65,7 @@ _ENDED_LABELS = (_state._DONE, "rejected", "in_review")
 def _route_parent_drift(
     gh: GitHubClient, issue: Issue, state: PinnedState
 ) -> bool:
-    """Route a `blocked` or `umbrella` parent (or blocked child) back to
-    `decomposing` on a user-content edit.
+    """Route an `umbrella` parent back to `decomposing` on a user-content edit.
 
     Returns True when drift was detected and the issue was re-routed
     (caller must return); False when the content is unchanged.
@@ -72,15 +73,14 @@ def _route_parent_drift(
     The hash baseline is initialized by `_detect_user_content_change`
     itself on the first encounter, so a legacy issue still missing the
     field is durably seeded (via the helper's own `write_pinned_state`)
-    rather than silently absorbing the next edit as the new baseline. Both
-    parent and child cases route to decomposing so the manifest is
-    re-derived against the updated body: silently persisting the new
-    baseline for a child would let `ready` later see a matching hash and
-    skip the re-decomposer even when the edited body now needs splitting.
-    Parents with in-flight children list those children as orphans in the
-    notice (the new manifest may overlap; the operator closes the obsolete
-    ones manually). `ready` asks its own guarded decision rather than this
-    one (`ready.py`).
+    rather than silently absorbing the next edit as the new baseline. The
+    reroute re-derives the manifest against the updated body, and the
+    in-flight children are listed as orphans in the notice (the new
+    manifest may overlap; the operator closes the obsolete ones manually).
+    An issue on `workflow:blocked` is never routed here: `_handle_blocked`
+    does not ask, and the check answers one with nothing hashed or written,
+    since its requirements wait for `ready`, which asks its own guarded
+    decision rather than this one (`ready.py`).
     """
     new_hash = _drift._detect_user_content_change(gh, issue, state)
     if new_hash is None:

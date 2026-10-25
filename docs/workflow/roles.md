@@ -1592,9 +1592,10 @@ it renders also names the configured base branch, remote, and mirror, which no r
 exactly as the manifest renders it now may be one edited to match a configuration changed since the create — and
 taking it as the baseline would read that edit as no change at all. Such a child, recorded or adopted by its receipt,
 is seeded with its baseline missing, edited or not. A baseline the child's record already carries is kept either way,
-so a seed whose answer was lost after it landed is not re-baselined over an edit made while the split was parked. A
-child released with its baseline missing is decomposed again before it implements: `workflow:ready` reroutes it
-rather than take its current words as unchanged
+so a seed whose answer was lost after it landed is not re-baselined over an edit made while the split was parked.
+Nothing records one while the child waits on `workflow:blocked` either: that poll reads no requirements at all, so an
+edit made then is still an edit when the child is released. A child released with its baseline missing is decomposed
+again before it implements: `workflow:ready` reroutes it rather than take its current words as unchanged
 ([`_handle_ready`](../state-machine/delivery-stages.md#_handle_ready-label-workflowready--workflowimplementing)).
 
 **Only then the links and the supersession.** The parent says what it became and where its work went, exactly once,
@@ -1736,8 +1737,10 @@ It runs *through* that walk rather than through the initial split's one-shot fli
 supersession above it: that step can park for as long as a human takes to settle a pull request, so by the time
 activation runs a child may have reached `rejected` or `done` on its own. A write that read nothing would put it
 back to `ready`, and the transition guard only warns by default. So each child is read fresh and only the ones still
-`blocked` with their recorded dependencies satisfied are moved; a read that failed leaves every child where it is,
-since the umbrella takes the same reading on its next dependency poll.
+`blocked`, free of a `paused` or `backlog` hold, with their recorded dependencies satisfied are moved — each read once
+more right in front of its own relabel, and moved off `blocked` alone, so a hold applied meanwhile is kept rather than
+written away; a read that failed leaves every child where it is, since the umbrella takes the same reading on its next
+dependency poll.
 
 A child GitHub reports as closed is passed over there too, and that one is not specific to the late split: closing an
 issue leaves its label untouched, so a child a human ended while it was still `blocked` goes on looking startable to
@@ -2021,7 +2024,8 @@ this binary cannot read is no such history, and holds the hand-off as it would o
 
 A genuine edit hands the ordinary decomposer an issue that is already inside a late lineage: the umbrella a split made,
 rerouted by a body edit or a trusted comment written after the reading the late path consumed, or a child a split made,
-rerouted before its implementation started. The children the decomposer answers with are cut inside that lineage
+rerouted before its implementation started — on the entry to `workflow:ready` its release makes, since nothing reroutes
+a child while it waits on `workflow:blocked`. The children the decomposer answers with are cut inside that lineage
 whatever manifest they come from, and children created as ordinary issues would each read as a fresh root at depth 0 —
 which is exactly how a lineage buys itself generations past `MAX_LINEAGE_DEPTH`. So before the split writes anything,
 `replacement_lineage.py` asks `late_split/provenance.py` which lineage the issue's children inherit, and the answer is

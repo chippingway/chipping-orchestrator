@@ -54,10 +54,11 @@ relabelled, consumed, or launched, the tick's state is withheld from every
 whole-state write behind it, and the next tick reads what landed. The issue is
 fetched again (`ready_readings.fresh`) ahead of the pickup, behind the reading
 the checkpoint consumes, ahead of the relabel, and behind it ahead of the
-launch, and a `paused` or `backlog` an operator applied meanwhile stops the
-handoff there. Behind the relabel the issue is the implementing stage's, so
-the fetch ahead of the launch asks for a hold alone: that stage's own drift
-check reads an edit made from there on.
+launch, and a `paused` or `backlog` an operator applied meanwhile -- or a
+relabel back to `workflow:blocked` -- stops the handoff there. Behind the
+relabel the issue is the implementing stage's, so the fetch ahead of the launch
+asks for a hold alone: that stage's own drift check reads an edit made from
+there on.
 
 A pickup is posted at most once. A handoff whose write landed with its answer
 lost reads its own anchor back on the next tick and posts nothing; one whose

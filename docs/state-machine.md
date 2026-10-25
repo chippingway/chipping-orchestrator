@@ -60,8 +60,10 @@ the prefix is a collision guard rather than the membership test are in
 
 `WorkflowLabel` and `ControlLabel` in [`orchestrator/workflow/state.py`](../orchestrator/workflow/state.py) define
 both vocabularies once; because `StrEnum` members *are* their wire strings, a member is the GitHub label verbatim.
-Two guards run at `GitHubClient.set_workflow_label`, the single label-write chokepoint: an always-strict **typo
-guard** that raises on a name outside `WorkflowLabel`, and the **transition guard**
+Two guards run at `GitHubClient.set_workflow_label`, the label-write chokepoint, and at `move_workflow_label` beside it,
+which the dependency release and a blocked parent's return to `workflow:ready` relabel through so a hold applied after
+their last read is never written away: an always-strict **typo guard** that raises on a name outside `WorkflowLabel`,
+and the **transition guard**
 (`WORKFLOW_TRANSITION_GUARD` = `off` / `warn` / `enforce`, default `warn`) checking `current → new` against
 `ALLOWED_TRANSITIONS`. Operator relabels through the GitHub UI bypass both. Three late-generation recovery writes also
 skip the transition guard: restoring a live adjudication, restoring a closed cancelled owner to the cleanup sweep,
@@ -97,7 +99,7 @@ fold into one bucket per repo that drains sequentially; every other label fans o
 `MAX_PARALLEL_ISSUES_GLOBAL` / `MAX_PARALLEL_ISSUES_PER_REPO`. An open `workflow:blocked` / `workflow:umbrella` issue
 joins only on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` makes due — the first poll and every Nth after it, default
 `5` — and is dropped before that split in between, which saves the child reads its dependency walk spends at the price
-of up to N ticks before a child is activated, a parent completes, or drift on either is detected; `1` dispatches it
+of up to N ticks before a child is activated, a parent completes, or an umbrella's drift is detected; `1` dispatches it
 every tick. Only issue numbers cross the thread boundary — each
 worker mints its own `GitHubClient` and re-fetches the issue, under the issue's host-local writer claim, which a
 second poller on the host holding the issue answers by skipping it that tick, keeping only a close it read; a family
@@ -390,9 +392,12 @@ which reaches the same two labels by projecting the comment the issue already ha
 ### User-content drift detection
 
 The drift-sensitive handlers hash the issue title, body, and every human-authored issue-thread comment, and react
-once to a change: `workflow:decomposing` re-spawns inline, `workflow:ready` / `workflow:blocked` /
-`workflow:umbrella` route back to `workflow:decomposing`, the dev stages resume the locked dev session, and
-`workflow:documenting` unwinds to `workflow:validating`. A reply to a parked `workflow:implementing` or
+once to a change: `workflow:decomposing` re-spawns inline, `workflow:ready` / `workflow:umbrella` route back to
+`workflow:decomposing`, the dev stages resume the locked dev session, and `workflow:documenting` unwinds to
+`workflow:validating`. `workflow:blocked` is a dependency hold and reacts to none: an edit made while an issue waits
+on its prerequisites is hashed, baselined, and rerouted by nothing — the drift check answers such an issue with
+nothing done — so its baseline, decomposition records, dependency graph, and tracked children stand until its release
+enters `workflow:ready`, which compares it before anything implements. A reply to a parked `workflow:implementing` or
 `workflow:validating` issue is not such a change: those stages measure a parked tick by what the park had already
 read, and the frozen reply batch delivers the reply. On `workflow:validating` that reply can still be the drift
 road's CONTINUATION rather than an ordinary fix: a park left standing over an edit its own resume never answered, or
@@ -415,8 +420,9 @@ developer revision or a continued budget already spent as the baseline rather th
 written after that reading as one. An issue with no baseline recorded at all keeps the reading the adjudication carried
 on over as `observed_user_content_hash` instead, which that first check compares against in its place, so an edit
 made while the adjudicator ran is a change there too rather than the baseline it takes. A child a split created
-arrives baselined at what its create answered (see `_handle_decomposing` below), so its first check compares rather
-than records, unless its split's recovery — or a late split's resumed walk — had to seed it without one. `ready` never
+arrives baselined at what its create answered (see `_handle_decomposing` below), so the first check it meets —
+`ready`'s, since nothing reads it while it waits on `workflow:blocked` — compares rather than records, unless its
+split's recovery — or a late split's resumed walk — had to seed it without one. `ready` never
 takes that missing baseline as one: a split's child whose record carries neither reading is rerouted to
 `workflow:decomposing` like a changed one, so nothing implements on words nobody can say it was created with.
 `_handle_fixing`, `_handle_question`, and
@@ -477,9 +483,10 @@ handler on the same tick. The ratchet consumes exactly the thread reading the re
 behind the pickup with the issue's title and body fetched again behind it, so a comment or an edit that landed while it
 was posted reroutes rather than being consumed. The issue fetched ahead of the pickup and ahead of the relabel is
 compared too, so a title or body edited behind an earlier request reroutes with no pickup announced, or over the
-handoff that landed with no implementer launched. A `paused` or `backlog` applied while the tick runs stops it ahead of
-the next effect, the launch behind its relabel included; a reroute's notice it stops is said by the
-`workflow:decomposing` tick ahead of retiring the marker. A refused or unconfirmed write stops everything behind it, and
+handoff that landed with no implementer launched. A `paused` or `backlog` applied while the tick runs — or a relabel
+back to `workflow:blocked`, a dependency hold `ready` neither hands on nor reroutes — stops it ahead of the next
+effect, the launch behind its relabel included; a reroute's notice it stops is said by the `workflow:decomposing` tick
+ahead of retiring the marker. A refused or unconfirmed write stops everything behind it, and
 the next tick reads what landed: a marker finishes its relabel rather than reading the reset's baseline as unchanged,
 its notice found again by a receipt rather than said twice, and a pickup already posted is found again rather than
 posted twice. Full flow: [`state-machine/delivery-stages.md`][ready].
@@ -491,15 +498,24 @@ manually-closed child parks it — once the merge finalize, under that child's c
 there, finds no merge to explain the close; a closed child whose record admission refuses is written nothing and counted
 neither way, so the parent waits on it — and the dep-graph walk relabels any `workflow:blocked` child whose recorded
 dependencies are all `done` to `workflow:ready`, once every child it would release passes its split's lineage check and
-its record, read under its claim, is one admission takes (one refusal releases none). A child with no children of its
-own and a recorded `parent_number` is a no-op. A parent a late split's umbrella became once an edit re-decomposed it
-with work of its own settles that split's ledger the way the umbrella's terminal does before the flip, stays `blocked`
-while anything is still owed, and retires the split's cycle in a write of its own first, so its implementation starts a
-cycle of its own. Full flow: [`state-machine/delivery-stages.md`][blocked].
+its record, read under its claim, is one admission takes (one refusal releases none); a child carrying `paused` or
+`backlog` is not released until that hold is lifted, however its dependencies stand: each child is read again right
+in front of its relabel, the parent is too and a hold on it releases none of the rest, and the relabel moves only the
+workflow label (`move_workflow_label`), so a hold landing mid-walk is kept. A parent whose children are all done is
+fetched afresh before the flip and again right in front of its relabel, which moves only the workflow label too: a
+`paused` or `backlog` either reads keeps it `blocked`. A child with no children of its
+own and a recorded `parent_number` is a no-op that writes nothing. No content check runs on `workflow:blocked`, for a
+parent or a child: an edit made while the issue waits posts no notice and moves no label, baseline, manifest, graph,
+or tracked child, and the walk and the completion above go on over it; the requirements are compared once the issue
+enters `workflow:ready`. A parent a late split's umbrella became once an edit re-decomposed it with work of its own
+settles that split's ledger the way the umbrella's terminal does before the flip, stays `blocked` while anything is
+still owed, and retires the split's cycle in a write of its own first, so its implementation starts a cycle of its own.
+Full flow: [`state-machine/delivery-stages.md`][blocked].
 
 ### `_handle_umbrella` (label `workflow:umbrella`)
 
-Mirrors `_handle_blocked` for the rejected / manually-closed checks and the dep-graph walk; the difference is the
+Mirrors `_handle_blocked` for the rejected / manually-closed checks and the dep-graph walk. Unlike that hold, it still
+reroutes an edit of its own to `workflow:decomposing` ahead of the walk (see drift above). The other difference is the
 terminal — every child `done` reconciles whatever the issue still owes a remote, then posts a checkmark comment,
 stamps `umbrella_resolved_at`, sets `done`, and closes the issue, since an umbrella has no implementation of its own.
 An umbrella a late split made owes the superseded branch and the snapshot ref its children were cut from, and this is

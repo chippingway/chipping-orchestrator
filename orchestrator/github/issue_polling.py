@@ -31,9 +31,9 @@ from orchestrator.github.issues import (
     _ISSUE_STATE_OPEN,
     CLEANUP_ROUTE_LABELS,
     CLOSED_SWEEP_LABELS,
-    GitHubIssueMixin,
     issue_query_options,
 )
+from orchestrator.github.label_moves import GitHubLabelMoveMixin
 from orchestrator.workflow.state import WorkflowLabel
 
 # One walk over both, because both are the same request against the same
@@ -88,7 +88,7 @@ def iter_new_non_pr_issues(
             yield issue
 
 
-class GitHubIssuePollingMixin(GitHubIssueMixin):
+class GitHubIssuePollingMixin(GitHubLabelMoveMixin):
     """The repository-wide issue walk the concrete GitHub client exposes.
 
     A link in the chain rather than a collaborator standing beside it, on the

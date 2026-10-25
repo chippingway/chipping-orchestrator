@@ -16,6 +16,20 @@ back to starts a cycle of its own rather than resuming the one it was split
 in. The split's attempt goes with it, but not its rationale: what the split
 kept for the parent's own pass is what the parent goes back to.
 
+What the issue says is not read here, parent or child. An issue on `blocked` is
+held until its prerequisites permit release, and an edit made while it waits is
+no reason to move it: the poll hashes nothing, records or replaces no baseline,
+and reroutes nothing to `decomposing`, so the baseline, the manifest, the
+dependency graph, and the children it tracks all stand as they were, and
+nothing is told, orphaned, split again, or run. A child waiting on its siblings
+has nothing to poll at all -- its parent's walk is what releases it. Its
+requirements are compared once it legitimately enters `ready`, which decides on
+exactly that baseline before anything implements. A `paused` or `backlog` is
+no edit: a parent whose children all finished is fetched afresh before it
+goes back to `ready`, and an operator's hold applied while the poll ran keeps
+it `blocked` -- and the relabel moves only the workflow label, so no hold
+applied meanwhile is written away.
+
 `ready` is the other end, and it is the entry point for an auto-created child,
 a parent whose children are all done, and a parent whose decomposer voted
 `single`. Its handler only reads the claimed record and hands it to `ready`,
@@ -32,11 +46,14 @@ would otherwise resume the developer and bounce the PR back out of review.
 """
 from __future__ import annotations
 
+import logging
+
 from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
+from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
@@ -56,6 +73,8 @@ from orchestrator.workflow.stages.decomposition import (
     umbrella_terminal as _umbrella_terminal,
 )
 from orchestrator.workflow.state import WorkflowLabel
+
+log = logging.getLogger("orchestrator.workflow")
 
 
 def _handle_ready(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
@@ -86,16 +105,50 @@ def _handle_empty_blocked_parent(
     gh.write_pinned_state(issue, state)
 
 
+def _unheld(gh: GitHubClient, issue: Issue) -> Issue | None:
+    """The parent as GitHub answers for it now, where no `paused` or `backlog` stands on it; None otherwise.
+
+    The dispatcher's hold check is as old as the tick, and the scan behind it
+    is a request per child: an operator who applies either hold while it runs
+    has asked the parent to stop, finished children or not. An issue nobody
+    could fetch holds as well, until a tick can say the hold is off.
+    """
+    try:
+        fetched = gh.get_issue(issue.number)
+    except Exception:
+        log.exception("issue=#%d could not be read for a hold ahead of going back to ready; holding it", issue.number)
+        return None
+    hold = hard_skip_control_label(fetched)
+    if hold is None:
+        return fetched
+    log.info(
+        "issue=#%d carries %r; its children are done, and it waits on blocked until that is lifted",
+        issue.number, str(hold),
+    )
+    return None
+
+
 def _complete_blocked_parent(
     gh: GitHubClient, issue: Issue, state: PinnedState,
 ) -> None:
+    """Say every child resolved and hand the parent back to `ready`, on the issue as it reads right then.
+
+    A hold read behind the notice stops the relabel with nothing written: the
+    parent waits on `blocked`, and the tick after the hold is lifted says it
+    again and goes back. The relabel moves only the workflow label
+    (`move_workflow_label`), so a hold applied at any point -- after that last
+    reading included -- is never written away.
+    """
     _comments._post_issue_comment(
         gh, issue, state,
         ":white_check_mark: all children resolved; ready for implementation.",
     )
+    current = _unheld(gh, issue)
+    if current is None:
+        return
     state.set(_state._AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)
-    gh.set_workflow_label(issue, WorkflowLabel.READY)
+    gh.move_workflow_label(current, WorkflowLabel.READY)
     gh.write_pinned_state(issue, state)
 
 
@@ -163,12 +216,15 @@ def _handle_blocked(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issu
     poller on this host dispatches a child under the child's own writer
     claim, so every write this tick makes to a child is made under that
     claim too, and the release walk reads the child again behind it.
+
+    No content check runs first: an edit made while the issue waits leaves
+    its baseline, manifest, and graph as they stand, and the dependency
+    progress below goes on regardless -- the walk releases what its graph
+    permits, and a parent whose children all resolved finishes waiting on
+    `ready`, where the requirements are compared.
     """
     state = _record_admission.admitted_state(gh, issue)
     children = state.get(_state._CHILDREN) or []
-
-    if _parents._route_parent_drift(gh, issue, state):
-        return
 
     if not children:
         _handle_empty_blocked_parent(gh, issue, state)
@@ -178,6 +234,8 @@ def _handle_blocked(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issu
     if scan is None:
         return
     if all(label == _state._DONE for label in scan.labels.values()):
+        if _unheld(gh, issue) is None:
+            return
         if _late_cleanup._settled_before_implementation(
             gh, spec, issue, state, scan,
         ) and _retired_for_implementation(gh, spec, issue, state):

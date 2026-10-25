@@ -54,12 +54,13 @@ says nothing where a comment of ours carries it, so the notice is said once
 however often the issue comes back to `ready` -- an operator's relabel
 included -- before the marker is retired. The issue's labels are read again
 ahead of the commit, ahead of the relabel, and behind it ahead of the notice
-(`ready_readings.held`): a `paused` or `backlog` applied meanwhile stops the
-reroute there, its recovery included, and a notice a hold stopped behind a
-relabel that landed is said by the `decomposing` tick ahead of retiring the
-marker (`drift._retires_ready_reroute`), which it drops ahead of its drift
-check, recovery, and decomposer, so no later entry to `ready` reads a reroute
-already finished.
+(`ready_readings.held`): a `paused` or `backlog` applied meanwhile -- or a
+relabel back to `workflow:blocked`, a dependency hold `ready` neither hands on
+nor reroutes -- stops the reroute there, its recovery included, and a notice
+a hold stopped behind a relabel that landed is said by the `decomposing` tick
+ahead of retiring the marker (`drift._retires_ready_reroute`), which it drops
+ahead of its drift check, recovery, and decomposer, so no later entry to
+`ready` reads a reroute already finished.
 """
 from __future__ import annotations
 

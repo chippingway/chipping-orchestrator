@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """A `paused` or `backlog` an operator applies while the `ready` decision runs stops it where it stands.
 
+So does a relabel back to `workflow:blocked`: the dependency hold is released
+by the parent's walk, never handed on or rerouted by `ready`.
+
 The dispatcher's own hold check is as old as the tick, so every effect the
 decision makes is preceded by a fresh reading of the issue's labels: the
 reset, the relabel either way, the notice, the pickup, the checkpoint that
@@ -12,7 +15,6 @@ says it once the hold is lifted.
 """
 from __future__ import annotations
 
-import copy
 import itertools
 import unittest
 from functools import partial
@@ -20,8 +22,9 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from tests.support.fakes import DEFAULT_BOT_LOGIN, FakeGitHubClient, FakeLabel
-from tests.workflow.fixtures import _PatchedWorkflowMixin
+from tests.workflow.fixtures import LABEL_BLOCKED, _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import child_baseline_support as _baseline, ready_test_support as _support
+from tests.workflow.stages.decomposition.snapshot_client_support import SnapshotClient
 
 # The two operator holds, applied while the decision runs.
 _HOLDS = ("paused", "backlog")
@@ -144,7 +147,7 @@ class ReadyHoldTest(unittest.TestCase, _PatchedWorkflowMixin, _HeldTicks):
         # implementer runs.
         for hold in _HOLDS:
             with self.subTest(hold=hold):
-                gh = _Snapshots()
+                gh = SnapshotClient()
                 child = _support.ready_child(gh)
 
                 held = self.held_tick(gh, child, hold, _READ_PIN, calls=_READS_TO_THE_READ_BACK)
@@ -153,25 +156,6 @@ class ReadyHoldTest(unittest.TestCase, _PatchedWorkflowMixin, _HeldTicks):
                 self.assertEqual(held[0], 0)
                 self.assertEqual(held[1][0], ())
                 self.assertIn(hold, [label.name for label in remote.labels])
-
-
-class _Snapshots(FakeGitHubClient):
-    """The in-memory client, every fetch of an issue a snapshot of its own, the way each real fetch is an object.
-
-    A relabel is written through to the issue as GitHub holds it, off the
-    labels of the snapshot it was made on.
-    """
-
-    def get_issue(self, number: int):
-        """A snapshot of the issue as GitHub holds it now, with labels of its own."""
-        fetched = copy.copy(super().get_issue(number))
-        fetched.labels = list(fetched.labels)
-        return fetched
-
-    def set_workflow_label(self, issue, label, **options) -> None:
-        """Relabel the snapshot, and write its labels through to the issue as GitHub holds it."""
-        super().set_workflow_label(issue, label, **options)
-        self._issues[issue.number].labels = list(issue.labels)
 
 
 class ReadyRerouteHoldTest(unittest.TestCase, _PatchedWorkflowMixin, _HeldTicks):
@@ -266,6 +250,33 @@ class ReadyRerouteHoldTest(unittest.TestCase, _PatchedWorkflowMixin, _HeldTicks)
                 ran = self.decomposing_tick(gh, child)
 
                 self.assertEqual((ran, _support.notices(gh)), (1, _support.SAID_CHANGED))
+
+
+class ReadyDependencyHoldTest(unittest.TestCase, _PatchedWorkflowMixin, _HeldTicks):
+    """An issue put back on `workflow:blocked` while the decision runs: a dependency hold `ready` does not act on."""
+
+    def test_a_relabel_to_blocked_stops_it(self) -> None:
+        # Relabelled by hand once the decision has read the thread, every
+        # fetch a snapshot of its own: an unchanged child is not handed on and
+        # an edited one is not rerouted -- nothing is reset, announced,
+        # consumed, relabelled, or launched -- and the issue waits on
+        # `blocked` for its parent's walk to release it again.
+        for edited in (False, True):
+            with self.subTest(edited=edited):
+                gh = SnapshotClient()
+                child = _support.ready_child(gh, edited=edited)
+                lands = _support.LandsAfter(gh, _READ_THREAD, 1, _blocked_again)
+
+                held = self.interleaved_tick(gh, child, lands)
+
+                self.assertEqual(held, (0, _support.UNMOVED))
+                self.assertEqual(gh.workflow_label(gh.get_issue(_support.CHILD)), LABEL_BLOCKED)
+
+
+def _blocked_again(gh: FakeGitHubClient, issue) -> None:
+    """Put the issue back on `workflow:blocked` as GitHub holds it, the way a human's relabel would."""
+    remote = gh._issues[issue.number]
+    remote.labels = [FakeLabel(LABEL_BLOCKED)]
 
 
 def _labelled(hold: str, gh: FakeGitHubClient, issue) -> None:

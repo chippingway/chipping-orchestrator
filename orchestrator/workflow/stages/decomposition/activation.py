@@ -8,6 +8,18 @@ vacuously, which is deliberate: it is also the retry for a no-dep child whose
 same-tick activation flip failed at split time, so nothing has to remember that
 the flip was missed.
 
+A child an operator holds with `paused` or `backlog` is held rather than
+released, however its dependencies stand: the hold stops that child's
+workflow where it is, and a finished prerequisite is no permission to move it.
+Once the hold is lifted, the next walk that reads it without one releases it,
+and its requirements are compared on that entry to `ready`. A hold applied
+while the walk runs counts too: each child is read again right in front of its
+relabel, and so is the parent, a hold on which releases none of the rest. The
+relabel itself moves only the workflow label (`github/label_moves.py`), never
+writing the whole label set it read, so a hold landing after that last read --
+inside the publication lookup in front of it -- stays on the child it
+releases, which the dispatcher then holds until the hold is lifted.
+
 A child GitHub reports as closed is passed over, whatever label it wears.
 Closing an issue does not change its label, so a child a human ended while it
 was still `blocked` sits there looking startable forever -- and a walk that
@@ -52,12 +64,13 @@ the same reason: nothing is wrong with it. Every child a walk would release is
 taken under its own writer claim (`child_claims`) before the first is vouched
 for, since vouching reads the child's record and the release writes its label,
 and each is read again under it, since the scan the walk chose them from was
-read before any claim was taken. One refused claim, or one child no longer
-open and `blocked` by then, releases none of them, as one lapse does --
-without the park, because the next walk scans again. So does one child whose
-own pinned record, read under its claim, admission refuses or nobody could
-read: on a late split's register too, where no lineage is asked, the walk
-starts nothing over a record nobody read and says why only in its own log.
+read before any claim was taken. One refused claim, or one child no longer open
+and `blocked` by then -- or held since by `paused` or `backlog` -- releases
+none of them, as one lapse does -- without the park, because the next walk
+scans again. So does one child whose own pinned record, read under its claim,
+admission refuses or nobody could read: on a late split's register too, where
+no lineage is asked, the walk starts nothing over a record nobody read and says
+why only in its own log.
 """
 from __future__ import annotations
 
@@ -67,6 +80,7 @@ from dataclasses import dataclass
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
+from orchestrator.github import labels as _labels
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
@@ -147,27 +161,32 @@ class _ChildActivation:
         return True
 
     def licence_lapsed(self) -> bool:
-        """Whether a split's own children may still be released, right now.
+        """Whether this parent's children may still be released, right now.
 
-        Asked before EVERY relabel on the rule the close is asked on: what
-        licenses a release here is a fact about a pull request somewhere else,
-        and that moves between two requests. Asked off this parent's own
-        record rather than handed in, so a caller cannot answer it a scan of
-        the children too early -- and so a parent that never entered the gate
-        answers without a request at all.
+        Asked before EVERY relabel on the rule the close is asked on, of two
+        facts that move between any two requests. The parent's own `paused` or
+        `backlog`, read off the parent fetched afresh (`_parent_hold`): the
+        dispatcher's hold check is as old as the tick and the walk behind it
+        is a request per child, so a hold an operator applies to the parent
+        meanwhile stops the releases its poll would still make. Then, for a
+        split's own children, the pull request their work was superseded on,
+        asked off this parent's own record rather than handed in, so a caller
+        cannot answer it a scan of the children too early -- and so a parent
+        that never entered the gate answers without a request at all.
 
-        Latched with the close, because the two mean the same thing to this
+        Latched with the close, because the three mean the same thing to this
         walk -- release none of the rest -- and because re-asking past the
-        first refusal spends a request to be told what it already knows.
+        first refusal spends a request to be told what it already knows. A
+        hold is an operator's word rather than a fault, so it is said at INFO.
         """
         if self.stopped:
             return True
-        lapsed = _late_publication._release_undone(
-            self.gh, self.owner, self.state,
-        )
+        held = _parent_hold(self.gh, self.owner)
+        lapsed = held or _late_publication._release_undone(self.gh, self.owner, self.state)
         if not lapsed:
             return False
-        log.error(
+        log.log(
+            logging.INFO if held else logging.ERROR,
             "repo=%s issue=#%s may release no child: %s",
             self.slug, self.owner.number, lapsed,
         )
@@ -209,14 +228,29 @@ class _ChildActivation:
         self.stopped = True
         return True
 
-    def may_release(self) -> bool:
-        """Whether this walk may still relabel the child in front of it.
+    def releasable_now(self, number: int) -> Issue | None:
+        """The child to relabel, as GitHub answers for it right now, where this walk may still release it; or None.
 
         The latch first, because it is already in this process and costs
-        nothing; then the publication, which is a request; then the latch
-        AGAIN, because that request is exactly the kind of window a poll
-        observes a close inside. Asking it only in front would license a
-        release on a reading the lookup behind it had already outlived --
+        nothing. Then the child itself, read again -- a request -- and held to
+        what the walk chose it on: open, `blocked`, and free of `paused` or
+        `backlog`. Every request since the claimed re-read -- the records, the
+        lineage, the publication behind an earlier sibling -- is a window an
+        operator's hold or another move can land in, and a child this reading
+        shows moved or held is held alone: its siblings may already be
+        started.
+
+        Then the licence (`licence_lapsed`): the parent's own controls, and the
+        publication last of all in front of the relabel, since what licenses
+        releasing a split's own children is a pull request somewhere else still
+        being closed, and that moves between any two requests, the child's own
+        read included. The relabel moves the workflow label alone
+        (`move_workflow_label`), so a hold landing inside those lookups -- after
+        the child's read -- stays on the child rather than being written away
+        by a label set read before it. Then the latch AGAIN,
+        because each of those requests is exactly the kind of window a poll
+        observes a close inside. Asking either only further out would license
+        a release on a reading the lookups behind it had already outlived --
         the same mistake this walk exists to stop one layer up.
 
         The last ask is the one with nothing between it and the write, which
@@ -224,17 +258,31 @@ class _ChildActivation:
         the effect it licenses, and the cheapest one can afford to be the
         barrier twice.
         """
-        if self.parent_is_gone() or self.licence_lapsed():
-            return False
-        return not self.parent_is_gone()
+        if self.parent_is_gone():
+            return None
+        current = _parents._read_child_labels(self.gh, self.owner, [number])
+        if current is None or not current.startable(number):
+            log.info(
+                "repo=%s issue=#%s holds child #%s: read again ahead of its release, it is no longer open, "
+                "`blocked`, and free of a hold",
+                self.slug, self.owner.number, number,
+            )
+            return None
+        if self.licence_lapsed() or self.parent_is_gone():
+            return None
+        return current.issues[number]
 
     def consider(self, idx: int, child_number) -> int | None:
-        """The child at this index where its dependencies are done, or None; one still waiting is held."""
+        """The child at this index where its dependencies are done and no hold stands on it, or None.
+
+        One still waiting on a dependency, or on a `paused` or `backlog` hold,
+        is held.
+        """
         number = int(child_number)
         if not self.scan.waiting(number):
             return None
         pending = _pending_dependencies(self.state, self.scan, idx)
-        if pending:
+        if pending or not self.scan.startable(number):
             self.held.append((number, pending))
             return None
         return number
@@ -247,7 +295,8 @@ class _ChildActivation:
         and a park is meant to leave the split unstarted: a walk that
         released as it checked would start the children in front of the one
         that lapsed. Each relabel is still licensed on its own, immediately in
-        front of it -- see `may_release`.
+        front of it, and made on the child read again there -- see
+        `releasable_now`.
 
         Every one of them is taken under its own writer claim before that,
         and held until the walk ends: the lineage is read off the child's own
@@ -256,11 +305,11 @@ class _ChildActivation:
         start. Each is then read again under its claim, and vouched for and
         relabelled off that reading: the scan this walk chose them from was
         read before any claim was taken, and in between that poller may have
-        relabelled, finished, or closed one of them -- a window the claim
-        closes only for a reading taken behind it. So a refused claim, a read
-        that fails, or a child no longer open and `blocked` releases none of
-        them, as a lapse does, and parks nothing, since none is one -- the
-        next walk scans again.
+        relabelled, finished, closed, or held one of them -- a window the
+        claim closes only for a reading taken behind it. So a refused claim, a
+        read that fails, or a child no longer open and `blocked`, or held by
+        `paused` or `backlog`, releases none of them, as a lapse does, and
+        parks nothing, since none is one -- the next walk scans again.
 
         Each child's own pinned record is read under its claim as well and
         admitted before any is vouched for, on a late split's register as on
@@ -271,7 +320,7 @@ class _ChildActivation:
         """
         with _child_claims.held_children(self.gh, self.owner.number, releasable) as claimed:
             current = _parents._read_child_labels(self.gh, self.owner, releasable) if claimed else None
-            if current is None or not all(map(current.waiting, releasable)):
+            if current is None or not all(map(current.startable, releasable)):
                 self.held.extend((number, []) for number in releasable)
                 return
             records = _child_claims.admitted_children(
@@ -283,11 +332,12 @@ class _ChildActivation:
                 self.held.extend((number, []) for number in releasable)
                 return
             for number in releasable:
-                if self.may_release():
-                    self.gh.set_workflow_label(current.issues[number], WorkflowLabel.READY)
-                    self.relabeled = True
-                else:
+                child = self.releasable_now(number)
+                if child is None:
                     self.held.append((number, []))
+                else:
+                    self.gh.move_workflow_label(child, WorkflowLabel.READY)
+                    self.relabeled = True
 
 
 def _pending_dependencies(state: PinnedState, scan: _models._ChildScan, idx: int) -> list[int]:
@@ -319,8 +369,11 @@ def _activate_ready_children(
     decomposer's same-tick activation step left as `blocked` (network blip,
     label-flip failure, etc.). A child that is closed, or that this scan holds
     no issue for, is passed over: the first has ended and the second cannot be
-    written to. Writes pinned state when at least one child was relabeled. Returns the still-held children as
-    `[(child_number, pending_dep_numbers)]` for visibility logging.
+    written to. A child carrying `paused` or `backlog` is held, its
+    dependencies done or not, until a walk reads it with the hold lifted.
+    Writes pinned state when at least one child was relabeled. Returns the
+    still-held children as `[(child_number, pending_dep_numbers)]` for
+    visibility logging.
 
     A parent a poll observed closed stops the walk where it stands, asked
     again before every relabel: this walk is the one step of a late split
@@ -379,9 +432,19 @@ def _release_lineage(
     return _replacement_lineage.read_replacement_lineage(state, issue, spec)
 
 
-def _held_dependency_line(child_number: object, pending: list) -> str:
-    """Format one held child and the unfinished dependencies gating it."""
-    return f"#{child_number} waits on {_state._issue_ref_list(pending)}"
+def _parent_hold(gh: GitHubClient, owner: Issue) -> str:
+    """What holds the parent's releases as GitHub answers for it now: its `paused` or `backlog`, or no answer; or "".
+
+    A parent nobody could fetch holds them too, until a walk can say the hold
+    is off.
+    """
+    try:
+        current = gh.get_issue(owner.number)
+    except Exception:
+        log.exception("issue=#%s could not be read for a hold ahead of a release; releasing nothing", owner.number)
+        return "the parent could not be read for a hold"
+    hold = _labels.hard_skip_control_label(current)
+    return "" if hold is None else f"the parent carries {str(hold)!r}"
 
 
 def _log_held_children(
@@ -403,7 +466,7 @@ def _log_held_children(
         1 for lbl in child_labels.values() if lbl == _state._DONE
     )
     summary = "; ".join(
-        _held_dependency_line(cn, pending) for cn, pending in held
+        f"#{cn} waits on {_state._issue_ref_list(pending)}" for cn, pending in held
     )
     log.info(
         "issue=#%s %s parent: %d/%d children done, %d held: %s",

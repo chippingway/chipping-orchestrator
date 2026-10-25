@@ -2,12 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import itertools
 import unittest
+from functools import partial
+from types import MappingProxyType
+from unittest.mock import patch
 
 from orchestrator.workflow.stages.decomposition import blocked as _blocked
 from tests.support.fakes import (
     FakeGitHubClient,
     FakeIssue,
+    FakeLabel,
     make_issue,
 )
 from tests.workflow.fixtures import (
@@ -20,6 +25,8 @@ from tests.workflow.stages.decomposition.decomposition_test_support import (
     _labels_for_issue,
     _run_with_logs,
 )
+from tests.workflow.stages.decomposition.ready_test_support import LandsAfter
+from tests.workflow.stages.decomposition.snapshot_client_support import Applied, SnapshotClient
 
 LABEL_BLOCKED = "workflow:blocked"
 LABEL_DONE = "done"
@@ -32,6 +39,16 @@ REJECTED_CHILD_PARENT_NUMBER = 32
 DEPENDENCY_PARENT_NUMBER = 33
 HELD_DEPENDENCY_PARENT_NUMBER = 34
 NO_HELD_CHILDREN_PARENT_NUMBER = 35
+HELD_CONTROL_PARENT_NUMBER = 37
+HELD_COMPLETION_PARENT_NUMBER = 39
+
+# Where an operator's hold lands on a parent whose children are all done --
+# the scan's read of its last child, and the notice saying they resolved --
+# beside how many such notices that tick says: none, since a hold read off the
+# finished scan stops everything behind it, and the one the hold landed behind.
+_COMPLETION_WINDOWS = MappingProxyType({("get_issue", 2): 0, ("comment", 1): 1})
+
+_RESOLVED_NOTICE = "all children resolved"
 MANUALLY_CLOSED_PARENT_NUMBER = 40
 MANUALLY_CLOSED_DONE_CHILD_NUMBER = 401
 MANUALLY_CLOSED_CHILD_NUMBER = 402
@@ -70,8 +87,9 @@ def _seed_parent_with_children(
     parent_number: int,
     child_labels: list[str | None],
     dep_graph: dict | None = None,
+    client: FakeGitHubClient | None = None,
 ) -> tuple[FakeGitHubClient, FakeIssue, list[FakeIssue]]:
-    gh = FakeGitHubClient()
+    gh = client or FakeGitHubClient()
     parent = make_issue(parent_number, label=LABEL_BLOCKED)
     gh.add_issue(parent)
     children = _make_children(parent_number, child_labels)
@@ -341,6 +359,51 @@ class HandleBlockedDependencyTest(unittest.TestCase, _PatchedWorkflowMixin):
             gh.label_history,
         )
 
+    def test_a_held_child_is_logged_held(self) -> None:
+        # A child an operator holds with `paused` or `backlog` is not
+        # released, its dependencies done or not: the walk logs it held,
+        # releases its sibling, and leaves the hold where it stands.
+        for hold in ("paused", "backlog"):
+            with self.subTest(hold=hold):
+                gh, parent, children = _seed_parent_with_children(
+                    parent_number=HELD_CONTROL_PARENT_NUMBER,
+                    child_labels=[LABEL_BLOCKED, LABEL_BLOCKED],
+                )
+                children[0].labels.append(FakeLabel(hold))
+
+                log_lines = _run_with_logs(
+                    self, "orchestrator.workflow", "INFO", partial(_run_dependency, self, gh, parent),
+                )
+
+                self.assertEqual(gh.label_history, [(children[1].number, LABEL_READY)])
+                self.assertIn(hold, [label.name for label in children[0].labels])
+                self.assertTrue(
+                    any(f"1 held: #{children[0].number} waits on" in line for line in log_lines),
+                    log_lines,
+                )
+
+    def test_a_hold_keeps_a_finished_parent_waiting(self) -> None:
+        # Every child done, and an operator's hold applied while the parent
+        # reads them, or while it says they resolved, every fetch a snapshot
+        # of its own: nothing hands the parent back to `ready` -- no relabel
+        # is made on labels read before the hold, which would write it away
+        # -- and it keeps the hold and `blocked`, a hold read off the finished
+        # scan saying nothing either. The tick after the hold is lifted hands
+        # it back.
+        for hold, window in itertools.product(("paused", "backlog"), _COMPLETION_WINDOWS):
+            with self.subTest(hold=hold, window=window):
+                gh = self._held_completion(hold, window)
+                held = (
+                    list(gh.label_history),
+                    gh.label_names(HELD_COMPLETION_PARENT_NUMBER),
+                    self._said(gh),
+                )
+                gh.lifted(HELD_COMPLETION_PARENT_NUMBER, hold)
+                _run_blocked(self, gh, gh.get_issue(HELD_COMPLETION_PARENT_NUMBER))
+
+                self.assertEqual(held, ([], [LABEL_BLOCKED, hold], _COMPLETION_WINDOWS[window]))
+                self.assertEqual(gh.label_history, [(HELD_COMPLETION_PARENT_NUMBER, LABEL_READY)])
+
     def test_no_held_children_emits_no_log(self) -> None:
         # When every child is either done or already running (none still
         # `blocked` on a sibling), nothing is held and the visibility log
@@ -352,6 +415,22 @@ class HandleBlockedDependencyTest(unittest.TestCase, _PatchedWorkflowMixin):
 
         with self.assertNoLogs("orchestrator.workflow", level="INFO"):
             _run_dependency(self, gh, parent)
+
+    def _held_completion(self, hold: str, window: tuple) -> SnapshotClient:
+        """A parent whose children are all done, polled once with `hold` landing behind `window`; its client."""
+        gh, parent = _seed_parent_with_children(
+            parent_number=HELD_COMPLETION_PARENT_NUMBER,
+            child_labels=[LABEL_DONE, LABEL_DONE],
+            client=SnapshotClient(),
+        )[:2]
+        lands = LandsAfter(gh, *window, Applied(HELD_COMPLETION_PARENT_NUMBER, hold))
+        with patch.object(gh, lands.request, lands):
+            _run_blocked(self, gh, parent)
+        return gh
+
+    def _said(self, gh: FakeGitHubClient) -> int:
+        """How many notices saying its children resolved the held parent's thread was told."""
+        return sum(_RESOLVED_NOTICE in body for body in _comments_for_issue(gh, HELD_COMPLETION_PARENT_NUMBER))
 
 
 class HandleBlockedRecoveryTest(unittest.TestCase, _PatchedWorkflowMixin):

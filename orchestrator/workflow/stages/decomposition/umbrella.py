@@ -247,7 +247,8 @@ def _handle_umbrella(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Iss
     # later stage's drift check. Route it back to decomposing here so the
     # new manifest is re-derived against the updated body; without this
     # route-back, an edited umbrella would silently close to `done` against
-    # the stale manifest once the old children finished.
+    # the stale manifest once the old children finished. A `blocked` parent
+    # needs none: it goes back to `ready`, which compares before implementing.
     if _parents._route_parent_drift(gh, issue, state):
         return
 

@@ -588,7 +588,8 @@ examples.
   those issues are dropped before the family / fan-out partition: never submitted, and no worker client is minted for
   them.
   The cost is latency of up to `N` ticks: a child whose dependencies are `done` waits that long to be activated, a
-  parent whose children all landed waits that long to complete, and drift on either is detected that much later.
+  parent whose children all landed waits that long to complete, and an umbrella's drift is detected that much later
+  (a `workflow:blocked` issue's edit waits for its release to `workflow:ready` whatever the cadence).
   `workflow:decomposing`, unlabeled pickup, fan-out work, and a closed owner's cleanup keep their own cadence, and a
   due tick still serializes the whole family bucket. `1` dispatches them every tick. Must be a positive integer; an
   invalid value aborts at startup.
@@ -841,7 +842,8 @@ Two built-in mitigations reduce the floor without touching `POLL_INTERVAL`:
 - **`DEPENDENCY_POLL_EVERY_N_TICKS`** (default `5`) works on the variable dependency-walk cost above rather than on
   the floor: it dispatches open `workflow:blocked` / `workflow:umbrella` issues once every N ticks, on the same polls
   the closed sweep counts, so the child reads their walks spend are divided by that factor. The price is up to `N`
-  ticks before a child is activated, a parent completes, or drift on either is detected; `1` walks them every tick.
+  ticks before a child is activated, a parent completes, or an umbrella's drift is detected; `1` walks them every
+  tick.
 
 If you still approach the cap, the remaining levers are operator-side: raise `POLL_INTERVAL`, split repos across more
 than one PAT (one token file per slug under `~/.config/<owner>/<repo>/token`), or reduce the number of tracked repos.
@@ -1004,7 +1006,7 @@ The two caps below are the levers:
   raise only with the CPU / memory headroom to run that many agent CLIs at once. No-agent family buckets
   (`workflow:blocked` / `workflow:umbrella`) are cap-exempt and run on a dedicated executor.
 - `WORKFLOW_TRANSITION_GUARD` — default `warn`. governs the workflow-label transition-legality check in
-  `set_workflow_label` against the declared `ALLOWED_TRANSITIONS` table (see
+  `set_workflow_label`, and in `move_workflow_label` beside it, against the declared `ALLOWED_TRANSITIONS` table (see
   [`state-machine/labels-and-state.md`][transition-guard]). `warn` logs an illegal transition and
   proceeds; `enforce` raises; `off` disables it. The label *typo* guard is always strict regardless of this setting.
   One write is exempt even under `enforce`: the late size gate putting a label back where a human moved it from,

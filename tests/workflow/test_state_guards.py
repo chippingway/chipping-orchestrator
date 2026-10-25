@@ -38,7 +38,7 @@ class IsAllowedTransitionTest(unittest.TestCase):
             (WorkflowLabel.IN_REVIEW, WorkflowLabel.FIXING),
             (WorkflowLabel.FIXING, WorkflowLabel.VALIDATING),
             (WorkflowLabel.BLOCKED, WorkflowLabel.READY),
-            (WorkflowLabel.BLOCKED, WorkflowLabel.DECOMPOSING),  # drift
+            (WorkflowLabel.READY, WorkflowLabel.DECOMPOSING),  # drift, compared on entry
             (WorkflowLabel.UMBRELLA, WorkflowLabel.DONE),
         ):
             self.assertTrue(is_allowed_transition(cur, nxt), (cur, nxt))
@@ -50,6 +50,9 @@ class IsAllowedTransitionTest(unittest.TestCase):
             (WorkflowLabel.IMPLEMENTING, WorkflowLabel.DOCUMENTING),
             (WorkflowLabel.READY, WorkflowLabel.VALIDATING),  # skips implementing
             (None, WorkflowLabel.DONE),  # entry not terminalizable
+            # A dependency hold is released, never rerouted: an edit made while
+            # an issue waits is compared on `ready`, which owns that edge.
+            (WorkflowLabel.BLOCKED, WorkflowLabel.DECOMPOSING),
         ):
             self.assertFalse(is_allowed_transition(cur, nxt), (cur, nxt))
 

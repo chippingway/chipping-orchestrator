@@ -14,7 +14,11 @@ The issue itself is fetched again (`fresh`) ahead of each effect -- a pickup
 announced, a checkpoint landed, a relabel, a notice, a launch -- because the
 dispatcher's hold check is as old as the tick, and an operator who applies
 `paused` or `backlog` while those requests run has asked for them to stop
-(`held`). An issue GitHub would not answer for proves no hold is off, and
+(`held`). So has one who puts the issue back on `workflow:blocked`: a
+dependency hold is released by its parent's walk, never handed on or rerouted
+from here, and its requirements are compared on the entry to `ready` that
+release makes rather than off a fetch that reads it waiting. An issue GitHub
+would not answer for proves no hold is off, and
 holds too. The fetched issue is also the newest title and body the decision
 can compare, and the object every later effect is made on. Ahead of the
 handoff's effects -- the pickup, and the relabel to `implementing` -- it is
@@ -42,6 +46,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, drift as _drift
+from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -59,27 +64,31 @@ def thread(gh: GitHubClient, issue: Issue, state: PinnedState) -> list | None:
 
 
 def fresh(gh: GitHubClient, issue: Issue) -> Issue | None:
-    """The issue as GitHub answers for it now, where no `paused` or `backlog` hold stands on it; None otherwise.
+    """The issue as GitHub answers for it now, where no hold stands on it; None otherwise.
 
-    Fetched afresh, never the object the tick was dispatched with, whose
-    labels, title, and body are as old as the tick. An issue nobody could
-    fetch holds as well: the effect waits for a tick that can say the hold is
-    off.
+    A hold is a `paused` or `backlog` control label, or a workflow label that
+    reads `workflow:blocked` -- the dependency hold, which nothing here hashes
+    or relabels. Fetched afresh, never the object the tick was dispatched
+    with, whose labels, title, and body are as old as the tick. An issue
+    nobody could fetch holds as well: the effect waits for a tick that can say
+    the hold is off.
     """
     try:
         fetched = gh.get_issue(issue.number)
     except Exception:
         log.exception("issue=#%d could not be read for a hold ahead of a ready effect; holding it", issue.number)
         return None
-    skip_label = hard_skip_control_label(fetched)
-    if skip_label is None:
+    hold = hard_skip_control_label(fetched)
+    if hold is None and gh.workflow_label(fetched) == WorkflowLabel.BLOCKED:
+        hold = WorkflowLabel.BLOCKED
+    if hold is None:
         return fetched
-    log.info("issue=#%d carries %r; the ready decision goes no further until it is removed", issue.number, skip_label)
+    log.info("issue=#%d carries %r; the ready decision goes no further until it is lifted", issue.number, str(hold))
     return None
 
 
 def held(gh: GitHubClient, issue: Issue) -> bool:
-    """Whether a `paused` or `backlog` hold stands on the issue as GitHub answers for it now (`fresh`)."""
+    """Whether a hold stands on the issue as GitHub answers for it now (`fresh`)."""
     return fresh(gh, issue) is None
 
 

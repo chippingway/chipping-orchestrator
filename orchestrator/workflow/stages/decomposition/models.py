@@ -23,7 +23,7 @@ from github.Issue import Issue
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import decomposition as _worktree_decomposition
-from orchestrator.github import client as _client, pinned_refusal as _pinned_refusal
+from orchestrator.github import client as _client, labels as _labels, pinned_refusal as _pinned_refusal
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.workflow.engine import record_admission as _record_admission
 from orchestrator.workflow.stages.decomposition.replacement_lineage import ReplacementLineage
@@ -135,6 +135,17 @@ class _ChildScan:
         if child is None or issue_is_closed(child):
             return False
         return self.labels.get(number) == WorkflowLabel.BLOCKED
+
+    def startable(self, number: int) -> bool:
+        """Whether this scan read the child waiting (`waiting`) with no `paused` or `backlog` hold standing on it.
+
+        A held child's dependencies finishing is no permission to move it: the
+        hold stops its workflow where it stands, so a walk releases it only
+        once a human has lifted the hold and a later scan reads it without one.
+        """
+        if not self.waiting(number):
+            return False
+        return _labels.hard_skip_control_label(self.issues[number]) is None
 
     def adopt(self, current: _ChildScan | None) -> bool:
         """Take a later reading of some of these children over this one, and say whether there was one."""

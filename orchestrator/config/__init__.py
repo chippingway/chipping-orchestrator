@@ -210,9 +210,11 @@ CLOSED_ISSUE_SWEEP_EVERY_N_TICKS: int = _RESOLVED["CLOSED_ISSUE_SWEEP_EVERY_N_TI
 # neither submitted nor handed a worker client. The cost is latency, bounded
 # by N ticks: a child whose dependencies finished waits up to that long to be
 # activated, a parent whose children all landed waits as long to complete, and
-# drift on either is noticed as late. Everything else keeps its every-tick
-# cadence -- `decomposing` and the unlabeled pickup still drain in the family
-# bucket, and a closed owner's cleanup is routed on the sweep's own schedule.
+# an umbrella's drift is noticed as late -- a `blocked` issue's edit waits for
+# its release to `ready` whatever the cadence. Everything else keeps its
+# every-tick cadence -- `decomposing` and the unlabeled pickup still drain in
+# the family bucket, and a closed owner's cleanup is routed on the sweep's own
+# schedule.
 # `1` restores the every-tick dispatch. Must be >= 1.
 DEPENDENCY_POLL_EVERY_N_TICKS: int = _RESOLVED["DEPENDENCY_POLL_EVERY_N_TICKS"]
 

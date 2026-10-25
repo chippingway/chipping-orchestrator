@@ -60,8 +60,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
   label_reading.py          canonical-only label lookup, the first canonical label as an issue's state, strict
                             coercion that refuses obsolete bare names, and the current workflow labels a write
                             replaces, so every other label -- an obsolete bare name included -- stays
-  transitions.py            the forward spine and declared interrupt sources, including cancelled `done` to `rejected`;
-                            publication and base-refresh eligibility read the same stage sets used by those edges
+  transitions.py            the forward spine and declared interrupt sources, including cancelled `done` to `rejected`,
+                            and `workflow:blocked` left only by its release to `workflow:ready`; publication and
+                            base-refresh eligibility read the same stage sets used by those edges
   transition_guard.py       the same-label allowance and off/warn/enforce write guard, with strict rejection details and
                             the literal `orchestrator.state_machine` channel operators filter on
   engine/                   what every stage is driven by
@@ -574,7 +575,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             asked over a thread reading its caller holds (`reading`), it fingerprints that reading and
                             stages a first or normalized baseline for the caller's own checkpoint to land.
                             `_unbaselined` is what a missing baseline is: a record carrying neither reading as a
-                            string, which `ready` reroutes a split's child on
+                            string, which `ready` reroutes a split's child on. An issue whose workflow label reads
+                            `workflow:blocked` is answered with nothing done -- no fingerprint, no baseline recorded,
+                            initialized, or normalized, no drift -- since its requirements wait for `ready`
     drift_delivery.py       the prompt a requirements edit is answered with and the record of what it quoted, frozen
                             together off ONE read and settled by whoever disposes the run: context the excerpt bound
                             dropped holds the watermark below it, a reply written while the agent was out is in
@@ -2779,8 +2782,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             caller settles its ledger on the way out of them, and a closed child's merge finalize taken
                             under that child's writer claim off the child and its admitted record read again behind it,
                             a held one, or one whose record admission refuses, counted neither done nor closed by hand
-                            and written nothing -- and the drift reroute `blocked` and `umbrella` take, which first
-                            writes the children it drops onto the ledger
+                            and written nothing -- and the drift reroute the umbrella takes, which first writes the
+                            children it drops onto the ledger; a `blocked` issue takes none
       activation.py         the dep-graph walk that releases the next children, the child it passes over because GitHub
                             reports it closed or the scan holds no issue for it, the latch asked before EVERY relabel --
                             a relabel is a request, so a close observed after the first child was released may not
@@ -2799,7 +2802,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             before the first is vouched for, and vouched for and relabelled off that reading -- one
                             held by another poller, unreadable, no longer open and `blocked`, or carrying a pinned
                             record admission refuses or nobody could read, on a late split's register as on an
-                            ordinary split's, releasing none and parking nothing; and the held-dependency line it logs
+                            ordinary split's, releasing none and parking nothing; a child carrying `paused` or
+                            `backlog` held rather than released, alone where the scan reads it so and with every
+                            other where only the claimed re-read does; each child read again in front of its relabel
+                            (`releasable_now`), so a hold landing behind the re-read keeps that child back, then the
+                            parent's own controls fetched afresh -- a hold on the parent releases none of the rest --
+                            and the publication last, the relabel moving the workflow label alone
+                            (`github/label_moves.py`) so a hold landing even inside that lookup stays on the child;
+                            and the held-dependency line it logs
       ready.py              what `workflow:ready` decides before anything implements, off the reading taken under the
                             writer claim and admitted and the issue fetched afresh -- its current title and body, not
                             the dispatched object's: requirements the drift check reads unchanged go to
@@ -2840,16 +2850,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             every comment but the pinned one, for the fingerprint, the ratchet, and its receipts
                             (`thread`), holding the decision where it cannot be read; the issue fetched again ahead of
                             each effect (`fresh`), its newest title and body and the object the effect is made on, a
-                            `paused` / `backlog` hold or an unreadable issue holding (`held`), and compared against the
+                            `paused` / `backlog` hold, a relabel back to `workflow:blocked`, or an unreadable issue
+                            holding (`held`), and compared against the
                             baseline ahead of the handoff's pickup and relabel, answering the fingerprint a title or
                             body edit moved it to for the reroute (`compared`); and a receipt of this
                             orchestrator's own on a reading (`found`), authored by its account and carrying the
                             hidden generated marker or a ledger entry
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handler, which reads the claimed record
-                            and hands it to `ready.py`; a parent whose children all resolved settles what a late split
-                            still owes the remote before it goes back to its own work, and waits on `blocked` while a
-                            recorded consumer keeps a ref, its consumer list cannot be read, or a damaged record
-                            still carries a ledger; settled, it
+                            and hands it to `ready.py`; the poll reads no requirements, so an edit made while an issue
+                            waits moves no baseline, manifest, graph, or child and is compared once its release enters
+                            `ready`, while the walk and completion go on; a parent whose children all resolved goes
+                            back only while a fresh fetch reads no `paused` / `backlog` on it -- asked after the scan
+                            and again in front of the relabel, which moves the workflow label alone -- and settles
+                            what a late split still owes the remote before it goes back to its own work, and waits on
+                            `blocked` while a recorded consumer keeps a ref, its consumer list cannot be read, or a
+                            damaged record still carries a ledger; settled, it
                             drops the split attempt and retires the split's late cycle -- candidate, register, and
                             identity, both ledgers kept -- in a write of its own inside the umbrella terminal's
                             retirement window before the flip, so its implementation starts a cycle of its own; with
@@ -3361,7 +3376,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             rationale the parent records, the whole declared dependency graph, and the recorded
                             children a seed under the child's claim left unseeded -- held, or refused admission -- for
                             the recovery to seed and finalize -- and the child scan, with the readings a release walk
-                            and a merge finalize ask of it and the later reading it adopts
+                            and a merge finalize ask of it -- a child startable only open, `blocked`, and free of
+                            `paused` / `backlog` -- and the later reading it adopts
       state.py              the pinned-state field names the owners share, `split_attempt`, `split_rationale`, and
                             `ready_reroute` among them, the held-child alias, the strict parent-link check, the one
                             rule a split's rationale is read by off its manifest and back off the record, and the
