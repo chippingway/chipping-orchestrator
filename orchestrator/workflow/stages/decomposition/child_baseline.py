@@ -6,9 +6,9 @@ A child's drift baseline is the `user_content_hash` its own drift check
 compares the thread against, and a child is created to carry exactly the
 requirements its split cut for it. So the baseline is taken off the create
 itself (`at_creation`): the title and body GitHub answered the create with --
-the declared slice, the receipt, any snapshot reuse instructions, and the
-`Parent:` footer the client appends -- and no comment, since a child is born
-with none, hashed by the one definition every drift check hashes by
+the declared slice, the receipt, any budget or snapshot reuse instructions,
+and the `Parent:` footer the client appends -- and no comment, since a child
+is born with none, hashed by the one definition every drift check hashes by
 (`engine/content_hash`). An edit landing after the create -- before the seed,
 or while a recovery is due -- is never part of it: the drift check is what
 meets that edit, as an edit.
@@ -20,7 +20,11 @@ proof of the creation content records none: a receipt proves which slice a
 child was cut for, not what it said, so a child seeded without the create's
 answer in hand -- recovered, or adopted by its receipt -- is left with its
 baseline missing, never given one hashed off what the child says by then.
-What a missing baseline means is the drift check's to decide
+A late split's retained manifest proves no more: the body rendered off it
+also carries the configured base branch, remote, and mirror name, which no
+record keeps, so a child reading exactly as that manifest renders it now may
+be one edited to match a configuration changed since the create. What a
+missing baseline means is the drift check's to decide
 (`engine/drift`); here it holds nothing, since no seed, admission, or release
 reads it.
 """

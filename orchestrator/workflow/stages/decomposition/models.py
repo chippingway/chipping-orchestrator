@@ -97,8 +97,9 @@ class _SplitPlan:
     unseeded: list[int] = field(default_factory=list)
     # Each created child's drift baseline, hashed off what its create answered
     # before anything else was asked of it (`child_baseline.at_creation`), for
-    # the seed under the child's claim to record. Held in memory only: a seed
-    # left to the recovery is made without it.
+    # the seed under the child's claim to record, on an ordinary split and on
+    # a late split's walk alike. Held in memory only: a seed left to the
+    # recovery, or to a resumed late walk, is made without it.
     baselines: dict[int, str] = field(default_factory=dict)
 
     @classmethod

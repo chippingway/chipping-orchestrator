@@ -1583,6 +1583,17 @@ not the transaction's, so an orphan can reach the stage machine before anything 
 unattributed `blocked` issue. Leaving that standing would activate a child that then waits for a reply nobody owes it.
 A child that already records a parent keeps whatever park it has: that one is its own.
 
+The seed also gives the child its drift baseline, `user_content_hash` — what its own drift check compares the thread
+against — and the baseline is what the child was **created** saying, never what it says by the time the seed lands.
+A child this pass creates is hashed off the create's answer the moment it returns, before the record or the claim: the
+slice, the budget, the receipt, the reuse instructions, and the `Parent:` footer, with no comment. A child an earlier
+pass created has no answer left to hash, and nothing the split retains replaces it. The manifest is kept, but the body
+it renders also names the configured base branch, remote, and mirror, which no record keeps, so a child reading
+exactly as the manifest renders it now may be one edited to match a configuration changed since the create — and
+taking it as the baseline would read that edit as no change at all. Such a child, recorded or adopted by its receipt,
+is seeded with its baseline missing, edited or not. A baseline the child's record already carries is kept either way,
+so a seed whose answer was lost after it landed is not re-baselined over an edit made while the split was parked.
+
 **Only then the links and the supersession.** The parent says what it became and where its work went, exactly once,
 and both halves of "once" are needed. The generation's own `late_links_announced` flag is the cheap gate and the one
 that holds on the ordinary retry — it is scoped to this adjudication, unlike `decomposed_at`, which an **earlier**
