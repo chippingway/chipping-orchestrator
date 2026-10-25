@@ -4,10 +4,13 @@
 
 The parent records every created issue before seeding it, and seeds it only
 under the child's own writer claim, off the child's record read behind that
-claim and held to admission. A close seen inside the child read prevents its
-write, a record admission refuses parks the split as a refused claim does with
-nothing written to the child, and a resumed walk seals only after every
-possible unrecorded child has been accounted for.
+claim and held to admission. The seed carries the drift baseline the
+child's create answered where this pass made the create, and none for a child
+an earlier pass made; a record already carrying a baseline keeps it
+(`child_baseline.seed`). A close seen inside the child read
+prevents its write, a record admission refuses parks the split as a refused
+claim does with nothing written to the child, and a resumed walk seals only
+after every possible unrecorded child has been accounted for.
 """
 from __future__ import annotations
 
@@ -25,6 +28,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.late_split.obligations import LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
+    child_baseline as _child_baseline,
     child_claims as _child_claims,
     late_child_content as _late_child_content,
     late_outcome as _late_outcome,
@@ -238,12 +242,13 @@ def _seeded(
     child_issue: Issue,
     child: dict,
 ) -> bool:
-    """Give this child its parent link, its stamp, and its ancestry.
+    """Give this child its parent link, its stamp, its ancestry, and its creation baseline.
 
     The child's own state is read and added to rather than written fresh, for
     the case this step exists to repair: a retry reaches a child that was
     already created, and by then it may be implementing. Writing a fresh
-    record over it would take its work with it.
+    record over it would take its work with it -- and the drift baseline a
+    landed seed recorded with it, which a retry keeps rather than replaces.
 
     False is either of the two ways this child is the last one: a write that
     could not be made, which parks, and the cancellation a close latched
@@ -290,7 +295,7 @@ def _seed_child_state(
     child_issue: Issue,
     child: dict,
 ) -> bool:
-    """Add the parent link, the stamp, and the ancestry to a child's state.
+    """Add the parent link, the stamp, the ancestry, and the baseline to a child's state.
 
     The park an unattributed child took goes with the link that attributes it,
     exactly as the initial mode's orphan repair does. A child created into a
@@ -320,6 +325,13 @@ def _seed_child_state(
     cancellation. A refused one raises `child_claims.ChildRefused` before
     anything is added to it, and so does the write over a record a human's
     edit since then left admission to refuse.
+
+    The baseline is the one hashed off the create's answer before the record
+    was written, never one read off the child here, so an edit landing
+    between the create and this reading is drift rather than the baseline. A
+    child this pass did not create has no such answer and is left with its
+    baseline missing, and one this reading shows already carrying a baseline
+    keeps it.
     """
     reading = context.gh.read_pinned_state(child_issue)
     if _late_owner._latch_stops(context) is not None:
@@ -338,6 +350,7 @@ def _seed_child_state(
     _lineage.write_late_ancestry(
         child_state, _late_child_content._child_ancestry(context, child, walk.snapshot_ref),
     )
+    _child_baseline.seed(child_state, walk.plan.baselines.get(child_issue.number))
     _child_claims.write_seed(context.gh, context.issue.number, child_issue, child_state)
     return True
 

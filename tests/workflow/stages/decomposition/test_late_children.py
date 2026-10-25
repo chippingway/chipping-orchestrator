@@ -1,6 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a split's children are born knowing, and the order they are created in."""
+"""What a split's children are born knowing, and the order they are created in.
+
+What they are born knowing includes the drift baseline their own drift check
+compares against: what each create answered, kept by every later seed.
+"""
 from __future__ import annotations
 
 import unittest
@@ -12,7 +16,12 @@ from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import make_issue
 from tests.workflow.fixtures import LABEL_DONE
-from tests.workflow.stages.decomposition import late_transaction_support as _support
+from tests.workflow.stages.decomposition import (
+    child_baseline_support as _baseline_support,
+    child_claim_test_support as _claim_support,
+    late_baseline_support as _late_baselines,
+    late_transaction_support as _support,
+)
 from tests.workflow.stages.decomposition.late_crash_support import (
     recording_children,
     refusing,
@@ -211,9 +220,11 @@ class PriorDecompositionTest(SplitChildrenCase, unittest.TestCase):
 
 
 class ChildInheritanceTest(SplitChildrenCase, unittest.TestCase):
-    """A child is seeded with the lineage and the snapshot it may reuse."""
+    """A child is seeded with the lineage, the snapshot it may reuse, and the baseline its create answered."""
 
     def test_it_carries_the_ancestry_it_will_read(self) -> None:
+        # The lineage it is correlated by, and the snapshot and commit it may
+        # reuse.
         seeded = self._seeded_ancestry()
 
         self.assertEqual(seeded.root_issue, ROOT_ISSUE)
@@ -221,6 +232,8 @@ class ChildInheritanceTest(SplitChildrenCase, unittest.TestCase):
         self.assertEqual(seeded.cycle_id, CYCLE_ID)
         self.assertEqual(seeded.generation, GENERATION_NUMBER)
         self.assertEqual(seeded.base_branch, BASE_BRANCH)
+        self.assertEqual(seeded.snapshot_ref, _support.SNAPSHOT_REF)
+        self.assertEqual(seeded.snapshot_sha, CANDIDATE_SHA)
 
     def test_it_carries_the_parent_link(self) -> None:
         self._transact()
@@ -229,12 +242,6 @@ class ChildInheritanceTest(SplitChildrenCase, unittest.TestCase):
             self._child_state(self._first())[_support.KEY_PARENT_NUMBER],
             LATE_ISSUE_NUMBER,
         )
-
-    def test_it_carries_the_snapshot_and_commit(self) -> None:
-        seeded = self._seeded_ancestry()
-
-        self.assertEqual(seeded.snapshot_ref, _support.SNAPSHOT_REF)
-        self.assertEqual(seeded.snapshot_sha, CANDIDATE_SHA)
 
     def test_a_child_carries_its_declared_scope(self) -> None:
         # What its own late prompt states as the scope, so an indivisible
@@ -252,16 +259,44 @@ class ChildInheritanceTest(SplitChildrenCase, unittest.TestCase):
 
     def test_a_re_seed_leaves_child_work_alone(self) -> None:
         # By the time a retry reaches a child that was already created, that
-        # child may be implementing.
+        # child may be implementing, and edited: the retry keeps its work and
+        # the baseline its seed landed, so the edit stays drift.
         self._transact()
         number = self._first()
+        landed = self._child_state(number)[_late_baselines.KEY_BASELINE]
         self.github.seed_state(
             number, **self._child_state(number), dev_agent="codex",
         )
+        _late_baselines.BODY_EDIT(self.github, self.github.get_issue(number))
 
         self._resume()
 
         self.assertEqual(self._child_state(number)["dev_agent"], "codex")
+        self.assertEqual(_late_baselines.seeded(self.github, number), (landed, True))
+
+    def test_only_the_create_answer_is_baselined(self) -> None:
+        # Something lands on each child as its seed's claim is granted, after
+        # the create returned. The seed records what the drift check read off
+        # the child as created -- its slice, budget, receipt, reuse
+        # instructions, and parent footer -- so what landed is measured
+        # against that: drift where it edits the requirements, nothing where
+        # the hash filters it.
+        for landed, landing in _late_baselines.LANDINGS.items():
+            with self.subTest(landed=landed):
+                self.setUp()
+                created = _baseline_support.ReadAtCreation(self.github)
+                self.github.create_child_issue = created
+                on_claim = _claim_support.EditedOnClaim(
+                    _baseline_support.LandedOnce(self.github, landing.on, LATE_ISSUE_NUMBER),
+                )
+                with on_claim.installed():
+                    outcome = self._transact()
+
+                self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
+                self.assertEqual(
+                    [_late_baselines.seeded(self.github, child.number) for child in self.github.created_child_issues],
+                    [(reading, landing.edits) for reading in created.readings],
+                )
 
     def _first(self) -> int:
         """The number of the child that owns the manifest's first slice."""

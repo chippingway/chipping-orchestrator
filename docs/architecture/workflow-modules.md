@@ -2704,12 +2704,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the writer to refuse; and the admitted readings of every child an all-or-nothing effect
                             would act on (`admitted_children`): one admission refuses, or one nobody could read, holds
                             the whole effect. Every refusal is said only in the log
-      child_baseline.py     the drift baseline a split's child is seeded with: `user_content_hash` over the title and
-                            body its create answered -- slice, receipt, any snapshot reuse instructions, and `Parent:`
-                            footer -- with no comment, hashed by `engine/content_hash`'s own definition
-                            (`at_creation`), and the rule that records it once (`seed`): a record already carrying a
-                            baseline keeps it, and a seed with no create's answer in hand records none rather than
-                            hashing what the child says by then -- what a missing one means is `engine/drift.py`'s
+      child_baseline.py     the drift baseline a split's child is seeded with, an ordinary or a late split's alike:
+                            `user_content_hash` over the title and body its create answered -- slice, receipt, any
+                            budget or snapshot reuse instructions, and `Parent:` footer -- with no comment, hashed by
+                            `engine/content_hash`'s own definition (`at_creation`), and the rule that records it once
+                            (`seed`): a record already carrying a baseline keeps it, and a seed with no create's answer
+                            in hand records none rather than hashing what the child says by then -- a late split's
+                            retained manifest proves no more, since the body it renders also names configuration no
+                            record keeps; what a missing one means is `engine/drift.py`'s
       child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
                             recorded on its parent -- and on the snapshot's consumer ledger where its lineage owes it
                             a pointer -- in one write before it is seeded, under the child's own writer claim, with
@@ -2929,15 +2931,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             mirror kept whole with the repository segment it was fetched for -- and exact slice
                             receipts; reserved markers in proposed scope are refused before publication
       late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry
-                            under the child's writer claim, off the child's record read behind it and admitted behind
-                            the close latch -- a held child, or an adopted or created one whose record admission
-                            refuses, parks the split as a failed seed would with nothing written to it -- and seal a
-                            cancelled consumer ledger only once possible unrecorded children are accounted for
+                            and the drift baseline its create answered (`child_baseline.seed`: one the record already
+                            carries is kept, and a child an earlier pass made gets none) under the child's writer
+                            claim, off the child's record read behind it and admitted behind the close latch -- a held
+                            child, or an adopted or created one whose record admission refuses, parks the split as a
+                            failed seed would with nothing written to it -- and seal a cancelled consumer ledger only
+                            once possible unrecorded children are accounted for
       late_child_adoption.py
-                            recover the exact issue for a resumed slice or create it after the close latch; ambiguous,
-                            closed, or already-started receipt holders are refused without creating another child
-      late_children.py      walk the manifest with a fresh owner check before each slice; record a created child before
-                            checking closure again, and stop rather than seed or advance after cancellation
+                            recover the exact issue for a resumed slice or create it after the close latch, hashing a
+                            created child's drift baseline off the create's answer before its record -- a recorded or
+                            adopted child gets none, since the body its manifest renders also names configuration no
+                            record keeps; ambiguous, closed, or already-started receipt holders are refused without
+                            creating another child
+      late_children.py      walk the manifest with a fresh owner check before each slice; create or adopt, record, then
+                            seed each child, checking closure again between, and stop rather than seed or advance after
+                            cancellation
       late_split_preparation.py
                             validate the manifest and ledgers before publishing a snapshot, prove that immutable
                             ref before creating any child, and return the durable children and ref together; an
@@ -3287,11 +3295,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading
       late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
       models.py             the run plan and its worktree policy, the locked session, the split plan -- with the
-                            lineage it seeds, the attempt its receipts name, the rationale the parent records, the
-                            whole declared dependency graph, and the recorded children a seed under the child's claim
-                            left unseeded -- held, or refused admission -- for the recovery to seed and finalize -- and
-                            the child scan, with the readings a release walk and a merge finalize ask of it and the
-                            later reading it adopts
+                            lineage it seeds, the drift baseline each create answered, held in memory for the seed on
+                            an ordinary split and a late split's walk alike, the attempt its receipts name, the
+                            rationale the parent records, the whole declared dependency graph, and the recorded
+                            children a seed under the child's claim left unseeded -- held, or refused admission -- for
+                            the recovery to seed and finalize -- and the child scan, with the readings a release walk
+                            and a merge finalize ask of it and the later reading it adopts
       state.py              the pinned-state field names the owners share, `split_attempt` and `split_rationale`
                             among them, the held-child alias, the strict parent-link check, the one rule a split's
                             rationale is read by off its manifest and back off the record, and the issue-reference

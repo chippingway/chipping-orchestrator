@@ -5,6 +5,15 @@
 Resumed creation looks for the cycle receipt before opening an issue.
 Ambiguous, closed, or already-started orphans are refused, and the close
 latch is checked again after the repository lookup.
+
+A child this pass creates leaves here with the drift baseline its seed
+records, hashed off what its create answered before anything else is asked
+of it (`child_baseline.at_creation`). A child an earlier pass recorded, or one
+adopted by its receipt, leaves with none: the create's answer died with that
+pass, and nothing retained replaces it -- the manifest renders a body that
+also names the configured base branch, remote, and mirror, which no record
+keeps, so a child reading as its manifest renders it now is no proof of what
+it was created saying.
 """
 from __future__ import annotations
 
@@ -17,6 +26,7 @@ from orchestrator.workflow.late_split import (
     ancestry as _ancestry,
 )
 from orchestrator.workflow.stages.decomposition import (
+    child_baseline as _child_baseline,
     child_creation as _child_creation,
     late_child_content as _late_child_content,
     late_child_records as _late_child_records,
@@ -102,6 +112,11 @@ def _adopted_or_created(
     above walks the repository, so the latch is asked again against the step
     that would open a real issue somebody then works. The mark it leaves is
     what tells the loop this was a cancellation rather than a park.
+
+    Only an issue opened here leaves a drift baseline on the plan for its
+    seed: the create's own answer, the one proof of what it was created
+    saying. A recorded or adopted one is seeded without, keeping whatever its
+    record already carries.
     """
     if index < len(walk.known):
         return context.gh.get_issue(walk.known[index])
@@ -123,12 +138,14 @@ def _adopted_or_created(
             context.issue.number, index,
         )
         return None
-    return context.gh.create_child_issue(
+    created = context.gh.create_child_issue(
         title=child[_late_child_content._TITLE],
         body=_late_child_content._child_body(context, child, walk.snapshot_ref, index),
         parent_number=context.issue.number,
         labels=_child_creation._child_initial_labels(),
     )
+    walk.plan.baselines[created.number] = _child_baseline.at_creation(created)
+    return created
 
 
 def _orphan_for(

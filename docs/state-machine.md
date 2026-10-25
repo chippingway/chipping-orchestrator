@@ -413,9 +413,9 @@ withheld that nothing the answer runs has read — so the umbrella a late split 
 developer revision or a continued budget already spent as the baseline rather than as a change, and a comment or edit
 written after that reading as one. An issue with no baseline recorded at all keeps the reading the adjudication carried
 on over as `observed_user_content_hash` instead, which that first check compares against in its place, so an edit
-made while the adjudicator ran is a change there too rather than the baseline it takes. A child an ordinary split
-created arrives baselined at what its create answered (see `_handle_decomposing` below), so its first check compares
-rather than records, unless its split's recovery had to seed it without one.
+made while the adjudicator ran is a change there too rather than the baseline it takes. A child a split created
+arrives baselined at what its create answered (see `_handle_decomposing` below), so its first check compares rather
+than records, unless its split's recovery — or a late split's resumed walk — had to seed it without one.
 `_handle_fixing`, `_handle_question`, and
 `_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
 and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and
@@ -442,11 +442,14 @@ parent's own split still holds and records it on, and parks before creating anyt
 proved. Every child's seed — at the split, in its recovery, or on a late split's placement — adds to the child's record
 read under the child's writer claim and admitted: a genuinely fresh child's seed is its first record, stamped with
 version 1, and a child whose record admission refuses is written nothing, said only in the log, and holds the split
-short of its summary, finalize, and release. An ordinary split's seed also records the child's drift baseline,
-`user_content_hash`, off what the child's create answered — its slice, receipt, any snapshot reuse instructions, and
-`Parent:` footer, with no comment — so an edit landing after the create is drift rather than the baseline; a record
-already carrying one keeps it, and a seed its recovery makes, an adopted child's included, records none, since a
-receipt proves the slice and not its words. Half-finished splits recover rather than re-spawn — adopting a child
+short of its summary, finalize, and release. A split's seed also records the child's drift baseline,
+`user_content_hash`, off what the child's create answered — its slice, receipt, any budget or snapshot reuse
+instructions, and `Parent:` footer, with no comment — so an edit landing after the create is drift rather than the
+baseline; a record already carrying one keeps it. A seed with no create's answer in hand records none — an ordinary
+split's recovery, a late split's resumed walk, and an adopted child's seed alike — since a receipt proves the slice and
+not its words, and a late split's retained manifest proves no more: the body it renders also names the configured base
+branch, remote, and mirror, which no record keeps, so a child reading as that manifest renders it now may have been
+edited to match a configuration changed since. Half-finished splits recover rather than re-spawn — adopting a child
 created and never recorded by the receipt in its body, and posting the split's summary, its rationale read back off the
 parent's record, only where its own receipt is not already on the thread — a
 `DECOMPOSE` kill switch falls through to `workflow:implementing`, and commits or a dirty tree

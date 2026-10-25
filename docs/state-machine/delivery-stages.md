@@ -201,7 +201,9 @@ persisted only where it still matches, and anything written since is reported as
 created carries the baseline its seed recorded off the create's answer (see
 [`_handle_decomposing`](#_handle_decomposing-label-workflowdecomposing), step 7), so the first check it meets compares
 against what it was created saying; one the split's recovery seeded — an adopted one included — carries none, and its
-first encounter persists the current value as above. It also carries a **legacy-hash
+first encounter persists the current value as above. A late split's child carries the same off its own create — its
+budget among what it was created saying — and one a resumed walk seeded, recorded by an earlier pass or adopted by its
+receipt, carries none (see step 3). It also carries a **legacy-hash
 normalization** path: a baseline written by the pre-issue-#729 algorithm counted a bare `/orchestrator continue`
 comment, so after deploy it would compare unequal to the new hash even with no real edit. Before reporting drift the
 helper recomputes with the old algorithm (`_compute_user_content_hash(..., include_bare_continue=True)`); if that
@@ -591,7 +593,12 @@ because there it is the claim that this stage has already rerouted rather than a
      already parked awaiting a human, and one carrying a live late generation — the split transaction writes the same
      two markers and resumes from its own durable facts, so finalizing on its behalf would hand a parent on before its
      snapshot, its supersession, or what the remote is owed had been settled. Either way the tick ends having changed
-     nothing.
+     nothing. Those facts do not include a baseline for a child the transaction's earlier pass created: its create's
+     answer died with that pass, and the manifest a late parent retains proves no more than a receipt does, since the
+     body it renders also names the configured base branch, remote, and mirror, which no record keeps — a child reading
+     exactly as it renders now may have been edited to match a configuration changed since the create. So a resumed
+     walk seeds a child an earlier pass recorded, or one it adopts by its receipt, with no `user_content_hash`, edited
+     or not, and keeps one its record already carries, such as a seed that landed with its answer lost.
   4. **DECOMPOSE kill switch.** If `config.DECOMPOSE` is off when this handler runs, clear decomposer-side park flags,
      ratchet `last_action_comment_id` past every visible comment, flip the label to `workflow:implementing`, and fall
      into `_handle_implementing`. Step 3 runs first so orphan children are not abandoned. An issue parked on
@@ -1807,9 +1814,9 @@ and handed off -- and this is what it guarantees and what stops it.
 - **Runs**: a child whose seed is whole — written by the split or by its parent's recovery, either of which clears
   `awaiting_human` in the same write, or by hand — and one whose pointer its own reuse guard dropped, ref and commit
   together, after its ref was released. The drift baseline a split's seed also records is no part of what this holds
-  a child to, so one its recovery seeded without a baseline runs too. A restart an operator authorizes on the child's
-  own cancelled cycle keeps the link and the lineage this holds it to, so the restarted child runs on its next
-  dispatch.
+  a child to, so one its recovery — or a late split's resumed walk — seeded without a baseline runs too. A restart an
+  operator authorizes on the child's own cancelled cycle keeps the link and the lineage this holds it to, so the
+  restarted child runs on its next dispatch.
 - **Why it sits here**: a hand relabel or an edit's reroute reaches the child's own handler without its parent's walk,
   and every road that could run it — its own decomposition, its adjudication of a candidate of its own, `ready`,
   `implementing`, pickup — would read the record as an issue no split made, or one at another depth, and mint

@@ -4,7 +4,10 @@
 
 The owner is read before each slice. Each created child is recorded before
 the close latch is checked again, so cancellation cannot strand an unnamed
-issue or seed one its owner stopped wanting.
+issue or seed one its owner stopped wanting. Each created child's drift
+baseline is hashed off the create's answer, ahead of its record and its seed,
+so nothing that lands on the child in between becomes what it was created
+saying.
 """
 from __future__ import annotations
 
@@ -79,7 +82,10 @@ def _placed(
 
     Create or adopt, then record, then seed -- and False anywhere means the
     loop creates nothing further, with the record saying whether that was a
-    park or the cancellation a latched close earned.
+    park or the cancellation a latched close earned. The baseline the seed
+    records is the create's answer, hashed at the first of the three and held
+    in memory only: a pass that stops anywhere past it leaves the next one
+    to seed the child, recorded or adopted, with none.
     """
     created = _late_child_adoption._child_issue(context, walk, index, child)
     if created is None:

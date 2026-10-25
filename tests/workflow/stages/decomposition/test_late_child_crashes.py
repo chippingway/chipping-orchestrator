@@ -8,6 +8,11 @@ write that records the number, so the only way back to that issue is the marker
 it was created with. These cases also drive the DISPATCHER, because poll order
 is the repository's rather than this transaction's -- an orphan can reach the
 stage machine on its own, before anything has attributed it.
+
+What a crash leaves owed includes a child's drift baseline. The create's
+answer dies with the process that took it and nothing retained proves what
+the child was created saying, so a resumed walk seeds the child with none --
+and keeps one a landed seed already recorded.
 """
 from __future__ import annotations
 
@@ -20,16 +25,18 @@ from orchestrator.workflow.stages.decomposition import (
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.writer_claims import claimed_on_creation
-from tests.workflow.fixtures import _TEST_SPEC
+from tests.workflow.fixtures import _TEST_SPEC, LABEL_BLOCKED
+from tests.workflow.stages.decomposition import (
+    child_baseline_support as _baseline_support,
+    late_baseline_support as _late_baselines,
+    late_test_support as _late_support,
+)
 from tests.workflow.stages.decomposition.late_crash_support import (
     killed_after,
     killed_before,
 )
 from tests.workflow.stages.decomposition.late_seam_support import (
     RecordedDelete,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    LATE_ISSUE_NUMBER,
 )
 from tests.workflow.stages.decomposition.late_transaction_support import (
     CHILDREN,
@@ -39,7 +46,10 @@ from tests.workflow.stages.decomposition.late_transaction_support import (
     KEY_UMBRELLA,
     PARK_CHILDREN_FAILED,
     LateSplitCase,
+    first_child,
 )
+
+LATE_ISSUE_NUMBER = _late_support.LATE_ISSUE_NUMBER
 
 KEY_AWAITING_HUMAN = "awaiting_human"
 
@@ -54,6 +64,24 @@ _UNADMITTED = "whose pinned record this orchestrator does not admit"
 
 # A park a child took for itself, after it had been attributed.
 _ITS_OWN_PARK = "implementing_timeout"
+
+# How a pass a child's seed held left the split -- parked, announcing nothing,
+# and the child still blocked -- and how a pass that settled it did: announced
+# once, with one child per slice.
+_HELD = (_LateDisposition.PARKED, PARK_CHILDREN_FAILED, 0, LABEL_BLOCKED)
+_SETTLED = (_LateDisposition.SETTLED, 1, len(CHILDREN))
+
+# The two windows a crash leaves a child's seed owed in: between its create
+# and the write recording it, where the resume adopts the child by its
+# receipt, and between that write and the seed, where the resume seeds the
+# child its register names.
+_OWED_SEED_WINDOWS = (
+    ("its create and its record", lambda case: killed_after(case.github, CREATE_CHILD)),
+    ("its record and its seed", lambda case: killed_after(_late_child_records, "_recorded")),
+)
+
+# The remote a resumed walk's configuration names once an operator renamed it.
+_RENAMED_REMOTE = "upstream"
 
 
 class ChildReachedFirstTest(LateSplitCase, unittest.TestCase):
@@ -81,6 +109,24 @@ class ChildReachedFirstTest(LateSplitCase, unittest.TestCase):
 
         self.assertEqual(resumed.disposition, _LateDisposition.SETTLED)
         self.assertEqual(self._child_state(held)[KEY_PARENT_NUMBER], LATE_ISSUE_NUMBER)
+
+    def test_a_baseline_it_recorded_is_kept(self) -> None:
+        # That poller wrote its own record on the child and let go before the
+        # seed's claim, a baseline in it. The seed attributes the child and
+        # lifts the park it took, and keeps the baseline as it stands rather
+        # than the one the create answered.
+        self.github.create_child_issue = _baseline_support.ReadAtCreation(
+            self.github, _late_baselines.REACHED_FIRST,
+        )
+
+        settled = self._transact()
+
+        seeded = self._child_state(first_child(self.github).number)
+        self.assertEqual(
+            (settled.disposition, seeded[KEY_PARENT_NUMBER], seeded[KEY_AWAITING_HUMAN]),
+            (_LateDisposition.SETTLED, LATE_ISSUE_NUMBER, False),
+        )
+        self.assertEqual(seeded[_late_baselines.KEY_BASELINE], _late_baselines.RECORDED_BASELINE)
 
 
 class RefusedChildTest(LateSplitCase, unittest.TestCase):
@@ -121,6 +167,111 @@ class RefusedChildTest(LateSplitCase, unittest.TestCase):
             (settled.disposition, self._child_state(orphan)[KEY_PARENT_NUMBER]),
             (_LateDisposition.SETTLED, LATE_ISSUE_NUMBER),
         )
+
+
+class OwedSeedBaselineTest(LateSplitCase, unittest.TestCase):
+    """A child whose seed a crash left owed is seeded with no drift baseline, whatever it reads by then.
+
+    The create's answer dies with the process that took it, and nothing the
+    split retains replaces it: the manifest renders a body that also names the
+    configured base branch, remote, and mirror, which no record keeps, so a
+    child reading exactly as its manifest renders it now may be one edited to
+    match a configuration changed since. The resume links and seeds the child
+    with its baseline missing, opens no slice twice, and settles the split; a
+    baseline a landed seed recorded is kept.
+    """
+
+    def test_an_owed_seed_records_none(self) -> None:
+        # Whatever lands on the child before the resume -- nothing included --
+        # it is seeded with no baseline rather than one hashed off what it
+        # says by then.
+        for window, killed in _OWED_SEED_WINDOWS:
+            for landed, landing in _late_baselines.LANDINGS_OR_NONE.items():
+                with self.subTest(window=window, landed=landed):
+                    self.setUp()
+                    child = self._crashed_owing_the_seed(killed)
+                    landing.on(self.github, child)
+
+                    self.assertEqual(self._settled(self._resume()), _SETTLED)
+                    self.assertEqual(self._child_state(child.number)[KEY_PARENT_NUMBER], LATE_ISSUE_NUMBER)
+                    self.assertEqual(_late_baselines.seeded(self.github, child.number), (None, None))
+
+    def test_a_configuration_change_proves_nothing(self) -> None:
+        # The process dies between the record and the seed; an operator then
+        # renames the remote and edits the child's fetch instruction to match,
+        # so it reads exactly as its manifest renders it under the
+        # configuration the resume runs with. That edit is still no proof of
+        # what the child was created saying: it is seeded with no baseline.
+        child = self._crashed_owing_the_seed(_OWED_SEED_WINDOWS[1][1])
+        fetch = f"git fetch {_TEST_SPEC.remote_name} "
+        self.assertIn(fetch, child.body)
+        child.body = child.body.replace(fetch, f"git fetch {_RENAMED_REMOTE} ")
+
+        with _late_baselines.renamed_remote(_RENAMED_REMOTE):
+            self.assertEqual(self._settled(self._resume()), _SETTLED)
+
+        self.assertEqual(_late_baselines.seeded(self.github, child.number), (None, None))
+
+    def test_a_lost_seed_answer_keeps_its_baseline(self) -> None:
+        # The seed lands and its answer is lost: the split parks naming the
+        # child, and announces and activates nothing. An edit lands while
+        # the park stands; the resume reads the seed that landed and keeps
+        # the baseline it carries -- what the child was created saying -- so
+        # the edit stays drift, and the split settles announcing once, with
+        # one child per slice.
+        with _late_baselines.lost_seed(self.github, lands=True), self.assertLogs(level="ERROR"):
+            parked = self._transact()
+        child = first_child(self.github)
+        created = _baseline_support.reading(child)
+        held = (
+            self._held(parked, child.number),
+            _late_baselines.seeded(self.github, child.number),
+        )
+        _late_baselines.BODY_EDIT(self.github, child)
+
+        settled = self._resume()
+
+        self.assertEqual(held, (_HELD, (created, False)))
+        self.assertEqual(_late_baselines.seeded(self.github, child.number), (created, True))
+        self.assertEqual(self._settled(settled), _SETTLED)
+
+    def test_an_unreadable_record_holds_the_seed(self) -> None:
+        # The process dies between the record and the seed, and the resume
+        # cannot read the child's record under its claim, which proves nothing
+        # about what landed there: it writes nothing to the child and parks,
+        # announcing and activating nothing. Once the record reads again, the
+        # child is seeded -- with no baseline -- and the split settles
+        # announcing once.
+        child = self._crashed_owing_the_seed(_OWED_SEED_WINDOWS[1][1]).number
+        with _late_baselines.unreadable(self.github, child), self.assertLogs(level="ERROR"):
+            parked = self._resume()
+        held = (self._held(parked, child), self._child_state(child))
+
+        settled = self._resume()
+
+        self.assertEqual(held, (_HELD, {}))
+        self.assertEqual(self._child_state(child)[KEY_PARENT_NUMBER], LATE_ISSUE_NUMBER)
+        self.assertEqual(_late_baselines.seeded(self.github, child), (None, None))
+        self.assertEqual(self._settled(settled), _SETTLED)
+
+    def _crashed_owing_the_seed(self, killed):
+        """Run the split into the crash `killed` builds for this case, leaving a child's seed owed; that child."""
+        with self.assertRaises(KeyboardInterrupt):
+            self._transact(killed=killed(self))
+        return first_child(self.github)
+
+    def _held(self, parked, child: int) -> tuple:
+        """How a parked pass left the split: its disposition and park, its announcements, and the child's label."""
+        return (
+            parked.disposition,
+            self._pinned()[KEY_PARK_REASON],
+            _late_baselines.announcements(self.github),
+            self.github.workflow_label(self.github.get_issue(child)),
+        )
+
+    def _settled(self, resumed) -> tuple:
+        """How a resumed pass left the split: its disposition, its announcements, and how many children exist."""
+        return resumed.disposition, _late_baselines.announcements(self.github), len(self.github.created_child_issues)
 
 
 class ChildBoundaryTest(LateSplitCase, unittest.TestCase):
