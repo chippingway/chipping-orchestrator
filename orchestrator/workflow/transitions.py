@@ -62,9 +62,10 @@ _FORWARD: Mapping[
     WorkflowLabel.READY: frozenset(
         (WorkflowLabel.IMPLEMENTING, WorkflowLabel.DECOMPOSING),
     ),
-    WorkflowLabel.BLOCKED: frozenset(
-        (WorkflowLabel.READY, WorkflowLabel.DECOMPOSING),
-    ),
+    # A dependency hold is released, never rerouted: an edit made while an
+    # issue waits is compared on `ready`, which owns the way back to
+    # `decomposing`, so the only move out of `blocked` is the release.
+    WorkflowLabel.BLOCKED: frozenset((WorkflowLabel.READY,)),
     WorkflowLabel.UMBRELLA: frozenset(
         (WorkflowLabel.DONE, WorkflowLabel.DECOMPOSING),
     ),

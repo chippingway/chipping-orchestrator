@@ -4,7 +4,8 @@
 
 Each domain surface lives in its own owner module: the workflow / control label
 vocabulary in ``labels``, audit records in ``events``, issue writes and the
-issue-state vocabulary in ``issues``, the repository-wide poll over them in
+issue-state vocabulary in ``issues``, the relabel that sends no label set in
+``label_moves``, the repository-wide poll over them in
 ``issue_polling``, the durable pinned state in ``pinned_state`` and the
 refusal its writer raises over a record admission refuses in
 ``pinned_refusal``, pull requests

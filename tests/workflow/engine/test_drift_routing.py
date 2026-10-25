@@ -98,7 +98,11 @@ class FirstTimeHashSeedingIsDurableTest(
     """Reviewer point 3: `_detect_user_content_change` must persist the
     first-time baseline via `gh.write_pinned_state` immediately, so a
     later edit after a parked/idle tick is not silently absorbed as the
-    new baseline."""
+    new baseline.
+
+    A child waiting on `workflow:blocked` is the one issue nothing is
+    persisted for: its requirements are compared once it is released to
+    `ready`, which decides on a missing baseline itself."""
 
     def test_validating_no_reply_persists_baseline(
         self,
@@ -133,12 +137,10 @@ class FirstTimeHashSeedingIsDurableTest(
         state = gh.pinned_data(100)
         self.assertIsNotNone(state.get(support.KEY_USER_CONTENT_HASH))
 
-    def test_blocked_child_no_op_persists_baseline(self) -> None:
-        # A `blocked` child waiting on a sibling is a no-op on every due
-        # dependency poll.
-        # Without the durability fix, a later edit during the wait would
-        # silently become the new baseline because the no-op branch
-        # returns without `write_pinned_state`.
+    def test_blocked_child_poll_records_nothing(self) -> None:
+        # A child waiting on a sibling with no baseline recorded, edited
+        # between two due dependency polls: neither writes or tells
+        # anything, so no edit made while it waits is taken as its baseline.
         gh = support.FakeGitHubClient()
         child = support.make_issue(
             support._BLOCKED_CHILD_ISSUE_NUMBER,
@@ -150,14 +152,25 @@ class FirstTimeHashSeedingIsDurableTest(
             support._BLOCKED_CHILD_ISSUE_NUMBER,
             parent_number=support._BLOCKED_PARENT_ISSUE_NUMBER,
         )
+        recorded = gh.pinned_data(support._BLOCKED_CHILD_ISSUE_NUMBER)
 
+        child.body = "child body, edited"
+        self._poll_blocked(gh, child)
+        child.body = "child body, edited again"
+        self._poll_blocked(gh, child)
+
+        self.assertEqual(gh.pinned_data(support._BLOCKED_CHILD_ISSUE_NUMBER), recorded)
+        self.assertEqual(
+            (gh.write_state_calls, gh.label_history, gh.posted_comments),
+            (0, [], []),
+        )
+
+    def _poll_blocked(self, gh, child) -> None:
+        """One due dependency poll of the waiting child."""
         self._run(
             lambda: _blocked._handle_blocked(gh, support._TEST_SPEC, child),
             run_agent=support._agent(),
         )
-
-        state = gh.pinned_data(support._BLOCKED_CHILD_ISSUE_NUMBER)
-        self.assertIsNotNone(state.get(support.KEY_USER_CONTENT_HASH))
 
 
 class ReadyBaselineDecisionTest(unittest.TestCase):

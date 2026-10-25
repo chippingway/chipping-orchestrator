@@ -616,7 +616,10 @@ an out-of-band human edit re-routes the issue back to `workflow:decomposing` (wh
 the locked dev session with the updated body (implementing, validating, in_review, resolving_conflict), or unwinds
 back to `workflow:validating` without resuming dev (documenting). Both halves of that hook sit on the
 `workflow/engine/drift.py` owner the stage leaves import directly, so a patch aimed at the hook targets that owner.
-`_handle_fixing`, `_handle_question`, and `_handle_discussion` skip the drift hook.
+`_handle_fixing`, `_handle_question`, and `_handle_discussion` skip the drift hook, and so does `_handle_blocked`: an
+issue on `workflow:blocked` is a dependency hold, which the hook itself answers with nothing hashed, recorded, or
+routed, so an edit made while it waits is compared once its release enters `workflow:ready`
+([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#user-content-drift-detection)).
 
 `in_review` never merges. Beside its parks, the one thing it tells a human is that the pull request is ready: a ping
 posted only over the issue's current verification evidence proved whole again at the ping

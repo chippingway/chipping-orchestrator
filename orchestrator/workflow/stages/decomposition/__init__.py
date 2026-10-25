@@ -29,9 +29,10 @@ without it in hand writes none -- `split_seeds` the dispatch hold on a child who
 seed is not what that receipt says it was owed, `replacement_lineage` owns
 the late lineage and snapshot pointer those children are seeded with when the
 issue sits inside one -- and the park when either cannot be proved, and the
-repair a recovery makes of each recorded child -- `parents`,
-`activation`, `blocked`, and `umbrella` own the parent-side polling that drives
-the tree to completion, and `ready` owns the decision every issue reaching
+repair a recovery makes of each recorded child -- `parents`, `activation`,
+`blocked`, and `umbrella` own the parent-side polling that drives the tree to
+completion -- `blocked` reading no requirements, since an issue it holds is
+compared once released -- and `ready` owns the decision every issue reaching
 `ready` is asked before it implements -- whether its requirements still read as
 the preserved baseline says, a split's child carrying none rerouted like a
 changed one -- with `ready_handoff` the guarded handoff an unchanged one takes,

@@ -160,6 +160,21 @@ class _IssueService:
         self.created_child_issues.append(child)
         return child
 
+    def move_workflow_label(self, issue: FakeIssue, new_label: str) -> None:
+        """Move the issue onto `new_label`, keeping every other label it carries as this double holds it.
+
+        What the real client's add-then-remove leaves: only workflow labels
+        come off, whatever reading `issue` is, so a label applied to the issue
+        as held after that reading stays. Made through `set_workflow_label` on
+        the issue as held, so a case refusing or interrupting that write
+        refuses or interrupts this one, and the object handed in reads what
+        landed.
+        """
+        held = self._issues.get(issue.number, issue)
+        self.set_workflow_label(held, new_label)
+        if held is not issue:
+            issue.labels = list(held.labels)
+
     def find_issue_carrying(self, marker: str) -> FakeIssue | None:
         """The issue this client created carrying `marker`, in any state.
 

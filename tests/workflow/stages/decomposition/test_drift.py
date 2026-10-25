@@ -22,6 +22,8 @@ from tests.support.fakes import (
 )
 from tests.workflow.fixtures import (
     _TEST_SPEC,
+    LABEL_BLOCKED,
+    LABEL_READY,
     _agent,
     _manifest,
     _PatchedWorkflowMixin,
@@ -50,9 +52,7 @@ ORPHANED_CHILD_NUMBERS = (411, 412)
 HUMAN_COMMENT_ID = 2000
 LAST_ACTION_COMMENT_ID = 1500
 BLOCKED_PARENT_NUMBER = 300
-BLOCKED_PARENT_CHILD_NUMBER = 301
-BLOCKED_CHILD_NUMBER = 310
-BLOCKED_CHILD_PARENT_NUMBER = 309
+BLOCKED_PARENT_CHILD_NUMBERS = (301, 302)
 UMBRELLA_NUMBER = 400
 UMBRELLA_CHILD_NUMBERS = (401, 402)
 LOCKED_BACKEND = "claude"
@@ -101,7 +101,12 @@ def _decomposing_drift_fixture():
     return github, issue
 
 
-def _blocked_parent_drift_fixture():
+def _blocked_parent_drift_fixture(second_label: str):
+    """A `blocked` parent whose body was edited since its baseline, over a `done` child and a second on `second_label`.
+
+    The second depends on the first, and both are linked the way a split
+    seeds them.
+    """
     github = FakeGitHubClient()
     parent = make_issue(
         BLOCKED_PARENT_NUMBER,
@@ -109,11 +114,16 @@ def _blocked_parent_drift_fixture():
         body="updated parent body",
     )
     github.add_issue(parent)
-    github.add_issue(make_issue(BLOCKED_PARENT_CHILD_NUMBER, label="workflow:implementing"))
+    for child_number, child_label in zip(BLOCKED_PARENT_CHILD_NUMBERS, (LABEL_DONE, second_label), strict=True):
+        github.add_issue(make_issue(child_number, label=child_label))
+        github.seed_state(child_number, parent_number=BLOCKED_PARENT_NUMBER)
     github.seed_state(
         BLOCKED_PARENT_NUMBER,
-        children=[BLOCKED_PARENT_CHILD_NUMBER],
+        children=list(BLOCKED_PARENT_CHILD_NUMBERS),
+        dep_graph={"1": [0]},
+        decomposer_agent=LOCKED_BACKEND,
         decomposer_session_id=RETIRED_SESSION_ID,
+        split_rationale="the parent keeps the docs for its own pass",
         user_content_hash=STALE_USER_CONTENT_HASH,
     )
     return github, parent
@@ -431,89 +441,48 @@ class DecomposingHashChangeResetsSessionTest(
         )
 
 
-class HandleBlockedHashDriftTest(
+class HandleBlockedEditTest(
     unittest.TestCase,
     _PatchedWorkflowMixin,
+    _ready_support.ReadyTicks,
 ):
-    """Reviewer point 2: `blocked` must route back to `decomposing` per
-    the spec so a later `_handle_ready` does not skip the re-decomposer
-    when the edited body now needs splitting. Both parent (children
-    listed as orphans) and child (no orphans) cases route."""
+    """An edit to a `blocked` parent waits for its release: the poll goes on over it, and `ready` compares it.
 
-    def test_parent_with_children_routes_back(self) -> None:
-        gh, parent = _blocked_parent_drift_fixture()
+    Nothing is hashed, told, reset, or rerouted on `blocked` -- the baseline,
+    the manifest, the graph, and the rationale stand as they were -- while the
+    walk releases what the graph permits and the parent finishes waiting once
+    its children are done. The entry to `ready` that finish makes is where the
+    edit is compared, before anything implements the parent.
+    """
 
-        self._run(
-            lambda: _blocked._handle_blocked(gh, _TEST_SPEC, parent),
-            run_agent=_agent(),
-        )
+    def test_an_edited_parent_releases_its_children(self) -> None:
+        gh, parent = _blocked_parent_drift_fixture(LABEL_BLOCKED)
+        recorded = gh.pinned_data(BLOCKED_PARENT_NUMBER)
 
-        # Routed back to decomposing per spec ("Before validating: route
-        # back to decomposing"). The next tick spawns a fresh decomposer
-        # against the new body.
-        self.assertIn(
-            (BLOCKED_PARENT_NUMBER, LABEL_DECOMPOSING),
-            gh.label_history,
+        self._run(lambda: _blocked._handle_blocked(gh, _TEST_SPEC, parent), run_agent=_agent())
+
+        self.assertEqual(gh.label_history, [(BLOCKED_PARENT_CHILD_NUMBERS[1], LABEL_READY)])
+        self.assertEqual(gh.pinned_data(BLOCKED_PARENT_NUMBER), recorded)
+        self.assertEqual(_comments_for_issue(gh, BLOCKED_PARENT_NUMBER), [])
+
+    def test_an_edited_parent_finishes_waiting(self) -> None:
+        gh, parent = _blocked_parent_drift_fixture(LABEL_DONE)
+
+        self._run(lambda: _blocked._handle_blocked(gh, _TEST_SPEC, parent), run_agent=_agent())
+        finished = (
+            list(gh.label_history),
+            gh.pinned_data(BLOCKED_PARENT_NUMBER)[KEY_USER_CONTENT_HASH],
         )
-        state = gh.pinned_data(BLOCKED_PARENT_NUMBER)
-        self.assertFalse(state.get("awaiting_human"))
-        # Manifest state cleared so half-finished-recovery does not fire.
-        self.assertEqual(state.get(KEY_CHILDREN), [])
-        self.assertIsNone(state.get(KEY_DECOMPOSER_SESSION_ID))
-        self.assertNotEqual(
-            state.get(KEY_USER_CONTENT_HASH),
-            STALE_USER_CONTENT_HASH,
+        ran = self.ready_tick(gh, parent)
+
+        self.assertEqual(finished, ([(BLOCKED_PARENT_NUMBER, LABEL_READY)], STALE_USER_CONTENT_HASH))
+        self.assertEqual(
+            (ran, gh.label_history[1:]),
+            (0, [(BLOCKED_PARENT_NUMBER, LABEL_DECOMPOSING)]),
         )
-        # Notice explicitly lists the now-orphaned child so the operator
-        # knows to close it manually if it no longer applies.
-        notice = _comment_with_marker(
-            gh,
-            BLOCKED_PARENT_NUMBER,
-            RESPAWN_NOTICE_MARKER,
-        )
-        self.assertIn("#301", notice)
+        notice = _comment_with_marker(gh, BLOCKED_PARENT_NUMBER, RESPAWN_NOTICE_MARKER)
         self.assertIn(ORPHAN_NOTICE_WORD, notice)
-
-    def test_child_waiting_routes_to_decomposing(self) -> None:
-        # A blocked child waiting on a sibling. Without routing to
-        # `decomposing`, `_handle_ready` would later see the matching
-        # baseline (because we silently absorbed the new hash) and skip
-        # the re-decomposer, even if the edited child now needs
-        # splitting -- the explicit reviewer concern.
-        gh = FakeGitHubClient()
-        child = make_issue(
-            BLOCKED_CHILD_NUMBER,
-            label="workflow:blocked",
-            body="updated child body",
-        )
-        gh.add_issue(child)
-        gh.seed_state(
-            BLOCKED_CHILD_NUMBER,
-            parent_number=BLOCKED_CHILD_PARENT_NUMBER,
-            user_content_hash=STALE_USER_CONTENT_HASH,
-        )
-
-        self._run(
-            lambda: _blocked._handle_blocked(gh, _TEST_SPEC, child),
-            run_agent=_agent(),
-        )
-
-        self.assertIn(
-            (BLOCKED_CHILD_NUMBER, LABEL_DECOMPOSING),
-            gh.label_history,
-        )
-        state = gh.pinned_data(BLOCKED_CHILD_NUMBER)
-        self.assertNotEqual(
-            state.get(KEY_USER_CONTENT_HASH),
-            STALE_USER_CONTENT_HASH,
-        )
-        # Notice posted; no orphans for a child with no own children.
-        notice = _comment_with_marker(
-            gh,
-            BLOCKED_CHILD_NUMBER,
-            RESPAWN_NOTICE_MARKER,
-        )
-        self.assertNotIn(ORPHAN_NOTICE_WORD, notice)
+        self.assertEqual([f"#{number}" in notice for number in BLOCKED_PARENT_CHILD_NUMBERS], [True, True])
 
 
 class HandleUmbrellaHashDriftTest(

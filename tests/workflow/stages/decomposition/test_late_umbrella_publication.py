@@ -41,9 +41,11 @@ from tests.workflow.fixtures import _TEST_SPEC
 from tests.workflow.observation_support import ObservedCloseCase
 from tests.workflow.stages.decomposition.late_published_split_support import (
     STATE_CLOSED,
+    STATE_OPEN,
     PublishedSplitCase,
 )
 from tests.workflow.stages.decomposition.late_race_support import (
+    MovedOnRead,
     interleaved_after,
 )
 from tests.workflow.stages.decomposition.late_test_support import (
@@ -70,6 +72,10 @@ RELEASE_GATE = "_release_undone"
 PUBLICATION_BARRIER = "_publication_holds"
 
 WARNING = "WARNING"
+
+# The reads a walk takes of a child it releases: the scan, the reading under
+# its claim, and the one in front of its relabel.
+_READS_TO_THE_RELABEL = 3
 
 
 class ReopenedPublicationUmbrellaTest(PublishedSplitCase, unittest.TestCase):
@@ -146,6 +152,29 @@ class ReopenedBetweenRelabelsTest(PublishedSplitCase, unittest.TestCase):
             self._transact(
                 generation=self.generation, children=INDEPENDENT,
             )
+
+
+class ReopenedInTheChildReadTest(PublishedSplitCase, unittest.TestCase):
+    """A change reopened while the walk reads a child again in front of its relabel.
+
+    That read is a request of its own -- the one that keeps an operator's hold
+    from being written away -- so the licence is asked behind it, the last
+    request in front of the relabel, rather than in front of it: a reopen
+    landing inside that read holds the child all the same.
+    """
+
+    def test_the_child_is_not_released(self) -> None:
+        self._transact(generation=self.generation)
+        first, waiting = self.github.created_child_issues
+        self.github.set_workflow_label(first, WorkflowLabel.DONE, guarded=False)
+        first.closed = True
+        reopen = MovedOnRead(self.github, waiting.number, _READS_TO_THE_RELABEL, self.reopened)
+
+        with reopen.installed(), self.assertLogs(level=ERROR):
+            _umbrella._handle_umbrella(self.github, _TEST_SPEC, self.issue)
+
+        self.assertEqual(self.published_pr.state, STATE_OPEN, "the reopen landed inside the walk")
+        self.assertEqual(self.github.workflow_label(waiting), WorkflowLabel.BLOCKED)
 
 
 class LatchedInsideTheLicenceTest(

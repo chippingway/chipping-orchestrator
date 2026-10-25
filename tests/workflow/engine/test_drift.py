@@ -3,12 +3,37 @@
 """User-content hash and drift detection tests."""
 from __future__ import annotations
 
+import itertools
 import unittest
+from unittest.mock import Mock, patch
 
 from orchestrator.workflow.engine import content_hash as _content_hash, drift
 from tests.workflow.engine import drift_test_support as support
 
 OBSERVED = "observed_user_content_hash"
+
+# A bare continue on a waiting issue's thread, which the legacy spelling of a
+# baseline counts, and the body its recorded reading was taken over.
+_BARE_CONTINUE = support.FakeComment(
+    id=100,
+    body=support.CONTINUE_COMMAND,
+    user=support.FakeUser("dave"),
+)
+
+_RECORDED_BODY = "the body as its reading was taken"
+
+# Where a waiting issue's record keeps its reading, whether that reading is in
+# the legacy spelling, and whether the check's caller holds a reading of the
+# thread: every pairing of no reading, a baseline, and an observed one.
+_WAITING = tuple(itertools.product(
+    (None, support.KEY_USER_CONTENT_HASH, OBSERVED),
+    (False, True),
+    (False, True),
+))
+
+# What the check answers every one of them: no drift, no fingerprint taken,
+# its claimed reading still the record as pinned, and no write.
+_ASKED_NOTHING = (None, 0, True, 0)
 
 
 class ComputeUserContentHashTest(unittest.TestCase):
@@ -123,7 +148,50 @@ def _observed_issue(*, edited: bool):
     return gh, issue
 
 
+def _asked_while_waiting(recorded_as: str | None, *, legacy: bool, held: bool) -> tuple:
+    """Ask the drift check of an issue on `workflow:blocked`, edited since the reading its record carries.
+
+    The reading is recorded under `recorded_as` -- none at all for None --
+    taken in the legacy spelling that counts the bare continue on the thread
+    where `legacy`, and the check's caller holds a reading of the thread
+    where `held`. Answers what the check returned, how many fingerprints it
+    took, whether the claimed reading still matches the record as pinned, and
+    how many writes were sent.
+    """
+    context = support._content_change_case(
+        _RECORDED_BODY, support.NEW_BODY, comments=(_BARE_CONTINUE,), include_bare_continue=legacy,
+    )
+    context.issue.labels = [support.FakeLabel(support.LABEL_BLOCKED)]
+    record = {} if recorded_as is None else {recorded_as: context.prior_hash}
+    context.github.seed_state(1, **record)
+    state = context.github.read_pinned_state(context.issue)
+    fingerprint = Mock(wraps=_content_hash._compute_user_content_hash)
+    with patch.object(_content_hash, "_compute_user_content_hash", fingerprint):
+        changed = drift._detect_user_content_change(
+            context.github, context.issue, state, reading=list(context.issue.comments) if held else None,
+        )
+    return (
+        changed,
+        fingerprint.call_count,
+        state.data == context.github.pinned_data(1),
+        context.github.write_state_calls,
+    )
+
+
 class DetectUserContentChangeTest(unittest.TestCase):
+    def test_a_waiting_issue_is_asked_nothing(self) -> None:
+        # Whatever its record carries -- no reading, a baseline in either
+        # spelling, or an observed reading in its place -- and whether or not
+        # its caller holds a reading of the thread, an issue on
+        # `workflow:blocked` is answered with no fingerprint taken, nothing
+        # staged, and nothing written: its requirements wait for `ready`.
+        for recorded_as, legacy, held in _WAITING:
+            with self.subTest(recorded_as=recorded_as, legacy=legacy, held=held):
+                asked = _asked_while_waiting(recorded_as, legacy=legacy, held=held)
+
+                self.assertEqual(asked, _ASKED_NOTHING)
+
+
     def test_first_call_persists_and_returns_none(self) -> None:
         # The first encounter has no baseline; we record the current value
         # AND write pinned state immediately so a parked/idle tick can't

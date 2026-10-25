@@ -508,9 +508,9 @@ orchestrator/
                         public property would spend a detail GET on every real issue to answer, asking that
                         property only of a row whose slot is missing or in a shape it does not recognize -- with
                         each swept label asked for by its canonical name alone, so a closed issue carrying only
-                        an obsolete bare label is not swept. Sits directly above `issues` in
-                        the client's mixin chain, which is the owner it reads its label sets and its issue-state
-                        spellings from
+                        an obsolete bare label is not swept. Sits directly above `label_moves` in the client's
+                        mixin chain, which sits above `issues`, the owner it reads its label sets and its
+                        issue-state spellings from
     issues.py           issue writes (a relabel replaces only the current workflow labels, and a child is born on a
                         coerced canonical label), the query options, the wire issue-state vocabulary, the closed
                         predicate every reader of it asks through, the every-state, no-label walk that finds the first
@@ -527,6 +527,13 @@ orchestrator/
                         is authenticated under, so a name a collaborator applied by hand is not a write of this
                         orchestrator's; only canonical workflow labels count, so control labels and obsolete bare names
                         are excluded, and no account, no evidence, and an unreadable walk all answer alike
+    label_moves.py      the workflow relabel that sends no label set (`move_workflow_label`): the new label added, then
+                        each current workflow label it replaces taken off by name, so a label applied after the
+                        reading it was handed -- an operator's `paused` or `backlog` above all -- stays, which the
+                        dependency release and a blocked parent's return to `ready` relabel through; guarded,
+                        announced, and cached on the object as the whole-set write is, adding before it removes so
+                        an interrupted move leaves both labels rather than none, and a label already gone answering
+                        as gone
     labels.py           label vocabulary, bootstrap specs, the issue predicates (a workflow state matched by its
                         exact canonical label through the shared resolver, a control label however a human cased
                         it), the bootstrap that creates the canonical labels a repository lacks without looking up,

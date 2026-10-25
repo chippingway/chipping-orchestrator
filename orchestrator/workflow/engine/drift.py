@@ -7,6 +7,14 @@ the first or normalized baseline, resumes implementation with the changed text,
 and clears split claims and the split's recorded rationale before routing
 pre-implementation drift to decomposition.
 
+An issue whose workflow label reads `workflow:blocked` is answered with
+nothing done. It is waiting on prerequisites, and what it says is compared
+when it legitimately enters `workflow:ready`, before anything implements --
+so nothing here hashes its thread, records, initializes, or normalizes a
+baseline on it, or reports drift a route could act on: an edit made while it
+waits is still there to compare, against a baseline nothing replaced, once
+the hold is released.
+
 It also says what a missing baseline means. Every check but one takes the first
 reading it meets as the baseline -- or the observed reading a stage recorded in
 its place -- and persists it. The one is `ready`'s, on a split's child
@@ -65,19 +73,23 @@ def _detect_user_content_change(
     """Return the new hash if the user-visible content drifted since the
     prior stored value, or None when unchanged.
 
+    An issue whose workflow label reads `workflow:blocked` answers None with
+    nothing hashed, staged, or written: its requirements wait for its release
+    to `workflow:ready`, whose decision compares them against the baseline
+    left exactly as it stood.
+
     On the FIRST call for an issue (no prior hash in pinned state), persist
     the current value via `gh.write_pinned_state` immediately -- unless a
     stage recorded the reading it acted on as `observed_user_content_hash`,
     which then stands in for the missing baseline: the current value is
     persisted only where it still matches, and anything written after that
-    reading is reported as the drift it is. Doing it
-    in-memory only would lose the baseline whenever the calling handler's
-    early-return path (awaiting-human-with-no-new-comments, debounce,
-    child-waiting-on-deps, …) skips its own state write; the very next
-    edit would then be classified as the new baseline and silently
-    absorbed. The cost is one extra write per legacy issue still missing
-    the field on first encounter; in steady state the hash is already set
-    and this branch never fires.
+    reading is reported as the drift it is. Doing it in-memory only would lose
+    the baseline whenever the calling handler's early-return path
+    (awaiting-human-with-no-new-comments, debounce, …) skips its own state
+    write; the very next edit would then be classified as the new baseline and
+    silently absorbed. The cost is one extra write per legacy issue still
+    missing the field on first encounter; in steady state the hash is already
+    set and this branch never fires.
 
     Legacy-hash normalization: an issue whose baseline was written by the
     pre-issue-#729 algorithm (which counted a bare `/orchestrator continue`
@@ -105,6 +117,8 @@ def _detect_user_content_change(
     nobody here: the caller's own checkpoint lands it, and a caller that never
     reaches that checkpoint licenses nothing on it either.
     """
+    if gh.workflow_label(issue) == WorkflowLabel.BLOCKED:
+        return None
     orchestrator_ids = _comments._orchestrator_ids(state)
     current = _content_hash._compute_user_content_hash(issue, orchestrator_ids, comments=reading)
     # The recorded baseline, else the observed reading standing in for it, else
@@ -260,12 +274,14 @@ def _route_drift_to_decomposing(
     in-flight manifest state so the next tick spawns a fresh decomposer
     against the updated body.
 
-    `orphan_children` is the parent's previously-tracked children list
-    (empty for a blocked child): existing children are NOT
-    closed on GitHub by this helper, but their record is dropped from the
-    parent's pinned state so the new manifest does not collide with them.
-    The notice posted on the issue lists the orphan numbers explicitly so
-    the operator can close any that no longer apply.
+    `orphan_children` is the parent's previously-tracked children list:
+    existing children are NOT closed on GitHub by this helper, but their
+    record is dropped from the parent's pinned state so the new manifest does
+    not collide with them. Only the umbrella reaches it
+    (`parents._route_parent_drift`), on the check's answer above, which a
+    `workflow:blocked` issue never earns. The notice posted on the issue lists
+    the orphan numbers explicitly so the operator can close any that no longer
+    apply.
 
     What drops is the manifest and nothing else. A late generation a split
     left on the parent is kept exactly as it was: it records which children

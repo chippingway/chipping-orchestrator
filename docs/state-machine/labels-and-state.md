@@ -46,7 +46,14 @@ Three non-workflow **control labels** modify behavior without occupying the work
 - `backlog` makes the orchestrator skip the issue: the per-tick dispatcher filters it out before the family/fanout split
   (so a parked, workflow-label-less issue cannot fold into the cap-counted family bucket and starve other work under
   `parallel_limit=1`), and each stage handler also skips it before the workflow label is read. Removing it hands control
-  back to the state machine on the next tick.
+  back to the state machine on the next tick, and nothing else does: neither a requirements edit nor a finished
+  prerequisite lifts or works past it (or `paused`) — a parent's dependency walk releases no child carrying either,
+  which stays `workflow:blocked` until the label is gone and a later walk releases it, a `blocked` parent whose
+  children are all done is not handed back to `workflow:ready` under either, and the `ready` decision stops at either
+  ([C-10](../contracts.md#c-10-pauses-and-parks)). The release and the parent's return move only the workflow label
+  (`move_workflow_label`, [below](#typed-states-and-the-transition-guard)), since a whole-set write replaces the set it
+  was read with and would write a hold applied since away; the walk also reads the parent's own controls again in front
+  of every release, and a hold on the parent releases none of the rest.
 - `paused` is the same hard skip as `backlog` at every point (dispatch, scheduler routing, `_process_issue`, and base
   sync), differing only in intent: `backlog` is a "not yet" hold on a fresh issue, `paused` freezes an already
   in-flight one without discarding its state. Removing it resumes processing on the next tick. Because those skip
@@ -109,9 +116,15 @@ namespace stops at the GitHub boundary, and `stage_name` on the same owner is wh
 stage tag every sink below that boundary records. A bare name matching a namespaced state is no spelling of it; what
 each reader does with one is [below](#obsolete-bare-labels).
 
-Two guards run at `GitHubClient.set_workflow_label` (the single label-write chokepoint; `create_child_issue` bypasses
+Two guards run at `GitHubClient.set_workflow_label` (the label-write chokepoint; `create_child_issue` bypasses
 `set_workflow_label` and shares only the typo guard for its direct write, coercing each child label through
-`label_reading.coerce_workflow_label` — the same strictness):
+`label_reading.coerce_workflow_label` — the same strictness), and both run at `move_workflow_label` beside it
+(`github/label_moves.py`). That one sends no label set: it adds the new workflow label and takes off each one it
+replaces by name, so a label applied after the reading it was handed — an operator's `paused` or `backlog` above all —
+stays, where a whole-set write would drop it. The dependency release and a `workflow:blocked` parent's return to
+`workflow:ready` relabel through it, since each has a request it cannot drop in front of its write. It adds before it
+removes, so a move a crash interrupts leaves both workflow labels, which readers tolerate as they do a human's second
+one and the issue's next relabel takes off; a label somebody took off first answers as gone:
 
 - **Typo guard (always strict).** A label name not in `WorkflowLabel` raises immediately, an obsolete bare name such
   as `fixing` included, so neither can be applied as a literal label that the next tick would treat as
@@ -188,7 +201,9 @@ stays inert. The pinned state those transitions move an issue through is [below]
 - `workflow:ready` — The issue is decomposed and has no unresolved blockers. Its requirements are compared against
   the preserved baseline before anything implements: changed ones — or a split's child carrying no baseline — go back
   to `workflow:decomposing`, unchanged ones on to `workflow:implementing`.
-- `workflow:blocked` — The issue is waiting on child issues or dependency edges.
+- `workflow:blocked` — The issue is waiting on child issues or dependency edges: a dependency hold. Its requirements
+  are not read while it waits — nothing hashes, baselines, or reroutes it, and an edit leaves its baseline, manifest,
+  graph, and children standing — and are compared once its release enters `workflow:ready`, its only way out.
 - `workflow:umbrella` — Parent issue with no implementation of its own; closes to `done` when all children resolve.
 - `workflow:implementing` — The dev agent is producing commits in a per-issue worktree. A clean result advances to
   `workflow:validating`.
@@ -307,9 +322,9 @@ The dispatch loop classifies each pollable issue by workflow label before submit
   **open** `workflow:blocked` / `workflow:umbrella` issue is left out before the split on the ticks
   `DEPENDENCY_POLL_EVERY_N_TICKS` skips — default `5`, counted on the same polls as
   `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS`, so the first poll is due and every fifth after it. That saves the child reads
-  its dependency walk spends, and costs up to N ticks before a child is activated, a parent completes, or drift on
-  either is detected; `1` keeps the walk every tick. The rest of the bucket still drains in order on a skipped tick,
-  and a close this process already observed still routes such an issue to its cleanup.
+  its dependency walk spends, and costs up to N ticks before a child is activated, a parent completes, or an
+  umbrella's drift is detected; `1` keeps the walk every tick. The rest of the bucket still drains in order on a
+  skipped tick, and a close this process already observed still routes such an issue to its cleanup.
 - **Fan-out labels** (`workflow:ready`, `workflow:implementing`, `workflow:documenting`, `workflow:validating`,
   `in_review`, `workflow:fixing`, `workflow:resolving_conflict`, and the operator-applied `question` and
   `discussion`) only touch their own state and worktree. They run concurrently up to the per-repo and global caps. A
@@ -427,8 +442,13 @@ A family-aware handler writes issues other than its own, so those writes take th
 what they read behind it. The walk that relabels a `workflow:blocked` child `workflow:ready` claims every child it would
 release, then reads each again — its scan was taken before any claim, and another poller may have relabelled, finished,
 or closed one in between — and releases none if one is held, cannot be read, no longer reads open and
-`workflow:blocked`, or carries a pinned record admission refuses or nobody could read, on a late split's register as on
-an ordinary split's, parking nothing and saying the refusal only in its log; the next walk scans again. Recovery's
+`workflow:blocked`, now carries `paused` or `backlog`, or carries a pinned record admission refuses or nobody could
+read, on a late split's register as on an ordinary split's, parking nothing and saying the refusal only in its log; the
+next walk scans again. A child its scan already reads under `paused` or `backlog` is kept back alone while its
+siblings are released, and so is one a hold lands on behind the claimed re-read: each child is read again in front
+of its own relabel, then the parent's controls and the publication a late split's register is licensed on, the last
+request before the relabel, which moves only the workflow label — so a hold landing even inside that lookup stays on
+the child it releases. Recovery's
 orphan repair stops short of a held child without parking; a merged child's finalize reads each claimed child again and
 counts it by that reading, so one another poller finalized, relabelled, or reopened since the scan is never finalized
 twice, and leaves a held child as scanned, counted neither done nor closed by hand; and the snapshot-reclaimed notice
@@ -1339,9 +1359,10 @@ The keys that matter for the state machine fall into a few groups:
   created saying. A receipt proves only which slice it was cut for, and the manifest a late parent retains no more,
   since the body it renders also names the configured base branch, remote, and mirror, which no record keeps — a child
   reading exactly as it renders now may have been edited to match a configuration changed since the create. A child
-  missing one is held by no seed, admission, or release (`stages/decomposition/child_baseline.py`); `workflow:ready`
-  is where it is answered: a split's child carrying neither this nor the observed reading below is rerouted to
-  `workflow:decomposing` before anything implements, never handed on with its current words recorded as unchanged.
+  missing one is held by no seed, admission, or release (`stages/decomposition/child_baseline.py`), and nothing
+  records one for it while it waits on `workflow:blocked`; `workflow:ready` is where it is answered: a split's child
+  carrying neither this nor the observed reading below is rerouted to `workflow:decomposing` before anything
+  implements, never handed on with its current words recorded as unchanged.
   `ready` records it in its own guarded checkpoint: the handoff lands a first or normalized value the drift check
   staged, and a reroute's reset lands the current fingerprint beside `ready_reroute`. What a run may cross on the issue
   thread is bounded beside it — see [the drift section](delivery-stages.md#user-content-drift-detection).

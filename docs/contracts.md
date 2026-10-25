@@ -20,7 +20,7 @@ Use this checklist when reviewing a change; each ID links to its limits, specifi
 | [C-07] | Agents never push; the orchestrator never merges PRs and checks the commit and remote head before pushing. |
 | [C-08] | Update reply parsers when prompts change the reply format. |
 | [C-09] | Bind approval to one PR head, requirements revision, and developer report backed by passing verification. |
-| [C-10] | Honor `paused`/`backlog` and each park's recorded reason for waiting for a human. |
+| [C-10] | Honor `paused`/`backlog`, each dependency hold, and each park's recorded reason for waiting for a human. |
 | [C-11] | Never load a GitHub token (`GITHUB_TOKEN` or its aliases) from `.env`. |
 | [C-12] | Keep logs and analytics out of decisions; read the audit log only to avoid recording a base rebase twice. |
 | [C-13] | Import shared helpers from the module that defines them; read settings through `orchestrator.config`. |
@@ -66,7 +66,9 @@ are preserved unchanged and never overwritten, duplicated, or silently upgraded.
 `rejected`, `backlog`, and `paused`. Every other name is repository metadata, an obsolete bare spelling such as `ready`
 or `fixing` included: it selects no stage, authorizes no artifact ownership, and survives every relabel, alone or
 beside the canonical label of the state it resembles. Human edits can leave multiple workflow labels; readers tolerate
-them. Guard exemptions are listed in the label specification.
+them. So can a crash inside the label move a dependency release or a blocked parent's return to `workflow:ready`
+makes: it adds the new label before it takes off the one it replaces, so that no hold applied meanwhile is written
+away, and the issue's next relabel takes the extra one off. Guard exemptions are listed in the label specification.
 
 **Specs:** [labels and guards](state-machine/labels-and-state.md#workflow-labels),
 [obsolete labels](state-machine.md#obsolete-bare-labels).
@@ -270,19 +272,33 @@ to the new revision. The ready ping announces an approval only over current pass
 
 ## C-10: Pauses and parks
 
-**Rule: Honor `paused`/`backlog` and each park's recorded reason for waiting for a human.**
+**Rule: Honor `paused`/`backlog`, each dependency hold, and each park's recorded reason for waiting for a human.**
 
 **Why:** Resuming work requires the action that answers the specific hold or park.
 
-**Limits:** A hold does not undo earlier writes or commits. Lifetime agent-run charges and the grant that permits
-further runs are covered by [C-15].
+**Limits:** A hold does not undo earlier writes or commits. A dependency hold is an issue on `workflow:blocked`, and
+only its parent's release, once the recorded prerequisites permit it, answers it. An edit made meanwhile is not read:
+nothing hashes it, records or replaces a baseline, or reroutes the issue, so its baseline, decomposition records,
+dependency graph, and tracked children stand, and its requirements are compared on the legitimate entry to
+`workflow:ready` that release makes, before anything implements it. The hold stops no dependency progress: a blocked
+parent's walk still releases eligible children, and still finishes waiting, through the existing claims, admission,
+and lineage checks, and an umbrella keeps its own drift route. Neither an edit nor a finished prerequisite lifts or
+works past `paused`/`backlog`: a held child is not released, a held parent is neither polled nor handed back to
+`workflow:ready`, and the `ready` decision stops at either control or at a relabel back to `workflow:blocked`. The
+release and the parent's return move only the workflow label, and the walk reads the parent's controls again in front
+of every release, so a hold applied while the poll runs is never written away or worked past. Lifetime agent-run
+charges and the grant that permits further runs are covered by [C-15].
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
 [waiting for human action](state-machine.md#per-tick-flow-workflowengineticktick),
+[dependency holds](state-machine/delivery-stages.md#_handle_blocked-label-workflowblocked),
+[deferred drift](state-machine/delivery-stages.md#user-content-drift-detection),
 [retry budget](state-machine/labels-and-state.md#the-retry-budget).
 
 **Checks:** [live holds](../tests/workflow/engine/test_guards_paused.py),
 [ready holds](../tests/workflow/stages/decomposition/test_ready_holds.py),
+[dependency holds](../tests/workflow/stages/decomposition/test_blocked_deferral.py),
+[held releases](../tests/workflow/stages/decomposition/test_claimed_release.py),
 [review parks](../tests/workflow/stages/in_review/test_parked.py),
 [retry-cap parks](../tests/workflow/engine/test_retry_budget.py).
 

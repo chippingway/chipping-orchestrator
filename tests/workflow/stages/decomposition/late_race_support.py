@@ -62,6 +62,35 @@ class RecordedLookups:
             yield
 
 
+class MovedOnRead:
+    """A world that moves the moment one issue has been fetched `calls` times.
+
+    What a human does while a pass reads the same issue more than once -- a
+    scan, a reading under a claim, a reading in front of a write -- named by
+    which of those reads it lands behind.
+    """
+
+    def __init__(self, client: FakeGitHubClient, number: int, calls: int, moved) -> None:
+        self._client = client
+        self._fetch = client.get_issue
+        self._number = number
+        self._left = calls
+        self._moved = moved
+
+    def __call__(self, number: int):
+        """Fetch the issue, and move the world behind the last counted fetch of the one this watches."""
+        fetched = self._fetch(number)
+        if number == self._number:
+            self._left -= 1
+            if not self._left:
+                self._moved()
+        return fetched
+
+    def installed(self):
+        """Hold the client's issue fetch for the block."""
+        return patch.object(self._client, "get_issue", self)
+
+
 @contextlib.contextmanager
 def interleaved_after(owner, name: str, moved):
     """A human moving something the moment one step has reported back."""

@@ -82,7 +82,8 @@ than a second source of truth: where the two disagree, the handler pages are aut
        it, or a first pin another   record that stands (a standing marker
        pin shadows                  only finishes its relabel)
      paused / backlog applied    ─► stops ahead of the next effect
-       meanwhile
+       meanwhile, or a relabel
+       back to workflow:blocked
 
    Late size gate (every clean committed candidate, before it is published):
      tree not provably clean      ─► never reaches the gate. A dirty one
@@ -983,7 +984,20 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    by hand to drive such an issue again
 
    workflow:blocked (each due dependency poll, open issues only; DEPENDENCY_POLL_EVERY_N_TICKS):
-     all children = done       ─► parent=workflow:ready -- once a late
+     an edit while waiting,    ─► nothing: no hash, no baseline recorded
+       parent or child            or replaced, no notice, no reroute;
+                                  manifest, graph, and children stand,
+                                  and the rows below run over it. The
+                                  release's entry to workflow:ready
+                                  compares it before anything implements
+     a child that waits on     ─► no-op, nothing written
+       its siblings
+     all children = done       ─► parent=workflow:ready -- unless the
+                                  parent, fetched afresh after the scan
+                                  and again behind the completion notice,
+                                  carries paused | backlog, which keeps it
+                                  on workflow:blocked (the relabel is made
+                                  on that last fetch); and once a late
                                   split's ledger on it is settled (the
                                   umbrella row's rule); a ref still held
                                   for a live recorded consumer, or a
@@ -1016,9 +1030,21 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   record that admission refuses, or that
                                   nobody could read, under the child's own
                                   claim releases none either, but parks
-                                  and writes nothing -- said in the log only
+                                  and writes nothing -- said in the log only.
+                                  A child carrying paused | backlog is
+                                  held, released by the first walk that
+                                  reads it with the hold lifted; each
+                                  child is read again in front of its
+                                  relabel, then the parent (a hold on it
+                                  releases none of the rest); the relabel
+                                  moves only the workflow label, so a
+                                  hold applied meanwhile stays
 
    workflow:umbrella (each due dependency poll, open issues only; DEPENDENCY_POLL_EVERY_N_TICKS):
+     an edit to the umbrella   ─► the drift reroute, ahead of the walk:
+                                  workflow:decomposing, the children it
+                                  tracked orphaned by name; a waiting
+                                  child it tracks is asked nothing
      all children = done       ─► settle what the late split still owes the
                                   remote, THEN parent=done, issue closed
                                   (no implementation). The branch is retried
@@ -1125,7 +1151,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   record that admission refuses, or that
                                   nobody could read, under the child's own
                                   claim releases none either, but parks
-                                  and writes nothing -- said in the log only
+                                  and writes nothing -- said in the log only.
+                                  A child carrying paused | backlog is
+                                  held, released by the first walk that
+                                  reads it with the hold lifted
 
    closed on workflow:decomposing | workflow:umbrella | workflow:ready |
    workflow:blocked (cleanup sweep, on the CLOSED_ISSUE_SWEEP_EVERY_N_TICKS

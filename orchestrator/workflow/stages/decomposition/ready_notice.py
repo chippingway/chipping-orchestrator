@@ -12,20 +12,20 @@ looks for the receipt on its thread reading first, and a comment of this
 orchestrator's carrying it is the notice already said, so it is said once
 however often the issue comes back to `ready` before the marker is retired.
 
-A `paused` or `backlog` applied while the tick ran stops the notice
-(`ready_readings.held`), and the caller goes no further -- asked first, so a
-notice already on the thread settles nothing past a hold either: the reroute
-is still owed, and the tick after the hold comes off finishes it. A post that
-fails is logged and left to the next tick that finishes the reroute while the
-marker stands: the `decomposing` tick tries it again ahead of retiring the
-marker, as does a `ready` tick an operator's relabel back brings first. Once
-a retirement lands behind a post that failed again, the notice is abandoned
--- nothing reads the marker after it -- so a thread that will not take a
-comment costs the reroute that one retry and never holds it; a post whose
-answer was lost after it landed is found by its receipt rather than said
-twice. A record carrying no receipt of the minted shape -- a
-hand edit -- names nothing to look for, and its notice is said, as is a
-member of any other shape read as naming no child and no missing baseline.
+A `paused` or `backlog` applied while the tick ran, or a relabel back to
+`workflow:blocked`, stops the notice (`ready_readings.held`), and the caller
+goes no further -- asked first, so a notice already on the thread settles
+nothing past a hold either: the reroute is still owed, and the tick after the
+hold comes off finishes it. A post that fails is logged and left to the next
+tick that finishes the reroute while the marker stands: the `decomposing` tick
+tries it again ahead of retiring the marker, as does a `ready` tick an
+operator's relabel back brings first. Once a retirement lands behind a post
+that failed again, the notice is abandoned -- nothing reads the marker after it
+-- so a thread that will not take a comment costs the reroute that one retry
+and never holds it; a post whose answer was lost after it landed is found by
+its receipt rather than said twice. A record carrying no receipt of the minted
+shape -- a hand edit -- names nothing to look for, and its notice is said, as
+is a member of any other shape read as naming no child and no missing baseline.
 """
 from __future__ import annotations
 

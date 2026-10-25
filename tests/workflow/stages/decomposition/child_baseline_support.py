@@ -3,8 +3,10 @@
 """What the drift-baseline cases plant on a split's children, and what they read back.
 
 A child's recorded baseline is held to the drift check's own reading of the
-thread, computed through the same entry point that check calls, and the check
-itself answers whether what landed since is drift. The rest reach into the
+thread, computed through the same entry point that check calls, and what
+landed since is drift where that reading no longer matches the baseline -- the
+comparison `ready` makes once the child is released, since a child still
+waiting on `workflow:blocked` is asked nothing. The rest reach into the
 windows a baseline is decided in: the child as its create answered it,
 something landing on a child once its claim is granted, and a seed write -- or
 a recovery's read of the child's record -- that never comes back.
@@ -14,7 +16,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from orchestrator.workflow.engine import content_hash as _content_hash, drift as _drift
+from orchestrator.workflow.engine import comments as _comments, content_hash as _content_hash
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeIssue, FakeUser
 
 # What a child's drift baseline is recorded under.
@@ -27,13 +29,16 @@ def reading(issue: FakeIssue) -> str:
 
 
 def drifted(gh: FakeGitHubClient, number: int) -> bool:
-    """Whether the child's own drift check reads its thread as changed since the baseline its record carries.
+    """Whether the child's thread reads as changed since the baseline its record carries.
 
-    Asked only of a record carrying one, which the check compares against
-    and writes nothing over.
+    Fingerprinted as the drift check fingerprints it -- comments of ours, by
+    marker or ledger, left out -- and compared the way `ready` compares it,
+    whichever label the child waits on. Asked only of a record carrying one.
     """
     child = gh.get_issue(number)
-    return _drift._detect_user_content_change(gh, child, gh.read_pinned_state(child)) is not None
+    state = gh.read_pinned_state(child)
+    current = _content_hash._compute_user_content_hash(child, _comments._orchestrator_ids(state))
+    return current != state.get(KEY_BASELINE)
 
 
 class ReadAtCreation:

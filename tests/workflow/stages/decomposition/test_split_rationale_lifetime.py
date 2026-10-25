@@ -45,10 +45,10 @@ STALE_HASH = "stale-hash"
 _SINGLE = _manifest('{"decision": "single", "rationale": "it fits one pass after all"}')
 
 # The labels a parent waits on before any implementation of its own has
-# started, each with the handler that reroutes an edit seen there.
+# started that reroute an edit seen there, each with its handler. `blocked`
+# reroutes none: the edit waits for its release to `ready`.
 _PRE_IMPLEMENTATION = (
     (WorkflowLabel.READY, _blocked._handle_ready),
-    (WorkflowLabel.BLOCKED, _blocked._handle_blocked),
     (WorkflowLabel.UMBRELLA, _umbrella._handle_umbrella),
 )
 
