@@ -21,6 +21,14 @@ The settlement proves the pull request and the requirements once more after the
 post, since a push can land while the artifact is being written: evidence is
 then left owed rather than declared current over a head nobody verified.
 
+A run of a final docs pass's docs commit answers for the approved review --
+about the commit the reviewer was handed -- only while the issue records that
+pass's completion as verified by exactly that run, over that very approval:
+with no completion, one resting on no run, one of another head, or the
+approval retired, it is a subject about another head like any other. And the
+settlement is decided on the completion the tick read, so one another road
+rewrites while the artifact is posted leaves the run owed.
+
 The part of the proof the review and report records answer on their own is
 asked apart too (`recorded_verdict`), for a caller whose proof stopped at a
 reading nobody could take: it refuses what moved on the comment, as the whole
@@ -48,6 +56,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.validating import state as _validating_state
 from tests.support.github.models import FakeLabel
 from tests.workflow.engine import (
+    final_docs_test_support as final_support,
     verification_evidence_test_support as support,
     verification_reply_round_fixture as _reply_round,
     verification_report_fixture as _report,
@@ -59,6 +68,9 @@ _LEVEL = "INFO"
 
 # Why an issue is parked, which names an undeliverable report as a debt.
 _PARK_REASON = "park_reason"
+
+# The fake client's artifact post, which a case intercepts to move the world behind it.
+_POST_ARTIFACT = "_post_verification_artifact"
 
 # Every move, what it is, whether a tick meeting it holds (True) or stands down
 # (False), and the refusal it is logged under -- so each is refused for its own
@@ -307,6 +319,88 @@ class UnprovedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
                 self.assertEqual(_record_state.read_pending_evidence(self.state), pending)
 
 
+# Each move of a final docs pass's completion or of the approval it followed:
+# what it is, the field moved, and the members it changes in what that field
+# records -- None for the field written null.
+_FINAL_HEAD_MOVES = (
+    ("no completion", final_support.FINAL_DOCS, None),
+    (
+        "a completion resting on no run", final_support.FINAL_DOCS,
+        {"verification": "unconfigured", "evidence": None},
+    ),
+    ("a completion of another head", final_support.FINAL_DOCS, {"final_head": support.REBASED_SHA}),
+    ("the approval retired", _review_subjects.APPROVED_SUBJECT, None),
+)
+
+
+class FinalHeadRunTest(unittest.TestCase, final_support.FinalDocsCase):
+    """A run of the docs commit answers for the approved review only through the completion naming it."""
+
+    def setUp(self) -> None:
+        final_support.FinalDocsCase.setUp(self)
+
+    def test_a_docs_run_settles_by_its_completion(self) -> None:
+        self.approves(squashed=True)
+        pending = self.runs_the_final_head()
+
+        self.assertFalse(self.reconcile())
+
+        self.assertEqual(_settlement.read_current_evidence(self.state).receipt, pending.receipt)
+
+    def test_a_docs_run_answers_for_nothing_else(self) -> None:
+        for moved, key, changes in _FINAL_HEAD_MOVES:
+            with self.subTest(moved):
+                self.setUp()
+                self.approves(squashed=True)
+                pending = self.runs_the_final_head()
+                self._moves(key, changes)
+
+                self._stays_owed(pending)
+
+    def test_a_completion_rewritten_under_the_post(self) -> None:
+        # Another road rewrites the completion while the run's artifact is
+        # posted, into one that still licenses the run: the settlement was
+        # decided on the completion the tick read, so it leaves the run owed
+        # rather than settle it over a record nobody proved it under.
+        self.approves(squashed=True)
+        pending = self.runs_the_final_head()
+        rewrites = functools.partial(self._posts_then_rewrites, self.gh._post_verification_artifact)
+
+        with patch.object(self.gh, _POST_ARTIFACT, rewrites), self.assertLogs(
+            support.WORKFLOW_LOG, _LEVEL,
+        ) as logged:
+            self.assertFalse(self.reconcile())
+            refusal = support.logged_refusal(logged)
+
+        persisted = self.gh.read_pinned_state(self.issue)
+        self.assertIn(f"{final_support.FINAL_DOCS} moved", refusal)
+        self.assertEqual(_record_state.read_pending_evidence(persisted), pending)
+        self.assertNotEqual(_settlement.read_current_evidence(persisted).receipt, pending.receipt)
+
+    def _posts_then_rewrites(self, posts, pull_request, body: str):
+        """Land the artifact through `posts`, then record the completion as entered on the approved commit itself."""
+        landed = posts(pull_request, body)
+        self._moves(final_support.FINAL_DOCS, {"entry_head": support.TESTED_SHA})
+        return landed
+
+    def _moves(self, key: str, changes: dict | None) -> None:
+        """Write `key` null, or with `changes` over what it records, as another road's write would."""
+        recorded = self.gh.read_pinned_state(self.issue).get(key)
+        if changes is not None:
+            recorded = dict(recorded, **changes)
+        self.persists(key, recorded if changes else None)
+
+    def _stays_owed(self, pending) -> None:
+        """The reconciliation refuses `pending` as about another head than its subject, posting and settling nothing."""
+        with self.assertLogs(support.WORKFLOW_LOG, _LEVEL) as logged:
+            self.assertFalse(self.reconcile())
+            refusal = support.logged_refusal(logged)
+
+        self.assertIn("not about the head the evidence answers for", refusal)
+        self.assertEqual(_record_state.read_pending_evidence(self.state), pending)
+        self.assertEqual(self.artifacts()[-1].target_head, support.SQUASHED_SHA)
+
+
 class ReviewerReportedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
     """A reviewer's account answers for the subject the reviewer that RETURNED read."""
 
@@ -394,7 +488,7 @@ class MovedDuringPublicationTest(unittest.TestCase, support.VerificationEvidence
     def test_a_push_during_the_post(self) -> None:
         self.meanwhile = functools.partial(self.moves_the_head, support.REBASED_SHA)
         with patch.object(
-            self.gh, "_post_verification_artifact", self.posts_then_moves,
+            self.gh, _POST_ARTIFACT, self.posts_then_moves,
         ), self.assertLogs(support.WORKFLOW_LOG, _LEVEL):
             self.assertFalse(self.reconcile())
 
@@ -420,7 +514,7 @@ class MovedDuringPublicationTest(unittest.TestCase, support.VerificationEvidence
                 self.setUp()
                 self.meanwhile = functools.partial(self.settles_later, persisted=persisted_first)
                 with patch.object(
-                    self.gh, "_post_verification_artifact", self.posts_then_moves,
+                    self.gh, _POST_ARTIFACT, self.posts_then_moves,
                 ), self.assertLogs(support.WORKFLOW_LOG, _LEVEL):
                     self.assertFalse(self.reconcile())
 
@@ -444,7 +538,7 @@ class MovedDuringPublicationTest(unittest.TestCase, support.VerificationEvidence
                 self.meanwhile = functools.partial(self.ends_the_issue, ends)
                 writes = self.gh.write_state_calls
                 with patch.object(
-                    self.gh, "_post_verification_artifact", self.posts_then_moves,
+                    self.gh, _POST_ARTIFACT, self.posts_then_moves,
                 ), self.assertLogs(support.WORKFLOW_LOG, _LEVEL):
                     self.assertFalse(self.reconcile())
 

@@ -9,7 +9,10 @@ debt. The squash's carry is the provenance, wherever the evidence records
 still keep it, and the proof asks nothing about whether that evidence is
 current. Equal trees, the squash's own recovery fields, a report, debt, or
 carry that disagrees on any member, and a squash read as another tree prove
-nothing; a tree nobody could read holds. Reading the proof writes nothing, so
+nothing; a tree nobody could read holds. The debt-free half proves a carry
+of whichever review it is named -- a granted round's, under the requirements
+through the grant -- which the debt's proof, held to the report's own
+review, still refuses. Reading the proof writes nothing, so
 the settled report keeps the commit it was written about.
 """
 from __future__ import annotations
@@ -75,6 +78,14 @@ SETTLED = _report_records.CurrentReport(
 # The squash's carry: the run on the approved commit, for the approved review,
 # answering for the squash.
 CARRY = _record_support.binding().retargeted(SQUASHED)
+
+# The squash's carry of a review under other requirements than the report's,
+# as a round an operator's grant bought leaves it: its approval is under the
+# requirements through that grant, past the ones the report was written against.
+GRANTED_CARRY = replace(CARRY, target=_evidence_records.EvidenceTarget(
+    publication=replace(CARRY.target.publication, requirements_revision=OTHER_DIGEST),
+    subject={**CARRY.target.subject, "requirements": OTHER_DIGEST},
+))
 
 DEBT = _rewrite_debt.RewriteDebt(
     pr_number=PR, branch=BRANCH, previous_head=SQUASHED, rewritten_head=REBASED,
@@ -147,6 +158,15 @@ class _LineageCase:
         ):
             return _lineage.lineage_verdict(_TEST_SPEC, _record_support.ISSUE_NUMBER, state, head).verdict
 
+    def squashed(self, state: PinnedState, review: dict) -> ReportEvidenceVerdict:
+        """What the debt-free half answers for `state`'s squash carrying `review` onto the squashed head."""
+        with (
+            seam_patch("_worktree_path", lambda *_args: self.world.path),
+            seam_patch("_commit_present", self.world.commit_present),
+            seam_patch("_tree_sha", self.world.tree_sha),
+        ):
+            return _lineage.squash_verdict(_TEST_SPEC, _record_support.ISSUE_NUMBER, state, SQUASHED, review).verdict
+
 
 class LineageProvedTest(_LineageCase, unittest.TestCase):
     """The squash's carry, kept anywhere, proves the settled report's lineage and changes nothing."""
@@ -161,6 +181,21 @@ class LineageProvedTest(_LineageCase, unittest.TestCase):
 
                 self.assertEqual(state.data, before, "reading the proof wrote nothing")
                 self.assertEqual(_settlement.read_current_report(state).subject.source_sha, APPROVED)
+
+    def test_a_squash_proves_for_the_review_it_names(self) -> None:
+        # The debt's proof holds a carry to the review of the settled report
+        # itself, so a carry of a granted round's review proves nothing there;
+        # named that very review, the squash it records proves -- and named
+        # the report's own review, it does not.
+        state = _journey(carry=GRANTED_CARRY)
+
+        verdicts = (
+            self.verdict(state),
+            self.squashed(state, GRANTED_CARRY.target.subject),
+            self.squashed(state, CARRY.target.subject),
+        )
+
+        self.assertEqual(verdicts, (_DEFER, _PROVED, _DEFER))
 
     def test_a_retargeted_debt_keeps_the_proof(self) -> None:
         state = _journey()
@@ -235,10 +270,7 @@ _DISAGREEING_CARRIES = (
     ("on another branch", replace(CARRY, target=replace(
         CARRY.target, publication=replace(CARRY.target.publication, branch=f"{BRANCH}-2"),
     ))),
-    ("under other requirements", replace(CARRY, target=_evidence_records.EvidenceTarget(
-        publication=replace(CARRY.target.publication, requirements_revision=OTHER_DIGEST),
-        subject={**CARRY.target.subject, "requirements": OTHER_DIGEST},
-    ))),
+    ("under other requirements", GRANTED_CARRY),
     ("for a review of the squash", replace(CARRY, target=replace(
         CARRY.target, subject={**CARRY.target.subject, "sha": SQUASHED},
     ))),

@@ -21,13 +21,20 @@ since, is not current. And that subject has to be about the very head the
 evidence answers for: a reviewer handed the pull request at that head is what
 the validating reader builds a subject from, so evidence carried to a new head
 still answering for a review of the old one answers for a subject nobody can
-hand a reviewer any more. The one exception is the review an approval was
+hand a reviewer any more. One exception is the review an approval was
 given over, carried across the rewrite that approval's own handoff publishes
 (`verification_carry_forward`): no reviewer is handed that head at all, every
 road acting on the approval holds it to the approved subject, and a subject
 about the commit that was tested is current there while it is the one the
 approval record (`review_approved_subject`) covers -- the world proof holds
-the tested commit and the head alike to the tested tree. An issue that
+the tested commit and the head alike to the tested tree. The other is the
+final-documentation exception: a run this orchestrator executed on exactly
+the final head a final docs pass completed on, on the settled report's
+publication, answers for the approved subject while the issue records that
+completion as verified by such a run (`final_docs_records.answers_for`) -- the subject is still the approved one,
+about the commit the reviewer was handed, so nothing says the reviewer was
+handed the docs commit, and the run is about the head it ran on, so nothing
+says the checks ran anywhere else. An issue that
 records no such subject, or one nobody
 can read, has no subject any evidence answers for. A developer report still
 owed -- by the rule the validating hold asks (`report_delivery.owes_a_report`):
@@ -71,6 +78,7 @@ from orchestrator.github.verification_evidence import EvidenceSource
 from orchestrator.workflow.engine import (
     comments as _comments,
     content_hash as _content_hash,
+    final_docs_records as _final_docs,
     report_delivery as _report_delivery,
     report_evidence_models as _evidence_models,
     review_subjects as _review_subjects,
@@ -130,7 +138,8 @@ def _recorded_refusal(state: PinnedState, binding: _records.EvidenceBinding) -> 
     About the head the evidence answers for -- or, for evidence carried across
     the rewrite of an approved head, about the commit that was tested, where
     the subject is the one the approval record covers: the world proof holds
-    both commits to the tested tree.
+    both commits to the tested tree; or, for a run of the final head a final
+    docs pass completed on, the approved subject that completion records.
     """
     applicable, recorded = applicable_subject(state, binding.source)
     if _review_subjects.ReviewSubject.identity_recorded_in(recorded) is None:
@@ -139,7 +148,8 @@ def _recorded_refusal(state: PinnedState, binding: _records.EvidenceBinding) -> 
     approved = reviewed == binding.tested_sha and binding.target.subject == state.get(
         _review_subjects.APPROVED_SUBJECT,
     )
-    if reviewed != binding.target.target_head and not approved:
+    licensed = approved or _final_docs.answers_for(state, binding)
+    if reviewed != binding.target.target_head and not licensed:
         return "the review subject is not about the head the evidence answers for"
     if recorded != binding.target.subject:
         return f"the evidence answers for another subject than the recorded {applicable}"

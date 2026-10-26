@@ -64,6 +64,7 @@ GIT_SEAM_OWNERS = MappingProxyType({
     "_committed_paths_since": _verification_probes,
     "_count_added_lines": _measurement,
     "_decompose_worktree_path": _worktree_decomposition,
+    "_descends": _verification_objects,
     "_delete_local_issue_branch": _worktree_cleanup,
     "_ensure_decompose_worktree": _worktree_decomposition,
     "_ensure_pr_worktree": _worktree_creation,

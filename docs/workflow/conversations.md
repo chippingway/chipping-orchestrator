@@ -748,6 +748,33 @@ with the approval it answers for, and the issue goes back to a fresh reviewer ra
 nobody could take holds the pass. Evidence that is missing, malformed, edited, or otherwise unproven never counts as
 passing: it takes that same road back. A reply over recovered commits publishes them, and is never this shortcut.
 
+The final-documentation exception is the one place evidence answers for a review subject that is not about its own
+head, and it is recorded apart from that review
+([the completion record](../state-machine/labels-and-state.md#pinned-state)): the approved subject, the settled
+report and its source commit, and the evidence the approval rests on stay exactly as they were, and a completion of
+the docs pass names the head it was entered on and the head it completed on beside them. That final head is verified
+on its own terms (`stages/documenting/final_verification.py`). Unchanged, it is verified by the evidence the
+approval rests on, retained with its own provenance -- an equivalent-tree squash's carry still naming the approved
+commit as the one tested. Changed, it is verified by a run of the configured `VERIFY_COMMANDS` on exactly that head,
+which this orchestrator executes and records as evidence of its own, published by the same reconciliation as every
+other transaction as an artifact naming the docs commit as the commit tested and the approved commit as the reviewed
+head -- never as a review of the docs commit, and never as a run of any other commit; a run that failed, tested
+another commit or configuration, or binds nothing records nothing. Changed under an empty `VERIFY_COMMANDS`, nothing
+is required and nothing runs: the completion records that no evidence verifies the final head, which is never read as
+a check that passed, and proves only while the configuration stays empty. A completion proves its final head only
+while each link proves apart (`workflow/engine/final_docs_proof.py`): the approval, read whole, and its report; the
+approval's evidence claim, naming exactly the evidence it was given over the entry head, on the settled report's
+publication, branch included, still recorded under the configuration now and its artifact still on the pull request
+as it settled, and its review subject still the one the evidence proof's subject guard accepts -- under an empty
+`VERIFY_COMMANDS` still the latest evidence with its handoff describing it, since only the run of the final head is
+waived, and behind a run of the final head superseded by that run alone; the requirements, the configuration, the
+publication, the named evidence as current, bound to the settled report's publication at the final head, and passing
+as an approval's must, and the lineage from the approved commit, through any approval squash of the approved review,
+to the final head. Its artifact re-reads are asked ahead of the readings an edit or a push would move -- the issue
+read afresh for its requirements, then the branch, the report, and the thread -- so one landing while an artifact is
+re-read is read too, and an issue that would not read again holds the completion. A completion missing or malformed,
+any of those moved or damaged, or a run owed or failed authorizes nothing.
+
 The ready ping `in_review` posts once the head is approved rests on that evidence too, and on nothing less: a docs
 stamp on the head and a GitHub approval of it each only qualify the head, and either way the ping waits on the
 current evidence proved whole again at the ping itself -- the same binding the docs pass proves, the head it answers

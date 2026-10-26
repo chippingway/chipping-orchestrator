@@ -17,8 +17,11 @@ taken against it. The documenting owner that recognizes its own hand-back's
 report debt is named for the dispatcher's debt hold, which finishes that
 hand-back's relabel rather than holding it. The owner that re-reads the settled report a reviewer is
 handed is named here too, for the verification-evidence proof that holds its
-review subject to that same reading, and so is the owner of which pinned fields
-keep both of two roads' moves, for the developer report's guarded commits.
+review subject to that same reading, the owners that hold an approval's
+evidence to what an approval needs of it, read the claim naming it, and hold
+its requirements over the issue read afresh, for the final-documentation
+proof, and the owner of which pinned fields keep both of two roads' moves,
+for the developer report's guarded commits.
 """
 from __future__ import annotations
 
@@ -101,6 +104,31 @@ _IN_REVIEW_PACKAGE = "orchestrator.workflow.stages.in_review"
 _IN_REVIEW_HANDOFF_OWNER = f"{_IN_REVIEW_PACKAGE}.state"
 _QUESTION_PACKAGE = "orchestrator.workflow.stages.question"
 _VALIDATING_PACKAGE = "orchestrator.workflow.stages.validating"
+
+# The owner that holds the evidence an approval rests on to what an approval
+# needs of it -- its artifact re-read, still the one that settled, passing, and
+# covering every configured `VERIFY_COMMANDS` command. Named here and resolved
+# when called for the reason the review-report owner below is: the
+# final-documentation proof holds the evidence a final head's verification
+# rests on to that same reading, and asking the stage directly would make the
+# engine's own import pull the handlers that import it back.
+_VALIDATING_APPROVED_EVIDENCE_OWNER = f"{_VALIDATING_PACKAGE}.approved_evidence"
+
+# The owner that reads the evidence claim an approval is recorded beside,
+# whole or not at all. Named here and resolved when called for the same
+# reason: the final-documentation proof holds a completion to the claim of
+# the approval it followed, and asking the stage directly would make the
+# engine's own import pull the handlers that import it back.
+_VALIDATING_REVIEW_VERDICTS_OWNER = f"{_VALIDATING_PACKAGE}.review_verdicts"
+
+# The owner that holds an approval to the subject standing when it is acted
+# on -- among it, the requirements over the issue read afresh, both the
+# revision the approval was given and the one the drift baseline holds. Named
+# here and resolved when called for the same reason: the final-documentation
+# proof holds a completion to those requirements behind every artifact it
+# re-reads, and asking the stage directly would make the engine's own import
+# pull the handlers that import it back.
+_VALIDATING_REVIEW_COVERAGE_OWNER = f"{_VALIDATING_PACKAGE}.review_coverage"
 
 # The owner of what a reviewer round writes onto the pinned comment -- its
 # spec and subject, its launch charge, its return, and its approval. Named here

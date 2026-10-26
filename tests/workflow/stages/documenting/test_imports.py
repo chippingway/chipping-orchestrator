@@ -24,6 +24,7 @@ _OWNERS = (
     "drift",
     "drift_reset",
     "failed_pass",
+    "final_verification",
     "handback",
     _HANDLER_OWNER,
     "handoff",

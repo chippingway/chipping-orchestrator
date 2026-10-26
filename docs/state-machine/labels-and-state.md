@@ -3098,8 +3098,10 @@ The keys that matter for the state machine fall into a few groups:
   (`workflow/engine/verification_local_runs.py`) only where `is_reusable` vouches for it, it ran on the head its target
   answers for, and its transcript is one the artifact would publish in one comment, measured at the widest receipt and
   revision a record carries -- the room on the pinned comment is left to the recorder; a failed, empty, timed-out,
-  dirty, or moved run, or one on another head, binds nothing. The one run asked is the approval's verify gate, by its
-  squash (`stages/validating/squash_evidence.py`).
+  dirty, or moved run, or one on another head, binds nothing. The runs asked are the approval's verify gate, by its
+  squash (`stages/validating/squash_evidence.py`), a landed base rewrite's fresh run of its rewritten head
+  (`workflow/engine/rewrite_evidence.py`), and the documenting stage's run of a final head
+  (**Final-documentation completion** below).
   The dispatcher reconciles the pending record directly behind the developer-report transaction and ahead of the reuse
   guard and the handler (`workflow/engine/verification_transaction.py`), so it is behind every pause, terminal,
   adjudication, outstanding-publication, lease, and auto-rebase-anchor guard -- the anchor asked again inside it, so a
@@ -3109,7 +3111,9 @@ The keys that matter for the state machine fall into a few groups:
   branch and standing on the target head, the branch and checkout standing there too, the tested commit and the target
   head each a readable commit in its own right (never an annotated tag peeling to one) carrying the recorded tree, the
   configured context the recorded one, no developer report still owed (by the validating hold's own rule), the bound
-  review subject about the target head and equal to the applicable record (`review_returned_subject` for
+  review subject about the target head -- or the approved one, for a carry of the approved commit or a run of the
+  final head an `executed` completion names (**Final-documentation completion** below) -- and equal to the applicable
+  record (`review_returned_subject` for
   reviewer-reported evidence, `review_subject` for orchestrator-executed), the settled report re-read exactly as a
   reviewer is handed it -- `developer_report_current` and `developer_report_handoff` agreeing, and the report at its
   recorded location unchanged under its author -- named by that subject, which passes that reader's own rules
@@ -3129,9 +3133,9 @@ The keys that matter for the state machine fall into a few groups:
   read afresh: the issue has to be live work still, by the same rule as above, or nothing at all is written; the
   comment has to carry every bound record -- `pr_number`, the `developer_report_*` group (`developer_report_owed`
   included) and `park_reason`, whose report debt a review subject stands only without, `review_subject`,
-  `review_returned_subject`, `review_approved_subject`, the four evidence records, and `verification_evidence_revision`
-  -- exactly as the tick held them, the whole proof above is taken again over it, and the artifact re-read at the
-  comment it landed as has to be exactly this transaction's, not edited or deleted since
+  `review_returned_subject`, `review_approved_subject`, `docs_final_provenance`, the four evidence records, and
+  `verification_evidence_revision` -- exactly as the tick held them, the whole proof above is taken again over it,
+  and the artifact re-read at the comment it landed as has to be exactly this transaction's, not edited or deleted since
   (`workflow/engine/verification_settling.py`) -- and a carry's `copied_from` source still current and as copied
   (`verification_current.copied_source_verdict`). Those are requests of their own, so the comment is read once more
   behind them and has to still carry every bound record as the proof read it -- a subject removed or replaced meanwhile
@@ -3181,6 +3185,65 @@ The keys that matter for the state machine fall into a few groups:
   handoff, and points `review_approved_evidence` at it in that same write; it takes only the approved review,
   unchanged -- its report revision, digest, and requirements included -- so a review recorded about the new head
   since refuses it.
+- **Final-documentation completion.** `docs_final_provenance` (additive) records what a final docs pass completed
+  on, apart from the approval it followed (`workflow/engine/final_docs_records.py`): `review_approved_subject`,
+  `review_approved_evidence`, `developer_report_current` with its source commit, and the evidence the approval rests
+  on stay exactly as the approval and its squash wrote them, so no record says the reviewer was handed the docs
+  commit or the report was written about it. Its members are `approved`, the approved subject spelled exactly as
+  `review_approved_subject` spells it, on a pull request with a report; `entry_head`, the head the pass was entered
+  on -- the approved commit, or the commit the approval's squash published over it; `final_head`, the head it
+  completed on -- the entry head where it published nothing, its docs commit otherwise; `verification`, one of
+  `retained` (the unchanged entry head, verified by the evidence the approval rests on, kept with its own provenance
+  -- a squash's carry still naming the approved commit as the one tested), `executed` (a changed head, verified by an
+  orchestrator-executed run of the configured `VERIFY_COMMANDS` on exactly that head), or `unconfigured` (a changed
+  head under an empty `VERIFY_COMMANDS`, which requires no check, runs none, and is no evidence that any passed); and
+  `evidence`, the `receipt` and `revision` of the transaction that verification rests on, `null` exactly for
+  `unconfigured`. It reads whole or not at all: a member missing or added, a head that is no whole commit id, heads
+  equal for anything but `retained` or differing for it, a verification this build does not name, or evidence present
+  where none is owed, missing where some is, or spelled as another revision's receipt reads as no completion. The
+  documenting stage's verification of a final head (`stages/documenting/final_verification.py`) stages it, runs
+  nothing for `retained` and `unconfigured`, and for `executed` runs the configured commands on the issue's checkout
+  and binds only a run of exactly the final head under exactly the configuration read for it, recorded as an
+  orchestrator-executed transaction answering for the final head over the approved subject beside the record naming
+  it; a run that failed, tested anything else, or binds nothing records nothing. What it stages lands as one guarded
+  commit owning the record, the pending transaction, the history, and the revision floor, decided on every bound
+  record. An `executed` record is the one thing that lets such a run answer for the approved subject at a head that
+  subject is not about (`workflow/engine/verification_subject.py`), and only bound to exactly what a run of the final
+  head answers for -- the settled report's repository, pull request, and branch at that head, under the approved
+  requirements, so a run moved onto another publication is licensed by nothing -- so the reconciliation above proves,
+  publishes, and settles it like any other transaction -- its artifact naming the docs commit as the one tested and
+  the approved commit as the review subject's head -- and the record is one of the bound records every evidence write
+  is decided on. The final-documentation proof (`workflow/engine/final_docs_proof.py`) proves each link apart and writes
+  nothing: the approval still the one recorded, read whole -- an approval respelled with a `true` or a float where a
+  number belongs is no approval, however `==` compares it -- on the pull request `pr_number` pins, no report owed, and
+  the settled report the one it covers, about its commit; `review_approved_evidence` reading whole, saying its
+  evidence passed and covered the configuration, and naming exactly -- receipt, revision, and digest -- a passing
+  evidence record bound to exactly what the approval's evidence answers for -- the settled report's repository, pull
+  request, and branch, the entry head, the approved requirements, and the approved subject, a branch the artifact
+  never names included (`workflow/engine/final_docs_claims.py`): for `retained` the retained transaction itself;
+  for `unconfigured` the current record, which the empty configuration leaves held to the guards current evidence
+  is held to, save where the pull request, branch, and checkout stand, which the docs commit moved and which are
+  proved at the final head instead -- no revision spent past it, a newer transaction owed or settled included, and
+  `verification_evidence_handoff` describing it; for `executed` the one superseded
+  into history by the run of the final head, its revision the one just before that run's, so nothing was recorded
+  between -- that record bound to a review subject the evidence proof's own subject guard still accepts (the
+  applicable recorded subject, `review_returned_subject` for a reviewer's account, exactly the one it names),
+  recorded under the configuration now, and its artifact re-read on the pull request, still the one that settled;
+  the verification -- the transaction named being the current evidence exactly, bound to exactly what evidence of the
+  final head answers for (the settled report's repository, pull request, and branch at that head, under the approved
+  requirements, over the approved subject), proved whole as current evidence is, and its artifact passing as an
+  approval's must, every configured command among them, or, resting on none, `VERIFY_COMMANDS` still empty and the pull
+  request, branch, report, and requirements proved at the final head; and the lineage -- the entry head the approved
+  commit or a squash its carry of the approved review proves (`workflow/engine/report_squash_lineage.py`) -- under the
+  requirements that review was given, which for a round an operator's grant bought are past the report's own -- and a
+  final head that differs from it having it in its history. Every artifact the proof re-reads is read between the pull
+  request's reading and the rest of the verification; behind them the issue is read afresh, since the one handed to the
+  proof was fetched before them, and its requirements held to the approval's revision and the drift baseline
+  (`stages/validating/review_coverage.py`), and the branch, the checkout, the report, and the requirements over the
+  thread are read behind that. A record missing or malformed; an approval, its claim, report, requirements,
+  configuration, publication, or evidence that moved, its artifact deleted or edited included, or the issue edited or
+  the pull request pushed while an artifact was re-read; a run owed or failed; or a lineage not proved refuses, and a
+  reading nobody could take, an issue that would not read again included, holds.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`no_change`, or the `updated` a pass that published
   stamped before published passes were handed back for review) set by `_handle_documenting`'s success exits -- a pass
   that published a docs commit stamps its checked head with no verdict, since the merge gate reads one as a head

@@ -42,7 +42,12 @@ relabel did not.
 Antigravity launch lands before it runs, so a tick that ends writing nothing
 leaves the next one to park rather than publish what the pass left. `parks` collects the ways the tick stops
 for a human, over the records the owners hand each other (`models`) and the
-pinned-state keys they share (`state`).
+pinned-state keys they share (`state`). `final_verification` is the stage's
+own verification of the head a pass completed on, staged as the
+final-documentation completion apart from the approval it followed: the
+approval's evidence retained for an unchanged head, a run of exactly a changed
+head where `VERIFY_COMMANDS` is configured, and nothing claimed where it is
+empty.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

@@ -57,7 +57,12 @@ in the write settling the squash's handoff -- of the run the approval's verify
 gate made on the approved head where `verification_local_runs` binds it, and
 of the evidence the approval rests on otherwise; and the fresh run or carry a
 landed automatic base rewrite's finish records for its rewritten head ahead
-of its route (`rewrite_finish_evidence`).
+of its route (`rewrite_finish_evidence`). The documenting stage's
+verification of a final head records a run of exactly that head beside the
+final-documentation completion naming it
+(`stages/documenting/final_verification.py`), the one record that lets a run
+answer for the approved review at a head that review is not about
+(`final_docs_records`).
 """
 from __future__ import annotations
 

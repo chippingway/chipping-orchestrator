@@ -55,6 +55,10 @@ to until it settles -- and staged in the write settling the squash's
 handoff (`stages/validating/squash_evidence.py`). And a landed automatic base
 rewrite's finish: a fresh run of the rewritten head, or a carry onto it,
 staged in the write that lands ahead of its route (`rewrite_finish_evidence`).
+The documenting stage's verification of the head a final docs pass completed
+on mints a run of exactly that head too, and records it here beside the
+final-documentation completion naming it, measured with that completion, for
+its caller's guarded write (`stages/documenting/final_verification.py`).
 The dispatcher reconciles whatever a producer records (`verification_records`).
 """
 from __future__ import annotations

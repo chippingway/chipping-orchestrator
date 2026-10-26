@@ -9,8 +9,10 @@ at all, and `checkout_head` a head the checkout stands on of its own. `base` is
 where a landed rewrite's head stands against the base tip its replay was made
 onto, and `base_ref` the local base ref the checkout counts its head against;
 `trees` says which commits this repository reads and the full
-tree each carries, so a commit missing from it is one git could not read; and
-`tags` says which ids are annotated tags and the commit each points at. The
+tree each carries, so a commit missing from it is one git could not read;
+`descent` says which commit's history contains which, None where git would not
+answer; and `tags` says which ids are annotated tags and the commit each
+points at. The
 tags are answered as git answers them: `^{tree}` peels one to its commit's
 tree, and only the unpeeled type says it is a tag. `unread` says which ids git
 would not look up at all -- neither proved present nor proved absent. They
@@ -50,6 +52,12 @@ REBASED_TREE = "d670460b4b4aece5915caf5c68d12f560a9fe3e4"
 # tested tree, and it is not a commit.
 TAG_SHA = "c3499c2729730a7f807efb8676a92dcb6f8a3f8f"
 
+# A docs commit a final docs pass published over the tested commit or its
+# squash: another tree, descending from both.
+DOCS_SHA = "d0c5d0c5" * 5
+
+DOCS_TREE = "d0c50ee0" * 5
+
 # The base tip a landed rewrite's replay was made onto.
 BASE_TIP = "ba5e7175" * 5
 
@@ -75,7 +83,10 @@ class EvidenceWorld:
     fetched: int = 0
     remote: _BranchDivergence = field(default_factory=lambda: standing_on(TESTED_SHA))
     trees: dict[str, str] = field(default_factory=lambda: {
-        TESTED_SHA: TESTED_TREE, SQUASHED_SHA: TESTED_TREE, REBASED_SHA: REBASED_TREE,
+        TESTED_SHA: TESTED_TREE, SQUASHED_SHA: TESTED_TREE, REBASED_SHA: REBASED_TREE, DOCS_SHA: DOCS_TREE,
+    })
+    descent: dict[tuple[str, str], bool | None] = field(default_factory=lambda: {
+        (TESTED_SHA, DOCS_SHA): True, (SQUASHED_SHA, DOCS_SHA): True,
     })
     tags: dict[str, str] = field(default_factory=lambda: {TAG_SHA: SQUASHED_SHA})
     base: _BaseStanding = _BaseStanding.STANDING
@@ -118,6 +129,11 @@ class EvidenceWorld:
         """Make `commit` an annotated tag of the squash rather than a commit."""
         self.trees.pop(commit)
         self.tags[commit] = SQUASHED_SHA
+
+
+def descent_of(world: EvidenceWorld, _worktree, ancestor: str, descendant: str) -> bool | None:
+    """Whether `descendant`'s history contains `ancestor` in `world` (`_descends`), None where git did not answer."""
+    return world.descent.get((ancestor, descendant), False)
 
 
 def remote_read(world: EvidenceWorld, *_args) -> _RefRead:
