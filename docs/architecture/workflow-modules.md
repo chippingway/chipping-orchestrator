@@ -561,21 +561,23 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     content_hash.py         the user-content hash and filters for pinned records, orchestrator output, bots, untrusted
                             authors, and whole-comment operator commands, over the live thread or a read the caller
                             already holds -- the title and body included, for a caller that digests them too, or a
-                            split child's create answer with no comment; the legacy bare-continue mode recognizes an
-                            existing baseline
-    drift.py                baseline persistence and legacy normalization, the dev resume a requirements edit earns, and
-                            the pre-implementation decomposition reset; no road here marks a thread read to its tip,
+                            split child's create answer with no comment; one algorithm, so a recorded value it does
+                            not reproduce is no reading of the thread, whoever wrote it
+    drift.py                baseline persistence, the dev resume a requirements edit earns, and the
+                            pre-implementation decomposition reset; no road here marks a thread read to its tip,
                             since a tip crosses what a bounded excerpt dropped and what landed while an agent was
                             out. On a parked tick the check measures the
                             requirements by what the park had already read (`answered`), so replies to the park are
                             the frozen batch's, not drift. With no baseline recorded it compares against
                             `observed_user_content_hash` where a stage kept one, rather than taking the thread as found;
                             asked over a thread reading its caller holds (`reading`), it fingerprints that reading and
-                            stages a first or normalized baseline for the caller's own checkpoint to land.
+                            stages a first baseline, or one the observed reading confirmed, for the caller's own
+                            checkpoint to land. A recorded value no current reading reproduces is drift, left as
+                            recorded and never rewritten in the current spelling.
                             `_unbaselined` is what a missing baseline is: a record carrying neither reading as a
                             string, which `ready` reroutes a split's child on. An issue whose workflow label reads
-                            `workflow:blocked` is answered with nothing done -- no fingerprint, no baseline recorded,
-                            initialized, or normalized, no drift -- since its requirements wait for `ready`
+                            `workflow:blocked` is answered with nothing done -- no fingerprint, no baseline recorded
+                            or initialized, no drift -- since its requirements wait for `ready`
     drift_delivery.py       the prompt a requirements edit is answered with and the record of what it quoted, frozen
                             together off ONE read and settled by whoever disposes the run: context the excerpt bound
                             dropped holds the watermark below it, a reply written while the agent was out is in
@@ -2340,9 +2342,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     rewrite_replies.py      which replies to an auto-rebase attempt's park are the attempt's: a bare
                             `/orchestrator continue` or a bare retry phrase is the retry the park asked for, anything
                             more is guidance. The leading run of retries is staged read (`records_the_retry`) on
-                            `last_action_comment_id` and -- where it already covers the thread up to the watermark
-                            they were written past, in the current spelling or the legacy one that counted a bare
-                            continue -- on `user_content_hash`, in the write that spends the reply: the anchor's
+                            `last_action_comment_id` and -- where the current fingerprint of the thread up to the
+                            watermark they were written past reproduces it -- on `user_content_hash`, in the write
+                            that spends the reply: the anchor's
                             (`base_rewrite.py`), the retry's gate (`rewrite_retry.py`), the handoff's, or the
                             dispatcher's own past a handoff whose tick was lost (`rewrite_takeover_parks.py`), so no
                             lost tick leaves an adjudication to read a retry as guidance
@@ -3369,8 +3371,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             quiet reading the adjudication carries on over is recorded as observed
       late_issue_baseline.py
                             the longest prefix of a reading that reproduces the recorded `user_content_hash` beside
-                            the title and body as they now read (either hashing algorithm), which is all a first late
-                            baseline may cover; None where no prefix does, which is drift, and the baseline that
+                            the title and body as they now read, in the current fingerprint alone, which is all a
+                            first late baseline may cover; None where no prefix does -- an edit, or a value no current
+                            reading spells, whoever wrote it -- which is drift, and the baseline that
                             drift parks on then counts no comment and holds the title and body to the recorded hash,
                             which a drifted reading of it is searched against again, since only that finds a revert;
                             no comment at all where no hash is recorded, since nothing is known to have been read.

@@ -150,10 +150,10 @@ def _handle_parked_continue_command(
     an unfinished command (`_park_session_limit` / `_park_provider_unavailable` /
     `_park_silent_failure` tag all three `agent_silent`; an implementer timeout
     tags `agent_timeout`; an unfinished command tags `agent_execution_failed`).
-    Counting the bare command as an ordinary comment routed
-    it through "issue body/content changed" drift handling and resumed the dev
-    for the wrong reason (issue #729); a bare continue no longer shifts
-    `user_content_hash`, and this handler routes it deliberately instead.
+    Counted as an ordinary comment, the bare command would route through
+    "issue body/content changed" drift handling and resume the dev for the
+    wrong reason; a bare continue does not shift `user_content_hash`, and this
+    handler routes it deliberately instead.
 
     Returns True when the command was fully handled this tick (an intentional
     retry ran, or a refusal was posted) and the caller must return. Returns

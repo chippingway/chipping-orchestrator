@@ -32,13 +32,9 @@ from orchestrator.git.base_sync import persistence as _persistence
 from tests.git.base_sync import journey_push_support as windows
 from tests.git.base_sync.journey_adjudication_support import _authorizes, replies
 from tests.git.base_sync.journey_assertions import ADJUDICATOR, KEY_REWRITE_DEBT, REVIEWER
-from tests.git.base_sync.journey_handoff_support import (
-    ADJUDICATED_TWICE,
-    ChangedContributionJourney,
-    records_a_legacy_baseline,
-    spawned_roles,
-)
+from tests.git.base_sync.journey_handoff_support import ADJUDICATED_TWICE, ChangedContributionJourney, spawned_roles
 from tests.git.base_sync.journey_push_support import crash_at
+from tests.git.base_sync.journey_stranded_support import PARK_STRANDED, STRANDED_NOTICE, StrandedJourney
 from tests.workflow.fixtures import LABEL_DECOMPOSING, LABEL_DOCUMENTING, LABEL_IN_REVIEW
 
 # The park a settlement takes over a pull request somebody moved.
@@ -46,11 +42,6 @@ PARK_PR_UNRECONCILED = "late_pr_unreconciled"
 
 # A park the review stage takes, which nothing on the adjudication's label answers.
 PARK_REVIEW_CAP = "review_cap"
-
-# The park an earlier build's dispatcher stranded a pair under, and what its
-# notice asked for: a reply, with anything in it.
-PARK_STRANDED = "auto_base_rebase_failed"
-_STRANDED_NOTICE = "put the issue back on the stage the rebase was made under and reply on this issue"
 
 # The park a recovery whose push failed leaves with the attempt kept.
 PARK_PUSH_FAILED = "auto_base_rebase_push_failed"
@@ -216,7 +207,7 @@ class RetriedHandoffTest(ChangedContributionJourney, unittest.TestCase):
     def _converges_past_a_retry(self, window: str, reason: str = PARK_STRANDED) -> None:
         """Park the refresh under `reason`, retry it, lose that tick at `window`, and run two more."""
         _persistence._park_auto_rebase_failure(
-            self._gh, self._issue(), self._durable(), message=_STRANDED_NOTICE, reason=reason,
+            self._gh, self._issue(), self._durable(), message=STRANDED_NOTICE, reason=reason,
         )
         retry = replies(self, RETRY)
         self._refreshes(window)
@@ -229,16 +220,8 @@ class RetriedHandoffTest(ChangedContributionJourney, unittest.TestCase):
         self.assertGreaterEqual(self._durable().get(KEY_WATERMARK), retry)
 
 
-class StrandedHandoffTest(ChangedContributionJourney, unittest.TestCase):
+class StrandedHandoffTest(StrandedJourney, unittest.TestCase):
     """A pair an earlier build stranded under its own park, handed over once a human answers that park."""
-
-    def setUp(self) -> None:
-        super().setUp()
-        self._refreshes(windows.BEFORE_THE_HANDOFF)
-        self.replay = self._wt_head()
-        _persistence._park_auto_rebase_failure(
-            self._gh, self._issue(), self._durable(), message=_STRANDED_NOTICE, reason=PARK_STRANDED,
-        )
 
     def test_the_stranded_parks_retry_is_the_attempts(self) -> None:
         # The human answered the park as it asked, with a retry. That reply
@@ -262,22 +245,6 @@ class StrandedHandoffTest(ChangedContributionJourney, unittest.TestCase):
 
         self.assertEqual(self._holders(), (None, None, self.replay, self.replay))
         self.assertEqual(spawned_roles(self), (ADJUDICATOR, DEVELOPER))
-
-    def test_a_legacy_baseline_spends_the_retry(self) -> None:
-        # The requirements baseline was written by the legacy algorithm, over
-        # a bare continue a stage had read, before the pair was stranded. It
-        # still covers the thread up to the park's notice, so the retry is the
-        # attempt's, and the adjudication runs with nobody resumed.
-        records_a_legacy_baseline(self)
-        _persistence._park_auto_rebase_failure(
-            self._gh, self._issue(), self._durable(), message=_STRANDED_NOTICE, reason=PARK_STRANDED,
-        )
-        retry = replies(self, RETRY)
-
-        self._ticks()
-
-        self._assert_adjudicated_afresh(self.replay)
-        self.assertGreaterEqual(self._durable().get(KEY_WATERMARK), retry)
 
     def test_a_retry_past_the_handoff_is_spent(self) -> None:
         # The handoff lands and the tick is lost before the adjudication ever

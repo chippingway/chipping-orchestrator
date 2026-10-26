@@ -3,8 +3,9 @@
 """Stable requirement fingerprints over issue text and human-authored comments.
 
 Pinned records, orchestrator output, bots, untrusted authors, and whole-comment
-operator commands are excluded before hashing. The legacy bare-continue mode
-lets the drift owner recognize a baseline without inventing a requirements edit.
+operator commands are excluded before hashing. There is one algorithm: a
+recorded fingerprint that this one does not reproduce over a thread is no
+reading of that thread, whichever producer wrote it.
 A caller that already read the title and body for a digest of its own hashes
 those same values, so an edit landing between two reads cannot split them, and
 a split's seed hashes the title and body its child's create answered, with no
@@ -46,51 +47,41 @@ def _is_hidden_comment(
 def _is_operator_control(issue_comment: IssueComment) -> bool:
     """Whether this whole comment is a command rather than requirements text.
 
-    Asked in both hashing modes, unlike the bare continue below it. Each of
-    these commands postdates the legacy algorithm the flag reproduces, so a
-    thread carrying one was never hashed with it either way -- and a baseline
-    recomputed WITH it would fail to recognize itself and report an operator's
-    control as the edit it is not.
-
-    The reason they are filtered at all is the same for both, and sharpest for
-    the authorization: the tick that reads one answers it and then hands the
-    SAME issue on -- to the stage below on a grant, and to the stage an
-    authorized publication continues at on the other -- so a hash counting it
-    would meet that handler as a body edit that never happened, resuming a
-    developer where a reviewer was owed a round or over the very commit an
-    operator just authorized.
+    A bare `/orchestrator continue` is the retry a parked stage offered: each
+    stage answers it deliberately, and a hash counting it would route the
+    nudge through generic "issue body/content changed" drift handling instead.
+    A run grant and an oversized authorization are filtered for the same
+    reason, sharpest for the authorization: the tick that reads one answers
+    it and then hands the SAME issue on -- to the stage below on a grant, and
+    to the stage an authorized publication continues at on the other -- so a
+    hash counting it would meet that handler as a body edit that never
+    happened, resuming a developer where a reviewer was owed a round or over
+    the very commit an operator just authorized.
 
     Bare is the whole test. A comment carrying a command ALONGSIDE guidance is
     guidance: it moves the hash, and the drift road that opens is how those
     words reach the agent that has to act on them.
     """
+    if _messages._is_bare_orchestrator_continue(issue_comment):
+        return True
     if _run_grant_request._is_bare_command(issue_comment):
         return True
     return _messages._authorized_oversized_candidate(issue_comment) is not None
 
 
 def _comment_body_for_hash(
-    issue_comment: IssueComment,
-    orchestrator_ids: set[int],
-    *,
-    include_bare_continue: bool,
+    issue_comment: IssueComment, orchestrator_ids: set[int],
 ) -> str | None:
     """Return user-authored requirements text, or None for filtered content."""
     if _is_hidden_comment(issue_comment, orchestrator_ids):
         return None
-    body = issue_comment.body or ""
     if _is_operator_control(issue_comment):
         return None
-    if include_bare_continue:
-        return body
-    if _messages._is_bare_orchestrator_continue(issue_comment):
-        return None
-    return body
+    return issue_comment.body or ""
 
 
 def _compute_user_content_hash(
-    issue: Issue, orchestrator_ids: set[int],
-    *, include_bare_continue: bool = False, comments=None,
+    issue: Issue, orchestrator_ids: set[int], *, comments=None,
 ) -> str:
     """SHA-256 over title + body + human-authored comments.
 
@@ -101,12 +92,6 @@ def _compute_user_content_hash(
     Used by `_detect_user_content_change` so the orchestrator can react
     when a human edits the issue body or adds acceptance criteria after
     the workflow has already picked it up.
-
-    `include_bare_continue=True` reproduces persisted baselines that counted
-    bare `/orchestrator continue` commands as human content.
-    `_detect_user_content_change` uses that reading to normalize a baseline
-    without reporting drift caused solely by excluding a retry command.
-    The default excludes those commands.
 
     Non-human content is filtered eight ways:
 
@@ -130,13 +115,13 @@ def _compute_user_content_hash(
       `_is_bare_orchestrator_continue`. The command is an operator control,
       not requirements content: counting it would shift the hash and route
       the nudge through generic "issue body/content changed" drift handling
-      instead of the stage's intentional session-limit retry (issue #729).
+      instead of the stage's intentional session-limit retry.
       A comment carrying the command ALONGSIDE genuine guidance is NOT bare,
       so it still shifts the hash and drives the normal drift/resume path.
-    * the two whole-comment operator commands -- `/orchestrator add-agent-runs
-      N` and `/orchestrator authorize-oversized <commit>` -- by
-      `_is_operator_control`, which says why both are filtered and why they
-      are filtered in both hashing modes.
+    * the two other whole-comment operator commands -- `/orchestrator
+      add-agent-runs N` and `/orchestrator authorize-oversized <commit>` --
+      which `_is_operator_control` filters beside the bare continue, and says
+      why.
 
     The orchestrator's OWN comments are dropped by marker/id (above),
     never by login, so a PAT shared with a human reviewer's account does
@@ -149,17 +134,11 @@ def _compute_user_content_hash(
         issue.body or "",
         issue.get_comments() if comments is None else comments,
         orchestrator_ids,
-        include_bare_continue=include_bare_continue,
     )
 
 
 def _hash_requirements(
-    title: str,
-    body: str,
-    comments,
-    orchestrator_ids: set[int],
-    *,
-    include_bare_continue: bool = False,
+    title: str, body: str, comments, orchestrator_ids: set[int],
 ) -> str:
     """The user-content hash of a title, a body, and a comment batch already read.
 
@@ -176,11 +155,7 @@ def _hash_requirements(
     """
     parts = [title, body]
     for issue_comment in comments:
-        comment_body = _comment_body_for_hash(
-            issue_comment,
-            orchestrator_ids,
-            include_bare_continue=include_bare_continue,
-        )
+        comment_body = _comment_body_for_hash(issue_comment, orchestrator_ids)
         if comment_body is not None:
             parts.append(comment_body)
     return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()

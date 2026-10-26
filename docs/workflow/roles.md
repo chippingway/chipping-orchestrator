@@ -2431,7 +2431,8 @@ the longest prefix of the thread that, beside the title and body as they now rea
 comment past it — written while the developer's last run was out, or under a notice since — was read by nobody, so it
 stays uncounted and is handed to the developer whole, as fresh or withheld guidance (below), rather than folded into the
 baseline. A reading no prefix of which reproduces the recorded hash is one whose title, body, or covered comments moved
-since, which is drift: it parks exactly as an edit under a baseline would. It parks on a baseline that counts no
+since, or whose recorded hash the current fingerprint spells over no prefix at all, whichever producer wrote it, and
+either is drift: it parks exactly as an edit under a baseline would. It parks on a baseline that counts no
 comment, since which of them the recorded hash covered can no longer be told, and holds the title and body to that
 recorded hash itself, which keeps the reading drifted until a human answers or the edit is taken back. Every trusted
 comment is therefore withheld or fresh guidance meanwhile — one written under the drift park's own notice included — and

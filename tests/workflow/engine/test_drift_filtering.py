@@ -107,22 +107,15 @@ class HashFiltersBareOperatorCommandTest(unittest.TestCase):
     """
 
     def test_the_bare_command_leaves_the_hash_alone(self) -> None:
-        # In both modes: the legacy algorithm the flag reproduces predates
-        # both commands, so a baseline recomputed WITH one would fail to
-        # recognize itself and report the control as an edit.
         silent = support.make_issue(1)
         for command in support.OPERATOR_COMMANDS:
-            commanded = self._issue_with(command)
-            for legacy in (False, True):
-                with self.subTest(command=command, legacy=legacy):
-                    self.assertEqual(
-                        _content_hash._compute_user_content_hash(
-                            silent, set(), include_bare_continue=legacy,
-                        ),
-                        _content_hash._compute_user_content_hash(
-                            commanded, set(), include_bare_continue=legacy,
-                        ),
-                    )
+            with self.subTest(command=command):
+                self.assertEqual(
+                    _content_hash._compute_user_content_hash(silent, set()),
+                    _content_hash._compute_user_content_hash(
+                        self._issue_with(command), set(),
+                    ),
+                )
 
     def test_guidance_beside_the_command_still_counts(self) -> None:
         # Words beside the command are requirements, and the drift road they

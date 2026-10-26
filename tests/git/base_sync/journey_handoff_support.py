@@ -17,13 +17,9 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.git import branch_transport as _branch_transport
-from orchestrator.workflow.engine import (
-    comments as _comments,
-    content_hash as _content_hash,
-    issue_processing as _issue_processing,
-)
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from tests.git.base_sync.exemption_git_support import BASE_EDIT, SHARED_FILE, _shared_body, events_of
-from tests.git.base_sync.journey_adjudication_support import SINGLE_MANIFEST, adjudicates_once, replies
+from tests.git.base_sync.journey_adjudication_support import SINGLE_MANIFEST, adjudicates_once
 from tests.git.base_sync.journey_assertions import ADJUDICATOR, KEY_REWRITE_DEBT, JourneyAssertions
 from tests.git.base_sync.journey_git_support import OversizedJourneyRealGitFixture
 from tests.git.base_sync.journey_push_support import PUSH_BRANCH, PublishesToThePullRequest
@@ -45,28 +41,9 @@ PARK_SINGLE_DECISION = "late_single_decision"
 # Two adjudicator runs: the one the authorized change earned, and the replay's.
 ADJUDICATED_TWICE = (ADJUDICATOR, ADJUDICATOR)
 
-# The operator's content-free nudge, which the legacy requirements baseline counted.
-BARE_CONTINUE = "/orchestrator continue"
-
 # The file somebody else's push to the pull request's branch adds.
 FOREIGN_FILE = "foreign.txt"
 _FOREIGN_BRANCH = "foreign"
-
-
-def records_a_legacy_baseline(fixture) -> None:
-    """Have a stage read a bare continue, and record the requirements baseline as the legacy algorithm spelled it.
-
-    That algorithm counted the continue, which the current one leaves out, so
-    the baseline covers the thread in the one spelling and not the other.
-    """
-    nudged = replies(fixture, BARE_CONTINUE)
-    durable = fixture._durable()
-    durable.set("last_action_comment_id", nudged)
-    ours = _comments._orchestrator_ids(durable)
-    durable.set("user_content_hash", _content_hash._compute_user_content_hash(
-        fixture._issue(), ours, include_bare_continue=True,
-    ))
-    fixture._gh.write_pinned_state(fixture._issue(), durable)
 
 
 def spawned_roles(fixture) -> tuple:

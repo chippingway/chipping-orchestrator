@@ -19,7 +19,7 @@ import unittest
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine.rewrite_takeover import TakeoverOutcome
 from orchestrator.workflow.late_split import state as _late_state
-from tests.workflow.engine import rewrite_takeover_test_support as support
+from tests.workflow.engine import drift_test_support as _drift_support, rewrite_takeover_test_support as support
 
 # The attempt as a handoff leaves it: every member blanked rather than removed.
 _RETIRED = dict.fromkeys(support.ATTEMPT_KEYS)
@@ -233,45 +233,55 @@ class AttemptRepliesTest(unittest.TestCase):
     def test_unread_words_keep_the_baseline(self) -> None:
         # Words before the park's notice that no stage read: folding the retry
         # into the baseline would fold those in too, so only the watermark
-        # moves, and the adjudication hands both to the developer -- whichever
-        # spelling the baseline that stops short of them was written in.
-        for legacy in (False, True):
-            with self.subTest(legacy=legacy):
-                world, recorded = _stranded(unread=True, legacy=legacy)[:2]
-                retry = world.says(_RETRY)
+        # moves, and the adjudication hands both to the developer.
+        world, recorded = _stranded(unread=True)[:2]
+        retry = world.says(_RETRY)
 
-                self.assertEqual(world.takes_over(), TakeoverOutcome.TAKEN_OVER)
+        self.assertEqual(world.takes_over(), TakeoverOutcome.TAKEN_OVER)
 
-                expected = {"last_action_comment_id": retry, "user_content_hash": recorded}
-                self.assertEqual(world.standing(_READ_THROUGH), expected)
+        expected = {"last_action_comment_id": retry, "user_content_hash": recorded}
+        self.assertEqual(world.standing(_READ_THROUGH), expected)
 
-    def test_a_legacy_baseline_covers_the_thread(self) -> None:
-        # A baseline the legacy algorithm wrote, counting the bare continue a
-        # stage already read: it covers the thread up to the notice as the
-        # current spelling would, so the retry is folded in, written in the
-        # current spelling the drift check normalizes a legacy one to.
-        world = _stranded(unread=False, legacy=True)[0]
+    def test_a_read_continue_is_left_out(self) -> None:
+        # A stage read a bare continue before the park, and the baseline it
+        # recorded leaves that control out. It covers the thread up to the
+        # notice, so the retry is folded in.
+        world = _stranded(unread=False, continued=True)[0]
         retry = world.says(_RETRY)
 
         self.assertEqual(world.takes_over(), TakeoverOutcome.TAKEN_OVER)
 
         self.assertEqual(world.standing(_READ_THROUGH), _read_through(world, retry))
 
+    def test_a_baseline_spelled_otherwise_is_kept(self) -> None:
+        # The same thread, its baseline spelled as an earlier producer spelled
+        # it, counting that continue. No current reading of the thread up to
+        # the notice reproduces it, so nothing shows what it covers: only the
+        # watermark moves, and the value is neither recognized nor rewritten.
+        world = _stranded(unread=False, continued=True)[0]
+        recorded = _drift_support.continue_counting_hash(world.issue)
+        world.another_road(user_content_hash=recorded)
+        retry = world.says(_RETRY)
 
-def _stranded(*, unread: bool, legacy: bool = False) -> tuple:
+        self.assertEqual(world.takes_over(), TakeoverOutcome.TAKEN_OVER)
+
+        expected = dict(zip(_READ_THROUGH, (retry, recorded)))
+        self.assertEqual(world.standing(_READ_THROUGH), expected)
+
+
+def _stranded(*, unread: bool, continued: bool = False) -> tuple:
     """A stranded pair waiting on its park's reply; the world, its recorded baseline, and the notice's id.
 
     The thread carries words a stage once read -- unless `unread`, when the
-    baseline stops short of them -- the stranded park's notice, and the
-    watermark past it. A `legacy` baseline is spelled as the algorithm that
-    counted a bare continue did, over a thread that carries one.
+    baseline stops short of them -- a bare continue after them where
+    `continued`, the stranded park's notice, and the watermark past it.
     """
     world = support.TakeoverWorld.seeded(**support.STRANDED)
     said = world.says("and keep the table generated")
-    if legacy:
+    if continued:
         world.says("/orchestrator continue")
     notice = world.says("the auto rebase is stranded; reply to retry", ours=True)
-    recorded = world.baseline_through(said - 1 if unread else notice, legacy=legacy)
+    recorded = world.baseline_through(said - 1 if unread else notice)
     world.another_road(last_action_comment_id=notice, user_content_hash=recorded)
     return world, recorded, notice
 

@@ -21,14 +21,13 @@ read it again. It is recorded read where that reading comes from: the shared
 up to (`stages/decomposition/late_issue_baseline.py`) and short of which one
 is withheld guidance. Only the leading run of acknowledgments is spent, since
 a baseline covers a prefix of the thread and the first comment of guidance is
-where it has to stop; and the baseline moves only where it already reproduces
-over the thread up to the watermark the replies were written past -- short of
-that, words nobody read stand before them, and folding the replies in would
-fold those in too. It reproduces in either spelling the drift check accepts:
-a baseline the legacy algorithm wrote counted a bare `/orchestrator continue`,
-and is recognized as covering the same thread the current one does. What is
-written past it is the current spelling, as that check normalizes a legacy
-baseline it recognizes.
+where it has to stop; and the baseline moves only where the current
+fingerprint already reproduces it over the thread up to the watermark the
+replies were written past. Short of that -- words nobody read stand before
+them, or the recorded value is one no current reading of the thread spells --
+folding the replies in would fold in whatever that value does not cover, so
+the baseline is left as recorded and the adjudication's own reading of it
+decides what reaches the developer.
 
 Recorded in the write that already spends the reply, so no crash can split
 the two: the rebase's anchor write, which moves the watermark past the reply
@@ -119,11 +118,7 @@ def records_the_retry(gh: GitHubClient, issue: Issue, state: PinnedState, replie
     newest = spent[-1].id
     if newest > (AttemptReplies.past(state).after or 0):
         state.set(_FLOOR, newest)
-    covered = (
-        _baseline_through(issue, state, read, replies.after),
-        _baseline_through(issue, state, read, replies.after, legacy=True),
-    )
-    if state.get(_BASELINE) in covered:
+    if state.get(_BASELINE) == _baseline_through(issue, state, read, replies.after):
         state.set(_BASELINE, _baseline_through(issue, state, read, newest))
     log.info(
         "issue=#%d records %d retry acknowledgment(s) to its auto-rebase attempt as read with it",
@@ -160,14 +155,9 @@ def _replies(
     ]
 
 
-def _baseline_through(
-    issue: Issue, state: PinnedState, read: list, last: int | None, *, legacy: bool = False,
-) -> str:
-    """The requirements baseline over the title, the body, and the thread `read` through comment `last`, if any.
-
-    `legacy` spells it as the algorithm that counted a bare continue did.
-    """
+def _baseline_through(issue: Issue, state: PinnedState, read: list, last: int | None) -> str:
+    """The requirements baseline over the title, the body, and the thread `read` through comment `last`, if any."""
     through = [seen for seen in read if seen.id <= (last or 0)]
     return _content_hash._compute_user_content_hash(
-        issue, _comments._orchestrator_ids(state), include_bare_continue=legacy, comments=through,
+        issue, _comments._orchestrator_ids(state), comments=through,
     )

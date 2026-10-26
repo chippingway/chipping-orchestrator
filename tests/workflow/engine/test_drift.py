@@ -12,22 +12,29 @@ from tests.workflow.engine import drift_test_support as support
 
 OBSERVED = "observed_user_content_hash"
 
-# A bare continue on a waiting issue's thread, which the legacy spelling of a
-# baseline counts, and the body its recorded reading was taken over.
+# An operator's bare continue, and a trusted comment carrying a requirement.
 _BARE_CONTINUE = support.FakeComment(
     id=100,
     body=support.CONTINUE_COMMAND,
     user=support.FakeUser("dave"),
 )
+_GUIDANCE_ID = 101
+_GUIDANCE = support.FakeComment(id=_GUIDANCE_ID, body="and also handle empty input")
 
 _RECORDED_BODY = "the body as its reading was taken"
 
-# Where a waiting issue's record keeps its reading, whether that reading is in
-# the legacy spelling, and whether the check's caller holds a reading of the
-# thread: every pairing of no reading, a baseline, and an observed one.
+# Where a waiting issue's record keeps its reading, and whether the check's
+# caller holds a reading of the thread: every pairing of no reading, a
+# baseline, and an observed one.
 _WAITING = tuple(itertools.product(
     (None, support.KEY_USER_CONTENT_HASH, OBSERVED),
     (False, True),
+))
+
+# Where a record keeps a reading an earlier producer spelled, and whether the
+# check is asked on a parked tick, measured by what the park had read.
+_SPELLED_OTHERWISE = tuple(itertools.product(
+    (support.KEY_USER_CONTENT_HASH, OBSERVED),
     (False, True),
 ))
 
@@ -110,8 +117,8 @@ class ComputeUserContentHashTest(unittest.TestCase):
         # A bare `/orchestrator continue` is an operator command, not
         # requirements content: it must not shift the hash (else it routes
         # through generic drift handling instead of the intentional
-        # session-limit retry, issue #729). The same command carrying real
-        # guidance is NOT bare, so it still shifts the hash.
+        # session-limit retry). The same command carrying real guidance is
+        # NOT bare, so it still shifts the hash.
         issue = support.make_issue(1)
         bare = support.FakeComment(
             id=100, body=support.CONTINUE_COMMAND, user=support.FakeUser(support.TRUSTED_AUTHOR),
@@ -148,19 +155,17 @@ def _observed_issue(*, edited: bool):
     return gh, issue
 
 
-def _asked_while_waiting(recorded_as: str | None, *, legacy: bool, held: bool) -> tuple:
+def _asked_while_waiting(recorded_as: str | None, *, held: bool) -> tuple:
     """Ask the drift check of an issue on `workflow:blocked`, edited since the reading its record carries.
 
-    The reading is recorded under `recorded_as` -- none at all for None --
-    taken in the legacy spelling that counts the bare continue on the thread
-    where `legacy`, and the check's caller holds a reading of the thread
-    where `held`. Answers what the check returned, how many fingerprints it
-    took, whether the claimed reading still matches the record as pinned, and
-    how many writes were sent.
+    The body moved and a trusted comment was written under it since the
+    reading recorded under `recorded_as` -- none at all for None -- and the
+    check's caller holds a reading of the thread where `held`. Answers what
+    the check returned, how many fingerprints it took, whether the claimed
+    reading still matches the record as pinned, and how many writes were sent.
     """
-    context = support._content_change_case(
-        _RECORDED_BODY, support.NEW_BODY, comments=(_BARE_CONTINUE,), include_bare_continue=legacy,
-    )
+    context = support._content_change_case(_RECORDED_BODY, support.NEW_BODY)
+    context.issue.comments.append(_GUIDANCE)
     context.issue.labels = [support.FakeLabel(support.LABEL_BLOCKED)]
     record = {} if recorded_as is None else {recorded_as: context.prior_hash}
     context.github.seed_state(1, **record)
@@ -180,14 +185,14 @@ def _asked_while_waiting(recorded_as: str | None, *, legacy: bool, held: bool) -
 
 class DetectUserContentChangeTest(unittest.TestCase):
     def test_a_waiting_issue_is_asked_nothing(self) -> None:
-        # Whatever its record carries -- no reading, a baseline in either
-        # spelling, or an observed reading in its place -- and whether or not
-        # its caller holds a reading of the thread, an issue on
-        # `workflow:blocked` is answered with no fingerprint taken, nothing
-        # staged, and nothing written: its requirements wait for `ready`.
-        for recorded_as, legacy, held in _WAITING:
-            with self.subTest(recorded_as=recorded_as, legacy=legacy, held=held):
-                asked = _asked_while_waiting(recorded_as, legacy=legacy, held=held)
+        # Whatever its record carries -- no reading, a baseline, or an
+        # observed reading in its place -- and whether or not its caller
+        # holds a reading of the thread, an issue on `workflow:blocked` is
+        # answered with no fingerprint taken, nothing staged, and nothing
+        # written: its requirements wait for `ready`.
+        for recorded_as, held in _WAITING:
+            with self.subTest(recorded_as=recorded_as, held=held):
+                asked = _asked_while_waiting(recorded_as, held=held)
 
                 self.assertEqual(asked, _ASKED_NOTHING)
 
@@ -272,69 +277,76 @@ class DetectUserContentChangeTest(unittest.TestCase):
             context.prior_hash,
         )
 
-    def test_legacy_bare_continue_baseline_absorbs(
-        self,
-    ) -> None:
-        # A baseline written by the pre-#729 algorithm counted a bare
-        # `/orchestrator continue` comment. After deploy the new algorithm
-        # excludes it, so the hashes differ even though the requirements did
-        # not change. `_detect_user_content_change` must recognize the stored
-        # baseline as the legacy hash and absorb it (persist the new baseline,
-        # report no drift) rather than firing one false "issue body changed".
-        continue_comment = support.FakeComment(
-            id=100, body=support.CONTINUE_COMMAND, user=support.FakeUser("dave"),
-        )
-        context = support._content_change_case(
-            "",
-            "",
-            comments=(continue_comment,),
-            include_bare_continue=True,
-        )
-        self.assertNotEqual(
-            context.prior_hash,
-            context.current_hash,
-        )
+
+class BareContinueBaselineTest(unittest.TestCase):
+    """The drift check over a thread carrying an operator's bare continue."""
+
+    def test_a_bare_continue_reads_unchanged(self) -> None:
+        # An operator wrote a bare `/orchestrator continue` under the recorded
+        # baseline. It is a control the stage answers, not a requirement, so
+        # the thread reads unchanged: no drift, and nothing written.
+        context = support._content_change_case("body", "body")
+        context.issue.comments.append(_BARE_CONTINUE)
 
         detected_hash = drift._detect_user_content_change(
-            context.github,
-            context.issue,
-            context.state,
+            context.github, context.issue, context.state,
         )
 
-        # No drift reported; the baseline is normalized to the new algorithm
-        # and durably persisted so the next tick is stable.
         self.assertIsNone(detected_hash)
-        self.assertEqual(
-            context.state.get(support.KEY_USER_CONTENT_HASH),
-            context.current_hash,
-        )
+        self.assertEqual(context.github.write_state_calls, context.before_writes)
         self.assertEqual(
             context.github.pinned_data(1).get(support.KEY_USER_CONTENT_HASH),
-            context.current_hash,
+            context.prior_hash,
         )
 
     def test_real_edit_with_bare_continue_drifts(self) -> None:
-        # The legacy-normalization path must not swallow a genuine edit: when
-        # the body actually changed AND a bare continue is present, the legacy
-        # hash (old algorithm over the NEW content) still differs from the
-        # stored baseline, so drift is reported.
-        continue_comment = support.FakeComment(
-            id=100, body=support.CONTINUE_COMMAND, user=support.FakeUser("dave"),
-        )
+        # The continue leaves the hash alone, and only the continue: a body
+        # edited beside it is the drift it is.
         context = support._content_change_case(
-            "old",
-            support.NEW_BODY,
-            comments=(continue_comment,),
-            include_bare_continue=True,
+            "old", support.NEW_BODY, comments=(_BARE_CONTINUE,),
         )
+
         detected_hash = drift._detect_user_content_change(
-            context.github,
-            context.issue,
-            context.state,
+            context.github, context.issue, context.state,
         )
 
         self.assertEqual(detected_hash, context.current_hash)
-        self.assertIsNotNone(detected_hash)
+        self.assertNotEqual(detected_hash, context.prior_hash)
+
+    def test_a_reading_spelled_otherwise_is_drift(self) -> None:
+        # The record's reading counted the bare continue the thread carries,
+        # as an earlier producer spelled it, and the current fingerprint
+        # leaves that out. It is no reading of this thread, as a baseline or
+        # as the observed reading standing in for one, on a parked tick or
+        # any other: the check reports the drift for a route to answer, and
+        # neither recognizes nor rewrites the value.
+        for recorded_as, parked in _SPELLED_OTHERWISE:
+            with self.subTest(recorded_as=recorded_as, parked=parked):
+                changed, current, *kept = _asked_over_an_earlier_spelling(recorded_as, parked=parked)
+
+                self.assertEqual(changed, current)
+                self.assertEqual(kept, [True, True], "the reading was recognized or rewritten")
+
+
+def _asked_over_an_earlier_spelling(recorded_as: str, *, parked: bool) -> tuple:
+    """Ask the drift check of an unedited thread whose record keeps a reading that counted its bare continue.
+
+    The reading is recorded under `recorded_as`, and the check is asked on a
+    parked tick -- the park having read the whole thread -- where `parked`.
+    Answers what the check returned, the thread's current fingerprint, and
+    whether the claimed reading and the pinned record each still read as
+    seeded.
+    """
+    context = support._content_change_case("", "", comments=(_BARE_CONTINUE,))
+    context.github.seed_state(1, **{recorded_as: support.continue_counting_hash(context.issue)})
+    seeded = context.github.pinned_data(1)
+    state = context.github.read_pinned_state(context.issue)
+    changed = drift._detect_user_content_change(
+        context.github, context.issue, state,
+        answered=list(context.issue.comments) if parked else None,
+    )
+    kept = (state.data == seeded, context.github.pinned_data(1) == seeded)
+    return (changed, context.current_hash, *kept)
 
 
 if __name__ == "__main__":
