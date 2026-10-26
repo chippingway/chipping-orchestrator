@@ -2357,8 +2357,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             second charge
     run_reporting.py        agent-exit audit and analytics records, configured-model fallback, and triggered-skill
                             emissions; a failure to emit those skill records cannot discard a completed agent result
-    issue_usage.py          historical per-issue usage counters and their terminal receipt; unknown and estimated costs
-                            remain distinct from known prices and from the separate launch allowance
+    issue_usage.py          cumulative per-issue usage counters and their terminal receipt; unknown and estimated costs
+                            remain distinct from known prices and from the separate launch allowance, whose ledger
+                            reads the run count only as a floor under its own charges
     usage.py                the tracked agent invocation: charge the required issue budget, emit spawn, call the runner,
                             record its exit and skills, and return the result for the stage to settle
   late_split/               the late size gate's own domain: what one generation IS, apart from anything that drives

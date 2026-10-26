@@ -380,9 +380,11 @@ Per-stage specifics:
   re-runs the drift resume. This road reads the issue thread and nothing else, so its
   settlement moves `last_action_comment_id` alone and every pull-request surface stays unread for the round that
   owns it.
-- For **`workflow:implementing`** drift, the resume runs only when `dev_session_id` is recorded. With recovered
-  unpushed commits but no session the handler parks (the commits were authored against the pre-drift body). With no
-  session, no recovered commits, and `awaiting_human=True`, park flags are cleared so the fresh-spawn branch fires
+- For **`workflow:implementing`** drift, the resume runs only when a `dev_agent` command is pinned and no
+  `/orchestrator continue` grant is waiting unspent on the fresh spawn it bought; a `dev_session_id` standing with no
+  `dev_agent` is no session. With recovered unpushed commits but no session the handler parks (the commits were
+  authored against the pre-drift body). With no session, no recovered commits, and `awaiting_human=True`, park flags
+  are cleared so the fresh-spawn branch fires
   this tick against the updated body. Clearing that park records NOTHING — not the watermark and not the baseline:
   the pre-session road hands the edit on (`state._EDIT_OWED_BY_THE_SPAWN`) and the fresh spawn settles both, against
   the conversation its own `_build_implement_prompt` quoted and only once that run counts as delivered. So a spawn

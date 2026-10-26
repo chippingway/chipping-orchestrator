@@ -116,9 +116,9 @@ class FullSpecDecomposerPersistenceTest(
             CODEX_SPEC,
         )
 
-    def test_legacy_bare_decomposer_still_works(self) -> None:
-        # `decomposer_agent="codex"` (no args) is the legacy pinned form;
-        # it must continue to round-trip cleanly to `("codex", "codex", ())`.
+    def test_plain_decomposer_spec_round_trips(self) -> None:
+        # `decomposer_agent="codex"` (no args) is a current pinned spec;
+        # it round-trips cleanly to `("codex", "codex", ())`.
         spec, backend, args, sid = _decomposer_session._read_decomposer_session(
             PinnedState(
                 data={DECOMPOSER_AGENT: BACKEND_CODEX, "decomposer_session_id": "sid-x"},

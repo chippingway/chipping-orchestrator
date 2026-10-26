@@ -67,8 +67,8 @@ def _locked_discussion_session(
     argument set that never ran on this issue, hand it a session id no CLI on
     that backend has ever heard of, and then overwrite the pin with them.
 
-    Legacy bare-backend values (`"codex"` / `"claude"`) re-parse to
-    `(backend, ())` and round-trip cleanly. Only an issue that has never
+    Plain backend values (`"codex"` / `"claude"`) are current specs: they
+    re-parse to `(backend, ())` and round-trip cleanly. Only an issue that has never
     spawned a discussion agent falls through to the configured decomposer,
     and it is also the only one with no session to resume rather than one a
     round simply failed to hand back.
