@@ -11,10 +11,9 @@ surface.
 
 Two counters ride beside that denominator because they answer different
 questions. `skill_runs` tests the `skills_triggered` key for presence, so it
-counts the runs that loaded at least one skill; `total_triggers` sums the
-recorded count, so a run that loaded three contributes three. The presence test
-is a key probe rather than a non-empty check, so a run that recorded an empty
-load list still reads as a run that reported.
+counts the runs that loaded at least one skill -- the recorder drops the key
+rather than writing an empty list; `total_triggers` sums the recorded count, so
+a run that loaded three contributes three.
 
 The scan stays on the events table: the `extras` blob these fields live in is
 not carried by the day-bucketed rollup, and the caller's own event selection is
@@ -34,7 +33,6 @@ from orchestrator.observability.analytics.query.conditions import (
 from orchestrator.observability.analytics.query.execution import ReadQuery
 from orchestrator.observability.analytics.query.filters import WindowFilters
 from orchestrator.observability.analytics.query.predicates import build_window_where
-from orchestrator.observability.analytics.query.row_cells import row_value
 from orchestrator.observability.analytics.query.skill_models import SkillTriggerRateRow
 from orchestrator.observability.analytics.query.skill_values import label_or_unknown
 
@@ -63,8 +61,8 @@ def skill_trigger_rate_from_row(row: Sequence[Any]) -> SkillTriggerRateRow:
         agent_role=label_or_unknown(row[0]),
         backend=label_or_unknown(row[1]),
         runs=int(row[2] or 0),
-        skill_runs=int(row_value(row, 3) or 0),
-        total_triggers=int(row_value(row, 4) or 0),
+        skill_runs=int(row[3] or 0),
+        total_triggers=int(row[4] or 0),
     )
 
 

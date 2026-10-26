@@ -9,16 +9,16 @@ page is rendered from.
 
 The record side arrives first. ``constants`` owns what one line is recognized,
 bracketed, and dismissed by; ``coercion`` owns the narrowing every untyped
-field passes through, so a hand-edited or older record costs a smaller row
+field passes through, so a hand-edited or damaged record costs a smaller row
 rather than a failed read. ``models`` owns the frozen pieces a record is read
 back as -- the step, the timeline entry, and the two usage summaries -- with
-the constructor signatures and the historical module identity they are
-published under. ``runs`` is the record itself, and it defines no view of its
-own: ``usage_views`` answers for a run's tallies and its money, and
-``timeline_views`` for the one ordered sequence it renders as, the labels it is
-picked by, and the tells that mark it a fixture. ``parsing`` is what turns a
-decoded line into one of those records -- the event it is accepted for, the
-position it is stamped with, and the narrowing every field goes through.
+the constructor signatures they are published under. ``runs`` is the record
+itself, and it defines no view of its own: ``usage_views`` answers for a run's
+tallies and its money, and ``timeline_views`` for the one ordered sequence it
+renders as, the labels it is picked by, and the tells that mark it a fixture.
+``parsing`` is what turns a decoded line into one of those records -- the event
+it is accepted for, the position it is stamped with, and the narrowing every
+field goes through.
 
 The read over them arrives with it. ``reading`` is the whole of one pass over
 the file: the blank, malformed, and foreign lines skipped rather than raised
@@ -58,8 +58,7 @@ What draws that markup arrives last, and it does not import Streamlit either:
 each of these five takes the module in as an argument, the way a run and a
 settings holder are handed in, so drawing a page costs nothing at import.
 ``page_models`` holds the two frozen shapes one run of the page is carried
-by -- the file as it was read, and what the controls then answered -- each
-published from the historical site the page state is documented at.
+by -- the file as it was read, and what the controls then answered.
 ``page_setup`` is what a run settles before anything is drawn: the two
 stylesheets in the order their cascade depends on, the opt-in refusal an
 unconfigured sink is stopped with, and the one pass over the file the whole

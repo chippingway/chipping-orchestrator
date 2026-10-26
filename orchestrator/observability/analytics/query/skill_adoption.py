@@ -29,8 +29,10 @@ a session out of the denominator it belongs in.
 
 Which cells exist is the union of three observations, not just the availability
 set: a purely incidental reference and a load whose session reported a
-different availability set each get a row too, so an observation is never
-dropped for disagreeing with the denominator it would have been filed under.
+different availability set, or none at all, each get a row too, so an
+observation is never dropped for disagreeing with the denominator it would have
+been filed under. Such a row carries no session it could count against, which
+is what leaves its rate undefined rather than claiming an offer nobody reported.
 Ordering puts the widest reach first -- sessions offered, then sessions
 adopting, then the busiest cohort -- so the cap keeps the cells a reader would
 have looked at first.
@@ -95,7 +97,8 @@ class SkillAdoption:
     def keys(self) -> set[SkillCell]:
         # Every available cell plus any cell that only shows in the window
         # diagnostics (a purely incidental reference, or a load whose session
-        # reported a different availability set) so no observation is dropped.
+        # reported a different availability set or none) so no observation is
+        # dropped.
         keys = set(self.sessions)
         keys.update(self.load_rows)
         keys.update(self.incidental)
@@ -151,9 +154,8 @@ class SkillAdoption:
         cohorts: set[SkillCohort],
         session: SessionEvidence,
     ) -> None:
-        available = session.resolved_available()
         for cohort in cohorts:
-            for offered in available:
+            for offered in session.available:
                 key = SkillCell(*cohort, *offered)
                 self.sessions[key] = self.sessions.get(key, 0) + 1
                 if offered in session.adopted:

@@ -100,6 +100,10 @@ compatibility reader, migration, or final 0.x release. A contract for current ou
 earlier formats, nor functions to accept callers' obsolete argument aliases. This decision sets no compatibility or
 deprecation policy for later releases.
 Historical forms the runtime still reads stay documented in their specifications until their owners remove them.
+Analytics and trajectory readers interpret only what current producers write: a field a producer did not report is
+unknown rather than inferred from another (a skill load is no evidence of its offer), and a row narrower than its
+query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
+unpriced cost, and a malformed record's containment remain current answers.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -127,7 +131,8 @@ or lost write interrupted are current state, not historical compatibility.
 [refresh admission](state-machine/labels-and-state.md#base-refresh),
 [artifact admission](configuration/operations.md#what-clears-a-candidate-and-what-keeps-it),
 [deployment without migration](configuration/operations.md#deploying-without-migration),
-[close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own).
+[close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own),
+[analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery).
 
 **Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py),
 [refused closes](../tests/workflow/engine/test_dispatch_refused_record_cleanup.py),
@@ -137,7 +142,8 @@ or lost write interrupted are current state, not historical compatibility.
 [refresh admission](../tests/workflow/engine/test_base_refresh.py),
 [refreshed tick](../tests/workflow/engine/test_tick_refresh.py),
 [snapshot consumers](../tests/workflow/stages/decomposition/test_claimed_reclamation.py),
-[artifact admission](../tests/git/worktrees/test_maintenance_admission.py).
+[artifact admission](../tests/git/worktrees/test_maintenance_admission.py),
+[analytics readers](../tests/observability/analytics/query/test_skill_adoption_reads.py).
 
 ## C-04: Authentic state and trusted input
 

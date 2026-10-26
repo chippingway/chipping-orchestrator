@@ -104,7 +104,7 @@ def bind_read_request(
     positional_fields: tuple[Any, ...],
     keyword_fields: dict[str, Any],
 ) -> ReadRequest:
-    """Bind a historical keyword call into the typed request model."""
+    """Bind one public read's keyword call into the typed request model."""
     bound_fields = signature.bind(*positional_fields, **keyword_fields)
     bound_fields.apply_defaults()
     bound_values = bound_fields.arguments

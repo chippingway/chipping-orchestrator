@@ -12,9 +12,10 @@ the label breaking ties, so redrawing the same window cannot reshuffle a table,
 and the insertion order of the returned mapping is the order a page iterates.
 
 The totals row is mapped column-by-column through a declared cast list rather
-than unpacked, which is what lets a shorter row -- a fixture or a caller that
-predates a column -- leave the trailing fields at their model defaults instead
-of raising.
+than unpacked, so each total is cast to the type its field declares, with a
+NULL aggregate reading as zero. The list and the totals branch of the SELECT
+are the same width, and a row of any other width raises rather than leaving a
+total it never carried at its model default.
 """
 
 from __future__ import annotations
@@ -74,6 +75,7 @@ def summary_total_values(totals_row: tuple) -> dict[str, Any]:
         for (field_name, field_cast), raw_value in zip(
             SUMMARY_TOTAL_FIELD_CASTS,
             totals_row[2:],
+            strict=True,
         )
     }
 

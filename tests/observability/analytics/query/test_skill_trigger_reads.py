@@ -70,7 +70,7 @@ _USER = "user"
 # since its stream names no source directory for the skills it lists.
 _DEVELOP_RUN = (_REPO, _DEVELOPER, _CLAUDE, _DEVELOP_ONLY, {_DEVELOP: _PROJECT})
 
-_SKILL_FREE_RUN = (_REPO, _DEVELOPER, _CLAUDE, None)
+_SKILL_FREE_RUN = (_REPO, _DEVELOPER, _CLAUDE, None, None)
 
 # One `repo_skill_catalog` row: the repository, the names it offers, and the
 # level each was classified at.
@@ -290,8 +290,8 @@ class SkillMatrixCellTest(unittest.TestCase):
             _DEVELOP_CATALOG,
             (
                 _DEVELOP_RUN,
-                (_REPO, _DECOMPOSER, _CLAUDE, None),
-                (_REPO, _QUESTION, _CODEX, None),
+                (_REPO, _DECOMPOSER, _CLAUDE, None, None),
+                (_REPO, _QUESTION, _CODEX, None, None),
                 (_REPO, None, None, _DEVELOP_ONLY, {_DEVELOP: _PROJECT}),
             ),
         )
@@ -319,7 +319,7 @@ class SkillMatrixCellTest(unittest.TestCase):
         # that triggered nothing contributes no cell at all.
         conn = FakeConnection(rows_for={_EXIT_SCAN: (
             _DEVELOP_RUN,
-            (_REPO, _REVIEWER, _CODEX, None),
+            (_REPO, _REVIEWER, _CODEX, None, None),
         )})
         with configured_db_url():
             rows = get_skill_trigger_matrix(connect=conn.as_connect)
@@ -333,10 +333,8 @@ class SkillMatrixCellTest(unittest.TestCase):
     def test_a_cell_is_keyed_by_name_and_level(self) -> None:
         # One name at two levels is two definitions, so what a cohort loaded
         # of each reports as its own cell rather than one blended average.
-        # The catalog record classified nothing and still pads at `project`:
-        # that scan reads a repository's own checked-in definitions.
         cells = _matrix_cells(_matrix_rows(
-            ((_REPO, _DEVELOP_ONLY, None),),
+            _DEVELOP_CATALOG,
             (
                 (_REPO, _DEVELOPER, _CLAUDE, _DEVELOP_ONLY, {_DEVELOP: _USER}),
                 _SKILL_FREE_RUN,
@@ -392,7 +390,13 @@ class SkillMatrixCellTest(unittest.TestCase):
     def test_the_cap_keeps_the_top_of_that_ranking(self) -> None:
         review_run = (_REPO, _DEVELOPER, _CLAUDE, (_REVIEW,), {_REVIEW: _PROJECT})
         conn = FakeConnection(rows_for={
-            _CATALOG_SCAN: ((_REPO, (_DEVELOP, _REVIEW, _DOCUMENT), None),),
+            _CATALOG_SCAN: (
+                (
+                    _REPO,
+                    (_DEVELOP, _REVIEW, _DOCUMENT),
+                    dict.fromkeys((_DEVELOP, _REVIEW, _DOCUMENT), _PROJECT),
+                ),
+            ),
             _EXIT_SCAN: (_DEVELOP_RUN, review_run, review_run),
         })
         with configured_db_url():
@@ -457,6 +461,18 @@ class SkillMatrixProvenanceTest(unittest.TestCase):
         self.assertEqual(cells, {
             (_DEVELOP, _UNKNOWN, _DEVELOPER, _CLAUDE): (1, 1),
             (_REVIEW, _PROJECT, _DEVELOPER, _CLAUDE): (1, 0),
+        })
+
+    def test_an_unclassified_catalog_offers_nothing(self) -> None:
+        # The catalog producer classifies every name it enumerates, so a
+        # record whose level map is absent names no definition: it pads no
+        # zero and settles no level, and the load stays `unknown`.
+        cells = _matrix_cells(_matrix_rows(
+            ((_REPO, _DEVELOP_ONLY, None),),
+            ((_REPO, _DEVELOPER, _CLAUDE, _DEVELOP_ONLY, None), _SKILL_FREE_RUN),
+        ))
+        self.assertEqual(cells, {
+            (_DEVELOP, _UNKNOWN, _DEVELOPER, _CLAUDE): (2, 1),
         })
 
     def test_an_ambiguous_name_stays_unknown(self) -> None:

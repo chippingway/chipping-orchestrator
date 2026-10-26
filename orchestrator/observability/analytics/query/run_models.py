@@ -5,10 +5,11 @@
 These rows are positional unpacks of a SELECT list, so the field order here is
 half of a contract whose other half is the query that fills it -- a column
 added to one without the other silently shifts every field after it. The trace
-row also carries the `result` name the page reads an event outcome by: the
-field is stored under `event_result` because a bare `result` is a name the
-style guide rejects, and the alias is installed as a property so the two can
-never hold different values.
+row also carries the `result` name the page reads an event outcome by, which is
+the column and the record field it was recorded under: the field is stored
+under `event_result` because a bare `result` is a name the style guide rejects,
+and the public name is installed as a property so the two can never hold
+different values.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ RESULT_FIELD = "result"
 
 
 def public_event_result(event_row: IssueEventRow) -> str | None:
-    """Return an event result through its historical public name."""
+    """Return an event result through the `result` name the page reads."""
     return event_row.event_result
 
 
@@ -49,8 +50,7 @@ class StageBreakdown:
     input + output tokens. The split is prorated per rollup row by
     token share so cache + no-cache sums back to the stage's total
     cost, letting the dashboard chart stack cache vs no-cache spend
-    per stage. Zero-defaulted so a fake fixture without the run /
-    cost / token / cache-split columns still round-trips.
+    per stage.
     """
 
     stage: str
@@ -144,11 +144,12 @@ class IssueEventRow:
     columns it may carry (`agent_spec`, `session_id`, `resume_session_id`,
     `review_round`, `retry_count`, `timed_out`) and `extras`, the decoded
     blob the ingest routes every other field into -- a park's `reason`,
-    `route`, `pr_number`, and `sha` among them. They default to unset so a
-    row built before they existed, or a record that never carried them,
-    reads back as having none rather than as a measured value; an empty
-    `extras` is a row with nothing outside the promoted set. The forensic
-    provenance columns (`source_path`, `source_line`) stay off the trace.
+    `route`, `pr_number`, and `sha` among them. They default to unset
+    because most events carry none of them: a `stage_enter` or a
+    `stage_evaluation` reads back as having none rather than as a measured
+    value, and an empty `extras` is a row with nothing outside the promoted
+    set. The forensic provenance columns (`source_path`, `source_line`)
+    stay off the trace.
 
     A park is a workflow-progress record, not an execution one: a handler
     that parked an issue still evaluated to `result="ok"`, and the

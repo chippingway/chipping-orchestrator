@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """The one ordered sequence a run renders as, and how it is titled and hidden.
 
-The timeline is what makes two record vintages readable the same way. A record
-predating the text-turn steps carries only tool calls and their results, a
-newer one interleaves assistant and user turns among them, and both are read
-back as the prompt, then the steps in the order they were streamed, then the
-final output. Each bracket is dropped when its field is empty, so a run that
+The timeline is what makes every run readable the same way. A run whose steps
+are only tool calls and their results and one that interleaves assistant and
+user turns among them are both read back as the prompt, then the steps in the
+order they were streamed, then the final output. Each bracket is dropped when its field is empty, so a run that
 was never answered is its prompt alone rather than a trailing blank.
 
 The fixture tells are what an inherited file's synthetic records carry -- the

@@ -96,8 +96,8 @@ class _FilterRunsSupport(unittest.TestCase):
             _reviewer_run(output="looks good"),
         ]
 
-    def _issues(self, *args, **option_fields) -> list[int]:
-        kept = filtering.filter_runs(self._runs(), *args, **option_fields)
+    def _issues(self, **option_fields) -> list[int]:
+        kept = filtering.filter_runs(self._runs(), **option_fields)
         return [kept_run.issue for kept_run in kept]
 
 
@@ -167,17 +167,16 @@ class FilterRunSelectionTest(_FilterRunsSupport):
         self.assertEqual([kept_run.seq for kept_run in kept], [0, 9])
 
 
-class FilterRequestSpellingTest(_FilterRunsSupport):
-    """One request, two spellings -- and never both in the same call."""
+class FilterRequestShapeTest(_FilterRunsSupport):
+    """A request is the keyword fields alone."""
 
-    def test_an_options_object_narrows_the_same_way(self) -> None:
-        options = filter_models.RunFilterOptions(repo=_REPO_A)
-        self.assertEqual(self._issues(options), [_DEVELOPER_ISSUE])
-
-    def test_passing_both_spellings_is_refused(self) -> None:
-        options = filter_models.RunFilterOptions(repo=_REPO_A)
+    def test_an_options_object_is_refused(self) -> None:
+        # The keywords are the one spelling a page calls with, so an options
+        # object handed in beside the runs is a call nothing here answers.
         with self.assertRaises(TypeError):
-            self._issues(options, issue=_DEVELOPER_ISSUE)
+            filtering.filter_runs(
+                self._runs(), filter_models.RunFilterOptions(repo=_REPO_A),
+            )
 
 
 class FilterRunFixtureTest(unittest.TestCase):

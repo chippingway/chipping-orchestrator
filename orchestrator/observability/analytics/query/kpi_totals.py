@@ -24,7 +24,7 @@ from orchestrator.observability.analytics.query.predicates import (
     DAILY_ROLLUP_VIEW,
     build_rollup_window_where,
 )
-from orchestrator.observability.analytics.query.row_cells import cost_cell, row_value
+from orchestrator.observability.analytics.query.row_cells import cost_cell
 
 
 def kpi_prev_sql(where: str) -> str:
@@ -61,5 +61,5 @@ def kpi_prev_summary(
         total_output_tokens=int(row[2] or 0),
         total_cache_read_tokens=int(row[3] or 0),
         total_cache_write_tokens=int(row[4] or 0),
-        total_agent_runs=int(row_value(row, 5) or 0),
+        total_agent_runs=int(row[5] or 0),
     )

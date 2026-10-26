@@ -14,9 +14,9 @@ A skill is identified by its name *and* the source level that defined it, so
 the `develop` a repository checked in and the `develop` an operator installed
 globally stay two cells rather than one blended average. A level is read off
 the same row that named the skill, and a name the row's level map does not
-cover reads `unknown` -- a record written before levels existed, or a claude
-run whose stream names no source directory for the skills it lists, lands
-under one spelling an operator can look up instead of a scattering of blanks.
+cover reads `unknown` -- a claude run, whose stream names no source directory
+for the skills it lists, lands under one spelling an operator can look up
+instead of a scattering of blanks.
 
 The cohort is the other half. Every skill read groups by the same
 `(repo, agent_role, backend)` triple, with a missing role or backend reading as
@@ -33,7 +33,6 @@ from collections.abc import Sequence
 from typing import Any, NamedTuple
 
 from orchestrator.observability.analytics.query.raw_values import decoded_json
-from orchestrator.observability.analytics.query.row_cells import row_value
 
 # The cohort a cell is counted against, and the name/level pair one row
 # reported a skill as.
@@ -102,22 +101,17 @@ def as_skill_levels(raw: Any) -> dict[str, str]:
     }
 
 
-def leveled_skills(
-    raw_names: Any,
-    raw_levels: Any,
-    *,
-    default_level: str = UNKNOWN_LABEL,
-) -> frozenset[SkillLevelPair]:
+def leveled_skills(raw_names: Any, raw_levels: Any) -> frozenset[SkillLevelPair]:
     """Pair every recorded skill name with the level that defined it.
 
     The names decide which pairs exist and the map only classifies them, so
     a level recorded for a name the row never listed contributes no cell. A
-    name the map leaves out takes `default_level`, which is what keeps an
+    name the map leaves out reads `unknown`, which is what keeps an
     unclassified record's cells findable rather than scattered.
     """
     levels = as_skill_levels(raw_levels)
     return frozenset(
-        (name, levels.get(name, default_level))
+        (name, levels.get(name, UNKNOWN_LABEL))
         for name in as_skill_names(raw_names)
     )
 
@@ -132,12 +126,12 @@ def label_or_unknown(raw: Any) -> str:
 def skill_cohort(row: Sequence[Any]) -> SkillCohort:
     """Normalize one row's repository, role, and backend cohort.
 
-    The role and the backend are read positionally against a default, so a
-    narrower row that carries neither still reports the cohort both label
-    under `unknown`.
+    Every skill scan leads with these three columns, the last two already
+    coalesced to `unknown` in SQL, so a run that recorded neither label is
+    still a cohort rather than one dropped for having nothing to group by.
     """
     return (
         label_or_unknown(row[0]),
-        label_or_unknown(row_value(row, 1, None)),
-        label_or_unknown(row_value(row, 2, None)),
+        label_or_unknown(row[1]),
+        label_or_unknown(row[2]),
     )

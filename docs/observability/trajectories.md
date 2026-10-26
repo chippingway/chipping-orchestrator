@@ -384,10 +384,10 @@ that holder intercepts every read the page makes. Together they read `TRAJECTORY
 `agent_trajectory`
 record into a frozen `TrajectoryRun` (with a normalised `TrajectoryStepView` per step), and expose `read_trajectories`
 (newest first by `ts`, file order as the tie-break), `filter_options`, `filter_runs` (repo / backend / agent-role /
-stage / issue / free-text-search, every filter conjunctive and an empty multi-value meaning "no constraint", plus an
-opt-in `exclude_fixtures`), and `summarize`. Each run exposes a normalised, vintage-agnostic `timeline` — the leading
-`user_input` prompt, then the ordered `steps[]`, then the final `output`, as one ordered `TimelineEntry` sequence — so
-an old steps-only record (only `tool_call` / `tool_result` steps) and a new record whose steps interleave
+stage / issue / free-text-search, each an optional keyword, every filter conjunctive and an empty multi-value meaning
+"no constraint", plus an opt-in `exclude_fixtures`), and `summarize`. Each run exposes a normalised `timeline` — the
+leading `user_input` prompt, then the ordered `steps[]`, then the final `output`, as one ordered `TimelineEntry`
+sequence — so a run whose steps are only `tool_call` / `tool_result` and one whose steps interleave
 `assistant_message` / `user_message` text turns render the same way; `tool_calls` still counts only `tool_call` steps,
 so neither the text turns nor an `unsupported_item` placeholder inflates the tally, and a codex plan or patch counts
 once — as the single call its frames fold into — rather than once per frame. A step kind the timeline has no
@@ -399,10 +399,12 @@ summary and a claude-only per-turn `turns` tuple (`TurnUsageView`), with conveni
 `run_usage.models`), `cost_usd` / `cost_source` (the authoritative run figure), `total_tokens`, and an O(1)
 `usage_for_turn(idx)` lookup so a `TimelineEntry` (which now carries the producing step's `turn` index) can find its
 turn's usage while walking the timeline; `summarize` adds `total_cost_usd`, the summed run cost over runs that recorded
-one. A pre-usage record parses with `run_usage=None`, `turns=()`, and every `step.turn=None`, so it renders exactly as
-before. The codex per-item accounting (`source_items` with its `source_item_counts` and `source_items_truncated`) is
-deliberately **not** projected onto `TrajectoryRun`: the viewer renders what a run *did*, while an id-by-id `item_N`
-coverage audit is a question for the JSONL file itself, so those three keys ride past the read model untouched. The
+one. The sink writes `run_usage` on every record, so one whose summary is missing or not an object is a hand-edited
+or damaged line: it parses with `run_usage=None` and renders without the run-level usage row rather than failing, while
+its per-turn `turns` still read as usual. The codex per-item accounting (`source_items` with its `source_item_counts`
+and `source_items_truncated`) is deliberately **not** projected onto `TrajectoryRun`: the viewer renders what a run
+*did*, while an id-by-id `item_N` coverage audit is a question for the JSONL file itself, so those three keys ride past
+the read model untouched. The
 `truncated` warning the run card draws speaks of dropped steps for the same reason — the accounting is drawn from the
 budget before the steps, so a record that lost accounting rows lost its steps first. The same resilience contract the
 rest of the codebase honours holds: a missing / disabled path, a malformed
@@ -443,9 +445,11 @@ run, a compact per-turn usage strip (model · in / out tokens · cache-read / ca
 states that per-turn figures are claude-only estimates that need not sum to the authoritative run total, and that
 entries without a strip (tool results, user turns) are turn inputs billed on the next turn. A turn no step names — a
 subagent's closing message, known only from its hand-back — has no boundary to draw a strip at, so its output count
-shows in the run-level row alone. A pre-usage record carries
-no usage, so the row and strips are absent and it renders exactly as before. The fixtures `is_fixture` flags are tagged
-in the overview table and the run-level picker (the `[fixture]` prefix rides the run option; and the detail card carries
+shows in the run-level row alone. The sink writes the `run_usage` summary on every record, so one whose summary is
+missing or not an object is a hand-edited or damaged line: it renders without the run-level row rather than failing,
+and any per-turn strips its `turns` carry are still drawn.
+The fixtures `is_fixture` flags are tagged in the overview table and the run-level picker (the `[fixture]` prefix rides
+the run option; and the detail card carries
 a notice) so the operator can tell the inherited test-suite records from real runs even with the toggle off. When the
 sink is off it renders the opt-in banner and stops; an empty file or an empty filter set renders an explanatory notice
 rather than a blank page. That app file is the only launch path the viewer has. The page

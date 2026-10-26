@@ -768,7 +768,10 @@ toward starting the selected build:
 - Back up the settings, as step 3 of [Upgrade a package](#upgrade-a-package) does for a package or by copying a source
   checkout's `.env`, and keep custom units, drop-ins, and the logs.
 - Leave operator-owned analytics storage alone: the analytics and trajectory JSONL files, and the analytics database
-  with its `analytics-db/data/` volume.
+  with its `analytics-db/data/` volume. Nothing in them is converted, and the dashboard and the trajectory viewer read
+  an earlier record only as the current producers would have written it: a field it never carried stays unknown, so a
+  skill load recorded with no offered set joins no adoption denominator, an unclassified catalog name pads no cell,
+  and a run that recorded no review round reports under `unknown`.
 
 ### Install, check, and start deliberately
 

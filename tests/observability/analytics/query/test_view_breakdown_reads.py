@@ -14,7 +14,6 @@ from orchestrator.observability.analytics.query.breakdown_reads import (
 )
 from tests.observability.analytics.analytics_assertions import (
     assert_column_values,
-    assert_row_fields,
     assert_sql_fragments,
 )
 from tests.observability.analytics.query.query_fake_driver import (
@@ -54,9 +53,6 @@ _REPORTED_TOKENS = 800_000
 _UNPRICED_TOKENS = 60_000
 
 _CLAUDE_DAY_ONE_TOKENS = 12_000
-
-# What a cost column reads as when the fixture predates it.
-_NO_COST = float(0)
 
 # The four token columns each of these three sums, so a volume read off any of
 # them is measured against the same billable bands.
@@ -165,14 +161,17 @@ class ReviewRoundReadTest(unittest.TestCase):
         )
 
     def test_the_scan_labels_and_splits_rounds(self) -> None:
-        # A developer run still in `implementing` reads as round zero, the scan
-        # narrows to the two reviewed roles, and each role's cost is prorated by
-        # its cache-token share -- with the Codex `cached_tokens` subset in the
-        # numerator only, so the two bands sum back to the role's total.
+        # A run that recorded no round reads as `unknown` whatever its role or
+        # stage -- every current run records one, a fresh implementation as
+        # round zero -- the scan narrows to the two reviewed roles, and each
+        # role's cost is prorated by its cache-token share, with the Codex
+        # `cached_tokens` subset in the numerator only, so the two bands sum
+        # back to the role's total.
         conn = FakeConnection(rows=(_ROUND_ROW,))
         with configured_db_url():
             get_review_round_breakdown(connect=conn.as_connect)
         scan_sql, _ = conn.executed[0]
+        self.assertNotIn("stage = 'implementing'", scan_sql)
         assert_sql_fragments(
             self,
             scan_sql,
@@ -182,8 +181,7 @@ class ReviewRoundReadTest(unittest.TestCase):
                 "agent_role IN ('developer', 'reviewer')",
                 "agent_role = 'developer'",
                 "agent_role = 'reviewer'",
-                "stage = 'implementing' THEN '0'",
-                "THEN 'unknown'",
+                "WHEN review_round IS NULL THEN 'unknown'",
                 "THEN '6+'",
                 "cached_tokens",
                 "developer_cache_cost_usd",
@@ -191,26 +189,6 @@ class ReviewRoundReadTest(unittest.TestCase):
                 "reviewer_cache_cost_usd",
                 "reviewer_no_cache_cost_usd",
             ),
-        )
-
-    def test_a_short_round_row_defaults_costs(self) -> None:
-        # A fixture from before the cost, role, and cache columns existed still
-        # round-trips, with every one of them left at zero.
-        conn = FakeConnection(rows=((_ROUND_ZERO, 3, 0),))
-        with configured_db_url():
-            rows = get_review_round_breakdown(connect=conn.as_connect)
-        assert_row_fields(
-            self,
-            rows[0],
-            {
-                "total_cost_usd": _NO_COST,
-                "developer_cost_usd": _NO_COST,
-                "reviewer_cost_usd": _NO_COST,
-                "developer_cache_cost_usd": _NO_COST,
-                "developer_no_cache_cost_usd": _NO_COST,
-                "reviewer_cache_cost_usd": _NO_COST,
-                "reviewer_no_cache_cost_usd": _NO_COST,
-            },
         )
 
 
@@ -251,12 +229,6 @@ class CostCoverageReadTest(unittest.TestCase):
             scan_sql,
             ("COALESCE(cost_source, 'unknown')", *_TOKEN_COLUMNS),
         )
-
-    def test_a_short_coverage_row_defaults_tokens(self) -> None:
-        conn = FakeConnection(rows=((_REPORTED, 3),))
-        with configured_db_url():
-            rows = get_cost_coverage(connect=conn.as_connect)
-        self.assertEqual([row.total_tokens for row in rows], [0])
 
 
 class BackendDailyTokensReadTest(unittest.TestCase):

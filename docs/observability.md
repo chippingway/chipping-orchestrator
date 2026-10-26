@@ -151,8 +151,11 @@ Thin, testable data-access layer over `analytics_events`, the `analytics_agent_r
 the rollup cannot reconstruct exactly stay on the base table or the agent-run view. Nothing here imports Streamlit, so
 the read path can be wired into any UI. An unset `ANALYTICS_DB_URL` short-circuits every reader to an empty result
 with no connection attempt, mirroring the sync's no-op contract, and every failure surfaces as one
-`AnalyticsReadError`. That page carries all twenty reads, the owner each is defined on, the typed request and filter
-contract they share, and the thread-local connection cache a caller reuses a socket through.
+`AnalyticsReadError`. Every read interprets only what the current producers write, so a field no record reported
+stays unknown — a session that reported no offered skills joins no adoption denominator — while a NULL column, an
+unpriced cost, and a malformed `extras` blob keep their current readings. That page carries all twenty reads, the owner
+each is defined on, the typed request and filter contract they share, and the thread-local connection cache a caller
+reuses a socket through.
 
 ### Dashboard (`orchestrator/apps/analytics_dashboard.py`)
 

@@ -34,7 +34,7 @@ from orchestrator.observability.analytics.query.predicates import (
     build_rollup_window_where,
 )
 from orchestrator.observability.analytics.query.raw_values import float_or_none
-from orchestrator.observability.analytics.query.row_cells import cost_cell, row_value
+from orchestrator.observability.analytics.query.row_cells import cost_cell
 from orchestrator.observability.analytics.query.run_models import StageBreakdown
 
 
@@ -68,9 +68,9 @@ def stage_breakdown_from_row(row: Sequence[Any]) -> StageBreakdown:
         count=int(row[1]),
         avg_duration_s=float_or_none(row[2]),
         total_cost_usd=cost_cell(row, 3),
-        total_input_tokens=int(row_value(row, 4) or 0),
-        total_output_tokens=int(row_value(row, 5) or 0),
-        runs=int(row_value(row, 6) or 0),
+        total_input_tokens=int(row[4] or 0),
+        total_output_tokens=int(row[5] or 0),
+        runs=int(row[6] or 0),
         cache_cost_usd=cost_cell(row, 7),
         no_cache_cost_usd=cost_cell(row, 8),
     )

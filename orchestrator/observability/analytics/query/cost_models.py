@@ -31,12 +31,10 @@ class ReviewRoundBucketRow:
     `*_no_cache_cost_usd` (the portion attributable to input + output
     tokens). The split is prorated per run by token share so cache +
     no-cache sums back to the role's total cost, letting the dashboard
-    chart stack cache vs no-cache spend per round. Rows with
-    `review_round IS NULL` surface under the `"unknown"` bucket when
-    they are still development/review runs. Historical implementation
-    rows that predate fresh-spawn `review_round=0` logging are
-    bucketed as `0` so the dashboard does not strand first-pass
-    development cost under "unknown".
+    chart stack cache vs no-cache spend per round. Every development
+    and review run records its round, a fresh implementation as `0`, so
+    a row with `review_round IS NULL` surfaces under the `"unknown"`
+    bucket rather than in a round it never named.
     """
 
     bucket: str

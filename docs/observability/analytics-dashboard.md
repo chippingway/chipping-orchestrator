@@ -29,11 +29,11 @@ headline and lifecycle adapters in `observability/dashboard/rollups.py` reach th
 `SORT_BY_COST` spelling `issue_summaries.py` declares.
 
 The shared call boundary is a `ReadRequest` composed of `ReadFilters`, `ReadConnection`, and `ReadOptions`, declared by
-`observability/analytics/query/request_models.py`. Its sibling `requests.py` binds every historical keyword signature
-into that typed request before the family leaf executes, so existing calls and error behavior are unchanged while
-implementation helpers no longer thread large argument lists. Every family leaf reaches `execution.py`'s `ReadQuery`
-for the connection inputs one read carries. Both connection paths resolve a caller's omitted `db_url=` through
-`observability/analytics/config.py`'s `resolve_db_url`, so the URL-source policy has one home.
+`observability/analytics/query/request_models.py`. Its sibling `requests.py` binds every public read's keyword
+signature into that typed request before the family leaf executes, so a page calls each read by keyword while the
+implementation helpers beneath it thread one request rather than large argument lists. Every family leaf reaches
+`execution.py`'s `ReadQuery` for the connection inputs one read carries. Both connection paths resolve a caller's
+omitted `db_url=` through `observability/analytics/config.py`'s `resolve_db_url`, so the URL-source policy has one home.
 
 **Input owners.** `filters.py` owns `WindowFilters` — the selection a read narrows by, plus the three scoped
 projections (`without_events` for a view with no `event` column, `catalog_scope` for repo-level catalog rows,
@@ -74,10 +74,9 @@ per-`(repo, issue)` aggregate scan, `SORT_BY_LAST_SEEN` / `SORT_BY_COST`, and th
 `issue_events.py` (one issue's trace, `ORDER BY ts ASC, id ASC`). Beneath them, `query_rows.py` names the columns of
 the four SELECT lists read back by field rather than by index — recent exits, issue summaries, one issue's trace,
 review-round buckets — and the trace's named row is its SELECT list, so the two cannot disagree about where a column
-sits. All but the first pad a row shorter than the list to the full width, which is what lets an older, narrower
-fixture round-trip with its missing columns unset; the recent-exit row unpacks strictly, so a row short of its fifteen
-columns raises. `raw_values.py` owns the NULL-preserving scalar coercions, the decode of a JSONB cell a driver hands
-back either adapted or as text, plus the probe for a cleared multiselect.
+sits. Each unpacks strictly, so a row of any other width than its SELECT list raises rather than reading a column it
+never carried as NULL. `raw_values.py` owns the NULL-preserving scalar coercions, the decode of a JSONB cell a driver
+hands back either adapted or as text, plus the probe for a cleared multiselect.
 
 **Rollup-read owners.** `rollup_reads.py` owns the seven reads that scan `analytics_daily_rollup` instead —
 `get_summary`, `get_kpi_prev`, `get_time_series`, `get_stage_breakdown`, `get_backend_efficiency`,
@@ -85,8 +84,8 @@ back either adapted or as text, plus the probe for a cleared multiselect.
 what lets them read the rollup rather than a row's own `ts`. It decides the same no-database answers the raw hub does,
 plus the agent-run event-filter short-circuit `get_backend_efficiency` returns on. One projection owner sits under
 each read: `summary_queries.py` (the `WITH win AS (...)` CTE and its three `UNION ALL` branches) with
-`summary_results.py` beside it (the in-Python `count DESC, label ASC` ranking, and the cast list that leaves a short
-totals row's trailing fields at their model defaults), `kpi_totals.py` (the trimmed previous-window scalars),
+`summary_results.py` beside it (the in-Python `count DESC, label ASC` ranking, and the cast list the totals branch is
+read through column for column, at that branch's own width), `kpi_totals.py` (the trimmed previous-window scalars),
 `time_series.py` (the per-`(day, event)` cell), `stage_breakdowns.py`, `backend_efficiency.py`, `repo_breakdowns.py`,
 and `throughput_days.py` (the `done` / `rejected` terminals, the stage-selection intersection, and the two
 short-circuits that leave nothing to count).
@@ -111,24 +110,25 @@ two capped reads pass a non-positive `limit` through as "every cell". One aggreg
 `skill_trigger_rates.py` (the whole-cohort denominator, the key-presence probe, and the summed trigger count),
 `skill_matrices.py` (the window-scoped runs scan, the zero-padding over it, and the ranking the cap keeps the top
 of), and `skill_adoption.py` (the per-session ratio and the invocation / load / incidental diagnostics beside it).
-Beneath both of the last two, `skill_provenance.py` owns the repository-scoped catalog scan the padding is drawn
-from, the narrower filtering that repo-level record takes, and the level lookup over it — an unclassified name is
-filed at the level that repository offers it at, where it offers exactly one, and a name it never offered or offers
-at two levels stays `unknown`; `repo_skill_provenance` / `SkillProvenance` are what both aggregates resolve through,
-and `SkillProvenance.resolve_row` is the one step each takes over a name array and the level map beside it. Beneath
-the adoption aggregate, `skill_sessions.py` owns the resume-then-session-then-row-id session key and the two session
-scans' scopes — the window one picks which sessions count, the history one drops the start bound and the stage filter
-while keeping the end bound — and applies the fill to every category either scan gathers: the window loads, the
-incidental references, and a history row's offered set and loads alike. Beneath both aggregates, `skill_values.py`
-owns the two JSONB coercions (the name array and the name-to-source-level map), the pairing that reads each name's
-level off the same row and defaults an uncovered name to `unknown`, the `(repo, role, backend)` cohort with its
-`"unknown"` bucketing, and the `(repo, agent_role, backend, skill, level)` cell both aggregates accumulate under.
+Beneath both of the last two, `skill_provenance.py` owns the repository-scoped catalog scan the padding is drawn from,
+the narrower filtering that repo-level record takes, and the level lookup over it — only a name the catalog record
+classified is on offer, an unclassified run name is filed at the level that repository offers it at, where it offers
+exactly one, and a name it never offered or offers at two levels stays `unknown`; `repo_skill_provenance` /
+`SkillProvenance` are what both aggregates resolve through, and `SkillProvenance.resolve_row` is the one step each takes
+over a name array and the level map beside it. Beneath the adoption aggregate, `skill_sessions.py` owns the
+resume-then-session-then-row-id session key and the two session scans' scopes — the window one picks which sessions
+count, the history one drops the start bound and the stage filter while keeping the end bound — and applies the fill to
+every category either scan gathers: the window loads, the incidental references, and a history row's offered set and
+loads alike. Beneath both aggregates, `skill_values.py` owns the two JSONB coercions (the name array and the
+name-to-source-level map), the pairing that reads each name's level off the same row and defaults an uncovered name to
+`unknown`, the `(repo, role, backend)` cohort with its `"unknown"` bucketing, and the `(repo, agent_role, backend,
+skill, level)` cell both aggregates accumulate under.
 
 Beneath the rollup and breakdown families, `cache_shares.py` owns the token-share SQL the cache / no-cache split is
 weighted by — spelled once for the rollup's `total_*` sums and once for the agent-run view's per-run columns — and
-`row_cells.py` the readings a cell from any family passes through: a positional read with a default for a row
-narrower than the SELECT list, a nullable cost column read as a float, and a driver-widened `day` narrowed back to a
-date. The NULL-preserving float coercion the stage and backend projections share is `raw_values.py`'s, so both sides
+`row_cells.py` the readings a cell from any family passes through: a nullable cost column read as a float, with the NULL
+a group with no priced run sums to reading as zero, and a driver-widened `day` narrowed back to a date. The
+NULL-preserving float coercion the stage and backend projections share is `raw_values.py`'s, so both sides
 of the read path narrow a nullable duration the same way.
 
 - `get_summary` (rollup) — date-bounded totals + per-event / per-stage breakdowns + token / cost sums, plus
@@ -171,11 +171,11 @@ of the read path narrow a nullable duration the same way.
   base-table reads combined in Python: the `repo_skill_catalog` records (the `skills_available` universe a repo offers;
   date/repo-filtered only, since those records are repo-level with `issue = 0` / NULL stage) and the filtered
   `agent_exit` rows (each run's `skills_triggered` list). Both scans read the recorded `skill_levels` map beside the
-  names, so a name defined at two levels is two cells rather than one blended average: a catalog name the record left
-  unclassified pads at `project` (that scan enumerates a repository's own checked-in definitions), while an
-  unclassified run name — a record written before levels existed, or a claude run whose stream names no source
-  directory — is filed at the level that repository's catalog offers the name at whenever it offers exactly one, so
-  the load merges into the padded cell instead of splitting off an `unknown` one beside it; a name the catalog never
+  names, so a name defined at two levels is two cells rather than one blended average: only a catalog name the record
+  classified pads a cell (the producer classifies every name it enumerates, so one its level map leaves out offers
+  nothing), while an unclassified run name — a claude run, whose stream names no source directory — is filed at the
+  level that repository's catalog offers the name at whenever it offers exactly one, so the load merges into the
+  padded cell instead of splitting off an `unknown` one beside it; a name the catalog never
   offered, or one it offers at two levels, keeps `unknown`, and a level the run itself recorded is never overwritten
   (`skill_provenance.py`). Each cell carries `skill_runs` (runs *containing* the skill,
   one per run per distinct name — not total invocations) and `runs` (the total agent-exit runs in the cell's cohort,
@@ -199,23 +199,24 @@ of the read path narrow a nullable duration the same way.
   visible, while the retained `end` bound stops a later load from leaking backward. The third reads the repos'
   `repo_skill_catalog` records under `WindowFilters.catalog_scope` (date and repo only — an issue or stage pushed onto
   a repository-level record would drop every row), and the two `agent_exit` scans resolve against it.
-  A session is keyed by `resume_session_id`, then `session_id`, then the row's primary key (an ID-less row is its own
-  session, never merged into one anonymous bucket). Both session scans read each row's `skill_levels` map beside its
-  names, so an offer and a load are matched by source level as well as by name and a session offered a repository's
-  own `develop` is counted apart from one offered a global skill of that name. A name no level map covers is filled
-  from the catalog scan (`skill_provenance.py`): the level the row's repository offers that name at, where it offers
-  exactly one, so a claude session's unclassified offer and load land in the same cell a codex session's classified
-  ones do (`develop` / `project` reading 3 of 26 sessions rather than that cell beside a `develop` / `unknown` one).
-  A name the catalog never offered, or one it offers at two levels, stays `unknown` on both sides — so a legacy
-  session's load still counts as adoption of what it was offered — and a level the row itself recorded is never
-  overwritten. The fill is applied to all three evidence categories alike (window loads, incidental references, and
-  the historical availability and loads), since filling one and not another would strand a session outside its own
-  denominator; it is a read-side resolution, so a past window's rows correct themselves the next time the page is
-  drawn and no record is rewritten.
-  `sessions` is the denominator — sessions in the
-  cohort with the skill available (its
-  `skills_available` listed it, or a legacy load with the `skills_available` key absent implied it — an explicit empty
-  set does not) — and `adopted` counts the sessions that loaded it, once per session, with a derived `adoption_rate`.
+  A session is keyed by `resume_session_id`, then `session_id`, then the row's primary key (a run whose CLI yielded no
+  id is its own session, never merged into one anonymous bucket). Both session scans read each row's `skill_levels` map
+  beside its names, so an offer and a load are matched by source level as well as by name and a session offered a
+  repository's own `develop` is counted apart from one offered a global skill of that name. A name no level map covers
+  is filled from the catalog scan (`skill_provenance.py`): the level the row's repository offers that name at, where it
+  offers exactly one, so a claude session's unclassified offer and load land in the same cell a codex session's
+  classified ones do (`develop` / `project` reading 3 of 26 sessions rather than that cell beside a `develop` /
+  `unknown` one). A name the catalog never offered, or one it offers at two levels, stays `unknown` on both sides — so
+  an unclassified session's load still counts as adoption of what it was offered — and a level the row itself recorded
+  is never overwritten. The fill is applied to all three evidence categories alike (window loads, incidental references,
+  and the historical availability and loads), since filling one and not another would strand a session outside its own
+  denominator; it is a read-side resolution, so a past window's rows correct themselves the next time the page is drawn
+  and no record is rewritten.
+  `sessions` is the denominator — sessions in the cohort whose reported `skills_available` listed the skill. A session
+  none of whose rows carried that key (tracking off, or a stream that named no offered set) has unknown availability
+  and joins no denominator, so its loads stay in `load_rows` beside a zero `sessions` and an undefined rate rather than
+  implying the offer they would need — and `adopted` counts the offered sessions that loaded it, once per session, with
+  a derived `adoption_rate`.
   `invocations` is the cohort's window `agent_exit` run count (every run, so a low `load_rows` reads against it);
   `load_rows` counts the window runs that loaded the skill and `incidental` the window runs that made a path-only
   reference to it — independent buckets, so a run that both loaded and inspected a `SKILL.md` increments both. All
@@ -234,8 +235,9 @@ of the read path narrow a nullable duration the same way.
   columns the drill-down tabulates, each `IssueEventRow` carries the promoted run columns a human-wait record is
   correlated by (`agent_spec`, `session_id`, `resume_session_id`, `review_round`, `retry_count`, `timed_out`) and the
   row's decoded `extras` blob, where a park's `reason`, `route`, `pr_number`, and `sha` ride — see
-  [`event-streams.md`](event-streams.md#analytics-sink-analytics_log_path). A NULL column reads as `None`, and a NULL,
-  damaged, or non-object blob as an empty mapping, so a legacy row still reads. The page renders none of them.
+  [`event-streams.md`](event-streams.md#analytics-sink-analytics_log_path). A NULL column — most events fill few of
+  them — reads as `None`; a NULL blob (a record with nothing outside the promoted set) and a damaged or non-object one
+  read as an empty mapping, so one malformed row never takes the trace down. The page renders none of them.
 - `get_hourly_heatmap` (base table) — 7×24 weekday/hour activity cells from `EXTRACT(DOW)` / `EXTRACT(HOUR)` over
   `(ts AT TIME ZONE 'UTC') + tz_offset_hours * INTERVAL '1 hour'` (normalizing first guards against a non-UTC session
   timezone re-shifting the buckets) with per-cell event count + `input + output + cache_read + cache_write` token total.
@@ -246,7 +248,8 @@ of the read path narrow a nullable duration the same way.
   `(cached_tokens + cache_read_tokens + cache_write_tokens) / (input_tokens + output_tokens + cache_read_tokens +
   cache_write_tokens)` into the cache stack and the complement into no-cache. `cached_tokens` is the Codex "portion of
   input served from cache" counter and is already inside `input_tokens`, so it stays out of the denominator to avoid
-  double-counting. Token-less rows attribute their full cost to no-cache. NULL buckets surface as `"unknown"`.
+  double-counting. Token-less rows attribute their full cost to no-cache. Every development and review run records its
+  round, a fresh implementation as `0`, so a NULL `review_round` surfaces as `"unknown"` whatever the run's stage.
 - `get_backend_daily_tokens` (agent-run view) — per `(day, backend)` token totals feeding the hero chart's "By
   backend" stacked-area toggle.
 - `get_cost_coverage` (agent-run view) — per `cost_source` rollups carrying both runs and `total_tokens`. The

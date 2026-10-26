@@ -26,8 +26,8 @@ which is what makes the ranking readable at all.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
 
+from orchestrator.observability.analytics.query.cost_models import ReviewRoundBucketRow
 from orchestrator.observability.analytics.query.overview_models import Summary
 from orchestrator.observability.analytics.query.run_models import IssueSummaryRow
 
@@ -120,21 +120,16 @@ def _expensive_issue_key(row: IssueSummaryRow) -> tuple:
 
 
 def rework_totals(
-    rows: Sequence[Any],
+    rows: Sequence[ReviewRoundBucketRow],
 ) -> tuple[float, float]:
     """Return `(total_cost, rework_cost)` across review-round buckets.
 
     `rework_cost` sums the cost of every row whose `bucket` is in
     `REWORK_BUCKETS` (i.e. review round >= 1). `total_cost` sums
-    every row, including the initial pass. Cost defaults to `0.0`
-    when the row predates the `total_cost_usd` column.
+    every row, including the initial pass.
     """
-    total = sum(
-        float(getattr(row, "total_cost_usd", 0) or 0) for row in rows
-    )
+    total = sum(row.total_cost_usd for row in rows)
     rework = sum(
-        float(getattr(row, "total_cost_usd", 0) or 0)
-        for row in rows
-        if row.bucket in REWORK_BUCKETS
+        row.total_cost_usd for row in rows if row.bucket in REWORK_BUCKETS
     )
-    return total, rework
+    return float(total), float(rework)

@@ -20,9 +20,11 @@ migration, or a second query. The columns it reads are the fields of the named
 trace row, which is what keeps the SELECT list and the projection from
 disagreeing about where any one of them sits.
 
-A row older than any of that still reads: a NULL column stays `None`, and a
-NULL, damaged, or non-object blob reads as an empty mapping rather than
-raising, so one legacy row never takes an issue's whole trace down with it.
+Most events fill few of those columns -- a `stage_enter` carries no run, a
+park no exit code -- so a NULL column stays `None` rather than reading as a
+measured value. A NULL blob is a record with nothing outside the promoted set,
+and a damaged or non-object one reads as the same empty mapping rather than
+raising, so one malformed row never takes an issue's whole trace down with it.
 """
 
 from __future__ import annotations

@@ -11,8 +11,9 @@ position is the only thing two same-second records are ordered by.
 
 Everything else is narrowing. Each field goes through ``coercion`` rather than
 being trusted, and a step or a turn that cannot be read is dropped instead of
-raising, so a hand-edited entry costs its own row rather than the whole run --
-which is what lets a record written before the usage feature parse at all.
+raising, so a hand-edited entry costs its own row rather than the whole run. A
+usage summary that is missing or not an object reads as none, which is the one
+reading of a damaged line that still lets the rest of its run render.
 """
 
 from __future__ import annotations

@@ -43,7 +43,6 @@ from orchestrator.observability.analytics.query.conditions import (
 from orchestrator.observability.analytics.query.execution import ReadQuery
 from orchestrator.observability.analytics.query.filters import WindowFilters
 from orchestrator.observability.analytics.query.predicates import build_window_where
-from orchestrator.observability.analytics.query.row_cells import row_value
 from orchestrator.observability.analytics.query.skill_models import SkillTriggerMatrixRow
 from orchestrator.observability.analytics.query.skill_provenance import (
     SkillProvenance,
@@ -128,9 +127,7 @@ class SkillMatrixCounts:
     ) -> None:
         cohort = skill_cohort(row)
         self.cohort_runs[cohort] = self.cohort_runs.get(cohort, 0) + 1
-        for loaded in provenance.resolve_row(
-            cohort[0], row_value(row, 3, None), row_value(row, 4, None),
-        ):
+        for loaded in provenance.resolve_row(cohort[0], row[3], row[4]):
             key = SkillCell(*cohort, *loaded)
             self.skill_runs[key] = self.skill_runs.get(key, 0) + 1
 

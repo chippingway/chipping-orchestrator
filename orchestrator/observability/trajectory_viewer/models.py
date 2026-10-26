@@ -10,9 +10,10 @@ The two that carry a body are built through a declared signature rather than
 the generated ``__init__``. Their field is ``step_content`` / ``entry_content``
 -- a dataclass cannot hold a field and a property of the same name -- while the
 keyword a caller passes and the attribute it reads back are both ``content``,
-which is the spelling the sink writes and every historical caller uses. Binding
-the call against that signature is what keeps positional construction, keyword
-construction, and ``inspect.signature`` all reporting the one public shape.
+which is the spelling the sink writes a step's body under and the one every
+reader here names. Binding the call against that signature is what keeps
+positional construction, keyword construction, and ``inspect.signature`` all
+reporting the one public shape.
 """
 
 from __future__ import annotations
@@ -49,12 +50,12 @@ TIMELINE_ENTRY_SIGNATURE = inspect.Signature(
 
 
 def public_step_content(step: TrajectoryStepView) -> str:
-    """Return a step body through its historical public name."""
+    """Return a step body through its public `content` name."""
     return step.step_content
 
 
 def public_entry_content(entry: TimelineEntry) -> str:
-    """Return a timeline body through its historical public name."""
+    """Return a timeline body through its public `content` name."""
     return entry.entry_content
 
 

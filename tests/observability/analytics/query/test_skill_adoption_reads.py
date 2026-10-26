@@ -25,11 +25,11 @@ _VIEW_SCAN = "FROM analytics_agent_runs"
 _EXIT_SCAN = "event = 'agent_exit'"
 
 # The fragment unique to each of the three scans: only the window one reads the
-# incidental references, only the history one probes the offered set's key, and
-# only the catalog one is pinned to the repository-level record.
+# incidental references, only the history one reads the offered set beside the
+# loads, and only the catalog one is pinned to the repository-level record.
 _WINDOW_SCAN = "skills_incidental"
 
-_HISTORY_SCAN = "has_skills_available"
+_HISTORY_SCAN = "AS skills_available, extras -> 'skills_triggered'"
 
 _CATALOG_SCAN = "event = 'repo_skill_catalog'"
 
@@ -73,14 +73,15 @@ _WINDOW_END = datetime(_YEAR, 6, 24, tzinfo=UTC)
 _EXIT_FREE_SELECTIONS = ([_STAGE_ENTER], [])
 
 # One `repo_skill_catalog` scan row is `(repo, offered names, name-to-level
-# map)`. A record that classified nothing still offers at `project`, since that
-# scan enumerates a repository's own checked-in definitions.
+# map)`.
 _DEVELOP_CATALOG = ((_REPO, _DEVELOP_ONLY, {_DEVELOP: _PROJECT}),)
 
-# Two catalogs that settle nothing about `develop`: one where this repository
+# Three catalogs that settle nothing about `develop`: one where this repository
 # never offered the name -- and another repository's definition of it is not
-# this one's -- and one where it offers the name at two levels.
+# this one's -- one where it offers the name at two levels, and one whose
+# record classified nothing, which no current catalog scan writes.
 _UNSETTLED_CATALOGS = (
+    ("classified nothing", ((_REPO, _DEVELOP_ONLY, None),)),
     (
         "never offered",
         (
@@ -155,15 +156,9 @@ def _window_row(**row_fields: object) -> tuple:
 def _history_row(**row_fields: object) -> tuple:
     """A before-window-end `agent_exit` scan row (availability + loads).
 
-    `available_present` mirrors the SQL `(extras -> 'skills_available') IS
-    NOT NULL` key-presence flag; it defaults to "the array is not None" so a
-    caller passing `available=()` models an explicit empty offered-set while
-    `available=None` models an absent key.
+    Omitting `available` models a run that reported no offered set, whose
+    record carries no `skills_available` key at all.
     """
-    available = row_fields.get("available")
-    available_present = row_fields.get("available_present")
-    if available_present is None:
-        available_present = available is not None
     row = [
         row_fields.get("repo", _REPO),
         row_fields.get("role", _DEVELOPER),
@@ -171,8 +166,7 @@ def _history_row(**row_fields: object) -> tuple:
         row_fields.get("resume"),
         row_fields.get("session"),
         row_fields["row_id"],
-        available,
-        available_present,
+        row_fields.get("available"),
         row_fields.get("triggered"),
         row_fields.get("levels"),
     ]
@@ -501,11 +495,11 @@ class SkillAdoptionDenominatorTest(unittest.TestCase):
                 )
 
     def test_an_unclassified_session_reads_unknown(self) -> None:
-        # A session that recorded no levels -- rows written before levels
-        # existed, or a claude run whose stream names no source directory --
-        # and whose repository offers no catalog to fill them from files its
-        # offer and its load under the same `unknown`, so the load still
-        # counts as adoption of what it was offered.
+        # A session that recorded no levels -- a claude run, whose stream
+        # names no source directory -- and whose repository offers no catalog
+        # to fill them from files its offer and its load under the same
+        # `unknown`, so the load still counts as adoption of what it was
+        # offered.
         _assert_one_cell(
             self,
             (_window_row(row_id=1, session=_SESSION_ONE, triggered=_DEVELOP_ONLY),),
@@ -522,42 +516,19 @@ class SkillAdoptionDenominatorTest(unittest.TestCase):
             adopted=1,
         )
 
-    def test_a_load_without_metadata_implies_offer(self) -> None:
-        # A load recorded before availability metadata existed implies the
-        # skill was offered, so it counts in the denominator; the equally
-        # metadata-less session that loaded nothing fabricates none.
+    def test_a_load_is_never_its_own_offer(self) -> None:
+        # A session none of whose rows reported an offered set has unknown
+        # availability, so its load joins no denominator -- not even of the
+        # skill it loaded -- while staying a visible diagnostic beside the
+        # session that was offered the skill.
         _assert_one_cell(
             self,
             (
-                _window_row(row_id=1, session="legacy", triggered=_DEVELOP_ONLY),
-                _window_row(row_id=2, session="quiet"),
-            ),
-            (
-                _history_row(row_id=1, session="legacy", triggered=_DEVELOP_ONLY),
-                _history_row(row_id=2, session="quiet"),
-            ),
-            skill=_DEVELOP,
-            sessions=1,
-            adopted=1,
-        )
-
-    def test_an_empty_offer_blocks_that_implication(self) -> None:
-        # "Scanned, found none" is metadata: the key is present and the array
-        # empty, so a load against it must not fabricate availability -- while
-        # the load itself stays a visible diagnostic row.
-        _assert_one_cell(
-            self,
-            (
-                _window_row(row_id=1, session="empty", triggered=_DEVELOP_ONLY),
+                _window_row(row_id=1, session="unreported", triggered=_DEVELOP_ONLY),
                 _window_row(row_id=2, session="offered", triggered=_DEVELOP_ONLY),
             ),
             (
-                _history_row(
-                    row_id=1,
-                    session="empty",
-                    available=(),
-                    triggered=_DEVELOP_ONLY,
-                ),
+                _history_row(row_id=1, session="unreported", triggered=_DEVELOP_ONLY),
                 _history_row(
                     row_id=2,
                     session="offered",
@@ -567,7 +538,22 @@ class SkillAdoptionDenominatorTest(unittest.TestCase):
             ),
             sessions=1,
             adopted=1,
+            invocations=2,
             load_rows=2,
+        )
+
+    def test_unknown_availability_has_no_rate(self) -> None:
+        # A window whose sessions only ever loaded the skill reports the loads
+        # and nothing it could divide them by, rather than a 100% adoption.
+        _assert_one_cell(
+            self,
+            (_window_row(row_id=1, session=_SESSION_ONE, triggered=_DEVELOP_ONLY),),
+            (_history_row(row_id=1, session=_SESSION_ONE, triggered=_DEVELOP_ONLY),),
+            skill=_DEVELOP,
+            sessions=0,
+            adopted=0,
+            load_rows=1,
+            adoption_rate=float(0),
         )
 
     def test_the_four_counters_stay_apart(self) -> None:
@@ -657,7 +643,9 @@ class SkillAdoptionProvenanceTest(unittest.TestCase):
         # outside the denominator it belongs in, and sparing the incidental
         # would leave a noticed skill in an `unknown` row of its own.
         conn = FakeConnection(rows_for={
-            _CATALOG_SCAN: ((_REPO, (_DEVELOP, _REVIEW), None),),
+            _CATALOG_SCAN: (
+                (_REPO, (_DEVELOP, _REVIEW), dict.fromkeys((_DEVELOP, _REVIEW), _PROJECT)),
+            ),
             _WINDOW_SCAN: (
                 _window_row(
                     row_id=1,
@@ -733,7 +721,8 @@ class SkillAdoptionProvenanceTest(unittest.TestCase):
         # A name this repository never offered has no definition to file the
         # session under, and the level another repository classified it at is
         # not one either; a name offered at two levels is a choice between
-        # definitions rather than a fallback. Both keep the one spelling an
+        # definitions rather than a fallback; and a record that classified
+        # nothing names no level at all. Each keeps the one spelling an
         # operator can look up, and the offer and the load keep meeting there.
         for catalog_case, catalog in _UNSETTLED_CATALOGS:
             with self.subTest(catalog=catalog_case):
