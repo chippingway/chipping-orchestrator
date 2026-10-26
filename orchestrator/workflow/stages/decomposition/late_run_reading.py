@@ -139,9 +139,9 @@ def _locked_spec(
 ) -> tuple[str, str, tuple[str, ...]]:
     """Return the agent spec a late run is locked to, or the configured one.
 
-    A legacy bare-backend value (`"codex"` / `"claude"`) re-parses to
-    `(backend, ())` and round-trips cleanly, the way every other role's pin
-    does.
+    A plain backend value (`"codex"` / `"claude"`) is a current spec: it
+    re-parses to `(backend, ())` and round-trips cleanly, the way every other
+    role's pin does.
     """
     stored = _payloads.as_text(state.get(_LATE_AGENT))
     if stored:

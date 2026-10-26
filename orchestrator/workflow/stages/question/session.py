@@ -41,8 +41,8 @@ def _read_question_session(
     cannot retarget the next awaiting-human resume at a different
     backend.
 
-    Legacy bare-backend values (`"codex"` / `"claude"`) round-trip
-    cleanly to `(backend, ())`. When the issue has never spawned a
+    Plain backend values (`"codex"` / `"claude"`) are current specs that
+    round-trip cleanly to `(backend, ())`. When the issue has never spawned a
     question agent, the returned fields carry the current decomposer spec,
     backend, args, and an empty session id.
     """
