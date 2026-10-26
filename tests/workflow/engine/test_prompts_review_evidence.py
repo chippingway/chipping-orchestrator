@@ -8,8 +8,9 @@ whatever ends it -- under the `sha256:` revision a reuse names, and says which
 of the commands it lists did not exit 0 -- about those commands alone, never
 whether they are the ones the repository requires. Evidence re-read from the
 comment it was published as, as after a restart, is handed over just as
-completely, whether that comment hides its commands in a payload or is one
-the legacy format published. A reviewer handed none is told so. What the
+completely out of its hidden payload, while a comment showing its commands
+with no payload hands over nothing of what it shows. A reviewer handed none
+is told so. What the
 repository configures is named command by command, or plainly as nothing,
 since an empty configuration is no evidence that any check passed. The
 reviewer is then taught the one declaration its final message carries, in
@@ -41,7 +42,7 @@ from orchestrator.workflow.engine import (
     review_verification_models,
 )
 from tests.support.fakes import FakeComment, make_issue
-from tests.support.github import legacy_artifacts
+from tests.support.github import visible_evidence
 from tests.workflow.engine import verification_record_test_support as _record_support
 from tests.workflow.repo_values import _TEST_SPEC
 
@@ -49,9 +50,6 @@ LINT = "uv run ruff check orchestrator tests"
 
 # Output spanning several lines, every one of which the quotation has to carry.
 SUITE_OUTPUT = "collected 12 items\n\n12 passed in 0.4s"
-
-# What the suite printed failing, in the comment the legacy format published of it.
-LEGACY_OUTPUT = "collected 12 items\n\n1 failed, 11 passed in 0.4s"
 
 # Output a progress line rewrote in place, bare carriage returns and all.
 REWRITTEN_OUTPUT = "collecting 3 items\rcollecting 12 items\r\n12 passed in 0.4s"
@@ -195,18 +193,21 @@ def _handed(commands=PASSING) -> review_evidence_prompts.HandedEvidence:
     )
 
 
-def _reread(body: str, published: review_evidence_prompts.HandedEvidence) -> review_evidence_prompts.HandedEvidence:
+def _reread(
+    body: str, published: review_evidence_prompts.HandedEvidence,
+) -> review_evidence_prompts.HandedEvidence | None:
     """What a reviewer is handed once the comment carrying `body` is re-read, as after a restart.
 
     The record is the one `published` settled; the artifact is whatever the
-    comment reads back as now.
+    comment reads back as now, and a comment that reads back as none hands
+    nothing, as the validating stage hands nothing for it.
     """
-    return review_evidence_prompts.HandedEvidence(
-        published.current,
-        _artifacts.verification_artifact_from_comment(
-            FakeComment(id=_record_support.ARTIFACT_COMMENT, body=body), bot_login=None,
-        ),
+    artifact = _artifacts.verification_artifact_from_comment(
+        FakeComment(id=_record_support.ARTIFACT_COMMENT, body=body), bot_login=None,
     )
+    if artifact is None:
+        return None
+    return review_evidence_prompts.HandedEvidence(published.current, artifact)
 
 
 def _block(handed=None, commands=(_record_support.SUITE,)) -> str:
@@ -295,16 +296,20 @@ class VerificationBlockTest(unittest.TestCase):
             f"did NOT exit 0: `{LINT}` (exit 1):",
         ))
 
-    def test_a_legacy_comment_hands_over_everything(self) -> None:
-        # A comment the legacy format published, fixed as it was posted,
-        # hands over the commands its visible section showed.
-        published = _handed((_record_support.ran(LEGACY_OUTPUT, 1),))
+    def test_shown_evidence_hands_over_nothing(self) -> None:
+        # The comment shows exactly the commands the record settled, under
+        # the header naming their revision, but carries no hidden payload:
+        # re-read, it is no artifact, so the reviewer is quoted none of what
+        # it shows and taught no reuse of that revision.
+        published = _handed(visible_evidence.SHOWN.commands)
 
-        self._hands_over(published, legacy_artifacts.FAILED, (
-            f"> `{_record_support.SUITE}` -- exit 1\n",
-            "> collected 12 items\n> \n> 1 failed, 11 passed in 0.4s\n",
-            f"did NOT exit 0: `{_record_support.SUITE}` (exit 1):",
-        ))
+        told = _block(_reread(visible_evidence.COMMENT, published))
+
+        self.assertIn(f":content={published.revision}-->", visible_evidence.COMMENT)
+        self.assertIn(NOTHING_HANDED, told)
+        self.assertNotIn(published.revision, told)
+        self.assertNotIn(REUSE, told)
+        self.assertNotIn("1 failed, 11 passed", told)
 
     def test_the_configuration_is_named(self) -> None:
         configured = _block(commands=(_record_support.SUITE, LINT))

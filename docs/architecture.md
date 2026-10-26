@@ -508,6 +508,12 @@ its JSON object carries an integer `schema_version` of `1` (`github/pinned_state
 kept as it stands, never written over or replaced beside, and licenses nothing, ordinary dispatch of its issue and
 the base refresh of its worktree included; a whole-state write over one raises, so its caller stops
 ([pinned state][pinned-state]).
+Verification evidence is not in that record: each artifact is a comment of its own on the pull request, and the record
+names the one a settlement landed as. A comment is an artifact only where the orchestrator's own account posted it and
+it re-renders exactly in the compact format, its commands decoded from its hidden payload
+(`github/verification_artifacts.py`); one with no payload, its commands shown in view as an earlier build published
+them, is left as it stands and is no evidence at all
+([what a trusted record cannot license](security.md#what-a-trusted-pinned-record-still-cannot-license)).
 The label and the pinned JSON are the dispatch input, beside the one host-local record every developer launch reads
 first, the quota retirement record an Antigravity launch arms, and the resolution of it a poller holds in memory while
 the record will not take it ([design constraints](#design-constraints)).

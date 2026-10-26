@@ -10,8 +10,8 @@ posted is never edited, and the description is never written at all.
 
 What a retry finds is an artifact, not a body. A comment carrying the
 transaction's receipt is this transaction's only when it is ours, reads back
-as an artifact in its own format, and that artifact equals the one asked for
-in every member. Nothing compares it with what the writer would post now,
+as an artifact in the compact format, and that artifact equals the one asked
+for in every member. Nothing compares it with what the writer would post now,
 and the writer is not asked for a body until a reading says ABSENT. So a
 comment an earlier attempt landed is found as it stands, even where the
 writer's body for the same artifact would now differ or would not fit in one
@@ -20,11 +20,11 @@ comment.
 `reread_verification_artifact` is the reading a caller relying on a settled
 artifact takes: this owner's own thread read, scanned for the one comment the
 settlement recorded, and answered with the artifact of ours it still is -- our
-author and a body that re-renders exactly in its own format -- or why it is
-not. It does not go through the report owner's `reread_report_location`, which
-proves a report by the digest of its body: an artifact is ours only as an
-exact rendering, and what it is about is read off that rendering rather than
-off a digest.
+author and a body that re-renders exactly in the compact format -- or why it
+is not. It does not go through the report owner's `reread_report_location`,
+which proves a report by the digest of its body: an artifact is ours only as
+an exact rendering, and what it is about is read off that rendering rather
+than off a digest.
 
 The readings themselves are `pull_request_reports`' own types rather than a
 second vocabulary saying the same thing. A reading is one moment on one pull
@@ -75,8 +75,8 @@ class GitHubPullRequestVerification:
 
         Scoped by the artifact's receipt, so what a retry finds is its own
         transaction's comment and never a later artifact on the same commit.
-        PRESENT needs a comment of ours that reads back, in its own format, as
-        an artifact equal to this one: the whole identity, every command with
+        PRESENT needs a comment of ours that reads back, in the compact format,
+        as an artifact equal to this one: the whole identity, every command with
         its status and transcript, and so the evidence digest taken over them.
         Its body is not compared with the one the writer would post now, and
         the writer is not asked here. A comment of ours carrying the receipt
@@ -145,7 +145,7 @@ class GitHubPullRequestVerification:
 
         For a reader relying on evidence a settlement recorded at that comment:
         PRESENT, with the artifact, where the comment is on the thread and
-        reads back as one of ours, exact in its own format; ABSENT where the
+        reads back as one of ours, exact in the compact format; ABSENT where the
         thread no longer carries it; CHANGED where it does and it is no
         artifact of ours any more -- edited, or never one. What the artifact
         says it is about is the caller's to compare with what was recorded.

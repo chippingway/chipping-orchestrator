@@ -26,14 +26,16 @@ latest.
 
 The ARTIFACT has to be there: the comment the settlement recorded, read again
 off the pull request's thread, has to be ours and re-render byte for byte as
-an artifact, and that artifact has to be the one the record describes -- the
+an artifact in the compact format, its commands decoded from the hidden
+payload, and that artifact has to be the one the record describes -- the
 receipt and revision, every member of the binding the artifact encodes (the
 repository, pull request, witness, tested commit and tree, target head, review
 subject's head, and requirements and context revisions; not the branch or the
 report revision and digest, which the proof holds instead), the digest of the
 evidence it carries, and whether every command it carries exited 0, which is
-what the record's pass flag claims. A comment deleted, edited out of shape, or
-standing there as some other artifact is evidence nobody can be shown.
+what the record's pass flag claims. A comment deleted, edited out of shape,
+showing its commands with no payload to decode them from, or standing there as
+some other artifact is evidence nobody can be shown.
 
 Every refusal DEFERS, since what answers it is newer evidence settling or
 fresh evidence rather than a retry; a thread nobody could read HOLDS.

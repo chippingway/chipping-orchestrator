@@ -1674,8 +1674,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             what a reviewer is told about verification, which the reviewer prompt renders: the current
                             evidence handed for its subject (`HandedEvidence`, the settled record and its artifact
                             re-read), quoted whole -- its summary and every command with its status and complete
-                            output, decoded from the comment's hidden payload or read off a legacy comment's visible
-                            section, every line quoted whatever ends it, a bare carriage return included -- under the
+                            output, decoded from the comment's hidden payload and never read off anything a comment
+                            shows, every line quoted whatever ends it, a bare carriage return included -- under the
                             `sha256:` revision a reuse names, naming each listed command that did not exit 0 (a status
                             about those commands alone, not the configured ones), or the note that none covers the
                             subject; then the configured `VERIFY_COMMANDS` in order, each of which an approval has to

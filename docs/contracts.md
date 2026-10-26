@@ -105,7 +105,10 @@ Historical forms the runtime still reads stay documented in their specifications
 Analytics and trajectory readers interpret only what current producers write: a field a producer did not report is
 unknown rather than inferred from another (a skill load is no evidence of its offer), and a row narrower than its
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
-unpriced cost, and a malformed record's containment remain current answers.
+unpriced cost, and a malformed record's containment remain current answers. Verification artifacts are read only in the
+compact format, their commands decoded from the hidden payload alone: a comment without it, one an earlier build
+published with its commands in view included, is left untouched and is no artifact for verification, a reviewer's
+reuse, an approval, or a recovered settlement.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -146,7 +149,8 @@ or lost write interrupted are current state, not historical compatibility.
 [refreshed tick](../tests/workflow/engine/test_tick_refresh.py),
 [snapshot consumers](../tests/workflow/stages/decomposition/test_claimed_reclamation.py),
 [artifact admission](../tests/git/worktrees/test_maintenance_admission.py),
-[analytics readers](../tests/observability/analytics/query/test_skill_adoption_reads.py).
+[analytics readers](../tests/observability/analytics/query/test_skill_adoption_reads.py),
+[verification artifacts](../tests/github/test_verification_artifacts.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -270,7 +274,9 @@ Credential filtering does not enforce push authority; see [C-11].
 
 **Limits:** Evidence and approval may carry across a rewrite only when the verification protocol proves they apply
 to the new revision. The ready ping announces an approval only over current passing evidence proved at the ping, or,
-over a final docs pass's recorded completion, only over that completion proved whole at the ping.
+over a final docs pass's recorded completion, only over that completion proved whole at the ping. Evidence is what an
+artifact comment of ours carries in its hidden payload, the whole body re-rendering exactly in the current format; the
+commands a comment shows count for nothing, and one without the payload binds no approval and settles no transaction.
 
 The final-documentation exception records a docs pass apart from the approval it followed: the approved review
 subject, the settled report and its source commit, and the evidence the approval rests on stay as they were, and the
@@ -297,7 +303,8 @@ and a docs commit the configured run does not pass on is offered to nobody.
 [readiness](../tests/workflow/stages/in_review/test_readiness_proof.py),
 [final documentation](../tests/workflow/engine/test_final_docs_proof.py),
 [final-head runs](../tests/workflow/stages/documenting/test_final_verification.py),
-[final-docs completion](../tests/workflow/stages/validating/test_changed_docs_journey.py).
+[final-docs completion](../tests/workflow/stages/validating/test_changed_docs_journey.py),
+[artifact recovery](../tests/github/test_pull_request_verification.py).
 
 ## C-10: Pauses and parks
 

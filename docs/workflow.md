@@ -171,14 +171,16 @@ review-subject freshness, and the round each road spends:
 
 Every reviewer is handed, beside the complete current developer report, the workflow verification evidence current for
 exactly its subject — quoted whole under the revision a reuse names, and never evidence about another head, report, or
-requirements revision — with the configured `VERIFY_COMMANDS` or the plain statement that none are configured. It
-closes on a declaration above its verdict: the commands it ran on the reviewed head, or the exact evidence revision it
-reused. The orchestrator publishes that evidence itself, so a reviewer with valid evidence for the current tree does not
-ask for a SHA, count, or command to be copied into the pull request; failed checks, missing verification, inaccurate
-claims, and evidence about another subject stay actionable. The verdict is persisted before its evidence is published
-or the verdict acted on, so a retry reruns no reviewer, and an approval without settled, passing evidence covering
-every configured command parks under `reviewer_unverified` rather than reaching the approval arc. Every failure a
-change request rests on gets an entry of its own under the finding it supports, opening on its name — the exact test
+requirements revision — with the configured `VERIFY_COMMANDS` or the plain statement that none are configured. The
+evidence's commands are decoded from the artifact comment's hidden payload alone: a comment showing commands with no
+payload, as an earlier build published them, is no artifact, so it is quoted to no reviewer and offers no revision to
+reuse. It closes on a declaration above its verdict: the commands it ran on the reviewed head, or the exact evidence
+revision it reused. The orchestrator publishes that evidence itself, so a reviewer with valid evidence for the current
+tree does not ask for a SHA, count, or command to be copied into the pull request; failed checks, missing verification,
+inaccurate claims, and evidence about another subject stay actionable. The verdict is persisted before its evidence is
+published or the verdict acted on, so a retry reruns no reviewer, and an approval without settled, passing evidence
+covering every configured command parks under `reviewer_unverified` rather than reaching the approval arc. Every failure
+a change request rests on gets an entry of its own under the finding it supports, opening on its name — the exact test
 ID, a descriptive scenario name for a probe, or the check that failed where no test ID names it, never an invented
 one — then the error, expected and observed behavior where the error does not explain it, a reproduction that is a
 self-contained snippet for a probe, since a stdin command such as `.venv/bin/python -` reproduces nothing alone, and

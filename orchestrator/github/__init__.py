@@ -13,10 +13,9 @@ in ``pull_requests``, ``pull_request_reads``, ``pull_request_reports``,
 ``pull_request_retirement``, and ``pull_request_verification``, the
 developer-report comment format in ``developer_reports``, the workflow
 verification artifact in ``verification_artifacts`` over the commands and
-witness it reports in ``verification_evidence``, published in the compact
-format ``verification_compact_artifacts`` spells, whose hidden payload
-``verification_payloads`` carries those commands in, and read back in that
-format or the legacy one ``verification_legacy_artifacts`` keeps, review
+witness it reports in ``verification_evidence``, published and read back
+only in the compact format ``verification_compact_artifacts`` spells, whose
+hidden payload ``verification_payloads`` carries those commands in, review
 verdicts and feedback watermarks in ``reviews``, and check surfaces in
 ``checks``; ``client`` owns repository identity and composes the domains into
 the concrete ``GitHubClient``.

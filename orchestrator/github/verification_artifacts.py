@@ -33,39 +33,35 @@ passes over our comments passes over this one too -- which is what keeps a
 generated artifact from ever being read back as a human's fresh feedback.
 
 A comment is an artifact only when it is OURS and re-renders byte for byte
-from the identity and evidence it claims, in the format it was published in.
-The header is an HTML comment anybody can paste, and a maintainer can edit a
-comment that stays attributed to us, so neither the marker nor the author
-proves an artifact alone. One that does not fit in a comment is refused
-rather than cut: a truncated payload published under the header would claim
-to be the whole of what ran.
+from the identity and evidence it claims, in the compact format. The header
+is an HTML comment anybody can paste, and a maintainer can edit a comment that
+stays attributed to us, so neither the marker nor the author proves an
+artifact alone. One that does not fit in a comment is refused rather than
+cut: a truncated payload published under the header would claim to be the
+whole of what ran.
 
-Two formats are read and one is written. A comment carrying the hidden
-payload is held to the compact format's canonical body; any other is held to
-the format artifacts were published in before their evidence was hidden
-(`verification_legacy_artifacts`), exactly as it spelled them. Both read back
-as the same artifact -- the header, and the digest it carries, are one
-spelling across them -- so a historical comment keeps the evidence revision
-it was settled under, and is never rewritten to look current.
+The compact format is the one format read as well as the one written, and
+its hidden payload is the only place a reader takes commands from. A comment
+without that payload is no artifact whatever its header claims or its
+visible text shows -- one an earlier build published with its commands in
+view included -- so nothing it lists is ever read as evidence, and nothing
+here rewrites it to look current.
 
-The reader and the writer meet only at a format's canonical body. A comment
-is checked against that body; the writer adds the one-comment bound on top
+The reader and the writer meet only at the canonical body. A comment is
+checked against that body; the writer adds the one-comment bound on top
 before a post. So whether a posted comment is an artifact never depends on
-what the writer would post now, and an artifact stays readable exactly as it
-was published, however long the current format would spell it.
+what the writer would post now.
 """
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from types import ModuleType
 from typing import Any
 
 from orchestrator.github import (
     comments as _comments,
     verification_compact_artifacts as _compact,
     verification_evidence as _evidence,
-    verification_legacy_artifacts as _legacy,
 )
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
 
@@ -124,7 +120,7 @@ class VerificationArtifact:
 
     `commands` is published in the order given; the header's digest is taken
     over exactly their rendering, so an artifact reads back equal to the one
-    that was posted, in whichever format it was posted.
+    that was posted.
 
     Refused at construction rather than at publication, so no reading of a
     record can hand a caller an artifact the header could not have carried.
@@ -200,8 +196,8 @@ class VerificationArtifact:
     def canonical_body(self) -> str:
         """The one body the compact format spells this artifact as, however long it comes out.
 
-        Unbounded, because a comment claiming that format is checked against
-        it. The writer lays the one-comment bound over it
+        Unbounded, because every comment read as an artifact is checked
+        against it. The writer lays the one-comment bound over it
         (`render_verification_artifact`); here it would only make a reader
         depend on what the writer is willing to post now.
         """
@@ -229,29 +225,27 @@ def verification_artifact_from_comment(
 ) -> VerificationArtifact | None:
     """The artifact one pull-request comment is, or None when it is not one of ours.
 
-    Ours by author, and an artifact by exact re-rendering in the format the
-    body claims: one carrying the hidden payload is the compact format and
-    any other the legacy one. The identity and the evidence are read back out
-    of the body -- the commands decoded from the payload, or read off the
-    legacy visible section -- and spelled again in that format's canonical
-    body, and anything but the same body -- a tampered payload, an edited
-    command, a stale digest, a witness or a status swapped in the summary,
-    text appended after the marker, a transcript cut short -- is not an
-    artifact. Nor is one whose header claims a number of more digits than
-    Python converts, which no rendering wrote. A client with no login of its
-    own takes the content alone, the same fallback `authored_by_us` takes.
+    Ours by author, and an artifact by exact re-rendering in the compact
+    format. The identity is read back out of the header and the commands are
+    decoded from the hidden payload, never from anything the comment shows,
+    and both are spelled again in the canonical body; anything but the same
+    body -- a tampered payload, no payload at all, commands shown in its
+    place, a stale digest, a witness or a status swapped in the summary, text
+    appended after the marker -- is not an artifact. Nor is one whose header
+    claims a number of more digits than Python converts, which no rendering
+    wrote. A client with no login of its own takes the content alone, the
+    same fallback `authored_by_us` takes.
 
     Every one of those answers None. This is the question asked OF somebody
     else's comment, on a thread anybody can post to, so nothing a comment says
     about itself may leave by an exception -- including the claim that
     reconstructs past what a comment holds, which a body short enough to have
-    been posted still makes once its own presentation is replaced.
+    been posted still makes once its own summary is replaced.
 
     Held to that canonical body rather than to what the writer publishes, so
     an artifact a pull request already carries reads back as itself whatever
-    the writer would post for it now -- including where that would not fit in
-    one comment, and including a legacy comment the writer would now spell in
-    the other format altogether.
+    the writer would post for it now, including where that would not fit in
+    one comment.
     """
     body = getattr(comment, "body", None)
     if not isinstance(body, str) or len(body) > MAX_PINNED_BODY:
@@ -259,9 +253,8 @@ def verification_artifact_from_comment(
     claimed = _CLAIMED_HEADER.search(body)
     if claimed is None or not _comments.authored_by_us(comment, bot_login=bot_login):
         return None
-    spelling = _compact if _compact.carries_hidden_evidence(body) else _legacy
-    artifact = _claimed_artifact(claimed, spelling.commands_in(body, claimed.start()))
-    if artifact is None or _canonical_in(spelling, artifact) != body:
+    artifact = _claimed_artifact(claimed, _compact.commands_in(body, claimed.start()))
+    if artifact is None or artifact.canonical_body != body:
         return None
     return artifact
 
@@ -272,7 +265,7 @@ def _claimed_artifact(
     """The artifact a header claims beside `commands`, before anything checks that it is one.
 
     None when nothing could be built at all: a witness this format does not
-    name, a count too long to convert, evidence no rendering wrote, or an
+    name, a count too long to convert, evidence no payload carried, or an
     identity the header could carry but this format refuses.
     """
     fields = claimed.groupdict()
@@ -293,19 +286,6 @@ def _claimed_artifact(
         )
     except ValueError:
         # A refusal, which is one, or a value no rendering could have written.
-        return None
-
-
-def _canonical_in(spelling: ModuleType, artifact: VerificationArtifact) -> str | None:
-    """`artifact` in the canonical body of the format `spelling` owns, or None where it has none.
-
-    None for evidence with no revision to name: text UTF-8 cannot carry, which
-    a legacy section reads back as freely and which raises only where the
-    evidence is hashed.
-    """
-    try:
-        return spelling.canonical_body(artifact)
-    except ValueError:
         return None
 
 
