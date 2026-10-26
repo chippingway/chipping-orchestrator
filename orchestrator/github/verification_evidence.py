@@ -6,11 +6,9 @@ Evidence is a sequence of commands, each with the status it exited and
 whatever transcript the artifact carries for it. The sequence is rendered once,
 here, and its revision is taken here over that rendering, so the digest an
 artifact publishes is taken over one spelling of it whichever presentation
-carries the commands: the hidden payload `verification_payloads` encodes, the
-visible section an artifact showed before its evidence was hidden
-(`verification_legacy_artifacts`), or the quote a reviewer is handed. A
-revision settled under one of them is the revision under every other, and a
-reread can be exact.
+carries the commands: the hidden payload `verification_payloads` encodes, or
+the quote a reviewer is handed. A revision settled under one of them is the
+revision under the other, and a reread can be exact.
 
 Who ran those commands is part of the evidence rather than a footnote to it.
 This orchestrator can report commands it spawned itself and watched exit; it
@@ -22,15 +20,16 @@ A command that would not render back as the command it names is refused where
 it is declared, which is the only place the two can still be told apart: text
 carrying the backtick that delimits it or a line ending that would make it two
 lines, a transcript carrying the fence that closes it -- at any indent and
-behind any line ending, since a fence GitHub reads as closing and the
-section's reader does not would render as text neither of them describes --
-and either carrying a receipt marker of ours, which a thread search
-recognizes by substring and so would read as a step nobody took.
+behind any line ending, since a fence closing the block early would show what
+follows as text outside the evidence, and let two different sequences render
+alike and so share one revision -- and either carrying a receipt marker of
+ours, which a thread search recognizes by substring and so would read as a
+step nobody took.
 
 Line endings are read as Python reads them rather than as the newline alone,
 which is wider than the three GitHub breaks a line on. Deliberately: refusing
-one transcript costs its producer a sanitizing pass, while missing one
-publishes a comment rendering content the evidence never reported.
+one transcript costs its producer a sanitizing pass, while missing one leaves
+a rendering showing content the evidence never reported.
 
 An empty sequence renders as an explicit absence. A section that simply listed
 nothing would read as a run that passed, and the one thing an artifact may
@@ -167,9 +166,7 @@ def content_revision(commands: tuple[VerifiedCommand, ...]) -> str:
     """The revision of one evidence section: the SHA-256 of its exact rendering.
 
     Taken over the rendering, and here rather than beside any one way of
-    presenting it, so the hidden payload (`verification_payloads`), a legacy
-    artifact's visible section, and a reviewer's quote name evidence by one
-    revision, and a settled revision stays settled however an artifact comes
-    to show its commands.
+    presenting it, so the hidden payload (`verification_payloads`) and a
+    reviewer's quote name evidence by one revision.
     """
     return _reports.content_digest(render_commands(commands))

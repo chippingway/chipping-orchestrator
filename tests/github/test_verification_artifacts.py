@@ -5,9 +5,9 @@
 What a compact artifact comment says about itself in its visible summary and
 its hidden header, and what it keeps only in its hidden payload; what it
 refuses to be; why a comment is an artifact only when it is ours and
-re-renders exactly, in its own format, from the identity and evidence it
-claims; and that a comment published in the legacy format reads back as the
-artifact it was, exactly as it was posted.
+re-renders exactly, in the compact format, from the identity and evidence it
+claims; and that a comment showing its evidence in view, with no payload to
+decode it from, is no artifact however exactly it shows that evidence.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from orchestrator.github import (
 )
 from orchestrator.github.pinned_state import MAX_PINNED_BODY
 from tests.support.fakes import FakeComment, FakeUser, make_verification_artifact
-from tests.support.github import legacy_artifacts as _legacy
+from tests.support.github import visible_evidence as _visible
 
 _BOT_LOGIN = "orchestrator"
 _PR_NUMBER = 12
@@ -111,6 +111,10 @@ _FORGED_BODIES = (
     ("a payload cut short", _BODY.replace(_PAYLOAD, _PAYLOAD[:-_CUT])),
     ("no payload", _BODY.replace(f"{_PAYLOAD_PREFIX}{_PAYLOAD}{_CLOSE}\n\n", "")),
     (
+        "commands shown in place of the payload",
+        _BODY.replace(f"{_PAYLOAD_PREFIX}{_PAYLOAD}{_CLOSE}", _ARTIFACT.evidence),
+    ),
+    (
         "an exit status of more digits than Python converts",
         _BODY.replace(_PASSING_STATUS, f'"exit_status":{_UNCONVERTIBLE}', 1),
     ),
@@ -127,52 +131,6 @@ _FORGED_BODIES = (
     ("the header alone", _BODY[_HEADER_AT:]),
     ("a zero-padded revision", _BODY.replace(":revision=1:", ":revision=01:")),
     ("no body", None),
-)
-
-# The same evidence with a fence hidden behind a bare carriage return, which
-# GitHub breaks a line on: the block closes there and the heading after it
-# renders outside the evidence.
-_FENCED = _ARTIFACT.evidence.replace(_TRANSCRIPT, f"passed\r```\r{_FORGED}")
-_LEGACY_HEADER_AT = _legacy.CARRIED.index(_HEADER_PREFIX)
-
-# What the legacy format refuses of a comment of ours, over a comment it
-# published: the same exact re-rendering, held to that format's own body.
-_LEGACY_FORGERIES = (
-    ("an edited exit status", _legacy.CARRIED.replace("exit 0", "exit 1", 1)),
-    ("a witness swapped in the header alone", _legacy.CARRIED.replace(_RAN_HERE, _RAN_THERE)),
-    ("a stale digest", _legacy.CARRIED.replace(_STALE, _ZEROED)),
-    (
-        "a command quoting a receipt marker of ours",
-        _legacy.CARRIED.replace(f"`{_SUITE}`", f"`echo {_ARTIFACT.receipt_scope}`"),
-    ),
-    (
-        "an exit status of more digits than Python converts",
-        _legacy.CARRIED.replace("-- exit 0", f"-- exit {_UNCONVERTIBLE}", 1),
-    ),
-    (
-        # Re-stamped, so what refuses it is the transcript rather than a header
-        # that no longer describes it: this is what a maintainer recomputing
-        # the digest by hand would leave behind.
-        "a fence hidden behind a carriage return",
-        _legacy.CARRIED.replace(_ARTIFACT.evidence, _FENCED).replace(
-            _STALE, _reports.content_digest(_FENCED),
-        ),
-    ),
-    # A lone surrogate, which reads back out of a body but has no digest.
-    ("text UTF-8 cannot carry", _legacy.CARRIED.replace(_TRANSCRIPT, "All checks \ud800")),
-    (
-        "a hidden payload beside the visible evidence",
-        _legacy.CARRIED.replace(
-            "\n\n<!--orchestrator-verification-artifact",
-            f"\n\n{_PAYLOAD_PREFIX}{_PAYLOAD}{_CLOSE}\n\n<!--orchestrator-verification-artifact",
-        ),
-    ),
-    ("text after the marker", f"{_legacy.CARRIED}\n\nappended"),
-    (
-        "a truncated transcript",
-        _legacy.CARRIED[:_LEGACY_HEADER_AT - _CUT] + _legacy.CARRIED[_LEGACY_HEADER_AT:],
-    ),
-    ("no preamble", _legacy.CARRIED[_legacy.CARRIED.index("---\n\n"):]),
 )
 
 
@@ -357,22 +315,21 @@ class CompactReadBackTest(unittest.TestCase):
 
     def test_an_oversized_claim_answers_not_raises(self) -> None:
         # A body that fits a comment can still claim evidence the canonical
-        # presentation would push past one, since the presentation it was
-        # posted with is not the one a reconstruction puts back -- in either
-        # format. The question is asked OF somebody else's comment, so it
-        # answers no rather than leaving the scan that asked it by an
-        # exception.
+        # summary would push past one, since the summary it was posted with is
+        # not the one a reconstruction puts back. The question is asked OF
+        # somebody else's comment, so it answers no rather than leaving the
+        # scan that asked it by an exception.
         room = MAX_PINNED_BODY - (len(_artifacts.render_verification_artifact(_fitted_to(1))) - 1)
         claimed = _fitted_to(room + 1)
-        hidden = f"{_PAYLOAD_PREFIX}{_payloads.encode_evidence(claimed.commands)}{_CLOSE}"
-        closing = f"\n\n{claimed.header}\n\n{_trust.ORCHESTRATOR_COMMENT_MARKER}"
+        forged = (
+            f"forged\n\n{_PAYLOAD_PREFIX}{_payloads.encode_evidence(claimed.commands)}{_CLOSE}"
+            f"\n\n{claimed.header}\n\n{_trust.ORCHESTRATOR_COMMENT_MARKER}"
+        )
 
         with self.assertRaises(_evidence.ArtifactRefusedError):
             _artifacts.render_verification_artifact(claimed)
-        for forged in (f"forged\n\n{hidden}{closing}", f"forged\n\n---\n\n{claimed.evidence}{closing}"):
-            with self.subTest(payload=_PAYLOAD_PREFIX in forged):
-                self.assertLessEqual(len(forged), MAX_PINNED_BODY)
-                self.assertIsNone(_read(forged))
+        self.assertLessEqual(len(forged), MAX_PINNED_BODY)
+        self.assertIsNone(_read(forged))
 
     def test_anything_else_is_not_an_artifact(self) -> None:
         # A copy anybody else pasted is ours by neither half; every other case
@@ -394,58 +351,22 @@ class CompactReadBackTest(unittest.TestCase):
                 )
 
 
-class LegacyReadBackTest(unittest.TestCase):
-    """A comment the legacy format published reads back as the artifact it was, as it stands."""
+class VisibleEvidenceTest(unittest.TestCase):
+    """A comment showing its evidence in view, with no hidden payload, is no artifact."""
 
-    def test_historical_comments_read_back(self) -> None:
-        # Fixed text that format wrote, never this writer's: each is the
-        # artifact it was posted as, under the evidence revision its header
-        # was settled by, though the writer would spell it otherwise now.
-        for published, artifact in (
-            (_legacy.CARRIED, _ARTIFACT),
-            (_legacy.FAILED, make_verification_artifact(
-                _PR_NUMBER,
-                source=_REVIEWED,
-                target_head=_ARTIFACT.tested_sha,
-                artifact_revision=2,
-                receipt="issue-7-verification-2",
-                commands=(_evidence.VerifiedCommand(
-                    _SUITE, 1, "collected 12 items\n\n1 failed, 11 passed in 0.4s",
-                ),),
-            )),
-            (_legacy.NOTHING_RAN, make_verification_artifact(
-                _PR_NUMBER, commands=(), artifact_revision=3, receipt="issue-7-verification-3",
-            )),
-        ):
-            for bot_login in (_BOT_LOGIN, None):
-                with self.subTest(revision=artifact.artifact_revision, bot_login=bot_login):
-                    self.assertEqual(_read(published, bot_login=bot_login), artifact)
-                    self.assertIn(f":content={artifact.content_revision}-->", published)
-                    self.assertNotEqual(_artifacts.render_verification_artifact(artifact), published)
+    def test_shown_evidence_is_never_read(self) -> None:
+        # Ours, and closing on exactly the evidence it shows, then the very
+        # header and digest that evidence settles under: with no payload to
+        # decode its commands from, it is no artifact, with or without a
+        # login to hold its author to.
+        shown = _visible.SHOWN
+        closing = f"\n\n---\n\n{shown.evidence}\n\n{shown.header}\n\n{_trust.ORCHESTRATOR_COMMENT_MARKER}"
 
-    def test_one_past_the_compact_bound_reads_back(self) -> None:
-        # A comment that format posted within one comment's room, whose
-        # transcript the compact payload would escape past it: never refused
-        # for what the writer would make of it now.
-        room = MAX_PINNED_BODY - len(_legacy.transcribing(""))
-        published = _legacy.transcribing(_ACCENTED * room)
-        artifact = _read(published)
-
-        self.assertEqual(len(published), MAX_PINNED_BODY)
-        self.assertIsNotNone(artifact)
-        self.assertEqual(_reports.content_digest(artifact.evidence), artifact.content_revision)
-        self.assertIn(f":content={artifact.content_revision}-->", published)
-        with self.assertRaises(_evidence.ArtifactRefusedError):
-            _artifacts.render_verification_artifact(artifact)
-
-    def test_a_tampered_comment_is_not_an_artifact(self) -> None:
-        # Held to that format's own body, exactly: an edit no re-rendering
-        # wrote is no artifact, and neither is one that would raise on the
-        # way to saying so.
-        for label, forged in _LEGACY_FORGERIES:
-            with self.subTest(label):
-                self.assertNotEqual(forged, _legacy.CARRIED)
-                self.assertIsNone(_read(forged))
+        self.assertTrue(_visible.COMMENT.endswith(closing))
+        self.assertNotIn(_PAYLOAD_PREFIX, _visible.COMMENT)
+        for bot_login in (_BOT_LOGIN, None):
+            with self.subTest(bot_login=bot_login):
+                self.assertIsNone(_read(_visible.COMMENT, bot_login=bot_login))
 
 
 def _fitted_to(output_length: int, *, character: str = "y") -> _artifacts.VerificationArtifact:

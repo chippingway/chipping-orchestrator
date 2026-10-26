@@ -10,9 +10,9 @@ complete output -- under the revision a reuse has to name, and never
 evidence about another head, report, or requirements revision, which is
 evidence about something nobody is asking this reviewer to approve. The
 comment shows the summary alone, so the commands are the ones the re-read
-decoded out of its hidden payload, or read off the visible section of an
-artifact published before evidence was hidden: complete either way, and
-after a restart as much as before one. Which evidence that is, and the proof
+decoded out of its hidden payload: complete, and after a restart as much as
+before one. A comment with no such payload is no artifact, so nothing it
+shows is ever handed over. Which evidence that is, and the proof
 that it covers the subject, belong to the validating stage
 (`stages/validating/review_evidence.py`); this owner renders what it is
 handed, and says which of the commands it lists did not exit 0 --

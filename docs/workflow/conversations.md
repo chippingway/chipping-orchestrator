@@ -586,9 +586,11 @@ The reviewer prompt (`workflow/engine/review_prompts.py`, with its verification 
   (`stages/validating/review_evidence.py`). The artifact is re-read at its comment, held once more to the settled
   record, and quoted whole under the `sha256:` revision a reuse names: its summary, then every command with its exit
   status and complete output. The comment itself shows only the summary, so those commands are the ones the re-read
-  decoded from its hidden payload — or read off the visible section of an artifact published before evidence was
-  hidden — and a reviewer handed evidence after a restart reads exactly what one handed it before would. Evidence
-  about an earlier report, another head, or requirements the issue has moved past is never handed over.
+  decoded from its hidden payload, and a reviewer handed evidence after a restart reads exactly what one handed it
+  before would. A comment without that payload — one an earlier build published with its commands in view included —
+  re-reads as no artifact, so nothing it shows is quoted or offered for reuse, and the reviewer runs the verification
+  itself. Evidence about an earlier report, another head, or requirements the issue has moved past is never handed
+  over.
 - **What the repository configures.** The configured `VERIFY_COMMANDS` are listed in order, and an approval's evidence
   has to include each of them exactly as written; a reviewer may declare further commands beside them, which refuse an
   approval only where one did not exit 0. An empty `VERIFY_COMMANDS` is stated as such: it requires no particular

@@ -650,19 +650,20 @@ orchestrator/
                         or unconfirmed, only absent is posted onto, and the lookup is scoped by the transaction
                         receipt, so a retry finds the comment GitHub already accepted and a later artifact on the
                         same commit is a comment of its own. What a retry finds is an artifact rather than a body:
-                        a comment of ours under the receipt is present only where it reads back, validated in its
-                        own format, as an artifact equal to the one asked for -- the whole identity, every command
+                        a comment of ours under the receipt is present only where it reads back, validated in the
+                        compact format, as an artifact equal to the one asked for -- the whole identity, every command
                         with its status and transcript, and so the evidence digest -- and changed where it reads
-                        back as anything else or as nothing. It is never compared with the body the writer would
-                        post now, and the writer is asked only once a reading is absent, so a comment an earlier
-                        attempt landed is recovered as it stands, neither rewritten nor posted again, even where
-                        the writer's body for it would now differ or not fit in one comment; an artifact that
-                        would not fit is refused there, before the post. A pasted copy is not ours; a post whose
-                        response was lost stays unconfirmed until a read settles it; an artifact for another pull
+                        back as anything else or as nothing, a comment showing evidence with no hidden payload
+                        included, which holds the post rather than being posted past or rewritten. It is never compared
+                        with the body the writer would post now, and the writer is asked only once a reading is absent,
+                        so a comment an earlier attempt landed is recovered as it stands, neither rewritten nor posted
+                        again, even where the writer's body for it would now differ or not fit in one comment; an
+                        artifact that would not fit is refused there, before the post. A pasted copy is not ours; a post
+                        whose response was lost stays unconfirmed until a read settles it; an artifact for another pull
                         request is refused before any request is made. `reread_verification_artifact` scans this
                         owner's own thread read for the one comment an evidence settlement recorded and answers
                         with the artifact of ours it still is -- our author and an exact rendering in the
-                        comment's own format -- or why it is not; it does not go through the report owner's
+                        compact format -- or why it is not; it does not go through the report owner's
                         digest-based `reread_report_location`.
                         The thread read and the post are this owner's own seams, so the in-memory double answers
                         them for artifacts without inheriting whatever a case arranged for reports.
@@ -690,17 +691,17 @@ orchestrator/
                         beside the transaction receipt and the digest of the evidence, and the ordinary
                         orchestrator marker closes the body, which is what keeps a generated artifact from ever
                         being read back as a human's fresh feedback. An identity the header cannot carry and a body
-                        past a comment's length are refused rather than cut. The writer publishes the compact format
-                        (`verification_compact_artifacts.py`); the reader is format-aware: a comment carrying the
-                        hidden payload is held to the compact format's canonical body and any other to the legacy
-                        format's (`verification_legacy_artifacts.py`), byte for byte either way, and both read back
-                        as the same artifact under the same evidence digest, so a historical comment is never
-                        rewritten, re-digested, or refused for what the current format would make of it. A comment
-                        reads back as an artifact only when it is ours and re-renders exactly -- never one whose
-                        payload was tampered with, whose summary or header disagrees with its evidence, whose header
+                        past a comment's length are refused rather than cut. The compact format
+                        (`verification_compact_artifacts.py`) is the one format written and the one read: the
+                        commands are decoded from the hidden payload alone and the whole body is held to that
+                        format's canonical body, byte for byte, so a comment without the payload -- one an earlier
+                        build published with its commands in view included -- is no artifact whatever it shows, and
+                        is left exactly as it stands. A comment reads back as an artifact only when it is ours and
+                        re-renders exactly -- never one whose payload was tampered with or is missing, whose summary
+                        or header disagrees with its evidence, whose header
                         claims a witness this format does not name or a count of more digits than Python converts,
                         or whose evidence reconstructs past what a comment holds, which a body short enough to have
-                        been posted still claims once its own presentation is replaced. Every such claim is ANSWERED
+                        been posted still claims once its own summary is replaced. Every such claim is ANSWERED
                         rather than raised: the question is asked of somebody else's comment, on a thread anybody can
                         post to, so nothing a comment says about itself may leave the scan that asked by an
                         exception. The writer lays the one-comment bound over the canonical body only on the way to
@@ -714,15 +715,14 @@ orchestrator/
                         equivalent-tree carry where the checks never ran on it -- and no command inventory or
                         transcript. The commands, their statuses, and their whole output travel in the hidden
                         payload `verification_payloads.py` encodes, in an HTML comment of its own ahead of the
-                        header; that comment's opener is what tells this format from the legacy one, whose evidence
-                        could never carry a marker of ours. It reads a body's commands back out of the payload and
-                        spells the canonical body a comment claiming this format is held to
+                        header, the one place a body's commands are read from. It reads them back out of the
+                        payload and spells the canonical body every comment read as an artifact is held to
     verification_evidence.py
                         what an artifact reports and who witnessed it: one command, the status it exited, and
                         whatever bounded transcript the artifact carries for it, rendered once here so the digest
                         an artifact publishes is taken over one spelling of them -- the spelling a reviewer handed
-                        the evidence is quoted and a legacy artifact showed, whichever presentation carries the
-                        commands. Orchestrator-executed evidence is this process reporting commands it spawned
+                        the evidence is quoted, whichever presentation carries the commands.
+                        Orchestrator-executed evidence is this process reporting commands it spawned
                         itself; reviewer-reported evidence is a reviewer run's account of commands nobody here
                         observed, and the witness travels with the commands rather than being a footnote to them. A
                         command carrying the backtick that delimits it, a transcript carrying the fence that closes
@@ -731,14 +731,6 @@ orchestrator/
                         as an explicit absence, since a section that simply listed nothing would read as a run that
                         passed. The content revision is taken here too, over that rendering, so every presentation
                         of the commands names them by one revision
-    verification_legacy_artifacts.py
-                        the format artifacts were published in before their evidence was hidden -- a prose preamble
-                        naming the witness and the whole identity, a rule, and every command with its status and
-                        transcript in view -- kept for reading alone: the commands its visible section reads back
-                        as, and the exact body it spelled an artifact as. Frozen rather than derived from the
-                        current writer, so a historical comment keeps re-rendering as it reads; its digest was
-                        taken over the rendering `verification_evidence.py` still hashes, so evidence settled on
-                        one stays settled
     verification_payloads.py
                         the versioned codec for an artifact's hidden evidence: every command, the status it
                         exited, and its whole transcript, in order and with repeats, spelled as one JSON object

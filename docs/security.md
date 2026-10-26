@@ -802,6 +802,15 @@ deletes the snapshot it was cut from
   another casing decides the question. The same qualification the artifact pass makes on the reclamation side
   ([Scheduled artifact reclamation](#scheduled-artifact-reclamation)), made where the effect is a push rather than a
   delete ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)).
+- **A verification comment is evidence only in the current artifact format.** Its header is an HTML comment anybody
+  can paste and a maintainer can edit a comment that stays attributed to the token's account, so neither the marker
+  nor the author is proof. A comment is an artifact only where that account posted it and its whole body re-renders
+  exactly from the identity in its header and the commands decoded from its hidden payload
+  (`github/verification_artifacts.py`). One with no payload -- commands shown in view, as an earlier build published
+  them, included -- is no artifact whatever its header or its visible commands say: it supplies no current
+  verification, reviewer reuse, approval, ready ping, or recovered settlement, a transaction whose receipt it carries
+  settles nothing over it and posts nothing beside it, and nothing rewrites or deletes it
+  ([C-03](contracts.md#c-03-persisted-and-externally-consumed-formats)).
 
 ## Cross-repo awareness disclosure (`EXPOSE_TRACKED_REPOS`)
 

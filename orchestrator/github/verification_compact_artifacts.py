@@ -22,10 +22,9 @@ it was carried to.
 The payload sits in an HTML comment of its own, between the summary and the
 header `verification_artifacts` closes every body with. The codec escapes both
 angle brackets, so nothing in it ends that comment early, renders a
-transcript's tail as visible text, or opens a marker of ours. Its opener is
-also what tells this format from the legacy one
-(`verification_legacy_artifacts`): no command that format showed could carry
-a marker of ours, so no comment it published carries this one.
+transcript's tail as visible text, or opens a marker of ours. It is the only
+place a body's commands are read from: a body without it has none to read,
+whatever it shows.
 """
 from __future__ import annotations
 
@@ -121,11 +120,6 @@ def canonical_body(artifact: VerificationArtifact) -> str:
     return _SEPARATOR.join((
         summary(artifact), hidden, artifact.header, _comments.ORCHESTRATOR_COMMENT_MARKER,
     ))
-
-
-def carries_hidden_evidence(body: str) -> bool:
-    """Whether `body` claims this format, by the payload comment no legacy artifact carries."""
-    return _HIDDEN_OPENER in body
 
 
 def commands_in(body: str, header_at: int) -> tuple[_evidence.VerifiedCommand, ...] | None:

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import unittest
+from importlib.util import find_spec
 
 from orchestrator import github as _github
 from orchestrator.github import (
@@ -44,9 +45,14 @@ _MODULES = (
     "orchestrator.github.verification_artifacts",
     "orchestrator.github.verification_compact_artifacts",
     "orchestrator.github.verification_evidence",
-    "orchestrator.github.verification_legacy_artifacts",
     "orchestrator.github.verification_payloads",
 )
+
+# The owner that read verification artifacts showing their evidence in view.
+# Anything importable there would be a second reader of artifacts, taking
+# commands from a comment's visible text where the compact reader takes them
+# only from the hidden payload.
+_RETIRED_MODULES = ("orchestrator.github.verification_legacy_artifacts",)
 
 # Owner-only names the facade must not resolve: the domain surfaces each have an
 # owner module callers import directly.
@@ -94,6 +100,17 @@ class CleanProcessImportTest(unittest.TestCase):
             with self.subTest(module=module):
                 probe = probe_import(module)
                 self.assertEqual(probe.returncode, 0, msg=probe.stderr)
+
+
+class RetiredGitHubModuleTest(unittest.TestCase):
+    """No artifact reader answers beside the compact one."""
+
+    def test_no_retired_module_exists(self) -> None:
+        # Resolving the spec rather than stat-ing a path catches a copy
+        # planted anywhere the interpreter would find it.
+        for module in _RETIRED_MODULES:
+            with self.subTest(module=module):
+                self.assertIsNone(find_spec(module))
 
 
 class LayeringTest(unittest.TestCase):

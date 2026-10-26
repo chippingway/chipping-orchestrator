@@ -6,9 +6,11 @@ One contract, held against the real client and against the shared fake: which
 reading licenses a post, what an unanswered request is answered with, that a
 retry finds the artifact GitHub already accepted by what it reads back as
 rather than by the body the writer would post now, that ownership takes our
-author and an exact rendering in the comment's own format together, that a
-settled artifact is re-read at its own comment as exactly that, and that
-neither the description nor the developer report beside it is ever written.
+author and an exact rendering in the compact format together, that a settled
+artifact is re-read at its own comment as exactly that, that a comment of
+ours showing evidence with no hidden payload is never found, recovered, or
+re-read as an artifact, and that neither the description nor the developer
+report beside it is ever written.
 """
 from __future__ import annotations
 
@@ -39,7 +41,7 @@ from tests.support.fakes import (
     make_developer_report,
     make_verification_artifact,
 )
-from tests.support.github import legacy_artifacts as _legacy
+from tests.support.github import visible_evidence as _visible
 
 _GITHUB_LOG = "orchestrator.github"
 _WARNING = "WARNING"
@@ -321,22 +323,23 @@ class _RereadContract:
         ])
         self.assertEqual(self.posted_comments(), [(support.PR_NUMBER, _PUBLISHED)])
 
-    def test_a_legacy_artifact_stands_as_published(self) -> None:
-        # Landed in the format artifacts were published in before their
-        # evidence was hidden: its transaction finds it, a settlement re-reads
-        # it as exactly that artifact, and nothing is posted in the format
-        # the writer would use now, or written over it.
-        landed = self.seed(_legacy.CARRIED, login=support.BOT_LOGIN)
-        present = ReportLookup(ReportPresence.PRESENT, landed)
+    def test_shown_evidence_is_no_artifact(self) -> None:
+        # Ours, under the receipt of the very transaction whose evidence it
+        # shows in view, but with no hidden payload: that transaction finds a
+        # claimant that is no artifact and posts nothing beside it, a
+        # settlement re-reading it finds no artifact there, and the comment
+        # stays exactly as it was posted.
+        landed = self.seed(_visible.COMMENT, login=support.BOT_LOGIN)
+        claimed = ReportLookup(ReportPresence.CHANGED, landed)
 
         readings = [
-            self.gh.find_verification_artifact(self.pull_request, _ARTIFACT),
-            self.gh.publish_verification_artifact(self.pull_request, _ARTIFACT),
+            self.gh.find_verification_artifact(self.pull_request, _visible.SHOWN),
+            self.gh.publish_verification_artifact(self.pull_request, _visible.SHOWN),
             self._at(landed.id),
         ]
 
-        self.assertEqual(readings, [present, present, (ReportPresence.PRESENT, _ARTIFACT)])
-        self.assertEqual([comment.body for comment in self.pull_request.issue_comments], [_legacy.CARRIED])
+        self.assertEqual(readings, [claimed, claimed, (ReportPresence.CHANGED, None)])
+        self.assertEqual([comment.body for comment in self.pull_request.issue_comments], [_visible.COMMENT])
         self.assertEqual(self.posted_comments(), [])
 
     def _at(self, comment_id: int) -> tuple:

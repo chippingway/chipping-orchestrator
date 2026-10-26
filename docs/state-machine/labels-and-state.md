@@ -3072,6 +3072,11 @@ The keys that matter for the state machine fall into a few groups:
   copied, or the carry is refused. `verification_evidence_current` is the evidence the pull request
   carries: the same binding without the commands, plus the artifact's evidence digest (`content`), the comment it landed
   as (`comment`), and whether at least one command ran and every one exited 0 (`passed`); `null` once invalidated.
+  That comment is read back only in the compact format, its commands decoded from the hidden payload and the whole body
+  spelled again exactly (`github/verification_artifacts.py`): a `comment` naming one with no payload -- commands shown
+  in view, as an earlier build published them -- reads as an artifact no longer the one that settled, and every road
+  answers it as it answers an edited one, so it is no evidence for a reviewer's reuse, an approval, a ready ping, or a
+  settlement; no migration converts the record, and the comment is never rewritten.
   `verification_evidence_history` is the five highest-revision retired records, in revision order rather than the order
   they retired -- each with its receipt, revision, whole binding (the report revision and digest and the complete review
   subject included, since the artifact names only the subject's head), digest, `passed`, `comment` (`null` exactly for

@@ -1432,11 +1432,11 @@ because there it is the claim that this stage has already rerouted rather than a
     otherwise while the proof's requests were answered posts nothing (a carry, or a transaction published under a
     standing anchor, is abandoned on it as on the proof's own refusal); the
     artifact is posted (or found where an earlier post's response was lost: a comment of ours under its receipt that
-    reads back, in its own format, as exactly this artifact -- identity, commands, transcripts, and digest -- whatever
-    body the writer would give it now, and that comment is neither rewritten nor posted again); a carry that copied the
-    current evidence's transcript names that source (`copied_from`, which a carried reviewer's account without one
-    reads as damage and is dropped), which is re-read ahead of the post and again at the settlement and has to still
-    be the current record, its artifact the one that settled and carrying exactly what was copied
+    reads back, in the compact format, as exactly this artifact -- identity, commands, transcripts, and digest --
+    whatever body the writer would give it now, and that comment is neither rewritten nor posted again); a carry that
+    copied the current evidence's transcript names that source (`copied_from`, which a carried reviewer's account
+    without one reads as damage and is dropped), which is re-read ahead of the post and again at the settlement and
+    has to still be the current record, its artifact the one that settled and carrying exactly what was copied
     (`verification_current.copied_source_verdict`); the issue and the pinned
     comment are read afresh, the comment has to carry every bound record as the tick held it, and the whole proof is
     taken again over them -- the artifact re-read at the comment it landed as, right behind the pull request, has to
@@ -1474,7 +1474,9 @@ because there it is the claim that this stage has already rerouted rather than a
     target, or carrying requirements its round was not due, a report settled after the review, stale against the
     subject, or deleted, edited, or out of step with its handoff, an issue that stopped being live work during the
     proof or the post (where it stopped before the post, nothing is posted or written at all), edited requirements,
-    an edited artifact, a bound record that moved on the pinned comment before or while the
+    an edited artifact (a comment of ours under the receipt that carries no hidden payload, showing its commands in
+    view as an earlier build published them, reads as one and is left as it stands), a bound record that moved on the
+    pinned comment before or while the
     artifact was posted or under the settling commit, a pinned comment that moved under that commit's edit, or a
     settlement the comment no longer has room for, before the post or behind it. The transaction stays owed for the
     route that answers it, with the artifact's ledger entry committed alone where the comment still reads (a comment
