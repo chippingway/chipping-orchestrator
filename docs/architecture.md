@@ -638,7 +638,9 @@ back to `workflow:validating` without resuming dev (documenting). Both halves of
 `_handle_fixing`, `_handle_question`, and `_handle_discussion` skip the drift hook, and so does `_handle_blocked`: an
 issue on `workflow:blocked` is a dependency hold, which the hook itself answers with nothing hashed, recorded, or
 routed, so an edit made while it waits is compared once its release enters `workflow:ready`
-([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#user-content-drift-detection)).
+([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#user-content-drift-detection)). The hook has
+one fingerprint: a recorded baseline it does not reproduce is drift for the stage's route to answer, whichever producer
+wrote it, and is never recognized or rewritten as an earlier spelling.
 
 `in_review` never merges. Beside its parks, the one thing it tells a human is that the pull request is ready: a ping
 posted only over the issue's current verification evidence proved whole again at the ping

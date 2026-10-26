@@ -3,17 +3,19 @@
 """Detect requirement changes and route the workflow against the new baseline.
 
 The content_hash owner defines which text is human guidance. This owner persists
-the first or normalized baseline, resumes implementation with the changed text,
-and clears split claims and the split's recorded rationale before routing
-pre-implementation drift to decomposition.
+the first baseline, resumes implementation with the changed text, and clears
+split claims and the split's recorded rationale before routing
+pre-implementation drift to decomposition. A recorded baseline is compared
+with the current fingerprint and nothing else: one it does not reproduce is
+the drift it reads as, whoever wrote it, and nothing here rewrites it.
 
 An issue whose workflow label reads `workflow:blocked` is answered with
 nothing done. It is waiting on prerequisites, and what it says is compared
 when it legitimately enters `workflow:ready`, before anything implements --
-so nothing here hashes its thread, records, initializes, or normalizes a
-baseline on it, or reports drift a route could act on: an edit made while it
-waits is still there to compare, against a baseline nothing replaced, once
-the hold is released.
+so nothing here hashes its thread, records or initializes a baseline on it,
+or reports drift a route could act on: an edit made while it waits is still
+there to compare, against a baseline nothing replaced, once the hold is
+released.
 
 It also says what a missing baseline means. Every check but one takes the first
 reading it meets as the baseline -- or the observed reading a stage recorded in
@@ -87,18 +89,16 @@ def _detect_user_content_change(
     the baseline whenever the calling handler's early-return path
     (awaiting-human-with-no-new-comments, debounce, …) skips its own state
     write; the very next edit would then be classified as the new baseline and
-    silently absorbed. The cost is one extra write per legacy issue still
-    missing the field on first encounter; in steady state the hash is already
-    set and this branch never fires.
+    silently absorbed. The cost is one extra write on an issue's first
+    encounter; in steady state the hash is already set and this branch never
+    fires.
 
-    Legacy-hash normalization: an issue whose baseline was written by the
-    pre-issue-#729 algorithm (which counted a bare `/orchestrator continue`
-    comment) compares unequal to the new `current` even when the requirements
-    did not change. Before reporting drift, recompute with the OLD algorithm
-    (`include_bare_continue=True`); if that reproduces the stored baseline the
-    delta is purely the algorithm change, so persist the new baseline and report
-    no drift. This keeps a bare continue outstanding at deploy time from firing
-    one false "issue body/content changed" route.
+    A recorded baseline -- or the observed reading standing in for one -- is
+    held to the one current fingerprint. A value no current reading of the
+    thread reproduces, whatever producer wrote it, is reported as drift and
+    left as recorded: the route that answers the drift is what records the
+    next one, so nothing on the thread is folded into a baseline nobody read
+    it against.
 
     `answered` is what a park waiting on a human had already read -- the
     frozen comments at or below its watermark. Replies past that watermark
@@ -112,8 +112,8 @@ def _detect_user_content_change(
 
     `reading` is a read of the thread the caller already holds and decides
     more on -- the `ready` decision, which consumes exactly the comments it
-    compared. The fingerprint and its legacy spelling are both taken off it,
-    and a first or normalized baseline is staged on `state` and written by
+    compared. The fingerprint is taken off it, and a first baseline, or one
+    the observed reading confirmed, is staged on `state` and written by
     nobody here: the caller's own checkpoint lands it, and a caller that never
     reaches that checkpoint licenses nothing on it either.
     """
@@ -130,20 +130,15 @@ def _detect_user_content_change(
         ),
         current,
     )
-    if current == prior or prior == _content_hash._compute_user_content_hash(
-        issue, orchestrator_ids, include_bare_continue=True, comments=reading,
-    ):
+    if current == prior:
         if state.get(_USER_CONTENT_HASH) != current:
             state.set(_USER_CONTENT_HASH, current)
             if reading is None:
                 gh.write_pinned_state(issue, state)
         return None
-    if answered is not None and prior in {
-        _content_hash._compute_user_content_hash(
-            issue, orchestrator_ids, include_bare_continue=legacy_mode, comments=answered,
-        )
-        for legacy_mode in (False, True)
-    }:
+    if answered is not None and prior == _content_hash._compute_user_content_hash(
+        issue, orchestrator_ids, comments=answered,
+    ):
         return None
     return current
 

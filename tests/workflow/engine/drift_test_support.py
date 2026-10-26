@@ -3,10 +3,11 @@
 """Shared values and fakes for workflow drift tests."""
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 
 from orchestrator.github import pinned_state as _pinned_state
-from orchestrator.workflow.engine import content_hash as _content_hash
+from orchestrator.workflow.engine import content_hash as _content_hash, messages as _messages
 from tests.support import fakes as _fakes
 from tests.workflow import fixtures as _helpers
 
@@ -138,19 +139,39 @@ class _ContentChangeContext:
     before_writes: int
 
 
+def continue_counting_hash(issue, orchestrator_ids=(), *, comments=None) -> str:
+    """The baseline an earlier producer recorded over `issue`: what the fingerprint counts, and a bare continue too.
+
+    No current owner spells it, so it is spelled out here -- the title, the
+    body, and the body of every comment `comments` (the thread, by default)
+    carries that the fingerprint counts or that is a bare continue, joined and
+    digested as the requirements fingerprint joins and digests them.
+    """
+    thread = issue.comments if comments is None else comments
+    ours = set(orchestrator_ids)
+    parts = [issue.title or "", issue.body or ""]
+    counted = (seen for seen in thread if _counted_with_continue(seen, ours))
+    parts.extend(seen.body or "" for seen in counted)
+    return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
+
+
+def _counted_with_continue(seen, ours: set[int]) -> bool:
+    """Whether the earlier spelling counts this comment: one the fingerprint counts, or a bare continue."""
+    if _content_hash._is_hidden_comment(seen, ours):
+        return False
+    if _messages._is_bare_orchestrator_continue(seen):
+        return True
+    return not _content_hash._is_operator_control(seen)
+
+
 def _content_change_case(
     old_body: str,
     new_body: str,
     *,
     comments: tuple[FakeComment, ...] = (),
-    include_bare_continue: bool = False,
 ) -> _ContentChangeContext:
     old_issue = make_issue(1, body=old_body, comments=list(comments))
-    prior_hash = _content_hash._compute_user_content_hash(
-        old_issue,
-        set(),
-        include_bare_continue=include_bare_continue,
-    )
+    prior_hash = _content_hash._compute_user_content_hash(old_issue, set())
     issue = make_issue(1, body=new_body, comments=list(comments))
     github = FakeGitHubClient()
     github.add_issue(issue)

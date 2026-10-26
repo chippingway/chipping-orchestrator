@@ -111,9 +111,9 @@ def _refuse_parked_continue_command(
     awaiting-human resume reruns the FULL documentation prompt -- and a docs
     commit its own verification run did not pass on, whose resumed pass is
     what that park waits on -- and a park that needs a real answer. A bare
-    continue no longer shifts `user_content_hash`, so `_reconcile_documenting_drift`
+    continue does not shift `user_content_hash`, so `_reconcile_documenting_drift`
     stays silent and the retry falls through to `_run_documenting_dev`'s resume
-    (issue #729) -- only the refusal needs interception here.
+    -- only the refusal needs interception here.
 
     The batch is cut from what the park ASKED (`parks._asked_since`), which on
     a drift unwind is the notice it posted rather than the delivery cursor

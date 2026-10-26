@@ -177,18 +177,19 @@ class ReadyBaselineDecisionTest(unittest.TestCase):
     """The drift check `ready` asks before anything implements, and what it calls a missing baseline."""
 
     def test_a_staged_baseline_writes_nothing(self) -> None:
-        # Asked over a reading its caller holds, a first encounter and a legacy
-        # spelling each stage that reading's fingerprint on the state and write
-        # nothing: the caller's own checkpoint lands it.
-        for legacy in (False, True):
-            with self.subTest(legacy=legacy):
+        # Asked over a reading its caller holds, a first encounter and an
+        # observed reading the thread still matches each stage that reading's
+        # fingerprint on the state as the baseline and write nothing: the
+        # caller's own checkpoint lands it.
+        for recorded_as in (None, "observed_user_content_hash"):
+            with self.subTest(recorded_as=recorded_as):
                 case = support._content_change_case(
                     "body", "body",
                     comments=(support.FakeComment(id=1, body=support.CONTINUE_COMMAND),),
-                    include_bare_continue=legacy,
                 )
-                if not legacy:
-                    case.state.data.pop(support.KEY_USER_CONTENT_HASH)
+                prior = case.state.data.pop(support.KEY_USER_CONTENT_HASH)
+                if recorded_as is not None:
+                    case.state.set(recorded_as, prior)
 
                 held = list(case.issue.comments)
                 changed = drift._detect_user_content_change(case.github, case.issue, case.state, reading=held)

@@ -236,7 +236,7 @@ def _delivered_thread(
     `/orchestrator continue` a retry consumed. They come out of the read by id,
     so neither the text nor its record names them: quoted, they would hand an
     agent a command it has no context for as the last thing a human said, and
-    the fingerprint never counted a bare command, so it reads the same with
+    the fingerprint does not count a bare command, so it reads the same with
     them gone. Every other comment past the issue watermark is kept WHOLE,
     whatever the bound, since what such a read delivers is what the batch is
     consumed by: cut, a reply would hold the watermark below it, and the next

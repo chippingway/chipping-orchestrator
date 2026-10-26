@@ -51,8 +51,8 @@ request as much as before one — in `workflow/engine/drift_delivery.py`. Operat
 syntax from the owners of those commands.
 
 `_handle_blocked` runs no check, and the check itself answers an issue whose workflow label reads `workflow:blocked`
-with nothing done, whoever asks: no fingerprint taken, no baseline recorded, initialized, or normalized, no drift
-reported for a route to act on. An issue waiting on its prerequisites is a dependency hold
+with nothing done, whoever asks: no fingerprint taken, no baseline recorded or initialized, no drift reported for a
+route to act on. An issue waiting on its prerequisites is a dependency hold
 ([C-10](../contracts.md#c-10-pauses-and-parks)), and an edit made while it waits — a title, a body, a trusted
 comment, any number of them — is compared once, on the legitimate entry to `workflow:ready` its release makes (see
 [`_handle_ready`](#_handle_ready-label-workflowready--workflowimplementing)), against the baseline nothing replaced
@@ -150,12 +150,11 @@ Non-human content is filtered eight ways:
 - a bare `/orchestrator add-agent-runs N` command via `run_grant_request._is_bare_command`, for the same reason and
   one of its own: the dispatcher answers that command and then hands the **same tick** to the stage below, so a hash
   counting it would meet the handler as a body edit nobody made — `validating` would resume the developer on "the human
-  edited the issue" instead of running the reviewer round the issue stopped mid-way through. Filtered in **both**
-  hashing modes, since the legacy algorithm the flag below reproduces predates the command entirely; guidance beside
-  the command is requirements here too, so it is not bare, it shifts the hash, and the drift road carries those words
-  to the agent;
+  edited the issue" instead of running the reviewer round the issue stopped mid-way through. Guidance beside the
+  command is requirements here too, so it is not bare, it shifts the hash, and the drift road carries those words to
+  the agent;
 - a whole-comment `/orchestrator authorize-oversized <commit>` via
-  `messages._authorized_oversized_candidate`, in both modes and for the same reasons: it is an operator control, and
+  `messages._authorized_oversized_candidate`, for the same reasons: it is an operator control, and
   the tick that reads it hands the **same issue** straight on to the stage the authorized publication continues at,
   so a hash counting it would meet that stage as a body edit nobody made — resuming a developer over the very commit
   an operator just authorized. Only the whole comment is the command, so a paragraph containing the line is
@@ -217,14 +216,12 @@ while it waits. A late split's child carries the same off its own create — its
 — and one a resumed walk seeded, recorded by an earlier pass or adopted by its receipt, carries none (see step 3).
 `_handle_ready` is the one check that does not take such a child's first reading as its baseline: a split's child
 carrying neither reading is rerouted to `workflow:decomposing` there, before anything implements (see
-[that handler](#_handle_ready-label-workflowready--workflowimplementing)). It also
-carries a **legacy-hash normalization** path: a baseline written by the pre-issue-#729 algorithm counted a bare
-`/orchestrator continue` comment, so after deploy it would compare unequal to the new hash even with no real edit.
-Before reporting drift the helper recomputes with the old algorithm
-(`_compute_user_content_hash(..., include_bare_continue=True)`); if that reproduces the stored baseline the delta is
-purely the algorithm change, so it persists the new baseline and reports no drift — a bare continue outstanding at
-deploy time cannot fire one false "issue body/content changed" route. On drift the action depends on lifecycle
-position:
+[that handler](#_handle_ready-label-workflowready--workflowimplementing)). A recorded baseline, or the observed
+reading standing in for one, is compared against the one current fingerprint and nothing else: a value no current
+reading of the thread reproduces — whatever producer wrote it, one that counted a bare `/orchestrator continue`
+included — is drift, reported for the route below to answer and left as recorded, never recognized as an earlier
+spelling or rewritten in the current one. A parked tick's narrower check (above) holds the park's answered reading to
+the same one fingerprint. On drift the action depends on lifecycle position:
 
 - **`workflow:decomposing`** — handled inline at the top of `_handle_decomposing`: drop `decomposer_session_id`, wipe
   `children` / `dep_graph` / `expected_children_count` / `split_attempt` / `split_rationale` / `umbrella`, clear park
@@ -837,8 +834,8 @@ because there it is the claim that this stage has already rerouted rather than a
   child-creation time). Never the issue's title, body, or thread.
 - **Internal flow**:
   0. **No requirements check, parent or child.** Nothing here — and nothing the drift check answers for an issue on
-     `workflow:blocked` ([above](#user-content-drift-detection)) — hashes the issue, records, initializes, or
-     normalizes a baseline, or reroutes it: an edit made while it waits leaves `user_content_hash`, the manifest
+     `workflow:blocked` ([above](#user-content-drift-detection)) — hashes the issue, records or initializes a
+     baseline, or reroutes it: an edit made while it waits leaves `user_content_hash`, the manifest
      (`children`, `dep_graph`, the split markers and rationale), and every tracked child as they stand, posts no
      notice, and moves no label. The steps below run over it as they would without it — the walk releases what the
      graph permits, and a parent whose children all resolved finishes waiting — and the requirements are compared
@@ -3202,7 +3199,7 @@ and handed off -- and this is what it guarantees and what stops it.
      continue on a park needing a real answer consumes the command and posts a refusal (`_refuse_parked_continue`) once,
      then stays parked. A retryable session-failure park (`agent_silent` / `agent_timeout` / `agent_execution_failed`),
      a docs commit its own verification run did not pass on (step 12, `final_completion._reruns_the_pass`), and a
-     command carrying genuine guidance all fall through: because a bare continue no longer shifts
+     command carrying genuine guidance all fall through: because a bare continue does not shift
      `user_content_hash`, the drift block below stays silent (no spurious `routing back to validating`) and the retry
      reruns the FULL docs pass through the awaiting-human resume (step 10). The parser + classifier are shared with
      `_handle_implementing` / `_handle_fixing`; documenting has no preserved feedback batch, so only the refusal needs

@@ -21,9 +21,11 @@ above the shared watermark, or withheld guidance below a park's notice -- so
 the late path hands it to the developer rather than absorbing it.
 
 When no prefix reproduces the recorded hash, the change is one a prefix cannot
-explain: the title or the body moved, or a comment already covered was edited
-or deleted. That is the requirements moving under the candidate, and the
-caller parks on it as drift. What it baselines on then is `_unreconciled`:
+explain: the title or the body moved, a comment already covered was edited
+or deleted, or the recorded value is one the current fingerprint spells over
+no prefix at all, whichever producer wrote it. Either way nothing shows the
+requirements unmoved under the candidate, and the caller parks on it as
+drift. What it baselines on then is `_unreconciled`:
 no comment counted, since which of them the recorded hash covered can no
 longer be told, and the title and body held to that recorded hash itself --
 the only record there is of what the developer worked against, and one no
@@ -31,9 +33,7 @@ fingerprint of the title and body as they now read can equal. So the reading
 goes on reading as drift until a human answers the park or the edit is taken
 back, and every trusted comment is uncounted meanwhile: whatever answers it
 hands them to the developer whole, a comment written under the drift park's
-own notice included, rather than folding them into a baseline. A baseline
-written by the legacy algorithm, which counted a bare continue, is recognized
-the way the drift check recognizes one.
+own notice included, rather than folding them into a baseline.
 
 The revert is the one answer that fingerprint cannot see for itself. Where
 the recorded hash covered a comment, no title and body alone reproduce it, so
@@ -108,7 +108,7 @@ def _covered(
         return _baselined_on(state, generation, signal, ())
     for end in range(len(signal.read), -1, -1):
         prefix = signal.read[:end]
-        if recorded in _prefix_hashes(signal.text, prefix, ours):
+        if recorded == _content_hash._hash_requirements(*signal.text, prefix, ours):
             return _baselined_on(state, generation, signal, prefix)
     return None
 
@@ -210,16 +210,3 @@ def _baselined_on(
             signal.text, list(prefix), state, generation,
         ).fingerprint,
     )
-
-
-def _prefix_hashes(
-    text: tuple[str, str], prefix: tuple, ours: set[int],
-) -> set[str]:
-    """What the issue-wide baseline would read for this prefix, in either algorithm."""
-    title, body = text
-    return {
-        _content_hash._hash_requirements(
-            title, body, prefix, ours, include_bare_continue=legacy,
-        )
-        for legacy in (False, True)
-    }

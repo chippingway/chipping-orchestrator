@@ -766,11 +766,11 @@ recorded read where the adjudication reads from, `last_action_comment_id` past i
 thread through it, which is what a generation's first late baseline counts comments up to. A reply that says anything
 more is a human's words, a requirement or a decision, and stays unread for the adjudication to hand the developer. Only
 the leading run of retries is spent, since the baseline covers a prefix of the thread and the first reply of guidance
-is where it stops; and the baseline moves only where it already reproduces over the thread up to the watermark the
-replies were written past -- short of that, words nobody read stand before the park's notice, and folding the retry in
-would fold those in too. It reproduces in either spelling the drift check accepts: a baseline the legacy algorithm
-wrote, counting a bare `/orchestrator continue`, covers the thread as the current one does, and what is written past
-it is the current spelling, as that check normalizes a legacy baseline it recognizes.
+is where it stops; and the baseline moves only where the current fingerprint already reproduces it over the thread up
+to the watermark the replies were written past. Short of that -- words nobody read stand before the park's notice, or
+the recorded value is one no current reading spells, such as an earlier producer's that counted a bare
+`/orchestrator continue` -- folding the retry in would fold in whatever that value does not cover, so only the
+watermark moves, and the adjudication's own reading decides what the developer is handed, or parks on the drift.
 
 Each retry is recorded in the write that already spends its reply, so no lost tick can split the two: the anchor's
 write on a rebase the reply let start, which moves the watermark past every reply it read
@@ -1333,13 +1333,15 @@ The keys that matter for the state machine fall into a few groups:
   in-flight half of that record: the tip a publication was pushing, written before the push and retired by the write
   that records the PR, and the only thing that makes a plan-shaped commit on a parked issue's branch one this stage
   may finish rather than one it merely found there.
-- **Drift baseline.** `user_content_hash` — SHA-256 over title + body + non-orchestrator comments; updated whenever
-  the orchestrator reacts to a human edit, and whenever a `workflow:implementing` / `workflow:validating` frozen reply
-  batch is settled, to the fingerprint of that read through the last reply it delivered. On a parked tick the drift
-  check compares it with the frozen comments at or below the park's watermark, so replies to the park are delivered
-  by the batch rather than read as an edit. Every drift resume records it the same
-  way: the settlement of the prompt that answered the edit writes it, to the fingerprint of the read that prompt was
-  built from, so a comment written while the agent was out is still an edit. That fingerprint is also the revision
+- **Drift baseline.** `user_content_hash` — SHA-256 over title + body + non-orchestrator comments, leaving bare
+  operator controls out, and compared in that one spelling: a value no current reading of the thread reproduces is
+  drift for the stage's route to answer, never recognized or rewritten as an earlier producer's spelling. Updated
+  whenever the orchestrator reacts to a human edit, and whenever a `workflow:implementing` / `workflow:validating`
+  frozen reply batch is settled, to the fingerprint of that read through the last reply it delivered. On a parked
+  tick the drift check compares it with the frozen comments at or below the park's watermark, so replies to the park
+  are delivered by the batch rather than read as an edit. Every drift resume records it the same way: the settlement
+  of the prompt that answered the edit writes it, to the fingerprint of the read that prompt was built from, so a
+  comment written while the agent was out is still an edit. That fingerprint is also the revision
   the run's report is stamped with, so no reader holds a report against requirements its own prompt already
   contained. Three of the four roads write nothing ahead of the run: a deferral, a refusal park, a cleared park, a
   shutdown kill, a live pause and a launch the run circuit turned away all leave it where they found it, since a
@@ -1353,8 +1355,8 @@ The keys that matter for the state machine fall into a few groups:
   content reading — the same write that moves its local watermark and the shared `last_action_comment_id`, to the
   hash that one reading froze (see [the local fingerprints](#late-generation-state)). So does an auto rebase's attempt,
   over the replies to its own park that only asked for the retry -- in the write that spends the reply, to the hash of
-  the thread through the last of them, and only where the recorded value -- in either spelling the drift check
-  accepts -- already covers the thread up to the watermark they were written past (`workflow/engine/rewrite_replies.py`,
+  the thread through the last of them, and only where the current fingerprint of the thread up to the watermark they
+  were written past already reproduces the recorded value (`workflow/engine/rewrite_replies.py`,
   see [Base refresh](#base-refresh)), so an
   adjudication the replay is handed to never reads an operator's retry as guidance. A split's seed, ordinary or
   late, writes it on each child it creates, to the fingerprint of the title and body the child's create answered —
@@ -1369,9 +1371,10 @@ The keys that matter for the state machine fall into a few groups:
   records one for it while it waits on `workflow:blocked`; `workflow:ready` is where it is answered: a split's child
   carrying neither this nor the observed reading below is rerouted to `workflow:decomposing` before anything
   implements, never handed on with its current words recorded as unchanged.
-  `ready` records it in its own guarded checkpoint: the handoff lands a first or normalized value the drift check
-  staged, and a reroute's reset lands the current fingerprint beside `ready_reroute`. What a run may cross on the issue
-  thread is bounded beside it — see [the drift section](delivery-stages.md#user-content-drift-detection).
+  `ready` records it in its own guarded checkpoint: the handoff lands a first value, or one an observed reading
+  confirmed, that the drift check staged, and a reroute's reset lands the current fingerprint beside `ready_reroute`.
+  What a run may cross on the issue thread is bounded beside it — see
+  [the drift section](delivery-stages.md#user-content-drift-detection).
 - **Observed reading.** `observed_user_content_hash` — the same fingerprint over a reading a stage acted on without
   consuming any of it, written only where no `user_content_hash` is recorded: by a late adjudication carrying on over a
   quiet reading. It moves no baseline. The drift check compares against it in place of the missing one, recording
@@ -3689,6 +3692,11 @@ The keys that matter for the state machine fall into a few groups:
   under its park comes back to it too, the retry that park asked for spent with the attempt rather than resuming the
   developer, while a reply that says more reaches the developer as guidance; and a park another owner left, stood
   before the gate measured the replay or after, holds the adjudication until a human answers it.
+  [`tests/git/base_sync/test_real_git_journey_retry_baseline.py`](../../tests/git/base_sync/test_real_git_journey_retry_baseline.py)
+  holds that spent retry to the requirements baseline a stage recorded over a bare continue it read first: the
+  current fingerprint, which leaves the continue out, covers the thread and the retry is spent -- before the handoff
+  or after one whose tick was lost -- while a baseline an earlier producer spelled counting that continue is neither
+  recognized nor folded into, and the adjudication parks on the drift.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since

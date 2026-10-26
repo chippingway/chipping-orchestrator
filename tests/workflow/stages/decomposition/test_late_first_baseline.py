@@ -11,7 +11,10 @@ that edit back clears the park without a reply.
 """
 from __future__ import annotations
 
+from types import MappingProxyType
+
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
+from tests.workflow.engine.drift_test_support import continue_counting_hash
 from tests.workflow.stages.decomposition import late_content_support as _support
 from tests.workflow.stages.decomposition.late_content_replies import human_comment, reply
 from tests.workflow.stages.decomposition.late_requirements_support import (
@@ -38,6 +41,11 @@ OLDER_ID = 9
 SETTLED_SCOPE = "the importer reads CSV only"
 
 RUN_GRANT = "/orchestrator add-agent-runs 3"
+
+# A bare continue the thread carried before the candidate was frozen, and the
+# shared mark of a stage having read it.
+READ_CONTINUE = (human_comment(OLDER_ID, _support.BARE_CONTINUE),)
+READ_THROUGH_IT = MappingProxyType({_support.KEY_LAST_ACTION_COMMENT_ID: OLDER_ID})
 # The keyword a run's optional controls are handed to the runner under.
 OPTIONS = "options"
 
@@ -45,13 +53,14 @@ OPTIONS = "options"
 class IssueBaselineCase(RevisionCase):
     """A late issue frozen on a settled issue-wide requirements baseline."""
 
-    def _frozen_on_the_issue_baseline(self, comments: tuple = ()) -> str:
+    def _frozen_on_the_issue_baseline(self, comments: tuple = (), **marks) -> str:
         """A generation with no late baseline, frozen on a settled issue-wide one.
 
         `comments` are what the thread carried when that baseline was settled,
-        so the recorded hash covers them.
+        so the recorded hash covers them; `marks` are any other fields the
+        record carries.
         """
-        self._seed(baseline=False, comments=comments, **DEV_PIN)
+        self._seed(baseline=False, comments=comments, **DEV_PIN, **marks)
         settled = requirements(self.issue)
         self.github.seed_state(self.issue.number, **{
             **self._pinned(), KEY_USER_CONTENT_HASH: settled,
@@ -156,6 +165,51 @@ class FirstBaselineTest(IssueBaselineCase):
         self.assertEqual(outcome.disposition, _LateDisposition.REVISED)
         self.assertEqual(spawn.call_args.kwargs[OPTIONS].resume_session_id, DEV_SESSION)
         self.assertIn(UNREAD, spawn.call_args.args[1])
+        self._assert_read_as_it_stands()
+
+
+class ReadContinueTest(IssueBaselineCase):
+    """A bare continue a stage read before the candidate was frozen, under the issue-wide baseline."""
+
+    def test_the_baseline_leaves_it_out(self) -> None:
+        # The recorded hash leaves the control out, as the fingerprint leaves
+        # every bare operator control out, so the thread through it is the
+        # covered prefix and the candidate is adjudicated.
+        self._frozen_on_the_issue_baseline(READ_CONTINUE, **READ_THROUGH_IT)
+
+        adjudicated, spawn = self._run()
+
+        self.assertEqual(adjudicated.disposition, _LateDisposition.DECIDED)
+        spawn.assert_called_once()
+        self.assertEqual(self._pinned()[_support.KEY_COMMENT_WATERMARK], OLDER_ID)
+        self._assert_read_as_it_stands()
+
+    def test_a_baseline_spelled_otherwise_parks(self) -> None:
+        # The recorded hash is spelled as an earlier producer spelled it,
+        # counting the continue. No prefix of the thread reproduces it, so
+        # nothing shows the requirements unmoved under the candidate: it parks
+        # on drift with nothing adjudicated and the value kept as recorded,
+        # until the operator's continue certifies the thread as it reads now.
+        self._frozen_on_the_issue_baseline(READ_CONTINUE, **READ_THROUGH_IT)
+        recorded = continue_counting_hash(self.issue)
+        self.github.seed_state(self.issue.number, **{
+            **self._pinned(), KEY_USER_CONTENT_HASH: recorded,
+        })
+
+        parked, held = self._run()
+
+        self.assertEqual(parked.disposition, _LateDisposition.PARKED)
+        held.assert_not_called()
+        self.assertEqual(
+            (self._pinned()[KEYS.park_reason], self._pinned()[KEY_USER_CONTENT_HASH]),
+            (_support.PARK_CONTENT_DRIFT, recorded),
+        )
+
+        reply(self.issue, _support.BARE_CONTINUE)
+        certified, spawn = self._run()
+
+        self.assertEqual(certified.disposition, _LateDisposition.DECIDED)
+        spawn.assert_called_once()
         self._assert_read_as_it_stands()
 
 

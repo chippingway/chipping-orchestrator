@@ -8,8 +8,8 @@ the validating handoff seeds its watermark past, and `last_action_comment_id`
 ratcheted past every comment on the thread -- the consumption that keeps
 decomposing-era feedback the implementer reads at spawn from being replayed as
 fresh pull-request feedback later. Beside them goes the baseline the drift
-check staged on a first encounter, or over a legacy spelling, so what the issue
-is handed on over is the reading it was compared on.
+check staged on a first encounter, or over the observed reading it confirmed,
+so what the issue is handed on over is the reading it was compared on.
 
 What is consumed is exactly what was compared. The ratchet is taken off one
 reading of the thread (`ready_readings.thread`), read last of all ahead of the

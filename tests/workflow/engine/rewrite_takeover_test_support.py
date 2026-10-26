@@ -144,15 +144,11 @@ class TakeoverWorld:
         self.issue.comments.append(said)
         return said.id
 
-    def baseline_through(self, last: int, *, legacy: bool = False) -> str:
-        """Issue #7's requirements baseline over its title, its body, and its thread through comment `last`.
-
-        `legacy` spells it as the algorithm that counted a bare continue did.
-        """
+    def baseline_through(self, last: int) -> str:
+        """Issue #7's requirements baseline over its title, its body, and its thread through comment `last`."""
         return _content_hash._compute_user_content_hash(
             self.issue,
             _comments._orchestrator_ids(self.github.read_pinned_state(self.issue)),
-            include_bare_continue=legacy,
             comments=[seen for seen in self.issue.comments if seen.id <= last],
         )
 

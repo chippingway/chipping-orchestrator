@@ -431,10 +431,11 @@ split's recovery — or a late split's resumed walk — had to seed it without o
 takes that missing baseline as one: a split's child whose record carries neither reading is rerouted to
 `workflow:decomposing` like a changed one, so nothing implements on words nobody can say it was created with.
 `_handle_fixing`, `_handle_question`, and
-`_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
+`_handle_discussion` deliberately skip the check. A recorded baseline is held to the one current fingerprint: a value
+no current reading of the thread reproduces, whoever wrote it, is drift for the stage's route to answer, never
+recognized or rewritten as an earlier spelling. The eight non-human filters (including the untrusted-author filter
 and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and
-`/orchestrator authorize-oversized <commit>`), the
-legacy-hash normalization, and the per-stage result routing are in
+`/orchestrator authorize-oversized <commit>`) and the per-stage result routing are in
 [`state-machine/delivery-stages.md#user-content-drift-detection`][drift].
 
 ### `_handle_decomposing` (label `workflow:decomposing`)

@@ -144,9 +144,9 @@ def _compared(
 
     Taken off `comments`, the decision's reading of the thread. A child whose
     record carries no baseline is fingerprinted without being compared.
-    Anything else is the drift check's answer over that reading: a first or
-    normalized baseline it stages on `state` lands in the handoff's own
-    checkpoint.
+    Anything else is the drift check's answer over that reading: a first
+    baseline, or one an observed reading confirmed, it stages on `state` lands
+    in the handoff's own checkpoint.
     """
     if _state._names_an_issue(state.get(_state._PARENT_NUMBER)) and _drift._unbaselined(state):
         ids = _comments._orchestrator_ids(state)

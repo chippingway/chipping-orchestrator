@@ -105,7 +105,13 @@ Historical forms the runtime still reads stay documented in their specifications
 Analytics and trajectory readers interpret only what current producers write: a field a producer did not report is
 unknown rather than inferred from another (a skill load is no evidence of its offer), and a row narrower than its
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
-unpriced cost, and a malformed record's containment remain current answers. Verification artifacts are read only in the
+unpriced cost, and a malformed record's containment remain current answers. A recorded requirements fingerprint
+(`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
+operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
+`/orchestrator continue` included -- is drift for the stage's deliberate drift or hold route, and is never recognized
+as covering the thread, rewritten in the current spelling, or a baseline a retry is folded into. A first drift check
+recording the thread it meets where no reading is recorded, and the observed reading a late adjudication keeps in a
+missing baseline's place, remain current initialization and recovery. Verification artifacts are read only in the
 compact format, their commands decoded from the hidden payload alone: a comment without it, one an earlier build
 published with its commands in view included, is left untouched and is no artifact for verification, a reviewer's
 reuse, an approval, or a recovered settlement.
@@ -140,7 +146,8 @@ or lost write interrupted are current state, not historical compatibility.
 [artifact admission](configuration/operations.md#what-clears-a-candidate-and-what-keeps-it),
 [deployment without migration](configuration/operations.md#deploying-without-migration),
 [close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own),
-[analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery).
+[analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery),
+[requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection).
 
 **Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py),
 [agent surface](../tests/agents/test_imports.py), [submissions](../tests/scheduler/test_submission.py),
@@ -153,7 +160,9 @@ or lost write interrupted are current state, not historical compatibility.
 [snapshot consumers](../tests/workflow/stages/decomposition/test_claimed_reclamation.py),
 [artifact admission](../tests/git/worktrees/test_maintenance_admission.py),
 [analytics readers](../tests/observability/analytics/query/test_skill_adoption_reads.py),
-[verification artifacts](../tests/github/test_verification_artifacts.py).
+[verification artifacts](../tests/github/test_verification_artifacts.py),
+[requirements baselines](../tests/workflow/engine/test_drift.py),
+[late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py).
 
 ## C-04: Authentic state and trusted input
 
