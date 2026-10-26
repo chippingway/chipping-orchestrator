@@ -112,7 +112,9 @@ file is the durable record.
   found a recorded child it cannot recognize as its own — a link, ancestry, pointer, text, or receipt that split did
   not give it; and, on the child itself, a seed that is not the one its receipt owes it, held at dispatch under every
   label but a terminal),
-  `verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed`, `agent_run_limit`
+  `verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed` / `verify_tree_changed` (the approval's
+  verify gate, and a final docs pass's run of its docs commit) / `verify_unrecorded` (that docs run passed and binds no
+  evidence), `agent_run_limit`
   (the issue has spent every agent run its lifetime ceiling allows), `question_*`, `discussion_*`, ...). Failed-run
   parks in validating and decomposing forward explicit, bounded correlation fields (`agent_role`, `session_id`,
   `review_round`, `retry_count`, `pr_number`) through `_park_awaiting_human` so audit and analytics share the same
