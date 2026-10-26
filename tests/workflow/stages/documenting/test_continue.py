@@ -36,6 +36,7 @@ from tests.workflow.stages.documenting.documenting_scenario_test_support import 
 
 DOCUMENTING = "workflow:documenting"
 IN_REVIEW = "in_review"
+VERDICT_UPDATED = "updated"
 VALIDATING = "workflow:validating"
 
 # --- Dev agent identity pinned into per-issue state ---------------------
@@ -191,9 +192,9 @@ class HandleDocumentingContinueCommandTest(unittest.TestCase, _ContinueDocumenti
         comment_text = _issue_comment_text(gh, CONTINUE_ISSUE_NUMBER)
         self.assertNotIn(USER_CONTENT_CHANGED, comment_text)
         self.assertNotIn("routing back to", comment_text)
-        # The commit was handed back for its report and review, by the one
-        # relabel the published pass earns; command consumed.
-        self.assertEqual(gh.label_history, [(CONTINUE_ISSUE_NUMBER, VALIDATING)])
+        # The commit is completed into `in_review` by the one relabel the
+        # published pass earns, with no review asked for; command consumed.
+        self.assertEqual(gh.label_history, [(CONTINUE_ISSUE_NUMBER, IN_REVIEW)])
         self.assertEqual(
             gh.pinned_data(CONTINUE_ISSUE_NUMBER).get(LAST_ACTION_COMMENT_ID),
             CONTINUE_COMMENT_ID,
@@ -284,18 +285,18 @@ class _ContinueAssertions(_AgyContinueDocumentingFixture):
         self.assertIn("/orchestrator continue", _issue_comment_text(gh, QUOTA_ISSUE_NUMBER))
 
     def _assert_documented(self, gh, run_agent, resumed, pinned=FRESH_SESSION) -> None:
-        """The continued pass ran on the full docs prompt, published the stopped pass's commit, and handed it back.
+        """The continued pass ran on the full docs prompt, published the stopped pass's commit, and completed it.
 
-        Back to `validating` with no verdict, since a published docs commit is
-        content no review covered. `pinned` is the conversation the issue is
-        left pinned to: the fresh one unless named.
+        On to `in_review`, stamped `updated`: a published docs commit is the
+        pass's own completion, owed no review. `pinned` is the conversation
+        the issue is left pinned to: the fresh one unless named.
         """
         for context in FULL_DOCS_CONTEXT:
             self.assertIn(context, run_agent.call_args.args[1])
         self.assertEqual(resumed[PUSH_BRANCH].call_args.kwargs[documenting_support.REVISION], SHA_DOCS)
-        self.assertEqual(gh.label_history, [(QUOTA_ISSUE_NUMBER, VALIDATING)])
+        self.assertEqual(gh.label_history, [(QUOTA_ISSUE_NUMBER, IN_REVIEW)])
         self.assertEqual(
-            self._ledger(gh), {DOCS_VERDICT: None, DEV_SESSION_ID: pinned, AGENT_RUNS_USED: 2},
+            self._ledger(gh), {DOCS_VERDICT: VERDICT_UPDATED, DEV_SESSION_ID: pinned, AGENT_RUNS_USED: 2},
         )
 
     def _ledger(self, gh) -> dict:
@@ -426,8 +427,8 @@ class DocumentingPausedPassTest(unittest.TestCase, _ContinueAssertions):
     def test_paused_success_publishes_next_tick(self) -> None:
         # An operator paused the issue while a pass ran, committed, and
         # succeeded, so its tick wrote nothing of it: the next tick publishes
-        # the commit as recovered work, with no agent run, and hands it back
-        # for review.
+        # the commit as recovered work, with no agent run, and completes it
+        # into `in_review`.
         gh, issue, run_agent = self._stopped(self._paused_meanwhile, stop=PAUSED_SUCCESS)
         self.assertIsNone(self._pinned(gh).get(LAUNCHED_DOCS_SHA))
 
@@ -435,7 +436,7 @@ class DocumentingPausedPassTest(unittest.TestCase, _ContinueAssertions):
 
         self.assertEqual(run_agent.call_count, 1)
         self.assertEqual(published[PUSH_BRANCH].call_args.kwargs[documenting_support.REVISION], SHA_DOCS)
-        self.assertEqual(gh.label_history, [(QUOTA_ISSUE_NUMBER, VALIDATING)])
+        self.assertEqual(gh.label_history, [(QUOTA_ISSUE_NUMBER, IN_REVIEW)])
 
     def test_paused_failure_waits_for_continue(self) -> None:
         # The same pause over a pass an error terminal no quota named failed

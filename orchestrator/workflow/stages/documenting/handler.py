@@ -8,12 +8,14 @@ edit still unwinds an issue that is sitting parked -- the reverse order would
 leave a stale approval standing behind a park nobody replied to.
 
 Right behind the preconditions -- a pull request merged or closed ends the
-tick whatever else the comment carries -- a pass this stage already published
-and still owes its hand-back is finished, where the receipts prove that
-publication and no park stands: the approval it outdated is no longer the
-question, and asked first it could send the issue back with no report debt
-behind it. Behind that, and ahead of drift and the docs
-pass, the tick hands the issue back to `validating` where the comment
+tick whatever else the comment carries -- a pass this stage already finished
+and still owes its completion is finished with no agent run: one the receipts
+prove published, where no park stands, is verified and completed, and one
+whose completion landed with its relabel lost is relabelled. The approval it
+followed is no longer the question: a run of the docs commit is evidence the
+approval's own claim was never given, and asked first it would send the issue
+back to review over its own verification. Behind that, and ahead of drift and
+the docs pass, the tick hands the issue back to `validating` where the comment
 still carries a record only that stage answers -- a returned reviewer verdict,
 or a squash handoff: the approval that moved the label retires its own verdict
 ahead of that move and ends its own handoff behind it, so one this stage can
@@ -51,8 +53,8 @@ from orchestrator.workflow.stages.documenting import (
     handoff as _handoff,
     models as _models,
     outcomes as _outcomes,
+    owed_completion as _owed_completion,
     preconditions as _preconditions,
-    publication as _publication,
     run as _run,
 )
 
@@ -141,7 +143,7 @@ def _documenting_run(ctx: _models._DocumentingContext, wt):
     if standing is None:
         return None
     ahead, remote_head = standing
-    if _publication._finished_settled_docs(ctx, wt, ahead):
+    if _owed_completion._finished_settled_docs(ctx, wt, ahead):
         return None
     return _run._run_documenting_dev(ctx, wt, ahead, remote_head)
 
@@ -162,18 +164,20 @@ def _handle_documenting(gh: GitHubClient, spec: _config_models.RepoSpec, issue: 
     )
 
     # Both asked behind the terminals, so a merged or closed pull request
-    # finalizes first. A pass this stage already published, whose hand-back
-    # the receipts prove still owed, is finished ahead of the approval it
-    # outdated: asked of that approval first, an evidence context or report
-    # that moved since would send the issue back with no report debt behind
-    # it, and the reviewer road would park for the report the debt exists to
-    # fetch. Then a reviewer verdict or squash handoff standing here is
+    # finalizes first. A pass this stage already finished, whose completion
+    # the records prove still owed, is finished ahead of the approval it
+    # followed: asked of that approval first, the run of its docs commit --
+    # evidence the approval's claim was never given -- would send the issue
+    # back to review over its own verification. Then a reviewer verdict or
+    # squash handoff standing here is
     # `validating`'s to answer: its cleanup write failed behind the relabel, it
     # was left over records that moved during the relabel, or another road put
     # it down then. So is an approval that no longer covers the report or
     # evidence the comment carries. Nothing here can tell which, and a docs
     # pass over any of them documents a head that stage has not finished with.
-    if _publication._finishes_a_published_pass(ctx) or _handoff._hands_back_what_validating_owes(gh, issue, state):
+    if _owed_completion._finishes_an_owed_completion(ctx) or _handoff._hands_back_what_validating_owes(
+        gh, issue, state,
+    ):
         return
 
     if _drift._reconcile_documenting_drift(ctx):

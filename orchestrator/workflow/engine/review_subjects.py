@@ -94,6 +94,10 @@ _READY_PING_SHA = "ready_ping_sha"
 
 _READY_PING_PENDING = "ready_ping_pending"
 
+# The receipt a docs pass leaves the completion it still owes, and the lease
+# beside it naming the head that pass was entered on.
+_DOCS_RECEIPT = ("docs_settled_sha", "docs_settled_lease")
+
 
 @dataclass(frozen=True)
 class ReviewReport:
@@ -287,11 +291,16 @@ def record_approved(state: PinnedState, subject: ReviewSubject) -> None:
     before this approval's docs pass ran, the ping would keep that gate silent
     over the report the approval was for, and the pending ping would have the
     gate take a comment an earlier approval's ping left on the thread for this
-    approval's own. Each is dropped only where it is set, so an issue that
-    never carried one is not given the key. The caller writes.
+    approval's own. So does the receipt an earlier approval's docs pass left
+    unfinished, with the lease beside it: it names a commit that pass
+    published, which can be the very head this approval is of, and left
+    standing the documenting stage would finish that pass from it -- entered
+    on the head the earlier approval was of -- in place of the pass this one
+    buys. Each is dropped only where it is set, so an issue that never carried
+    one is not given the key. The caller writes.
     """
     state.set(APPROVED_SUBJECT, subject.recorded())
-    for stamp in (_DOCS_VERDICT, _READY_PING_SHA, _READY_PING_PENDING):
+    for stamp in (_DOCS_VERDICT, _READY_PING_SHA, _READY_PING_PENDING, *_DOCS_RECEIPT):
         if state.get(stamp) is not None:
             state.set(stamp, None)
 

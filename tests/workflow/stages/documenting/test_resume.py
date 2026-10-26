@@ -33,6 +33,7 @@ from tests.workflow.stages.documenting.documenting_test_support import (
 
 DOCUMENTING = "workflow:documenting"
 IN_REVIEW = "in_review"
+VERDICT_UPDATED = "updated"
 VALIDATING = "workflow:validating"
 
 # --- Dev agent identity pinned into per-issue state ---------------------
@@ -222,14 +223,14 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             COMMIT_REPLY_ISSUE_NUMBER,
             branch=_branch(COMMIT_REPLY_ISSUE_NUMBER),
         )
-        # The published commit is handed back to `validating` for its report
-        # and a review, with no verdict a merge gate could read.
+        # The published commit completes the pass into `in_review`, stamped
+        # as a docs commit, with no report or review asked of it.
         self.assertEqual(
             gh.label_history,
-            [(COMMIT_REPLY_ISSUE_NUMBER, VALIDATING)],
+            [(COMMIT_REPLY_ISSUE_NUMBER, IN_REVIEW)],
         )
         state = gh.pinned_data(COMMIT_REPLY_ISSUE_NUMBER)
-        self.assertIsNone(state.get(DOCS_VERDICT))
+        self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
         # The resumed commit is published under its pull request's reference,
         # and what is pushed and stamped is the replacement it was amended into.
         _assert_referenced_publication(
@@ -362,14 +363,14 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             branch_ahead_behind=(1, 0),
         )
 
-        # The published commit is handed back to `validating` for its report
-        # and a review, with no verdict a merge gate could read.
+        # The published commit completes the pass into `in_review`, stamped
+        # as a docs commit, with no report or review asked of it.
         self.assertEqual(
             gh.label_history,
-            [(RECOVERED_REPLY_ISSUE_NUMBER, VALIDATING)],
+            [(RECOVERED_REPLY_ISSUE_NUMBER, IN_REVIEW)],
         )
         state = gh.pinned_data(RECOVERED_REPLY_ISSUE_NUMBER)
-        self.assertIsNone(state.get(DOCS_VERDICT))
+        self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
         # A `DOCS: NO_CHANGE` verdict certifies the tree, not the subject:
         # the waiting commit still goes out under its reference.
         _assert_referenced_publication(

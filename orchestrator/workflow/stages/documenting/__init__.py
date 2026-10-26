@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The final-docs hop between a reviewer approval and `in_review`.
+"""The final-docs hop between a reviewer approval and `in_review`, the last automated delivery stage.
 
 The owners here divide by what one `documenting` tick has to settle before it
 may spawn, because every one of those questions becomes unanswerable once the
@@ -20,34 +20,34 @@ recovered-commit shortcut, and a fresh docs spawn. `outcomes` reads what the
 run left behind -- timeout, dirty tree, a run its backend recorded as failed,
 new commit, or a bare `DOCS: NO_CHANGE` -- and `publication` turns the
 surviving two into a push and the verdict and notice a completion carries,
-entered on the commit `subject`
-hands it once that commit's subject names the pull request. A bare
-`DOCS: NO_CHANGE` with nothing to publish leaves the pull request on the head
-the approval moved here, and `retention` proves the verification evidence that
-approval rests on still answers for it before the completion is handed the
-verdict -- invalidating it and handing the issue back to `validating` where it
-does not, and holding where nobody could say. `handoff` is separate from all of them
-because it protects a stage this one does not run: it lands that completion --
-the stamped `docs_verdict`, the receipt it consumes, and the
-`pr_last_comment_id` ratchet that carries in_review's watermark past the span
-a human reply the docs pass already consumed sits in -- as a checkpoint over
-the reading the tick last confirmed, and relabels only behind a write that
-landed. `handback` is the completion of a pass that published a docs commit,
-which changed what the approval was of: the report debt that commit is owed,
-the evidence and approval it retires, and the relabel back to `validating`,
-which the dispatcher finishes from that debt where the write landed and the
-relabel did not.
+entered on the commit `subject` hands it once that commit's subject names the
+pull request. A bare `DOCS: NO_CHANGE` with nothing to publish leaves the pull
+request on the head the approval moved here, and `retention` proves the
+verification evidence that approval rests on still answers for it before the
+completion is handed the verdict -- invalidating it and handing the issue back
+to `validating` where it does not, and holding where nobody could say.
+`final_completion` is what every finished pass ends in, straight into
+`in_review`: the head the pass completed on verified by this stage's own
+`final_verification` -- the approval's evidence retained for an unchanged
+head, a run of exactly a published docs commit where `VERIFY_COMMANDS` is
+configured, and nothing claimed where it is empty -- and recorded beside the
+approval as its final-documentation completion, the approval, its report, and
+`review_round` left as they were; a run that does not pass parks instead.
+`handoff` is separate from all of them because it protects a stage this one
+does not run: it lands that completion -- the stamped `docs_verdict`, the
+receipt it consumes, and the `pr_last_comment_id` ratchet that carries
+in_review's watermark past the span a human reply the docs pass already
+consumed sits in -- as a checkpoint over the reading the tick last confirmed,
+and relabels only behind a write that landed. `owed_completion` finishes a
+pass a later tick finds already over with no second agent run: from the
+receipt a published pass leaves, or from the completion a write landed ahead
+of a relabel that did not.
 
 `failed_pass` says what a pass that did not finish is, and keeps the record an
 Antigravity launch lands before it runs, so a tick that ends writing nothing
-leaves the next one to park rather than publish what the pass left. `parks` collects the ways the tick stops
-for a human, over the records the owners hand each other (`models`) and the
-pinned-state keys they share (`state`). `final_verification` is the stage's
-own verification of the head a pass completed on, staged as the
-final-documentation completion apart from the approval it followed: the
-approval's evidence retained for an unchanged head, a run of exactly a changed
-head where `VERIFY_COMMANDS` is configured, and nothing claimed where it is
-empty.
+leaves the next one to park rather than publish what the pass left. `parks`
+collects the ways the tick stops for a human, over the records the owners hand
+each other (`models`) and the pinned-state keys they share (`state`).
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

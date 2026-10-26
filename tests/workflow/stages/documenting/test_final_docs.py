@@ -191,13 +191,14 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
         state = gh.pinned_data(self.issue_number)
         self.assertEqual(state.get(DOCS_VERDICT), VERDICT_NO_CHANGE)
 
-    def test_recovered_ahead_hands_back_for_review(
+    def test_recovered_ahead_advances_to_in_review(
         self,
     ) -> None:
         # A previous final-docs tick committed but parked before the
         # push landed. The resume's no-change verdict triggers the
         # ahead-push branch; the recovered commit is now the new PR
-        # head, which no review covered, so it goes back to validating.
+        # head, completed straight into `in_review` -- stamped as the
+        # docs commit it is, with the park the reply answered ended.
         gh, issue = self._seeded(awaiting_human=True, park_reason=PARK_PUSH_FAILED)
         issue.comments.append(
             FakeComment(
@@ -223,7 +224,12 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
         )
 
         mocks[PUSH_BRANCH].assert_called_once()
-        self.assertEqual(gh.label_history, [(self.issue_number, VALIDATING)])
+        self.assertEqual(gh.label_history, [(self.issue_number, IN_REVIEW)])
+        state = gh.pinned_data(self.issue_number)
+        self.assertEqual(
+            (state.get(DOCS_VERDICT), state.get(DOCS_CHECKED_SHA), state.get(AWAITING_HUMAN)),
+            (VERDICT_UPDATED, SHA_RECOVERED, False),
+        )
 
     def test_drift_routes_to_validating_without_spawn(
         self,

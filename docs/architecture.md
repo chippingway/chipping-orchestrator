@@ -528,7 +528,7 @@ them) -- are the roads that commit through it so far, and so is the finish of ev
 whichever road reached it (`workflow/engine/rewrite_finish_writes.py`), every auto-rebase park and a recovery's
 clear, abandonment, and record of a gate's hold (`git/base_sync/checkpoints.py`), and a final-docs pass's completion,
 prepared before its notice and relabelled only behind a confirmed write (`workflow/stages/documenting/handoff.py`) --
-its hand-back of a published docs commit to `workflow:validating` included (`handback.py` beside it), and the evidence
+the record of its final head's verification included (`final_completion.py` beside it), and the evidence
 invalidation or hold that withholds a no-change one (`retention.py` beside it), the in_review ready ping's arming
 ahead of its post and its settlement behind it (`workflow/stages/in_review/ready_ping.py`), the in_review
 unmergeable park behind its notice (`merge_gate.py` beside it), and the `workflow:ready`

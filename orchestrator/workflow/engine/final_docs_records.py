@@ -46,6 +46,12 @@ verification rests on one, and `null` where it does not. Anything else is a
 truncation or a hand edit, and read as a completion it would stand behind a
 head nobody can say was documented or verified.
 
+Every docs pass that finishes records one, in the completion that hands the
+issue straight to `in_review` (`stages/documenting/final_completion.py`), and
+the documenting stage reads it back to finish a relabel that completion's
+write landed ahead of (`stages/documenting/owed_completion.py`); the base
+refresh holds the branch still while the transaction it names is still owed
+(`git/base_sync/frozen.py`), which spells the record's keys itself.
 Reading it proves nothing beyond its own shape: whether the head, the
 approval, the report, the lineage, and the evidence it names are still what
 it says is the final-documentation proof's (`final_docs_proof`). The in_review

@@ -24,11 +24,9 @@ the gate already wrote it and the count where a push nothing could name never
 reached that write. Re-reading the counter instead would count one round
 twice.
 
-A final-docs pass that published a docs commit spends one too, in the write
-that hands it back here for a report and a review
-(`stages/documenting/handback.py`): an approval spends none, so without it a
-head approved again after every docs change would be reviewed at the same
-count for as long as the passes kept changing it.
+A final-docs pass spends none, whether or not it published a docs commit: it
+buys no review, completing straight into `in_review` with the count the
+approval left (`stages/documenting/final_completion.py`).
 
 One road spends nothing at all: the publication a drift park still owes, where
 `in_review` already reset the budget for it. That reset IS the round accounting

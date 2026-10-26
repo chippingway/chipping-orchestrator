@@ -36,12 +36,14 @@ workflow:decomposing → workflow:ready → workflow:implementing
 The decomposer can split large work into child issues. The implementer commits in a dedicated worktree, the reviewer
 requests fixes until the change is ready, and the orchestrator opens or updates the pull request. The reviewer declares
 the verification its verdict relies on, which the orchestrator publishes on the pull request before acting on it; an
-approval without passing evidence covering every configured `VERIFY_COMMANDS` command waits for a human. A final docs
-pass that commits documentation changes sends the pull request back to `workflow:validating`, where the developer
-reports on the new head and a fresh reviewer verifies it before another docs pass. One that changes nothing hands the
-pull request on only while the approval's verification evidence still proves current behind it; evidence that no
-longer does is invalidated, and the pull request goes back for a fresh review. In `in_review` a human is told the pull
-request is ready only over current passing evidence proved again at that moment. Oversized changes, conflicts,
+approval without passing evidence covering every configured `VERIFY_COMMANDS` command waits for a human. The final
+docs pass is the last automated stage: whether it commits documentation changes or finds none needed, it hands the pull
+request straight to `in_review`, with no second review or report, the approval and its report kept as they were. A
+docs commit is verified by a run of the configured `VERIFY_COMMANDS` on exactly that commit, and a run that fails
+offers nothing for merge; a pass that changes nothing hands the pull request on only while the approval's verification
+evidence still proves current behind it, and evidence that no longer does is invalidated, and the pull request goes
+back for a fresh review. In `in_review` a human is told the pull request is ready only over current passing evidence,
+or the docs pass's recorded completion, proved again at that moment. Oversized changes, conflicts,
 retries, and human decisions take explicit side paths; pull requests are never merged automatically.
 
 See the [state-machine overview][states] for labels and transitions, and the

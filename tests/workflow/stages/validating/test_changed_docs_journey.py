@@ -1,302 +1,418 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A final-docs pass that changes the pull request, reported, reviewed, and documented again with no human.
+"""A final-docs pass that changes the pull request, completed straight into review with no second review.
 
-Walked whole by the dispatcher from an approval its squash published: the docs
-pass commits on top of the squash and its push lands, and the pass hands the
-pull request back to `validating` rather than on to `in_review` -- owing a
-report of the docs commit, its evidence and approval retired. The developer
-is asked for that report alone, which settles as REPORT: READY without a reply
-or a commit, and leaves the approved report standing as it was written; the
-fresh reviewer is handed the new report and has to bring evidence of its own
-on the docs commit, and only then does the next final-docs pass run, finding
-nothing left to write, and hand the issue to `in_review` -- where the pull
-request is told it is ready, once, and not before. No stale-report park is
-taken, and one run of each role is charged.
+Walked whole by the dispatcher from an approval, squashed or not: the docs
+pass commits on top of the head it was entered on, its push lands, the
+configured suite is run on exactly the docs commit, and the pass completes
+into `in_review` -- the approved subject, the settled report and the commit it
+was written about, and the review rounds spent left exactly as the approval
+left them, and the docs commit recorded beside them, verified by that run.
+The next tick's reconciliation publishes the run, the pull request is told it
+is ready once, and later ticks do nothing. No reviewer and no report refresh
+is launched behind the approval: the docs pass is the one run charged.
 
-The same holds through a crash in every window the hand-back and the report
-behind it open: a push whose answer was lost, a hand-back write that never
-landed or landed with its answer lost, a relabel that failed behind it, and
-each place the report's publication can stop short. With no configured
-`VERIFY_COMMANDS` the reviewer's own run on the docs commit is the evidence,
-and a reviewer reusing the evidence the hand-back retired is refused.
+The same holds through a crash in every window the completion opens -- a push
+whose answer was lost, a completion write that never landed or landed with
+its answer lost, and a relabel that failed behind it -- each finished by the
+next dispatch from what landed, with no second agent run, and a pause applied
+while the docs commit's run is out holds it, receipt intact, until the label
+comes off. Under an empty
+`VERIFY_COMMANDS` nothing is run or published on the docs commit, and the
+completion says so. A run that fails on the docs commit, one that passes and
+binds no evidence, and one that tests another head offer nothing for merge;
+the docs pass a bare continue resumes over a failed commit has what it leaves
+verified again, a fix over the head the pass was first entered on. A later
+approval retires an earlier pass's unfinished receipt and runs its own pass,
+and a base rebase of the completed docs commit is a genuine rewrite: the
+approved report is refreshed for the rebased head, through the docs pass's
+lineage, before the review that rebase owes.
 
-The report debt keeps the head the docs commit replaced through a recovery
-that republishes the commit over itself, and the hand-back never lands with
-the evidence it outdated still current: measured whole, with its approval
-cleared first, and held where the comment has no room to retire it.
+The reported sequence of an approval bought by an operator's grant past a
+spent review cap ends the same way, whether the approval squashed or not and
+whether the docs pass changed anything.
 """
 from __future__ import annotations
 
-import contextlib
 import unittest
-from unittest.mock import patch
+from itertools import product
+from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.git.measurement.models import FrozenCommit
-from orchestrator.github.verification_evidence import EvidenceSource
+from orchestrator.workflow.engine import final_docs_records as _final_docs
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.repo_values import SHA_LENGTH
+from tests.support.fakes import FakeLabel
+from tests.workflow import (
+    drift_reports as _drift_world,
+    published_reports as _published_reports,
+    review_world as _world,
+)
+from tests.workflow.fixtures import _agent
 from tests.workflow.stages.validating import (
     changed_docs_journey_support as _docs,
-    changed_docs_room_support as _room,
-    evidence_round_test_support as _round,
-    report_refresh_crashes as _crashes,
-    review_verdict_readings as _read,
+    changed_docs_readings as _readings,
+    readiness_journey_support as _readiness,
     squash_rebase_journey_support as _journey,
 )
 
 DOCS_HEAD = _docs.DOCS_HEAD
 
-SQUASHED = _docs.SQUASHED
+UNCONFIGURED = _final_docs.FinalVerification.UNCONFIGURED
 
-# What the hand-back leaves on the pinned comment, as `handed_back` reads it:
-# the debt from the squash it replaced onto the docs commit beside the mark
-# naming that commit, the commit stamped with no verdict, no current evidence
-# -- the approval's run superseded by the squash's carry, and the carry
-# invalidated -- and no approval.
-HANDED_BACK = (
-    ((SQUASHED, DOCS_HEAD), DOCS_HEAD), (DOCS_HEAD, None), None, ("superseded", "invalidated"), False,
-)
-
-# The parked reviewer that reuses retired evidence leaves, as the label, the
-# park, and the runs spawned.
-REUSE_REFUSED = (WorkflowLabel.VALIDATING, "reviewer_unverified", _docs.ONE_OF_EACH[:3])
-
-# The run a reviewer's declared run on the docs commit publishes, under an
-# empty configuration: the reviewer's own, on the docs commit.
-REVIEWERS_RUN = (EvidenceSource.REVIEWER_REPORTED, DOCS_HEAD, DOCS_HEAD)
-
-# The labels the issue moves through where a base refresh rebases the docs
-# commit once it is handed back: that refresh's own route back to
-# `workflow:validating` sits beside the hand-back's.
-REBASED_ON_THE_WAY = (WorkflowLabel.DOCUMENTING, WorkflowLabel.VALIDATING, *_docs.DOCUMENTED_AGAIN[1:])
-
-# A docs receipt's lease as no gate writes it, and the field it is written to.
-DAMAGED_LEASE = "not-a-commit"
-
-SETTLED_DOCS_LEASE = "docs_settled_lease"
-
-# A commit the checkout went to while the docs push was out, which leaves the
-# push landed and its handoff parked for the checkout's recovery.
-MOVED_AFTER_PUSH = "de" * (SHA_LENGTH // 2)
-
-# Every window a crash can cut the walk short in, as the context the docs
-# dispatch runs under -- None where it runs through -- and the context the
-# refresh's does. The push's answer lost leaves the gate's approval for the
-# next tick to settle; the hand-back write dying leaves the gate's receipt,
-# which the next tick finishes from; the write landing with its answer lost,
-# or the relabel behind it failing, leaves the debt and mark the dispatcher
-# finishes the relabel from; and every place the report's publication stops
-# short is finished by a later tick.
+# Every window a crash can cut the completion short in, as the context the docs
+# dispatch runs under -- None where it runs through. The push's answer lost
+# leaves the gate's approval for the next tick to settle and the receipt
+# beside it; the completion's write dying leaves the gate's receipt, which the
+# next tick finishes from; and the write landing with its answer lost, or the
+# relabel behind it failing, leaves the completion, which the next tick
+# relabels from.
 CRASHES = (
-    ("the push's answer lost", "push", contextlib.nullcontext),
-    ("the hand-back's write dying", _docs.dying_on_the_hand_back, contextlib.nullcontext),
-    ("the hand-back's answer lost", _docs.losing_the_hand_back, contextlib.nullcontext),
-    ("the relabel failing", _docs.dying_on_the_relabel, contextlib.nullcontext),
-    ("the report's post refused", None, _crashes.refusing_the_post),
-    ("the report's answer lost", None, _crashes.losing_the_response),
-    ("a crash before the report's binding", None, _crashes.dying_before_the_binding),
-    ("a crash on the report's settlement", None, _crashes.dying_on_the_settlement),
+    ("the push's answer lost", "push"),
+    ("the completion's write dying", _readings.dying_on_the_completion),
+    ("the completion's answer lost", _readings.losing_the_completion),
+    ("the relabel failing", _readings.dying_on_the_relabel),
 )
+
+# How a report refresh behind a rebase of the docs commit names the report the
+# pull request carries: the approved commit, squashed and then documented into
+# the docs commit that rebase replaced.
+DOCUMENTED_INTO = (
+    f"describes `{_docs.HEAD}`, the approved commit this orchestrator documented, in a final docs pass, into "
+    f"`{DOCS_HEAD}`"
+)
+
+# The control label an operator pauses an issue with, and what a pass held
+# over it leaves: the label, the docs receipt, and no completion recorded.
+PAUSED = "paused"
+
+UNCOMPLETED = (WorkflowLabel.DOCUMENTING, DOCS_HEAD, (None, None, None))
+
+# The report a later round settles about the published docs commit.
+LATER_REPORT = "Reports on the published docs commit; the approved change reads as before."
+
+# The operator's grant of one more reviewer round past a spent cap.
+GRANT = "/orchestrator add-review-rounds 1"
+
+# What a docs pass that changed nothing tells from its spawn on, the ready ping
+# last, and the completion it records: the head it was entered and completed
+# on, the evidence the approval rests on retained.
+PINGED = (_readiness.READY,)
+
+DOCUMENTED_UNCHANGED = ((_readiness.SPAWN, _journey.DOCUMENTER), PINGED)
+
+RETAINED = _final_docs.FinalVerification.RETAINED.value
+
+EXECUTED = _final_docs.FinalVerification.EXECUTED.value
+
+# The operator's answer to a failed run's park, and the fix the docs pass it
+# resumes commits on top of the docs commit it published.
+CONTINUE = "/orchestrator continue"
+
+FIX_HEAD = "f1" * (len(DOCS_HEAD) // 2)
+
+
+class _PausesWhileVerifying:
+    """The verify runner of a run an operator pauses the issue during, the run itself passing on the docs commit."""
+
+    def __init__(self, case) -> None:
+        self._case = case
+
+    def __call__(self, *_called, **_options):
+        self._case.issue.labels.append(FakeLabel(PAUSED))
+        return _readings.docs_run()
 
 
 class ChangedDocsJourneyTest(_docs._ChangedDocsWalk, unittest.TestCase):
-    """A content-changing docs pass earns a fresh report and review before the next final-docs pass."""
+    """A content-changing docs pass completes into review over a run of its own commit, and nothing more runs."""
 
-    def test_changed_docs_are_reported_and_reviewed(self) -> None:
-        # The docs commit retires what the approval rested on and owes a
-        # report of itself; the developer writes it with nobody asked, the
-        # approved report left as it was; the reviewer is handed it and
-        # approves the docs commit on a run of its own, through one run of the
-        # approval's verification gate; and the next docs pass changes nothing
-        # and hands the issue to `in_review`, which pings it as ready over
-        # that run. Later ticks spawn, verify, charge, write, and post nothing
-        # more.
-        self.walks_into_documenting()
-        approved = self.pull_request.issue_comments[0].body
+    def test_changed_docs_complete_into_review(self) -> None:
+        # Squashed or not, the docs commit is completed into `in_review` over
+        # a run of exactly that commit, the approval's records untouched; the
+        # next tick publishes that run and pings once, and later ticks spawn,
+        # verify, charge, write, and post nothing more.
+        for squashes in (True, False):
+            with self.subTest(squashes=squashes):
+                self.setUp()
+                self.enterContext(patch.object(config, "SQUASH_ON_APPROVAL", squashes))
+                self.walks_into_documenting()
 
-        self.changes_the_docs()
+                self.changes_the_docs()
+                self.dispatched()
 
-        self.assertEqual(self.handed_back(), HANDED_BACK)
-        self.refreshes()
-        self.assert_refreshed_over(approved)
-        self.approved_into_review(DOCS_HEAD)
-        self.assert_reviewer_handed_the_report()
-        self.assert_quiet_after()
-        self.assert_one_of_each()
+                self.assert_documented_into_review()
+                self.assert_quiet_into_review()
 
-    def test_a_crash_anywhere_ends_in_one_of_each(self) -> None:
+    def test_a_crash_anywhere_completes_once(self) -> None:
         # Whichever window a process dies in, the next dispatch finishes what
-        # landed -- the gate's settlement, the hand-back from its receipt, the
-        # relabel from its debt, the report from its record -- and the walk
-        # ends with one run of each role and nothing parked for a human.
-        for name, docs_window, report_window in CRASHES:
+        # landed -- the gate's settlement and the completion from its receipt,
+        # or the relabel from the completion -- and the walk ends in review,
+        # told once, with the docs pass the one run.
+        for name, window in CRASHES:
             with self.subTest(name):
                 self.setUp()
                 self.walks_into_documenting()
-                self.changes_the_docs_under(docs_window)
-                with report_window(self):
-                    self.refreshes()
+                self.changes_the_docs_under(window)
 
-                self.approved_into_review(DOCS_HEAD)
+                self.dispatched()
 
-                self.assert_one_of_each()
+                self.assert_documented_into_review()
+                self.assert_quiet_into_review()
 
-    def test_a_held_base_refresh_keeps_the_lineage(self) -> None:
-        # A base refresh behind a hand-back that never landed holds the
-        # branch still: the receipt is the docs pass's, and a rebase first
-        # would leave a debt naming the docs commit as the head replaced,
-        # which no settled report is about. The next dispatch hands the docs
-        # commit back, and a rebase behind that carries the debt onto the head
-        # it publishes, still from the squash -- so the report of the approved
-        # commit is refreshed for the rebased head, once, with no human.
-        self.walks_into_a_lost_hand_back()
-        self.base_refresh(_journey.ADVANCED)
-        self.assert_held_still()
+    def test_a_docs_rebase_refreshes_the_report(self) -> None:
+        # A base rebase of the completed docs commit is a genuine rewrite: its
+        # debt names the docs commit as the head replaced, and the approved
+        # report -- about the approved commit, squashed and then documented
+        # into that docs commit -- is refreshed for the rebased head with no
+        # human, its prompt naming that lineage, and the walk goes on through
+        # a fresh review and docs pass to one ready ping on the rebased head.
+        self.walks_into_documenting()
+        self.changes_the_docs()
         self.dispatched()
-        self.base_refresh(_journey.ADVANCED)
-        self.refreshes()
 
+        self.base_refresh(_journey.ADVANCED)
+        self.dispatched(_journey.refresh())
         self.approved_into_review(_journey.ADVANCED)
 
-        self.assertIn(_docs.APPROVED_REPORT, self.spawned(_journey.REFRESHER)[0])
-        self.assert_one_of_each(_journey.ADVANCED, rounds=0, walked=REBASED_ON_THE_WAY)
+        rebased = (_journey.REFRESHER, _journey.REVIEWER, _journey.DOCUMENTER)
+        self.assertEqual(self.roles()[-len(rebased):], rebased)
+        self.assertIn(DOCUMENTED_INTO, self.spawned(_journey.REFRESHER)[0])
+        self.assert_ready_on(_journey.ADVANCED, self.refreshed)
 
-    def test_a_moved_context_still_hands_back(self) -> None:
-        # The approval's evidence stops standing once the verification context
-        # moves, which is no question for a pass the receipts prove published:
-        # its hand-back is finished first, retiring that evidence and recording
-        # the report debt, rather than the issue going back with none.
-        self.walks_into_a_lost_hand_back()
-        self.moves_the_context()
+    def test_a_later_approval_runs_its_own_pass(self) -> None:
+        # The completion of a published pass never landed, so its receipt
+        # stands when a human sends the issue back and a later approval is
+        # given over a report of the published docs commit: that approval
+        # retires the receipt, and its own docs pass runs and completes,
+        # rather than the earlier pass being finished from a receipt entered
+        # on the head the earlier approval was of.
+        self.enterContext(patch.object(config, "SQUASH_ON_APPROVAL", False))
+        self._sent_back_over_an_unfinished_pass()
 
+        self.dispatched(
+            _journey.approval_on(DOCS_HEAD),
+            squash_result=_readings.leaves_the_branch,
+            verify_result=_readings.docs_run(),
+        )
+        self.dispatched(_journey.DOCS)
         self.dispatched()
 
-        self.assertEqual(self.handed_back(), HANDED_BACK)
-        self.refreshes()
-        self.approved_into_review(DOCS_HEAD)
-        self.assert_one_of_each()
+        self.assertEqual(self.roles(), (_journey.DOCUMENTER, _journey.REVIEWER, _journey.DOCUMENTER))
+        retained = ((RETAINED, DOCS_HEAD, DOCS_HEAD), (DOCS_HEAD, "no_change"), None)
+        self.assertEqual(self.completed(), retained)
+        self.assert_told_once((PINGED,), DOCS_HEAD)
 
-    def test_the_review_it_buys_counts_once(self) -> None:
-        # The hand-back spends one review round in the write that records it,
-        # so where the approval left none to spare the review it buys parks on
-        # the cap rather than running -- the report refreshed all the same, and
-        # nothing spawned or spent past that park.
-        self.enterContext(patch.object(config, "MAX_REVIEW_ROUNDS", 1))
-        self.walks_into_documenting()
-        self.changes_the_docs()
-        self.refreshes()
-
-        for _ in range(3):
-            self.dispatched()
-
-        pinned = self.pinned()
-        capped = (self.roles(), pinned["park_reason"], pinned["review_round"])
-        self.assertEqual(capped, (_docs.ONE_OF_EACH[:2], "review_cap", 1))
-        self.assertEqual(self.spent_since(self.charged)[0], 2)
-
-    def test_empty_config_takes_the_reviewers_run(self) -> None:
-        # With no configured command the orchestrator runs nothing on the
-        # docs commit, so the evidence the approval of it rests on is the
-        # reviewer's own run there, published as the reviewer reported it.
+    def test_empty_config_runs_nothing(self) -> None:
+        # With no configured command nothing runs on the docs commit and
+        # nothing is published as passing: the completion records that the
+        # head is verified by nothing, and the ping rests on that alone.
         self.enterContext(patch.object(config, "VERIFY_COMMANDS", ()))
         self.walks_into_documenting()
+
         self.changes_the_docs()
-        self.refreshes()
+        self.dispatched()
 
-        self.approved_into_review(DOCS_HEAD)
+        self.assert_documented_into_review(UNCONFIGURED, _docs.DOCUMENTED_UNVERIFIED)
+        self.assertEqual(self.verifications, 0)
 
-        latest = _read.artifacts(self)[-1]
-        self.assertEqual((latest.source, latest.tested_sha, latest.target_head), REVIEWERS_RUN)
-        self.assert_one_of_each()
 
-    def test_retired_evidence_is_not_reused(self) -> None:
-        # The squash's carry was the evidence the approval of the squash rested
-        # on, and the hand-back retired it: a reviewer approving the docs
-        # commit by reusing it is refused, and the docs pass does not run.
+
+    def test_a_pause_during_verification_holds(self) -> None:
+        # An operator pauses the issue while the docs commit's run is out:
+        # nothing is recorded, announced, or relabelled, and the receipt
+        # stands. Once the label comes off, the next dispatch verifies the
+        # commit again and completes it, with no second agent run.
         self.walks_into_documenting()
-        reuse = _round.declared_reuse(self.current_evidence().content_revision)
-        self.changes_the_docs()
-        self.refreshes()
-
-        self.dispatched((_journey.REVIEWER, _round.reviewer(reuse)))
-
-        label = self.labels()[-1]
-        park = self.pinned()["park_reason"]
-        self.assertEqual((label, park, self.roles()), REUSE_REFUSED)
-
-
-class ChangedDocsProvenanceTest(_docs._ChangedDocsWalk, unittest.TestCase):
-    """What the hand-back records survives the roads around it, and lands whole or not at all."""
-
-    def test_a_moved_checkout_keeps_the_lease(self) -> None:
-        # The push lands while the checkout moves under it, so the handoff
-        # parks and the recovery republishes the docs commit over itself,
-        # which leaves the code-publication receipt leased to the docs commit.
-        # The lease the gate recorded beside the docs receipt is the head the
-        # docs commit replaced, so the debt still names the squash and the
-        # report of the approved commit is refreshed with no human.
-        self.walks_into_documenting()
-        self.changes_the_docs(
-            candidate_commit=(FrozenCommit(sha=DOCS_HEAD), FrozenCommit(sha=MOVED_AFTER_PUSH)),
-        )
-        self.dispatched()
-
-        self.assertEqual(self.handed_back(), HANDED_BACK)
-        self.refreshes()
-        self.approved_into_review(DOCS_HEAD)
-        self.assert_one_of_each()
-
-    def test_a_damaged_lease_holds_the_hand_back(self) -> None:
-        # A docs receipt whose lease is no commit names no head the report
-        # debt could be owed from, so nothing is handed back on it: no debt,
-        # no relabel, no developer asked for a report, and the record left
-        # exactly as it stands for a human to repair.
-        self.walks_into_a_lost_hand_back()
-        state = self.github.read_pinned_state(self.issue)
-        state.set(SETTLED_DOCS_LEASE, DAMAGED_LEASE)
-        self.github.write_pinned_state(self.issue, state)
-
-        self.dispatched()
-        self.refreshes()
-
-        self.assert_held_still()
-        pinned = self.pinned()
-        held = (self.roles(), pinned[SETTLED_DOCS_LEASE], pinned["docs_settled_sha"])
-        self.assertEqual(held, ((_journey.DOCUMENTER,), DAMAGED_LEASE, DOCS_HEAD))
-
-    def test_the_retirement_is_measured_whole(self) -> None:
-        # A comment with room for the hand-back only once its approval is
-        # written null: measured with that approval cleared first, the
-        # evidence's retirement fits, and the hand-back lands with it retired
-        # rather than leaving it current behind the approval's removal.
-        self.walks_into_a_lost_hand_back()
-        _room.fills_with_the_approval_kept(self)
-
-        self.dispatched()
-
-        self.assertEqual(self.labels()[-1], WorkflowLabel.VALIDATING)
-        self.assertEqual(self.handed_back(), HANDED_BACK)
-
-    def test_no_room_to_retire_holds_the_hand_back(self) -> None:
-        # One byte too few to retire the evidence holds the whole hand-back:
-        # nothing is announced, recorded, or relabelled, and the receipt the
-        # gate left stands -- so the tick after a human makes room hands the
-        # docs commit back with its evidence retired, announcing it once.
-        self.walks_into_a_lost_hand_back()
-        _room.fills_up_to_the_retirement(self)
         told = len(self.pull_request.issue_comments)
 
+        self.changes_the_docs(verified=MagicMock(side_effect=_PausesWhileVerifying(self)))
+
+        receipt = self.pinned()["docs_settled_sha"]
+        recorded = self.completed()[0]
+        self.assertEqual((self.labels()[-1], receipt, recorded), UNCOMPLETED)
+        self.assertEqual(len(self.pull_request.issue_comments), told)
+        unpaused = self.issue.labels.pop()
+        self.assertEqual(unpaused.name, PAUSED)
+        self.dispatched(verify_result=_readings.docs_run())
+        self.dispatched()
+        self.assert_documented_into_review()
+
+    def _sent_back_over_an_unfinished_pass(self) -> None:
+        """A docs commit published and its completion's write dying, the issue sent back and a later report settled."""
+        self.walks_into_documenting()
+        with _readings.dying_on_the_completion(self):
+            self.changes_the_docs()
+        self.github.set_workflow_label(self.issue, WorkflowLabel.VALIDATING)
+        _published_reports.republishes_the_report(self.github, self.issue, LATER_REPORT)
+
+class FailedDocsRunTest(_docs._ChangedDocsWalk, unittest.TestCase):
+    """A docs commit whose own run does not pass, or tests another head, is offered to nobody until one does."""
+
+    def test_a_failed_run_offers_nothing(self) -> None:
+        # The configured suite fails on the docs commit, or passes with an
+        # output no artifact can carry, so it binds no evidence: the pass parks
+        # with the commit published and no completion recorded, later ticks
+        # leave it parked, nothing reaches review, and the receipt stands --
+        # holding the base refresh off the branch -- for the pass a continue
+        # resumes.
+        for verified, reason in (
+            (_readings.failed_docs_run(), "verify_failed"),
+            (_readings.unrecordable_docs_run(), "verify_unrecorded"),
+        ):
+            with self.subTest(reason):
+                self.setUp()
+                self.walks_into_documenting()
+
+                self.changes_the_docs(verified=verified)
+                self.dispatched(verify_result=_readings.docs_run())
+
+                self.assertEqual(self._held_on_the_receipt(), (WorkflowLabel.DOCUMENTING, reason, None))
+                self.assertEqual(self.pull_request.head.sha, DOCS_HEAD)
+                self.assertNotIn(PINGED, self.told(self.walked))
+
+    def test_a_continue_reruns_a_failed_pass(self) -> None:
+        # A bare continue answers the failed run's park by resuming the docs
+        # pass over the commit it published, the failure on the thread it is
+        # handed: a fix it commits is pushed and verified over the head the
+        # pass was first entered on, and a `DOCS: NO_CHANGE` has the commit
+        # already published verified again -- either way completed into
+        # review once its run passes, the approval untouched.
+        for name, rerun, final in (
+            ("a fix committed", self.commits_a_fix, FIX_HEAD),
+            ("nothing to add", self.adds_nothing, DOCS_HEAD),
+        ):
+            with self.subTest(name):
+                self.setUp()
+                self.walks_into_documenting()
+                self.changes_the_docs(verified=_readings.failed_docs_run())
+                _drift_world.human_reply(self, CONTINUE)
+
+                rerun()
+                self.dispatched()
+
+                self._assert_rerun_into_review(final)
+
+    def commits_a_fix(self) -> None:
+        """The resumed docs pass committing a fix over the published docs commit, its own run passing."""
+        self.dispatched(
+            (_journey.DOCUMENTER, _agent(last_message="docs: fix the failing check")),
+            head_shas=(DOCS_HEAD, FIX_HEAD),
+            commit_message=f"docs: fix the failing check (#{_world.PR})\n",
+            candidate_commit=FrozenCommit(sha=FIX_HEAD),
+            push_branch=_drift_world._LandingPush(self.pull_request),
+            verify_result=_readings.docs_run(FIX_HEAD),
+        )
+
+    def adds_nothing(self) -> None:
+        """The resumed docs pass finding nothing to add, the published commit's run passing this time."""
+        self.dispatched(_journey.DOCS, verify_result=_readings.docs_run())
+
+    def test_a_run_of_another_head_holds(self) -> None:
+        # A run that tested another commit says nothing of the docs commit:
+        # nothing is recorded, parked, announced, or relabelled, and the
+        # receipt stands, so the next dispatch verifies the docs commit
+        # itself and completes the pass with no second agent run.
+        self.walks_into_documenting()
+
+        self.changes_the_docs(verified=_readings.docs_run(commit=_world.OTHER_HEAD))
+
+        self.assertEqual(self._held_on_the_receipt(), (WorkflowLabel.DOCUMENTING, None, None))
+        self.dispatched(verify_result=_readings.docs_run())
+        self.dispatched()
+        self.assert_documented_into_review()
+
+
+    def _held_on_the_receipt(self) -> tuple:
+        """The label, the park, and the completion where the docs receipt still stands on the docs commit."""
+        pinned = self.pinned()
+        self.assertEqual(pinned["docs_settled_sha"], DOCS_HEAD)
+        completion = pinned.get(_final_docs.FINAL_DOCS)
+        return self.labels()[-1], pinned.get("park_reason"), completion
+
+
+    def _assert_rerun_into_review(self, final: str) -> None:
+        """Completed on `final`, verified by its own run, the approval untouched, and the docs pass the two runs."""
+        completion = ((EXECUTED, self.entered_on(), final), (final, "updated"), None)
+        self.assertEqual(self.completed(), completion)
+        self.assertEqual(self.approved(), self.approval)
+        self.assertEqual(self.roles(), (_journey.DOCUMENTER, _journey.DOCUMENTER))
+        self.assert_told_once((PINGED,), final)
+
+class GrantedRoundJourneyTest(_docs._ChangedDocsWalk, unittest.TestCase):
+    """The review-cap park an operator's grant answers, approved and documented, ends once in review."""
+
+    def test_a_granted_approval_documents_into_review(self) -> None:
+        # The review cap parks the round; a trusted grant of one more round
+        # buys the review, which approves. Whether the approval squashed and
+        # whether the docs pass changed anything, the pass completes into
+        # `in_review` with the round count the approval left, the approved
+        # subject and report as the approval left them, and no reviewer or
+        # report refresh launched past it -- and the pull request is told it
+        # is ready once, and nothing after.
+        for squashes, changes in product((True, False), (True, False)):
+            with self.subTest(squashes=squashes, changes=changes):
+                self.setUp()
+                self.enterContext(patch.object(config, "SQUASH_ON_APPROVAL", squashes))
+                self.granted_and_approved()
+
+                self.documents(changes=changes)
+
+                self.assert_granted_into_review(changes)
+                self.assert_quiet_into_review()
+
+    def test_a_granted_completion_recovers(self) -> None:
+        # The same walk with the completion cut short in each window it opens:
+        # the next dispatch finishes it from what landed, and the walk ends in
+        # review as it would have.
+        for name, window in CRASHES:
+            with self.subTest(name):
+                self.setUp()
+                self.granted_and_approved()
+
+                self.changes_the_docs_under(window)
+                self.dispatched()
+
+                self.assert_granted_into_review(changes=True)
+                self.assert_quiet_into_review()
+
+    def granted_and_approved(self) -> None:
+        """Park the round on its spent review cap, grant one more round, and approve on it."""
+        self.enterContext(patch.object(config, "MAX_REVIEW_ROUNDS", 2))
+        state = self.github.read_pinned_state(self.issue)
+        for record, recorded in (
+            ("awaiting_human", True),
+            ("park_reason", "review_cap"),
+            (_docs.REVIEW_ROUND, config.MAX_REVIEW_ROUNDS),
+            ("last_action_comment_id", _readiness.high_water(self)),
+        ):
+            state.set(record, recorded)
+        self.github.write_pinned_state(self.issue, state)
+        _drift_world.human_reply(self, GRANT)
+        self.walks_into_documenting()
+
+    def documents(self, *, changes: bool) -> None:
+        """The docs pass, committing a docs change where `changes`, and the dispatch behind it."""
+        if changes:
+            self.changes_the_docs()
+        else:
+            self.dispatched(_journey.DOCS)
         self.dispatched()
 
-        self.assert_held_still()
-        held = len(self.pull_request.issue_comments)
-        _room.makes_room(self)
-        self.dispatched()
-        self.assertEqual(self.handed_back(), HANDED_BACK)
-        announced = len(self.pull_request.issue_comments)
-        self.assertEqual((held, announced), (told, told + 1))
+    def assert_granted_into_review(self, changes: bool) -> None:
+        """The walk ended in review over the granted round, told once, the round count the approval's.
+
+        The grant reopened one round below the cap, which the approval spent
+        none of; nothing past it spends any either.
+        """
+        self.assertEqual(self.approval[2], config.MAX_REVIEW_ROUNDS - 1)
+        if changes:
+            self.assert_documented_into_review()
+            return
+        head = self.entered_on()
+        retained = ((RETAINED, head, head), (head, "no_change"), None)
+        self.assertEqual(self.completed(), retained)
+        self.assert_only_documented()
+        self.assert_told_once(DOCUMENTED_UNCHANGED, head)
 
 
 if __name__ == "__main__":

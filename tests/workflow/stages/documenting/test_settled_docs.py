@@ -51,8 +51,8 @@ IN_SYNC = (0, 0)
 DOCS_VERDICT = "docs_verdict"
 DOCS_CHECKED_SHA = "docs_checked_sha"
 SETTLED_DOCS_SHA = "docs_settled_sha"
-HANDED_BACK_SHA = "docs_handed_back_sha"
 REWRITE_DEBT = "developer_report_rewrite_debt"
+VERDICT_UPDATED = "updated"
 
 DECOMPOSING = "workflow:decomposing"
 IN_REVIEW = "in_review"
@@ -62,7 +62,7 @@ VALIDATING = "workflow:validating"
 HANDED_ON = frozenset((IN_REVIEW, VALIDATING))
 
 # The lease the gate records beside the docs receipt: the head the docs push
-# replaces, which the hand-back's report debt is owed from.
+# replaces, which the completion records as the head the pass was entered on.
 SETTLED_DOCS_LEASE = "docs_settled_lease"
 
 DOCS_LEASE = MappingProxyType({SETTLED_DOCS_LEASE: SHA_BEFORE})
@@ -80,27 +80,25 @@ PUBLICATION_RECEIPT = MappingProxyType({
 SETTLEMENT_RECEIPT = MappingProxyType({**PUBLICATION_RECEIPT, **DOCS_LEASE})
 
 # A docs receipt's lease as no gate writes it: missing, written null, and no
-# commit id at all. Each is a record something edited, which the hand-back
-# holds over rather than reading a debt off anything else or erasing it.
+# commit id at all. Each is a record something edited, which the completion
+# holds over rather than reading an entry head off anything else or erasing it.
 DAMAGED_LEASES = MappingProxyType({
     "a missing lease": PUBLICATION_RECEIPT,
     "a null lease": MappingProxyType({**PUBLICATION_RECEIPT, SETTLED_DOCS_LEASE: None}),
     "a lease that is no commit": MappingProxyType({**PUBLICATION_RECEIPT, SETTLED_DOCS_LEASE: "not-a-commit"}),
 })
 
-# Each receipt a settled commit's tick may find beside it, and what its
-# hand-back leaves as `_handed_back` reads it: the verdict, the checked head,
-# the docs receipt, the mark, and the debt's pull request and two heads. The
-# settlement's receipt proves the publication, so the commit is owed a report
-# of itself over the head the adjudication froze; with no receipt of it the
-# commit is handed back owed nothing and marked nothing.
+# Each receipt a settled commit's tick may find beside it: the settlement's,
+# which proves the publication, and none, which leaves the checkout standing on
+# the commit to prove it. Either way the completion leaves, as `_completed`
+# reads it, the commit stamped `updated`, the docs receipt consumed, and no
+# report debt.
 SETTLED_RECEIPTS = (
-    (
-        "the settlement's receipt", SETTLEMENT_RECEIPT,
-        (None, SHA_AFTER, None, SHA_AFTER, (_FreshDocumentingFixture.pr_number, SHA_BEFORE, SHA_AFTER)),
-    ),
-    ("no receipt of the publication", DOCS_LEASE, (None, SHA_AFTER, None, None, None)),
+    ("the settlement's receipt", SETTLEMENT_RECEIPT),
+    ("no receipt of the publication", DOCS_LEASE),
 )
+
+COMPLETED = (VERDICT_UPDATED, SHA_AFTER, None, None)
 
 CEILING = 5
 PAST_THE_CEILING = 6
@@ -174,25 +172,24 @@ class DocumentingSizeGateTest(
             SHA_AFTER,
         )
 
-    def test_a_settled_commit_hands_off(self) -> None:
+    def test_a_settled_commit_completes(self) -> None:
         # A settled `single` verdict publishes the held commit from the
         # adjudication and hands the label back here. The branch is in sync
         # with its remote by then, which is the reading an issue no docs pass
         # has run for gives -- so without the receipt this tick would spawn a
         # second docs agent over work the first one already published, commit
         # again, and hand the gate a candidate to adjudicate a second time.
-        # The commit changed the pull request's content, so it goes back to
-        # `validating` with no verdict, owed a report of itself where the
-        # settlement's receipt proves the publication, and owed none, marked
-        # nothing, where no receipt does.
-        for name, receipt, handed_back in SETTLED_RECEIPTS:
+        # The pass is over, so it completes into `in_review` stamped as a docs
+        # commit, owed no report -- whether the settlement's receipt proves
+        # the publication or the checkout standing on it does.
+        for name, receipt in SETTLED_RECEIPTS:
             with self.subTest(name):
                 gh, issue = self._seeded(docs_settled_sha=SHA_AFTER, **receipt)
 
                 self._runs_and_pushes_nothing(gh, issue)
 
-                self.assertEqual(gh.label_history, [(self.issue_number, VALIDATING)])
-                self.assertEqual(self._handed_back(gh), handed_back)
+                self.assertEqual(gh.label_history, [(self.issue_number, IN_REVIEW)])
+                self.assertEqual(self._completed(gh), COMPLETED)
 
     def test_an_unpublished_receipt_is_measured(self) -> None:
         # The receipt alone cannot say the commit reached the remote: a
@@ -213,7 +210,7 @@ class DocumentingSizeGateTest(
 
         mocks[RUN_AGENT].assert_not_called()
         mocks[PUSH_BRANCH].assert_called_once()
-        self.assertEqual([label for _, label in gh.label_history], [VALIDATING])
+        self.assertEqual([label for _, label in gh.label_history], [IN_REVIEW])
         self.assertIsNone(
             gh.pinned_data(self.issue_number).get(SETTLED_DOCS_SHA),
         )
@@ -229,16 +226,14 @@ class DocumentingSizeGateTest(
         mocks[RUN_AGENT].assert_not_called()
         mocks[PUSH_BRANCH].assert_not_called()
 
-    def _handed_back(self, gh) -> tuple:
-        """The verdict, checked head, docs receipt, mark, and debt's pull request and heads on the pinned comment."""
+    def _completed(self, gh) -> tuple:
+        """The verdict, checked head, docs receipt, and report debt on the pinned comment."""
         state = gh.pinned_data(self.issue_number)
-        debt = state.get(REWRITE_DEBT)
         return (
             state.get(DOCS_VERDICT),
             state.get(DOCS_CHECKED_SHA),
             state.get(SETTLED_DOCS_SHA),
-            state.get(HANDED_BACK_SHA),
-            debt and (debt["pr"], debt["previous_head"], debt["rewritten_head"]),
+            state.get(REWRITE_DEBT),
         )
 
     def _settled_docs_commit(self):
@@ -250,43 +245,44 @@ class PublishedReceiptOrderTest(
     unittest.TestCase,
     _FreshDocumentingFixture,
 ):
-    """A published pass's hand-back is asked ahead of its approval, and behind the terminals and any park."""
+    """A published pass's completion is asked ahead of its approval, and behind the terminals and any park."""
 
     def test_the_terminals_and_a_park_come_first(self) -> None:
         # The receipts proving the pass published are no licence to step over
         # a merged pull request, which finalizes `done`, or over a park that
-        # stands for a human's reply: neither is handed back, and the docs
+        # stands for a human's reply: neither is completed, and the docs
         # receipt is left as it was for the road that does answer it.
         for name, (seeded, merged, ended_on) in TERMINAL_AND_PARKED.items():
             with self.subTest(name):
                 published = self._published_tick({**SETTLEMENT_RECEIPT, **seeded}, merged)
-                self.assertEqual(published[:3], (ended_on, None, None))
+                self.assertEqual(published[:2], (ended_on, None))
 
-    def test_a_damaged_lease_holds_the_hand_back(self) -> None:
-        # The head the docs push replaced is what the report debt is owed
-        # from, and a receipt that carries no readable one is not current
-        # state to act on: nothing is relabelled, announced, or recorded, and
-        # the receipt and its lease are left exactly as they stand for a human
-        # to repair -- never read off the code-publication receipt instead.
+    def test_a_damaged_lease_holds_the_completion(self) -> None:
+        # The head the docs push replaced is the head the pass was entered
+        # on, which the completion records, and a receipt that carries no
+        # readable one is not current state to act on: nothing is relabelled,
+        # announced, or recorded, and the receipt and its lease are left
+        # exactly as they stand for a human to repair -- never read off the
+        # code-publication receipt instead.
         for name, receipt in DAMAGED_LEASES.items():
             with self.subTest(name):
                 published = self._published_tick(receipt, merged=False)
 
                 held = (SHA_AFTER, receipt.get(SETTLED_DOCS_LEASE))
-                self.assertEqual(published, ([], None, None, [], held))
+                self.assertEqual(published, ([], None, [], held))
 
     def _published_tick(self, receipt, merged: bool) -> tuple:
         """One tick over a published pass's docs receipt beside `receipt`, its pull request merged where `merged`.
 
-        Read back as the relabels made, the report debt and mark left, the
-        notices posted on the pull request, and the docs receipt and its lease.
+        Read back as the relabels made, the docs verdict stamped, the notices
+        posted on the pull request, and the docs receipt and its lease.
         """
         github, issue = self._seeded(docs_settled_sha=SHA_AFTER, **receipt)
         github.get_pr(self.pr_number).merged = merged
         self._run_documenting(github, issue, run_agent=MagicMock())
         state = github.pinned_data(self.issue_number)
         return (
-            github.label_history, state.get(REWRITE_DEBT), state.get(HANDED_BACK_SHA), github.posted_pr_comments,
+            github.label_history, state.get(DOCS_VERDICT), github.posted_pr_comments,
             (state.get(SETTLED_DOCS_SHA), state.get(SETTLED_DOCS_LEASE)),
         )
 
@@ -366,7 +362,7 @@ class DocumentingCandidateBindingTest(
         self.assertEqual(
             mocks[PUSH_BRANCH].call_args.kwargs[REVISION], SHA_AFTER,
         )
-        self.assertEqual([label for _, label in gh.label_history], [VALIDATING])
+        self.assertEqual([label for _, label in gh.label_history], [IN_REVIEW])
 
 
 class SettledDocsProofTest(

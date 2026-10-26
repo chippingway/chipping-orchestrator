@@ -425,9 +425,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stale-approval hand-back an `in_review` relabel writes; the stamp a fixing
                             hand-back leaves on the comment the settlement ahead of it left
                             (`stages/fixing/round_marks.py`); and the records a reviewer round writes onto that
-                            comment (`stages/validating/review_records.py`). So is the documenting owner that
-                            recognizes the report debt its own hand-back recorded (`stages/documenting/handback.py`),
-                            which the dispatcher's debt hold asks before holding that stage
+                            comment (`stages/validating/review_records.py`)
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption; a closed
                             reading -- a family-bucket issue's included, there only when its label could not be read
@@ -460,12 +458,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             guard, since the evidence answers for a review subject that names the report.
                             The report debt a rewritten pull-request head leaves is asked directly behind that, and
                             holds: any claim, readable or not, keeps the `documenting` and `in_review` handlers off,
-                            while `validating` runs, since its report hold is what pays the debt. The one claim it
-                            moves instead is a docs pass's own hand-back whose relabel was lost behind its write --
-                            a readable claim on the pinned pull request naming exactly the commit
-                            `docs_handed_back_sha` marks, on `workflow:documenting`, asked of
-                            `stages/documenting/handback.py` at call time -- which it relabels to
-                            `workflow:validating`, writing nothing else. Directly behind
+                            while `validating` runs, since its report hold is what pays the debt; a final docs pass
+                            records none, so every claim on `workflow:documenting` is held alike. Directly behind
                             the agent-run-limit hold, and ahead of the adjudication's step aside, every reconciliation,
                             and the reuse guard, `stages/decomposition/split_seeds.py` holds an ordinary split's child
                             whose seed is not the one the receipt in its body owes it -- no `parent_number` naming that
@@ -747,10 +741,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             declares its writes over it (`rewrite_finish_writes.py`), as every auto-rebase park and a
                             recovery's clear and record of a gate's hold does its checkpoint
                             (`git/base_sync/checkpoints.py`) and a final-docs pass its completion, prepared before its
-                            notice and landed before its relabel (`stages/documenting/handoff.py`), the hand-back of
-                            a published docs commit included (`stages/documenting/handback.py`) -- a no-change one
-                            decided as well on every record its evidence proof read, beside the invalidation or hold
-                            that withholds it (`stages/documenting/retention.py`) -- and the in_review ready ping its
+                            notice and landed before its relabel (`stages/documenting/handoff.py`), the completion
+                            record of its final head included (`stages/documenting/final_completion.py`) -- a
+                            no-change one decided as well on every record its evidence proof read, beside the
+                            invalidation or hold that withholds it (`stages/documenting/retention.py`) -- and the
+                            in_review ready ping its
                             arming ahead of the post and its settlement, prepared before the post and landed behind it
                             (`stages/in_review/ready_ping.py`), as the `workflow:ready` decision does its reroute and
                             its handoff, the handoff prepared before its pickup, each read back before its relabel
@@ -1372,9 +1367,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for each clean auto rebase of the base refresh whose push lands -- the crash recovery's
                             retry and a push it finds already landed included -- and
                             `stages/decomposition/late_replay_debt.py` one for the replay a late generation took
-                            over, once its authorized settlement publishes it, and `stages/documenting/handback.py`
-                            one for the docs commit a final-docs pass publishes, in the write that hands the pull
-                            request back to `workflow:validating`
+                            over, once its authorized settlement publishes it; a final-docs pass records none, its
+                            docs commit completed into `in_review` beside the approval
     report_rewrite_room.py  whether the debt owner refused a rewrite for nothing but the pinned comment's room -- the
                             one refusal a writer holds on rather than handing the head on -- told from a record that
                             would not read back and a standing claim the rewrite cannot extend; asked by every
@@ -1387,14 +1381,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the head it stands on, then reads both commits' trees again in the checkout
                             (`verification_world.tree_of`). PROVED, DEFER for no proof, or HOLD for a tree nobody
                             could read; it writes nothing. `stages/validating/report_refresh.py` asks it before
-                            refreshing a report of that approved commit -- for a base rebase of the squash, or for
-                            the docs commit a final-docs pass published on it, whose hand-back retired the carry into
-                            the history this reads. `squash_verdict` is the half no debt is needed for -- a carry of a
+                            refreshing a report of that approved commit for a base rebase of the squash, and
+                            `report_docs_lineage.py` asks its squash half of a docs pass's entry head.
+                            `squash_verdict` is the half no debt is needed for -- a carry of a
                             named review onto a named head, on the settled report's pull request and branch, its trees
                             read again -- which the debt's proof names the settled report's own review to, and
                             `final_docs_proof.py` the approved review, asking it of the head a docs pass was entered
                             on: for a round an operator's grant bought, that review is under the requirements through
                             the grant, past the ones the report was written against
+    report_docs_lineage.py  the proof that a settled report's approved commit is the one a final docs pass documented
+                            into the head a rewrite debt replaced: the debt held to the pinned pull request, its head,
+                            and the settled report's pull request and branch; the completion
+                            (`final_docs_records.py`) naming the replaced head as the docs commit it completed on
+                            (`documented_into`); the approval it followed covering the settled report exactly; the
+                            entry head that approved commit or the squash its carry proves (`squash_verdict` above);
+                            and the docs commit descending from the entry head in this host's checkout. PROVED,
+                            DEFER, or HOLD as the squash's lineage answers; it writes nothing.
+                            `stages/validating/report_refresh.py` asks it in place of the squash's lineage wherever the
+                            replaced head is a completion's docs commit, and tells the refresh prompt so
     rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the base
                             refresh publishing its own rebase, or a recovery that pushed the replay again or found it
                             standing, announced or not -- handed the typed landing (`git/base_sync/rewrite_handoffs.py`)
@@ -1688,7 +1692,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
                             where recording the approval also retires the head-keyed `docs_verdict`, `ready_ping_sha`,
-                            and `ready_ping_pending` an earlier one left; the widest any of the three subject records
+                            and `ready_ping_pending` an earlier one left, and the `docs_settled_sha` receipt and its
+                            lease an earlier approval's docs pass left unfinished; the widest any of the three subject records
                             can be written at (`ReviewSubject.widest`), which the report settlement's measurement reserves; whether a
                             number names, read as a recorded pull request is, the one a subject is on
                             (`ReviewSubject.is_on_pull_request`); and the question every later reader of an approval
@@ -1702,9 +1707,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             where none is -- or neither its identity, its head, nor its requirements are read
     verification_records.py the verification-evidence records and their pinned keys, reconciled by the dispatcher
                             (`verification_transaction.py`), whose live producers are a returned reviewer, the
-                            approval squash's carry-forward (`stages/validating/squash_evidence.py`), and a landed base
+                            approval squash's carry-forward (`stages/validating/squash_evidence.py`), a landed base
                             rewrite's fresh run or carry (`rewrite_finish_evidence.py`), which its finish settles
-                            through that same reconciliation under the anchor: PENDING
+                            through that same reconciliation under the anchor, and a final docs pass's run of its
+                            docs commit (`stages/documenting/final_completion.py`): PENDING
                             (`verification_evidence_pending`, the run and its binding, written before the artifact is
                             posted), CURRENT (`verification_evidence_current`), HISTORY
                             (`verification_evidence_history`, retired records with why -- superseded, invalidated, or
@@ -1845,7 +1851,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             takes (`verification_subject.py`): an orchestrator-executed run of exactly the final head
                             an `executed` completion records, bound to exactly `final_target` -- a run moved onto
                             another publication licenses nothing -- over the approval this issue still records, read
-                            whole before it is compared
+                            whole before it is compared. Every finished docs pass records one
+                            (`stages/documenting/final_completion.py`) and reads it back for a relabel its write
+                            landed ahead of (`stages/documenting/owed_completion.py`); the base refresh holds the
+                            branch while the transaction it names is owed (`git/base_sync/frozen.py`)
     final_docs_claims.py    the evidence the approval's own claim names, as a completion relies on it: the claim
                             (`review_approved_evidence`, read through `stages/validating/review_verdicts.py`, resolved
                             when called) read whole, passing and covering, and naming exactly a passing record bound
@@ -3516,12 +3525,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             open-round and in-flight publication markers, the three park predicates, and the
                             stage, role, and two route names a record is attributed by
     documenting/            `workflow:documenting`
-      handler.py            the order one final-docs tick asks its questions in -- a published pass's hand-back the
-                            receipts prove ahead of the approval it outdated, behind the terminals -- and which run
+      handler.py            the order one final-docs tick asks its questions in -- a finished pass's completion the
+                            records prove owed ahead of the approval it followed, behind the terminals -- and which run
                             it drops unread: an OS signal's kill or a launch never made, never an Antigravity run
                             that cancelled itself, which the disposition parks as a failed run
       preconditions.py      the terminals, the missing-`pr_number` guard, the parked-no-input fast path, and the
-                            refused bare continue -- classified over the batch written since the park ASKED, which
+                            refused bare continue -- retried, not refused, over a docs commit its own run did not
+                            pass on -- classified over the batch written since the park ASKED, which
                             on a half-finished drift unwind is that road's own notice rather than the delivery
                             cursor it holds back: read from the cursor, the instruction nobody delivered would
                             demote the command to guidance and the reconcile would re-run on an operator's nudge
@@ -3559,19 +3569,42 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `subject_amend_failed` rather than publishing it
       publication.py        the size gate a docs commit passes -- the last one before a human is asked to merge,
                             and handed the commit this pass made so a checkout something moved is refused rather than
-                            measured in its place -- then the push, which completion a pass earns -- the hand-back
-                            for a published docs commit, `in_review` for a clean no-change -- which head and verdict
-                            it stamps, and what its PR notice says; a commit the gate held and one it let through
-                            leave the same receipt, the head the handoff is still owed for, and the handler finishes
-                            from that only over a checkout standing ON it, since in sync with its remote is what a
-                            replacement host rebuilt at a moved pull request reads as too -- a commit still ahead of
-                            the remote is an unpublished candidate the gate measures again -- and the write that
-                            records the pass drops it, so no receipt outlives the handoff it was written for.
-                            `_finishes_a_published_pass` answers an unparked receipt the code-publication receipt
-                            proves published on the pinned pull request ahead of the approval check, with no
-                            checkout read, since that receipt is what the hand-back's debt is read off.
-                            A clean `DOCS: NO_CHANGE` publishes nothing and asks `retention` first; one over
-                            recovered commits is a publication like any other, and never asks it
+                            measured in its place -- then the push, and which completion a pass earns -- a published
+                            docs commit's (`final_completion._completes_published`), or a clean no-change's
+                            (`final_completion._completes_unchanged`) -- and what its PR notice says; a commit the
+                            gate held and one it let through leave the same receipt, the head the completion is
+                            still owed for, beside the lease naming the head the pass was entered on, and the write
+                            that records the pass drops both, so no receipt outlives the completion it was written
+                            for. A pass resumed over a docs commit whose run did not pass keeps that receipt's lease
+                            as the head it was entered on (`_entered_lease`), and its `DOCS: NO_CHANGE` completes the
+                            commit already published. A clean `DOCS: NO_CHANGE` publishes nothing and asks
+                            `retention` first; one over recovered commits is a publication like any other, and never
+                            asks it
+      final_completion.py   what every finished pass ends in, straight into `in_review`: no review of the docs
+                            commit, so no report debt, no evidence retired, no approval cleared, and no review
+                            round spent. A published docs commit is verified on its own head
+                            (`final_verification`), entered on the docs receipt's lease, stamped `updated`, and
+                            completed through `handoff`'s completion owning the completion record and a run's
+                            transaction and decided on every bound record (`_PUBLISHED`); an unchanged head is
+                            completed over the evidence `retention` just proved, named as retained (`_UNCHANGED`).
+                            A configured run that did not pass parks with the approval gate's own wording
+                            (`validating/verify._verify_failure_park`), the receipt and lease left standing, for the
+                            bare continue that resumes the docs pass over that commit (`_reruns_the_pass`); a run of
+                            another head or a completion with no room holds, landing only what the tick staged; a
+                            docs receipt with no readable lease holds with nothing written; and a pass with nothing
+                            a completion could follow or rest on is handed on with its stamp alone
+      owed_completion.py    a pass already finished whose completion a later tick still owes, finished with no
+                            second agent run: an unparked receipt the code-publication receipt proves published on
+                            the pinned pull request, over a checkout standing on it, completed ahead of the approval
+                            check (`_finishes_an_owed_completion`); a park's reply over a published pass, or a
+                            receipt nothing proves, completed where the branch is in sync AND the checkout stands on
+                            it (`_finished_settled_docs`), since in sync is what a replacement host rebuilt at a
+                            moved pull request reads as too -- save the park over a commit its own run did not pass
+                            on, left to the docs pass its continue resumes; and a completion whose write landed with its relabel
+                            lost, told by the record following the recorded approval and naming the stamped head
+                            with the verdict it earns (`_established`) -- which a later approval's retired verdict
+                            tells from the pass that approval bought -- relabelled to `in_review` with nothing
+                            written
       retention.py          whether the verification evidence the approval rests on outlives a docs pass that
                             changed nothing: proved whole again behind the pass
                             (`verification_proof.current_evidence_verdict`, the issue read afresh for its
@@ -3603,8 +3636,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction answering for it over the approved subject and recorded beside the record
                             naming it (`executed`). A failed run, a run of anything else, or one binding nothing
                             stages nothing; whatever is staged is measured against the comment and landed by the
-                            caller through `VERIFIED`, owning the record, the pending transaction, the history, and
-                            the revision floor, decided on every bound evidence record
+                            pass's completion (`final_completion`) owning the record, the pending transaction, the
+                            history, and the revision floor, decided on every bound evidence record (`VERIFIED`)
       drift.py              a body edit mid-hop: the dropped approval, the unwind sentinel, and the relabel to
                             `workflow:validating`. No developer runs on this road, so nothing about the conversation
                             is recorded -- the requirements revision alone goes down, and it says only that this
@@ -3616,12 +3649,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       drift_reset.py        the fetch / probe / hard-reset that puts the worktree back on the PR head, and the parks
                             each failure earns
       handoff.py            the completion every finished pass ends in (`_completes`): the docs verdict and checked
-                            head stamped, the receipt, launch record, and an earlier hand-back's mark consumed, the PR
-                            notice, the `pr_last_comment_id` ratchet that keeps in_review from replaying a consumed
-                            reply, and the relabel behind all of it -- to `in_review` for a pass that published
-                            nothing, and to `workflow:validating` for the hand-back below. A hand-back's ratchet walks
-                            behind its notice; the hand-off to `in_review` lands the walk `retention` took ahead of its
-                            proof (`_in_review_watermark`), so nothing asks the pull request anything behind that proof.
+                            head stamped, the receipt, its lease, the launch record, and a park the pass answered
+                            consumed, the PR notice, the `pr_last_comment_id` ratchet that keeps in_review from
+                            replaying a consumed reply, and the relabel to `in_review` behind all of it. A published
+                            pass's ratchet walks behind its notice; a pass that published nothing lands the walk
+                            `retention` took ahead of its proof (`_in_review_watermark`), so nothing asks the pull
+                            request anything behind that proof.
                             The write is a checkpoint -- the tick-state guarded commit over the reading the tick last
                             confirmed under the issue writer claim (`report_commits.ReportCommit`), decided on the
                             stamp, the publication and its push debt, and the records the approval was read over --
@@ -3629,10 +3662,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             prepared before the notice with what posting and walking past it write reserved, and
                             landed before the relabel. A refused preparation announces nothing; a write refused or
                             never confirmed relabels nothing, withholds the tick's state, and leaves the comment as
-                            it stands for the next tick, which finishes from a receipt still standing and otherwise
-                            runs the pass again -- taken ahead of that write, the relabel would leave `in_review` a
-                            pass it reads as unfinished, and no stage goes back for it. A hand-back's write that
-                            landed leaves its debt and mark for the dispatcher to finish the relabel from instead.
+                            it stands for the next tick, which finishes from a receipt still standing, relabels from
+                            a completion that landed (`owed_completion`), and otherwise runs the pass again -- taken
+                            ahead of that write, the relabel would leave `in_review` a pass it reads as unfinished,
+                            and no stage goes back for it.
                             And the hand-back past the terminals and ahead of drift, which writes nothing: a squash
                             handoff (`late_collapse_handoff_sha`) or a readable `review_returned_verdict` standing is
                             the approval that moved the label here having failed to end its own, or another road's
@@ -3646,27 +3679,6 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             readings, whose report,
                             pointer, verdict, evidence, or approval records moving sends the issue back too
                             (`_approval_still_stands`); a report, evidence, or comment nobody could read holds the tick
-      handback.py           a pass that published a docs commit -- fresh, recovered, or finished from its
-                            `docs_settled_sha` receipt -- handed back to `workflow:validating` for a report of that
-                            commit and a fresh review, through `handoff`'s completion: the commit stamped with no
-                            `docs_verdict`, the `developer_report_rewrite_debt` it is owed read off the receipts the
-                            publication wrote alone (the commit the code-publication receipt names published on the
-                            pinned pull request, over the `docs_settled_lease` the gate recorded beside the docs
-                            receipt, which no later republication rewrites), `review_approved_subject` written null,
-                            the current evidence retired into history as invalidated -- required, measured over the
-                            whole hand-back with the approval cleared first, and its binding kept, so a squash's
-                            carry still proves the lineage `engine/report_squash_lineage.py` reads -- and the
-                            commit marked `docs_handed_back_sha`, and one review round spent (`review_round` + 1,
-                            through `stages/validating/rounds.py`) for the review it buys, which an approval never
-                            counts -- all owned and decided on by the one guarded commit, so the round is spent
-                            exactly once however the hand-back is retried.
-                            A receipt that proves no publication records no debt or mark and hands back all the
-                            same; a proved debt, or a retirement, the comment has no room for stops with nothing
-                            announced or written; and a docs receipt with no readable lease beside it holds the
-                            hand-back with the record left for a human to repair.
-                            `_owes_the_relabel` is what `engine/dispatch_guards.py` asks of a debt holding this stage:
-                            a readable claim on the pinned pull request naming exactly the marked commit is this
-                            write having landed with its relabel lost, which the dispatcher finishes
       parks.py              the shared awaiting-human park and the missing-PR, dirty-tree, and question parks, the
                             park a launch whose outcome nothing recorded takes on a later tick, plus the hold a park
                             taken during a drift unwind applies inside its OWN write: that road runs no agent, so
@@ -5331,9 +5343,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             before the reviewer road; a report the thread moved out of reach pays nothing and is left
                             to that road's refusal. A readable claim owed a fresh report, on the branch the issue pins,
                             holds the reviewer and resumes the locked session on the report-refresh prompt -- over a
-                            settled report of the approved commit an approval squash collapsed too, once
-                            `workflow/engine/report_squash_lineage.py` proves that lineage and the report re-reads
-                            intact, the prompt naming that commit; a lineage nothing proves is left to the reviewer
+                            settled report of the approved commit an approval squash collapsed, or a final docs pass
+                            documented, into the head the debt replaced too, once
+                            `workflow/engine/report_squash_lineage.py` or `report_docs_lineage.py` proves that lineage
+                            and the report re-reads intact, the prompt naming that commit and how it was carried; a
+                            lineage nothing proves is left to the reviewer
                             road, and a tree or location nobody could read holds with nobody run. Before either,
                             requirements the drift check stood down for hold and drop the owed-round note, so the
                             drift resume answers them rather than a report of older requirements paying. The refresh
@@ -5345,7 +5359,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       report_refresh_models.py the frozen record that refresh hands the owner reading its run -- the debt, whose
                             rewritten head is the one proved on the pull request, the receipt, and the checkout, the
                             requirements baseline the report is stamped with, and the approved commit a proved squash
-                            leaves the settled report describing -- with the reading of the
+                            or docs pass leaves the settled report describing, beside which of the two it was -- with
+                            the reading of the
                             requirements taken once the run is back and the park both helpers take
       report_refresh_outcomes.py what a refresh run left: a `REPORT: READY` over a checkout still clean on the head,
                             with the pull request's head and the requirements read again unchanged, recorded under

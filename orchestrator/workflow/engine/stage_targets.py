@@ -13,9 +13,7 @@ relabel writes; the stamp a fixing hand-back leaves on the comment the
 settlement ahead of it left; and the records a reviewer round writes onto that
 same comment. Each is replayed through the owner that performs
 it rather than respelled here, so a member added there moves every reservation
-taken against it. The documenting owner that recognizes its own hand-back's
-report debt is named for the dispatcher's debt hold, which finishes that
-hand-back's relabel rather than holding it. The owner that re-reads the settled report a reviewer is
+taken against it. The owner that re-reads the settled report a reviewer is
 handed is named here too, for the verification-evidence proof that holds its
 review subject to that same reading, the owners that hold an approval's
 evidence to what an approval needs of it, read the claim naming it, and hold
@@ -48,14 +46,6 @@ _LATE_REUSE_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_reuse"
 _SPLIT_SEEDS_OWNER = f"{_DECOMPOSITION_PACKAGE}.split_seeds"
 _DISCUSSION_PACKAGE = "orchestrator.workflow.stages.discussion"
 _DOCUMENTING_PACKAGE = "orchestrator.workflow.stages.documenting"
-
-# The owner that tells the report debt a content-changing docs pass recorded
-# from every other. Named here and resolved when called for the reason the
-# other stage owners are: the dispatcher's debt hold asks it before holding the
-# stage, so a hand-back whose relabel was lost behind its write is finished
-# rather than held for good, and asking the stage directly would make the
-# engine's own import pull the handlers that import it back.
-_DOCS_HANDBACK_OWNER = f"{_DOCUMENTING_PACKAGE}.handback"
 _FIXING_PACKAGE = "orchestrator.workflow.stages.fixing"
 
 # The owner that stamps the transaction a fixing hand-back closed a round on.

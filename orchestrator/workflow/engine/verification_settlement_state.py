@@ -51,10 +51,9 @@ rewrite moved the full tree or the verification context
 `rewrite_evidence_models.RewriteEvidence.stages`), asked again as its write is
 staged -- behind any commands run, and of a decision an earlier finish
 recorded -- and lands that before the head is routed. A final-docs pass that
-publishes a docs commit retires it too, in the write that hands the pull
-request back to `validating` (`stages/documenting/handback.py`): the docs
-commit is content the evidence never ran on, and the entry it leaves keeps the
-squash's carry that still proves a report of the approved commit's lineage.
+publishes a docs commit retires nothing: the approval's evidence stays as it
+settled, and the run of the docs commit, where one is configured, supersedes
+it through the ordinary settlement (`stages/documenting/final_verification.py`).
 One that changed nothing retires it through the carry owner's own invalidation
 where the evidence no longer proves current behind the pass
 (`stages/documenting/retention.py`), ahead of handing the issue back.

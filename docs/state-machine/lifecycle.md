@@ -499,11 +499,13 @@ than a second source of truth: where the two disagree, the handler pages are aut
        and the next tick's drift check resumes the developer
      workflow:validating --(APPROVED of the subject still standing, verify
        ok, subject still standing, squash ok)──► review_approved_subject
-       recorded, docs_verdict,
-       ready_ping_sha, and ready_ping_pending
+       recorded, docs_verdict, ready_ping_sha,
+       ready_ping_pending, and an earlier pass's
+       unfinished docs_settled_sha and lease
        retired, label=workflow:documenting (final-docs)
-       ──► in_review where the pass published nothing and the approval's
-       evidence proves current again behind it; a report or issue edited, a
+       ──► in_review once the pass completes -- a docs commit verified on
+       its own head, or nothing published over the approval's evidence
+       proved current again behind it; a report or issue edited, a
        later report settled, or the head pushed while the squash runs ─►
        rewrite finished, label held, and the next tick hands the change to
        a fresh reviewer or the drift check
@@ -513,7 +515,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
        the PR and branch on its head, the tested tree, the context, the
        review subject, the settled report, and the requirements, read
        afresh), then the PR read last; proved ─► the completion decided on
-       every record that proof read, evidence untouched, ──► in_review.
+       every record that proof read, evidence untouched and named as the
+       one the unchanged head rests on (docs_final_provenance, retained),
+       ──► in_review.
        Refused -- a push, another tree, context, requirements, report, or
        review subject, an artifact edited or gone, or evidence missing or
        unreadable ─► ONE guarded write: current evidence retired as
@@ -524,15 +528,24 @@ than a second source of truth: where the two disagree, the handler pages are aut
      workflow:documenting, a docs commit published (a fresh push, commits
        an earlier tick left unpushed, or a docs_settled_sha receipt the
        code-publication receipt proves, finished ahead of the approval
-       check) ─► ONE guarded write: docs_checked_sha stamped with no
-       docs_verdict, report debt recorded from docs_settled_lease onto the
-       docs commit, current evidence retired as invalidated,
-       review_approved_subject null, review_round +1, docs_handed_back_sha
-       marked; then label=workflow:validating, where the developer reports
-       on that commit with no human, a fresh reviewer approves it on
-       evidence of its own, and that approval buys the next final-docs
-       pass. A docs receipt with no readable lease ─► held, nothing written;
-       no room for the debt or the retirement ─► held, nothing announced
+       check) ─► VERIFY_COMMANDS run on exactly the docs commit (none run
+       where it is empty) ─► ONE guarded write: docs_checked_sha stamped
+       docs_verdict=updated, the receipt consumed, docs_final_provenance
+       recorded (entry head = docs_settled_lease, final head = the docs
+       commit, executed with the run's transaction owed, or unconfigured);
+       the approval, its report, its evidence, and review_round untouched,
+       no report debt; then label=in_review -- no reviewer, no report
+       refresh. The run fails, or passes and binds no evidence, on the
+       docs commit ─► park verify_failed / verify_unrecorded
+       with the receipt standing, nothing offered for merge. A run of
+       another head, no room, or a docs receipt with no readable lease ─►
+       held, the receipt standing; the base refresh holds the branch while
+       the receipt, or the completion's owed run, stands
+     workflow:documenting, a completion that landed with its relabel lost
+       (docs_final_provenance following the recorded approval, naming the
+       stamped head with the verdict it earns, no receipt) ─► label=
+       in_review, nothing run, written, or announced; a later approval
+       retires the verdict, so its own pass runs instead
      in_review with a current report its approval did not cover (an
        unrecorded approval covers none), or the approved one edited or
        removed in place ─► review_round=0,
@@ -969,15 +982,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    of the base refresh for the head its push
                                    lands, and by the authorized settlement of
                                    a replay a late generation took over from
-                                   its auto rebase, for the push it makes,
-                                   and by a final-docs pass for the docs
-                                   commit it publishes, in the write that
-                                   hands it back. That one claim, on
-                                   workflow:documenting, naming exactly the
-                                   docs_handed_back_sha commit on the pinned
-                                   PR ─► label=workflow:validating (the
-                                   hand-back's lost relabel), nothing else
-                                   written
+                                   its auto rebase, for the push it makes.
+                                   A final-docs pass records none, so every
+                                   claim on workflow:documenting is held
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every

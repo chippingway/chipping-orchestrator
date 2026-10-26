@@ -4,9 +4,9 @@
 
 The one this stage was handed is the shorter story, and it is asked first
 past the preconditions -- a merged or closed pull request ends the tick before
-it -- save a pass this stage already published, whose hand-back the receipts
-prove owed (`publication._finishes_a_published_pass`), and ahead of drift and
-the docs pass. A
+it -- save a pass this stage already finished, whose completion the records
+prove owed (`owed_completion._finishes_an_owed_completion`), and ahead of
+drift and the docs pass. A
 `validating` approval retires its own verdict ahead of the relabel and ends its
 own squash handoff (`late_collapse_handoff_sha`) behind it, so a returned
 verdict or a handoff record still standing when this stage runs is that
@@ -22,11 +22,12 @@ the developer report the comment records as current, or that report as it
 reads at its location now, or whose evidence no longer stands, goes back the
 same way, and a report or evidence nobody could read holds the tick.
 
-A confirmed no-change leaves the approval, squash, and PR watermarks
-validating wrote untouched and advances to `in_review`. A pushed commit is
-content that approval was never of, so it is handed back to `validating`
-instead (`handback`), through the same completion. What both carry forward is
-`pr_last_comment_id`. The
+Every finished pass leaves the approval, its evidence claim, the squash, the
+settled report, `review_round`, and the PR watermarks validating wrote
+untouched and advances to `in_review`, its final head verified and recorded
+beside the approval rather than in it (`final_completion`): a pushed docs
+commit is content that approval was never of, and nothing says otherwise.
+What every completion carries forward is `pr_last_comment_id`. The
 awaiting-human resume advances `last_action_comment_id` past the human reply it
 fed into the docs prompt, and in_review reads the issue thread against that
 cursor as well, so the reply is answered whatever this handoff writes; what a
@@ -39,21 +40,21 @@ swallowed: the walk stops at the first unread non-orchestrator comment on
 either surface, and the consumed-through bound applies to the issue thread
 only. `max` keeps a higher in_review watermark from regressing, and a PR fetch
 failure is best-effort -- the handoff still advances, and in_review's own
-rescan is debounced and correct on its own. A hand-back walks behind its
-notice, and so seeds past it. The hand-off to `in_review` walks ahead of the
-proof that the evidence still answers for its head instead
+rescan is debounced and correct on its own. A published pass's completion
+walks behind its notice, and so seeds past it. A pass that changed nothing
+walks ahead of the proof that the evidence still answers for its head instead
 (`retention._retains`), since the walk requests the pull
 request and its threads, and a push behind a request that proof came before
 is one it never saw: its watermark stops short of its own notice, which
 in_review's feedback scan drops by the ledger entry the write records.
 
-Every terminal success ends in the one completion (`_completes`) -- to
-`in_review` (`_hand_off_to_in_review`), or back to `validating` for a pass that
-published (`handback`) -- and the order is the whole of its crash contract:
-stamp, prepare, announce, land, relabel. The stamp records the head the verdict
-was formed against and the verdict, resets the silent-park streak, and consumes
-the receipt a published pass leaves and the mark an earlier hand-back left
-(`_stamp_docs_verdict`). It lands as a checkpoint. The
+Every terminal success ends in the one completion (`_completes`) into
+`in_review` -- a pass that changed nothing through `_hand_off_to_in_review`,
+one that published through `final_completion` -- and the order is the whole
+of its crash contract: stamp, prepare, announce, land, relabel. The stamp
+records the head the verdict was formed against and the verdict, resets the
+silent-park streak, ends a park the pass answered, and consumes the receipt a
+published pass leaves (`_stamp_docs_verdict`). It lands as a checkpoint. The
 tick holds the issue writer claim from its first reading through its last
 write, so no other orchestrator writer moves the comment meanwhile, and the
 reading the tick last confirmed -- the one it took once the claim was held, or
@@ -63,12 +64,14 @@ completion is decided over. So it goes through the tick-state guarded commit
 stamp and whatever the tick staged since -- a run's usage, the notice's ledger
 entry, the ratcheted watermark, each kept beside any other move by its own
 rule -- and decided on the stamp's own records, the publication and the debt
-of a push not yet landed, and every record the hand-back read the approval
+of a push not yet landed, and every record the opening read the approval
 over; a pass that changed nothing over evidence proved to still answer for its
 head is decided as well on every record that proof read (`retention.UNCHANGED`).
 A record that reads otherwise was moved by no write of this tick's, and
-refuses it with nothing put back, adopted, or repaired. A hand-back owns and is
-decided on more besides (`handback._HANDBACK`), on the same terms.
+refuses it with nothing put back, adopted, or repaired. A completion recording
+its final head's verification owns that record and a run's transaction, and is
+decided on every record the evidence is bound through
+(`final_completion._PUBLISHED`), on the same terms.
 
 The write is prepared before the notice, with the notice's ledger entry and
 the ratcheted watermark reserved at their widest, so a comment that would not
@@ -91,12 +94,12 @@ land leaves the receipt standing over a published pass, and that tick
 finishes the handoff from it, announcing it a second time where this one
 already had -- the window a tick that died over the write leaves too. A write
 that landed, unconfirmed or ahead of a relabel that failed, leaves a pass
-already called finished with no receipt behind it -- the record a same-head
-re-entry leaves -- so the next tick runs the pass rather than handing off on
-evidence that could belong to either; a hand-back's write leaves its report
-debt and mark instead, and the dispatcher finishes its relabel. A clean
-no-change publishes no receipt, so its next tick runs the pass again whichever
-way its write went.
+already called finished with no receipt behind it, and what tells it from the
+record a same-head re-entry leaves is the completion it recorded: still
+following the approval this issue records, naming the stamped head, beside
+the verdict that head earns. The next tick finishes the relabel from it with
+nothing run (`owed_completion._established`); a pass handed on with its stamp
+alone recorded none, so its next tick runs the pass again.
 """
 from __future__ import annotations
 
@@ -136,19 +139,20 @@ _PR_LAST_COMMENT_ID = "pr_last_comment_id"
 _NO_CHANGE = "no_change"
 
 # What a finished pass stamps: the head its verdict was formed against, the
-# verdict, the silent-park streak it resets, the receipt, its lease, and the
-# launch record it consumes, and the hand-back an earlier pass left. Each has to land as
+# verdict, the silent-park streak it resets, the park it ends, and the
+# receipt, its lease, and the launch record it consumes. Each has to land as
 # stamped, so each is decided on as well: one staged as the reading already
 # spelled it is no move of the write's, and would otherwise be kept as whatever
 # the comment carries by then.
 _STAMPED = frozenset((
     _state._CHECKED_DOCS_SHA,
-    "docs_verdict",
+    _state._DOCS_VERDICT,
     "silent_park_count",
+    _state._AWAITING_HUMAN,
+    _state._PARK_REASON,
     _state._SETTLED_DOCS_SHA,
     _state._SETTLED_DOCS_LEASE,
     _state._LAUNCHED_DOCS_SHA,
-    _state._HANDED_BACK_DOCS_SHA,
 ))
 
 # The completion of a finished pass, landed as a checkpoint over the reading
@@ -157,7 +161,7 @@ _STAMPED = frozenset((
 # that reading. It is decided on the stamp; on the publication it is about --
 # the pull request, the branch, the receipt of what reached the remote -- and
 # the debt of a push not yet landed, which together tell a published pass from
-# an unpublished candidate; and on every record the hand-back read the approval
+# an unpublished candidate; and on every record the opening read the approval
 # over, with the verdict and squash handoff only `validating` answers.
 _COMPLETION = _commits.ReportWrite(
     owned=_STAMPED | {_PR_LAST_COMMENT_ID, _comments._ORCH_COMMENT_IDS},
@@ -351,8 +355,8 @@ def _hand_off_to_in_review(
     the pull request anything once the proof has answered, and the watermark
     stops short of the notice, which the ledger entry this write records
     keeps every later reader from taking for a human's. A pass that published
-    a docs commit is handed back for review instead (`handback`), through the
-    same completion.
+    a docs commit is verified and completed through the same completion
+    (`final_completion._completes_published`).
     """
     _stamp_docs_verdict(ctx.state, checked_sha, _NO_CHANGE)
     _completes(ctx, write, notice, WorkflowLabel.IN_REVIEW, walks=False)
@@ -385,9 +389,10 @@ def _completes(
     this stage still owns. A write that did not happen leaves the receipt the
     gate put down, and the next tick finishes the handoff from it. A write
     that landed with the relabel behind it never made leaves a pass this write
-    already called finished and no receipt behind it: the next tick runs the
-    pass again rather than handing off to `in_review`, and the dispatcher
-    finishes a hand-back to `validating` from the debt the write recorded.
+    already called finished and no receipt behind it: the next tick finishes
+    the relabel from the completion it recorded
+    (`owed_completion._established`), or, where it recorded none, runs the
+    pass again rather than handing off on a stamp alone.
     """
     commit = _commits.ReportCommit(ctx.gh, ctx.issue, ctx.state)
     reserved = commit.staging()
@@ -411,15 +416,15 @@ def _completes(
 
 
 def _stamp_docs_verdict(
-    state: PinnedState, checked_sha: str, verdict: str | None,
+    state: PinnedState, checked_sha: str, verdict: str,
 ) -> None:
     """Stamp the docs watermarks after a terminal success: record the
     evaluated head, the verdict, and reset the silent-park counter.
 
-    The verdict is `no_change` for a pass handed to `in_review`, and None for
-    one handed back for review (`handback`): `in_review`'s merge gate reads a
-    head with a verdict beside it as documented after its approval, which a
-    pass that changed the pull request's content is not.
+    The verdict is `no_change` for a pass that published nothing and
+    `updated` for one that published a docs commit (`final_completion`):
+    `in_review`'s merge gate reads a head with a verdict beside it as one
+    documented after its approval.
 
     The receipt is dropped in the same breath, and it has to be: it says a
     published pass still owes a handoff, and this write is what records that
@@ -433,15 +438,21 @@ def _stamp_docs_verdict(
     readings nothing can tell apart, running the pass is the safe one.
 
     A failed pass a paused tick recorded goes too: this pass finished, so the
-    branch carries nothing a later tick must still park for. So do the
-    receipt's lease and the hand-back an earlier pass left, where they stand:
-    whatever this pass hands on, it is not that one.
+    branch carries nothing a later tick must still park for. So does the
+    receipt's lease, where it stands. And so does a park the pass answered --
+    a reply over a published pass whose checkout moved, or whose verification
+    did not pass, that this completion is the answer to -- since a park
+    carried into `in_review` would hold every road there that waits on it.
+    Each is dropped only where it is set, so an issue that never carried one
+    is not given the key.
     """
     state.set(_state._CHECKED_DOCS_SHA, checked_sha)
-    state.set("docs_verdict", verdict)
+    state.set(_state._DOCS_VERDICT, verdict)
     state.set("silent_park_count", 0)
     state.set(_state._SETTLED_DOCS_SHA, None)
-    for carried in (_state._SETTLED_DOCS_LEASE, _state._HANDED_BACK_DOCS_SHA):
+    if state.get(_state._AWAITING_HUMAN):
+        state.set(_state._AWAITING_HUMAN, False)
+    for carried in (_state._SETTLED_DOCS_LEASE, _state._PARK_REASON):
         if state.get(carried) is not None:
             state.set(carried, None)
     _failed_pass._forget(state)

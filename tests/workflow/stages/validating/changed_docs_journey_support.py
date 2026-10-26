@@ -1,37 +1,43 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""An approval squashed and handed to its final-docs pass, whose docs commit changes the pull request.
+"""An approval handed to its final-docs pass, whose docs commit changes the pull request, walked on into review.
 
-The squashed round walked past its approval (`squash_rebase_journey_support`):
-the reviewer approves the report settled about `HEAD`, the squash publishes
-`SQUASHED` on the same tree and carries the approved run onto it, and the
-carry settles and moves the label to `workflow:documenting`. There the docs
-pass commits `DOCS_HEAD` on top of the squash and the push lands, standing the
-pull request on it. Every tick from there is a whole dispatch of whatever label
-the issue carries, and every run a dispatch spawns is recorded by role with
-the prompt it was handed (`spawned`).
+The round walked past its approval (`squash_rebase_journey_support`): the
+reviewer approves the report settled about `HEAD` on its own run of the
+configured suite, and the approval either squashes -- publishing `SQUASHED` on
+the same tree, carrying the approved run onto it, and moving the label to
+`workflow:documenting` once the carry settles -- or, with
+`SQUASH_ON_APPROVAL` off, hands `HEAD` itself to the pass. There the docs pass
+commits `DOCS_HEAD` on top of the head it was entered on, the push lands, and
+the configured suite is run on exactly that commit (`docs_run`): the run the
+completion records beside the approval, which the reconciliation of the next
+tick publishes and settles. Every tick from there is a whole dispatch of
+whatever label the issue carries, and every run a dispatch spawns is recorded
+by role with the prompt it was handed (`spawned`). The docs commit is read as
+descending from the head the pass was entered on, as it does in a checkout the
+pass committed in.
 
-A case reads the walk back through `handed_back`: the records the hand-back is
-judged by -- the report debt, the mark, the evidence and approval it retired,
-and the stamp -- off the pinned comment as the next tick reads it. Where the
-walk ends is read by the assertions of `_ChangedDocsWalk`: one run of each role
-and nothing owed, parked, or told twice.
+A case reads the walk back through `completed` -- the completion the pass
+recorded, the stamp beside it, and the report debt none of it owes -- and
+through `approved`, the approval's own records as the next tick reads them,
+which nothing past the approval may move. Where the walk ends is read by the
+assertions of `_ChangedDocsWalk`: in review, told once, with no reviewer or
+report refresh launched behind the approval.
 """
 from __future__ import annotations
 
 import contextlib
-from functools import partial
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
-from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import (
-    review_subjects as _review_subjects,
-    verification_settlement_state as _settlement,
-)
+from orchestrator import config
+from orchestrator.github.verification_evidence import EvidenceSource
+from orchestrator.workflow.engine import final_docs_records as _final_docs, review_subjects as _review_subjects
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow import drift_reports as _drift_world
-from tests.workflow.fixtures import MEASURED_CANDIDATE_SHA, _agent
+from tests.workflow.fixtures import _agent
+from tests.workflow.git_owners import seam_patch
 from tests.workflow.stages.validating import (
+    changed_docs_readings as _readings,
     readiness_journey_support as _readiness,
     squash_rebase_journey_support as _journey,
 )
@@ -40,140 +46,88 @@ HEAD = _journey.HEAD
 
 SQUASHED = _journey.SQUASHED
 
-# The docs commit the final-docs pass publishes on top of the squash: the
-# commit the size gate proves the checkout to once its subject names the pull
-# request.
-DOCS_HEAD = MEASURED_CANDIDATE_SHA
+# The docs commit the final-docs pass publishes on top of the head it was
+# entered on: the commit the size gate proves the checkout to once its subject
+# names the pull request.
+DOCS_HEAD = _readings.DOCS_HEAD
 
-# A docs pass that committed a docs change, and what the developer then
-# reports about the head it published.
+# A docs pass that committed a docs change.
 DOCS_CHANGED = (_journey.DOCUMENTER, _agent(last_message="docs: describe the new flag"))
 
-DOCS_REPORT = "The docs now describe the new flag; the approved change is unchanged and the suite passes."
-
-# The pinned records a hand-back is read back by.
+# The pinned records the walk is read back by.
 REWRITE_DEBT = "developer_report_rewrite_debt"
-
-HANDED_BACK = "docs_handed_back_sha"
 
 DOCS_VERDICT = "docs_verdict"
 
 DOCS_CHECKED = "docs_checked_sha"
 
-# What a pinned edit carries when it is the hand-back's own write.
-_HANDS_BACK = HANDED_BACK
+CURRENT_REPORT = "developer_report_current"
 
-# Every run the walk charges from the docs pass on, in order, and the labels
-# the issue moves through from the walk on.
-ONE_OF_EACH = (_journey.DOCUMENTER, _journey.REFRESHER, _journey.REVIEWER, _journey.DOCUMENTER)
-
-DOCUMENTED_AGAIN = (
-    WorkflowLabel.DOCUMENTING, WorkflowLabel.VALIDATING, WorkflowLabel.DOCUMENTING, WorkflowLabel.IN_REVIEW,
-)
-
-# The report the refresh settles, as its commit and revision: the docs commit,
-# one revision past the approved report.
-REFRESHED = (DOCS_HEAD, 2)
-
-# How the refresh names the report the pull request carries: the approved
-# commit, squashed into the head the docs commit replaced.
-APPROVED_REPORT = f"describes `{HEAD}`, the approved commit this orchestrator squashed into `{SQUASHED}`"
-
-# The record and the members of the report a pinned comment settled.
-_CURRENT_REPORT = "developer_report_current"
+REVIEW_ROUND = "review_round"
 
 _PARK_REASON = "park_reason"
 
-_REVIEW_ROUND = "review_round"
+_READY_PING_SHA = "ready_ping_sha"
 
+# A ready ping as the walk's timeline tells it.
+_PINGED = (_readiness.READY,)
 
-class _Crashed(RuntimeError):
-    """The process ending where a case says it ends."""
+# The labels a walk moves through from the docs pass on: straight into review.
+INTO_REVIEW = (WorkflowLabel.DOCUMENTING, WorkflowLabel.IN_REVIEW)
 
+# What the walk tells from the docs pass on, in order: the docs pass spawned,
+# the artifact of this orchestrator's own run of the docs commit, and the ready
+# ping last.
+DOCUMENTED_INTO_REVIEW = (
+    (_readiness.SPAWN, _journey.DOCUMENTER),
+    (_readiness.ARTIFACT, EvidenceSource.ORCHESTRATOR_EXECUTED, DOCS_HEAD, DOCS_HEAD),
+    (_readiness.READY,),
+)
 
-class _DiesOnTheHandBack:
-    """The pinned edits a tick makes, ending on the one landing the hand-back -- or landing it and losing the answer.
-
-    `lands` is the write going out and its answer lost: the edit is made and
-    the process ends before anything is told of it.
-    """
-
-    def __init__(self, edits, *, lands: bool) -> None:
-        self._edits = edits
-        self._lands = lands
-
-    def __call__(self, issue, state, **options):
-        if state.get(_HANDS_BACK) is None:
-            return self._edits(issue, state, **options)
-        if self._lands:
-            self._edits(issue, state, **options)
-        raise _Crashed
-
-
-class _DiesOnTheRelabel:
-    """The relabels a tick makes, ending on the one handing the issue back to `validating`."""
-
-    def __init__(self, relabels) -> None:
-        self._relabels = relabels
-
-    def __call__(self, issue, label):
-        if label == WorkflowLabel.VALIDATING:
-            raise _Crashed
-        return self._relabels(issue, label)
-
-
-@contextlib.contextmanager
-def _on_the_hand_back(case, *, lands: bool):
-    """The process ending on the hand-back's write, which lands first only where `lands`."""
-    with patch.object(
-        case.github, "edit_pinned_state", _DiesOnTheHandBack(case.github.edit_pinned_state, lands=lands),
-    ), contextlib.suppress(_Crashed):
-        yield
-
-
-# The process ending on the hand-back's write with nothing of it landed, which
-# leaves the receipt the gate put down; and the write landing with the process
-# ending before its answer, which leaves the debt and mark with no relabel.
-dying_on_the_hand_back = partial(_on_the_hand_back, lands=False)
-
-losing_the_hand_back = partial(_on_the_hand_back, lands=True)
-
-
-@contextlib.contextmanager
-def dying_on_the_relabel(case):
-    """The hand-back's write confirmed and the process ending on the relabel behind it."""
-    with patch.object(
-        case.github, "set_workflow_label", _DiesOnTheRelabel(case.github.set_workflow_label),
-    ), contextlib.suppress(_Crashed):
-        yield
-
-
+# The same under an empty `VERIFY_COMMANDS`, which runs and publishes nothing.
+DOCUMENTED_UNVERIFIED = (
+    (_readiness.SPAWN, _journey.DOCUMENTER),
+    (_readiness.READY,),
+)
 class _ChangedDocsJourney(_journey._SquashRebaseJourney):
-    """The squashed round walked into its final-docs pass, which publishes a docs commit."""
+    """The approved round walked into its final-docs pass, which publishes a docs commit."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.enterContext(seam_patch("_descends", MagicMock(return_value=True)))
 
     def walks_into_documenting(self) -> None:
-        """Approve, squash, and settle the carry, leaving the label on `workflow:documenting`.
+        """Approve -- and, where the approval squashes, settle the carry -- leaving the label on documenting.
 
         Nothing spawned on the way is kept, and what the issue has spent by
         then is `charged`, so a case reads its runs and charges from here on;
         how far the threads were told by then is `walked`, which a case reads
-        the timeline from.
+        the timeline from; and the approval's records as they stand then are
+        `approval`, which nothing past it may move.
         """
-        self.approves()
-        self.later()
+        self.approves(None if config.SQUASH_ON_APPROVAL else _readings.leaves_the_branch)
+        self.settles_the_approval()
+
+    def settles_the_approval(self) -> None:
+        """Settle the carry an approval's squash owes, where it squashed, and keep what the walk reads from."""
+        if config.SQUASH_ON_APPROVAL:
+            self.later()
         self.spawns.clear()
         self.charged = self.spent()
         self.walked = _readiness.high_water(self)
+        self.approval = self.approved()
 
-    def changes_the_docs(self, push=None, **run_options) -> None:
-        """One dispatch of the docs pass, committing `DOCS_HEAD` on the squash; its push lands unless `push` says.
+    def changes_the_docs(self, push=None, verified=None, **run_options) -> None:
+        """One dispatch of the docs pass, committing `DOCS_HEAD`; its push lands and its run passes unless told.
 
         `run_options` are the dispatch's own readings beside those.
         """
+        entered = self.pull_request.head.sha
         self.dispatched(
             DOCS_CHANGED,
-            head_shas=(SQUASHED, DOCS_HEAD),
+            head_shas=(entered, DOCS_HEAD),
             push_branch=push or _drift_world._LandingPush(self.pull_request),
+            verify_result=_readings.docs_run() if verified is None else verified,
             **run_options,
         )
 
@@ -192,98 +146,71 @@ class _ChangedDocsJourney(_journey._SquashRebaseJourney):
         else:
             with window(self):
                 self.changes_the_docs()
-        self.dispatched()
+        self.dispatched(verify_result=_readings.docs_run())
 
-    def walks_into_a_lost_hand_back(self) -> None:
-        """Walk into the docs pass, and have its push land and its hand-back's write die with nothing of it landed."""
-        self.walks_into_documenting()
-        with dying_on_the_hand_back(self):
-            self.changes_the_docs()
-
-    def assert_held_still(self) -> None:
-        """Nothing handed back: the label, the pull request on the docs commit, no debt, and the evidence current."""
-        self.assertEqual(self.labels()[-1], WorkflowLabel.DOCUMENTING)
-        self.assertEqual(self.pull_request.head.sha, DOCS_HEAD)
-        self.assertIsNone(self.pinned().get(REWRITE_DEBT))
-        self.assertIsNotNone(self.current_evidence())
-
-    def current_evidence(self):
-        """The evidence the pinned comment records as current, or None."""
-        return _settlement.read_current_evidence(PinnedState(state_data=self.pinned()))
-
-    def handed_back(self) -> tuple:
-        """The hand-back's records: the debt and mark, the stamp, and the evidence and approval it retired.
-
-        The debt as the head it replaced and the head it names, beside the
-        mark; the stamp as the head checked and the verdict; the evidence as the
-        current record's tested commit and target head, and the retirement of
-        every history entry; and whether an approval is still recorded.
-        """
+    def approved(self) -> tuple:
+        """The approval's records: the approved subject, the settled report, and the review rounds spent."""
         pinned = self.pinned()
-        debt = pinned.get(REWRITE_DEBT)
-        current = self.current_evidence()
-        history = _settlement.read_evidence_history(PinnedState(state_data=pinned)) or ()
         return (
-            (debt and (debt["previous_head"], debt["rewritten_head"]), pinned.get(HANDED_BACK)),
-            (pinned.get(DOCS_CHECKED), pinned.get(DOCS_VERDICT)),
-            current and (current.binding.tested_sha, current.binding.target.target_head),
-            tuple(entry.retired.value for entry in history),
-            pinned.get(_review_subjects.APPROVED_SUBJECT) is not None,
+            pinned.get(_review_subjects.APPROVED_SUBJECT),
+            pinned.get(CURRENT_REPORT),
+            pinned.get(REVIEW_ROUND),
         )
 
 
+
 class _ChangedDocsWalk(_ChangedDocsJourney):
-    """The report refresh the walk owes, and what a case reads the walk back by, from that report to where it ends."""
+    """What a case reads the walk back by, from the docs pass to where it ends."""
 
-    def refreshes(self) -> None:
-        """One dispatch whose developer run, should one be asked for, writes `DOCS_REPORT` as a ready report."""
-        self.dispatched(_journey.refresh(DOCS_REPORT))
+    def entered_on(self) -> str:
+        """The head the docs pass is entered on: the squash, or the approved commit where nothing squashed."""
+        return SQUASHED if config.SQUASH_ON_APPROVAL else HEAD
 
-    def assert_refreshed_over(self, approved: str) -> None:
-        """A report of the docs commit settled, `approved` left as written, and the refresh told what it is about."""
-        settled = self.pinned()[_CURRENT_REPORT]
-        self.assertEqual((settled["sha"], settled["revision"]), REFRESHED)
-        self.assertEqual(self.pull_request.issue_comments[0].body, approved)
-        self.assertIn(APPROVED_REPORT, self.spawned(_journey.REFRESHER)[0])
+    def assert_documented_into_review(
+        self, verification=_final_docs.FinalVerification.EXECUTED, told=DOCUMENTED_INTO_REVIEW,
+    ) -> None:
+        """The walk ended in `in_review` on `DOCS_HEAD`, told once, with the approval exactly as it was.
 
-    def assert_reviewer_handed_the_report(self) -> None:
-        """The fresh reviewer was handed the report of the docs commit, and the commit itself."""
-        handed = self.spawned(_journey.REVIEWER)[0]
-        self.assertIn(f"> {DOCS_REPORT}", handed)
-        self.assertIn(DOCS_HEAD, handed)
-
-    def assert_quiet_after(self) -> None:
-        """Three more dispatches move, spawn, verify, write, and tell nothing, the last thing told the ready ping."""
-        self.assertEqual(self.told()[-1], (_readiness.READY,))
-        self.assert_quiet()
-
-    def assert_one_of_each(self, head: str = DOCS_HEAD, rounds: int = 1, walked: tuple = DOCUMENTED_AGAIN) -> None:
-        """The walk ended in `in_review` on `head` with one run of each role charged, and nothing owed or parked.
-
-        The labels it moved through from the walk on are `walked`. One report
-        of `head` on the pull request, settled and the debt it paid gone; no
-        notice anywhere saying a report could not be delivered; fresh evidence
-        on `head` current; `head` stamped documented by the pass that found
-        nothing to change; and `rounds` review rounds spent -- the one the
-        hand-back spends, unless a base rewrite put the count back since. The
-        pull request was told it is ready once, last, and only behind the
-        report of `head`, its reviewer's own run of `head`, and that pass.
+        The completion records the head the pass was entered on and the docs
+        commit, verified as `verification`; the commit is stamped `updated`;
+        no report is owed; the approved subject, the settled report, and the
+        review rounds spent are the approval's own; the only run spawned past
+        the approval is the docs pass, charged once; and the walk told the
+        pull request `told`, the ready ping last and once.
         """
-        self.assert_refreshed_into_review(head, self.walked)
-        self.assertEqual(self.labels()[-len(walked):], walked)
-        self.assertEqual(self.roles(), ONE_OF_EACH)
-        self.assertEqual(self.spent_since(self.charged)[0], len(ONE_OF_EACH))
-        documented = ((head, "no_change"), (head, head))
-        self.assertEqual(self.handed_back()[1:3], documented)
-        bodies = [posted.body for posted in self.pull_request.issue_comments]
-        said = bodies + [notice for _, notice in self.github.posted_comments]
-        self.assertEqual(sum(DOCS_REPORT in body for body in bodies), 1)
-        self.assertFalse(any(_journey.UNDELIVERABLE_NOTICE in body for body in said))
-        self._assert_nothing_owed(head, rounds)
+        completion = ((verification.value, self.entered_on(), DOCS_HEAD), (DOCS_HEAD, "updated"), None)
+        self.assertEqual(self.completed(), completion)
+        self.assertEqual(self.labels()[-len(INTO_REVIEW):], INTO_REVIEW)
+        self.assert_only_documented()
+        self.assert_told_once(told, DOCS_HEAD)
 
-    def _assert_nothing_owed(self, head: str, rounds: int) -> None:
-        """The report of `head` settled, the debt it paid gone, no park standing, and `rounds` review rounds spent."""
+    def assert_only_documented(self) -> None:
+        """The approval's records exactly as it left them, and the docs pass the one run spawned and charged past it."""
+        self.assertEqual(self.approved(), self.approval)
+        self.assertEqual(self.roles(), (_journey.DOCUMENTER,))
+        self.assertEqual(self.spent_since(self.charged)[0], 1)
+
+    def assert_told_once(self, told: tuple, head: str) -> None:
+        """The walk told the pull request `told`, the ready ping on `head` last and once, with no park standing."""
+        walk = self.told(self.walked)
+        pinged = walk.count(_PINGED)
+        self.assertEqual(walk[-len(told):], told)
+        self.assertEqual(pinged, 1)
         pinned = self.pinned()
-        owed = (pinned[_CURRENT_REPORT]["sha"], pinned[REWRITE_DEBT], pinned[_PARK_REASON])
-        self.assertEqual(owed, (head, None, None))
-        self.assertEqual(pinned[_REVIEW_ROUND], rounds)
+        self.assertEqual(pinned.get(_READY_PING_SHA), head)
+        self.assertIsNone(pinned.get(_PARK_REASON))
+
+    def completed(self) -> tuple:
+        """The completion as its verification, entry head, and final head; the stamp; and the report debt."""
+        pinned = self.pinned()
+        recorded = pinned.get(_final_docs.FINAL_DOCS) or {}
+        return (
+            (recorded.get("verification"), recorded.get("entry_head"), recorded.get("final_head")),
+            (pinned.get(DOCS_CHECKED), pinned.get(DOCS_VERDICT)),
+            pinned.get(REWRITE_DEBT),
+        )
+
+    def assert_quiet_into_review(self) -> None:
+        """Three more dispatches move, spawn, verify, write, and tell nothing, the issue still in review."""
+        self.assert_quiet()
+        self.assertEqual(self.github.workflow_label(self.issue), WorkflowLabel.IN_REVIEW)

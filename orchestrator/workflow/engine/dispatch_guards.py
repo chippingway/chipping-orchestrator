@@ -172,9 +172,8 @@ def _pinned_state_refuses(
     behind it, for the same reason and about the report it names. So is the
     report debt a rewritten pull-request head leaves, which holds: the roads
     past an approval would carry a head no report is about to the human who
-    merges it, while `validating` runs and pays the debt -- save the debt a
-    docs pass's own hand-back recorded, whose lost relabel to `validating` it
-    finishes instead. Where all three
+    merges it, while `validating` runs and pays the debt -- every debt alike,
+    since a final docs pass records none. Where all three
     sit among the reconciliations above them, and why, is on
     `_record_stops_the_tick` below, which is where they are ordered.
 
@@ -312,10 +311,9 @@ def _record_stops_the_tick(
     evidence behind them reads it settled or honestly still owed.
 
     The report debt a rewritten head leaves is asked directly behind both, and
-    it holds -- or, for a docs pass's own hand-back, finishes the relabel to
-    `validating` that hand-back's write landed ahead of: behind the anchor
-    readings, since a replay no recovery has published is no head a debt can
-    name yet, and ahead of the handler it keeps off.
+    it holds: behind the anchor readings, since a replay no recovery has
+    published is no head a debt can name yet, and ahead of the handler it
+    keeps off.
     """
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):
@@ -336,7 +334,7 @@ def _record_stops_the_tick(
         gh, spec, issue, label, state,
     ) or _verification_transaction._reconciles_pending_evidence(
         gh, spec, issue, label, state,
-    ) or _rewrite_debt_holds_the_tick(gh, spec, issue, label, state):
+    ) or _rewrite_debt_holds_the_tick(spec, issue, label, state):
         return True
     late_reuse = importlib.import_module(_stage_targets._LATE_REUSE_OWNER)
     return (
@@ -407,13 +405,12 @@ def _anchor_holds_the_tick(
 
 
 def _rewrite_debt_holds_the_tick(
-    gh: GitHubClient,
     spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
     state: PinnedState,
 ) -> bool:
-    """Whether a rewritten head's report debt keeps this label's handler off; True too where it finished a hand-back.
+    """Whether a rewritten head's report debt keeps this label's handler off.
 
     Only on the roads past an approval, which are what would carry a head no
     report is about to the human who merges it. Presence rather than meaning:
@@ -423,27 +420,14 @@ def _rewrite_debt_holds_the_tick(
     against the reviewer and paid, and the developer's own roads, whose report
     is what pays it.
 
-    One debt on `workflow:documenting` is that stage's own: a docs pass that
-    changed the pull request's content records it in the write that hands the
-    pass back to `validating`, beside a mark naming the very commit it is
-    about, and relabels behind that write. Where the write landed and the
-    relabel did not, holding would keep the issue here for good, so that
-    relabel is finished instead -- only for a debt still naming the marked
-    commit on the pinned pull request (`handback._owes_the_relabel`), never for
-    one somebody else's push or a later rewrite left. A relabel that fails
-    raises, with the debt still standing for the next tick to ask again.
+    No debt is a final docs pass's own: a pass that publishes a docs commit
+    records its completion apart from the approval and owes no report of it,
+    so every debt standing on `workflow:documenting` is one a rewrite of the
+    head left -- somebody else's push, a rebase, a conflict resolution -- and
+    is held as every other is.
     """
     if label not in _MERGE_ROADS or not _rewrite_debt.carries_rewrite_debt(state):
         return False
-    handback = importlib.import_module(_stage_targets._DOCS_HANDBACK_OWNER)
-    if label == WorkflowLabel.DOCUMENTING and handback._owes_the_relabel(state):
-        log.info(
-            "repo=%s issue=#%s carries the report debt its docs pass handed back "
-            "for review; finishing the relabel to validating",
-            spec.slug, issue.number,
-        )
-        gh.set_workflow_label(issue, WorkflowLabel.VALIDATING)
-        return True
     log.warning(
         "repo=%s issue=#%s carries report debt for a rewritten pull-request "
         "head; holding the %r handler until validating settles a report of it",

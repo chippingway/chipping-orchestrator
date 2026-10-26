@@ -33,8 +33,10 @@ from orchestrator import config
 from orchestrator.github.verification_evidence import VerifiedCommand
 from orchestrator.workflow.engine import (
     comments as _comments,
+    final_docs_records as _final_docs,
     report_settlement_state as _report_settlement,
     review_subjects as _review_subjects,
+    verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.validating import review_coverage as _review_coverage, state as _validating_state
 from tests.workflow import approved_squash as _approved_squash, review_world as _world
@@ -208,8 +210,10 @@ class RetainedEvidenceTest(evidence.EvidenceWorld, unittest.TestCase):
         # again, and the issue reaches `in_review` with nothing about the
         # evidence written: the tested commit is still the approved one, the
         # artifact on the pull request is the carry's own, and the report
-        # still names the commit it was written about. The docs agent is the
-        # one launch; no developer and no reviewer runs.
+        # still names the commit it was written about. The completion records
+        # that carry as the evidence the unchanged squash rests on, apart from
+        # the approval. The docs agent is the one launch; no developer and no
+        # reviewer runs.
         self.squashed()
         kept, spent = self.retained(), self.spent()
 
@@ -226,6 +230,7 @@ class RetainedEvidenceTest(evidence.EvidenceWorld, unittest.TestCase):
             (self.pinned()[evidence.DOCS_VERDICT], self.pinned()[evidence.CHECKED_DOCS_SHA]),
             ("no_change", SQUASHED),
         )
+        self._assert_completed_over_the_carry()
 
 
     def test_no_pull_request_read_behind_the_notice(self) -> None:
@@ -247,6 +252,14 @@ class RetainedEvidenceTest(evidence.EvidenceWorld, unittest.TestCase):
         self.assertTrue(self.announced())
         self.assertEqual(asked, [])
 
+
+    def _assert_completed_over_the_carry(self) -> None:
+        """The completion records the squash as the head entered and completed on, over the carry still current."""
+        state = self.github.read_pinned_state(self.issue)
+        final = _final_docs.read_final_docs(state)
+        recorded = (final.verification, final.entry_head, final.final_head)
+        self.assertEqual(recorded, (_final_docs.FinalVerification.RETAINED, SQUASHED, SQUASHED))
+        self.assertTrue(final.evidence.names(_settlement.read_current_evidence(state)))
 
 class InvalidatedEvidenceTest(evidence.EvidenceWorld, unittest.TestCase):
     """A pass over evidence that no longer answers for its head withholds the handoff and hands the issue back."""

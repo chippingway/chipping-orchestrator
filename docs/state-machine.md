@@ -301,14 +301,16 @@ Beside it sits the additive `verification_evidence_*` group -- the pending evide
 pull request carries now, a bounded history of retired evidence, the receipt of the last one settled, and the highest
 revision spent -- which the dispatcher reconciles directly behind the report, publishing an artifact only once the
 pull request, trees, review subject, configuration, and requirements are proved, and carrying evidence to another
-head only on an equal full tree under the same context. Its live producers are three: the returned-verdict
+head only on an equal full tree under the same context. Its live producers are four: the returned-verdict
 disposition records the transaction a reviewer's declared commands were minted as in the write that persists the
 verdict, and neither verdict is acted on until it settles; the approval's squash records a carry onto the head it
 published -- of the passing run its own verify gate made on the approved head, or else of the evidence that approval
 rests on -- the tested commit unchanged, the new head an equivalent-tree target, holding the move to
-`workflow:documenting` until it settles; and a landed automatic base rewrite records a fresh run of its rewritten head,
+`workflow:documenting` until it settles; a landed automatic base rewrite records a fresh run of its rewritten head,
 or a carry onto it, bound to the settled report and the review of that head, and settles it through that same
-reconciliation's answer before its route, while its auto-rebase anchor still holds every handler
+reconciliation's answer before its route, while its auto-rebase anchor still holds every handler; and a final docs
+pass records the run of the configured commands on exactly the docs commit it published, answering for the approved
+review at that head beside the completion naming it, which the reconciliation settles on the next tick
 ([evidence transaction](state-machine/delivery-stages.md#the-verification-evidence-transaction-every-dispatch)).
 The additive `developer_report_rewrite_debt` claim is the report a rewrite of the pull request's head leaves owed --
 the pull request, its branch, the head the rewrite replaced, and the exact head it published. While any claim stands,
@@ -322,15 +324,17 @@ the attempt is cleared or the issue routed to `workflow:validating`. The authori
 generation took over records one for the push it makes, before its label routes the head to `workflow:validating` as
 the refresh routes every rebase it publishes
 ([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
-A final-docs pass that publishes a docs commit records one off its receipt in the write that hands the pull request
-back to `workflow:validating`, retiring the current evidence and the approval there and marking the commit
-`docs_handed_back_sha`, from which the dispatcher finishes a relabel that write landed ahead of.
+A final-docs pass records none: the docs commit it publishes is completed straight into `in_review`, recorded beside
+the approval rather than as a rewrite the report is owed for.
 A settled report of the approved commit an approval's squash replaced is of neither head a claim names, so it pays
 nothing, and the hold refreshes it only once a proof (`workflow/engine/report_squash_lineage.py`) links it to the head
 the claim replaced -- from the squash's own recorded evidence carry, held exactly to the settled report and the claim,
 and from both trees read again in the checkout -- and the report, written against the current requirements, re-reads
-intact where it settled. The proof writes nothing and the report keeps its `source_sha`; a lineage nothing proves is
-left to the reviewer road's refusal, and a tree or location nobody could read holds with no developer run.
+intact where it settled. A rewrite of the docs commit a final docs pass completed on is linked the same way through
+that pass's completion (`workflow/engine/report_docs_lineage.py`): its approval covering the settled report, any
+squash before it proved by its carry, and the docs commit descending from the head the pass was entered on. The proof
+writes nothing and the report keeps its `source_sha`; a lineage nothing proves is left to the reviewer road's
+refusal, and a tree or location nobody could read holds with no developer run.
 Most owners write the record whole from the state they read. A guarded commit -- adopted so far by the
 verification-evidence publication and settlement, the evidence reconciliation's retirements, `validating`'s invalidation
 of an unanswered carry, the developer report's recording, its binding, its settlement (prepared before the report is
@@ -631,14 +635,18 @@ fresh attempt, charged to both budgets, before a human's continue.
 ### `_handle_documenting` (label `workflow:documenting`)
 
 The single docs pass on the existing PR worktree, reached only via the final-docs handoff in `_handle_validating`'s
-approval branch. It reuses the locked dev session — there is no `documenting_agent` and no separate retry budget —
-and advances to `in_review` on an explicit `DOCS: NO_CHANGE` verdict, from a run that succeeded, over evidence proved
-current behind it (below). A pass that pushes a
-docs commit -- fresh, recovered, or finished from the receipt a size-gate hold or a lost write left -- changed what
-the approval was of, so it hands the pull request back to `workflow:validating` instead, owing a report of the docs
-commit, its evidence and approval retired and one review round spent: the developer reports on it with no human
-reply, a fresh reviewer reviews it with evidence of its own, and that approval buys the next docs pass. A receipt the
-code-publication receipt proves is handed back ahead of the approval check, and holds the base refresh until it is.
+approval branch, and the last automated delivery stage. It reuses the locked dev session — there is no
+`documenting_agent` and no separate retry budget — and advances straight to `in_review` from a run that succeeded,
+whether it pushed a docs commit -- fresh, recovered, or finished from the receipt a size-gate hold or a lost write
+left -- or replied `DOCS: NO_CHANGE` over evidence proved current behind it (below). Neither launches a reviewer or a
+report refresh or spends a review round: the approved subject, the settled report and the commit it was written
+about, and the approval's evidence stay as they were, and the head the pass completed on is verified by this stage
+and recorded apart, as its final-documentation completion (`docs_final_provenance`) -- the approval's evidence
+retained for an unchanged head, a run of exactly the docs commit under a configured `VERIFY_COMMANDS`, and nothing
+claimed under an empty one. A docs commit the configured commands do not pass on parks, with nothing offered for
+merge. A receipt the code-publication receipt proves is completed ahead of the approval check, and holds the base
+refresh until it is, and so does the completion's run until it settles; a completion whose write landed with its
+relabel lost is relabelled from what it recorded, with no second pass.
 A run that fell short — an unfinished tool step, an Antigravity error, interrupted, or missing terminal result, or an
 Antigravity process that exited nonzero behind a terminal that said it succeeded — parks through the
 shared question park, handed no final message, whatever it committed, whatever tool calls it completed, and whatever

@@ -49,18 +49,19 @@ developer report's (`verification_transaction`): it proves the whole binding
 to rely on current evidence proves it and its artifact again
 (`verification_proof.current_evidence_verdict`), and evidence reaches another
 head only through a carry-forward decision (`verification_carry_forward`). The
-live producers are three: a returned reviewer's declared commands, which the
+live producers are four: a returned reviewer's declared commands, which the
 returned-verdict record stages (`stages/validating/review_verdicts.py`) in the
 write that persists the verdict; the carry-forward an approval's squash
 records onto the head it published (`stages/validating/squash_evidence.py`),
 in the write settling the squash's handoff -- of the run the approval's verify
 gate made on the approved head where `verification_local_runs` binds it, and
-of the evidence the approval rests on otherwise; and the fresh run or carry a
+of the evidence the approval rests on otherwise; the fresh run or carry a
 landed automatic base rewrite's finish records for its rewritten head ahead
-of its route (`rewrite_finish_evidence`). The documenting stage's
-verification of a final head records a run of exactly that head beside the
-final-documentation completion naming it
-(`stages/documenting/final_verification.py`), the one record that lets a run
+of its route (`rewrite_finish_evidence`); and a final docs pass's run of the
+docs commit it published, which its verification
+(`stages/documenting/final_verification.py`) records beside the
+final-documentation completion naming it, in the completion's own write
+(`stages/documenting/final_completion.py`) -- the one record that lets a run
 answer for the approved review at a head that review is not about
 (`final_docs_records`).
 """

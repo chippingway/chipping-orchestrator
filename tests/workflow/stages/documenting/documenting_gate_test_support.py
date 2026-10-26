@@ -47,14 +47,12 @@ PAST_THE_CEILING = 6
 UNDER_THE_CEILING = 4
 MAX_ADDED_LINES = "MAX_ADDED_LINES"
 
-# The stamp a finished pass carries, which is what tells the handoff's own
+# The stamp a finished pass carries, which is what tells the completion's own
 # durable write from every write a tick takes before it: the verdict a pass
-# handed to `in_review` earns, and the mark a pass that published a docs
-# commit leaves as it hands that commit back for review.
+# handed to `in_review` earns.
 VERDICT_KEY = documenting.DOCS_VERDICT
-KEY_HANDED_BACK = "docs_handed_back_sha"
 
-# The report debt a published docs commit is owed, and its members.
+# The report debt no docs pass records, and the review round none spends.
 KEY_REWRITE_DEBT = "developer_report_rewrite_debt"
 
 # The receipt a hold leaves the handoff, the head its push is leased against,
@@ -94,12 +92,6 @@ SETTLEMENT_RECEIPT = MappingProxyType({
     KEY_SETTLED_DOCS_LEASE: ENTERED_HEAD,
 })
 
-# The debt a published docs commit's hand-back records, as its pull request,
-# the head it replaced, and the commit it is about.
-HANDED_BACK_DEBT = (
-    documenting._FreshDocumentingFixture.pr_number, ENTERED_HEAD, MEASURED_CANDIDATE_SHA,
-)
-
 # The seam the count is taken through, and the two keywords a gated push names
 # its commit and pins its ref by.
 COUNT_ADDED_LINES = "_count_added_lines"
@@ -123,9 +115,6 @@ DOCS_REPLY = "docs: README tweak"
 PUSHED_NOTICE = ":books: documenting pass: pushed docs commit."
 HANDOFF_NOTICE = "finished the handoff it was still owed"
 
-# What every notice of a published docs commit goes on to say: it is handed
-# back for a report and a review rather than offered for merge.
-HANDED_BACK_NOTICE = "so it goes back to `workflow:validating`"
 NO_CHANGE_REPLY = "Nothing left to write.\nDOCS: NO_CHANGE"
 
 # The human reply that wakes a parked docs pass, past the watermark the park
@@ -138,8 +127,6 @@ RESUME_REPLY = "try again"
 # goes out by.
 EDIT_PINNED_STATE = "edit_pinned_state"
 WRITE_REJECTED = "pinned write rejected"
-SET_WORKFLOW_LABEL = "set_workflow_label"
-RELABEL_REJECTED = "label write rejected"
 
 
 class _CrashesOnTheWrite:
@@ -162,21 +149,19 @@ class _CrashesOnTheWrite:
 
 
 def _a_finished_pass(state) -> bool:
-    """The handoff's own write: the first one carrying a stamped verdict or a hand-back's mark.
+    """The completion's own write: the first one carrying a stamped verdict.
 
     Every road that finishes a pass stamps it and announces it before this
     write, so it is the one immediately behind the notice -- the crash the
     receipt the gate put down has to survive.
     """
-    return state.get(VERDICT_KEY) is not None or state.get(KEY_HANDED_BACK) is not None
+    return state.get(VERDICT_KEY) is not None
 
 
 # Where in the tail a tick is killed, as the seam it dies on and what the
-# write it refuses carries. `None` refuses the seam outright, which is what a
-# relabel that never lands looks like -- the one effect behind the write that
-# records the pass.
+# write it refuses carries: the write that records the pass, the one effect
+# the receipt has to survive.
 DIES_ON_THE_WRITE = (EDIT_PINNED_STATE, _a_finished_pass)
-DIES_ON_THE_RELABEL = (SET_WORKFLOW_LABEL, None)
 
 
 class _DocsGateAssertionsMixin:
@@ -187,17 +172,15 @@ class _DocsGateAssertionsMixin:
         return github.pinned_data(self.issue_number)
 
     def _assert_unstamped(self, github) -> None:
-        """No docs verdict or hand-back, and the issue handed on to nobody.
+        """No docs verdict, and the issue handed on to nobody.
 
         Together because each alone would pass for the wrong reason: a stamp
         over a commit nothing published tells the next tick the docs are in
-        the diff, an `in_review` handoff puts a pull request the docs never
-        joined in front of the person who merges it, and a hand-back to
-        `validating` asks a report of a head the pull request never received.
+        the diff, and an `in_review` handoff puts a pull request the docs never
+        joined in front of the person who merges it.
         """
         pinned = self._pinned(github)
         self.assertIsNone(pinned.get(documenting.DOCS_VERDICT))
-        self.assertIsNone(pinned.get(KEY_HANDED_BACK))
         for label in (documenting.IN_REVIEW, documenting.VALIDATING):
             self.assertNotIn((self.issue_number, label), github.label_history)
 
@@ -206,39 +189,38 @@ class _DocsGateAssertionsMixin:
         mocks[documenting.PUSH_BRANCH].assert_not_called()
         self._assert_unstamped(github)
 
-    def _assert_handed_back_once(
+    def _assert_completed_once(
         self, github, notice=PUSHED_NOTICE, notices=1,
     ) -> None:
-        """The stamp, the released receipt, the debt and mark, one hand-back, and what it said.
+        """The stamp, the released receipt, one handoff to `in_review`, and what it said -- and nothing owed.
 
-        The published commit is stamped with no verdict -- a head handed back
-        for review is no head documented for merge -- and owed a report of
-        itself over the head the pass was entered on, which the publication's
-        receipt names. The relabel is counted rather than merely present: the
-        pass ends in one place and every road that reaches it has already
-        published, so a second one would say a docs pass ran twice over one
-        commit. `notices` is asked of each case because the one window the
-        tail cannot close -- a notice that went out and a write that did not --
-        re-announces on the tick that finishes the handoff.
+        The published commit is stamped documented, with the receipt and its
+        lease consumed by the write that records the pass. No report debt is
+        recorded and no review round spent, and the issue never goes back to
+        `validating`: a docs pass is no review. The relabel is counted rather
+        than merely present: the pass ends in one place and every road that
+        reaches it has already published, so a second one would say a docs
+        pass ran twice over one commit. `notices` is asked of each case
+        because the one window the tail cannot close -- a notice that went out
+        and a write that did not -- re-announces on the tick that finishes the
+        handoff.
         """
         pinned = self._pinned(github)
-        debt = pinned[KEY_REWRITE_DEBT]
         stamped = (pinned.get(documenting.DOCS_VERDICT), pinned[documenting.DOCS_CHECKED_SHA])
-        self.assertEqual(stamped, (None, MEASURED_CANDIDATE_SHA))
-        marked = (pinned[KEY_HANDED_BACK], pinned.get(KEY_SETTLED_DOCS_SHA), pinned.get(KEY_SETTLED_DOCS_LEASE))
-        self.assertEqual(marked, (MEASURED_CANDIDATE_SHA, None, None))
-        recorded = (debt["pr"], debt["previous_head"], debt["rewritten_head"])
-        self.assertEqual(recorded, HANDED_BACK_DEBT)
+        self.assertEqual(stamped, (documenting.VERDICT_UPDATED, MEASURED_CANDIDATE_SHA))
+        released = (pinned.get(KEY_SETTLED_DOCS_SHA), pinned.get(KEY_SETTLED_DOCS_LEASE))
+        self.assertEqual(released, (None, None))
+        owed = (pinned.get(KEY_REWRITE_DEBT), pinned.get(documenting.REVIEW_ROUND))
+        self.assertEqual(owed, (None, None))
         self.assertEqual(len(github.posted_pr_comments), notices)
         self.assertIn(notice, github.posted_pr_comments[-1][1])
-        self.assertIn(HANDED_BACK_NOTICE, github.posted_pr_comments[-1][1])
         self.assertEqual(
             github.label_history.count(
-                (self.issue_number, documenting.VALIDATING),
+                (self.issue_number, documenting.IN_REVIEW),
             ),
             1,
         )
-        self.assertNotIn((self.issue_number, documenting.IN_REVIEW), github.label_history)
+        self.assertNotIn((self.issue_number, documenting.VALIDATING), github.label_history)
 
 
 class _DocsGateRunMixin:
@@ -282,9 +264,7 @@ class _DocsGateRunMixin:
         past it, which is the state a process killed there leaves.
         """
         seam, carrying = dies
-        refusing = MagicMock(side_effect=RuntimeError(RELABEL_REJECTED))
-        if carrying is not None:
-            refusing = _CrashesOnTheWrite(getattr(github, seam), carrying)
+        refusing = _CrashesOnTheWrite(getattr(github, seam), carrying)
         with patch.object(github, seam, refusing):
             self.assertRaises(RuntimeError, tick, github, issue, **run_options)
 

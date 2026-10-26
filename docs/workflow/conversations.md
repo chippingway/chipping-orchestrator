@@ -314,8 +314,8 @@ Where the contract is carried:
   PR-feedback prompts keep `ACK:` for a reply after which neither the branch nor the report has to change. The
   report-refresh `_build_report_refresh_prompt` carries it whole too, then asks for the `REPORT: READY` block alone and
   refuses `REPORT: VERIFIED` by name, since the report already on the pull request is about the head a rewrite replaced
-  -- or about the approved commit an approval squash collapsed into it, which the prompt then names beside the squash;
-  it offers no `ACK:`.
+  -- or about the approved commit an approval squash collapsed, or a final docs pass documented, into it, which the
+  prompt then names beside that head; it offers no `ACK:`.
 - **Deferred** in `_build_fresh_respawn_preamble`, which carries `_RESPAWN_REPORT_NOTE` instead: the concise report
   covers the final state of the whole branch, the previous session's commits included; the report's scope, ownership,
   publication, and the receipt restriction are restated; and the outcome is the one the task below the preamble
@@ -384,15 +384,17 @@ reached for the markers and missed, an `ACK:` line beside a report block include
 
 The **rewritten-head report refresh** acts on one on `workflow:validating`, where a recorded
 `developer_report_rewrite_debt` says this orchestrator's own push moved the pull request onto a head no settled report
-is about -- a rebase, a conflict resolution, or commits an earlier tick left unpushed, an auto-rebase replay the
-authorized settlement of a late adjudication published after the generation took it over, and the docs commit a
-final-docs pass published, whether fresh, recovered, or finished from its `docs_settled_sha` receipt
+is about -- a rebase, a conflict resolution, or commits an earlier tick left unpushed, and an auto-rebase replay the
+authorized settlement of a late adjudication published after the generation took it over
 ([`_handle_validating`](../state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating) step 3,
-`workflow/stages/validating/report_refresh.py`). A pass that publishes a docs commit is handed back here rather than
-on to `in_review`, its evidence retired and its approval written null in the same write that records the claim
-([`_handle_documenting`](../state-machine/delivery-stages.md#_handle_documenting-label-workflowdocumenting) step 12);
-the report the pull request carries is then usually of the approved commit the approval's squash collapsed, which
-the squash's carry, kept in evidence history, proves. A published report of that head that already settled, still intact
+`workflow/stages/validating/report_refresh.py`). The docs commit a final-docs pass publishes is none of these: the
+pass completes it straight into `in_review`, recording no claim, so no report refresh is ever asked for documentation
+alone ([`_handle_documenting`](../state-machine/delivery-stages.md#_handle_documenting-label-workflowdocumenting)
+step 12). After a base rebase of an approval's squash, the report the pull request carries is usually of the approved
+commit that squash collapsed, which the squash's carry, kept in evidence history, proves; after a base rebase of a
+completed docs commit, it is of the approved commit that pass documented, which the pass's completion record proves
+(`workflow/engine/report_docs_lineage.py`). A published report of that
+head that already settled, still intact
 and written against the current requirements, pays the claim and the reviewer runs. Otherwise, before any reviewer
 runs, and with no human reply, the locked session is resumed for a report alone of that exact head, over
 requirements, a whole code-publication receipt, and a clean checkout proved to stand where the debt says, and read
@@ -556,8 +558,9 @@ division of labour between the developer and the orchestrator never changes.
   - human feedback routed from `in_review` (`pending_fix_at` set) resets `review_round` to 0 on its handover, since
     the approval was of the prior head, and its `ACK:` returns the pull request to `in_review`;
   - a rewritten head's report refresh spends nothing: the push that rewrote it already reset `review_round` for the
-    head it published -- save a docs commit's hand-back, which spends one in the write that records it, exactly
-    once, so the fresh review it buys counts against the cap -- and the report answers no feedback.
+    head it published, and the report answers no feedback;
+  - a final-docs pass spends nothing, whether it published a docs commit or not: it buys no review, and completes
+    into `in_review` with the round count the approval left.
 
   Agent runs are counted where they are spawned and nowhere else: each launch is charged once to `agent_runs_used`
   and its usage folded once into the per-issue totals, and a recovery that finishes a result spawns nobody. Review
@@ -728,14 +731,12 @@ did not exit 0, a configured command the evidence leaves out or spells otherwise
 evidence no longer vouches for parks under `reviewer_unverified` instead -- a further command that exited 0 beside
 every configured one does not, and under an empty `VERIFY_COMMANDS` any declared run of at least one command, every one
 exiting 0, covers the configuration; a bare `/orchestrator continue` buys a fresh reviewer, since the reviewer owes the
-evidence. A final-docs pass that publishes a docs commit retires the current evidence into history as invalidated
-and the approval with it, so the review of that commit owes evidence of its own on it: a reuse of the retired
-evidence parks as above, and under an empty `VERIFY_COMMANDS` the reviewer's own declared run on the docs commit is
-the evidence its approval rests on (`tests/workflow/stages/validating/test_changed_docs_journey.py`). The review caps,
+evidence. The review caps,
 configured-author filtering, report freshness, and the approved versus changes-requested routing are those of every
 other round. `tests/workflow/stages/validating/test_evidence_aware_rounds.py` drives each of these through whole ticks.
 
-The final-docs pass behind an approval runs no verification of its own. Where it replies `DOCS: NO_CHANGE` with nothing
+The final-docs pass behind an approval is the last automated delivery stage, and it verifies the head it completes on
+itself rather than buying another review. Where it replies `DOCS: NO_CHANGE` with nothing
 to publish, the pull request is still on the head the approval moved there, and the evidence that approval rests on is
 kept only once it proves current again behind the pass (`stages/documenting/retention.py`, through the proof a
 reviewer's hand-off takes): the repository and pull request, the published head and the branch, the tested and target
@@ -746,7 +747,11 @@ kept exactly as it settled -- the commit the checks ran on, the transcript, and 
 pull request never shows a run as one on the squashed head. Evidence that no longer proves is invalidated into history
 with the approval it answers for, and the issue goes back to a fresh reviewer rather than on to `in_review`; a reading
 nobody could take holds the pass. Evidence that is missing, malformed, edited, or otherwise unproven never counts as
-passing: it takes that same road back. A reply over recovered commits publishes them, and is never this shortcut.
+passing: it takes that same road back. A reply over recovered commits publishes them, and is never this shortcut. A
+pass that publishes a docs commit -- fresh, recovered, or finished from its `docs_settled_sha` receipt -- is verified
+on that commit as the exception below describes and completes into `in_review` with the approval, its evidence, and
+its report untouched; a configured run that does not pass on it parks, with nothing offered for merge
+(`tests/workflow/stages/validating/test_changed_docs_journey.py`).
 
 The final-documentation exception is the one place evidence answers for a review subject that is not about its own
 head, and it is recorded apart from that review

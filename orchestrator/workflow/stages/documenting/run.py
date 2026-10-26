@@ -58,11 +58,6 @@ from orchestrator.workflow.stages.implementing import (
 log = logging.getLogger("orchestrator.workflow")
 
 
-# The verdict a finished pass stamps, dropped as the next one begins so a
-# record only ever carries one this pass wrote.
-_DOCS_VERDICT = "docs_verdict"
-
-
 def _prepare_documenting_worktree(ctx: _models._DocumentingContext, wt):
     """Refresh `<remote>/<branch>` and guard against a diverged worktree.
 
@@ -324,8 +319,8 @@ def _run_documenting_dev(
     Asked before it is dropped, so an issue that has never carried one is not
     given the key to carry a null under.
     """
-    if ctx.state.get(_DOCS_VERDICT) is not None:
-        ctx.state.set(_DOCS_VERDICT, None)
+    if ctx.state.get(_state._DOCS_VERDICT) is not None:
+        ctx.state.set(_state._DOCS_VERDICT, None)
     if ctx.state.get(_state._AWAITING_HUMAN):
         return _resume_documenting_dev(ctx, wt, ahead, remote_head)
     if _failed_pass._unfinished_pass_owed(ctx):
