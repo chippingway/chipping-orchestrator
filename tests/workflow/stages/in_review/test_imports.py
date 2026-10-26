@@ -21,6 +21,7 @@ _PARENT = "orchestrator.workflow.stages"
 _HANDLER_OWNER = "handler"
 
 _OWNERS = (
+    "completion",
     "drift",
     "feedback",
     "fixing_route",

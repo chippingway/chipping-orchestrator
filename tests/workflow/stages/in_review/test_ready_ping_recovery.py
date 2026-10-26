@@ -12,14 +12,22 @@ already carries is recorded rather than posted again, a thread nobody could
 read holds it, and one that reads without it is posted once, under the
 receipt it was armed with, once every gate has passed again -- the readiness
 proof among them, so a head no evidence answers for is never pinged.
+
+A ping over a final docs pass's completion is said once the same way, on
+whichever head the pass completed on, and its writes are decided on that
+completion too: one a maintainer edits by hand while the gate decides refuses
+the arming, and the ping is never posted over it -- nor, on an unmergeable
+pull request, is the park written back over the edit, whether it lands while
+mergeability is asked or while the park's notice is posted.
 """
 from __future__ import annotations
 
 import unittest
+from itertools import product
 from unittest.mock import patch
 
 from tests.workflow import published_reports as _published_reports, verified_approvals as _verified
-from tests.workflow.stages.in_review import ready_ping_test_support as support
+from tests.workflow.stages.in_review import completion_test_support as _completion, ready_ping_test_support as support
 
 # Each way an edit is left unanswered, and whether it landed anyway.
 UNANSWERED = (
@@ -301,6 +309,97 @@ class PendingPingRecoveryTest(unittest.TestCase, support._ReadyPingFixture):
         self.assertEqual(self.github.label_history, [(support.ISSUE, "workflow:fixing")])
         batch = (pinned["pending_fix_issue_ids"], pinned[support.PR_LAST_COMMENT_ID])
         self.assertEqual(batch, ([reply_id], 0))
+
+
+class CompletionPingRecoveryTest(_completion._CompletionFixture, unittest.TestCase):
+    """A ping over a final docs pass's completion is said once, and decided on that completion."""
+
+    def test_an_unanswered_arming_posts_once(self) -> None:
+        # An arming GitHub did not confirm posts nothing; the next tick posts
+        # the ping once over the head the pass completed on, under the
+        # receipt the lost write armed where it landed.
+        for kind, (how, landed) in product(_completion.KINDS, UNANSWERED):
+            with self.subTest(kind=kind, how=how):
+                self.completed(kind)
+                with support.failing(self, how, settling=False):
+                    self.tick()
+                armed = self.pinned().get(support.PENDING) or {}
+                self.assertEqual((self.pings(), bool(armed)), ([], landed))
+
+                self.tick()
+
+                self.assert_settled(armed.get(RECEIPT))
+                self.doCleanups()
+                self.setUp()
+
+    def test_an_unsettled_ping_is_never_reposted(self) -> None:
+        # The ping is posted and the write recording it refused: the next
+        # tick finds the comment carrying its receipt and records it.
+        for kind in _completion.KINDS:
+            with self.subTest(kind):
+                self.completed(kind)
+                with support.failing(self, support.REFUSED, settling=True):
+                    self.tick()
+                self.assertEqual(len(self.pings()), 1)
+
+                self.tick()
+
+                self.assert_settled()
+                self.doCleanups()
+                self.setUp()
+
+    def test_a_hand_edited_completion_is_not_armed(self) -> None:
+        # A maintainer cuts the completion's final head short while the gate
+        # asks whether the pull request is mergeable. The proof was read over
+        # the completion in hand, but the arming is decided on the comment's,
+        # so it is refused and nothing is posted -- and the next tick reads
+        # the damaged record and pings nobody.
+        self.completed(_completion.EXECUTED)
+        edited = support._EditedWhileMerging(self, **{_completion.COMPLETION: self.damaged()})
+        with patch.object(self.github, support.MERGEABILITY, edited):
+            self.tick()
+        self.tick()
+
+        pinned = self.pinned()
+        self.assertEqual(self.pings(), [])
+        self.assertIsNone(pinned.get(support.READY_PING_SHA))
+        self.assertIsNone(pinned.get(support.PENDING))
+
+    def test_a_hand_edit_outlasts_the_park(self) -> None:
+        # The same edit while the pull request reads unmergeable: the park
+        # would write the state in hand whole, putting back the completion the
+        # maintainer replaced -- one the next readiness proof would trust -- so
+        # it posts and writes nothing, and the edit stands.
+        self.completed(_completion.EXECUTED)
+        damaged = self.damaged()
+        before = (self.github.write_state_calls, len(self.issue.comments))
+        edited = support._EditedWhileMerging(self, mergeable=False, **{_completion.COMPLETION: damaged})
+        with patch.object(self.github, support.MERGEABILITY, edited):
+            self.tick()
+
+        pinned = self.pinned()
+        self.assertEqual(pinned[_completion.COMPLETION], damaged)
+        self.assertIsNone(pinned.get("park_reason"))
+        self.assertEqual((self.github.write_state_calls, len(self.issue.comments)), before)
+
+    def test_an_edit_behind_the_notice_is_kept(self) -> None:
+        # The pull request reads unmergeable and the park's notice goes out,
+        # and a maintainer cuts the completion short while it is posted: the
+        # park lands as a guarded commit decided on the completion, so it is
+        # refused rather than written back over the edit, and the notice is
+        # all it leaves.
+        self.completed(_completion.EXECUTED)
+        self.pull_request.mergeable = False
+        damaged = self.damaged()
+        said = len(self.issue.comments)
+        self.damages_behind_the_park_notice()
+
+        self.tick()
+
+        pinned = self.pinned()
+        self.assertEqual(pinned[_completion.COMPLETION], damaged)
+        self.assertIsNone(pinned.get("park_reason"))
+        self.assertEqual(len(self.issue.comments), said + 1)
 
 
 if __name__ == "__main__":

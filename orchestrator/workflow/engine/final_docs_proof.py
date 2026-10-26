@@ -97,6 +97,11 @@ refusal, and nothing about it is decided. DEFER is everything else: a record
 missing or malformed, an approval, report, requirements, configuration,
 publication, or evidence that moved, a lineage not proved. None of them
 writes anything; what a refusal means for the issue is the caller's.
+
+Its reader is the in_review ready ping (`stages/in_review/completion.py`),
+which takes the whole proof in place of the ordinary readiness proof over a
+comment recording a completion, and re-reads every artifact the completion
+rests on (`_artifacts_refusal`) once more as its last word.
 """
 from __future__ import annotations
 
@@ -206,7 +211,9 @@ def _recorded_refusal(reading: ProofReading, final: _final_docs.FinalDocs) -> Re
     The approval and the pull request, a report owed, and the settled report
     the approval covers -- its revision, digest, and the commit it is about --
     then the verification (`_named_refusal`), and the evidence the approval's
-    own claim names (`final_docs_claims.claim_refusal`).
+    own claim names (`final_docs_claims.claim_refusal`). Asked again ahead of
+    the artifacts by the ready ping's last word
+    (`stages/in_review/completion.evidence_stands`).
     """
     state = reading.state
     if not final.follows(state):
@@ -250,21 +257,15 @@ def _ahead_refusal(
     """Refuse or hold `final` on what is asked between the pull request's reading and the rest; or None.
 
     `pull_request` is the one the verification read open on the final head.
-    Every artifact the completion rests on is re-read on it -- the named
-    evidence's passing as an approval's must (`_passing_refusal`), and the
-    evidence the approval's claim names still standing
-    (`final_docs_claims.claimed_artifact_refusal`) -- and behind them the
-    issue is read afresh, its requirements still the revision the approval
-    was given and the one the drift baseline holds
-    (`stages/validating/review_coverage._requirements_stand`, resolved when
-    called): the issue in hand was read before any of these requests, and
-    its title and body say nothing of an edit landing during them.
+    Every artifact the completion rests on is re-read on it
+    (`_artifacts_refusal`), and behind them the issue is read afresh, its
+    requirements still the revision the approval was given and the one the
+    drift baseline holds (`stages/validating/review_coverage._requirements_stand`,
+    resolved when called): the issue in hand was read before any of these
+    requests, and its title and body say nothing of an edit landing during
+    them.
     """
-    if final.evidence is not None:
-        refused = _passing_refusal(reading, pull_request)
-        if refused is not None:
-            return refused
-    refused = claimed_artifact_refusal(reading.gh, reading.state, final, pull_request)
+    refused = _artifacts_refusal(reading, final, pull_request)
     if refused is not None:
         return refused
     stands = importlib.import_module(_VALIDATING_REVIEW_COVERAGE_OWNER)._requirements_stand(
@@ -275,20 +276,29 @@ def _ahead_refusal(
     return None if stands else _MOVED_REQUIREMENTS
 
 
-def _passing_refusal(reading: ProofReading, pull_request: object) -> ReportEvidence | None:
-    """Refuse or hold the current evidence where an approval may not rest on its artifact; or None.
+def _artifacts_refusal(
+    reading: ProofReading, final: _final_docs.FinalDocs, pull_request: object,
+) -> ReportEvidence | None:
+    """Refuse or hold `final` on every artifact it rests on, re-read on `pull_request`; or None.
 
-    Its artifact is re-read on `pull_request`: one nobody could read holds,
-    and one failing, short of a configured command, or no longer the one that
-    settled refuses.
+    The named evidence's first, where the verification rests on some: it has
+    to pass as an approval's must, so one nobody could read holds, and one
+    failing, short of a configured command, or no longer the one that settled
+    refuses. Then the evidence the approval's claim names, still standing
+    (`final_docs_claims.claimed_artifact_refusal`). Asked again, apart from
+    the rest of the proof, by the ready ping's last word behind every request
+    the proof made (`stages/in_review/completion.evidence_stands`).
     """
-    owner = importlib.import_module(_VALIDATING_APPROVED_EVIDENCE_OWNER)
-    refused = owner._artifact_refusal(
-        reading.gh, pull_request, _settlement.read_current_evidence(reading.state),
-    )
-    if refused is None:
-        return _UNREAD_ARTIFACT
-    return ReportEvidence(_DEFER, refused) if refused else None
+    if final.evidence is not None:
+        owner = importlib.import_module(_VALIDATING_APPROVED_EVIDENCE_OWNER)
+        refused = owner._artifact_refusal(
+            reading.gh, pull_request, _settlement.read_current_evidence(reading.state),
+        )
+        if refused is None:
+            return _UNREAD_ARTIFACT
+        if refused:
+            return ReportEvidence(_DEFER, refused)
+    return claimed_artifact_refusal(reading.gh, reading.state, final, pull_request)
 
 
 def _unverified_verdict(reading: ProofReading, final: _final_docs.FinalDocs) -> ReportEvidence:

@@ -15,8 +15,9 @@ pull request the subject was resolved at, and carries the returned-verdict
 record the state in hand does -- a verdict another road persisted since the tick
 read the comment is one a later tick finishes, not a second reviewer's to
 answer (`_resolved_over`) -- and the
-in_review unmergeable park asks the same once mergeability is read
-(`_records_in_hand`), while the ready ping beside it holds its own guarded
+in_review unmergeable park asks the same once mergeability is read, of a
+final docs pass's completion too (`_records_in_hand`), while the ready ping
+beside it holds its own guarded
 writes to those records (`stages/in_review/ready_ping.py`); the squash tail
 holds each of its writes to those records and more
 (`handoff._holds_its_records`). Where the
@@ -404,7 +405,11 @@ def _resolved_over(
 
 
 def _records_in_hand(
-    gh: GitHubClient, issue: Issue, state: PinnedState, purpose: str,
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    purpose: str,
+    beside: tuple[str, ...] = (),
 ) -> bool:
     """Whether the comment carries the report, evidence, and approval records `state` does, and points where it does.
 
@@ -418,17 +423,19 @@ def _records_in_hand(
     and writes nothing, so the next tick reads what the issue carries then and
     answers it -- rather than moving a label, or writing a pointer or a
     revision floor back, under an approval of work the issue no longer
-    carries. `purpose` is what the road was about to do, for the log.
+    carries. `purpose` is what the road was about to do, for the log, and
+    `beside` any record the road also acts on and writes back -- the in_review
+    park, a final docs pass's completion -- held to the same reading.
     """
     durable = _read(gh, issue, state, purpose)
     if durable is None:
         return False
-    if not _moved(durable.data, state.data, _IN_HAND_RECORDS):
+    if not _moved(durable.data, state.data, (*_IN_HAND_RECORDS, *beside)):
         return True
     log.warning(
         "issue=#%d its pinned comment does not carry the developer report, "
-        "pull request, verification evidence, or approval records this tick "
-        "holds, so it will not %s; writing nothing this tick", issue.number, purpose,
+        "pull request, verification evidence, approval, or other records this "
+        "tick holds, so it will not %s; writing nothing this tick", issue.number, purpose,
     )
     return False
 

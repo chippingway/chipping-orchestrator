@@ -1134,10 +1134,13 @@ The orchestrator is permanently manual-merge-only: humans click Merge. `_handle_
 the reviewer-approved final-docs handoff (or carries a real GitHub APPROVED review) — and only over current passing
 evidence of the configured `VERIFY_COMMANDS` proved at the ping
 ([the readiness proof](state-machine/delivery-stages.md#the-readiness-proof-at-the-ping)) — and parks awaiting human
-attention for an unmergeable PR. Ahead of all three it asks whether a requirements edit has already retired the
-approval this label stands on — an edit's resume still owing the pull request its developer report, or the marker a
-hand-back left when its own relabel did not land — and sends such an issue back to `workflow:validating` for a fresh
-review, so no ready ping goes out on an approval the edit ended.
+attention for an unmergeable PR. The one exception is the head a final docs pass's recorded completion names: it is
+pinged only over that completion proved whole at the ping, its verification resting on the approval's retained
+evidence, a passing run of exactly that head, or — while `VERIFY_COMMANDS` stays empty — nothing at all. Ahead of all
+three it asks whether a requirements edit has already retired the approval this label stands on — an edit's resume
+still owing the pull request its developer report, or the marker a hand-back left when its own relabel did not land —
+and sends such an issue back to `workflow:validating` for a fresh review, so no ready ping goes out on an approval the
+edit ended.
 
 - `IN_REVIEW_DEBOUNCE_SECONDS` — default `600`. quiet window the `fixing` stage honours before resuming the dev on PR
   feedback. Newer comments arriving while already labeled `workflow:fixing` reset the window. `_handle_in_review`

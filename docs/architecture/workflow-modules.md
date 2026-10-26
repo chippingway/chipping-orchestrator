@@ -1875,7 +1875,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `ahead`), and behind them the issue is read afresh for its requirements
                             (`stages/validating/review_coverage.py`, resolved when called) -- unread, it holds --
                             so the requirements, the branch, the checkout, and the report are read behind them, and
-                            an edit or a push landing during one refuses
+                            an edit or a push landing during one refuses. Its reader is the in_review ready ping over
+                            a recorded completion (`stages/in_review/completion.py`), which takes the whole proof and
+                            then, as its last word, the pinned links and every artifact re-read once more
     verification_carries.py a refused carry -- a transaction carrying a run onto a head it did not run on, which an
                             approval's squash records onto the head it published and a landed base rewrite's finish
                             onto its rewritten head (`rewrite_finish_evidence.py`) -- abandoned into history with the
@@ -4823,17 +4825,35 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             requests before it are time a human can edit the report, the issue, or the artifact in,
                             or a push move the head in; refused, unread, or ended, nobody is pinged, nothing is
                             written, and the next tick's routes answer it. The publication is handed the same proof
-                            to take once more behind its checkpoints, immediately ahead of the post. The park asks
-                            the pinned comment for the report records before it writes
+                            to take once more behind its checkpoints, the comment and then the pull request read
+                            afresh behind it. The park asks the pinned comment for the report records, and a final
+                            docs pass's completion, before its notice, and lands as a guarded commit decided on them
+                            behind it. A final docs pass's
+                            completion qualifies the head it names too, and over a comment recording one the
+                            completion's own proof is taken instead (`completion.py`)
+      completion.py         a final docs pass's completion as the ready ping announces its head: read whole and naming
+                            that very head, it qualifies the head on its own, while a docs stamp alone qualifies a head
+                            for the ordinary proof and no more; a comment recording one at all -- damaged, or naming
+                            another head -- is held to it, the final-documentation proof
+                            (`engine/final_docs_proof.py`) taken in place of the ordinary one, and the last word
+                            (`review_coverage._approval_holds`) asking the evidence the completion rests on -- its
+                            records, the configured context of the evidence it names, and every artifact re-read
+                            behind every request of the proof -- in place of the approval's own claim, which a run of
+                            the docs commit supersedes
       ready_ping.py         the ready ping's publication, in the order a later tick can always finish from: an arming
                             that lands `ready_ping_pending` -- the head and a receipt minted for it -- as a guarded
                             checkpoint before anything is posted, the settlement prepared over a fresh reading with its
-                            ledger entry reserved, the merge gate's readiness proof taken once more as the last
-                            request before the post -- refused or unread, nothing posted and the arming left
-                            standing -- the post carrying the receipt in a hidden marker, and the settlement
+                            ledger entry reserved, the merge gate's readiness proof taken once more -- refused or
+                            unread, nothing posted and the arming left standing -- the settlement prepared again
+                            over the comment read afresh behind it, so a hand edit while the proof reads refuses it
+                            too, the pull request read last, its state and head, so a push or an end during that
+                            reading holds or refuses it, the post carrying the receipt in a hidden marker, and the
+                            settlement
                             -- `ready_ping_sha` stamped, the pending record dropped, the comment entered in the ledger
-                            -- landed behind it, each decided on the records the readiness proof was read over, the
-                            docs stamps that qualified the head, and the ping's own fields. A ping pending over the
+                            -- landed behind it, each decided on the records the readiness proof was read over,
+                            every record a report debt is read from (`engine/report_delivery.REPORT_DEBT`), a final
+                            docs pass's completion, the docs stamps that qualified the head, and the ping's own
+                            fields. A ping pending over the
                             head is looked for on the issue thread first, among this orchestrator's own comments:
                             found, it is settled with no second post; on a thread nobody could read it is held; and
                             read without it, it is posted under the same receipt once the gate has asked its
@@ -5412,7 +5432,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             pull request pointer before they write, and act on nothing and write nothing where they
                             moved. Those roads write the state in hand whole rather than composing over the comment, so
                             a field another road changed in their window that no guard watches is not kept. The ready
-                            ping's writes are guarded commits decided on the same records (`_IN_HAND_RECORDS`) instead.
+                            ping's writes are guarded commits decided on the same records (`_IN_HAND_RECORDS`) instead,
+                            and on a final docs pass's completion beside them (`stages/in_review/ready_ping.py`).
                             A change request's developer run records what it left -- its report, the park it takes, the
                             hand-back behind its relabel -- with the request retired, in guarded commits over the
                             comment read afresh (`review_writes.ANSWERED`, `report_records.HandedRun.decided_on`), which
@@ -5445,7 +5466,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             move is owed over, since a push landing meanwhile is a commit nobody approved: the
                             squash tail asks all of it before its relabel, on either road into it, the settled
                             squash handoff before moving a label that tail left owed, and `in_review` before an approval
-                            may stand behind a ready ping; the requirements alone, the final-documentation proof
+                            may stand behind a ready ping -- over a final docs pass's completion, with the evidence that
+                            completion rests on asked in place of the approval's own claim
+                            (`stages/in_review/completion.py`); the requirements alone, the final-documentation proof
                             (`engine/final_docs_proof.py`) behind every artifact it re-reads. A returned verdict is
                             held to its subject the same way ahead of the write persisting it, once more before it
                             is handed back ready, on every tick it

@@ -800,12 +800,20 @@ the latest revision with its handoff and artifact intact, bound to this reposito
 head the ping names and its full tree, the configured verification context, the settled report, the applicable review
 subject, and the requirements, its artifact passing with every configured command covered and nothing-ran never
 counting, the approval still covering the report, the requirements, and the head standing then, and the pull
-request still open on that head ([the readiness proof][readiness]). A refused proof withholds the ping and an unread
-one holds it, posting nothing and writing nothing of its own either way. The ping is armed with a receipt in a guarded
-write before it is posted and recorded behind the post, so one whose answer or record was lost is found on the thread
-rather than posted twice — a recovered post taking the same proof — and a thread nobody can read holds it; the proof
-is taken once more behind the arming and the settlement's preparation, the last thing asked before the post:
-[the ready-ping publication contract][ready-ping]. Full flow: [`state-machine/delivery-stages.md`][in-review].
+request still open on that head ([the readiness proof][readiness]). The head a final docs pass's recorded completion
+names qualifies on its own, a docs commit the reviewer never saw included, and the ping over a comment recording one
+waits on that completion proved whole instead: the approval and the report it covers — still current, never stale,
+on a head it is not about — the evidence the approval's claim names, the final head's own verification, and the
+lineage, each apart; a damaged completion, a plain docs stamp on a docs commit, or a push past the final head pings
+nobody. A refused proof withholds the ping and an unread one holds it, posting nothing and writing nothing of its own
+either way. The ping is armed with a receipt in a guarded write before it is posted and recorded behind the post,
+each write decided on the records the proof read, a completion and a report debt among them, so one whose answer or
+record was lost is found on the thread rather than posted twice — a recovered post taking the same proof — and a
+thread nobody can read holds it; the proof is taken once more behind the arming and the settlement's preparation, the
+pinned comment is read afresh behind it, so a hand edit of a record the ping is decided on while the proof reads pings
+nobody, and the pull request is read behind that, its state and head the last thing asked before the post, so a push
+or an end landing during the comment's reading pings nobody either: [the ready-ping publication
+contract][ready-ping]. Full flow: [`state-machine/delivery-stages.md`][in-review].
 
 ### `_handle_fixing` (label `workflow:fixing`)
 

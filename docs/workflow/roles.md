@@ -141,7 +141,9 @@ per-stage behavior is in
   [`review_approved_subject`][review-subject]). Nor does an approval of requirements the issue has moved past, or of a
   head a push has replaced: the squash handoff reads the issue and the pull request's head afresh against what the
   approval was given before it moves the label to `workflow:documenting`, and `in_review` hands such an approval back
-  and reads both afresh before its ready ping, which it posts only over current passing evidence proved whole there.
+  and reads both afresh before its ready ping, which it posts only over current passing evidence proved whole there --
+  or, over a final docs pass's recorded completion, only over that completion proved whole there, the approval and
+  its report left exactly as the reviewer was handed them.
   Beside the report, a reviewer is handed the workflow verification
   evidence current for exactly its subject, quoted whole under the revision a reuse names, and nothing about another
   head, report, or requirements revision; it declares the verification it relies on (see

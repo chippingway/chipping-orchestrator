@@ -26,10 +26,13 @@ to `validating` with `review_round` reset, since the approval it already earned
 was against the old requirements. `merge_gate` is the last answer: a mergeable,
 approved, unvetoed head earns one HITL ping per head SHA, and only over the
 issue's current verification evidence proved current and passing for that head
-at the ping itself; everything else waits. `ready_ping` is how that ping goes
-out: armed in a write of its own before it is posted and recorded behind the
-post, so a ping whose answer or record was lost is found on the thread by its
-receipt rather than posted twice.
+at the ping itself; everything else waits. `completion` is the one exception
+to that proof: the head a final docs pass completed on, recorded apart from
+the approval it followed, is announced over that completion proved whole
+instead, a docs commit the reviewer never saw included. `ready_ping` is how
+that ping goes out: armed in a write of its own before it is posted and
+recorded behind the post, so a ping whose answer or record was lost is found
+on the thread by its receipt rather than posted twice.
 
 `surfaces` is underneath all of that: it is where the one id space GitHub
 numbers the issue thread and the PR conversation in is read as the two

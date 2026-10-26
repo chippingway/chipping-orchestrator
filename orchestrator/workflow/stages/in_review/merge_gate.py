@@ -10,12 +10,13 @@ about what the human wants merged.
 A mergeable PR earns one ping per head SHA, and each of the gates in front of
 that ping protects the same claim. The ping says "ready for review/merge", so
 it may only fire for a head this orchestrator reviewed and documented (the
-final-docs marker) or that GitHub itself carries an APPROVED review for, and
+final-docs marker, or the completion a final docs pass records of the head it
+completed on) or that GitHub itself carries an APPROVED review for, and
 never over a standing CHANGES_REQUESTED veto. `ready_ping_sha` keys the
 de-duplication on the head that was pinged, so a new commit re-pings once
 evidence answers for it, and a repeated tick on the same head stays silent.
 
-The last gate is the readiness proof, taken at the ping itself, and either
+The last gate is the readiness proof, taken at the ping itself, and every
 route to the ping has to pass it: a docs marker and a GitHub approval each say
 who vouched for the head, and neither says the head was verified. So the
 issue's current verification evidence is proved whole again through the proof
@@ -42,6 +43,21 @@ edit the report, the issue, or the evidence's artifact, push to the branch, or
 merge or close the pull request; any of those that the proof finds pings
 nobody.
 
+A final docs pass that published a docs commit leaves the pull request on a
+head the approval is not about, verified apart from it, and the issue records
+that pass's completion beside the approval it followed (`completion`). Over a
+comment recording one, whatever qualified the head, the proof is that
+completion's own (`final_docs_proof`): the approval and the report it covers,
+the evidence the approval's claim names, the verification of the head the
+pass completed on -- the evidence it named current and passing, or nothing
+under an empty configuration -- and the lineage between the two heads, each
+proved apart, with the head the ping names the one the completion names. Its
+last word is the same one, save that the evidence the completion rests on is
+asked in place of the approval's claim, which a run of the docs commit has
+superseded. A record that will not read, names another head, or no longer
+proves pings nobody, and a docs stamp on a head no completion names is
+answered by the ordinary proof alone.
+
 A refusal the proof demonstrates withholds the ping and writes nothing: the
 next tick's hand-back, drift check, or the ping over a new head answers what
 moved, and a refusal none of those answers leaves the issue in review without
@@ -49,17 +65,23 @@ a ping until something does. A reading nobody could take -- a request that
 failed, or one that raised -- holds the ping the same way, and so does a pull
 request found merged or closed, which the next tick's terminals answer; none
 of them is ever read as readiness. The ping's own writes are held to the
-records the proof was read over, the pointer among them, as guarded commits
-over a fresh reading, and its publication is `ready_ping`'s: armed before it
-is posted, found again on the thread rather than posted twice, and recorded
-behind the post -- and a ping armed and never found on the thread is a new
-post, which takes the whole proof again before it goes out. Those writes guard
-the pinned comment and nothing else, and are requests of their own, so the
-proof is taken once more behind them -- behind the arming and the
-settlement's preparation, the last thing asked before the post -- and a push,
-an edit, or an artifact deleted while they were written still pings nobody.
-The park the gate takes is held to the report records and the pointer too,
-since it writes the state in hand.
+records the proof was read over, the pointer and any completion among them,
+as guarded commits over a fresh reading, and its publication is
+`ready_ping`'s: armed before it is posted, found again on the thread rather
+than posted twice, and recorded behind the post -- and a ping armed and never
+found on the thread is a new post, which takes the whole proof again before
+it goes out. Those writes guard the pinned comment and nothing else, and are
+requests of their own, so the proof is taken once more behind them -- behind
+the arming and the settlement's preparation -- and a push, an edit, or an
+artifact deleted while they were written still pings nobody; the proof's own
+requests are time for a hand edit of the comment, so the comment is read
+afresh behind it; and that reading is time for a push, so the pull request is
+read behind it in turn, its state and head the last thing asked before the
+post (`ready_ping`).
+The park the gate takes is held to the report records, the pointer, and any
+completion too, ahead of its notice, and lands as a guarded commit decided on
+them behind it, so a record moved while the notice is posted is never written
+back over.
 
 Both writes this stage makes to a thread are bounded by the same fact: the
 feedback scan that decided this tick ran several GitHub round-trips ago, and a
@@ -74,19 +96,21 @@ unread reply.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from functools import partial
-from typing import Any
 
 from orchestrator import config
 from orchestrator.workflow.engine import (
+    final_docs_records as _final_docs,
     guards as _guards,
+    report_commits as _commits,
     report_evidence_models as _evidence_models,
     terminal_reading as _terminal_reading,
     verification_proof as _proof,
-    verification_records as _records,
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.in_review import (
+    completion as _completion,
     models as _models,
     ready_ping as _ready_ping,
     watermarks as _watermarks,
@@ -138,20 +162,40 @@ _ENDED_LAST = _evidence_models.ReportEvidence(
 # The docs verdicts a final-docs pass stamps on the head it checked.
 _DOCS_VERDICTS = frozenset(("updated", "no_change"))
 
+# What the unmergeable park acts over beside the report, evidence, and
+# approval records: a final docs pass's completion, which a park written over
+# a hand edit would put back for the next readiness proof to trust.
+_PARKED_OVER = (_final_docs.FINAL_DOCS,)
+
+# The park's write: what the tick staged for it -- the park, its notice's
+# ledger entry, and the carry over that notice -- landed over the comment read
+# afresh, decided on every record the park was held to ahead of its notice, so
+# one moved while the notice and the carry were asked refuses it with nothing
+# put back.
+_PARKING = _commits.ReportWrite(
+    owned=frozenset(),
+    decided_on=frozenset((*_review_comment._IN_HAND_RECORDS, *_PARKED_OVER)),
+)
+
 
 def _head_is_approved(ctx: _models._InReviewContext, head_sha: str) -> bool:
-    """True when `head_sha` earned the reviewer-approved final-docs handoff or
-    carries a real GitHub APPROVED review.
+    """True when `head_sha` is the head a final docs pass's completion names,
+    earned the reviewer-approved final-docs handoff, or carries a real GitHub
+    APPROVED review.
 
-    The final-docs pass records the exact head it checked after reviewer
-    approval; if a later push changes the PR head, the docs marker no longer
-    matches and the issue must bounce back through validating/documenting before
-    it can ping again. A real GitHub APPROVED review on the current head is the
-    fallback for manually-driven review flows -- probed only when the final-docs
-    marker did not already qualify the head, to avoid a redundant API call.
-    Either only qualifies the head: the ping still waits on the readiness
-    proof (`_still_ready`), which neither route stands in for.
+    A completion recorded apart from the approval it followed names the exact
+    head its pass completed on (`completion.qualifies`) -- a docs commit the
+    reviewer never saw among them -- and the final-docs pass records the exact
+    head it checked after reviewer approval; if a later push changes the PR
+    head, neither matches and the issue must bounce back through
+    validating/documenting before it can ping again. A real GitHub APPROVED
+    review on the current head is the fallback for manually-driven review
+    flows -- probed only when neither already qualified the head, to avoid a
+    redundant API call. Each only qualifies the head: the ping still waits on
+    the readiness proof (`_still_ready`), which no route stands in for.
     """
+    if _completion.qualifies(ctx.state, head_sha):
+        return True
     documented = bool(head_sha) and ctx.state.get("docs_checked_sha") == head_sha
     if documented and ctx.state.get("docs_verdict") in _DOCS_VERDICTS:
         return True
@@ -162,11 +206,13 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
     """Manual-merge-only mergeability gate. An unmergeable PR parks awaiting
     human regardless of approval state -- the orchestrator never routes from
     here to `resolving_conflict` and never calls `gh.merge_pr`. A mergeable PR
-    earns a one-shot HITL ping per head SHA when either the agent-approved
-    final-docs handoff covers that head OR GitHub carries a real APPROVED
-    review on that head, no standing CHANGES_REQUESTED veto exists, and the
-    issue's current verification evidence proves current and passing for that
-    head at the ping itself (`_still_ready`).
+    earns a one-shot HITL ping per head SHA when a final docs pass's
+    completion names that head, the agent-approved final-docs handoff covers
+    it, OR GitHub carries a real APPROVED review on it, no standing
+    CHANGES_REQUESTED veto exists, and the readiness proof holds at the ping
+    itself (`_still_ready`): the issue's current verification evidence
+    current and passing for that head, or, over a recorded completion, that
+    completion proved whole.
     """
     pr = ctx.pr
     pr_number = ctx.pr_number
@@ -175,11 +221,13 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
         return  # GitHub still computing; try next tick
     if not mergeable:
         # The mergeability request is time another road can settle a later
-        # report in, or point the issue at another pull request, and the park
-        # below writes the state in hand whole: over a comment that moved, it
-        # would put the replaced report or pointer back.
+        # report in, point the issue at another pull request, or a maintainer
+        # edit a final docs pass's completion in: over a comment that moved,
+        # the park would put the replaced report, pointer, or completion back
+        # -- and a completion put back is one the next readiness proof would
+        # trust -- so no notice is posted for a park that could not follow it.
         if not _review_comment._records_in_hand(
-            ctx.gh, ctx.issue, ctx.state, "park its pull request as unmergeable",
+            ctx.gh, ctx.issue, ctx.state, "park its pull request as unmergeable", _PARKED_OVER,
         ):
             return
         # Bounded, because this refusal is not decided between two adjacent
@@ -199,14 +247,19 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
         )
         ctx.state.set("park_reason", "unmergeable")
         _watermarks._bump_in_review_watermarks(ctx)
-        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+        # The notice and the carry are requests of their own, so the park
+        # lands as a guarded commit decided on those same records rather than
+        # as the state in hand written whole (`_PARKING`).
+        parking = _commits.ReportCommit(ctx.gh, ctx.issue, ctx.state)
+        parking.lands(ctx.state, _PARKING)
         return
     # mergeable: humans drive the merge. The ping advertises the PR as "ready
     # for review/merge", so it must only fire for a head the orchestrator has
     # reviewer-approved and documented (or one a human/bot formally approved in
     # GitHub), carrying no standing human veto, AND over current passing
-    # verification evidence for it; otherwise we would invite a manual merge
-    # over a stale, rejected, or unverified commit.
+    # verification evidence for it -- or the proved completion of the docs
+    # pass that left the pull request there; otherwise we would invite a
+    # manual merge over a stale, rejected, or unverified commit.
     head_sha = pr.head.sha
     if ctx.gh.pr_has_changes_requested(pr, head_sha=head_sha):
         return
@@ -244,10 +297,12 @@ def _pings_ready(ctx: _models._InReviewContext, head_sha: str) -> None:
     unread, or ended, nobody is pinged and nothing is written, and the next
     tick's hand-back, drift check, terminals, or ping over the new head
     answers it. Passed, the proof is handed to the publication, which takes
-    it once more behind its arming and its settlement's preparation,
-    immediately ahead of the post: those checkpoints guard the pinned comment
-    alone, and a push or an artifact deleted while they are written is
-    nothing they would see.
+    it once more behind its arming and its settlement's preparation, and reads
+    the comment and then the pull request afresh behind it immediately ahead
+    of the post: those checkpoints guard the pinned comment alone, and a push
+    or an artifact deleted while they are written is nothing they would see,
+    while the proof reads the records in hand and sees no hand edit of the
+    comment.
     """
     if _ready_ping.recovers(ctx, head_sha) or not _still_ready(ctx, head_sha):
         return
@@ -264,8 +319,8 @@ def _still_ready(ctx: _models._InReviewContext, head_sha: str) -> bool:
     pull request off the head those requests approved -- and the ping is the
     one claim here that what stands was reviewed and verified. So the whole
     readiness proof is taken (`_proves_ready`). The pinned comment is held to
-    the report, evidence, approval, and pull-request records in hand by the
-    ping's own guarded writes, each over a fresh reading
+    the report, report-debt, evidence, approval, completion, and pull-request
+    records in hand by the ping's own guarded writes, each over a fresh reading
     (`ready_ping._DECIDED_ON`): a record that reads otherwise was moved by no
     write of this tick's, and refuses the write.
 
@@ -294,60 +349,77 @@ def _still_ready(ctx: _models._InReviewContext, head_sha: str) -> bool:
 
 
 def _proves_ready(ctx: _models._InReviewContext, head_sha: str) -> _evidence_models.ReportEvidence:
-    """Prove the current evidence current and passing for `head_sha`, and the approval holding last; PROVED or why not.
+    """Prove `head_sha` ready, and the approval holding last; PROVED or why not.
 
     The issue is read afresh for its requirements, since the one in hand was
-    fetched before the feedback scan. An issue recording no current evidence
-    is refused by the proof itself, whichever route qualified the head, and
-    so is evidence answering for another head than the one the ping names.
+    fetched before the feedback scan. A comment recording a final docs pass's
+    completion is held to that completion's own proof, whichever route
+    qualified the head (`completion.readiness_verdict`), and its last word
+    asks the evidence the completion rests on (`completion.evidence_stands`);
+    every other is held to its current evidence, current and passing for
+    `head_sha` (`_passes`).
     """
     issue = ctx.gh.get_issue(ctx.issue.number)
     reading = _proof.ProofReading(ctx.gh, ctx.spec, issue, ctx.state)
+    evidence = None
+    if _completion.recorded(ctx.state):
+        proof = _completion.readiness_verdict(reading, head_sha)
+        evidence = partial(_completion.evidence_stands, reading, proof.pull_request)
+    else:
+        proof = _passes(ctx, reading, head_sha)
+    if not proof.proved:
+        return proof
+    return _holds_last(ctx, head_sha, evidence) or proof
+
+
+def _passes(
+    ctx: _models._InReviewContext, reading: _proof.ProofReading, head_sha: str,
+) -> _evidence_models.ReportEvidence:
+    """Prove the current evidence current and passing for `head_sha`; PROVED carries the pull request, or why not.
+
+    An issue recording no current evidence is refused by the proof itself,
+    whichever route qualified the head, and so is evidence answering for
+    another head than the one the ping names. The proof holds the record's
+    pass flag to the artifact's commands, but current is not passing: the
+    artifact, re-read on the pull request the proof read, has to carry every
+    command exiting 0, at least one of them, with every configured
+    `VERIFY_COMMANDS` command among them (`approved_evidence._artifact_refusal`).
+    """
     proof = _proof.current_evidence_verdict(reading)
     if not proof.proved:
         return proof
     current = _settlement.read_current_evidence(ctx.state)
     if current.binding.target.target_head != head_sha:
         return _ANOTHER_HEAD
-    refused = _passes(ctx, proof.pull_request, current)
-    return refused or _holds_last(ctx, head_sha) or proof
-
-
-def _passes(
-    ctx: _models._InReviewContext, pull_request: Any, current: _records.CurrentEvidence,
-) -> _evidence_models.ReportEvidence | None:
-    """Refuse or hold evidence proved current that an approval may not rest on, or None.
-
-    The proof holds the record's pass flag to the artifact's commands, but
-    current is not passing: the artifact, re-read on `pull_request` -- the
-    one the proof read -- has to carry every command exiting 0, at least one
-    of them, with every configured `VERIFY_COMMANDS` command among them
-    (`approved_evidence._artifact_refusal`).
-    """
-    refused = _approved_evidence._artifact_refusal(ctx.gh, pull_request, current)
+    refused = _approved_evidence._artifact_refusal(ctx.gh, proof.pull_request, current)
     if refused is None:
         return _UNREAD_ARTIFACT
     if refused:
         return _evidence_models.ReportEvidence(_evidence_models.ReportEvidenceVerdict.DEFER, refused)
-    return None
+    return proof
 
 
-def _holds_last(ctx: _models._InReviewContext, head_sha: str) -> _evidence_models.ReportEvidence | None:
+def _holds_last(
+    ctx: _models._InReviewContext,
+    head_sha: str,
+    evidence: Callable[[], bool | None] | None = None,
+) -> _evidence_models.ReportEvidence | None:
     """Refuse or hold the ping on the final reading behind the proof's requests, or None.
 
     The check every road about to move an approval on asks last
     (`review_coverage._approval_holds`): the evidence claim the approval
-    records, the report it covers, the requirements over the issue read
-    afresh, and the pull request read afresh standing on `head_sha`. That
-    pull-request reading asks after its head alone, and a merge or close
-    keeps the head where it was, so the pull request is read once more
-    behind it, by the terminals' own reading
+    records -- or, where `evidence` is handed, the evidence a final docs
+    pass's completion rests on in its place -- the report it covers, the
+    requirements over the issue read afresh, and the pull request read afresh
+    standing on `head_sha`. That pull-request reading asks after its head
+    alone, and a merge or close keeps the head where it was, so the pull
+    request is read once more behind it, by the terminals' own reading
     (`terminal_reading._linked_pull_request`), the last request of the
     proof: one found merged or closed holds for the terminal the next tick
     answers, one nobody could read holds too, and one standing anywhere but
     `head_sha` -- a push behind the reading before it -- refuses.
     """
-    holds = _review_coverage._approval_holds(ctx.gh, ctx.issue, ctx.state, head_sha)
+    holds = _review_coverage._approval_holds(ctx.gh, ctx.issue, ctx.state, head_sha, evidence)
     if holds is None:
         return _UNREAD_LAST
     if not holds:

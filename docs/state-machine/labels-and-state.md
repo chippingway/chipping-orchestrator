@@ -1006,9 +1006,9 @@ reviewer round's launch, return, verdict, and park writes, a change request's ha
 every write of an approval's tail commit through, and which the finish of a base rewrite the base refresh published
 itself, every auto-rebase park and a recovery's clear and record of a gate's hold, a final-docs pass's completion
 and the evidence invalidation or hold that withholds a no-change one, the retirement of a failed developer
-conversation, the in_review ready ping's arming and its settlement, and the `workflow:ready` decision's reroute and
-handoff and the retirement of that reroute's marker land through) is never written from its caller's state.
-It is captured from the reading the caller decided on —
+conversation, the in_review ready ping's arming and its settlement and the unmergeable park behind its notice, and the
+`workflow:ready` decision's reroute and handoff and the retirement of that reroute's marker land through) is never
+written from its caller's state. It is captured from the reading the caller decided on —
 the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent
 one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
 changed, every one of which it has to own, is laid over that reading; a transformation the caller's domain supplies
@@ -2680,8 +2680,9 @@ The keys that matter for the state machine fall into a few groups:
   and hold rather than act where the location could not be read. The in_review stage, which would advertise the
   approval as ready to merge, also holds its `requirements` to `user_content_hash`, handing the issue back where they
   differ, and at the ready ping reads the issue afresh against that baseline and the pull request afresh for the head
-  the ping names, then holds the ping's own guarded writes to the report, verification evidence, and approval
-  records in hand. The
+  the ping names, then holds the ping's own guarded writes to the report, report-debt, verification evidence, and
+  approval records in hand, and to a final docs pass's completion, whose own proof the ping takes in place of the
+  ordinary one over a comment recording one. The
   squash tail and the settled
   handoff read the issue afresh too before moving the label to `workflow:documenting`, against that baseline and
   against the approval's own `requirements` both (a baseline moved on to an edit since the approval says nothing
@@ -3243,7 +3244,12 @@ The keys that matter for the state machine fall into a few groups:
   thread are read behind that. A record missing or malformed; an approval, its claim, report, requirements,
   configuration, publication, or evidence that moved, its artifact deleted or edited included, or the issue edited or
   the pull request pushed while an artifact was re-read; a run owed or failed; or a lineage not proved refuses, and a
-  reading nobody could take, an issue that would not read again included, holds.
+  reading nobody could take, an issue that would not read again included, holds. Its reader is the in_review ready
+  ping (`stages/in_review/completion.py`): a record read whole qualifies the head it names, a comment carrying one at
+  all is held to this proof in place of the ordinary readiness proof -- a record that will not read, or names another
+  head than the ping would, refusing -- its last word re-reads the evidence the completion rests on in place of the
+  approval's own claim, and the ping's arming and settlement are decided on `docs_final_provenance`
+  ([the readiness proof](delivery-stages.md#the-readiness-proof-at-the-ping)).
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`no_change`, or the `updated` a pass that published
   stamped before published passes were handed back for review) set by `_handle_documenting`'s success exits -- a pass
   that published a docs commit stamps its checked head with no verdict, since the merge gate reads one as a head

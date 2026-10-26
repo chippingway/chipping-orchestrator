@@ -86,9 +86,16 @@ def _handle_in_review(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Is
     no standing human CHANGES_REQUESTED on that head, earns a one-shot
     HITL ping per head SHA so the human knows the PR is ready -- once the
     issue's current verification evidence proves current and passing for
-    that head at the ping itself, whichever of the two qualified it. An
-    unmergeable PR parks awaiting human attention (no `resolving_conflict`
-    route from this stage).
+    that head at the ping itself, whichever of the two qualified it. The
+    one exception is the head a final docs pass's recorded completion
+    names, a docs commit the reviewer never saw included: it qualifies on
+    its own, and the ping over it waits on that completion proved whole
+    instead -- the approval and its report, the evidence the approval's
+    claim names, and the final head's verification by the approval's
+    retained evidence, a passing run of exactly that head, or, under an
+    empty `VERIFY_COMMANDS`, nothing, which proves only while the
+    configuration stays empty. An unmergeable PR parks awaiting human
+    attention (no `resolving_conflict` route from this stage).
 
     User-content drift (a human edited the issue title/body while the PR
     was open) takes the dev-resume path here; a pushed fix, a no-commit

@@ -251,23 +251,24 @@ class BehindThePreparation:
     That reading is the first the tick takes, past its opening one, of a
     comment recording a ping pending: the arming's own reading precedes the
     record, and a pending record an earlier tick armed is already on the
-    opening one. Every other reading is answered as always.
+    opening one. `nth` 2 is the second such reading instead: the comment read
+    afresh behind the last proof. Every other reading is answered as always.
     """
 
-    def __init__(self, case, move) -> None:
+    def __init__(self, case, move, nth: int = 1) -> None:
         self._case = case
         self._move = move
         self._read = case.github.read_pinned_state
         self._reads = 0
-        self._moved = False
+        self._owed = nth
 
     def __call__(self, issue):
         state = self._read(issue)
         self._reads += 1
-        pending = isinstance(state.get(_ping.PENDING), dict)
-        if self._reads > 1 and pending and not self._moved:
-            self._moved = True
-            self._move(self._case)
+        if self._reads > 1 and isinstance(state.get(_ping.PENDING), dict):
+            self._owed -= 1
+            if not self._owed:
+                self._move(self._case)
         return state
 
 

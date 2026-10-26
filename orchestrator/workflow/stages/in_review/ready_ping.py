@@ -8,7 +8,7 @@ can die between the post and the write behind it, and that write can be
 refused or never confirmed. Recorded only after, a ping whose record never
 landed would be posted again by the next tick, and a human told twice. So the
 ping goes out in an order a later tick can always finish from: arm, prepare,
-prove, post, settle (`publishes`).
+prove, re-read, post, settle (`publishes`).
 
 Arming lands `ready_ping_pending` -- the head the ping names and a receipt
 minted for it -- as a checkpoint of its own, and the comment carries that
@@ -21,20 +21,35 @@ that ledger entry reserved at its widest, so a comment that would not take it
 -- unreadable, replaced, moved, or full -- is told nothing; and it is landed
 behind the post. Both writes are guarded commits over the reading the tick
 last confirmed (`report_commits.ReportCommit`), decided on the records the
-readiness proof was read over (`review_comment._IN_HAND_RECORDS`), the docs
-stamps that qualified the head, and the ping's own two fields: a record that
-reads otherwise was moved by no write of this tick's, and refuses the write
-with nothing put back, adopted, or repaired. Anything but a candidate measured
+readiness proof was read over (`review_comment._IN_HAND_RECORDS`), every
+record a report debt is read from (`report_delivery.REPORT_DEBT`), the final
+docs pass's completion (`final_docs_records`), the docs stamps that qualified
+the head, and the ping's own two fields: a record that reads otherwise was
+moved by no write of this tick's, and refuses the write with nothing put
+back, adopted, or repaired. Anything but a candidate measured
 or a write confirmed stops the ping there, with the tick's state withheld from
 every whole-state write behind it.
 
 Those checkpoints guard the pinned comment and nothing else, and each is a
 request: a push, an edit of the issue or the report, or the verification
 artifact deleted or edited while they are written is one no record shows. So
-the readiness proof the merge gate takes is taken once more behind them, the
-last thing asked before the post (`publishes`' `proves`): refused or unread,
-nothing is posted, the arming stands for the next tick to read, and the
-settlement prepared is written nowhere.
+the readiness proof the merge gate takes is taken once more behind them
+(`publishes`' `proves`): refused or unread, nothing is posted, the arming
+stands for the next tick to read, and the settlement prepared is written
+nowhere. That proof reads the records the tick holds and the pull request,
+and its requests are as long a time for a maintainer to edit the pinned
+comment -- the approval, the report records, a final docs pass's completion --
+as for a push. So behind it the settlement is prepared once more over the
+comment read afresh: a record the ping is decided on that reads otherwise
+refuses it the same way, with nothing posted and the arming left standing.
+That reading is a request too, and the ping names a head of an open pull
+request, so the pull request is read once more behind it, its state and head
+together, the last thing asked before the post: one pushed past the head
+refuses, and one merged, closed, or unread holds, nothing posted either way.
+Whatever is asked last, the request it takes is the one window no reading
+closes: a hand edit of the comment landing during that last reading of the
+pull request is seen only by the settlement, whose guarded commit then
+records nothing over it.
 
 A ping pending over the head the gate would ping is looked for on the issue
 thread before anything else is asked of it (`recovers`). A comment of this
@@ -45,8 +60,8 @@ no eligibility. A thread nobody could read proves neither, and holds the ping
 for a later tick. One that reads without it is a ping never made: the merge
 gate asks its eligibility again -- the whole readiness proof over the
 evidence among it -- and only then is it posted, under the same receipt and
-behind the same last proof. A post that raises is looked for the same way at
-once, and settled where it landed.
+behind the same last proof and re-reading. A post that raises is looked for
+the same way at once, and settled where it landed.
 
 The receipt is what tells a retry from a fresh approval. A fresh approval
 retires the pending record beside `ready_ping_sha`
@@ -72,9 +87,12 @@ from orchestrator.github import comments as _github_comments
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
+    final_docs_records as _final_docs,
     pinned_commit_models as _commit_models,
     report_commits as _commits,
+    report_delivery as _report_delivery,
     review_subjects as _review_subjects,
+    terminal_reading as _terminal_reading,
 )
 from orchestrator.workflow.stages.in_review import models as _models
 from orchestrator.workflow.stages.validating import review_comment as _review_comment
@@ -101,10 +119,16 @@ _RECEIPT_SPELLING = re.compile("[0-9a-f]{16}")
 _MARKER = "<!--orchestrator-ready-ping:receipt={receipt}-->"
 
 # What every write of the ping is decided on: the records the readiness proof
-# was read over, the docs stamps that qualified the head, and the ping's own two
-# fields.
+# was read over -- a final docs pass's completion among them, which both
+# qualifies the head it names and chooses the proof, and every record a
+# report debt is read from (`report_delivery.owes_a_report`), which the proof
+# reads through the subject guard and the completion's own refusal of a
+# report owed -- the docs stamps that qualified the head, and the ping's own
+# two fields.
 _DECIDED_ON = frozenset((
     *_review_comment._IN_HAND_RECORDS,
+    *_report_delivery.REPORT_DEBT,
+    _final_docs.FINAL_DOCS,
     "docs_checked_sha",
     "docs_verdict",
     _READY_PING_SHA,
@@ -120,6 +144,9 @@ _SETTLING = _commits.ReportWrite(
     owned=frozenset((_READY_PING_SHA, _PENDING, _comments._ORCH_COMMENT_IDS)),
     decided_on=_DECIDED_ON,
 )
+
+# What the pull request read last answers where it is still open.
+_OPEN = "open"
 
 # What a guarded commit comes to that lets the ping go on past it.
 _GOES_ON = frozenset((_commit_models.CommitStatus.PREPARED, _commit_models.CommitStatus.COMMITTED))
@@ -155,14 +182,15 @@ def recovers(ctx: _models._InReviewContext, head_sha: str) -> bool:
 
 
 def publishes(ctx: _models._InReviewContext, head_sha: str, proves: Callable[[], bool]) -> None:
-    """Tell a human `head_sha` is ready: arm, prepare, prove, post, settle.
+    """Tell a human `head_sha` is ready: arm, prepare, prove, re-read, post, settle.
 
     Asked by the merge gate once every gate in front of the ping has passed,
     the readiness proof has been taken at the ping, and no comment carrying a
     ping pending over `head_sha` was found (`recovers`). That pending ping is
     posted under its own receipt; otherwise one is armed first. `proves` is
-    that readiness proof, taken again behind the checkpoints and immediately
-    ahead of the post: it says whether the ping may still go out.
+    that readiness proof, taken again behind the checkpoints with the comment
+    and then the pull request read afresh behind it, immediately ahead of the
+    post: it says whether the ping may still go out.
     """
     ping = _Ping.over(ctx, head_sha)
     receipt = _pending_receipt(ctx.state, head_sha) or ping.arms()
@@ -247,18 +275,21 @@ class _Ping:
         return receipt
 
     def posts(self, receipt: str, proves: Callable[[], bool]) -> None:
-        """Prepare the settlement, prove the ping still stands, post it under `receipt`, and settle it where it landed.
+        """Prepare the settlement, prove the ping still stands, re-read the comment, post, and settle where it landed.
 
-        The proof is the last request ahead of the post, so nothing the
-        checkpoints spent their requests over -- the head, the issue, the
-        report, the artifact -- can move unseen between them. Refused or
-        unread, nothing is posted and the arming stands: the next tick reads
-        the thread without the ping and asks again.
+        The proof is taken behind the preparation, so nothing the checkpoints
+        spent their requests over -- the head, the issue, the report, the
+        artifact -- can move unseen between them; the settlement is prepared
+        once more behind the proof, so no record the ping is decided on -- a
+        completion among them -- is edited on the comment unseen while the
+        proof reads; and the pull request is read behind that, the last
+        request ahead of the post, so no push or end lands unseen during the
+        comment's reading (`still_open`). Refused or unread, nothing is posted
+        and the arming stands: the next tick reads the thread without the ping
+        and asks again.
         """
-        prepared = self.commit.prepares(
-            self.stamped(self.commit.staging()), _SETTLING, ledger_entry=True,
-        )
-        if _stops(self.ctx, prepared, "settlement's preparation") or not proves():
+        stands = self.prepared("settlement's preparation") and proves()
+        if not (stands and self.prepared("re-reading behind the proof") and self.still_open()):
             return
         ctx = self.ctx
         words = (
@@ -274,6 +305,36 @@ class _Ping:
                 self.settles(landed)
             return
         self.settles(None)
+
+    def prepared(self, step: str) -> bool:
+        """Whether the settlement measures over the comment read afresh, each record it is decided on as held.
+
+        Nothing is written; `step` names the reading for the log where it
+        stops the ping.
+        """
+        prepared = self.commit.prepares(
+            self.stamped(self.commit.staging()), _SETTLING, ledger_entry=True,
+        )
+        return not _stops(self.ctx, prepared, step)
+
+    def still_open(self) -> bool:
+        """Whether the pull request, read last, is still open on the head the ping names.
+
+        By the terminals' own reading, its state and head together: pushed
+        past the head it refuses, and merged, closed, or unread it holds for
+        the next tick, the terminals answering an end.
+        """
+        ctx = self.ctx
+        linked = _terminal_reading._linked_pull_request(
+            ctx.gh, ctx.issue, ctx.state, "reading the pull request last before posting a ready ping",
+        )
+        if linked.was_read and linked.state == _OPEN and linked.head == self.head:
+            return True
+        log.info(
+            "issue=#%d its pull request, read last, is %s on %s rather than open on %.8s; not posting its ready ping",
+            ctx.issue.number, linked.state if linked.was_read else "unread", linked.head, self.head,
+        )
+        return False
 
     def settles(self, landed: int | None) -> None:
         """Land the ping as made, entering `landed` -- a comment found rather than posted -- in the ledger."""

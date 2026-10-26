@@ -143,14 +143,18 @@ class _ReadyPingFixture(_PatchedWorkflowMixin):
             pinned[_FILLER] = "x" * (MAX_PINNED_BODY - len(pinned_state_body(pinned)))
 
     def assert_settled(self, receipt: str | None = None) -> None:
-        """One ping on the thread -- under `receipt`, where given -- recorded on the head, and a quiet tick after."""
+        """One ping on the thread -- under `receipt`, where given -- recorded on the head, and a quiet tick after.
+
+        The head is the one the pull request stands on.
+        """
         pinged = self.pings()
         pinned = self.pinned()
         carried = [RECEIPT.search(said.body).group(1) for said in pinged]
         self.assertEqual(len(carried), 1)
         if receipt is not None:
             self.assertEqual(carried, [receipt])
-        self.assertEqual((pinned[READY_PING_SHA], pinned[PENDING]), (HEAD, None))
+        self.assertEqual(pinned[READY_PING_SHA], self.pull_request.head.sha)
+        self.assertIsNone(pinned[PENDING])
         self.assertIn(pinged[0].id, pinned[LEDGER])
         settled = (self.github.write_state_calls, len(self.issue.comments), self.github.label_history)
         self.tick()
@@ -159,19 +163,21 @@ class _ReadyPingFixture(_PatchedWorkflowMixin):
 
 
 class _EditedWhileMerging:
-    """The merge gate's mergeability answered as mergeable while a maintainer edits the pinned comment by hand.
+    """The merge gate's mergeability answered while a maintainer edits the pinned comment by hand.
 
     `fields` are what the edit writes into the record, as a human's hand
-    would, between the reading the tick decided on and the ping's first write.
+    would, between the reading the tick decided on and the ping's first write
+    -- or the park's, where `mergeable` is False.
     """
 
-    def __init__(self, case, **fields) -> None:
+    def __init__(self, case, *, mergeable: bool = True, **fields) -> None:
         self._pinned = case.github._pinned[ISSUE]
+        self._mergeable = mergeable
         self._fields = fields
 
     def __call__(self, *called, **options) -> bool:
         self._pinned.data.update(self._fields)
-        return True
+        return self._mergeable
 
 
 class _FailsTheWrite:
