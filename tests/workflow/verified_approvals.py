@@ -83,10 +83,14 @@ def verifies_the_approval(github, issue, commands: tuple[VerifiedCommand, ...] |
     documented = _documented(github, issue)
     _published_reports.approves_the_report(github, issue)
     state = github.read_pinned_state(issue)
-    settled = _settled_over(github, issue, state, passing_run() if commands is None else commands)
+    ran = passing_run() if commands is None else commands
+    pending = _record_state.mint_pending_evidence(state, issue.number, _binding(state), ran)
+    if not _record_state.record_pending_evidence(state, pending):
+        raise AssertionError("the pinned comment would not record the approval's evidence")
+    settled = settles(github, state, pending, WorkflowLabel.VALIDATING)
+    _approved_evidence.records(settled, claim_on(pending))
     settled.data.update(documented)
-    pinned = github._pinned[issue.number]
-    pinned.data.update(settled.data)
+    github._pinned[issue.number].data.update(settled.data)
 
 
 def _documented(github, issue) -> dict:
@@ -95,29 +99,23 @@ def _documented(github, issue) -> dict:
     return {stamp: seeded[stamp] for stamp in _DOCS_STAMPS if seeded.get(stamp) is not None}
 
 
-def _settled_over(github, issue, state, commands: tuple[VerifiedCommand, ...]):
-    """`state` with a run of `commands` recorded, its artifact posted, and settled as the approval's evidence.
+def settles(github, state, pending: _records.PendingEvidence, settled_under: WorkflowLabel):
+    """`state` with `pending`, the transaction it records, settled under `settled_under`, as the reconciliation does.
 
-    The run is minted past every revision the issue has spent and recorded by
-    the evidence domain's own recorder; its artifact is posted on the pull
-    request it names under this client's login, and the settlement composed
-    as the reconciliation composes it, the artifact's comment entered in the
-    ledger of this orchestrator's own, and the approval's claim naming it.
+    Its artifact posted on the pull request it names under this client's
+    login, and the settlement composed as the reconciliation composes it --
+    whatever was current superseded into history -- with the artifact's
+    comment entered in the ledger of this orchestrator's own.
     """
-    pending = _record_state.mint_pending_evidence(state, issue.number, _binding(state), commands)
-    if not _record_state.record_pending_evidence(state, pending):
-        raise AssertionError("the pinned comment would not record the approval's evidence")
-    publication = pending.binding.target.publication
-    pull = github.pulls[publication.pr_number]
+    pull = github.pulls[pending.binding.target.publication.pr_number]
     posted = FakeComment(
         id=github._next_comment_id(pull),
         body=_artifacts.render_verification_artifact(pending.artifact),
         user=FakeUser(github._bot_login),
     )
     pull.issue_comments.append(posted)
-    settled = _settlement.settled_state(state, pending, posted.id, WorkflowLabel.VALIDATING)
+    settled = _settlement.settled_state(state, pending, posted.id, settled_under)
     _comments._track_orchestrator_comment(settled, posted.id)
-    _approved_evidence.records(settled, claim_on(pending))
     return settled
 
 

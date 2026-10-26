@@ -530,7 +530,8 @@ clear, abandonment, and record of a gate's hold (`git/base_sync/checkpoints.py`)
 prepared before its notice and relabelled only behind a confirmed write (`workflow/stages/documenting/handoff.py`) --
 its hand-back of a published docs commit to `workflow:validating` included (`handback.py` beside it), and the evidence
 invalidation or hold that withholds a no-change one (`retention.py` beside it), the in_review ready ping's arming
-ahead of its post and its settlement behind it (`workflow/stages/in_review/ready_ping.py`), and the `workflow:ready`
+ahead of its post and its settlement behind it (`workflow/stages/in_review/ready_ping.py`), the in_review
+unmergeable park behind its notice (`merge_gate.py` beside it), and the `workflow:ready`
 decision's reroute and handoff, each read back before its relabel (`workflow/stages/decomposition/ready.py`,
 `ready_handoff.py` beside it), with the `workflow:decomposing` tick's retirement of that reroute's marker
 (`drift.py` beside them). It
@@ -624,9 +625,11 @@ routed, so an edit made while it waits is compared once its release enters `work
 `in_review` never merges. Beside its parks, the one thing it tells a human is that the pull request is ready: a ping
 posted only over the issue's current verification evidence proved whole again at the ping
 (`workflow/stages/in_review/merge_gate.py`, through `workflow/engine/verification_proof.py`), passing and covering the
-configured commands, whichever route -- the final-docs stamp or a GitHub approval -- qualified the head. The proof is
-taken ahead of the ping's guarded checkpoints and once more behind them, the last request before the post, and a
-refused or unread proof posts nothing and writes nothing of its own
+configured commands, whichever route -- the final-docs stamp or a GitHub approval -- qualified the head, or, over a
+final docs pass's recorded completion, only over that completion proved whole
+(`workflow/stages/in_review/completion.py`). The proof is taken ahead of the ping's guarded checkpoints and once more
+behind them, with the pinned comment and then the pull request read afresh behind it, the pull request's state and
+head the last request before the post, and a refused or unread proof posts nothing and writes nothing of its own
 ([the readiness proof](state-machine/delivery-stages.md#the-readiness-proof-at-the-ping)).
 
 Which owner holds each decision inside a stage, which helpers it borrows from a sibling stage or from `git/`, and the

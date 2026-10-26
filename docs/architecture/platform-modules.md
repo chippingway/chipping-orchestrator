@@ -610,7 +610,8 @@ orchestrator/
                         reviewer round's, a change request's handoff and its recovery's, an approval tail's, a
                         landed base rewrite's finish's, an auto-rebase attempt's checkpoint, a final-docs
                         pass's completion or the evidence invalidation or hold that withholds a no-change one, an
-                        in_review ready ping's arming or settlement, and a `workflow:ready` reroute or handoff or
+                        in_review ready ping's arming or settlement or unmergeable park, and a `workflow:ready`
+                        reroute or handoff or
                         the retirement of that reroute's marker -- did not land over -- refused over a
                         comment that moved, or sent and
                         never confirmed -- or

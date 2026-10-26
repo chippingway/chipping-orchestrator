@@ -781,13 +781,24 @@ current evidence proved whole again at the ping itself -- the same binding the d
 for being the head the ping names -- and on its artifact passing as an approval's must, at least one command, every
 one exiting 0, and every configured `VERIFY_COMMANDS` command among them
 ([the readiness proof](../state-machine/delivery-stages.md#the-readiness-proof-at-the-ping)), taken once more
-behind the ping's own checkpoints as the last thing asked before the post. An armed ping the thread never received
+behind the ping's own checkpoints, with the pinned comment and then the pull request read afresh behind it, the pull
+request's state and head the last thing asked before the post. An armed ping the thread never received
 takes the same proof before it is posted. Evidence that is missing, failed, incomplete, or
 records that nothing ran, under any configuration, never announces readiness, and neither does evidence a push, a
 configuration change, an edit of the issue, the report, or the artifact, or a later revision has moved past: the
 ping is withheld with nothing posted and nothing written past an arming already landed, and the stage's own
 hand-back and drift routes answer what they own. A reading nobody could take, or a pull request merged or closed
 while the proof reads, holds the ping the same way.
+
+A final docs pass's completion is the one route that announces a head no review is about. Read whole, it qualifies
+exactly the head the pass completed on, and the ping over a comment recording one waits on that completion proved at
+the ping instead of the current evidence alone: the approval and the implementation report it covers, which stays
+the current report on the docs commit and is never read as stale for it; the evidence the approval's claim names;
+the final head's own verification -- the retained evidence, a run of exactly that head current and passing, or
+nothing while `VERIFY_COMMANDS` stays empty; and the lineage between them. Its last word asks the evidence the
+completion rests on rather than the approval's claim, which a run of the docs commit has superseded, and the ping's
+writes are decided on the completion. A docs stamp on a docs commit no completion names, a damaged completion, or
+any link of it that moved, a failed or owed run among them, pings nobody.
 
 ## Foreground execution and asynchronous command guidance
 

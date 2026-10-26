@@ -34,7 +34,9 @@ reviewer, whether an approval or the recovery of a squash an earlier tick did
 not finish sent it there; the settled handoff asks it before moving a label
 that tail left owed; and `in_review` asks it last before the approval may
 stand behind a ready ping, behind the whole proof of the current evidence it
-takes there first. The final-documentation proof
+takes there first -- or, over a final docs pass's completion, behind that
+completion's own proof, with the evidence the completion rests on asked in
+place of the approval's own claim. The final-documentation proof
 (`workflow/engine/final_docs_proof.py`) asks the requirements alone
 (`_requirements_stand`), behind every artifact it re-reads, since a completion
 of the docs pass is a completion of the approval it followed.
@@ -61,6 +63,7 @@ round's to decide, and that round resolves the subject for itself.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from github.Issue import Issue
 
@@ -233,7 +236,11 @@ def _approval_stands(gh: GitHubClient, state: PinnedState) -> bool | None:
 
 
 def _approval_holds(
-    gh: GitHubClient, issue: Issue, state: PinnedState, head: str | None,
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    head: str | None,
+    evidence: Callable[[], bool | None] | None = None,
 ) -> bool | None:
     """Whether the recorded approval covers the evidence, report, requirements, and head standing now.
 
@@ -248,8 +255,16 @@ def _approval_holds(
     over the pull request read afresh, which has to stand on `head` -- the
     commit the move is owed over. False where any has moved, None where any
     could not be read.
+
+    `evidence` answers that first question in place of
+    `approved_evidence.stands` for the one road whose approval rests on more
+    than its own claim: the ready ping over a final docs pass's completion,
+    whose run of the docs commit supersedes the evidence the claim names, so
+    it hands the evidence that completion rests on instead
+    (`stages/in_review/completion.evidence_stands`). Every other road leaves
+    it None.
     """
-    proved = _approved_evidence.stands(gh, state)
+    proved = _approved_evidence.stands(gh, state) if evidence is None else evidence()
     if not proved:
         log.info(
             "issue=#%d the verification evidence its approval was proved over "

@@ -48,8 +48,11 @@ head nobody can say was documented or verified.
 
 Reading it proves nothing beyond its own shape: whether the head, the
 approval, the report, the lineage, and the evidence it names are still what
-it says is the final-documentation proof's (`final_docs_proof`). The one
-other reader is the evidence proof's review-subject rule
+it says is the final-documentation proof's (`final_docs_proof`). The in_review
+ready ping reads it to qualify the head it names and to take that proof in
+place of the ordinary readiness proof, and decides its own writes on it
+(`stages/in_review/completion.py`, `ready_ping`). The other reader is the
+evidence proof's review-subject rule
 (`verification_subject`), which holds evidence to a subject about the head it
 answers for: an EXECUTED record is what licenses an orchestrator-executed run
 of its final head, bound to exactly what such a run answers for

@@ -15,11 +15,18 @@ report or the issue edited, or the approval's verification artifact edited or
 deleted -- nor is the state the tick holds written over it. A later report
 settles between ticks, never inside one, and the tick behind it hands the
 issue back before any ping is decided.
+
+A final docs pass that completed on a docs commit leaves the approved report
+about the commit the reviewer was handed, and that report is still the
+current one there -- the head moving is no report moving. The report itself
+moving is, on that head as on any other: edited in place, or a later revision
+settled about the docs commit, it is handed back for review, pinging nobody.
 """
 
 from __future__ import annotations
 
 import unittest
+from itertools import product
 from unittest.mock import patch
 
 from orchestrator.workflow.stages.validating import review_report as _review_report
@@ -29,6 +36,7 @@ from tests.workflow import (
 )
 from tests.workflow.fixtures import LABEL_DOCUMENTING, LABEL_VALIDATING, REVIEW_APPROVED_MESSAGE
 from tests.workflow.stages.in_review import (
+    completion_test_support as _completion,
     readiness_test_support as _readiness_support,
     ready_ping_test_support as _ping_support,
 )
@@ -42,6 +50,17 @@ OTHER_REQUIREMENTS = "abcdef01" * 8
 
 # A head a push lands on while the ping is being decided.
 PUSHED_HEAD = "d0c5" * 10
+
+
+# What moves the report a completed docs pass left current: the report edited
+# in place at its location, and a later revision settled about the docs commit.
+_COMPLETED_REPORT_MOVES = (
+    ("edited", _readiness_support.EvidenceMoves.edits_the_report),
+    ("refreshed", _completion.WorldMoves.refreshes_the_report),
+)
+
+# The completions that leave the pull request on a docs commit.
+_ON_A_DOCS_COMMIT = (_completion.EXECUTED, _completion.UNCONFIGURED)
 
 
 def _pings(case) -> list[str]:
@@ -298,6 +317,29 @@ class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports, _readi
         self.documented()
         if pinged:
             self.in_review_tick()
+
+
+class CompletedReportFreshnessTest(_completion._CompletionFixture, unittest.TestCase):
+    """The approved report on a docs commit a completion names: current as it stands, stale once it moves."""
+
+    def test_a_moved_report_on_docs_goes_back(self) -> None:
+        # The approved report is about the commit the reviewer was handed, and
+        # the pull request stands on the docs commit. Moved in place, or
+        # replaced by a later report about the docs commit, it is no longer
+        # the one approved: the issue goes back for review with its round
+        # reset, and nobody is pinged.
+        for kind, (name, moves) in product(_ON_A_DOCS_COMMIT, _COMPLETED_REPORT_MOVES):
+            with self.subTest(kind=kind, report=name):
+                self.completed(kind)
+                moves(self)
+
+                self.tick()
+
+                handed = (self.github.label_history, self.pinned()["review_round"])
+                self.assertEqual(handed, ([(_ping_support.ISSUE, LABEL_VALIDATING)], 0))
+                self.assertEqual(self.pings(), [])
+                self.doCleanups()
+                self.setUp()
 
 
 if __name__ == "__main__":

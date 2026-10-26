@@ -269,14 +269,16 @@ Credential filtering does not enforce push authority; see [C-11].
 **Why:** Changed requirements or reports invalidate approval even on an unchanged head.
 
 **Limits:** Evidence and approval may carry across a rewrite only when the verification protocol proves they apply
-to the new revision. The ready ping announces an approval only over current passing evidence proved at the ping.
+to the new revision. The ready ping announces an approval only over current passing evidence proved at the ping, or,
+over a final docs pass's recorded completion, only over that completion proved whole at the ping.
 
 The final-documentation exception records a docs pass apart from the approval it followed: the approved review
 subject, the settled report and its source commit, and the evidence the approval rests on stay as they were, and the
 head the pass completed on is verified on its own -- unchanged, by that evidence with its own provenance; changed, by
 a run of exactly that head this orchestrator executed; changed under an empty `VERIFY_COMMANDS`, by nothing, recorded
 as no evidence that anything passed. Only that recorded completion lets the run answer for the approved review, and
-only bound to the settled report's publication at that head. No record says the reviewer was handed the docs commit
+only bound to the settled report's publication at that head; it is also the only thing that qualifies such a head for
+the ready ping, which a docs stamp on it never does. No record says the reviewer was handed the docs commit
 or that checks ran on another commit, and a completion missing, malformed, or moved; an approval or its evidence
 claim that no longer reads as the one the completion followed; requirements, a report, or a publication that
 changed, an edit or a push landing while the proof reads included; the evidence that claim names no longer published

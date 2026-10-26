@@ -183,10 +183,16 @@ check with what failed — the test ID pytest's summary reports, the collection 
 check's output shows, never matched by command — or says nothing names it, its command and exit status following as
 supporting details, and says where an entry leaves out its name, error, or reproduction. Feedback persisted or posted
 in the layout before leads is shown led too, its record and post kept as they were. The ready ping that tells a human
-the pull request is ready rests on that evidence as well: on either route to it, a docs stamp or a GitHub approval,
-the current evidence is proved whole again at the ping and has to pass with every configured command covered, a record
-that nothing ran never counting -- taken once more behind the ping's checkpoints, right before the post -- and a ping
-armed and never posted takes the same proof. Full contract:
+the pull request is ready rests on that evidence as well: on either ordinary route to it, a docs stamp or a GitHub
+approval, the current evidence is proved whole again at the ping and has to pass with every configured command
+covered, a record that nothing ran never counting. A final docs pass's recorded completion is the one exception: it
+qualifies exactly the head the pass completed on, and the ping over it waits on that completion proved whole instead
+-- the approval and its report, the evidence the approval's claim names, and the final head's own verification: the
+approval's evidence retained on an unchanged head, a passing run of exactly the docs commit, or, under an empty
+`VERIFY_COMMANDS`, nothing at all, which is no evidence that anything passed and holds only while the configuration
+stays empty. Either way the proof is taken once more behind the ping's checkpoints, with the pinned comment and then
+the pull request read afresh behind it, right before the post, and a ping armed and never posted takes the same proof.
+Full contract:
 [`workflow/conversations.md#the-reviewer-verification-contract`][reviewer-verification].
 
 ## Foreground execution and asynchronous command guidance
