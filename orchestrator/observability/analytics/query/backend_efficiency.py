@@ -33,7 +33,7 @@ from orchestrator.observability.analytics.query.predicates import (
     build_rollup_window_where,
 )
 from orchestrator.observability.analytics.query.raw_values import float_or_none
-from orchestrator.observability.analytics.query.row_cells import cost_cell, row_value
+from orchestrator.observability.analytics.query.row_cells import cost_cell
 
 
 def backend_efficiency_sql(clause: str) -> str:
@@ -70,8 +70,8 @@ def backend_efficiency_from_row(
         total_cost_usd=cost_cell(row, 4),
         total_input_tokens=int(row[5] or 0),
         total_output_tokens=int(row[6] or 0),
-        total_cache_read_tokens=int(row_value(row, 7) or 0),
-        total_cache_write_tokens=int(row_value(row, 8) or 0),
+        total_cache_read_tokens=int(row[7] or 0),
+        total_cache_write_tokens=int(row[8] or 0),
     )
 
 

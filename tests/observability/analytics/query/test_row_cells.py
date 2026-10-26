@@ -10,7 +10,6 @@ from decimal import Decimal
 from orchestrator.observability.analytics.query.row_cells import (
     cost_cell,
     day_value,
-    row_value,
 )
 
 _MISSING_INDEX = 5
@@ -28,31 +27,22 @@ _DAY = date(_YEAR, 5, _DAY_NUMBER)
 _WIDENED_DAY = datetime(_YEAR, 5, _DAY_NUMBER, 0, 0, tzinfo=UTC)
 
 
-class RowValueTest(unittest.TestCase):
-    """A column an older, narrower row never carried."""
-
-    def test_an_index_past_the_end_defaults(self) -> None:
-        self.assertEqual(row_value(("only-one",), _MISSING_INDEX), 0)
-        self.assertIsNone(row_value(("only-one",), _MISSING_INDEX, None))
-
-    def test_a_present_column_answers_verbatim(self) -> None:
-        # A recorded NULL is a reading of its own, distinct from the default a
-        # missing column falls to, so it survives the read unchanged.
-        self.assertEqual(row_value(("first", "second"), 1), "second")
-        self.assertIsNone(row_value((None,), 0, "unused-default"))
-
-
 class CostCellTest(unittest.TestCase):
     """A nullable USD column a page sums and cannot receive `None` from."""
 
-    def test_missing_null_and_zero_read_as_zero(self) -> None:
+    def test_null_and_zero_read_as_zero(self) -> None:
+        # A spend sum is NULL wherever no run in the group was priced.
         for empty_cell in (
-            cost_cell(("only-one",), _MISSING_INDEX),
             cost_cell((None,), 0),
             cost_cell((Decimal(0),), 0),
         ):
             self.assertEqual(empty_cell, float(0))
             self.assertIsInstance(empty_cell, float)
+
+    def test_a_column_the_row_never_carried_raises(self) -> None:
+        # A row narrower than its SELECT list is a broken query, not a NULL.
+        with self.assertRaises(IndexError):
+            cost_cell(("only-one",), _MISSING_INDEX)
 
     def test_a_recorded_cost_converts_to_its_float(self) -> None:
         converted = cost_cell((_POPULATED_COST,), 0)

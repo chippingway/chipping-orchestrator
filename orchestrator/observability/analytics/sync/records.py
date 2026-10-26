@@ -42,11 +42,12 @@ def content_hash(record: dict) -> str:
 def parse_ts(raw: Any) -> datetime | None:
     """Parse the `ts` field into a timezone-aware datetime.
 
-    Naive timestamps are interpreted as UTC -- mirrors
-    `retention_scan.prune_timestamp`'s behavior so a record written
-    without `+00:00` (older writer, hand-edit) survives the round
-    trip. Returns None when the input is missing or unparseable; the
-    caller treats that as a malformed-line skip.
+    The sink always writes an explicit `+00:00`. A line without an offset
+    (a hand-edited one) is read as UTC, the reading
+    `retention_scan.prune_timestamp` gives the same line, so the sync and
+    the prune agree on when it happened. Returns None when the input is
+    missing or unparseable; the caller treats that as a malformed-line
+    skip.
     """
     if not isinstance(raw, str):
         return None

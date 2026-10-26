@@ -5,9 +5,10 @@
 Every accessor here answers from the run summary the sink already wrote rather
 than re-adding the per-turn rows, because that summary is the authoritative
 figure a provider reported and the turns are a claude-only detail a codex
-record does not carry at all. A record written before the usage feature has no
-summary, so each projection names the empty answer for its own type -- zero
-tokens, no model, an unpriced cost -- and none of them raises.
+record does not carry at all. The sink writes that summary on every record, so
+one without it is a hand-edited or damaged line, and each projection names the
+empty answer for its own type -- zero tokens, no model, an unpriced cost --
+rather than raising over it.
 
 The per-turn lookup is the one that reads the turns: it goes through the run's
 cached index so a page walking a timeline can ask for each entry's turn in

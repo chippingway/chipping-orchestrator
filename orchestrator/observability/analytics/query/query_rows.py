@@ -9,10 +9,8 @@ fails on a name rather than silently shifting every value after it. The trace
 row goes one step further and is the SELECT list: its fields are the columns
 the per-issue read names, so the two cannot drift apart at all.
 
-The three padded constructors carry the other half of that: a fixture written
-against an older, shorter SELECT list still builds a full row, with the columns
-it never carried reading as NULL, so the projections above them keep their
-zero- and `None`-defaulting behavior.
+Each constructor takes exactly the columns its SELECT list names, so a row of
+any other width raises rather than reading a column it never carried as NULL.
 """
 from __future__ import annotations
 
@@ -91,21 +89,15 @@ def agent_exit_row(row: Sequence[Any]) -> AgentExitQueryRow:
 
 
 def issue_summary_row(row: Sequence[Any]) -> IssueSummaryQueryRow:
-    """Name the columns of one issue-summary row, padding a short one."""
-    missing = len(IssueSummaryQueryRow._fields) - len(row)
-    padded_row = (*row, *((None,) * max(missing, 0)))
-    return IssueSummaryQueryRow(*padded_row[:len(IssueSummaryQueryRow._fields)])
+    """Name the columns of one issue-summary row."""
+    return IssueSummaryQueryRow(*row)
 
 
 def issue_event_row(row: Sequence[Any]) -> IssueEventQueryRow:
-    """Name the columns of one traced-event row, padding a short one."""
-    missing = len(IssueEventQueryRow._fields) - len(row)
-    padded_row = (*row, *((None,) * max(missing, 0)))
-    return IssueEventQueryRow(*padded_row[:len(IssueEventQueryRow._fields)])
+    """Name the columns of one traced-event row."""
+    return IssueEventQueryRow(*row)
 
 
 def review_round_row(row: Sequence[Any]) -> ReviewRoundQueryRow:
-    """Name the columns of one review-round bucket row, padding a short one."""
-    missing = len(ReviewRoundQueryRow._fields) - len(row)
-    padded_row = (*row, *((None,) * max(missing, 0)))
-    return ReviewRoundQueryRow(*padded_row[:len(ReviewRoundQueryRow._fields)])
+    """Name the columns of one review-round bucket row."""
+    return ReviewRoundQueryRow(*row)

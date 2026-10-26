@@ -72,17 +72,8 @@ _EXPECTED_TOTALS = MappingProxyType({
     "timed_out_agent_runs": 11,
 })
 
-# A totals row from before the agent-run and cache columns existed, and what it
-# has to leave every field it predates at.
-_SHORT_TOTALS_ROW = (_KIND_TOTALS, None, 4, 2, 2, 0, 0, 0)
-
-_SHORT_TOTALS_DEFAULTS = MappingProxyType({
-    _TOTAL_RUNS_FIELD: 0,
-    _FAILED_RUNS_FIELD: 0,
-    "total_cache_read_tokens": 0,
-    "total_cache_write_tokens": 0,
-    "timed_out_agent_runs": 0,
-})
+# A totals row missing the agent-run and cache columns its SELECT branch names.
+_NARROW_TOTALS_ROW = (_KIND_TOTALS, None, 4, 2, 2, 0, 0, 0)
 
 # The trimmed previous-window row: cost / input / output / cache_read /
 # cache_write / runs, and the fields each has to land in.
@@ -175,11 +166,12 @@ class SummaryReadTest(unittest.TestCase):
             ),
         )
 
-    def test_a_short_totals_row_defaults_the_rest(self) -> None:
-        conn = FakeConnection(rows=(_SHORT_TOTALS_ROW,))
-        with configured_db_url():
-            summary = get_summary(connect=conn.as_connect)
-        assert_row_fields(self, summary, _SHORT_TOTALS_DEFAULTS)
+    def test_a_narrower_totals_row_raises(self) -> None:
+        # Each total is read at the position its SELECT branch puts it, so a
+        # row missing some is a broken query rather than totals left at zero.
+        conn = FakeConnection(rows=(_NARROW_TOTALS_ROW,))
+        with configured_db_url(), self.assertRaises(ValueError):
+            get_summary(connect=conn.as_connect)
 
     def test_the_window_binds_as_days_once(self) -> None:
         # The predicate lives in the CTE, so the totals and both breakdown
@@ -220,16 +212,6 @@ class KpiPreviousReadTest(unittest.TestCase):
             summary = get_kpi_prev(connect=conn.as_connect)
         assert_row_fields(self, summary, _EXPECTED_PREVIOUS)
         assert_row_fields(self, summary, _UNREAD_PREVIOUS_FIELDS)
-
-    def test_a_short_row_leaves_the_run_count_at_zero(self) -> None:
-        conn = FakeConnection(rows=((1.0, 100, 200, 50, 25),))
-        with configured_db_url():
-            summary = get_kpi_prev(connect=conn.as_connect)
-        assert_row_fields(
-            self,
-            summary,
-            {"total_cost_usd": 1.0, _TOTAL_RUNS_FIELD: 0},
-        )
 
     def test_the_scan_skips_the_breakdowns(self) -> None:
         # The trimmed shape is the point: carrying the groupings or the

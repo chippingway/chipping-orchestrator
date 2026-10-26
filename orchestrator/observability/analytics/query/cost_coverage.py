@@ -22,7 +22,6 @@ from orchestrator.observability.analytics.query.cost_models import CostCoverageR
 from orchestrator.observability.analytics.query.execution import ReadQuery
 from orchestrator.observability.analytics.query.filters import WindowFilters
 from orchestrator.observability.analytics.query.predicates import build_view_window_where
-from orchestrator.observability.analytics.query.row_cells import row_value
 
 
 def cost_coverage_from_row(row: Sequence[Any]) -> CostCoverageRow:
@@ -30,7 +29,7 @@ def cost_coverage_from_row(row: Sequence[Any]) -> CostCoverageRow:
     return CostCoverageRow(
         cost_source=str(row[0]),
         runs=int(row[1] or 0),
-        total_tokens=int(row_value(row, 2) or 0),
+        total_tokens=int(row[2] or 0),
     )
 
 

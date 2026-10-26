@@ -75,12 +75,6 @@ class HourlyHeatmapReadTest(unittest.TestCase):
         )
         self.assertNotIn(_ROLLUP_SCAN, scan_sql)
 
-    def test_a_short_cell_defaults_its_tokens(self) -> None:
-        conn = FakeConnection(rows=((1, 9, 5),))
-        with configured_db_url():
-            cells = get_hourly_heatmap(connect=conn.as_connect)
-        self.assertEqual(cells[0].total_tokens, 0)
-
     def test_the_event_selection_binds(self) -> None:
         # Unlike the view-backed breakdowns beside it, this scan has an `event`
         # column, so the selection becomes an ordinary bound predicate rather

@@ -96,23 +96,13 @@ class TimeSeriesReadTest(unittest.TestCase):
         self.assertIn("GROUP BY day, event", scan_sql)
         self.assertIn("ORDER BY day ASC, event ASC", scan_sql)
 
-    def test_a_short_cell_defaults_the_cache(self) -> None:
-        conn = FakeConnection(rows=((_DAY, _AGENT_EXIT, 3, 0.42, 1000, 500),))
-        with configured_db_url():
-            point = get_time_series(connect=conn.as_connect)[0]
-        assert_row_fields(
-            self,
-            point,
-            {"cache_read_tokens": 0, "cache_write_tokens": 0},
-        )
-
     def test_a_widened_day_narrows_back_to_a_date(self) -> None:
         # Some drivers hand the `day` column back as a timestamp even where the
         # column is a date, and a chart keying its series on days would then be
         # comparing a date against midnight.
         conn = FakeConnection(rows=(
-            (_WIDENED_DAY, _STAGE_ENTER, 5),
-            (_NEXT_DAY, _STAGE_ENTER, 7),
+            (_WIDENED_DAY, _STAGE_ENTER, 5, 0, 0, 0, 0, 0),
+            (_NEXT_DAY, _STAGE_ENTER, 7, 0, 0, 0, 0, 0),
         ))
         with configured_db_url():
             points = get_time_series(connect=conn.as_connect)

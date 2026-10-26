@@ -536,7 +536,7 @@ source level under them — see the
 [read model](analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery) and
 [dashboard](analytics-dashboard.md#dashboard-orchestratorappsanalytics_dashboardpy) sections
 on that page. All are pure read-side additions over `extras JSONB` with no schema change. See
-[Session-aware skill adoption](#session-aware-skill-adoption) for the four evidence forms and the per-session adoption
+[Session-aware skill adoption](#session-aware-skill-adoption) for the three evidence forms and the per-session adoption
 semantics that sit on top of these fields.
 
 ### Session-aware skill adoption
@@ -556,8 +556,8 @@ matrix still renders each repo's catalog-backed skills as explicit zero rows, be
 `repo_skill_catalog` records do not depend on the switch. Records written while it was on stay queryable after it is
 turned off.
 
-**Four evidence forms.** A skill observation is classified into one of four forms. The first three are emitted on the
-`agent_exit` record; the fourth is a read-model inference and is never written to disk:
+**Three evidence forms.** A skill observation is classified into one of three forms, each emitted on the `agent_exit`
+record. The read model infers none of its own: availability is only what a record's `skills_available` reported.
 
 - **confirmed** *(load)* — a claude `Skill` tool-use block, the firm signal. Recorded in `skills_triggered`, with tier
   `confirmed` in `skills_evidence`.
@@ -570,16 +570,11 @@ turned off.
   (`>` redirect / `sed -i`). Recorded independently in `skills_incidental` / `skills_incidental_count`, deliberately
   kept out of `skills_triggered`, `skills_triggered_count`, `skills_evidence`, and the `skill_triggered` audit events,
   so a bystander mention is never miscounted as a load. A skill both read *and* inspected lands in both buckets.
-- **legacy** *(implied availability)* — not an emitted field. Inside `get_skill_adoption`, a load whose logical
-  session never reported any `skills_available` metadata (no row carried the `skills_available` *key*) is treated as
-  implied availability: the load itself implies the skill was offered, so it still counts in that session's
-  availability denominator. An explicit empty `skills_available: []` is metadata ("scanned, found none") and
-  **blocks** this fallback, so a load against a session that reported no offered skills does not fabricate availability.
 
 **Logical-session fallback.** Adoption counts by *logical agent session*, not by raw run, so a resume chain that pulled
 `develop` across several ticks counts as one adopting session, not several. A session is keyed by `resume_session_id`,
-then `session_id`, then the row's primary key — an ID-less row is its own session, never merged into one anonymous
-bucket, and the primary-key fallback is stable across both session scans below.
+then `session_id`, then the row's primary key — a run whose CLI yielded no id is its own session, never merged into one
+anonymous bucket, and the primary-key fallback is stable across both session scans below.
 
 **Active window vs. historical lookback.** `get_skill_adoption` runs two `agent_exit` scans plus one over the
 repo-level catalog records, and combines all three in Python:
@@ -603,13 +598,13 @@ backward into an earlier window's aggregate, so a later load cannot retroactivel
 **A cell is keyed by source level too.** Both per-skill read models file their counts under the skill's `skill_levels`
 level as well as its name, so a repository's own `develop` and a same-named global one stay two cells rather than one
 blended average. The level is read off the same row that named the skill, so an offer and a load are matched by
-provenance as well as by name. A name no level map covers — a record written before levels existed, or a claude run
-whose stream names no source directory — is resolved against the repository's catalog first, as the paragraph below
-describes; only what that cannot settle reads `unknown`, which is one spelling an operator can look up rather than a
-scattering of blanks. Because an offer and a load take the same resolution, a legacy session's load still counts as
-adoption of what it was offered. A `repo_skill_catalog` name the record itself left unclassified is read at `project`,
-since that scan enumerates a repository's own checked-in definitions. Both tables render the level as its own sortable
-`Level` column, so two rows whose Repo / Role / Backend / Skill read the same are legible as the two definitions their
+provenance as well as by name. A name no level map covers — a claude run, whose stream names no source directory — is
+resolved against the repository's catalog first, as the paragraph below describes; only what that cannot settle reads
+`unknown`, which is one spelling an operator can look up rather than a scattering of blanks. Because an offer and a
+load take the same resolution, an unclassified session's load still counts as adoption of what it was offered. The
+`repo_skill_catalog` producer classifies every name it enumerates, so a catalog name the record's `skill_levels` leaves
+out offers nothing: it pads no cell and settles no level. Both tables render the level as its own sortable `Level`
+column, so two rows whose Repo / Role / Backend / Skill read the same are legible as the two definitions their
 differing counts come from.
 
 **Both models fill a blank level from the catalog.** A claude stream names no source directory for the skills it
@@ -637,10 +632,13 @@ page is drawn: nothing is migrated or backfilled, and a window whose catalog rec
 the levels the runs themselves recorded.
 
 **Per-session availability denominator.** `sessions` (the denominator) is how many logical sessions in the cohort had
-the skill available — its reported `skills_available` union listed it, or the *legacy* fallback above implied it.
-`adopted` (the numerator) is how many of those sessions loaded it, counted once per session no matter how many runs
-reached for it; `adoption_rate` is `adopted / sessions`. A zero-session cell has an undefined rate that renders as a
-muted `—`, never a misleading `0%`.
+the skill available — its reported `skills_available` union listed it. The recorder drops that key wherever a run
+reported no offered set (tracking off, or a stream that named none), so a session none of whose rows carried it has
+*unknown* availability and joins no cell's denominator: a load is not evidence of an offer, so such a session's loads
+stay visible in `load_rows` beside a zero `sessions` rather than becoming the denominator they would need. `adopted`
+(the numerator) is how many of the offered sessions loaded it, counted once per session no matter how many runs reached
+for it; `adoption_rate` is `adopted / sessions`. A zero-session cell has an undefined rate that renders as a muted `—`,
+never a misleading `0%` or `100%`.
 
 **Primary adoption vs. invocation-level diagnostics.** The read model carries three **window-scoped invocation** fields
 (raw `agent_exit` rows, not sessions, and not the historical evidence): `invocations` is every run in the cohort's

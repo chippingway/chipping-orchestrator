@@ -95,21 +95,24 @@ _WINDOW_START = datetime(_YEAR, 5, 1, tzinfo=UTC)
 
 _WINDOW_END = datetime(_YEAR, 5, _WINDOW_END_DAY, tzinfo=UTC)
 
-# A row from before the review-round and retry columns existed: everything the
-# SELECT list gained since reads back as unset rather than as a measured zero.
-_SHORT_ROW = (_REPO, _ISSUE, 1, _EVENT_TS, _EVENT_TS, None, 0, None, 0, 0)
+# An issue that only ever entered a stage: no stage, no priced run, and no
+# review round or retry recorded, so those aggregates are NULL.
+_UNRUN_ISSUE_ROW = (
+    _REPO, _ISSUE, 1, _EVENT_TS, _EVENT_TS, None, 0, None, 0, 0, None, 0, None,
+)
 
-# One issue's trace as a row from before it read any correlation: the nine
-# columns the drill-down tabulates and nothing after them.
-_LEGACY_TRACE_ROW = (
+# The nine columns the drill-down tabulates, as a `stage_enter` fills them.
+_STAGE_ENTER_COLUMNS = (
     _NOON_TS, _STAGE_ENTER, _STAGE_IMPLEMENTING, None, None, None, None, None, None,
 )
 
-# The run columns a full-width trace row carries between those nine and its
-# blob, all NULL.
+# The run columns a trace row carries between those nine and its blob, all
+# NULL.
 _NULL_RUN_COLUMNS = (None,) * (
-    len(IssueEventQueryRow._fields) - len(_LEGACY_TRACE_ROW) - 1
+    len(IssueEventQueryRow._fields) - len(_STAGE_ENTER_COLUMNS) - 1
 )
+
+_STAGE_ENTER_ROW = (*_STAGE_ENTER_COLUMNS, *_NULL_RUN_COLUMNS, None)
 
 # What a trace row with nothing to correlate reads back as.
 _UNCORRELATED = MappingProxyType({
@@ -165,11 +168,11 @@ class IssuesOverviewTest(unittest.TestCase):
             (
                 _REPO_B, 1, _EVENT_COUNT, _LATER_SEEN, _LATEST_SEEN,
                 _STAGE_VALIDATING, _AGENT_EXITS, _TOTAL_COST_USD,
-                _TOTAL_INPUT_TOKENS, _TOTAL_OUTPUT_TOKENS,
+                _TOTAL_INPUT_TOKENS, _TOTAL_OUTPUT_TOKENS, 0, 0, 0,
             ),
             (
                 _REPO_A, 1, 5, _EVENT_TS, _NOON_TS,
-                _STAGE_IMPLEMENTING, 2, None, 0, 0,
+                _STAGE_IMPLEMENTING, 2, None, 0, 0, 0, 0, 0,
             ),
         ))
         with configured_db_url():
@@ -215,8 +218,10 @@ class IssuesOverviewTest(unittest.TestCase):
             (_WINDOW_START, _WINDOW_END, _REPO, _CHOSEN_LIMIT),
         )
 
-    def test_a_short_rows_gaps_read_as_unset(self) -> None:
-        conn = FakeConnection(rows=(_SHORT_ROW,))
+    def test_null_aggregates_read_as_unset(self) -> None:
+        # A maximum over no recorded value stays `None` rather than reading as
+        # a measured round zero.
+        conn = FakeConnection(rows=(_UNRUN_ISSUE_ROW,))
         with configured_db_url():
             rows = get_issues(connect=conn.as_connect)
         assert_row_fields(
@@ -289,10 +294,11 @@ class IssueEventsTest(unittest.TestCase):
 
     def test_a_trace_binds_its_pair_first(self) -> None:
         conn = FakeConnection(rows=(
-            (_NOON_TS, _STAGE_ENTER, _STAGE_IMPLEMENTING, None, None, None, None, None, None),
+            _STAGE_ENTER_ROW,
             (
                 _LATEST_SEEN, _AGENT_EXIT, _STAGE_IMPLEMENTING, _TRACE_DURATION_S,
                 None, "dev", "claude", 0, _TRACE_COST_USD,
+                *_NULL_RUN_COLUMNS, None,
             ),
         ))
         with configured_db_url():
@@ -319,16 +325,19 @@ class IssueEventsTest(unittest.TestCase):
             ("session_id", "review_round", "retry_count", "timed_out", "extras"),
         )
 
-    def test_a_legacy_row_reads_with_no_correlation(self) -> None:
-        # A row from before the trace read correlation, and a full-width one
-        # whose run columns and blob are NULL, both read back as carrying
-        # none rather than as measured values.
-        full_width = (*_LEGACY_TRACE_ROW, *_NULL_RUN_COLUMNS, None)
-        for row in (_LEGACY_TRACE_ROW, full_width):
-            with self.subTest(width=len(row)):
-                event = _read_one_event(row)
-                self.assertEqual(event.event, _STAGE_ENTER)
-                assert_row_fields(self, event, _UNCORRELATED)
+    def test_an_uncorrelated_event_reads_with_none(self) -> None:
+        # A `stage_enter` fills none of the run columns and carries no blob,
+        # so it reads back as correlating nothing rather than as measured
+        # values.
+        event = _read_one_event(_STAGE_ENTER_ROW)
+        self.assertEqual(event.event, _STAGE_ENTER)
+        assert_row_fields(self, event, _UNCORRELATED)
+
+    def test_a_row_narrower_than_the_trace_raises(self) -> None:
+        # The trace row is the SELECT list, so a row missing its correlation
+        # columns is a broken query, never an event that correlates nothing.
+        with self.assertRaises(TypeError):
+            _read_one_event(_STAGE_ENTER_COLUMNS)
 
     def test_a_blob_reads_back_as_a_mapping(self) -> None:
         # A driver hands a JSONB object back adapted or as its text, and both
@@ -343,7 +352,7 @@ class IssueEventsTest(unittest.TestCase):
         ):
             with self.subTest(blob=blob):
                 event = _read_one_event(
-                    (*_LEGACY_TRACE_ROW, *_NULL_RUN_COLUMNS, blob),
+                    (*_STAGE_ENTER_COLUMNS, *_NULL_RUN_COLUMNS, blob),
                 )
                 self.assertEqual(event.extras, expected)
 

@@ -25,7 +25,6 @@ from orchestrator.observability.analytics.query.activity_models import (
 from orchestrator.observability.analytics.query.execution import ReadQuery
 from orchestrator.observability.analytics.query.filters import WindowFilters
 from orchestrator.observability.analytics.query.predicates import build_window_where
-from orchestrator.observability.analytics.query.row_cells import row_value
 
 
 def hourly_heatmap_from_row(row: Sequence[Any]) -> HourlyHeatmapPoint:
@@ -34,7 +33,7 @@ def hourly_heatmap_from_row(row: Sequence[Any]) -> HourlyHeatmapPoint:
         weekday=int(row[0]),
         hour=int(row[1]),
         count=int(row[2] or 0),
-        total_tokens=int(row_value(row, 3) or 0),
+        total_tokens=int(row[3] or 0),
     )
 
 

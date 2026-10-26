@@ -24,11 +24,7 @@ from orchestrator.observability.analytics.query.predicates import (
     DAILY_ROLLUP_VIEW,
     build_rollup_window_where,
 )
-from orchestrator.observability.analytics.query.row_cells import (
-    cost_cell,
-    day_value,
-    row_value,
-)
+from orchestrator.observability.analytics.query.row_cells import cost_cell, day_value
 
 
 def time_series_from_row(row: Sequence[Any]) -> TimeSeriesPoint:
@@ -38,10 +34,10 @@ def time_series_from_row(row: Sequence[Any]) -> TimeSeriesPoint:
         event=row[1],
         count=int(row[2]),
         cost_usd=cost_cell(row, 3),
-        input_tokens=int(row_value(row, 4) or 0),
-        output_tokens=int(row_value(row, 5) or 0),
-        cache_read_tokens=int(row_value(row, 6) or 0),
-        cache_write_tokens=int(row_value(row, 7) or 0),
+        input_tokens=int(row[4] or 0),
+        output_tokens=int(row[5] or 0),
+        cache_read_tokens=int(row[6] or 0),
+        cache_write_tokens=int(row[7] or 0),
     )
 
 

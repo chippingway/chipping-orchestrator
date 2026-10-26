@@ -152,12 +152,12 @@ replay examples are under [operator workflow](#operator-workflow).
 one per row. A final partial batch is flushed at EOF so the tail still lands. The size is read off the owner as a pass
 starts, so a caller that pins a smaller buffer drives the loop that actually runs.
 
-**Pre-check dedup.** Before opening the input file the sync issues a single `SELECT content_hash FROM analytics_events
-WHERE content_hash IS NOT NULL` and pulls the result into a Python set, so already-present rows are filtered out before
-they enter the batch. Newly queued hashes are added to the same set as the loop iterates, so two identical records
-inside one JSONL file are deduped against each other before reaching `executemany`. The pre-check reads from the unique
-`analytics_events_content_hash_idx`. The server-side `ON CONFLICT (content_hash) DO NOTHING` arbiter stays the
-authoritative dedup backstop for racing concurrent writers.
+**Pre-check dedup.** Before opening the input file the sync issues a single `SELECT content_hash FROM analytics_events`
+and pulls the result into a Python set — every row the sync inserts carries its line's hash — so already-present rows
+are filtered out before they enter the batch. Newly queued hashes are added to the same set as the loop iterates, so two
+identical records inside one JSONL file are deduped against each other before reaching `executemany`. The pre-check
+reads from the unique `analytics_events_content_hash_idx`. The server-side `ON CONFLICT (content_hash) DO NOTHING`
+arbiter stays the authoritative dedup backstop for racing concurrent writers.
 
 **Counters.** Per-batch `cur.rowcount` drives the cumulative `inserted` / `skipped_duplicate` totals. Duplicates =
 `len(batch) - rowcount` for wire-side skips, plus the pre-skip counter for in-Python skips.

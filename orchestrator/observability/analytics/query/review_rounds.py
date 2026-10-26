@@ -3,12 +3,11 @@
 """How one window's spend divides across the review rounds it took.
 
 The bucket is a label rather than a number, because the axis a panel plots has
-to hold three things a round count cannot. A developer run still in
-`implementing` has not been through review yet, so its missing round reads as
-round zero; every other missing one reads as `unknown` rather than being folded
-in beside it, since "not reviewed yet" and "never recorded" are different
-answers. And everything from the sixth round up collapses into one `6+` bucket,
-so a rare twelve-round issue cannot stretch the axis for the rest.
+to hold two things a round count cannot. Every developer and reviewer run
+records its round -- a fresh implementation as round zero -- so a missing one
+reads as `unknown` rather than being folded into a round it never named. And
+everything from the sixth round up collapses into one `6+` bucket, so a rare
+twelve-round issue cannot stretch the axis for the rest.
 
 Each bucket reports its runs and cost three ways -- the total, and the
 developer and reviewer halves -- with each half split into the cache and
@@ -39,9 +38,6 @@ def review_round_sql(where: str) -> str:
     return (
         "SELECT "
         "CASE "
-        "WHEN review_round IS NULL "
-        "AND agent_role = 'developer' "
-        "AND stage = 'implementing' THEN '0' "
         "WHEN review_round IS NULL THEN 'unknown' "
         "WHEN review_round <= 0 THEN '0' "
         "WHEN review_round >= 6 THEN '6+' "

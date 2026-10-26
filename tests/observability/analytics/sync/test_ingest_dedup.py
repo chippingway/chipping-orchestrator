@@ -45,7 +45,6 @@ class PreCheckTest(unittest.TestCase):
         self.assertEqual(len(select_sqls), 1)
         self.assertIn("SELECT content_hash", select_sqls[0])
         self.assertIn("analytics_events", select_sqls[0])
-        self.assertIn("content_hash IS NOT NULL", select_sqls[0])
 
     def test_stored_hashes_skip_before_the_batch(self) -> None:
         written = sample_records(_RECORD_COUNT)

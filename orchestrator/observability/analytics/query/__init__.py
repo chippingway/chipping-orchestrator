@@ -28,8 +28,8 @@ So is what a read answers with, one owner per result family:
 happened, ``overview_models`` for what a page frames a whole window with,
 ``cost_models`` for the axes its spend is broken down along, ``run_models`` for
 the run, issue, and traced-event rows plus the accessor behind the trace row's
-`result` alias, and ``skill_models`` for the cells a skill's reach is reported
-in with the share each derives.
+public `result` name, and ``skill_models`` for the cells a skill's reach is
+reported in with the share each derives.
 
 So is one family of reads itself. ``raw_reads`` owns the six answered off the
 events table row by row -- the values its filters offer, how far its data

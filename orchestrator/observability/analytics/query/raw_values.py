@@ -4,13 +4,12 @@
 
 A driver hands back whatever the column held, and every projection that fills a
 frozen result row narrows it here: a NULL stays `None` rather than becoming a
-zero the dashboard would render as a measured value, and a column a short
-fixture never carried is read positionally so an older row shape still
-round-trips. A JSONB cell is the one a driver may hand back as either an adapted
-Python object or the raw JSON text, so both decode to the same value here, and
-an `extras` blob that is NULL, unparseable, or not an object reads as an empty
-mapping: a row written before a field existed and a row whose blob is damaged
-both carry nothing a reader can look up, and neither may take a read down.
+zero the dashboard would render as a measured value. A JSONB cell is the one a
+driver may hand back as either an adapted Python object or the raw JSON text, so
+both decode to the same value here, and an `extras` blob that is NULL,
+unparseable, or not an object reads as an empty mapping: a record whose fields
+all have columns of their own and a row whose blob is damaged both carry nothing
+a reader can look up, and neither may take a read down.
 
 `empty_filter_selected` is the other reading a raw row is judged by, on the
 call side rather than the result side: a selection of `None` means the caller
@@ -38,13 +37,6 @@ def float_or_none(raw: Any) -> float | None:
     if raw is None:
         return None
     return float(raw)
-
-
-def row_int(row: Sequence[Any], index: int) -> int:
-    """Read one positional count off a row that may be shorter than it."""
-    if len(row) <= index:
-        return 0
-    return int(row[index] or 0)
 
 
 def bool_or_none(raw: Any) -> bool | None:

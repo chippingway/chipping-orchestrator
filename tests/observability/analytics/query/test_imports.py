@@ -317,7 +317,6 @@ _SURFACES = MappingProxyType({
         "float_or_none",
         "int_or_none",
         "json_object",
-        "row_int",
     ),
     _ROLLUP_READS_OWNER: (
         "get_backend_efficiency",
@@ -435,7 +434,6 @@ _SURFACES = MappingProxyType({
     _ROW_CELLS_OWNER: (
         "cost_cell",
         "day_value",
-        "row_value",
     ),
 })
 

@@ -45,7 +45,7 @@ STEP_SIGNATURE = inspect.Signature(
 
 
 def public_step_content(step: TrajectoryStep) -> Any:
-    """Return a step payload through its historical public name."""
+    """Return a step payload through the `content` name it is serialized under."""
     return step.step_payload
 
 

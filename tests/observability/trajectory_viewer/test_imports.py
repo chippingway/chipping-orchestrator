@@ -138,7 +138,6 @@ _SURFACES = MappingProxyType({
         "matches_run_filters",
         "matches_scalar_filters",
         "normalize_run_filters",
-        "resolve_run_filter_options",
     ),
     _LOG_PATHS_OWNER: (
         "configured_path",

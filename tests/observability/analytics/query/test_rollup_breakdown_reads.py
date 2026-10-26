@@ -63,13 +63,6 @@ _EXPECTED_STAGE = MappingProxyType({
     "no_cache_cost_usd": 0.2,
 })
 
-# The same row before the cache split and before the run subset existed, and
-# what each is expected to default the missing columns to.
-_SHORT_STAGE_ROWS = (
-    ((_STAGE_IMPLEMENTING, 20, 12.5, 0.5, 2000, 1500, 8), {_RUNS_FIELD: 8}),
-    ((_STAGE_IMPLEMENTING, 20, 12.5, 0.5, 2000, 1500), {_RUNS_FIELD: 0}),
-)
-
 # One backend row at its full width: backend / runs / failed / avg_dur / cost /
 # input / output / cache_read / cache_write.
 _BACKEND_ROW = (_CLAUDE, 20, 1, 35, 1.2, 5000, 4000, 1500, 800)
@@ -131,22 +124,6 @@ class StageBreakdownReadTest(unittest.TestCase):
         )
         self.assertNotIn(_NAIVE_DURATION, scan_sql)
 
-    def test_a_short_stage_row_defaults_the_rest(self) -> None:
-        for short_row, expected_runs in _SHORT_STAGE_ROWS:
-            with self.subTest(width=len(short_row)):
-                conn = FakeConnection(rows=(short_row,))
-                with configured_db_url():
-                    rows = get_stage_breakdown(connect=conn.as_connect)
-                assert_row_fields(
-                    self,
-                    rows[0],
-                    {
-                        **expected_runs,
-                        "cache_cost_usd": float(0),
-                        "no_cache_cost_usd": float(0),
-                    },
-                )
-
 
 class BackendEfficiencyReadTest(unittest.TestCase):
     """What each backend ran, failed, and spent inside the window."""
@@ -195,16 +172,6 @@ class BackendEfficiencyReadTest(unittest.TestCase):
                 "SUM(total_cache_write_tokens)",
                 *_WEIGHTED_DURATION,
             ),
-        )
-
-    def test_a_short_backend_row_defaults_cache(self) -> None:
-        conn = FakeConnection(rows=((_CLAUDE, 5, 0, 10, 0.2, 1000, 500),))
-        with configured_db_url():
-            rows = get_backend_efficiency(connect=conn.as_connect)
-        assert_row_fields(
-            self,
-            rows[0],
-            {"total_cache_read_tokens": 0, "total_cache_write_tokens": 0},
         )
 
 

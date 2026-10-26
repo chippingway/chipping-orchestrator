@@ -76,7 +76,7 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
   level is recorded beside the names as `skill_levels` — dropped for a claude run, whose stream names no source
   directory to classify. Both per-skill read models file a cell under that level as well as the name, and both first
   fill a name no recorded map covers from the repository's own `repo_skill_catalog`, so a claude run's load — and,
-  for adoption, the incidental reference and the historical offer beside it — of a name the repository offers at
+  for adoption, the incidental reference and the earlier offer beside it — of a name the repository offers at
   exactly one level lands in that level's cell instead of an `unknown` one beside it. Only an uncatalogued or
   two-level name keeps `unknown`, and a level the record itself carried is never overwritten. Both skill tables render
   that level as a sortable `Level` column of their own.
@@ -88,8 +88,9 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
   loaded it, with incidental references kept as a separate column that never raises the rate — split into a collapsed
   section per source level (project, user, harness, plus one for the cells no record classified), all over the
   accumulated fields. The `skills_evidence` tier carries only the emitted `confirmed` /
-  `inferred` load values; the *incidental* bucket and the read-side *legacy* availability inference (a load whose
-  session reported no `skills_available` metadata) are described alongside the per-session adoption semantics in
+  `inferred` load values; the *incidental* bucket, and the unknown availability of a session that reported no
+  `skills_available` (it joins no adoption denominator, however many skills it loaded), are described alongside the
+  per-session adoption semantics in
   [`event-streams.md#session-aware-skill-adoption`](../observability/event-streams.md#session-aware-skill-adoption).
   See also [`event-streams.md#agent_exit-records`](../observability/event-streams.md#agent_exit-records) and the
   [audit event log](../observability/event-streams.md#audit-event-log-event_log_path).

@@ -107,12 +107,11 @@ def note_malformed_line(
 def existing_hashes(cur: Any) -> set[str]:
     """Read the dedup keys already stored, in one scan of the unique index.
 
-    `WHERE content_hash IS NOT NULL` filters the legacy rows written before
-    the column existed, so they cannot pollute the set a new record is
-    measured against.
+    Every row this sync inserts carries the hash of the line it came from,
+    so the set is exactly the keys a new record's insert could collide with.
     """
-    cur.execute("SELECT content_hash FROM analytics_events WHERE content_hash IS NOT NULL")
-    return {row[0] for row in cur if row[0] is not None}
+    cur.execute("SELECT content_hash FROM analytics_events")
+    return {row[0] for row in cur}
 
 
 @dataclass

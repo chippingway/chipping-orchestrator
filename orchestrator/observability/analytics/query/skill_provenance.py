@@ -26,7 +26,7 @@ repository checks in a `develop` of its own.
 
 Both per-skill reads resolve here, and each resolves every category of evidence
 it gathers: the loads a trigger cell counts, and the window loads, the
-incidental references, and the historical offers and loads an adoption cell
+incidental references, and the earlier offers and loads an adoption cell
 reads a session across. Resolving one category and not another is what would
 leave a session offered a `develop` it is never credited with loading, so the
 rule has to reach all of them or none.
@@ -35,11 +35,10 @@ The scan behind all of this is filtered differently from the run scans beside
 it. A catalog record is a repository-level fact -- no issue, no stage, and
 written whenever the catalog was last scanned -- so pushing the window, issue,
 or stage selection onto it would drop every catalog row and leave both the
-padding and the resolution with nothing to read. A catalog name the record left
-unclassified is offered at `project` rather than at the `unknown` an
-unclassified run row reads: this scan enumerates a repository's own checked-in
-definitions, so what it offers is a project definition even when the record
-classified none.
+padding and the resolution with nothing to read. Only a name the record
+classified is on offer: the producer classifies every definition it enumerates,
+so a name its level map leaves out names no definition -- it pads no cell and
+settles no unclassified load, rather than being guessed into a level.
 """
 
 from __future__ import annotations
@@ -54,16 +53,11 @@ from orchestrator.observability.analytics.query.conditions import (
 from orchestrator.observability.analytics.query.execution import ReadQuery
 from orchestrator.observability.analytics.query.filters import WindowFilters
 from orchestrator.observability.analytics.query.predicates import build_window_where
-from orchestrator.observability.analytics.query.row_cells import row_value
 from orchestrator.observability.analytics.query.skill_values import (
     UNKNOWN_LABEL,
     SkillLevelPair,
     leveled_skills,
 )
-
-# What a catalog name the record left unclassified is offered at, since that
-# scan enumerates a repository's own checked-in definitions.
-_CATALOG_LEVEL = "project"
 
 # The levels one repository classified each name it offers at.
 _CatalogLevels = dict[str, frozenset[str]]
@@ -89,18 +83,14 @@ def skill_catalog_rows(
 
 
 def skill_catalog(rows: Sequence[tuple]) -> dict[str, set[SkillLevelPair]]:
-    """Union every catalog record a repository reported into one offered set."""
+    """Union every name a repository's catalog records classified into one set."""
     catalog: dict[str, set[SkillLevelPair]] = {}
     for row in rows:
-        if row[0] is None:
-            continue
-        repo = str(row[0])
-        offered = leveled_skills(
-            row_value(row, 1, None),
-            row_value(row, 2, None),
-            default_level=_CATALOG_LEVEL,
+        offered = catalog.setdefault(str(row[0]), set())
+        offered.update(
+            pair for pair in leveled_skills(row[1], row[2])
+            if pair[1] != UNKNOWN_LABEL
         )
-        catalog.setdefault(repo, set()).update(offered)
     return catalog
 
 

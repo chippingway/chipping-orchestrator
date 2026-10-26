@@ -220,11 +220,21 @@ class SkillAdoptionCaptionTest(unittest.TestCase):
                 self.assertNotIn(_ENABLE_LABEL, captions[0])
                 self.assertNotIn(_TRACK_SKILL_TRIGGERS, captions[0])
 
-    def test_a_loaded_window_is_not_incidental(self) -> None:
-        # Loads and incidental references are separate columns, so a window
-        # carrying only the first must not be captioned as the second.
-        case = adopt.CellCase(sessions=0, adopted=0, load_rows=2)
-        self.assertNotIn("Only incidental", _render_card(case).captions[0])
+    def test_loads_nobody_was_offered_draw_no_rate(self) -> None:
+        # The read model never turns a load into the offer it would have
+        # needed, so a window whose sessions reported no offered set reaches
+        # the card as loads beside a zero denominator: the cell draws an
+        # undefined rate rather than a 100% adoption, and the caption says no
+        # session reported the skill available -- not that the loads were
+        # incidental, since the two are separate columns.
+        page = _render_card(adopt.CellCase(sessions=0, adopted=0, load_rows=2))
+        caption = page.captions[0]
+        self.assertIn("no session reported one available", caption)
+        self.assertNotIn("Only incidental", caption)
+        adoption = fold_markup(page, _PROJECT_FOLD)
+        self.assertIn('<span class="orch-skilladopt-zero">—</span>', adoption)
+        # Every rate a cell draws ends its cell, so no percentage was drawn.
+        self.assertNotIn("%<", adoption)
 
     def test_an_adopting_window_is_left_unqualified(self) -> None:
         # Nothing about a window where sessions adopted and runs triggered is

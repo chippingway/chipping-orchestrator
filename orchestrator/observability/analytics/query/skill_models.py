@@ -93,14 +93,13 @@ class SkillTriggerMatrixRow:
     `level` is the source level the skill was defined at (`project` /
     `user` / `harness`), read from the recorded name-to-level map -- so a
     name a repository checked in and a same-named one installed globally
-    are two cells rather than one blended average. A catalog-padded cell
-    the record left unclassified is `project`, since that scan enumerates
-    a repository's own definitions. A run that recorded no level for a
-    skill it loaded (a legacy record, or a claude run whose stream names
-    no source directory) is filed at the level that repository's catalog
-    offers the name at, where it offers exactly one -- so the load counts
-    inside the padded cell for that definition rather than beside it. A
-    name the catalog never offered, or one it offers at two levels, stays
+    are two cells rather than one blended average. Only a catalog name
+    its record classified pads a cell. A run that recorded no level for a
+    skill it loaded (a claude run, whose stream names no source
+    directory) is filed at the level that repository's catalog offers the
+    name at, where it offers exactly one -- so the load counts inside the
+    padded cell for that definition rather than beside it. A name the
+    catalog never offered, or one it offers at two levels, stays
     `unknown`.
 
     `agent_role` / `backend` bucket NULLs under `"unknown"` so a cohort
@@ -150,12 +149,14 @@ class SkillAdoptionRow:
     change, mirroring `SkillTriggerMatrixRow`.
 
     `sessions` is the denominator: how many logical sessions in the
-    cohort had this skill *available* -- its `skills_available` set listed
-    the skill, or, for a legacy load recorded before availability metadata
-    existed, the skill was loaded while the session's `skills_available`
-    key was absent entirely (an explicit empty set counts as metadata, so
-    it does not imply availability). `adopted` is the numerator: how many
-    of those sessions actually loaded the skill, counted once per session
+    cohort had this skill *available*, which is only ever a session whose
+    reported `skills_available` set listed it. A session that reported no
+    offered set -- tracking off, or a stream that named none -- has
+    unknown availability and counts in no cell's denominator, however
+    many skills it loaded: a load is not evidence of an offer, so its
+    cell keeps the load in `load_rows` beside a zero `sessions` rather
+    than a fabricated one. `adopted` is the numerator: how many of the
+    offered sessions actually loaded the skill, counted once per session
     no matter how many runs reached for it. `adoption_rate` is
     `adopted / sessions`.
 
@@ -173,14 +174,14 @@ class SkillAdoptionRow:
     `level` is the source level the skill was defined at, read from the
     recorded name-to-level map, so a session offered a repository's own
     `develop` and one offered a global skill of that name are counted apart
-    rather than averaged together. A record that named no level -- one written
-    before levels existed, or a claude run whose stream names no source
-    directory -- is filed at the level that repository's `repo_skill_catalog`
-    offers the name at, where it offers exactly one, so an availability
-    report, a load, and an incidental reference of the same definition all
-    reach the same cell instead of splitting an `unknown` row off beside it. A
-    name the catalog never offered, or one it offers at two levels, stays
-    `unknown`, and a level the record itself carried is never overwritten.
+    rather than averaged together. A record that named no level -- a claude
+    run, whose stream names no source directory -- is filed at the level
+    that repository's `repo_skill_catalog` offers the name at, where it
+    offers exactly one, so an availability report, a load, and an
+    incidental reference of the same definition all reach the same cell
+    instead of splitting an `unknown` row off beside it. A name the catalog
+    never offered, or one it offers at two levels, stays `unknown`, and a
+    level the record itself carried is never overwritten.
 
     `agent_role` / `backend` bucket NULLs under `"unknown"` so a cohort is
     never silently dropped. The same `TRACK_SKILL_TRIGGERS`-off caveat as
@@ -206,6 +207,6 @@ class SkillAdoptionRow:
         `adopted / sessions`, guarded against a zero-session cell so a
         row that exists only for its window diagnostics (a purely
         incidental reference, or a load whose session reported a
-        different availability set) never divides by zero.
+        different availability set or none) never divides by zero.
         """
         return self.adopted / self.sessions if self.sessions else float(0)

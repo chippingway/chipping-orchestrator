@@ -2,11 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which runs one filter request keeps, out of the ones a read came back with.
 
-A request arrives either as an options object or as the keyword fields the same
-options are made of, never as both: a caller passing the two is contradicting
-itself, and silently preferring one would answer a filter nobody asked for, so
-it is refused. Whichever spelling arrived is narrowed once, and every run is
-then walked against that one normalized form.
+A request arrives as the keyword fields a page names, every one optional. It is
+narrowed once, and every run is then walked against that one normalized form.
 
 Filtering only ever narrows what the read already handed over, so the order it
 was handed in -- newest first, the file's own line order as the tiebreak -- is
@@ -25,26 +22,10 @@ from typing import Unpack
 from orchestrator.observability.trajectory_viewer import filter_models, filter_values
 from orchestrator.observability.trajectory_viewer.runs import TrajectoryRun
 
-# `filter_runs` names the options object bare and the keyword fields through
-# their module, and that pair is its published call shape: `inspect.signature`
-# reports an annotation verbatim, and `get_type_hints` resolves it against this
-# module, so both spellings have to be bound here.
-RunFilterOptions = filter_models.RunFilterOptions
 
-
-def resolve_run_filter_options(
-    options: object,
-    option_fields: filter_models.RunFilterOptionFields,
-    options_type: type,
-) -> object:
-    if options is not None and option_fields:
-        raise TypeError("pass either options or keyword option fields, not both")
-    if options is not None:
-        return options
-    return options_type(**option_fields)
-
-
-def normalize_run_filters(options: object) -> filter_models.RunFilters:
+def normalize_run_filters(
+    options: filter_models.RunFilterOptions,
+) -> filter_models.RunFilters:
     return filter_models.RunFilters(
         repo=options.repo,
         backends=filter_values.normalize_filter_values(options.backends),
@@ -91,10 +72,10 @@ def matches_run_filters(
 
 def filter_runs(
     runs: Sequence[TrajectoryRun],
-    options: RunFilterOptions | None = None,
     **option_fields: Unpack[filter_models.RunFilterOptionFields],
 ) -> list[TrajectoryRun]:
     """Return runs matching every supplied filter while preserving order."""
-    resolved = resolve_run_filter_options(options, option_fields, RunFilterOptions)
-    run_filters = normalize_run_filters(resolved)
+    run_filters = normalize_run_filters(
+        filter_models.RunFilterOptions(**option_fields),
+    )
     return [run for run in runs if matches_run_filters(run, run_filters)]
