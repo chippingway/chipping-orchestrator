@@ -869,6 +869,14 @@ reviewed, so the run is recorded without a park and the next tick's fresh review
 empty `VERIFY_COMMANDS` advances too, but its result is an explicit `not_run` rather than evidence that anything
 passed.
 
+The final docs pass runs the same commands, under the same `VERIFY_TIMEOUT`, on exactly the docs commit it publishes,
+since no review of that commit follows: a passing run is recorded as this orchestrator's own evidence of the docs
+commit, beside the approval rather than in it, and the issue goes on to `in_review`; any failure parks it on
+`workflow:documenting` with the same typed `park_reason`, nothing offered for merge, until a bare
+`/orchestrator continue` resumes the docs pass over that commit and what it leaves passes. An empty `VERIFY_COMMANDS`
+runs nothing there either, and the pass records that nothing verified the docs commit, which the ready ping accepts
+only while the setting stays empty.
+
 What the approval rests on is the reviewer's settled verification. A squash that publishes another head carries
 evidence onto it only where both commits read as the tested tree and the verification context these two settings mint
 is unchanged, and the evidence it carries is the gate's own run where that run passed whole on the approved head:

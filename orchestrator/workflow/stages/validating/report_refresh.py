@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The report a rewritten head is owed, asked for and settled with no human.
 
-A rewrite this orchestrator published -- a rebase, a conflict resolution,
-commits an earlier tick left unpushed, or the docs commit a final-docs pass
-handed back here (`stages/documenting/handback.py`) -- leaves the pull request
-on a commit the settled report is not about (`report_rewrite_debt`), and the
+A rewrite this orchestrator published -- a rebase, a conflict resolution, or
+commits an earlier tick left unpushed -- leaves the pull request on a commit
+the settled report is not about (`report_rewrite_debt`), and the
 reviewer road
 would refuse that report and park for a human whose reply only restarts a
 report of a commit this orchestrator made itself. So the report hold asks here
@@ -34,10 +33,11 @@ reviewer road parks for it exactly as it would with no debt at all.
 Where the debt is instead owed a fresh report (`RewriteDebt.owes_a_refresh`),
 the developer is resumed on a prompt asking for that report alone. So it is
 where the settled report is of the approved commit this orchestrator's
-approval squash collapsed into the head the debt replaced -- a rebase of the
-squash, or a docs commit on it -- of neither head
-the debt names, so owed nothing on its own -- but only once that lineage is
-proved (`report_squash_lineage`) and the report re-reads intact at its
+approval squash collapsed, or its final docs pass documented, into the head
+the debt replaced -- a rebase of the squash, or of the docs commit -- of
+neither head the debt names, so owed nothing on its own -- but only once that
+lineage is proved (`report_squash_lineage`, `report_docs_lineage`) and the
+report re-reads intact at its
 location, and only against the requirements the issue carries now. That report
 is left as it is: it still names the commit it was written about. A lineage
 nothing proves, a report moved out of reach, and requirements that moved leave
@@ -79,6 +79,7 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     prompt_delivery as _prompt_delivery,
     prompts as _prompts,
+    report_docs_lineage as _docs_lineage,
     report_rewrite_debt as _rewrite_debt,
     report_squash_lineage as _squash_lineage,
     usage as _usage,
@@ -152,8 +153,9 @@ def _answers_the_debt(
     of neither head the claim names -- holds nothing here: the reviewer road
     holds the report it finds to the head, and parks for one that is not
     about it. The one settled report of neither head that is owed a refresh is
-    the approved commit an approval squash collapsed, and only once that is
-    proved (`_refreshes_a_squashed_report`). Either of the other two waits
+    the approved commit an approval squash collapsed, or a final docs pass
+    documented, into the head the debt replaced, and only once that is proved
+    (`_refreshes_a_squashed_report`). Either of the other two waits
     first for requirements the drift check stood down for
     (`_waits_for_the_drift_road`).
     """
@@ -232,11 +234,14 @@ def _refreshes_a_squashed_report(
     state: PinnedState,
     debt: _rewrite_debt.RewriteDebt,
 ) -> bool:
-    """Refresh the report a proved approval squash leaves owed; whether the review is held.
+    """Refresh the report a proved approval squash or final docs pass leaves owed; whether the review is held.
 
-    Asked of a debt owed a refresh only should the squash be proved: the
-    settled report is of a commit the debt never names, so the squash's
-    lineage is what links it to the debt. PROVED asks for a fresh report of
+    Asked of a debt owed a refresh only should the lineage be proved: the
+    settled report is of a commit the debt never names, so what links it to
+    the debt is the squash's carry (`report_squash_lineage`), or -- where the
+    head the debt replaced is the docs commit a final docs pass completed on
+    -- that pass's completion, through any squash before it
+    (`report_docs_lineage`). PROVED asks for a fresh report of
     the head the debt published, with the settled report left as it is. A
     lineage nothing proves holds nothing, and the reviewer road refuses the
     stale report as it always did; a tree nobody could read holds with nobody
@@ -246,11 +251,13 @@ def _refreshes_a_squashed_report(
     pinned record alone: a report the thread moved out of reach is left to
     that road's refusal, and a location nobody could read holds.
     """
-    proof = _squash_lineage.lineage_verdict(spec, issue.number, state, debt.rewritten_head)
+    documented = _docs_lineage.documented_into(state, debt.previous_head) is not None
+    lineage = _docs_lineage if documented else _squash_lineage
+    proof = lineage.lineage_verdict(spec, issue.number, state, debt.rewritten_head)
     if not proof.proved:
         if proof.holds:
             log.info(
-                "issue=#%d could not read its approval squash's lineage: %s; "
+                "issue=#%d could not read the lineage of its approved commit: %s; "
                 "holding the review", issue.number, proof.refusal,
             )
         return proof.holds
@@ -265,6 +272,7 @@ def _refreshes_a_squashed_report(
         gh, spec, issue, state, debt,
         requirements=str(state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH) or ""),
         approved=report.source_sha,
+        documented=documented,
     ))
     return True
 
@@ -288,7 +296,7 @@ def _refreshes_the_report(refresh: _models._ReportRefresh) -> None:
     worktree, agent_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         refresh.gh, refresh.spec, refresh.issue, refresh.state,
         _prompts._build_report_refresh_prompt(
-            refresh.issue, refresh.debt.previous_head, refresh.head, refresh.approved,
+            refresh.issue, refresh.debt.previous_head, refresh.head, refresh.approved, documented=refresh.documented,
         ),
         pause_guard=True,
     ))

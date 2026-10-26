@@ -14,9 +14,10 @@ so the freeze lasts exactly as long as the question it belongs to -- the terms
 a squash records before it rewrites the branch among them, dropped by whatever
 finishes or undoes that collapse, a developer report recorded and not yet
 settled, dropped by the binding and settlement that publish it, an
-Antigravity docs launch, dropped by the write that records its outcome, and a
-docs pass's receipt, dropped by the completion that hands the pass on. Three
-do not, and they are the reason this is an owner rather than a tuple. An exemption and
+Antigravity docs launch, dropped by the write that records its outcome, a
+docs pass's receipt, dropped by the completion that hands the pass on, and
+that completion's run of its final head, spent by the settlement that makes it
+current. Three do not, and they are the reason this is an owner rather than a tuple. An exemption and
 a publication record are invalidated by the head moving off them rather than
 by any write, so what answers for those is the checkout itself -- and, since
 neither is ever dropped, how long the STAGE that reads them keeps the issue,
@@ -174,20 +175,38 @@ _REPORT_IN_FLIGHT_KEYS: tuple[str, ...] = (
 # The receipt a finished docs pass leaves for the completion that hands it on
 # is held the same way. It goes down in the size gate's own write, beside the
 # code-publication receipt of a push that landed or the hold of one that did
-# not, and the completion that hands the published commit back to `validating`
-# consumes it in the write that records that commit's report debt over the
-# head the push replaced. A rebase first -- the completion refused, never
-# confirmed, or cut short by a crash -- publishes a rewrite of the docs commit
-# whose own debt names the docs commit as the head it replaced, which no
-# settled report is about and no squash's lineage reaches, so the reviewer road
-# parks for a report the developer is never asked for. Held, the next
-# documenting tick hands the published commit back first, and a rebase behind
-# that carries the debt onto the commit it publishes, keeping the head the
-# settled report is about.
+# not, and the completion that verifies the published commit and hands it to
+# `in_review` consumes it in the write that records the completion -- or a
+# later approval retires it, the pass it names being the earlier one's. A rebase
+# first -- the completion refused, never confirmed, held, parked on a run that
+# did not pass, or cut short by a crash -- rewrites the docs commit the pass
+# completed on before anything verified it, and the completion then recorded
+# names a head the pull request has left. Held, the next documenting tick
+# verifies and completes the published commit first, and a rebase behind that
+# is the PR-aware sync's own route back to review.
 _LAUNCH_IN_FLIGHT_KEYS: tuple[str, ...] = (
     "docs_launched_sha",
     "docs_settled_sha",
 )
+
+
+# A final docs pass's completion whose verification is still unfinished: the
+# record names the run of its final head as the evidence that head rests on,
+# and that run is still the transaction this issue owes the pull request --
+# minted and recorded in the completion's own write, published and settled by
+# the dispatcher's reconciliation on a later tick. A rebase in between moves
+# the pull request off the head the run tested, so the reconciliation can only
+# abandon it, and the completion is left resting on evidence that never
+# settles. It ends by being SPENT too: the settlement makes the run current
+# and writes the transaction `null`, and so does an abandonment, after which
+# the refresh's own route answers the head as it stands. Matched by the
+# transaction's receipt, so a transaction of any other road's leaves the
+# branch to whatever else holds it.
+_FINAL_DOCS = "docs_final_provenance"
+
+_PENDING_EVIDENCE = "verification_evidence_pending"
+
+_RECEIPT = "receipt"
 
 
 # The terms a squash-on-approval records before it destroys the evidence of
@@ -343,16 +362,35 @@ def _held_records(state: _pinned_state.PinnedState) -> tuple[str, ...]:
     A report in flight is read against `null`, the way its own owners ask
     whether one is outstanding, so a record they cannot read still holds; so
     is a docs launch whose outcome nothing has recorded yet, and a docs pass's
-    receipt no completion has consumed.
+    receipt no completion has consumed. A completion whose run is still owed
+    holds too (`_docs_verification_owed`).
     """
     held = tuple(key for key in _FROZEN_BY_KEYS if state.get(key))
     held += _late_claims(state)
     held += tuple(
         key for key in _REPORT_IN_FLIGHT_KEYS + _LAUNCH_IN_FLIGHT_KEYS if state.get(key) is not None
     )
+    held += _docs_verification_owed(state)
     return held + tuple(
         key for key in _LATE_COLLAPSE_KEYS if key in state.data
     )
+
+
+def _docs_verification_owed(state: _pinned_state.PinnedState) -> tuple[str, ...]:
+    """The completion record, where the transaction it names as its evidence is still owed; else nothing.
+
+    The record names that transaction by its receipt, and the pending
+    transaction carries its own: one receipt read on both sides is the
+    completion's run still unsettled.
+    """
+    final = state.get(_FINAL_DOCS)
+    pending = state.get(_PENDING_EVIDENCE)
+    named = final.get("evidence") if isinstance(final, dict) else None
+    if not (isinstance(named, dict) and isinstance(pending, dict)):
+        return ()
+    receipt = named.get(_RECEIPT)
+    owed = receipt is not None and receipt == pending.get(_RECEIPT)
+    return (_FINAL_DOCS,) if owed else ()
 
 
 def _late_claims(state: _pinned_state.PinnedState) -> tuple[str, ...]:

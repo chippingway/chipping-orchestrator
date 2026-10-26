@@ -29,6 +29,7 @@ from unittest.mock import MagicMock
 from orchestrator.workflow.engine import base_refresh
 from tests.git.base_sync.sync_test_support import _patch_base_sync
 from tests.support.fakes import FakeGitHubClient, make_issue
+from tests.workflow import fixtures as _fixtures
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     LABEL_DISCUSSION,
@@ -59,6 +60,7 @@ _PARTIAL_COLLAPSE_ISSUE_NUMBER = 1030
 _REPORT_IN_FLIGHT_ISSUE_NUMBER = 1035
 _REPORT_SETTLED_ISSUE_NUMBER = 1040
 _LAUNCH_IN_FLIGHT_ISSUE_NUMBER = 1045
+_DOCS_RUN_OWED_ISSUE_NUMBER = 1060
 _NONCANONICAL_STAGE_ISSUE_NUMBER = 1050
 _NONCANONICAL_DECIDED_ISSUE_NUMBER = 1055
 _HANDED_ON_ISSUE_NUMBER = 1002
@@ -153,6 +155,17 @@ _DOCS_PASSES_IN_FLIGHT: tuple[dict, ...] = (
     {"docs_launched_sha": ""},
     {"docs_settled_sha": _ACCEPTED_COMMIT},
 )
+
+
+# A final docs pass's completion naming the run of its final head as its
+# evidence, by that run's receipt, and the transaction a pending record carries:
+# the run itself, still owed its settlement, and another road's transaction
+# beside a completion whose run already settled.
+_DOCS_RUN_RECEIPT = "issue-1060-verification-3-0123456789abcdef0123456789abcdef"
+
+_ANOTHER_RECEIPT = "issue-1060-verification-4-fedcba9876543210fedcba9876543210"
+
+_DOCS_RUN_REVISION = 3
 
 
 _FALSEY_READINGS: tuple[dict, ...] = (
@@ -505,9 +518,10 @@ class ReportInFlightSkipTest(_SkipCase, unittest.TestCase):
     holds until the park that answers it: that park reruns the pass over
     whatever it left, and a rewrite first would publish that work -- or, with
     none, the base -- as though a pass had finished. So is a docs pass's
-    receipt no completion has consumed: rebased first, the published docs
-    commit's own report debt would name it as the head replaced, a head no
-    settled report is about.
+    receipt no completion has consumed: rebased first, the docs commit the
+    pass completed on is rewritten before anything verified it. And so is the
+    completion's own run of that commit, until it settles: rebased first, the
+    run tests a head the pull request has left, and never settles.
     """
 
     def test_a_report_in_flight_holds_the_branch(self) -> None:
@@ -530,6 +544,19 @@ class ReportInFlightSkipTest(_SkipCase, unittest.TestCase):
             docs_settled_sha=None,
         )
 
+    def test_an_owed_docs_run_holds_the_branch(self) -> None:
+        # Into `in_review` and past it: the completion's run is published and
+        # settled by the reconciliation on a later tick, so the branch is held
+        # until that transaction is spent, and only for that transaction.
+        self._assert_skipped(
+            _DOCS_RUN_OWED_ISSUE_NUMBER, _fixtures.LABEL_IN_REVIEW, **self._owing_a_run(_DOCS_RUN_RECEIPT),
+        )
+        for offset, pending in enumerate((None, _ANOTHER_RECEIPT), start=1):
+            with self.subTest(pending=pending):
+                self._assert_synced(
+                    _DOCS_RUN_OWED_ISSUE_NUMBER + offset, label=_fixtures.LABEL_IN_REVIEW, **self._owing_a_run(pending),
+                )
+
     def test_a_docs_pass_in_flight_holds_the_branch(self) -> None:
         # Read against `null`, so a launch whose head could not be read, which
         # records an empty string, still holds; and a docs receipt holds until
@@ -542,6 +569,14 @@ class ReportInFlightSkipTest(_SkipCase, unittest.TestCase):
                     **record,
                 )
 
+
+    def _owing_a_run(self, pending_receipt: str | None) -> dict:
+        """The completion naming its run, beside a pending transaction carrying `pending_receipt`, or none for None."""
+        pending = None if pending_receipt is None else {"receipt": pending_receipt}
+        return {
+            "docs_final_provenance": {"evidence": {"receipt": _DOCS_RUN_RECEIPT, "revision": _DOCS_RUN_REVISION}},
+            "verification_evidence_pending": pending,
+        }
 
 class LateRecordBaseRefreshEndTest(_SkipCase, unittest.TestCase):
     """What ends each of those freezes, so none of them is permanent.

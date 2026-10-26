@@ -283,7 +283,9 @@ or that checks ran on another commit, and a completion missing, malformed, or mo
 claim that no longer reads as the one the completion followed; requirements, a report, or a publication that
 changed, an edit or a push landing while the proof reads included; the evidence that claim names no longer published
 as it settled; a lineage from the approved commit not proved; or a run owed, failed, or incomplete authorizes
-nothing, and evidence or an issue nobody could read holds it.
+nothing, and evidence or an issue nobody could read holds it. Every final docs pass that finishes records that
+completion and goes straight to review: documentation alone buys no fresh review, developer report, or review round,
+and a docs commit the configured run does not pass on is offered to nobody.
 
 **Specs:** [reports](workflow.md#developer-report-contract-in-developer-prompts),
 [verification](workflow/conversations.md#the-reviewer-verification-contract),
@@ -294,7 +296,8 @@ nothing, and evidence or an issue nobody could read holds it.
 [verification](../tests/workflow/engine/test_verification_current.py),
 [readiness](../tests/workflow/stages/in_review/test_readiness_proof.py),
 [final documentation](../tests/workflow/engine/test_final_docs_proof.py),
-[final-head runs](../tests/workflow/stages/documenting/test_final_verification.py).
+[final-head runs](../tests/workflow/stages/documenting/test_final_verification.py),
+[final-docs completion](../tests/workflow/stages/validating/test_changed_docs_journey.py).
 
 ## C-10: Pauses and parks
 

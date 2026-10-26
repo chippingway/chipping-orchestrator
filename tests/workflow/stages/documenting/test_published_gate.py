@@ -96,7 +96,7 @@ class CumulativeDocsReadingTest(unittest.TestCase, gate._DocsGateFixtureMixin):
                     ],
                     MEASURED_CANDIDATE_SHA,
                 )
-                self._assert_handed_back_once(github)
+                self._assert_completed_once(github)
 
     def test_the_push_replaces_the_entered_head(self) -> None:
         # The lease is the head the pull request was standing on when the pass
@@ -188,7 +188,7 @@ class AnnouncedHandoffTest(unittest.TestCase, gate._DocsGateFixtureMixin):
 
         self._settled_tick(github, issue)
 
-        self._assert_handed_back_once(github, gate.HANDOFF_NOTICE)
+        self._assert_completed_once(github, gate.HANDOFF_NOTICE)
 
 
 class WaitingDocsCommitTest(unittest.TestCase, gate._DocsGateFixtureMixin):
@@ -352,7 +352,7 @@ class DocsPushCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
 
 
 class DocsHandoffCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
-    """The three effects of the tail, and what a tick dying on each leaves."""
+    """The effects of the tail, and what a tick dying on each leaves."""
 
     def test_the_tick_after_the_crash_hands_it_on(self) -> None:
         # What the receipt buys: the pull request is standing on the commit
@@ -368,7 +368,7 @@ class DocsHandoffCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
 
         mocks[documenting.RUN_AGENT].assert_not_called()
         mocks[documenting.PUSH_BRANCH].assert_not_called()
-        self._assert_handed_back_once(github, gate.HANDOFF_NOTICE, notices=2)
+        self._assert_completed_once(github, gate.HANDOFF_NOTICE, notices=2)
 
     def test_a_settled_crash_hands_on_next_tick(self) -> None:
         # The adjudicated-single road through the same window. The commit was
@@ -389,29 +389,7 @@ class DocsHandoffCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         mocks = self._settled_tick(github, issue)
 
         mocks[documenting.RUN_AGENT].assert_not_called()
-        self._assert_handed_back_once(github, gate.HANDOFF_NOTICE, notices=2)
-
-    def test_a_lost_relabel_is_finished_on_dispatch(self) -> None:
-        # The write that hands the commit back consumes the receipt and
-        # records the report debt beside the mark naming the commit, so a
-        # relabel lost behind it leaves the issue here with a debt the
-        # dispatcher holds this stage for -- and no receipt to finish from.
-        # That debt is this stage's own, so the next dispatch finishes the
-        # relabel to `validating`: no agent run, no push, and no second notice.
-        github, issue = self._crashed_pass(
-            dies=gate.DIES_ON_THE_RELABEL, added_lines=UNDER_THE_CEILING,
-        )
-        crashed = self._pinned(github)
-        self.assertEqual(
-            (crashed[gate.KEY_SETTLED_DOCS_SHA], crashed[gate.KEY_HANDED_BACK], github.label_history),
-            (None, MEASURED_CANDIDATE_SHA, []),
-        )
-
-        mocks = self._dispatched(github, issue)
-
-        mocks[documenting.RUN_AGENT].assert_not_called()
-        mocks[documenting.PUSH_BRANCH].assert_not_called()
-        self._assert_handed_back_once(github)
+        self._assert_completed_once(github, gate.HANDOFF_NOTICE, notices=2)
 
     def test_a_finished_handoff_frees_the_next_pass(self) -> None:
         # The receipt may not outlive the handoff it was written for. Left
@@ -479,7 +457,7 @@ class AmendedCandidateTest(unittest.TestCase, gate._DocsGateFixtureMixin):
                 self.assertEqual(
                     pinned[gate.KEY_RECEIPT_SHA], MEASURED_CANDIDATE_SHA,
                 )
-                self._assert_handed_back_once(github)
+                self._assert_completed_once(github)
 
     def test_a_failed_push_pins_the_amended_head(self) -> None:
         # The approval goes down before the push and the park behind it writes

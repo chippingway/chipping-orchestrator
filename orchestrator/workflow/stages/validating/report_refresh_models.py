@@ -11,9 +11,10 @@ report is asked about and recorded for. `requirements` is the baseline the
 drift check had just proved current, which the report is stamped with: re-read
 once the agent is back, it could be an edit the session never saw. `approved`
 is the commit the settled report is about where that is neither head the debt
-names -- the approved commit this orchestrator's approval squash collapsed into
-the head the rewrite replaced, proved so before the run -- and "" otherwise,
-so the developer is told which commit the report standing there describes.
+names -- the approved commit this orchestrator's approval squash collapsed, or
+its final docs pass documented, into the head the rewrite replaced, proved so
+before the run -- and "" otherwise, so the developer is told which commit the
+report standing there describes; `documented` says it was the docs pass.
 
 It is also where the requirements are read again once the run is back --
 whether the issue, fetched afresh since an edit made while the agent was out
@@ -51,6 +52,7 @@ class _ReportRefresh:
     debt: RewriteDebt
     requirements: str
     approved: str = ""
+    documented: bool = False
 
     @property
     def head(self) -> str:

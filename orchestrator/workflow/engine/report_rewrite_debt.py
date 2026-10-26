@@ -66,10 +66,10 @@ already landed. A replay the size gate handed to an adjudication instead is
 taken over by the late generation with its attempt retired
 (`rewrite_takeover.py`), and the authorized settlement that publishes it
 records the same debt before it hands the head to `validating`
-(`stages/decomposition/late_replay_debt.py`). A final-docs pass that publishes
-a docs commit records one off its code-publication receipt in the write that
-hands the pull request back to `validating` (`stages/documenting/handback.py`).
-A settled report of the commit
+(`stages/decomposition/late_replay_debt.py`). A final-docs pass records none:
+the docs commit it publishes completes straight into `in_review`, recorded
+beside the approval rather than as a rewrite the report is owed for
+(`stages/documenting/final_completion.py`). A settled report of the commit
 an approval's squash replaced is of neither head, so it pays nothing, and on
 its own it is owed nothing either. Written against the requirements the issue
 carries now, it is the one case only a proof can open (`squashed` on

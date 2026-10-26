@@ -28,9 +28,10 @@ DOCUMENTING = "workflow:documenting"
 IN_REVIEW = "in_review"
 VALIDATING = "workflow:validating"
 
-# The mark a published commit's hand-back leaves, and the debt it records.
-HANDED_BACK_SHA = "docs_handed_back_sha"
+# The report debt no published docs commit records, and the verdict it is
+# stamped with instead.
 REWRITE_DEBT = "developer_report_rewrite_debt"
+VERDICT_UPDATED = "updated"
 
 # --- Dev agent identity pinned into per-issue state ---------------------
 DEV_AGENT = "codex"
@@ -170,14 +171,14 @@ class HandleDocumentingRecoveryTest(unittest.TestCase, _BasicDocumentingFixture)
                 gh, mocks = self._recovered_tick(committed)
 
                 # The agent must NOT be spawned -- the recovered commits are
-                # enough to publish, and once published they are content no
-                # review covered, handed back to `validating` owed a report.
+                # enough to publish, and once published the pass is complete:
+                # on to `in_review`, owed no report.
                 mocks[RUN_AGENT].assert_not_called()
-                self.assertEqual(gh.label_history, [(self.issue_number, VALIDATING)])
+                self.assertEqual(gh.label_history, [(self.issue_number, IN_REVIEW)])
                 state = gh.pinned_data(self.issue_number)
                 self.assertEqual(
-                    (state.get(DOCS_VERDICT), state.get(HANDED_BACK_SHA), state[REWRITE_DEBT]["rewritten_head"]),
-                    (None, SHA_RECOVERED, SHA_RECOVERED),
+                    (state.get(DOCS_VERDICT), state.get(DOCS_CHECKED_SHA), state.get(REWRITE_DEBT)),
+                    (VERDICT_UPDATED, SHA_RECOVERED, None),
                 )
                 _assert_referenced_publication(
                     self,
@@ -211,7 +212,7 @@ class HandleDocumentingRecoveryTest(unittest.TestCase, _BasicDocumentingFixture)
             mocks[PUSH_BRANCH].call_args.kwargs[documenting_support.REVISION],
             SHA_RECOVERED,
         )
-        self.assertEqual(gh.label_history, [(self.issue_number, VALIDATING)])
+        self.assertEqual(gh.label_history, [(self.issue_number, IN_REVIEW)])
         self.assertEqual(
             gh.pinned_data(self.issue_number).get(DOCS_CHECKED_SHA), SHA_RECOVERED,
         )
@@ -323,8 +324,8 @@ class UnlandedCompletionRecoveryTest(unittest.TestCase, _BasicDocumentingFixture
         # its receipt down; the completion behind the notice went out and never
         # landed, so nothing was relabelled on it. The tick that follows finds
         # the branch level with its remote and standing on that commit, and
-        # finishes the hand-back from the receipt -- with no agent spawned and
-        # nothing pushed a second time.
+        # finishes the completion from the receipt -- with no agent spawned
+        # and nothing pushed a second time.
         gh, issue = self._seeded()
         with patch.object(
             gh, gate.EDIT_PINNED_STATE, completion._FailsTheCompletion(gh, completion.REFUSED),
@@ -340,7 +341,7 @@ class UnlandedCompletionRecoveryTest(unittest.TestCase, _BasicDocumentingFixture
             )
         published[PUSH_BRANCH].assert_called_once()
         self.assertEqual(gh.label_history, [])
-        self.assertIsNone(gh.pinned_data(self.issue_number).get(HANDED_BACK_SHA))
+        self.assertIsNone(gh.pinned_data(self.issue_number).get(DOCS_VERDICT))
 
         mocks = self._run_documenting(
             gh,
@@ -353,9 +354,9 @@ class UnlandedCompletionRecoveryTest(unittest.TestCase, _BasicDocumentingFixture
 
         mocks[RUN_AGENT].assert_not_called()
         mocks[PUSH_BRANCH].assert_not_called()
-        self.assertEqual(gh.label_history, [(self.issue_number, VALIDATING)])
+        self.assertEqual(gh.label_history, [(self.issue_number, IN_REVIEW)])
         state = gh.pinned_data(self.issue_number)
         self.assertEqual(
-            (state.get(DOCS_VERDICT), state.get(DOCS_CHECKED_SHA), state.get(HANDED_BACK_SHA)),
-            (None, SHA_RECOVERED, SHA_RECOVERED),
+            (state.get(DOCS_VERDICT), state.get(DOCS_CHECKED_SHA), state.get(REWRITE_DEBT)),
+            (VERDICT_UPDATED, SHA_RECOVERED, None),
         )

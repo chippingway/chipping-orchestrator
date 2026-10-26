@@ -24,8 +24,7 @@ was tested -- the approved one, which the approved subject is about -- and its
 tree, the head the squash published, the pull request and branch, and the
 approved subject's report revision, digest, and requirements. A carry is read
 wherever this issue still keeps it -- owed, current, or in the bounded
-history, whatever retired it, the docs commit's hand-back included --
-through the evidence domain's own readers,
+history, whatever retired it -- through the evidence domain's own readers,
 since what is asked is what the squash did, never whether its evidence still
 answers for anything: neither the verification context nor the artifact is
 read. That freshness is the evidence domain's, and nothing here feeds it.

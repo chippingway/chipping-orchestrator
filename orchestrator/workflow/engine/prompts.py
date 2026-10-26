@@ -211,18 +211,19 @@ def _build_conflict_resolution_prompt(
 
 
 def _build_report_refresh_prompt(
-    issue: Issue, previous_head: str, rewritten_head: str, approved: str = "",
+    issue: Issue, previous_head: str, rewritten_head: str, approved: str = "", *, documented: bool = False,
 ) -> str:
     """Ask the developer for a fresh report of a head this orchestrator rewrote, and nothing else.
 
     The report the pull request carries is about `previous_head`, which a
     rewrite replaced with `rewritten_head` -- a rebase, a conflict resolution,
-    commits an earlier run left unpushed, or the commit a final docs pass
-    published -- so the only outcome that pays for the rewrite is one written
-    afresh about it. Where `approved` is given the
-    report is about that commit instead, which this orchestrator's approval
-    squash collapsed into `previous_head`, and the prompt says so rather than
-    naming a commit the report never mentions. The whole report contract
+    or commits an earlier run left unpushed -- so the only outcome that pays
+    for the rewrite is one written afresh about it. Where `approved` is given
+    the report is about that commit instead, which this orchestrator's
+    approval squash collapsed into `previous_head` -- or, where `documented`,
+    which its final docs pass documented into `previous_head`, the docs commit
+    that rewrite replaced -- and the prompt says so rather than naming a
+    commit the report never mentions. The whole report contract
     rides along, as on every developer prompt, and the verified outcome it
     teaches is then refused by name: pointing at the report already there
     would carry the account of another commit forward unchanged.
@@ -230,16 +231,16 @@ def _build_report_refresh_prompt(
     body = issue.body or _prompt_notes._NO_BODY
     described = f"`{previous_head}`, the head that rewrite replaced"
     if approved:
+        carried = "documented, in a final docs pass," if documented else "squashed"
         described = (
-            f"`{approved}`, the approved commit this orchestrator squashed into "
+            f"`{approved}`, the approved commit this orchestrator {carried} into "
             f"`{previous_head}` before that rewrite replaced it"
         )
     return (
         "This orchestrator rewrote the head of the pull request of GitHub issue "
         f"#{issue.number} ({issue.title!r}) -- rebasing it onto its updated base "
-        "branch, resolving the conflicts that rebase met, publishing commits an "
-        "earlier run left unpushed, or publishing the documentation commit a "
-        "final docs pass made. The pull request now stands on commit "
+        "branch, resolving the conflicts that rebase met, or publishing commits an "
+        "earlier run left unpushed. The pull request now stands on commit "
         f"`{rewritten_head}`, and your worktree is checked out at it. The developer "
         f"report the pull request carries describes {described}, so it is not a "
         "report of this commit.\n\n"

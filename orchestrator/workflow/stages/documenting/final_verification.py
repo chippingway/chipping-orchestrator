@@ -46,9 +46,9 @@ Nothing here writes. What is staged on the state in hand -- the completion,
 and for EXECUTED the transaction, with whatever the transaction abandons into
 history and the revision floor it raises (`OWNED`) -- is measured against the
 comment first, the transaction's own settlement and later invalidation
-included (`verification_record_state`), and the caller lands it through a
-guarded commit owning those fields and decided on every record the evidence
-is bound through (`VERIFIED`). Staged nowhere, nothing authorizes a
+included (`verification_record_state`), and the pass's completion lands it
+(`final_completion`), owning those fields and decided on every record the
+evidence is bound through (`VERIFIED`). Staged nowhere, nothing authorizes a
 completion: a missing or malformed record proves nothing.
 """
 from __future__ import annotations

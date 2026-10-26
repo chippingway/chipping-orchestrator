@@ -40,8 +40,10 @@ was handed and found needing no docs.
 
 Proved, nothing is written to the evidence: the record, its tested commit, its
 artifact, and the report's source stay exactly as the approval and its squash
-left them, and the completion lands decided as well on every record that proof
-read (`UNCHANGED`), so a hand edit of any of them under the tick refuses it.
+left them, the completion names it as the evidence the unchanged head rests on
+(`final_completion._completes_unchanged`), and it lands decided as well on
+every record that proof read (`UNCHANGED`), so a hand edit of any of them under
+the tick refuses it.
 
 A proof that refuses is the evidence proved to no longer answer for the pull
 request. The unchanged-doc handoff is withheld -- no verdict, no notice, no

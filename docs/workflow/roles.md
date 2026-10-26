@@ -90,15 +90,14 @@ per-stage behavior is in
   text, the stage override, and the run's options, and the resume builds its context from that request before it
   runs.
 - **A docs pass that changes the pull request.** `_handle_documenting` resumes the dev session for the final-docs
-  pass behind an approval, and a pass that publishes a docs commit — a fresh one, commits an earlier tick left
-  unpushed, or the commit a `docs_settled_sha` receipt names — has changed what the approval, the evidence it rests
-  on, and the settled developer report were about. So it is handed back to `workflow:validating` rather than on to
-  `in_review` (`workflow/stages/documenting/handback.py`), owing a report of that commit: the same locked session is
-  resumed for that report alone, with no human reply and no commit, and the earlier report stays as it was written,
-  naming its own commit. A fresh reviewer is then handed the new report and owes evidence of its own on the docs
-  commit, and only the approval behind that review buys the next final-docs pass. Each of those runs is charged once;
-  The hand-back spends one review round in the write that records it, since an approval spends none: the review
-  counts against `MAX_REVIEW_ROUNDS` once, and where it was the last round the review parks `review_cap`.
+  pass behind an approval, and it is the last automated delivery stage: a pass that publishes a docs commit — a fresh
+  one, commits an earlier tick left unpushed, or the commit a `docs_settled_sha` receipt names — completes straight
+  into `in_review` like one that publishes nothing (`workflow/stages/documenting/final_completion.py`). Documentation
+  alone launches no reviewer and no report refresh and spends no review round: the approved subject, the settled
+  report and the commit it was written about, and the evidence the approval rests on stay as they were, and the docs
+  commit is verified by this stage -- a run of the configured `VERIFY_COMMANDS` on exactly that commit, or nothing
+  under an empty configuration -- and recorded beside the approval, never as a review of it. The docs pass is the one
+  run charged; a configured run that does not pass on the docs commit parks with nothing offered for merge.
 - **A split parent's own pass.** A parent an ordinary split did not make an umbrella goes back to `workflow:ready`
   once every child is done, and the decomposer's `rationale` is where that split named the residual scope the parent
   kept for its own pass — the [`decompose` skill](../../.agents/skills/decompose/SKILL.md) requires it there. Every
@@ -128,12 +127,11 @@ per-stage behavior is in
   returned record is what tells a hand-back still owed its review from one a reviewer has read. A pull request with no
   report recorded, a report about another commit than that head, and one written against requirements the issue has
   moved past are refused rather than handed over — save that a report of the head this orchestrator's own rewrite
-  replaced (a rebase, a conflict resolution, commits an earlier tick left unpushed, or the docs commit a final-docs
-  pass published), where a recorded
+  replaced (a rebase, a conflict resolution, or commits an earlier tick left unpushed), where a recorded
   `developer_report_rewrite_debt` explains exactly that gap, holds the reviewer while the developer is resumed for a
   fresh report of the rewritten head, which is the report handed over once it settles. So does a report of the
-  approved commit this orchestrator's approval squash collapsed into that replaced head, once the squash's recorded
-  lineage proves it. A report that changes on an
+  approved commit this orchestrator's approval squash collapsed, or its final docs pass documented, into that replaced
+  head, once the squash's carry or the pass's completion proves that lineage. A report that changes on an
   unchanged head is a new subject, so it always reaches a fresh reviewer — one settling before the spawn holds the
   round, and one settling while a reviewer is out, while its approval
   is verified or squashed, or while `in_review` decides its ready ping voids what that approval would have earned, and
