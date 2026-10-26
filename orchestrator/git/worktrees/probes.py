@@ -11,8 +11,9 @@ what it left behind.
 
 One read here is not a listing at all: which clone a checkout or a clone
 shares its git directory with. The classification tests a named checkout's
-identity by it and the checkout listing finds the clone's worktree entries
-with it, which is why it lives here once rather than in each of them.
+identity by it, the checkout listing finds the clone's worktree entries with
+it, and the scan groups configured repositories by the ref store it names,
+which is why it lives here once rather than in each of them.
 
 Every listing fails closed, and for the same reason. A directory that could
 not be listed is answered with `None` rather than with the empty answer it
@@ -51,9 +52,12 @@ def _checkout_clone(root: Path) -> Path | None:
 
     The classification asks it of a checkout whose name claims an issue, to
     establish that the directory at that path really is a worktree of the
-    clone the name claims, and the checkout listing asks it of the clone to
-    find the worktree entries it counts. It lives here because this is the
-    lower of the owners asking it, and because it is one read rather than two.
+    clone the name claims; the checkout listing asks it of the clone to find
+    the worktree entries it counts; and ``inventory_roots`` asks it of every
+    configured target, so entries reaching one store by different paths -- a
+    linked worktree configured as a target among them -- are grouped as the
+    one store they are. It lives here because this is the lower of the owners
+    asking it, and because it is one read rather than several.
 
     Resolved against the directory the read ran in rather than asked for
     absolutely, because git answers this one relatively whenever it can and
