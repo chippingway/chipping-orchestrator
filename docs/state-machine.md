@@ -356,8 +356,7 @@ conversation replacing the last is still owed. Nothing that clears the session p
 `dev_resume_count` -- a publication, a rotation, a late restart's projection -- erases it, so a retired id is never
 resumed, and every resume stays a fresh conversation under the pinned `dev_agent` command until one with an id of its
 own is pinned.
-Every key, what writes it, what spends it, the guarded commit, and the legacy `codex_session_id` still honored on read
-are in
+Every key, what writes it, what spends it, and the guarded commit are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
 
 ## Stage handlers

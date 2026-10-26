@@ -532,7 +532,6 @@ class HandleValidatingFixLoopEdgeCasesTest(
         edge_github, edge_issue = self._seeded(
             dev_agent="agy",
             dev_session_id=DEV_SESSION,
-            codex_session_id=None,
             pre_implement_sha="stale-implement-sha",
         )
         edge_patches = self._run_validating(
@@ -561,7 +560,6 @@ class HandleValidatingFixLoopEdgeCasesTest(
         edge_github, edge_issue = self._seeded(
             dev_agent="agy",
             dev_session_id=DEV_SESSION,
-            codex_session_id=None,
         )
         edge_patches = self._run_validating(
             edge_github,
@@ -825,7 +823,8 @@ class HandleValidatingAwaitingHumanResumeTest(unittest.TestCase, _PatchedWorkflo
             7,
             awaiting_human=True,
             last_action_comment_id=ACTION_COMMENT_ID,
-            codex_session_id=DEV_SESSION,
+            dev_agent=BACKEND_CODEX,
+            dev_session_id=DEV_SESSION,
             review_round=1,
             pr_number=RESUME_PR,
             branch=_issue_branch(7),

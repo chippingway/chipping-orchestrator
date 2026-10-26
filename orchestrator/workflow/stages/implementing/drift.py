@@ -72,7 +72,6 @@ from orchestrator.workflow.stages.implementing.drift_models import _Implementing
 from orchestrator.workflow.stages.implementing.resume_request import _DevResumeRequest
 from orchestrator.workflow.stages.implementing.state import (
     _BRANCH,
-    _CODEX_SESSION_ID,
     _DEV_AGENT,
     _EDIT_OWNS_THE_TICK,
     _SILENT_PARK_COUNT,
@@ -116,8 +115,7 @@ def _handle_user_content_drift(
     rules out routing back to `decomposing`; the locked session decides what to
     do with the new body instead.
     """
-    session = state.get(_DEV_AGENT) or state.get(_CODEX_SESSION_ID)
-    if session and not _retry_ledger._grant_is_unspent(state):
+    if state.get(_DEV_AGENT) and not _retry_ledger._grant_is_unspent(state):
         _resume_dev_on_implementing_drift(gh, spec, issue, state)
         return _EDIT_OWNS_THE_TICK
     return _drift_preflight._handle_pre_session_drift(gh, spec, issue, state)

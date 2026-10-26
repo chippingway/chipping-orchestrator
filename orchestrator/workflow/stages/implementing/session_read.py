@@ -6,15 +6,14 @@ about its health.
 `_read_dev_session` is the read every spawn and resume starts from: it returns
 the full configured agent command string as the durable role identity, so a
 `DEV_AGENT` flip between ticks cannot retarget an in-flight issue at a backend
-that never ran on it. `_pinned_session_ids` reads past that resolution to
-every conversation either pin field still holds, for the retirement guard that
-must refuse a legacy pin the read no longer resolves. The three classifiers
-beside them read the other direction
--- the CLI's own words -- and each answers exactly one recovery question: was
-the session GC'd, did its transcript outgrow the context window, is the account
-out of quota. The last is asked of both places a quota stop arrives: the final
-message a Claude notice takes, and the failure record a backend that keeps one
-classified its failure channels into. They sit with the reads because all are
+that never ran on it. `_pinned_session_id` reads the pinned conversation off
+the comment whatever command that read resolves, for the retirement guard that
+must name every pin it clears. The three classifiers beside them read the other
+direction -- the CLI's own words -- and each answers exactly one recovery
+question: was the session GC'd, did its transcript outgrow the context window,
+is the account out of quota. The last is asked of both places a quota stop
+arrives: the final message a Claude notice takes, and the failure record a
+backend that keeps one classified its failure channels into. They sit with the reads because all are
 about the same session and none of them may act: each returns a verdict its
 caller disposes.
 
@@ -64,26 +63,19 @@ def _read_dev_session(
     `"claude"`, or `"codex -m gpt-5.5 -c 'model_reasoning_effort=\"xhigh\"'"`
     -- as the durable role identity. Re-parsing it here means in-flight
     resumes use the same backend AND args the fresh spawn used, even
-    after a `DEV_AGENT` env flip between ticks.
+    after a `DEV_AGENT` env flip between ticks. A plain `"codex"` or
+    `"claude"` is a current spec like any other: it re-parses to
+    `(backend, ())`, and persisting it again is a no-op rewrite.
 
-    Backward compatibility:
-      * Legacy bare-backend values (`"codex"` / `"claude"`) re-parse to
-        `(backend, ())` -- no args -- which is what those deployments
-        had at the time they were spawned. `spec` is the same bare
-        string; persisting it again is a no-op rewrite.
-      * Legacy `codex_session_id` (written before `dev_agent` existed)
-        yields `spec="codex"`. A config flip to claude cannot strand
-        that session -- it stays on codex with no args.
-      * When the issue has never been spawned, returns the current
-        config's `(DEV_AGENT_SPEC, DEV_AGENT, DEV_AGENT_ARGS, None)`
-        for the imminent fresh spawn to use AND persist.
+    Only `dev_agent` and `dev_session_id` are read. When no `dev_agent`
+    is pinned -- the issue has never been spawned, or a late restart
+    dropped the pin with its cycle -- this returns the current config's
+    `(DEV_AGENT_SPEC, DEV_AGENT, DEV_AGENT_ARGS, None)` for the imminent
+    fresh spawn to use AND persist, whatever else the comment carries.
     """
     stored = state.get(_state._DEV_AGENT)
     if stored:
         return _stored_dev_session(state, stored)
-    legacy = state.get(_state._CODEX_SESSION_ID)
-    if legacy is not None:
-        return "codex", "codex", (), str(legacy)
     return (
         config.DEV_AGENT_SPEC,
         config.DEV_AGENT,
@@ -92,16 +84,16 @@ def _read_dev_session(
     )
 
 
-def _pinned_session_ids(state: PinnedState) -> list[str]:
-    """Every conversation id either pin field holds, whichever one `_read_dev_session` resolves.
+def _pinned_session_id(state: PinnedState) -> str | None:
+    """The conversation id `dev_session_id` holds, whether or not `_read_dev_session` resolves it.
 
-    That read resolves the legacy `codex_session_id` only while no `dev_agent`
-    is pinned, and the first spawn and the documenting pass pin one before
-    their run -- so by the time the run's id is weighed, a legacy pin is
-    hidden from it while still on the comment.
+    That read resolves the pin only under a pinned `dev_agent`, so a pin
+    standing without one would be hidden from it while still on the comment;
+    the retirement guard reads the field itself, so no pin it clears goes
+    unnamed.
     """
-    pinned = (state.get(field) for field in (_state._DEV_SESSION_ID, _state._CODEX_SESSION_ID))
-    return list(dict.fromkeys(str(session_id) for session_id in pinned if session_id))
+    pinned = state.get(_state._DEV_SESSION_ID)
+    return str(pinned) if pinned else None
 
 
 def _is_stale_session_failure(

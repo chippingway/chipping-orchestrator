@@ -62,18 +62,17 @@ per-stage behavior is in
   what a human pays for is a fresh conversation rather than a replay of the one that ran out. The locked
   `(backend, args)` spec is re-parsed on every resume from pinned `dev_agent` so
   a config flip mid-flight cannot retarget the session. A conversation a run showed to have FAILED is retired for good
-  rather than rotated: `dev_session_retirement` records its id with a fresh conversation owed, the pins are cleared
-  with `dev_agent` kept, and every one of those resumes opens a fresh conversation over the same worktree, branch, and
-  issue context under the pinned command — whatever the silent streak or resume budget read, and whatever a
+  rather than rotated: `dev_session_retirement` records its id with a fresh conversation owed, the session pin is
+  cleared with `dev_agent` kept, and every one of those resumes opens a fresh conversation over the same worktree,
+  branch, and issue context under the pinned command — whatever the silent streak or resume budget read, and whatever a
   publication resets — until one with an id of its own is pinned. A fresh conversation there, or an unparked tick's
   first spawn, that returns no id or hands a retired id back pins nothing and leaves that recovery owed, and no
   retired id is resumed again — not by the one continuation an AGY run that stopped mid-command earns either, and
   not where the record is misspelled or will not read at all, which owes a fresh conversation and keeps every id it
-  still names, while the pin it was owed over — in either field, a legacy `codex_session_id` the pinned `dev_agent`
-  hides from the session read included — is retired by name as it is cleared. A resume charges the resume budget
+  still names, while the pin it was owed over is retired by name as it is cleared. A resume charges the resume budget
   only of the conversation it ran while that is still the one pinned, so neither a conversation retired meanwhile nor
-  the fresh one a recovery pinned in its place is charged for it. An authorized late restart drops the pins and
-  `dev_agent` with the cycle but keeps the record, so the fresh cycle's first spawn is refused a retired id too. The
+  the fresh one a recovery pinned in its place is charged for it. An authorized late restart drops the session pin
+  and `dev_agent` with the cycle but keeps the record, so the fresh cycle's first spawn is refused a retired id too. The
   retirement spends nothing of the retry budget or the run ledger, and authorizes no run: the next one still waits on
   whatever gate stopped the issue. The record does not decide THAT a conversation failed; an Antigravity account
   quota is what does, asked as every developer attempt returns — a first spawn, a resume, and the AGY command

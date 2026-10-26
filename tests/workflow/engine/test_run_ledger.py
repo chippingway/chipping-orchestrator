@@ -3,8 +3,8 @@
 """The lifetime agent-run ledger: what an issue is allowed, and what it spent.
 
 Four promises are pinned here, each one something a reader of the ledger is
-written on: a count that starts from the legacy meter rather than from zero
-and never reads below it, a count that only ever goes up -- including while
+written on: a count that never reads below the usage meter, so a ledger count
+nobody can read refunds nothing, a count that only ever goes up -- including while
 the ceiling is off -- an allowance the issue's own record governs where it
 carries one, and a reservation whose two phases survive the trip through a
 pinned comment as the wire strings live issues carry.
@@ -35,7 +35,7 @@ _ISSUE_NUMBER = 1540
 
 _BOT_LOGIN = "orchestrator"
 
-_LEGACY_RUNS = "issue_agent_runs"
+_METERED_RUNS = "issue_agent_runs"
 
 _ALLOWANCE = _run_ledger_values.AGENT_RUN_ALLOWANCE
 
@@ -107,40 +107,40 @@ def _reserve(
         return _run_ledger._reserve_run(state, fingerprint)
 
 
-class LegacyMeterTest(unittest.TestCase):
-    """An issue that predates the ledger keeps what it has already spent."""
+class MeterFloorTest(unittest.TestCase):
+    """An issue whose ledger count is gone keeps what the usage meter saw it spend."""
 
-    def test_a_missing_count_seeds_from_legacy(self) -> None:
-        # Started at zero instead, an in-flight issue would be handed a whole
-        # fresh lifetime by the arrival of the ledger that bounds it.
-        ledger = _read(_state(**{_LEGACY_RUNS: _SPENT}))
+    def test_a_missing_count_reads_the_meter(self) -> None:
+        # Started at zero instead, a count a hand edit removed would hand the
+        # issue a whole fresh lifetime.
+        ledger = _read(_state(**{_METERED_RUNS: _SPENT}))
 
         self.assertEqual(ledger.used, _SPENT)
         self.assertEqual(ledger.remaining, _CONFIGURED - _SPENT)
 
-    def test_the_legacy_meter_is_a_floor(self) -> None:
+    def test_the_meter_is_a_floor(self) -> None:
         # Both meters count real agent runs on this issue, so the larger is
         # the one that loses none -- whichever of the two wrote last.
-        ledger = _read(_state(**{_USED: _BEHIND, _LEGACY_RUNS: _AHEAD}))
+        ledger = _read(_state(**{_USED: _BEHIND, _METERED_RUNS: _AHEAD}))
 
         self.assertEqual(ledger.used, _AHEAD)
 
     def test_the_own_count_wins_where_ahead(self) -> None:
         # It charges the launch rather than the parsed exit, so it holds the
-        # runs whose usage never parsed and the legacy meter never saw.
-        ledger = _read(_state(**{_USED: _AHEAD, _LEGACY_RUNS: _BEHIND}))
+        # runs whose usage never parsed and the meter never saw.
+        ledger = _read(_state(**{_USED: _AHEAD, _METERED_RUNS: _BEHIND}))
 
         self.assertEqual(ledger.used, _AHEAD)
 
-    def test_a_charge_leaves_the_legacy_alone(self) -> None:
-        # The legacy meter has its own writer and its own receipt to render;
+    def test_a_charge_leaves_the_meter_alone(self) -> None:
+        # The meter has its own writer and its own receipt to render;
         # the ledger reads it and never writes it.
-        state = _state(**{_LEGACY_RUNS: _SPENT})
+        state = _state(**{_METERED_RUNS: _SPENT})
 
         ledger = _reserve(state)
 
         self.assertEqual(state.get(_USED), _CHARGED)
-        self.assertEqual(state.get(_LEGACY_RUNS), _SPENT)
+        self.assertEqual(state.get(_METERED_RUNS), _SPENT)
         self.assertEqual(ledger.used, _CHARGED)
 
     def test_a_damaged_meter_counts_nothing(self) -> None:
@@ -149,7 +149,7 @@ class LegacyMeterTest(unittest.TestCase):
         for damaged in _UNREADABLE_COUNTS:
             with self.subTest(damaged=damaged):
                 ledger = _read(_state(**{
-                    _USED: damaged, _LEGACY_RUNS: _BEHIND,
+                    _USED: damaged, _METERED_RUNS: _BEHIND,
                 }))
 
                 self.assertEqual(ledger.used, _BEHIND)

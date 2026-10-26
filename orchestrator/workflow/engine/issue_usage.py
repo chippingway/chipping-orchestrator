@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Pinned issue usage totals and the receipt posted when a workflow ends.
 
-Unknown and estimated costs remain distinguishable. Updating these historical
-usage counters does not decide the separate lifetime launch allowance."""
+Unknown and estimated costs remain distinguishable. Updating these cumulative
+usage counters decides nothing about the separate lifetime launch allowance,
+whose ledger reads the run count only as a floor under its own charges."""
 from __future__ import annotations
 
 from github.Issue import Issue
@@ -30,7 +31,7 @@ def _accumulate_issue_usage(
     slight, accepted undercount on killed runs, with the analytics sink
     still holding ground truth.
 
-    Keys folded (all new to the pinned-state schema):
+    Keys folded:
       * ``issue_agent_runs``     -- +1 per real agent exit.
       * ``issue_total_tokens``   -- input + output + cache-read + cache-write.
         codex's ``cached_tokens`` is intentionally excluded: it is the

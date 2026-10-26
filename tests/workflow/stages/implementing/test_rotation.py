@@ -52,11 +52,9 @@ _FAKE_WT = support._FAKE_WT
 _agent = support._agent
 make_issue = support.make_issue
 KEY_AWAITING_HUMAN = support.KEY_AWAITING_HUMAN
-KEY_CODEX_SESSION_ID = support.KEY_CODEX_SESSION_ID
 KEY_DEV_AGENT = support.KEY_DEV_AGENT
 KEY_LAST_ACTION_COMMENT_ID = support.KEY_LAST_ACTION_COMMENT_ID
 KEY_SILENT_PARK_COUNT = support.KEY_SILENT_PARK_COUNT
-LEGACY_SESSION = support.LEGACY_SESSION
 PARKED_WATERMARK = support.PARKED_WATERMARK
 LABEL_IMPLEMENTING = support.LABEL_IMPLEMENTING
 RUN_AGENT = support.RUN_AGENT
@@ -73,6 +71,8 @@ STAGED_WATERMARK = PARKED_WATERMARK + 5
 QUOTA_REASON = "agent_session_limit"
 AGY_SPEC = "agy --model gemini-3.8-flash-high --effort high"
 AGY_ARGS = ("--model", "gemini-3.8-flash-high", "--effort", "high")
+# A conversation id under a key no current reader resolves.
+UNREAD_SESSION_KEY = "codex_session_id"
 # The keyword a run's optional controls are handed to the runner under.
 OPTIONS = "options"
 
@@ -145,17 +145,6 @@ FIRST_SPAWN_CASES = (
     (None, RETIRED_SESSION, (None, _retirement(RETIRED_SESSION, pending=True))),
     (None, FRESH_SESSION, (FRESH_SESSION, _retirement(RETIRED_SESSION, pending=False))),
     (LIVE_SESSION, LIVE_SESSION, (None, _retirement(RETIRED_SESSION, LIVE_SESSION))),
-)
-
-# The command, both pins, and the record a first spawn over a legacy pin leaves.
-LEGACY_PIN_RECORDS = (KEY_DEV_AGENT, KEY_DEV_SESSION_ID, KEY_CODEX_SESSION_ID, KEY_RETIREMENT)
-
-# The id a first spawn over an owed recovery and a legacy pin hands back,
-# beside the conversation left pinned: the legacy one is refused, a distinct
-# one recovers.
-LEGACY_FIRST_SPAWN_CASES = (
-    (LEGACY_SESSION, None),
-    (FRESH_SESSION, FRESH_SESSION),
 )
 
 # The record a resume leaves over the pin a record nobody can read was owed
@@ -455,30 +444,35 @@ class _RetiredRecoveryMixin(_ProactiveSessionFixtureMixin):
 class RetiredConversationTest(unittest.TestCase, _RetiredRecoveryMixin):
     """A conversation retired as failed is recorded apart from the pin and the
     counters, so nothing that clears or zeroes those brings it back: the
-    retirement moves only the pins, the counters, and the record, and the
+    retirement moves only the pin, the counters, and the record, and the
     planned resume and the post-run persistence both answer to the record --
     read fail-closed wherever it is not spelled the way a retirement writes it.
     """
 
     def test_retirement_keeps_command_and_context(self) -> None:
         seeds = (
-            ({KEY_DEV_AGENT: AGY_SPEC, KEY_DEV_SESSION_ID: RETIRED_SESSION}, AGY_SPEC),
-            ({KEY_CODEX_SESSION_ID: RETIRED_SESSION}, support.BACKEND_CODEX),
-            # Already recorded, and pinned again where the command hides it
-            # from the session read.
+            ({KEY_DEV_AGENT: AGY_SPEC, KEY_DEV_SESSION_ID: RETIRED_SESSION}, {}),
+            # A plain backend is kept as pinned, not filled in from configuration.
+            ({KEY_DEV_AGENT: support.BACKEND_CODEX, KEY_DEV_SESSION_ID: RETIRED_SESSION}, {}),
+            # Already recorded, and pinned again.
             (
                 {
                     KEY_DEV_AGENT: AGY_SPEC,
-                    KEY_CODEX_SESSION_ID: RETIRED_SESSION,
+                    KEY_DEV_SESSION_ID: RETIRED_SESSION,
                     KEY_RETIREMENT: _retirement(RETIRED_SESSION),
                 },
-                AGY_SPEC,
+                {},
+            ),
+            # A key no current reader resolves is neither named nor cleared.
+            (
+                {KEY_DEV_AGENT: AGY_SPEC, KEY_DEV_SESSION_ID: RETIRED_SESSION},
+                {UNREAD_SESSION_KEY: EARLIER_RETIRED_SESSION},
             ),
         )
-        for seeded, command in seeds:
-            with self.subTest(seeded=sorted(seeded)):
+        for seeded, untouched in seeds:
+            with self.subTest(seeded=sorted({**seeded, **untouched})):
                 state = PinnedState(comment_id=1, state_data={
-                    KEY_SILENT_PARK_COUNT: 1, KEY_DEV_RESUME_COUNT: 4, **CONTEXT_RECORDS, **seeded,
+                    KEY_SILENT_PARK_COUNT: 1, KEY_DEV_RESUME_COUNT: 4, **CONTEXT_RECORDS, **seeded, **untouched,
                 })
 
                 _session_retirement._retire_dev_session(state, RETIRED_SESSION, QUOTA_REASON)
@@ -490,14 +484,14 @@ class RetiredConversationTest(unittest.TestCase, _RetiredRecoveryMixin):
                     once,
                     {
                         **CONTEXT_RECORDS,
-                        KEY_DEV_AGENT: command,
+                        **untouched,
+                        KEY_DEV_AGENT: seeded[KEY_DEV_AGENT],
                         KEY_DEV_SESSION_ID: None,
-                        KEY_CODEX_SESSION_ID: None,
                         KEY_SILENT_PARK_COUNT: 0,
                         KEY_DEV_RESUME_COUNT: 0,
                         KEY_RETIREMENT: _retirement(RETIRED_SESSION),
                     },
-                    "only the pins, the per-session counters, and the record move; the command is kept",
+                    "only the pin, the per-session counters, and the record move; the command is kept",
                 )
 
     def test_record_outlives_the_counters(self) -> None:
@@ -716,33 +710,26 @@ class RetiredConversationRecoveryTest(unittest.TestCase, _RetiredRecoveryMixin):
                     "a retired id is refused with recovery owed; a distinct one is pinned and ends it",
                 )
 
-    def test_first_spawn_retires_a_hidden_legacy_pin(self) -> None:
-        # The spawn pins `dev_agent` before its run, after which the session
-        # read no longer sees the legacy pin the recovery was owed over.
-        for returned, pinned in LEGACY_FIRST_SPAWN_CASES:
-            with self.subTest(returned=returned):
-                launch, gh = self._first_spawn(returned, dev_agent=None, codex_session_id=LEGACY_SESSION)
+    def test_first_spawn_names_a_pin_under_no_command(self) -> None:
+        # The comment pins a conversation but no command, so the spawn runs
+        # under the configured one; the pin it drops as that command is
+        # pinned is one the owed recovery names, so the same id handed back
+        # later is refused like any retired one.
+        launch, gh = self._first_spawn("", dev_agent=None, dev_session_id=LIVE_SESSION)
 
-                self.assertEqual(launch, (None, support.BACKEND_CODEX, _FAKE_WT, ()))
-                self.assertEqual(
-                    {key: gh.pinned_data(FIRST_SPAWN_ISSUE).get(key) for key in LEGACY_PIN_RECORDS},
-                    {
-                        KEY_DEV_AGENT: support.BACKEND_CODEX,
-                        KEY_DEV_SESSION_ID: pinned,
-                        KEY_CODEX_SESSION_ID: None,
-                        KEY_RETIREMENT: _retirement(RETIRED_SESSION, LEGACY_SESSION, pending=pinned is None),
-                    },
-                    "the legacy pin is unpinned and named either way; only a distinct id ends the recovery",
-                )
+        pinned = gh.pinned_data(FIRST_SPAWN_ISSUE)
+        self.assertEqual(launch, (None, support.config.DEV_AGENT, _FAKE_WT, support.config.DEV_AGENT_ARGS))
+        self.assertEqual(
+            (pinned[KEY_DEV_AGENT], *self._pinned_and_record(pinned)),
+            (support.config.DEV_AGENT_SPEC, None, _retirement(RETIRED_SESSION, LIVE_SESSION)),
+            "the configured command is pinned and the conversation pinned under none is named as it is dropped",
+        )
 
-                run_agent = MagicMock(return_value=_agent(session_id=returned, last_message=OK_MESSAGE))
-                self._resumed(gh, gh.get_issue(FIRST_SPAWN_ISSUE), run_agent)
+        run_agent = MagicMock(return_value=_agent(session_id=LIVE_SESSION, last_message=OK_MESSAGE))
+        resumed = self._resumed(gh, gh.get_issue(FIRST_SPAWN_ISSUE), run_agent)
 
-                self.assertEqual(
-                    self._resumed_ids(run_agent),
-                    [pinned],
-                    "the legacy conversation is never resumed; the distinct one is",
-                )
+        self.assertEqual(self._resumed_ids(run_agent), [None], "the dropped conversation is never resumed")
+        self.assertEqual(self._pinned_and_record(resumed), (None, _retirement(RETIRED_SESSION, LIVE_SESSION)))
 
     def _first_spawn(self, returned: str, **pins) -> tuple:
         """One unparked tick over an owed recovery whose spawn hands `returned` back.
@@ -793,7 +780,6 @@ class RetirementCommitTest(unittest.TestCase, _RetiredRecoveryMixin):
                 **PARKED_RECORDS,
                 KEY_DEV_AGENT: AGY_SPEC,
                 KEY_DEV_SESSION_ID: None,
-                KEY_CODEX_SESSION_ID: None,
                 KEY_SILENT_PARK_COUNT: 0,
                 KEY_DEV_RESUME_COUNT: 0,
                 KEY_RETIREMENT: _retirement(RETIRED_SESSION),

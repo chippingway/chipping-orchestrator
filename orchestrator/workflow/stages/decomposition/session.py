@@ -65,9 +65,9 @@ def _read_decomposer_session(
     `DECOMPOSE_AGENT` env flip could retarget the awaiting-human
     resume at a backend that never ran on this issue.
 
-    Legacy bare-backend values (`"codex"` / `"claude"`) re-parse to
-    `(backend, ())` and round-trip cleanly. When the issue has never
-    been spawned, returns the current config's
+    Plain backend values (`"codex"` / `"claude"`) are current specs: they
+    re-parse to `(backend, ())` and round-trip cleanly. When the issue has
+    never been spawned, returns the current config's
     `(DECOMPOSE_AGENT_SPEC, DECOMPOSE_AGENT, DECOMPOSE_AGENT_ARGS, None)`.
     """
     stored = state.get("decomposer_agent")

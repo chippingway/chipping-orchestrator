@@ -238,7 +238,7 @@ _ANCHOR = _verdicts._FEEDBACK_ANCHOR
 # the launch owed once.
 RUN_LEDGER = frozenset((
     _run_ledger_values.AGENT_RUNS_USED,
-    _run_ledger_values._LEGACY_RUNS_USED,
+    _run_ledger_values._METERED_RUNS,
     _run_ledger_values.AGENT_RUN_RESERVATION,
     _run_ledger_values.AGENT_RUN_FINGERPRINT,
     _run_ledger_values.AGENT_RUN_OWED_STARTED,

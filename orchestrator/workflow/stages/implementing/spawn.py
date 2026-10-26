@@ -105,7 +105,7 @@ def _spawn_implementer(
         gh.write_pinned_state(issue, state)
         return None
     session = _models._DevSession(*_session_read._read_dev_session(state))
-    state.set(_state._DEV_AGENT, session.spec)
+    _session._pin_dev_command(state, session.spec)
     delivered = _prompt_context._delivered_thread(gh, issue, state)
     agent_result, paused = _execution._coordinate_developer_run(
         gh,

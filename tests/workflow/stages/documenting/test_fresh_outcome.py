@@ -49,6 +49,8 @@ VALIDATING = "workflow:validating"
 # --- Dev agent identity pinned into per-issue state ---------------------
 DEV_AGENT = "codex"
 DEV_SESSION = "dev-sess"
+DEV_AGENT_KEY = "dev_agent"
+DEV_SESSION_KEY = "dev_session_id"
 
 # --- Worktree HEAD SHAs threaded through the docs / recovery flows ------
 SHA_BEFORE = documenting_support.SHA_BEFORE
@@ -283,6 +285,30 @@ class HandleDocumentingFreshOutcomeTest(
         last_comment = gh.posted_comments[-1][1]
         self.assertIn("agent needs your input", last_comment)
         self.assertIn(DOCS_ARCHITECTURE, last_comment)
+
+    def test_pin_under_no_command_is_not_resumed(self) -> None:
+        # The comment pins a conversation but no command: the pass runs fresh
+        # under the configured command, which is pinned before it runs, and
+        # the pin standing alone is dropped with it, so a run that returns no
+        # id of its own leaves no conversation for the next reply to resume.
+        seeded = self._seeded(dev_agent=None)
+        mocks = self._run_documenting(
+            *seeded,
+            run_agent=_agent(session_id=None, last_message="should I touch docs/architecture.md too?"),
+            push_branch=True,
+            head_shas=[SHA_BEFORE, SHA_BEFORE],
+        )
+
+        launch = mocks[RUN_AGENT].call_args
+        self.assertEqual(
+            (launch.args[0], launch.kwargs["options"].resume_session_id),
+            (config.DEV_AGENT, None),
+        )
+        pinned = seeded[0].pinned_data(self.issue_number)
+        self.assertEqual(
+            (pinned.get(DEV_AGENT_KEY), pinned.get(DEV_SESSION_KEY)),
+            (config.DEV_AGENT_SPEC, None),
+        )
 
     def test_silent_run_parks_as_agent_silent(self) -> None:
         # No commits, no message -- treat as a poisoned-session silent

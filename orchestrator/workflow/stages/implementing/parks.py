@@ -54,7 +54,7 @@ def _mark_retryable_park(
 
     Shared by every park `/orchestrator continue` retries rather than refuses:
     none of them is a real question. `_resume_dev_with_text` reads the streak
-    (via `_dev_session_retirement_reason`) to rotate a poisoned session to a
+    (via `session._planned_dev_session`) to rotate a poisoned session to a
     fresh spawn once it reaches `_SILENT_PARKS_BEFORE_FRESH_SESSION`.
 
     `parked` is handed in by the parks a run can take with commits already

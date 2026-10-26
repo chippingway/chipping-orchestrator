@@ -21,6 +21,7 @@ from tests.support.fakes import (
 )
 from tests.workflow import report_guidance as _report_guidance
 from tests.workflow.fixtures import (
+    BACKEND_CODEX,
     LABEL_IMPLEMENTING,
     _agent,
     _PatchedWorkflowMixin,
@@ -32,7 +33,7 @@ from tests.workflow.stages.implementing_fixing_test_cases import IssueScenario
 
 AWAITING_HUMAN = "awaiting_human"
 RUN_AGENT = "run_agent"
-LEGACY_SESSION = "sess-old"
+DEV_SESSION = "sess-old"
 _NEW_SESSION = "sess-new"
 ACTION_COMMENT_ID = 900
 HUMAN_REPLY_ID = 1100
@@ -244,7 +245,8 @@ class HandleImplementingAwaitingHumanTest(unittest.TestCase, _PatchedWorkflowMix
             2,
             awaiting_human=True,
             last_action_comment_id=ACTION_COMMENT_ID,
-            codex_session_id=LEGACY_SESSION,
+            dev_agent=BACKEND_CODEX,
+            dev_session_id=DEV_SESSION,
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         before = gh.write_state_calls
@@ -259,7 +261,7 @@ class HandleImplementingAwaitingHumanTest(unittest.TestCase, _PatchedWorkflowMix
         self.assertEqual(gh.write_state_calls, before)
         # Pinned data unchanged.
         self.assertTrue(gh.pinned_data(2).get(AWAITING_HUMAN))
-        self.assertEqual(gh.pinned_data(2).get("codex_session_id"), LEGACY_SESSION)
+        self.assertEqual(gh.pinned_data(2).get("dev_session_id"), DEV_SESSION)
 
     def test_new_comments_resume_and_clear_park(self) -> None:
         gh = FakeGitHubClient()
@@ -275,14 +277,15 @@ class HandleImplementingAwaitingHumanTest(unittest.TestCase, _PatchedWorkflowMix
             2,
             awaiting_human=True,
             last_action_comment_id=ACTION_COMMENT_ID,
-            codex_session_id=LEGACY_SESSION,
+            dev_agent=BACKEND_CODEX,
+            dev_session_id=DEV_SESSION,
             branch="orchestrator/chippingway__chipping-orchestrator/issue-2",
         )
 
         mocks = self._run_implementing(
             gh,
             issue,
-            run_agent=_agent(session_id=LEGACY_SESSION, last_message=_reported("ok")),
+            run_agent=_agent(session_id=DEV_SESSION, last_message=_reported("ok")),
             # awaiting_human path skips the recovered-worktree probe; only
             # the post-codex commit check runs.
             has_new_commits=[True],
@@ -295,7 +298,7 @@ class HandleImplementingAwaitingHumanTest(unittest.TestCase, _PatchedWorkflowMix
             gh,
             mocks,
             RUN_AGENT,
-            LEGACY_SESSION,
+            DEV_SESSION,
         )
 
 
@@ -322,7 +325,8 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
             INTERRUPTED_RESUME_ISSUE,
             awaiting_human=True,
             last_action_comment_id=ACTION_COMMENT_ID,
-            codex_session_id=LEGACY_SESSION,
+            dev_agent=BACKEND_CODEX,
+            dev_session_id=DEV_SESSION,
             branch=f"orchestrator/chippingway__chipping-orchestrator/issue-{INTERRUPTED_RESUME_ISSUE}",
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
@@ -331,7 +335,7 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
         self._mocks = self._run_implementing(
             gh,
             issue,
-            run_agent=_agent(session_id=LEGACY_SESSION, interrupted=True),
+            run_agent=_agent(session_id=DEV_SESSION, interrupted=True),
         )
 
         # The resume DID spawn -- the interruption is observed only after
@@ -464,7 +468,7 @@ class HandleImplementingRecoveredWorktreeTest(unittest.TestCase, _PatchedWorkflo
         # finding committed work no report describes holds it for a human
         # instead (`test_report_recovery`).
         gh.seed_state(
-            3, codex_session_id="sess-prev", **_recovered_report(issue),
+            3, dev_agent=BACKEND_CODEX, dev_session_id="sess-prev", **_recovered_report(issue),
         )
 
         mocks = self._run_implementing(
@@ -480,4 +484,4 @@ class HandleImplementingRecoveredWorktreeTest(unittest.TestCase, _PatchedWorkflo
         mocks["_push_branch"].assert_called_once()
         self.assertEqual(len(gh.opened_prs), 1)
         # Prior session id retained.
-        self.assertEqual(gh.pinned_data(3).get("codex_session_id"), "sess-prev")
+        self.assertEqual(gh.pinned_data(3).get("dev_session_id"), "sess-prev")

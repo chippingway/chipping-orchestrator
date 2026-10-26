@@ -102,8 +102,8 @@ bad line never invalidates the rest of the stream. `_run_agent_tracked` (in `wor
 [analytics sink](event-streams.md#analytics-sink-analytics_log_path) under `event="agent_exit"`; a
 parser exception is caught and downgraded to a `log.exception`.
 
-**Terminal verdict surface.** Beyond the analytics sink, `_accumulate_issue_usage` (in `workflow/engine/usage.py`,
-beside `_run_agent_tracked`) folds each run's
+**Terminal verdict surface.** Beyond the analytics sink, `_accumulate_issue_usage` (in `workflow/engine/issue_usage.py`,
+a sibling of `_run_agent_tracked`'s owner) folds each run's
 `UsageMetrics` into per-issue counters on the pinned state (`issue_agent_runs` / `issue_total_tokens` /
 `issue_total_cost_usd` / `issue_cost_sources`; see [state-machine/labels-and-state.md][pinned-state]). When an
 issue reaches a terminal, `_format_issue_usage_verdict` renders those counters into one visible receipt line
@@ -114,8 +114,8 @@ comment; the `umbrella` close comment appends it. It is a read-only summary — 
 skipped when no run was ever counted.
 
 `issue_agent_runs` has one reader outside that receipt: the lifetime agent-run ledger on
-`workflow/engine/run_ledger.py` seeds a missing `agent_runs_used` from it and never reads below it, so an issue
-already in flight keeps what it has already spent. The two count the same unit but not the same set — the ledger
+`workflow/engine/run_ledger.py` never reads `agent_runs_used` below it, so a ledger count that is missing or
+unreadable refunds nothing this meter counted. The two count the same unit but not the same set — the ledger
 charges the launch and so also holds the runs whose usage never parsed, while this meter counts the parsed exits —
 which is why the ledger's total is the larger of the pair. Nothing turns a run away against THIS meter — the ledger
 is the one that is judged, at the tracked spawn boundary (`workflow/engine/run_circuit.py`), and where an issue that

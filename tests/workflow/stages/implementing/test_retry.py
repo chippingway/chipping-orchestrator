@@ -13,6 +13,7 @@ IssueScenario = support.IssueScenario
 
 ACTION_COMMENT_ID = support.ACTION_COMMENT_ID
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
+BACKEND_CODEX = support.BACKEND_CODEX
 COMMENTS_AFTER = support.COMMENTS_AFTER
 CONTINUE_COMMAND = support.CONTINUE_COMMAND
 DEFAULT_SESSION = support.DEFAULT_SESSION
@@ -190,7 +191,8 @@ class HandleImplementingRetryCapTest(
             9,
             awaiting_human=True,
             last_action_comment_id=ACTION_COMMENT_ID,
-            codex_session_id="sess-old",
+            dev_agent=BACKEND_CODEX,
+            dev_session_id="sess-old",
             retry_count=2,
             retry_window_start=_iso_hours_ago(1),
         )

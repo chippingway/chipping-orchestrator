@@ -226,15 +226,16 @@ DECOMPOSE_AGENT=claude
 
 The parsed spec is persisted to pinned state as the durable identity of a **session**, and the pin is the full spec —
 backend AND args — so a mid-flight resume cannot lose the model / reasoning-effort the session was started with. The
-lock is per pin, not per issue: `dev_agent` is written on the first implementing spawn and read by every dev-side
-resume for the life of the issue, while `decomposer_agent`, `question_agent`, and `discussion_agent` are each seeded
+lock is per pin, not per issue: `dev_agent` is written before the first dev-side run — the first implementing spawn,
+or a resume or docs pass that finds none pinned — and read by every later dev-side resume for the life of the issue,
+while `decomposer_agent`, `question_agent`, and `discussion_agent` are each seeded
 from `DECOMPOSE_AGENT` on their own first spawn. So a flip reaches any spawn that has no pin to read yet — including
 the first question or discussion round on an issue whose decomposing session is already locked — and never a session
 that has already pinned one. A dev conversation retired as failed (`dev_session_retirement`) keeps that pin too: the
 fresh conversation replacing it runs the same `dev_agent` command, and the retired id is never resumed again
 ([session lifecycles](workflow/roles.md#session-lifecycles)).
 The reviewer is spawned fresh every round, so `REVIEW_AGENT` takes effect on the next
-validating tick. Per-role keys, the resume path, and the legacy values still honored on read:
+validating tick. Per-role keys, the resume path, and the plain backend specs that pin no arguments:
 [`workflow/command-specs.md#in-flight-session-lock`][session-lock].
 
 [commit-subject]: workflow/conversations.md#the-commit-subject-contract-in-commit-producing-prompts

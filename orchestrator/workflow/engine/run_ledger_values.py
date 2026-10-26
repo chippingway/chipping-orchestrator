@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Validated pinned fields for the lifetime agent-run ledger.
 
-The used count is floored by the legacy usage meter. Missing allowances defer
-to configuration, and malformed counts or reservation phases grant no evidence.
+The used count is floored by the usage meter. Missing allowances defer to
+configuration, and malformed counts or reservation phases grant no evidence.
 A launch owed exactly once leaves the count it was owed at beside its start."""
 from __future__ import annotations
 
@@ -45,9 +45,10 @@ AGENT_RUN_FINGERPRINT = "agent_run_fingerprint"
 # such launch has started.
 AGENT_RUN_OWED_STARTED = "agent_run_owed_started"
 
-# The per-issue meter the usage accounting folds every parsed agent exit onto.
-# Read here as the seed and the floor of the count above, never written.
-_LEGACY_RUNS_USED = "issue_agent_runs"
+# The per-issue meter the usage accounting folds every parsed agent exit onto
+# (`issue_usage._accumulate_issue_usage`), a current producer of its own. Read
+# here as the floor of the count above, never written.
+_METERED_RUNS = "issue_agent_runs"
 
 
 def _allowance_in_force(state: PinnedState) -> int:
@@ -69,10 +70,14 @@ def _allowance_in_force(state: PinnedState) -> int:
 def _runs_used(state: PinnedState) -> int:
     """How many agent runs this issue has spent, over both meters.
 
-    The larger of the two rather than this ledger's own. An issue that
-    predates the ledger has spent runs only the legacy meter recorded, and one
-    running under both is counted by both -- so the larger is the count that
-    loses neither, and it can only ever go up.
+    The larger of the two rather than this ledger's own. Every exit the usage
+    meter counts is a launch the run circuit charged here first -- it gates
+    the one low-level `run_agent` call -- so the meter never runs ahead of a
+    count this ledger kept, and taking the larger never charges a run nobody
+    launched. What it does answer is a count this ledger no longer holds: a
+    field a hand edit with the orchestrator's own login removed or damaged
+    would otherwise read as nothing spent and refund every lifetime charge
+    the meter saw. The larger loses neither, and it can only ever go up.
 
     A field that is not a real, non-negative whole number counts as nothing
     rather than raising: a damaged meter must not strand an issue behind a
@@ -80,7 +85,7 @@ def _runs_used(state: PinnedState) -> int:
     """
     meters = (
         _counted(state.get(AGENT_RUNS_USED)),
-        _counted(state.get(_LEGACY_RUNS_USED)),
+        _counted(state.get(_METERED_RUNS)),
     )
     return max(
         (count for count in meters if count is not None), default=0,

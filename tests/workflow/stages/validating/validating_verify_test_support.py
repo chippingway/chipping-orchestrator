@@ -23,7 +23,8 @@ class VerifyGateFixtureMixin(_PatchedWorkflowMixin):
         defaults = {
             "pr_number": PR_NUMBER,
             "branch": _issue_branch(ISSUE),
-            "codex_session_id": DEV_SESSION,
+            "dev_agent": "codex",
+            "dev_session_id": DEV_SESSION,
             "review_round": 0,
         }
         defaults.update(state)
