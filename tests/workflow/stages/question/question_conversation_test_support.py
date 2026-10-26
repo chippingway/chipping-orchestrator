@@ -34,7 +34,6 @@ CLEANUP_QUESTION_WORKTREE = "_cleanup_question_worktree"
 PUSH_BRANCH = "_push_branch"
 RUN_AGENT = "run_agent"
 WORKTREE_PATH = "_worktree_path"
-RESUME_SESSION_ID = "resume_session_id"
 
 UNEXPECTED_AGENT_MESSAGE = "should not run"
 QUESTION_TEXT = "Where does X live?"
@@ -208,7 +207,7 @@ class _QuestionConversation:
             state=state,
             watermark=state[KEY_LAST_ACTION_COMMENT_ID],
             prompt=call.args[1],
-            resume_session_id=call.kwargs.get(RESUME_SESSION_ID),
+            resume_session_id=call.kwargs["options"].resume_session_id,
             answer_comment_id=answer_comments[0].id,
             answer_comment_count=len(answer_comments),
         )

@@ -52,7 +52,7 @@ def _assert_recorded_codex_call(
         backend_message,
     )
     test_case.assertEqual(
-        call.kwargs.get(EXTRA_ARGS),
+        call.kwargs["options"].extra_args,
         CODEX_ARGS,
         args_message,
     )

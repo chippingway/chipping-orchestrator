@@ -51,6 +51,7 @@ from orchestrator.workflow.stages.documenting import (
 )
 from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
+    resume_request as _dev_resume_request,
     session_read as _dev_session_read,
 )
 
@@ -207,11 +208,11 @@ def _resume_documenting_dev(
     ctx.state.set(_state._CHECKED_DOCS_SHA, before_sha or "")
     if not _failed_pass._armed(ctx, before_sha or ""):
         return None
-    wt, documentation_result, paused = _dev_resume._resume_dev_with_text(
+    wt, documentation_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, _documentation_prompt(ctx),
         followup_has_tracked_repos=True,
         pause_guard=True,
-    )
+    ))
     return _models._DocumentingRun(
         wt, documentation_result, before_sha, False, paused, ahead,
         remote_head,
@@ -280,11 +281,11 @@ def _fresh_documenting_run(
     ctx.state.set("dev_agent", dev_spec)
     if not _failed_pass._armed(ctx, before_sha or ""):
         return None
-    wt, documentation_result, paused = _dev_resume._resume_dev_with_text(
+    wt, documentation_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, _documentation_prompt(ctx),
         followup_has_tracked_repos=True,
         pause_guard=True,
-    )
+    ))
     ctx.state.set("branch", ctx.branch)
     return _models._DocumentingRun(
         wt, documentation_result, before_sha, False, paused, ahead,

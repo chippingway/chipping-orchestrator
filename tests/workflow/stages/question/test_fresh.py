@@ -198,7 +198,7 @@ class HandleQuestionFreshRunTest(unittest.TestCase, _QuestionWorkflowMixin):
             config.DECOMPOSE_AGENT,
         )
         self.assertEqual(
-            call_kwargs.get("extra_args"),
+            call_kwargs["options"].extra_args,
             config.DECOMPOSE_AGENT_ARGS,
         )
 

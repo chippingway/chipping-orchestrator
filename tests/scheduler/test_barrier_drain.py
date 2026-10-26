@@ -14,6 +14,7 @@ import time
 import unittest
 from functools import partial
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler import barrier_helpers as _support
 from tests.scheduler.barrier_helpers import _BarrierTestCase, _HeldClaim
@@ -93,7 +94,7 @@ class BarrierRaceTest(_BarrierTestCase):
         release = self.gate()
         start = threading.Event()
         claims: list[bool] = []
-        self.assertTrue(self.scheduler.submit(
+        self.assertTrue(self.scheduler.submit(SubmissionRequest(
             _support.PRIMARY_REPO,
             _support.WORKER_ISSUE_NUMBER,
             partial(
@@ -103,7 +104,7 @@ class BarrierRaceTest(_BarrierTestCase):
                 (start, release),
                 claims,
             ),
-        ))
+        )))
         self.assertTrue(start.wait(timeout=_support.EVENT_TIMEOUT_SECONDS))
         self.release_shortly(release)
         with self.held() as quiet:
@@ -126,9 +127,9 @@ class BarrierShutdownTest(_BarrierTestCase):
             self.held(timeout=_support.BRIEF_BARRIER_TIMEOUT_SECONDS) as quiet,
         ):
             self.assertFalse(quiet)
-            self.assertFalse(self.scheduler.submit(
+            self.assertFalse(self.scheduler.submit(SubmissionRequest(
                 _support.PRIMARY_REPO, _support.WORKER_ISSUE_NUMBER, _support._forbidden_worker,
-            ))
+            )))
             # Refused as closed rather than as barred: the hold was never
             # taken, so it is not what a closing process turns work away with.
             self.assertTrue(any(

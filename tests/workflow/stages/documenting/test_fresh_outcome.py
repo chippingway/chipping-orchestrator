@@ -187,7 +187,7 @@ class HandleDocumentingFreshOutcomeTest(
         self.assertEqual(mocks[RUN_AGENT].call_count, 1)
         # The agent is spawned with the dev session id locked in.
         _, call_kwargs = mocks[RUN_AGENT].call_args
-        self.assertEqual(call_kwargs.get("resume_session_id"), DEV_SESSION)
+        self.assertEqual(call_kwargs["options"].resume_session_id, DEV_SESSION)
         mocks[PUSH_BRANCH].assert_called_once()
         self.assertEqual(gh.label_history, [(self.issue_number, VALIDATING)])
         # The size gate approves the docs commit before it goes out and

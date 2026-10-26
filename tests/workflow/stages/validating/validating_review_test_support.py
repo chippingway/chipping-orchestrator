@@ -117,7 +117,7 @@ class FreshReviewFixtureMixin(_PatchedWorkflowMixin):
     def _assert_dev_fix_call(self, mocks) -> None:
         self.assertEqual(mocks[RUN_AGENT].call_count, 2)
         second_kwargs = mocks[RUN_AGENT].call_args_list[1].kwargs
-        self.assertEqual(second_kwargs.get("resume_session_id"), DEV_SESSION)
+        self.assertEqual(second_kwargs["options"].resume_session_id, DEV_SESSION)
 
     def _assert_fix_labels(self, github) -> None:
         self.assertIn((FRESH_REVIEW_ISSUE, LABEL_FIXING), github.label_history)
@@ -216,13 +216,11 @@ class ContinueCommandFixtureMixin(_PatchedWorkflowMixin):
 
     def _assert_retry_result(self, github, mocks) -> None:
         self.assertEqual(mocks[RUN_AGENT].call_count, 1)
-        followup = mocks[RUN_AGENT].call_args.args[1]
+        launch = mocks[RUN_AGENT].call_args
+        followup = launch.args[1]
         self.assertIn("session/usage limit", followup)
         self.assertNotIn("/orchestrator continue", followup)
-        self.assertEqual(
-            mocks[RUN_AGENT].call_args.kwargs.get("resume_session_id"),
-            DEV_SESSION,
-        )
+        self.assertEqual(launch.kwargs["options"].resume_session_id, DEV_SESSION)
         self.assertFalse(
             any("issue body changed" in body for _, body in github.posted_comments)
         )

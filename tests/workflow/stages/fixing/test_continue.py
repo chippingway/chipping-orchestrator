@@ -190,7 +190,7 @@ def _assert_replayed_prompt(test_case) -> None:
         CONTINUE_COMMAND, dev_task_section(test_case._prompt),
     )
     test_case.assertIsNone(
-        test_case._call.kwargs.get(RESUME_SESSION_ID),
+        test_case._call.kwargs["options"].resume_session_id,
     )
 
 
@@ -350,7 +350,7 @@ class OrchestratorContinueCommandTest(
         call = self._mocks[RUN_AGENT].call_args
         self.assertIn("use option B", call.args[1])
         # Live session resumed (not dropped) -- this is a real dev question.
-        self.assertEqual(call.kwargs.get(RESUME_SESSION_ID), POISONED_SESSION)
+        self.assertEqual(call.kwargs["options"].resume_session_id, POISONED_SESSION)
 
     def test_validating_error_refuses_continue(self) -> None:
         # A validating-route park (no `pending_fix_at`, no preserved batch, and

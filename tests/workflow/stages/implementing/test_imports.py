@@ -58,6 +58,7 @@ _OWNERS = (
     "dev_pr",
     "disposition",
     "drift",
+    "drift_models",
     "drift_preflight",
     "execution",
     "handoff",

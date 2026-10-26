@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import unittest
 
+from orchestrator.scheduler.models import SubmissionRequest
 from tests.scheduler.barrier_helpers import (
     CLAIMED_ISSUE_NUMBER,
     GENEROUS_BARRIER_TIMEOUT_SECONDS,
@@ -40,9 +41,9 @@ class BarrierAdmissionTest(_BarrierTestCase):
             self.held() as quiet,
         ):
             self.assertTrue(quiet)
-            self.assertFalse(self.scheduler.submit(
+            self.assertFalse(self.scheduler.submit(SubmissionRequest(
                 PRIMARY_REPO, WORKER_ISSUE_NUMBER, _forbidden_worker,
-            ))
+            )))
             self.assertTrue(any(
                 _MAINTENANCE_REASON in message for message in logs.output
             ))
@@ -97,9 +98,9 @@ class BarrierReversalTest(_BarrierTestCase):
             self.assertTrue(quiet)
             with self.held(timeout=0) as nested:
                 self.assertFalse(nested)
-            self.assertFalse(self.scheduler.submit(
+            self.assertFalse(self.scheduler.submit(SubmissionRequest(
                 PRIMARY_REPO, WORKER_ISSUE_NUMBER, _forbidden_worker,
-            ))
+            )))
 
     def test_a_second_hold_is_granted_after_the_first(self) -> None:
         # The hold is a pass's own, not a one-shot latch: the daemon takes one

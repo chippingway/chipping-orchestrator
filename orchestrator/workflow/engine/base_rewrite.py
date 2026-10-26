@@ -32,14 +32,12 @@ in, the retry of a replay the crash kept off the pull request
 (``rewrite_retry``), which publishes and finishes exactly as the ordinary
 publication does, and the finish of a push the recovery finds already landed
 (``rewrite_landed``), which is observed rather than pushed again and handed to
-the same finish. The legacy keyword signature is bound here too, because the
-refresh still passes the pre-context argument list this route derives its
-context from.
+the same finish. Both of the refresh's entries here take the request it built
+(``models._AutoRebaseRequest``) and derive the attempt's context from it on
+entry, so the label and the recovery anchor every gate reads are the ones
+standing when the route begins.
 """
 from __future__ import annotations
-
-import inspect
-from typing import Any
 
 from github.PullRequest import PullRequest
 
@@ -59,16 +57,6 @@ from orchestrator.workflow.engine import (
     rewrite_recovery as _rewrite_recovery,
     rewrite_replies as _rewrite_replies,
 )
-
-_SYNC_PR_SIGNATURE = inspect.Signature((
-    inspect.Parameter("gh", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("spec", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("issue", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("state", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("worktree", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("pr_number", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("behind", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-))
 
 
 def _publish_auto_rebase_from_pr(
@@ -122,22 +110,6 @@ def _held_past_the_anchor(context: _AutoRebaseContext) -> bool:
     )
 
 
-def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:
-    """Run one refresh-time PR synchronization from normalized inputs."""
-    if not eligibility._auto_rebase_label_is_eligible(context, _landing_moved.abandons_unproved):
-        return
-
-    retry = eligibility._auto_rebase_retry_decision(context)
-    if not retry.should_continue:
-        _answers_an_anchor_under_a_park(context)
-        return
-    pr = eligibility._open_auto_rebase_pr(context)
-    if pr is None:
-        return
-
-    _publish_auto_rebase_from_pr(context, pr, retry.consumed_comment_id)
-
-
 def _answers_an_anchor_under_a_park(context: _AutoRebaseContext) -> None:
     """Answer an anchor a park stands over, and start nothing else.
 
@@ -184,7 +156,7 @@ def _sync_unreadable_pr_worktree(request: _AutoRebaseRequest) -> None:
         _rewrite_recovery.answers_an_unreadable_checkout(context, retry.consumed_comment_id)
 
 
-def _sync_pr_worktree_to_base(*args: Any, **kwargs: Any) -> None:
+def _sync_pr_worktree_to_base(request: _AutoRebaseRequest) -> None:
     """Bring a behind-base PR-having issue back to merge-ready.
 
     On a clean rebase: rebase the worktree onto `origin/<base>`, push
@@ -274,13 +246,16 @@ def _sync_pr_worktree_to_base(*args: Any, **kwargs: Any) -> None:
     branch) leaves the label alone too; the next tick can retry once
     the underlying divergence is reconciled.
     """
-    bound_fields = _SYNC_PR_SIGNATURE.bind(*args, **kwargs)
-    request = _AutoRebaseRequest(
-        *bound_fields.arguments.values(),
-    )
-    _sync_pr_worktree_context(
-        request.to_context(_PENDING_PUSH_SHA),
-    )
+    context = request.to_context(_PENDING_PUSH_SHA)
+    if not eligibility._auto_rebase_label_is_eligible(context, _landing_moved.abandons_unproved):
+        return
 
+    retry = eligibility._auto_rebase_retry_decision(context)
+    if not retry.should_continue:
+        _answers_an_anchor_under_a_park(context)
+        return
+    pr = eligibility._open_auto_rebase_pr(context)
+    if pr is None:
+        return
 
-_sync_pr_worktree_to_base.__signature__ = _SYNC_PR_SIGNATURE
+    _publish_auto_rebase_from_pr(context, pr, retry.consumed_comment_id)

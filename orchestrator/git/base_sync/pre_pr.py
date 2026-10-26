@@ -56,17 +56,6 @@ def _rebase_base_into_worktree(
     return False, files
 
 
-def _merge_base_into_worktree(
-    spec: _config_models.RepoSpec, worktree: Path
-) -> tuple[bool, list[str]]:
-    """Compatibility alias for older patches/imports.
-
-    TODO(remove after 2026-08-24): drop once out-of-repo patches have moved
-    to `_rebase_base_into_worktree`.
-    """
-    return _rebase_base_into_worktree(spec, worktree)
-
-
 def _rebase_state_exists(worktree: Path, state_dir: str) -> bool:
     """Resolve one git rebase-state path and report whether it exists."""
     git_path_result = _commands._git_hardened(

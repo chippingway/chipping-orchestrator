@@ -38,7 +38,7 @@ def stale_session_agent():
 
 def assert_stale_agent_calls(test_case, run_agent, patched) -> None:
     test_case.assertEqual(
-        [agent_call.kwargs.get("resume_session_id") for agent_call in run_agent.call_args_list],
+        [agent_call.kwargs["options"].resume_session_id for agent_call in run_agent.call_args_list],
         ["poisoned-sess", None],
         "stale-session resume must be transparently retried as fresh",
     )
@@ -59,13 +59,11 @@ def assert_stale_state(test_case, github) -> None:
 
 
 def assert_continue_agent(test_case, github, patched) -> None:
-    prompt = patched[RUN_AGENT].call_args.args[1]
+    launch = patched[RUN_AGENT].call_args
+    prompt = launch.args[1]
     test_case.assertIn("session/usage limit", prompt)
     test_case.assertNotIn("/orchestrator continue", prompt)
-    test_case.assertEqual(
-        patched[RUN_AGENT].call_args.kwargs.get("resume_session_id"),
-        DEV_SESSION,
-    )
+    test_case.assertEqual(launch.kwargs["options"].resume_session_id, DEV_SESSION)
     patched[PUSH_BRANCH].assert_called_once()
     test_case.assertFalse(
         any("issue body changed" in body for _, body in github.posted_comments)

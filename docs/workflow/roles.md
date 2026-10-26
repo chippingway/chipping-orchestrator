@@ -85,9 +85,10 @@ per-stage behavior is in
   no retirement a poller can land. A Claude quota notice retires nothing: that conversation resumes past the reset.
   The record's lifecycle is in
   [the pinned-state reference](../state-machine/labels-and-state.md#pinned-state). `_resume_dev_with_text` on
-  `workflow/stages/implementing/resume.py` is the one module every one of those resumes goes through; it declares the
-  call signature its callers were written against, then binds those arguments into a typed request/context before
-  executing the resume.
+  `workflow/stages/implementing/resume.py` is the one module every one of those resumes goes through; each caller
+  hands it one frozen `_DevResumeRequest` (`workflow/stages/implementing/resume_request.py`) naming the state, the
+  text, the stage override, and the run's options, and the resume builds its context from that request before it
+  runs.
 - **A docs pass that changes the pull request.** `_handle_documenting` resumes the dev session for the final-docs
   pass behind an approval, and a pass that publishes a docs commit — a fresh one, commits an earlier tick left
   unpushed, or the commit a `docs_settled_sha` receipt names — has changed what the approval, the evidence it rests

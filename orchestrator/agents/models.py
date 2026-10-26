@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import signal
 from dataclasses import dataclass
-from typing import NamedTuple, TypedDict
+from typing import NamedTuple
 
 from orchestrator import config
 from orchestrator.observability.usage.agy_events import ToolLifecycle
@@ -76,8 +76,6 @@ class AgentResult:
     terminal_failure: TerminalFailure | None = None
 
 
-CodexResult = AgentResult
-
 
 @dataclass(frozen=True)
 class AgentRunOptions:
@@ -91,15 +89,6 @@ class AgentRunOptions:
     @property
     def timeout_seconds(self) -> int:
         return self.timeout or config.AGENT_TIMEOUT
-
-
-class AgentRunOptionFields(TypedDict, total=False):
-    """Legacy keyword controls accepted beside ``AgentRunOptions``."""
-
-    resume_session_id: str | None
-    extra_env: dict[str, str] | None
-    timeout: int | None
-    extra_args: tuple[str, ...]
 
 
 class SubprocessResult(NamedTuple):

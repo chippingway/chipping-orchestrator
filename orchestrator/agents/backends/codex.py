@@ -8,7 +8,6 @@ import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Unpack
 
 from orchestrator import config
 from orchestrator.agents import (
@@ -83,21 +82,19 @@ def run_codex(
     prompt: str,
     cwd: Path,
     *,
-    options: _agent_models.AgentRunOptions | None = None,
-    **option_fields: Unpack[_agent_models.AgentRunOptionFields],
+    options: _agent_models.AgentRunOptions,
 ) -> _agent_models.AgentResult:
     """Run Codex through the shared process owner."""
-    run_options = _agent_runner.resolve_agent_run_options(options, option_fields)
     with codex_last_message_file() as last_message_path:
-        _agent_runner.log_agent_spawn("codex", cwd, run_options)
+        _agent_runner.log_agent_spawn("codex", cwd, options)
         process_result = _agent_processes.run_subprocess(
-            codex_command(prompt, cwd, last_message_path, run_options),
+            codex_command(prompt, cwd, last_message_path, options),
             cwd,
-            _agent_environment.agent_env(run_options.extra_env),
-            run_options.timeout_seconds,
+            _agent_environment.agent_env(options.extra_env),
+            options.timeout_seconds,
         )
         return _agent_runner.build_agent_result(
-            run_options,
+            options,
             process_result,
             read_last_message(last_message_path),
         )

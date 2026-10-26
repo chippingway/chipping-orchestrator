@@ -13,6 +13,7 @@ from __future__ import annotations
 import threading
 import unittest
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler.worker_helpers import (
     _release_on_exit,
@@ -52,35 +53,35 @@ class FamilyGateTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     FIRST_FAMILY_ISSUE_NUMBER,
                     lambda: _worker(start, release),
                     family=True,
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
             # A second family-aware submit on the same repo is rejected
             # even though the per-repo cap (10) has room.
             self.assertFalse(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     SECOND_FAMILY_ISSUE_NUMBER,
                     lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
                     family=True,
-                )
+                ))
             )
             # A NON-family submit on the same repo IS accepted: the
             # gate is for family workers only.
             start_b = threading.Event()
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     FANOUT_ISSUE_NUMBER,
                     lambda: _worker(start_b, release),
                     family=False,
-                )
+                ))
             )
             self.assertTrue(start_b.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -88,12 +89,12 @@ class FamilyGateTest(unittest.TestCase):
             # the gate is per-repo, not global.
             start_c = threading.Event()
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     OTHER_REPO,
                     OTHER_FAMILY_ISSUE_NUMBER,
                     lambda: _worker(start_c, release),
                     family=True,
-                )
+                ))
             )
             self.assertTrue(start_c.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -102,12 +103,12 @@ class FamilyGateTest(unittest.TestCase):
         self.addCleanup(sched.shutdown)
         done = threading.Event()
         self.assertTrue(
-            sched.submit(
+            sched.submit(SubmissionRequest(
                 PRIMARY_REPO,
                 COMPLETED_FAMILY_ISSUE_NUMBER,
                 lambda: done.set(),
                 family=True,
-            )
+            ))
         )
         self.assertTrue(done.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -123,11 +124,11 @@ class FamilyGateTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     FOLLOW_UP_FAMILY_ISSUE_NUMBER,
                     lambda: _worker(start, release),
                     family=True,
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))

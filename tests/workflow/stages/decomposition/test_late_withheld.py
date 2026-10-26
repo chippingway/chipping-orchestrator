@@ -157,7 +157,7 @@ class DriftParkWithheldTest(RevisionCase):
     def _assert_handed_over(self, spawn) -> None:
         """The locked developer read the comment, and only then was it spent."""
         spawn.assert_called_once()
-        self.assertEqual(spawn.call_args.kwargs["resume_session_id"], DEV_SESSION)
+        self.assertEqual(spawn.call_args.kwargs["options"].resume_session_id, DEV_SESSION)
         self.assertIn(WITHHELD, spawn.call_args.args[1])
         pinned = self._pinned()
         self.assertGreaterEqual(pinned[_support.KEY_COMMENT_WATERMARK], self.withheld.id)
@@ -193,7 +193,7 @@ class QuestionParkWithheldTest(RevisionCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.REVISED)
         spawn.assert_called_once()
-        self.assertEqual(spawn.call_args.kwargs["resume_session_id"], DEV_SESSION)
+        self.assertEqual(spawn.call_args.kwargs["options"].resume_session_id, DEV_SESSION)
         prompt = spawn.call_args.args[1]
         self.assertLess(prompt.index(WITHHELD), prompt.index(LATER))
         pinned = self._pinned()
@@ -252,6 +252,6 @@ class EndedParkWithheldTest(RevisionCase):
                 outcome, spawn = self._revise()
 
                 self.assertEqual(outcome.disposition, _LateDisposition.REVISED)
-                self.assertEqual(spawn.call_args.kwargs["resume_session_id"], DEV_SESSION)
+                self.assertEqual(spawn.call_args.kwargs["options"].resume_session_id, DEV_SESSION)
                 self.assertIn(LONG_WITHHELD, spawn.call_args.args[1])
                 self.assertNotIn(KEYS.exempt_sha, self._pinned())

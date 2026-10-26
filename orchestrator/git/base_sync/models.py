@@ -3,7 +3,7 @@
 """Frozen inputs and decisions threaded through one auto-rebase attempt.
 
 The contexts live together because they are one another's continuations: the
-legacy request derives a context, that context is what every publish and park
+refresh's request derives a context, that context is what every publish and park
 helper receives, and the recovery context is the same attempt re-read from
 pinned state after a crash. Keeping them in one owner is what stops the fields
 a resumed attempt carries from drifting away from the fields the interrupted
@@ -139,7 +139,11 @@ class _AutoRebaseContext:
 
 @dataclass(frozen=True)
 class _AutoRebaseRequest:
-    """Legacy refresh arguments before derived synchronization fields."""
+    """What the refresh read for one PR-having worktree, before the attempt's derived fields.
+
+    The refresh hands this to both of its PR routes (`workflow/engine/base_rewrite`),
+    and each derives its context from it on entry.
+    """
 
     gh: GitHubClient
     spec: _config_models.RepoSpec
@@ -150,7 +154,7 @@ class _AutoRebaseRequest:
     behind: int
 
     def to_context(self, pending_field: str) -> _AutoRebaseContext:
-        """Derive label and recovery state at the compatibility boundary."""
+        """Read the workflow label and the recovery anchor as the route begins."""
         return _AutoRebaseContext(
             gh=self.gh,
             spec=self.spec,

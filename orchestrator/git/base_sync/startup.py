@@ -29,7 +29,7 @@ from github.PullRequest import PullRequest
 from orchestrator import config
 from orchestrator.git import commands
 from orchestrator.git.base_sync import attempts, conflicts, persistence, pre_pr
-from orchestrator.git.base_sync.models import _AutoRebaseContext
+from orchestrator.git.base_sync.models import _AutoRebaseContext, _ConflictRouteContext
 from orchestrator.git.base_sync.state import (
     _AWAITING_HUMAN,
     _PARK_REASON,
@@ -134,17 +134,17 @@ def _handle_failed_auto_rebase(
         )
     attempts._clears_the_attempt(context.state)
     if conflicted_files:
-        conflicts._route_pr_worktree_to_resolving_conflict(
-            context.gh,
-            context.spec,
-            context.issue,
-            context.state,
-            context.pr_number,
+        conflicts._route_pr_worktree_to_resolving_conflict(_ConflictRouteContext(
+            gh=context.gh,
+            spec=context.spec,
+            issue=context.issue,
+            state=context.state,
+            pr_number=context.pr_number,
             label=context.label,
             behind=context.behind,
             conflicted_files=conflicted_files,
             pr_head_sha=getattr(pr.head, "sha", None) or None,
-        )
+        ))
         return
 
     log.warning(

@@ -242,7 +242,7 @@ class CodexEnvScrubTest(unittest.TestCase):
                 return_value=_support.completed(),
             ) as run_mock,
         ):
-            _codex.run_codex(_agent_cases._PROMPT, _agent_cases._CWD)
+            _codex.run_codex(_agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions())
             return dict(run_mock.call_args.kwargs[_agent_cases._ENV_KWARG])
 
 
@@ -259,7 +259,7 @@ class CodexInterruptedResultTest(unittest.TestCase):
             _agent_cases._POPEN_TARGET,
             return_value=_support.completed(returncode=-signal.SIGTERM),
         ):
-            agent_result = _codex.run_codex(_agent_cases._PROMPT, _agent_cases._CWD)
+            agent_result = _codex.run_codex(_agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions())
         self.assertTrue(agent_result.interrupted)
         self.assertFalse(agent_result.timed_out)
         self.assertEqual(agent_result.exit_code, -signal.SIGTERM)
@@ -269,7 +269,7 @@ class CodexInterruptedResultTest(unittest.TestCase):
             _agent_cases._POPEN_TARGET,
             return_value=_support.completed(returncode=0),
         ):
-            agent_result = _codex.run_codex(_agent_cases._PROMPT, _agent_cases._CWD)
+            agent_result = _codex.run_codex(_agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions())
         self.assertFalse(agent_result.interrupted)
 
 
@@ -305,7 +305,7 @@ class CodexLastMessageTest(unittest.TestCase):
             _agent_cases._POPEN_TARGET,
             return_value=_support.completed(stdout=_streams.CAPTURED_LIMIT_STDOUT, returncode=1),
         ):
-            agent_result = _codex.run_codex(_agent_cases._PROMPT, _agent_cases._CWD)
+            agent_result = _codex.run_codex(_agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions())
         self.assertEqual(agent_result.last_message, "")
         self.assertEqual(agent_result.stdout, _streams.CAPTURED_LIMIT_STDOUT)
         self.assertEqual(

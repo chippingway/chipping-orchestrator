@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The package API a per-issue handler is submitted through.
 
-Typed submissions, the historical positional/keyword ``submit`` binding, and
-field normalization live in the ``models`` owner; the concrete
+The typed submission ``submit`` takes and its field normalization live in the
+``models`` owner; the concrete
 ``IssueScheduler`` -- caps, tracked claims, the family mutex, worker dispatch,
 and shutdown -- lives in the ``service`` owner. This initializer re-exports the
 narrow public surface (``__all__``): the scheduler and the caller-facing

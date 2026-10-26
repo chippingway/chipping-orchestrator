@@ -85,8 +85,10 @@ taken as current could start work or license an irreversible effect.
 
 **Limits:** Current formats include pinned-state keys (with explicit integer `schema_version: 1`), workflow labels,
 comment markers, watermarks, event formats, branch/ref names, host record formats, agent command specs, and logger
-names. Public Python names are the explicit `__all__` exports [C-13] covers. An internal refactor changes none of them;
-a deliberate change updates the affected contracts, specifications, and tests with the behavior.
+names. Public Python names are the explicit `__all__` exports [C-13] covers: `orchestrator.agents` publishes its result
+model as `AgentResult` alone, and the agent runner and the scheduler's `submit` take only their typed records,
+`AgentRunOptions` and `SubmissionRequest`; no keyword form beside them is a current call shape. An internal refactor
+changes none of them; a deliberate change updates the affected contracts, specifications, and tests with the behavior.
 
 The 1.0 release preparation supports current formats only: breaking changes have already landed, and earlier state has
 no promised conversion or continuity. Pinned-state admission accepts only version 1; records missing `schema_version` or
@@ -135,6 +137,7 @@ or lost write interrupted are current state, not historical compatibility.
 [analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery).
 
 **Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py),
+[agent surface](../tests/agents/test_imports.py), [submissions](../tests/scheduler/test_submission.py),
 [refused closes](../tests/workflow/engine/test_dispatch_refused_record_cleanup.py),
 [dispatch admission](../tests/workflow/engine/test_dispatch_record_admission.py),
 [later readings](../tests/workflow/engine/test_dispatch_admitted_rereads.py),
@@ -364,12 +367,16 @@ Deleting a rotated copy or truncating the log without keeping a copy while a fin
 **Why:** Importing from one module keeps test patches and runtime calls on the same implementation.
 
 **Limits:** Declared public exports are the supported entry points, changed only as [C-03] allows; importing workflow
-labels must still leave the workflow engine unloaded.
+labels must still leave the workflow engine unloaded. Where an owner defines the typed request or context an entry is
+driven by -- an agent run's options, a scheduler submission, a dev resume, a base-sync route -- callers build that
+record and the entry takes it as its one signature, so a test patching the owner and a caller reaching it meet the same
+parameters.
 
 **Specs:** [ownership](architecture.md#top-level-layout),
 [development conventions](../.agents/skills/develop/SKILL.md#workflow-owners-and-stage-modules).
 
-**Checks:** [imports](../tests/workflow/test_imports.py), [exports](../tests/repository/test_package_exports.py).
+**Checks:** [imports](../tests/workflow/test_imports.py), [exports](../tests/repository/test_package_exports.py),
+[owner patching](../tests/agents/test_owner_patching.py).
 
 ## C-14: Pinned session commands
 

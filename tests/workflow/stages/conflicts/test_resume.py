@@ -469,7 +469,7 @@ class ResolvingConflictSessionRecoveryTest(
                 )[0][RUN_AGENT]
 
                 retried.assert_called_once()
-                self.assertIsNone(retried.call_args.kwargs.get("resume_session_id"))
+                self.assertIsNone(retried.call_args.kwargs["options"].resume_session_id)
                 self.assertNotIn(f"@{OPERATOR.login}: {BARE_CONTINUE}", retried.call_args.args[1])
                 self.assertIn((CONFLICT_ISSUE, LABEL_VALIDATING), github.label_history)
 

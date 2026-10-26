@@ -112,10 +112,8 @@ class DiscussionSessionLockTest(unittest.TestCase, _DiscussionWorkflowMixin):
             )
 
         self._assert_ran_under(resume_mocks, _support.SPEC_BACKEND, _support.SPEC_ARGS)
-        self.assertEqual(
-            resume_mocks[_support.RUN_AGENT].call_args.kwargs.get(_support.RESUME_SESSION_ID),
-            _support.DISCUSSION_SESSION,
-        )
+        launch = resume_mocks[_support.RUN_AGENT].call_args
+        self.assertEqual(launch.kwargs["options"].resume_session_id, _support.DISCUSSION_SESSION)
         self.assertEqual(
             gh.pinned_data(issue.number)[_support.KEY_DISCUSSION_AGENT], _support.SPEC_WITH_ARGS,
         )
@@ -124,7 +122,7 @@ class DiscussionSessionLockTest(unittest.TestCase, _DiscussionWorkflowMixin):
         mocks[_support.RUN_AGENT].assert_called_once()
         spawn_call = mocks[_support.RUN_AGENT].call_args
         self.assertEqual(spawn_call.args[0], backend)
-        self.assertEqual(spawn_call.kwargs.get("extra_args"), extra_args)
+        self.assertEqual(spawn_call.kwargs["options"].extra_args, extra_args)
 
 
 if __name__ == "__main__":

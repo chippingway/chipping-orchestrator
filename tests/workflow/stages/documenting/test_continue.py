@@ -263,8 +263,8 @@ def _launches(run_agent) -> list:
     launches = []
     for launch in run_agent.call_args_list:
         backend, _, worktree = launch.args
-        conversation = launch.kwargs.get("resume_session_id")
-        launches.append((conversation, backend, worktree, launch.kwargs.get("extra_args")))
+        conversation = launch.kwargs["options"].resume_session_id
+        launches.append((conversation, backend, worktree, launch.kwargs["options"].extra_args))
     return launches
 
 

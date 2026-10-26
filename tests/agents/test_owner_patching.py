@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from orchestrator.agents import (
     environment as _environment,
+    models as _models,
     runner as _runner,
     session_ids as _session_ids,
     sessions as _sessions,
@@ -28,8 +29,8 @@ _BACKENDS = (
 class RunnerOwnerRoutingTest(unittest.TestCase):
     """Patching the `runner` / `environment` owners intercepts every backend.
 
-    The Codex / Claude / Antigravity backends resolve run options through
-    `runner.resolve_agent_run_options` and the child environment through
+    The Codex / Claude / Antigravity backends log their spawn through
+    `runner.log_agent_spawn` and build the child environment through
     `environment.agent_env` -- the direct owners, not facade-captured
     aliases -- so a monkeypatch on the owner module is observed by the
     runner rather than silently bypassed.
@@ -50,29 +51,26 @@ class RunnerOwnerRoutingTest(unittest.TestCase):
                         return_value=_support.completed(),
                     ) as run_mock,
                 ):
-                    backend_runner(_agent_cases._PROMPT, _agent_cases._CWD)
+                    backend_runner(_agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions())
                     self.assertEqual(env_owner.call_count, 1)
                     self.assertEqual(
                         run_mock.call_args.kwargs[_agent_cases._ENV_KWARG],
                         marker_env,
                     )
 
-    def test_options_reach_runner_owner(self) -> None:
+    def test_spawn_log_reaches_runner_owner(self) -> None:
+        options = _models.AgentRunOptions()
         for label, backend_runner in _BACKENDS:
             with (
                 self.subTest(backend=label),
-                patch.object(
-                    _runner,
-                    "resolve_agent_run_options",
-                    wraps=_runner.resolve_agent_run_options,
-                ) as resolve_owner,
+                patch.object(_runner, "log_agent_spawn") as log_owner,
                 patch(
                     _agent_cases._POPEN_TARGET,
                     return_value=_support.completed(),
                 ),
             ):
-                backend_runner(_agent_cases._PROMPT, _agent_cases._CWD)
-                self.assertEqual(resolve_owner.call_count, 1)
+                backend_runner(_agent_cases._PROMPT, _agent_cases._CWD, options=options)
+                log_owner.assert_called_once_with(label, _agent_cases._CWD, options)
 
 
 class ParserOwnerRoutingTest(unittest.TestCase):
@@ -102,6 +100,7 @@ class ParserOwnerRoutingTest(unittest.TestCase):
                 agent_result = backend_runner(
                     _agent_cases._PROMPT,
                     _agent_cases._CWD,
+                    options=_models.AgentRunOptions(),
                 )
                 self.assertEqual(parse_owner.call_count, 1)
                 self.assertEqual(agent_result.session_id, "owner-session-id")
@@ -121,6 +120,7 @@ class ParserOwnerRoutingTest(unittest.TestCase):
             agent_result = _claude.run_claude(
                 _agent_cases._PROMPT,
                 _agent_cases._CWD,
+                options=_models.AgentRunOptions(),
             )
             self.assertEqual(message_owner.call_count, 1)
             self.assertEqual(agent_result.last_message, "owner-final-message")

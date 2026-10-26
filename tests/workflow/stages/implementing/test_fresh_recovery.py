@@ -96,7 +96,7 @@ class _RecoveryBase(unittest.TestCase, _PatchedWorkflowMixin):
             _prompt_notes._DEVELOPER_AGY_RECOVERY_PROMPT,
         )
         self.assertEqual(
-            agent_call.kwargs.get("resume_session_id"),
+            agent_call.kwargs["options"].resume_session_id,
             _agy_stream.SESSION_ID,
         )
 

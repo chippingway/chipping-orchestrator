@@ -6,7 +6,11 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.stages.implementing import resume as _implementing_resume, state as _implementing_state
+from orchestrator.workflow.stages.implementing import (
+    resume as _implementing_resume,
+    resume_request as _resume_request,
+    state as _implementing_state,
+)
 from tests.workflow.stages.implementing import retry_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
@@ -60,10 +64,12 @@ class SilentSessionResumeFallbackTest(
             patch.object(_worktree_creation, ENSURE_WORKTREE, return_value=_FAKE_WT),
             patch.object(_agent_runner, RUN_AGENT, run_agent),
         ):
-            _implementing_resume._resume_dev_with_text(gh, _TEST_SPEC, issue, state, RESUME_TEXT)
+            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
+                gh, _TEST_SPEC, issue, state, RESUME_TEXT,
+            ))
 
         self.assertEqual(
-            run_agent.call_args.kwargs.get(RESUME_SESSION_ID),
+            run_agent.call_args.kwargs["options"].resume_session_id,
             POISONED_SESSION,
             "below threshold the original session id must still be resumed",
         )
@@ -87,10 +93,12 @@ class SilentSessionResumeFallbackTest(
             patch.object(_worktree_creation, ENSURE_WORKTREE, return_value=_FAKE_WT),
             patch.object(_agent_runner, RUN_AGENT, run_agent),
         ):
-            _implementing_resume._resume_dev_with_text(gh, _TEST_SPEC, issue, state, RESUME_TEXT)
+            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
+                gh, _TEST_SPEC, issue, state, RESUME_TEXT,
+            ))
 
         self.assertIsNone(
-            run_agent.call_args.kwargs.get(RESUME_SESSION_ID),
+            run_agent.call_args.kwargs["options"].resume_session_id,
             "fresh spawn must drop the poisoned dev_session_id",
         )
         self.assertEqual(run_agent.call_args.args[0], BACKEND_CLAUDE)
@@ -119,7 +127,9 @@ class SilentSessionResumeFallbackTest(
                 lambda *args, **kwargs: _agent(session_id="", last_message=""),
             ),
         ):
-            _implementing_resume._resume_dev_with_text(gh, _TEST_SPEC, issue, state, RESUME_TEXT)
+            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
+                gh, _TEST_SPEC, issue, state, RESUME_TEXT,
+            ))
 
         self.assertIsNone(
             state.get(KEY_DEV_SESSION_ID),
@@ -150,13 +160,15 @@ class SilentSessionResumeFallbackTest(
             patch.object(_worktree_creation, ENSURE_WORKTREE, return_value=_FAKE_WT),
             patch.object(_agent_runner, RUN_AGENT, run_agent),
         ):
-            _implementing_resume._resume_dev_with_text(gh, _TEST_SPEC, issue, state, RESUME_TEXT)
+            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
+                gh, _TEST_SPEC, issue, state, RESUME_TEXT,
+            ))
 
         # Backend stays locked to codex (legacy).
         self.assertEqual(run_agent.call_args.args[0], BACKEND_CODEX)
         # Resume happened with no session id -- the poisoned legacy id
         # was dropped.
-        self.assertIsNone(run_agent.call_args.kwargs.get(RESUME_SESSION_ID))
+        self.assertIsNone(run_agent.call_args.kwargs["options"].resume_session_id)
         # Pinned state migrated to the new keys with the fresh session
         # id, and the legacy field is cleared.
         self.assertEqual(state.get(KEY_DEV_AGENT), BACKEND_CODEX)

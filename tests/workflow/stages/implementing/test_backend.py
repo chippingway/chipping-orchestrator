@@ -139,7 +139,7 @@ class ConfigurableBackendTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(agent_calls[0].args[0], BACKEND_CLAUDE)
         self.assertEqual(agent_calls[1].args[0], BACKEND_CODEX)
         self.assertEqual(
-            agent_calls[1].kwargs.get(RESUME_SESSION_ID),
+            agent_calls[1].kwargs["options"].resume_session_id,
             DEV_SESSION,
         )
 
@@ -148,12 +148,11 @@ class ConfigurableBackendTest(unittest.TestCase, _PatchedWorkflowMixin):
         # on human reply must stick with codex even when DEV_AGENT=claude.
         gh = FakeGitHubClient()
         issue = make_issue(LEGACY_BACKEND_ISSUE, label=LABEL_IMPLEMENTING)
-        reply = FakeComment(
+        issue.comments.append(FakeComment(
             id=HUMAN_REPLY_ID,
             body="use sqlite",
             user=FakeUser("alice"),
-        )
-        issue.comments.append(reply)
+        ))
         gh.add_issue(issue)
         gh.seed_state(
             LEGACY_BACKEND_ISSUE,
@@ -173,11 +172,9 @@ class ConfigurableBackendTest(unittest.TestCase, _PatchedWorkflowMixin):
                 push_branch=True,
             )
 
-        self.assertEqual(mocks[RUN_AGENT].call_args.args[0], BACKEND_CODEX)
-        self.assertEqual(
-            mocks[RUN_AGENT].call_args.kwargs.get(RESUME_SESSION_ID),
-            LEGACY_SESSION,
-        )
+        launch = mocks[RUN_AGENT].call_args
+        self.assertEqual(launch.args[0], BACKEND_CODEX)
+        self.assertEqual(launch.kwargs["options"].resume_session_id, LEGACY_SESSION)
         # No proactive migration: legacy key stays put, no new keys written
         # by a resume (only fresh spawns write `dev_agent`/`dev_session_id`).
         pinned_data = gh.pinned_data(LEGACY_BACKEND_ISSUE)

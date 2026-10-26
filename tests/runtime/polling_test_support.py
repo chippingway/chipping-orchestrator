@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest import mock
 
 from orchestrator.config.models import RepoSpec
+from orchestrator.scheduler.models import SubmissionRequest
 
 ALPHA_REPO = "alpha/one"
 BETA_REPO = "beta/two"
@@ -105,6 +106,11 @@ def build_clients(slugs):
         github_client.slug = spec.slug
         clients.append((spec, github_client))
     return clients
+
+
+def alpha_submission(issue_number: int, worker) -> SubmissionRequest:
+    """The scheduler request that runs `worker` for one issue on `ALPHA_REPO`."""
+    return SubmissionRequest(ALPHA_REPO, issue_number, worker)
 
 
 def raise_on_slug(spec, target_slug: str, message: str) -> None:

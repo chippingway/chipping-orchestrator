@@ -30,7 +30,6 @@ from orchestrator.agents import models as _agent_models, processes as _agent_pro
 __all__ = (
     "AgentResult",
     "AgentRunOptions",
-    "CodexResult",
     "run_agent",
     "terminate_all_running",
 )
@@ -39,5 +38,4 @@ terminate_all_running = _agent_processes.terminate_all_running
 run_agent = _agent_runner.run_agent
 
 AgentResult = _agent_models.AgentResult
-CodexResult = _agent_models.CodexResult
 AgentRunOptions = _agent_models.AgentRunOptions

@@ -69,6 +69,7 @@ from orchestrator.workflow.stages.implementing import (
     models as _models,
     resume as _resume,
     resume_batch as _resume_batch,
+    resume_request as _resume_request,
     retry_cap as _retry_cap,
     state as _state,
 )
@@ -111,11 +112,11 @@ def _retry_parked_dev_session(
             branch=_naming._resolve_branch_name(state, spec, issue.number),
         )
     before_sha = _verification_probes._head_sha(wt)
-    wt, agent_result, paused = _resume._resume_dev_with_text(
+    wt, agent_result, paused = _resume._resume_dev_with_text(_resume_request._DevResumeRequest(
         gh, spec, issue, state, _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
         pause_guard=True,
         thread_text=batch.retry_thread_text,
-    )
+    ))
     state.set("last_agent_action_at", _usage._now_iso())
     state.set(
         _state._BRANCH,

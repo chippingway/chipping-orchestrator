@@ -5,23 +5,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Unpack
 
 from orchestrator.agents import models as _agent_models, session_ids as _agent_session_ids
 
 log = logging.getLogger("orchestrator.agents")
-
-
-def resolve_agent_run_options(
-    options: _agent_models.AgentRunOptions | None,
-    option_fields: _agent_models.AgentRunOptionFields,
-) -> _agent_models.AgentRunOptions:
-    """Normalize the object and legacy keyword option forms."""
-    if options is not None and option_fields:
-        raise TypeError("pass either options or keyword option fields, not both")
-    if options is not None:
-        return options
-    return _agent_models.AgentRunOptions(**option_fields)
 
 
 def build_agent_result(
@@ -66,11 +53,9 @@ def run_agent(
     prompt: str,
     cwd: Path,
     *,
-    options: _agent_models.AgentRunOptions | None = None,
-    **option_fields: Unpack[_agent_models.AgentRunOptionFields],
+    options: _agent_models.AgentRunOptions,
 ) -> _agent_models.AgentResult:
-    """Dispatch to a supported CLI with normalized optional controls."""
-    run_options = resolve_agent_run_options(options, option_fields)
+    """Dispatch to a supported CLI, handing it the run's optional controls unchanged."""
     # Import the backend owner at call time and read its `run_*` entry then,
     # so a test that patches `codex.run_codex` / `claude.run_claude` on the
     # owner module intercepts dispatch, and reaching a sibling subpackage
@@ -86,4 +71,4 @@ def run_agent(
         raise ValueError(
             f"unknown agent backend {backend!r}; expected 'codex', 'claude', or 'agy'",
         )
-    return backend_runner(prompt, cwd, options=run_options)
+    return backend_runner(prompt, cwd, options=options)

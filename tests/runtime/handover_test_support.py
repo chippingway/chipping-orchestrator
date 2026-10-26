@@ -116,11 +116,9 @@ class _HandoverTestCase(unittest.TestCase):
     def start_gated_worker(self) -> None:
         """Put one counted worker in the pool and wait until it is running."""
         started = threading.Event()
-        self.assertTrue(self.scheduler.submit(
-            _support.ALPHA_REPO,
-            _WORKER_ISSUE_NUMBER,
-            _GatedWorker(started, self.release),
-        ))
+        self.assertTrue(self.scheduler.submit(_support.alpha_submission(
+            _WORKER_ISSUE_NUMBER, _GatedWorker(started, self.release),
+        )))
         self.assertTrue(started.wait(timeout=_EVENT_TIMEOUT_SECONDS))
         self.assertEqual(self.scheduler.active_count(), 1)
 
@@ -139,7 +137,7 @@ class _HandoverTestCase(unittest.TestCase):
         return (
             self.scheduler.active_count(),
             self.scheduler.submit(
-                _support.ALPHA_REPO, _PROBE_ISSUE_NUMBER, _noop,
+                _support.alpha_submission(_PROBE_ISSUE_NUMBER, _noop),
             ),
         )
 

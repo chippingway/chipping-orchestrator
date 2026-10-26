@@ -34,7 +34,6 @@ CLEANUP_QUESTION_WORKTREE = "_cleanup_question_worktree"
 PUSH_BRANCH = "_push_branch"
 RUN_AGENT = "run_agent"
 WORKTREE_PATH = "_worktree_path"
-RESUME_SESSION_ID = "resume_session_id"
 
 UNEXPECTED_AGENT_MESSAGE = "should not run"
 QUESTION_TEXT = "Where does X live?"
@@ -159,11 +158,9 @@ class HandleQuestionResumeTrustFilterTest(
                 run_agent=_agent(session_id=QUESTION_SESSION, last_message="Done."),
             )
         # Live-session followup path (not the fresh full-prompt recovery).
-        self.assertEqual(
-            mocks[RUN_AGENT].call_args.kwargs.get(RESUME_SESSION_ID),
-            QUESTION_SESSION,
-        )
-        prompt = mocks[RUN_AGENT].call_args.args[1]
+        launch = mocks[RUN_AGENT].call_args
+        self.assertEqual(launch.kwargs["options"].resume_session_id, QUESTION_SESSION)
+        prompt = launch.args[1]
         self.assertNotIn(MALICIOUS_URL, prompt)
         self.assertIn(FOLLOW_UP_GUIDANCE, prompt)
 

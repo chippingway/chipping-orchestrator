@@ -207,7 +207,7 @@ class _RecoveryAssertionsMixin:
             _prompt_notes._DEVELOPER_AGY_RECOVERY_PROMPT,
         )
         self.assertEqual(
-            agent_call.kwargs.get(support.RESUME_SESSION_ID),
+            agent_call.kwargs["options"].resume_session_id,
             _agy_stream.SESSION_ID,
         )
 

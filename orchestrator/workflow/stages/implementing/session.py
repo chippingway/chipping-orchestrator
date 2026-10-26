@@ -46,7 +46,6 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.agents.models import AgentResult
-from orchestrator.config import models as _config_models
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     prompt_context as _prompt_context,
@@ -180,10 +179,8 @@ def _dev_session_retirement_reason(
 
 
 def _build_dev_spawn_prompt(
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    followup_text: str,
-    options: _resume_request._DevResumeOptions,
+    request: _resume_request._DevResumeRequest,
+    split_rationale: str | None,
     *,
     fresh: bool,
 ) -> str:
@@ -207,25 +204,25 @@ def _build_dev_spawn_prompt(
     fresh words were the commands it consumes freezes one -- so only a caller
     with no frozen read at all (None) gets the read taken here.
 
-    The split rationale the preamble quotes is the options' own, which the
-    resume read off the issue's record (`resume_request._DevResumeOptions`)
+    The split rationale the preamble quotes is the one the resume read off
+    the issue's record (`resume_request._DevResumeRequest.split_rationale`)
     rather than off this conversation, so a replacement session is handed the
     residual scope its predecessor's first spawn was, however far back on the
     thread the split summary sits. A resume is handed nothing: the transcript
     it replays already holds it.
     """
     if not fresh:
-        return followup_text
+        return request.followup_text
     preamble_specs = (
-        [] if options.followup_has_tracked_repos else config.default_repo_specs()
+        [] if request.followup_has_tracked_repos else config.default_repo_specs()
     )
-    conversation = options.thread_text
+    conversation = request.thread_text
     if conversation is None:
-        conversation = _prompt_context._recent_comments_text(issue)
+        conversation = _prompt_context._recent_comments_text(request.issue)
     preamble = _prompts._build_fresh_respawn_preamble(
-        spec, issue, conversation, preamble_specs, options.split_rationale,
+        request.spec, request.issue, conversation, preamble_specs, split_rationale,
     )
-    return f"{preamble}\n\n{followup_text}"
+    return f"{preamble}\n\n{request.followup_text}"
 
 
 def _persist_dev_session_after_run(

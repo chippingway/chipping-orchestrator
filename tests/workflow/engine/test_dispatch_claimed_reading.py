@@ -12,6 +12,7 @@ import threading
 import unittest
 from unittest.mock import patch
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.workflow.engine import (
     dispatch as _dispatch,
     scheduled_dispatch as _scheduled_dispatch,
@@ -21,7 +22,6 @@ from orchestrator.workflow.engine import (
 from tests.support.fakes import make_issue
 from tests.support.writer_claims import held_elsewhere
 from tests.workflow.engine import refused_submit_support as _closed
-from tests.workflow.engine.dispatch_scheduler_test_support import REPO_SLUG
 from tests.workflow.engine.writer_claim_test_support import (
     DISPATCH_MODES,
     StandInHandler,
@@ -131,7 +131,8 @@ class StaleAdmissionTest(WriterClaimDispatchCase):
         """Another issue's run holding the scheduler's only slot until the event is set."""
         occupied = threading.Event()
         self.addCleanup(occupied.set)
-        self.assertTrue(scheduler.submit(REPO_SLUG, _OCCUPIER, occupied.wait))
+        occupier = SubmissionRequest(self._spec().slug, _OCCUPIER, occupied.wait)
+        self.assertTrue(scheduler.submit(occupier))
         return occupied
 
     def _ticked_on(self, scheduler, stand_in: StandInHandler, label: str) -> None:

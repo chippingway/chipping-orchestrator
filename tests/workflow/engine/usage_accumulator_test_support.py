@@ -20,7 +20,8 @@ class _PoisonedThenFreshRun:
     def __init__(self) -> None:
         self.calls: list[str | None] = []
 
-    def __call__(self, *_args, resume_session_id=None, **_kwargs):
+    def __call__(self, *_args, options):
+        resume_session_id = options.resume_session_id
         self.calls.append(resume_session_id)
         if resume_session_id == "poisoned-sess":
             return _agent(

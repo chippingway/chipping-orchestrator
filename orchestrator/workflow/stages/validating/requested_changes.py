@@ -81,6 +81,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     resume as _dev_resume,
+    resume_request as _dev_resume_request,
 )
 from orchestrator.workflow.stages.validating import (
     feedback_posts as _feedback_posts,
@@ -273,7 +274,7 @@ def _run_requested_fix(
     # let the resume helper read the label back off the issue: on any object a
     # flip did not go through it still reads `validating`, which would
     # attribute this developer run to the reviewer's stage.
-    worktree, agent_result, paused = _dev_resume._resume_dev_with_text(
+    worktree, agent_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         context.gh,
         context.spec,
         context.issue,
@@ -282,7 +283,7 @@ def _run_requested_fix(
         stage=stage_name(WorkflowLabel.FIXING),
         pause_guard=True,
         **resume,
-    )
+    ))
     context.state.set("last_agent_action_at", _usage._now_iso())
     return _models._AwaitingDevAttempt(
         _models._DevFixRun(worktree, agent_result, before_sha), paused,

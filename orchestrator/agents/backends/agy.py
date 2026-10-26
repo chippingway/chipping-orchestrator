@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Unpack
+from typing import Any
 
 from orchestrator import config
 from orchestrator.agents import (
@@ -107,16 +107,14 @@ def run_agy(
     prompt: str,
     cwd: Path,
     *,
-    options: _agent_models.AgentRunOptions | None = None,
-    **option_fields: Unpack[_agent_models.AgentRunOptionFields],
+    options: _agent_models.AgentRunOptions,
 ) -> _agent_models.AgentResult:
     """Run Antigravity through the shared process and credential boundary."""
-    run_options = _agent_runner.resolve_agent_run_options(options, option_fields)
-    _agent_runner.log_agent_spawn("agy", cwd, run_options)
+    _agent_runner.log_agent_spawn("agy", cwd, options)
     process_result = _agent_processes.run_subprocess(
-        agy_command(prompt, run_options),
+        agy_command(prompt, options),
         cwd,
-        _agent_environment.agent_env(run_options.extra_env),
-        run_options.timeout_seconds,
+        _agent_environment.agent_env(options.extra_env),
+        options.timeout_seconds,
     )
-    return agy_result(run_options, process_result)
+    return agy_result(options, process_result)

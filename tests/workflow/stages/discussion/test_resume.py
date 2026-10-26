@@ -81,7 +81,7 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # sent is the answer plus the instruction to redraw the tree -- not an
         # opening analysis that would ask the settled questions again.
         self.assertEqual(
-            spawn_call.kwargs.get(_support.RESUME_SESSION_ID), _support.DISCUSSION_SESSION,
+            spawn_call.kwargs["options"].resume_session_id, _support.DISCUSSION_SESSION,
         )
         self.assertEqual(
             spawn_call.args[1],
@@ -150,7 +150,7 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # So the reply that follows rebuilds the whole context instead of
         # resuming a conversation nothing on this thread belongs to.
         spawn_call = reply_mocks[_support.RUN_AGENT].call_args
-        self.assertIsNone(spawn_call.kwargs.get(_support.RESUME_SESSION_ID))
+        self.assertIsNone(spawn_call.kwargs["options"].resume_session_id)
         self.assertIn(_FULL_PROMPT_CLAUSE, spawn_call.args[1])
 
     def test_a_sessionless_round_rebuilds_context(self) -> None:
@@ -174,7 +174,7 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
         )
 
         spawn_call = mocks[_support.RUN_AGENT].call_args
-        self.assertIsNone(spawn_call.kwargs.get(_support.RESUME_SESSION_ID))
+        self.assertIsNone(spawn_call.kwargs["options"].resume_session_id)
         prompt = spawn_call.args[1]
         self.assertIn(_FULL_PROMPT_CLAUSE, prompt)
         self.assertNotIn(_FOLLOWUP_CLAUSE, prompt)

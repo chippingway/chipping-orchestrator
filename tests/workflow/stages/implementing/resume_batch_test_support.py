@@ -61,10 +61,6 @@ QUOTES_THE_RECORD = (
 
 RESUME_DEV_WITH_TEXT = "_resume_dev_with_text"
 
-# Where the followup text lands in the positional resume call: the shape is a
-# contract several callers wrote against, so a case reads the prompt off it.
-FOLLOWUP_ARGUMENT = 4
-
 
 @dataclass(frozen=True)
 class _Resumed:
@@ -76,8 +72,9 @@ class _Resumed:
 
     @property
     def followup(self) -> str:
-        """The prompt text the developer was handed."""
-        return self.call.call_args.args[FOLLOWUP_ARGUMENT]
+        """The prompt text the developer was handed, off the one request the resume took."""
+        request = self.call.call_args.args[0]
+        return request.followup_text
 
 
 class _RunsWhileOneLands:

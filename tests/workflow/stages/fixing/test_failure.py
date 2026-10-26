@@ -102,7 +102,7 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
         # parking on the missing session.
         self._mocks[RUN_AGENT].assert_called_once()
         call_args = self._mocks[RUN_AGENT].call_args
-        self.assertIsNone(call_args.kwargs.get(RESUME_SESSION_ID))
+        self.assertIsNone(call_args.kwargs["options"].resume_session_id)
         # Did NOT park -- the issue made progress instead (advancing
         # directly to validating for the reviewer to re-evaluate).
         self._pinned_data = scenario.github.pinned_data(ISSUE)
@@ -450,8 +450,9 @@ def _assert_continue_success(
         (False, None, True),
     )
     retry_mocks[support.RUN_AGENT].assert_called_once()
-    case.assertIn(expected_text, retry_mocks[support.RUN_AGENT].call_args.args[1])
-    case.assertIsNone(retry_mocks[support.RUN_AGENT].call_args.kwargs.get(support.RESUME_SESSION_ID))
+    launch = retry_mocks[support.RUN_AGENT].call_args
+    case.assertIn(expected_text, launch.args[1])
+    case.assertIsNone(launch.kwargs["options"].resume_session_id)
     case.assertIn(_LABEL_VALIDATING, scenario.github.label_history)
 
 

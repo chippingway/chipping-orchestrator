@@ -15,6 +15,7 @@ from contextlib import contextmanager
 from unittest.mock import patch
 
 from orchestrator.runtime import shutdown
+from orchestrator.scheduler.models import SubmissionRequest
 
 _ALPHA_REPO = "alpha/one"
 _WORKER_WAIT_SECONDS = 5.0
@@ -48,10 +49,12 @@ class SignalSubmitTick:
         self.submit_results: list[bool] = []
 
     def __call__(self, gh, spec, *, scheduler=None) -> None:
-        self.submit_results.append(scheduler.submit(spec.slug, 1, lambda: None))
+        self.submit_results.append(
+            scheduler.submit(SubmissionRequest(spec.slug, 1, lambda: None)),
+        )
         shutdown.request_shutdown(self._state, signal.SIGINT, None)
         self.submit_results.append(
-            scheduler.submit(spec.slug, 2, unexpected_dispatch),
+            scheduler.submit(SubmissionRequest(spec.slug, 2, unexpected_dispatch)),
         )
 
 
@@ -71,7 +74,7 @@ class MultiRepoSignalTick:
             return
         signal_seen = self._signal_fired.wait(timeout=_WORKER_WAIT_SECONDS)
         if signal_seen:
-            accepted = scheduler.submit(spec.slug, 7, unexpected_dispatch)
+            accepted = scheduler.submit(SubmissionRequest(spec.slug, 7, unexpected_dispatch))
             with self._lock:
                 self.beta_results.append(accepted)
             return

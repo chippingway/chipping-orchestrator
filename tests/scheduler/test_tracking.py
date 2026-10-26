@@ -14,6 +14,7 @@ import threading
 import unittest
 from functools import partial
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler.coordination_helpers import (
     _tracked_worker,
@@ -93,7 +94,7 @@ class TrackActiveContextManagerTest(unittest.TestCase):
         with _release_on_exit(bucket_gates[1]):
             # Bucket submit (family-aware) takes one executor slot.
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     "owner/family",
                     0,
                     partial(
@@ -104,7 +105,7 @@ class TrackActiveContextManagerTest(unittest.TestCase):
                         bucket_gates,
                     ),
                     family=True,
-                )
+                ))
             )
             self.assertTrue(bucket_gates[0].wait(timeout=EVENT_TIMEOUT_SECONDS))
             self.assertTrue(bucket_gates[2].wait(timeout=EVENT_TIMEOUT_SECONDS))
@@ -117,11 +118,11 @@ class TrackActiveContextManagerTest(unittest.TestCase):
             # admitted -- only one executor worker is in flight.
             fanout_gates = (threading.Event(), threading.Event())
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     OTHER_REPO,
                     5,
                     lambda: _worker(*fanout_gates),
-                )
+                ))
             )
             self.assertTrue(fanout_gates[0].wait(timeout=EVENT_TIMEOUT_SECONDS))
             fanout_gates[1].set()
@@ -138,11 +139,11 @@ class TrackActiveContextManagerTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     7,
                     lambda: _worker(start, release),
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -168,7 +169,7 @@ class TrackActiveContextManagerTest(unittest.TestCase):
 
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     0,
                     partial(
@@ -179,16 +180,16 @@ class TrackActiveContextManagerTest(unittest.TestCase):
                         (start, release, inner_claimed),
                     ),
                     family=True,
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
             self.assertTrue(inner_claimed.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
             # A fanout submit for the tracked issue must be rejected.
             self.assertFalse(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     TRACKED_ISSUE_NUMBER,
                     lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
-                )
+                ))
             )

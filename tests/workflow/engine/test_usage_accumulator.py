@@ -21,7 +21,7 @@ from orchestrator.workflow.engine import (
     content_hash as _content_hash,
     issue_usage as _issue_usage,
 )
-from orchestrator.workflow.stages.implementing import resume as _resume
+from orchestrator.workflow.stages.implementing import resume as _resume, resume_request as _resume_request
 from tests.workflow.engine import usage_accumulator_test_support as support
 
 FakeGitHubClient = support.FakeGitHubClient
@@ -305,7 +305,7 @@ class ResumeRunUsageAccumulationTest(unittest.TestCase):
                 last_message="ok",
             ),
         ):
-            _resume._resume_dev_with_text(gh, _TEST_SPEC, issue, state, "go")
+            _resume._resume_dev_with_text(_resume_request._DevResumeRequest(gh, _TEST_SPEC, issue, state, "go"))
 
         self.assertEqual(state.get(_RUNS_KEY), 1)
 
@@ -324,7 +324,7 @@ class ResumeRunUsageAccumulationTest(unittest.TestCase):
         with patch.object(
             _worktree_creation, "_ensure_worktree", _fake_worktree,
         ), patch.object(_agent_runner, "run_agent", run_recorder):
-            _resume._resume_dev_with_text(gh, _TEST_SPEC, issue, state, "go")
+            _resume._resume_dev_with_text(_resume_request._DevResumeRequest(gh, _TEST_SPEC, issue, state, "go"))
 
         self.assertEqual(run_recorder.calls, ["poisoned-sess", None])
         # Both the poisoned resume and the fresh retry burned a real exit.

@@ -36,7 +36,7 @@ class _StubClient:
 
 
 def _request(gh: _StubClient, state: PinnedState) -> models._AutoRebaseRequest:
-    """Build a legacy refresh request around the given client and state."""
+    """Build the refresh's request around the given client and state."""
     return models._AutoRebaseRequest(
         gh=gh,
         spec=_SPEC,
@@ -49,7 +49,7 @@ def _request(gh: _StubClient, state: PinnedState) -> models._AutoRebaseRequest:
 
 
 class AutoRebaseRequestTest(unittest.TestCase):
-    """The legacy request derives the two fields a context adds."""
+    """The refresh's request derives the two fields a context adds."""
 
     def test_to_context_derives_label_and_sha(self) -> None:
         state = PinnedState(state_data={_PENDING_FIELD: _PRE_REBASE_SHA})

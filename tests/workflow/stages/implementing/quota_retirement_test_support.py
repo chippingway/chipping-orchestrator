@@ -28,7 +28,6 @@ QUOTA_REASON = "agent_session_limit"
 VALIDATING = (ISSUE, support.LABEL_VALIDATING)
 _RETRIES_PER_DAY = 3
 _REPLY_GAP = 100
-_EXTRA_ARGS = "extra_args"
 # A directory that takes no new entry, and the mode it is given back; a file
 # that takes no write.
 FROZEN = 0o555
@@ -82,8 +81,8 @@ def retired(*, pending: bool = True) -> dict:
 def launch(run_agent: MagicMock) -> tuple:
     """The resume id, backend, worktree, and arguments the last launch was made with."""
     backend, _, worktree = run_agent.call_args.args
-    options = run_agent.call_args.kwargs
-    return options.get(support.RESUME_SESSION_ID), backend, worktree, options.get(_EXTRA_ARGS)
+    options = run_agent.call_args.kwargs["options"]
+    return options.resume_session_id, backend, worktree, options.extra_args
 
 
 def reply(github, issue, body: str) -> int:

@@ -16,6 +16,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.implementing import (
     resume as _implementing_resume,
+    resume_request as _resume_request,
     retry_cap as _implementing_retry_cap,
 )
 from tests.support import fakes
@@ -274,7 +275,7 @@ class _RetryCapContinueMixin(_RetryCapParkMixin):
         """
         spawn = mocks[RUN_AGENT]
         spawn.assert_called_once()
-        self.assertIsNone(spawn.call_args.kwargs.get(RESUME_SESSION_ID))
+        self.assertIsNone(spawn.call_args.kwargs["options"].resume_session_id)
         return spawn
 
 
@@ -355,11 +356,11 @@ class _ProactiveSessionFixtureMixin(_PatchedWorkflowMixin):
             ),
             patch.object(_agent_runner, RUN_AGENT, fake_run),
         ):
-            _, agent_result, _ = _implementing_resume._resume_dev_with_text(
+            _, agent_result, _ = _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
                 gh,
                 _TEST_SPEC,
                 issue,
                 state,
                 FIX_PROMPT_FRAGMENT,
-            )
+            ))
         return state, agent_result

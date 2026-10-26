@@ -175,7 +175,7 @@ class ContinuationTest(LateRetryCapCase):
         # A fresh conversation rather than a resume: what the park owes the
         # issue is the spawn the budget refused.
         spawn.assert_called_once()
-        self.assertIsNone(spawn.call_args.kwargs.get("resume_session_id"))
+        self.assertIsNone(spawn.call_args.kwargs["options"].resume_session_id)
         self._assert_reads_as(_support.GRANT_SPENT)
         self.assertNotIn(_support.KEY_RETRY_CAP_STAGE, self._pinned())
         self.assertGreaterEqual(
@@ -300,7 +300,7 @@ class ContinuedSplitTest(LateRetryCapCase):
                 spawn = self._tick()
 
                 spawn.assert_called_once()
-                self.assertEqual(spawn.call_args.kwargs["resume_session_id"], DEV_SESSION)
+                self.assertEqual(spawn.call_args.kwargs["options"].resume_session_id, DEV_SESSION)
                 self.assertIn(_support.OVERLONG_UNREAD, spawn.call_args.args[1])
 
     def test_an_overlong_continue_is_quoted_whole(self) -> None:
@@ -362,7 +362,7 @@ class WithheldContinuationTest(LateRetryCapCase):
         spawn = self._tick()
 
         spawn.assert_called_once()
-        self.assertEqual(spawn.call_args.kwargs["resume_session_id"], DEV_SESSION)
+        self.assertEqual(spawn.call_args.kwargs["options"].resume_session_id, DEV_SESSION)
         self.assertIn(_support.GUIDANCE, spawn.call_args.args[1])
 
 

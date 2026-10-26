@@ -15,6 +15,7 @@ from collections.abc import Callable
 
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import (
     dispatch_closure as _dispatch_closure,
@@ -105,7 +106,7 @@ def _submit_scheduler_family_bucket(
     if not family_numbers:
         return
 
-    submitted = scheduler.submit(
+    submitted = scheduler.submit(SubmissionRequest(
         spec.slug,
         _FAMILY_BUCKET_ISSUE,
         functools.partial(
@@ -114,7 +115,7 @@ def _submit_scheduler_family_bucket(
         family=True,
         cap_exempt=_poll_models._family_bucket_cap_exempt(partition.family_labels),
         per_repo_cap=per_repo_cap,
-    )
+    ))
     if submitted:
         return
 
@@ -146,7 +147,7 @@ def _submit_scheduler_fanout_issues(
         # must not be dropped. Given back by the task, or below if the submit
         # was refused and no task will run.
         _publication_holds.claim_publication(spec.slug, issue_number)
-        submitted = scheduler.submit(
+        submitted = scheduler.submit(SubmissionRequest(
             spec.slug,
             issue_number,
             _released_after(spec, issue_number, _dispatch_workers._fanout_task(
@@ -161,7 +162,7 @@ def _submit_scheduler_fanout_issues(
             # exemption for `blocked` / `umbrella`).
             cap_exempt=(issue_number in partition.fanout_closed),
             per_repo_cap=per_repo_cap,
-        )
+        ))
         if submitted:
             continue
         _publication_holds.release_publication(spec.slug, issue_number)

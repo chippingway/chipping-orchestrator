@@ -20,7 +20,7 @@ from orchestrator.workflow.engine import (
     content_hash as _content_hash,
     report_delivery as _report_delivery,
 )
-from orchestrator.workflow.stages.implementing import resume as _implementing_resume
+from orchestrator.workflow.stages.implementing import resume as _implementing_resume, resume_request as _resume_request
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -303,19 +303,19 @@ class ImplementingLivePauseRetryWindowTest(unittest.TestCase, _PatchedWorkflowMi
             ),
             patch.object(_agent_runner, "run_agent", self._run_agent),
         ):
-            _, _, paused = _implementing_resume._resume_dev_with_text(
+            _, _, paused = _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
                 gh,
                 _TEST_SPEC,
                 issue,
                 self._state,
                 "go",
                 pause_guard=True,
-            )
+            ))
 
         # Both runs happened -- the poisoned resume and one bounded fresh retry
         # -- and only then did the guard fire, on the SECOND run's fetch.
         self.assertEqual(
-            [agent_call.kwargs.get("resume_session_id") for agent_call in self._run_agent.call_args_list],
+            [agent_call.kwargs["options"].resume_session_id for agent_call in self._run_agent.call_args_list],
             ["poisoned-sess", None],
         )
         self.assertEqual(get_issue_mock.call_count, 2)

@@ -105,7 +105,9 @@ class AntigravityCommandTest(unittest.TestCase):
 
     def test_dispatch_reads_session_and_final_message(self) -> None:
         with patch(cases._POPEN_TARGET, return_value=support.completed(stdout=stream.resumed_stream())) as process:
-            agent_result = runner.run_agent(stream.BACKEND, cases._PROMPT, cases._CWD, extra_args=stream.ARGS)
+            agent_result = runner.run_agent(
+                stream.BACKEND, cases._PROMPT, cases._CWD, options=models.AgentRunOptions(extra_args=stream.ARGS),
+            )
             self.assertEqual(process.call_args.kwargs["cwd"], str(cases._CWD))
         self.assertEqual(agent_result.session_id, stream.SESSION_ID)
         self.assertEqual(agent_result.last_message, stream.ANSWER)

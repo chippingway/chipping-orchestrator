@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Shared agent dispatch: selection, option normalization, result, logging."""
+"""Shared agent dispatch: selection, option hand-off, result, logging."""
 
 from __future__ import annotations
 
@@ -31,7 +31,9 @@ _TIMEOUT_SECONDS = 42
 class RunAgentDispatchTest(unittest.TestCase):
     def test_unknown_backend_raises_value_error(self) -> None:
         with self.assertRaisesRegex(ValueError, "gemini"):
-            _runner.run_agent("gemini", _agent_cases._PROMPT, _agent_cases._CWD)
+            _runner.run_agent(
+                "gemini", _agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions(),
+            )
 
     def test_dispatch_honors_patched_backend_runner(self) -> None:
         # `codex.run_codex` / `claude.run_claude` on the backend owner modules
@@ -46,6 +48,7 @@ class RunAgentDispatchTest(unittest.TestCase):
                         backend,
                         _agent_cases._PROMPT,
                         _agent_cases._CWD,
+                        options=_models.AgentRunOptions(),
                     )
                 self.assertIs(dispatched, fake.return_value)
                 fake.assert_called_once()
@@ -63,6 +66,7 @@ class RunAgentDispatchTest(unittest.TestCase):
                 _agent_cases._CODEX,
                 _agent_cases._PROMPT,
                 _agent_cases._CWD,
+                options=_models.AgentRunOptions(),
             )
             argv = list(run_mock.call_args.args[0])
         self.assertEqual(agent_result.session_id, _PARSED_SESSION_ID)
@@ -82,6 +86,7 @@ class RunAgentDispatchTest(unittest.TestCase):
                 _agent_cases._CLAUDE,
                 _agent_cases._PROMPT,
                 _agent_cases._CWD,
+                options=_models.AgentRunOptions(),
             )
             argv = list(run_mock.call_args.args[0])
         self.assertEqual(agent_result.session_id, _PARSED_SESSION_ID)
@@ -89,29 +94,11 @@ class RunAgentDispatchTest(unittest.TestCase):
         self.assertEqual(argv[1], "-p")
 
 
-class RunAgentOptionNormalizationTest(unittest.TestCase):
-    """`run_agent` folds either option form into one `AgentRunOptions` before
-    handing it to the selected backend as an explicit `options` keyword.
-    """
-
-    def test_legacy_keyword_fields_become_options(self) -> None:
-        for backend, owner, runner_attr in _BACKENDS:
-            with self.subTest(backend=backend):
-                fake = MagicMock()
-                with patch.object(owner, runner_attr, fake):
-                    _runner.run_agent(
-                        backend,
-                        _agent_cases._PROMPT,
-                        _agent_cases._CWD,
-                        resume_session_id=_KEPT_SESSION_ID,
-                        extra_args=_EXTRA_ARGS,
-                    )
-                forwarded = fake.call_args.kwargs[_OPTIONS_KWARG]
-                self.assertEqual(forwarded.resume_session_id, _KEPT_SESSION_ID)
-                self.assertEqual(forwarded.extra_args, _EXTRA_ARGS)
+class RunAgentOptionsTest(unittest.TestCase):
+    """`run_agent` hands the selected backend the caller's `AgentRunOptions` unchanged."""
 
     def test_explicit_options_pass_through(self) -> None:
-        options = _models.AgentRunOptions(resume_session_id=_KEPT_SESSION_ID)
+        options = _models.AgentRunOptions(resume_session_id=_KEPT_SESSION_ID, extra_args=_EXTRA_ARGS)
         for backend, owner, runner_attr in _BACKENDS:
             with self.subTest(backend=backend):
                 fake = MagicMock()
@@ -123,18 +110,6 @@ class RunAgentOptionNormalizationTest(unittest.TestCase):
                         options=options,
                     )
                 self.assertIs(fake.call_args.kwargs[_OPTIONS_KWARG], options)
-
-    def test_mixing_forms_raises_type_error(self) -> None:
-        # Mixing the explicit object with legacy keyword fields is rejected
-        # rather than silently dropping one form.
-        with self.assertRaises(TypeError):
-            _runner.run_agent(
-                _agent_cases._CODEX,
-                _agent_cases._PROMPT,
-                _agent_cases._CWD,
-                options=_models.AgentRunOptions(),
-                resume_session_id=_KEPT_SESSION_ID,
-            )
 
 
 class BuildAgentResultTest(unittest.TestCase):

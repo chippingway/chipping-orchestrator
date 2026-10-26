@@ -201,9 +201,9 @@ def _sync_claimed_worktree(
             ))
         return
     if pr_number is not None:
-        _base_rewrite._sync_pr_worktree_to_base(
+        _base_rewrite._sync_pr_worktree_to_base(_base_sync_models._AutoRebaseRequest(
             gh, spec, issue, state, worktree, int(pr_number), behind,
-        )
+        ))
         return
     if behind:
         _pre_pr._sync_pre_pr_worktree(spec, worktree, issue_number, behind)

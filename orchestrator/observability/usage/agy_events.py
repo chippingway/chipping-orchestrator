@@ -23,27 +23,17 @@ ACTIVE = "ACTIVE"
 NAME = "name"
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True)
 class ToolLifecycle:
+    """One indexed tool step folded from its updates: the tool it ran and its latest state.
+
+    `extract_name` reads the tool's name off whichever field the CLI's step
+    update carries it in.
+    """
+
     step_index: int
-    tool_name: str
-    state: str
-
-    def __init__(
-        self,
-        step_index: int,
-        tool_name: str = "",
-        state: str = "",
-        *,
-        name: str = "",
-    ) -> None:
-        object.__setattr__(self, "step_index", step_index)
-        object.__setattr__(self, "tool_name", tool_name or name)
-        object.__setattr__(self, "state", state)
-
-    @property
-    def name(self) -> str:
-        return self.tool_name
+    tool_name: str = ""
+    state: str = ""
 
     @classmethod
     def extract_name(cls, step: dict[str, Any]) -> str:

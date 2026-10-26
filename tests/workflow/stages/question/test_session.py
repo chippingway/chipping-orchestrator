@@ -30,7 +30,6 @@ CLEANUP_QUESTION_WORKTREE = "_cleanup_question_worktree"
 PUSH_BRANCH = "_push_branch"
 RUN_AGENT = "run_agent"
 WORKTREE_PATH = "_worktree_path"
-RESUME_SESSION_ID = "resume_session_id"
 
 UNEXPECTED_AGENT_MESSAGE = "should not run"
 QUESTION_TEXT = "Where does X live?"
@@ -186,7 +185,7 @@ class HandleQuestionSessionPersistenceTest(
         )
         # The agent ran without a resume_session_id (fresh spawn).
         spawn_call = mocks[RUN_AGENT].call_args
-        self.assertIsNone(spawn_call.kwargs.get(RESUME_SESSION_ID))
+        self.assertIsNone(spawn_call.kwargs["options"].resume_session_id)
         # The spawn prompt is the FULL question prompt: issue body,
         # title, and conversation are all present so the fresh
         # agent has the same context a first-tick spawn would. The
@@ -269,11 +268,6 @@ class HandleQuestionSessionPersistenceTest(
                 last_message="continued",
             ),
         )
-        self.assertEqual(
-            mocks[RUN_AGENT].call_args.args[0],
-            BACKEND_CODEX,
-        )
-        self.assertEqual(
-            mocks[RUN_AGENT].call_args.kwargs.get(RESUME_SESSION_ID),
-            "codex-sess-2",
-        )
+        launch = mocks[RUN_AGENT].call_args
+        self.assertEqual(launch.args[0], BACKEND_CODEX)
+        self.assertEqual(launch.kwargs["options"].resume_session_id, "codex-sess-2")

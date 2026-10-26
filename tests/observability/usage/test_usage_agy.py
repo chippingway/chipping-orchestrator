@@ -107,7 +107,6 @@ class AntigravityLifecycleTest(unittest.TestCase):
             all_steps,
             [agy_events.ToolLifecycle(step_index=1, tool_name=stream.TOOL_NAME, state=_ACTIVE)],
         )
-        self.assertEqual(all_steps[0].name, stream.TOOL_NAME)
         self.assertEqual(all_steps[0].tool_name, stream.TOOL_NAME)
 
     def test_completed_command_leaves_no_incomplete(self) -> None:

@@ -135,14 +135,11 @@ def _run_agent_tracked(
         review_round=run_request.review_round,
         retry_count=run_request.retry_count,
     )
-    # Forward only the kwargs the original call sites set so the
-    # wrapper's run_agent invocation matches the pre-tracking signature
-    # call-for-call (test fakes assert on `call.kwargs`).
     agent_result = _agent_runner.run_agent(
         run_request.backend,
         run_request.prompt,
         run_request.cwd,
-        **_run_requests._agent_run_kwargs(run_request),
+        options=run_request.run_options,
     )
     duration_s = round(time.monotonic() - start, 3)
     triggered_skills = _run_reporting._record_tracked_agent_exit(

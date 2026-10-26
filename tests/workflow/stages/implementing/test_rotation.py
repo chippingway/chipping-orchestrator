@@ -73,7 +73,8 @@ STAGED_WATERMARK = PARKED_WATERMARK + 5
 QUOTA_REASON = "agent_session_limit"
 AGY_SPEC = "agy --model gemini-3.8-flash-high --effort high"
 AGY_ARGS = ("--model", "gemini-3.8-flash-high", "--effort", "high")
-EXTRA_ARGS = "extra_args"
+# The keyword a run's optional controls are handed to the runner under.
+OPTIONS = "options"
 
 # What a retirement may not touch: the issue's branch and pull request, its
 # retry gates, its lifetime run ledger, and the park a human still owes.
@@ -195,7 +196,7 @@ class ProactiveSessionRotationTest(
         )
 
         self.assertEqual(
-            run_agent.call_args.kwargs.get(RESUME_SESSION_ID),
+            run_agent.call_args.kwargs[OPTIONS].resume_session_id,
             LIVE_SESSION,
             "below budget must resume in place",
         )
@@ -218,7 +219,7 @@ class ProactiveSessionRotationTest(
         )
 
         self.assertEqual(
-            [run_agent.call_args.kwargs.get(RESUME_SESSION_ID)],
+            [run_agent.call_args.kwargs[OPTIONS].resume_session_id],
             [None],
             "budget reached must fresh-spawn (no resume id), not resume",
         )
@@ -241,7 +242,7 @@ class ProactiveSessionRotationTest(
         )
 
         self.assertEqual(
-            [run_agent.call_args.kwargs.get(RESUME_SESSION_ID)],
+            [run_agent.call_args.kwargs[OPTIONS].resume_session_id],
             [LIVE_SESSION],
             "0 = unbounded: must keep resuming regardless of count",
         )
@@ -299,7 +300,7 @@ class ProactiveSessionRecoveryTest(
 
         agent_calls = run_agent.call_args_list
         self.assertEqual(
-            [call.kwargs.get(RESUME_SESSION_ID) for call in agent_calls],
+            [call.kwargs[OPTIONS].resume_session_id for call in agent_calls],
             [POISONED_SESSION, None],
         )
         self.assertEqual(
@@ -356,7 +357,7 @@ class ProactiveSessionRecoveryTest(
         )
 
         self.assertEqual(
-            [run_agent.call_args.kwargs.get(RESUME_SESSION_ID)],
+            [run_agent.call_args.kwargs[OPTIONS].resume_session_id],
             [None],
             "no live session -> fresh spawn with no resume id",
         )
@@ -403,7 +404,7 @@ class ProactiveSessionRecoveryTest(
         )
 
         self.assertIsNone(
-            run_agent.call_args.kwargs.get(RESUME_SESSION_ID),
+            run_agent.call_args.kwargs[OPTIONS].resume_session_id,
             "still a fresh spawn, no resume id",
         )
         self.assertIsNone(state.get(KEY_DEV_SESSION_ID))
@@ -438,16 +439,16 @@ class _RetiredRecoveryMixin(_ProactiveSessionFixtureMixin):
 
     def _resumed_ids(self, run_agent) -> list:
         """The conversation each launch resumed, None for a fresh one."""
-        return [launch.kwargs.get(RESUME_SESSION_ID) for launch in run_agent.call_args_list]
+        return [launch.kwargs[OPTIONS].resume_session_id for launch in run_agent.call_args_list]
 
     def _launch(self, run_agent) -> tuple:
         """The resume id, backend, worktree, and arguments the last launch was made with."""
         launch = run_agent.call_args
         return (
-            launch.kwargs.get(RESUME_SESSION_ID),
+            launch.kwargs[OPTIONS].resume_session_id,
             launch.args[0],
             launch.args[2],
-            launch.kwargs.get(EXTRA_ARGS),
+            launch.kwargs[OPTIONS].extra_args,
         )
 
 

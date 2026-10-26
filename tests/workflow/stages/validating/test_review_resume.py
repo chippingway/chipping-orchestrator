@@ -280,7 +280,7 @@ class ValidatingResumeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
                 self.assertEqual(
                     (
                         ran.call_count,
-                        ran.call_args.kwargs.get("resume_session_id"),
+                        ran.call_args.kwargs["options"].resume_session_id,
                         self.pinned()[_world.AGENT_RUNS_USED] - charged,
                         self.pinned()[TOKENS],
                         _raw.handed(self, ran.call_args.args[1], handed[1]),
@@ -500,7 +500,7 @@ class FixingResumeTest(_resumed.ResumedVerdictWorld, unittest.TestCase):
         self.assertEqual(
             (
                 ran.call_count,
-                ran.call_args.kwargs.get("resume_session_id"),
+                ran.call_args.kwargs["options"].resume_session_id,
                 self.pinned()[_world.AGENT_RUNS_USED] - handed,
                 self.waiting(),
             ),

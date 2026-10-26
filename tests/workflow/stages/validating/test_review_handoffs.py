@@ -205,7 +205,7 @@ class ChangeRequestHandoffTest(_support.HandoffWorld, unittest.TestCase):
         self.assertEqual(
             (
                 ran.call_count,
-                ran.call_args.kwargs.get("resume_session_id"),
+                ran.call_args.kwargs["options"].resume_session_id,
                 _world.REQUESTED in ran.call_args.args[1],
                 len(posted),
                 tuple(self.github.label_history),

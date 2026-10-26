@@ -50,7 +50,6 @@ _OWNER_ANNOTATED_FUNCS = (
     _agent_claude.claude_command,
     _agent_claude.claude_process_last_message,
     _agent_claude.run_claude,
-    _agent_runner.resolve_agent_run_options,
     _agent_runner.run_agent,
     _agent_runner.build_agent_result,
     _agent_runner.log_agent_spawn,
@@ -110,7 +109,6 @@ class PublicSurfaceTest(unittest.TestCase):
             (
                 "AgentResult",
                 "AgentRunOptions",
-                "CodexResult",
                 "run_agent",
                 "terminate_all_running",
             ),
@@ -123,7 +121,6 @@ class PublicSurfaceTest(unittest.TestCase):
         self.assertIs(_agents.run_agent, _agent_runner.run_agent)
         self.assertIs(_agents.AgentResult, _agent_models.AgentResult)
         self.assertIs(_agents.AgentRunOptions, _agent_models.AgentRunOptions)
-        self.assertIs(_agents.CodexResult, _agent_models.CodexResult)
         self.assertIs(
             _agents.terminate_all_running,
             _agent_processes.terminate_all_running,
@@ -145,7 +142,8 @@ class PublicSurfaceTest(unittest.TestCase):
             "_claude_last_message",
             "_claude_command",
             "_codex_command",
-            "_AgentRunOptionFields",
+            "CodexResult",
+            "AgentRunOptionFields",
             "communicate_bounded",
             "terminate_process_group",
         ):

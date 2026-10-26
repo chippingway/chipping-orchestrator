@@ -1,14 +1,12 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The two ways a dev session is handed new text, and the call shape they keep.
+"""The two ways a dev session is handed new text.
 
 `_resume_dev_with_text` is the resume every stage that owns a dev session goes
 through -- implementing, validating, documenting, in_review, fixing, and
-resolving_conflict -- so its signature is a contract several callers already
-wrote against: positional `state` and `followup_text`, an optional `stage`
-override, and keyword options. It is bound through an explicit `inspect`
-signature rather than named parameters so that shape is enforced in one place
-and a mistyped option raises instead of being ignored.
+resolving_conflict, and a late decomposition's revision -- and each of them
+hands it one typed request (`resume_request._DevResumeRequest`): the state and
+the text, an optional `stage` override, and the options that shape the run.
 
 `_resume_developer_on_human_reply` is the narrower one: it is what implementing
 and validating park against, and both of them resume from ONE frozen batch --
@@ -26,9 +24,7 @@ be dropped by that return anyway.
 """
 from __future__ import annotations
 
-import inspect
 from pathlib import Path
-from typing import Any
 
 from github.Issue import Issue
 
@@ -41,27 +37,13 @@ from orchestrator.workflow.stages.implementing import (
     resume_request as _resume_request,
 )
 
-_DEV_RESUME_SIGNATURE = inspect.Signature((
-    inspect.Parameter("gh", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("spec", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("issue", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("resume_args", inspect.Parameter.VAR_POSITIONAL),
-    inspect.Parameter(
-        "stage",
-        inspect.Parameter.KEYWORD_ONLY,
-        default=None,
-    ),
-    inspect.Parameter("option_fields", inspect.Parameter.VAR_KEYWORD),
-))
-
 
 def _resume_dev_with_text(
-    *args: Any,
-    **kwargs: Any,
+    request: _resume_request._DevResumeRequest,
 ) -> tuple[Path, AgentResult, bool]:
-    """Resume the dev's locked-backend session with the given prompt text.
+    """Resume the dev's locked-backend session with the request's prompt text.
 
-    `stage` overrides the recorded stage for every audit / analytics /
+    `request.stage` overrides the recorded stage for every audit / analytics /
     trajectory record this run emits. It defaults to the label read off
     `issue`, which is correct whenever the caller fetched the issue fresh this
     tick or relabelled it through `set_workflow_label`. The CHANGES_REQUESTED
@@ -107,7 +89,7 @@ def _resume_dev_with_text(
     recovering.
 
     Returns `(worktree, result, paused)`. `paused` is the hold decision: the
-    live pause -- True when `pause_guard` is set AND a hard-skip control label
+    live pause -- True when `request.pause_guard` is set AND a hard-skip control label
     (`paused` / `backlog`) was applied to a freshly fetched issue while an agent
     run was in flight -- or, whatever `pause_guard` says, a quota retirement
     the pinned comment would not take (`quota_retirement`), which leaves the
@@ -124,20 +106,7 @@ def _resume_dev_with_text(
     is propagated, not re-fetched, so there is no window where the caller reads
     the label differently than the helper did.
     """
-    bound_fields = _DEV_RESUME_SIGNATURE.bind(*args, **kwargs)
-    bound_fields.apply_defaults()
-    request = _resume_request._DevResumeRequest(
-        gh=bound_fields.arguments["gh"],
-        spec=bound_fields.arguments["spec"],
-        issue=bound_fields.arguments["issue"],
-        resume_args=bound_fields.arguments["resume_args"],
-        option_fields=bound_fields.arguments["option_fields"],
-        stage=bound_fields.arguments["stage"],
-    )
     return _execution._DevResumeContext.build(request).execute()
-
-
-_resume_dev_with_text.__signature__ = _DEV_RESUME_SIGNATURE
 
 
 def _resume_developer_on_human_reply(
@@ -180,7 +149,7 @@ def _resume_developer_on_human_reply(
     """
     if batch.reserved or not batch.comments:
         return None
-    resumed = _resume_dev_with_text(
+    resumed = _resume_dev_with_text(_resume_request._DevResumeRequest(
         gh,
         spec,
         issue,
@@ -188,7 +157,7 @@ def _resume_developer_on_human_reply(
         batch.followup,
         pause_guard=pause_guard,
         thread_text=batch.thread_text,
-    )
+    ))
     if _resume_batch._counts_as_delivered(resumed[1], resumed[2]):
         batch.settle()
     return resumed

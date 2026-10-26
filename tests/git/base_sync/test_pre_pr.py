@@ -72,13 +72,6 @@ class RebaseBaseIntoWorktreeTest(unittest.TestCase):
             outcome = pre_pr._rebase_base_into_worktree(_SPEC, _WORKTREE)
         self.assertEqual(outcome, (False, []))
 
-    def test_merge_alias_forwards_to_the_rebase(self) -> None:
-        rebase = MagicMock(return_value=(True, []))
-        with _patch_base_sync(rebase=rebase):
-            outcome = pre_pr._merge_base_into_worktree(_SPEC, _WORKTREE)
-        self.assertEqual(outcome, (True, []))
-        rebase.assert_called_once_with(_SPEC, _WORKTREE)
-
 
 class RebaseInProgressTest(unittest.TestCase):
     """Whether a worktree still sits mid-rebase, per git's own state dirs."""

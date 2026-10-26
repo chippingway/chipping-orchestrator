@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.agents.backends import claude
-from orchestrator.agents.models import AgentResult
+from orchestrator.agents.models import AgentResult, AgentRunOptions
 from tests.workflow import report_guidance as _report_guidance
 from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES
 from tests.workflow.stages import implementing_fixing_test_cases
@@ -28,7 +28,7 @@ def claude_run_exiting(returncode: int) -> AgentResult:
     process.communicate.return_value = ("", "")
     process.returncode = returncode
     with patch("orchestrator.agents.processes.subprocess.Popen", return_value=process):
-        return claude.run_claude("implement", Path(tempfile.gettempdir()))
+        return claude.run_claude("implement", Path(tempfile.gettempdir()), options=AgentRunOptions())
 
 
 def assert_pr_routing(test_case, scenario) -> None:
@@ -71,7 +71,7 @@ def assert_human_reply_resume(
     agent_call = mocks[run_agent_key].call_args
     test_case.assertEqual(agent_call.args[0], "codex")
     test_case.assertEqual(
-        agent_call.kwargs.get("resume_session_id"),
+        agent_call.kwargs["options"].resume_session_id,
         legacy_session,
     )
     followup = agent_call.args[1]

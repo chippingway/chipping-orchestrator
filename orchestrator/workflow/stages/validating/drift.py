@@ -77,6 +77,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
     resume_batch as _resume_batch,
+    resume_request as _dev_resume_request,
 )
 from orchestrator.workflow.stages.validating import (
     drift_models as _drift_models,
@@ -101,13 +102,13 @@ def _run_validating_drift(
         )
     before_sha = _verification_probes._head_sha(worktree)
     answered = _drift_delivery._drift_resume_prompt(gh, issue, state)
-    worktree, agent_result, paused = _dev_resume._resume_dev_with_text(
+    worktree, agent_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         gh, spec, issue, state, answered.text, pause_guard=True,
         # The frozen conversation the fresh-respawn preamble is re-grounded
         # with, so a rotated or retired session is handed this tick's one
         # read rather than a newer one the settlement never saw.
         thread_text=answered.delivery.rendered_text,
-    )
+    ))
     return _drift_models._ValidatingDriftRun(
         worktree, agent_result, before_sha, paused, answered.delivery,
     )
