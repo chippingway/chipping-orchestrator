@@ -12,6 +12,9 @@ from tests.git.worktrees import (
     maintenance_payloads as _maintenance_payloads,
     maintenance_test_support as _support,
 )
+from tests.git.worktrees.artifact_test_support import _legacy_branch
+from tests.git.worktrees.eligibility_test_support import ISSUE_NUMBER
+from tests.support.git import _run_git
 
 
 class ExactTipTest(_support._MaintenanceTestCase):
@@ -65,6 +68,26 @@ class ExactTipTest(_support._MaintenanceTestCase):
         swept = self.reclaimed(
             ProvenTip(str(worktree), _maintenance_payloads.OTHER_SHA),
             ProvenTip(self.branch, _maintenance_payloads.OTHER_SHA),
+        )
+
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.TIP_MOVED)
+        self.assertEqual(swept.subject, str(worktree))
+        self.assertTrue(worktree.exists())
+        self.assertEqual(self.remote_branches(), self.only_branch)
+
+    def test_a_checkout_switched_branches_is_kept(self) -> None:
+        # Switched onto the flat branch at the very commit that was proved, the
+        # checkout still matches its proof -- and is no longer the issue's own.
+        # The identity is read again beside the commit, and the tree stays.
+        tip = self.landed()
+        worktree = self.settled_checkout()
+        flat = _legacy_branch(ISSUE_NUMBER)
+        _run_git("branch", flat, self.branch, cwd=self.clone)
+        _run_git("checkout", "-q", flat, cwd=worktree)
+
+        swept = self.reclaimed(
+            ProvenTip(str(worktree), tip),
+            ProvenTip(self.branch, tip),
         )
 
         self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.TIP_MOVED)

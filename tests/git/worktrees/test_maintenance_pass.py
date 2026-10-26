@@ -21,9 +21,11 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.git.worktrees import (
     maintenance_results as _maintenance_results,
-    probes,
+    naming as _naming,
+    paths,
     reclaim,
 )
 from orchestrator.git.worktrees.models import RetentionReason
@@ -31,7 +33,13 @@ from tests.git.worktrees import (
     maintenance_payloads as _maintenance_payloads,
     maintenance_test_support as _support,
 )
-from tests.git.worktrees.artifact_test_support import WIDGET_SLUG, _legacy_branch, _namespaced_branch
+from tests.git.worktrees.artifact_test_support import (
+    DIGEST_COLLIDING_SLUGS,
+    WIDGET_SLUG,
+    _legacy_branch,
+    _namespaced_branch,
+    _spec,
+)
 from tests.git.worktrees.candidate_refs import _branch_at
 from tests.git.worktrees.eligibility_test_support import (
     ISSUE_NUMBER,
@@ -40,6 +48,13 @@ from tests.git.worktrees.eligibility_test_support import (
 from tests.support.git import (
     _run_git,
 )
+
+# The flat name an earlier layout left for this issue, and the listing a host
+# that kept only it reads back as.
+LEGACY_BRANCH = _legacy_branch(ISSUE_NUMBER)
+FLAT_ONLY = (LEGACY_BRANCH,)
+
+LOCK_SLUG, DIGEST_TWIN_SLUG = DIGEST_COLLIDING_SLUGS
 
 
 class OrderedCleanupTest(_support._MaintenanceTestCase):
@@ -90,128 +105,123 @@ class OrderedCleanupTest(_support._MaintenanceTestCase):
         self.assertEqual(self.gh.write_state_calls, 0)
 
 
-class LegacyLayoutCleanupTest(_support._MaintenanceTestCase):
-    """A checkout the layout before namespacing left is taken like any other."""
+class FlatLayoutPreservationTest(_support._MaintenanceTestCase):
+    """What the layout before namespacing left is never taken.
 
-    def test_a_flat_checkout_goes_with_its_branch(self) -> None:
-        legacy = _legacy_branch(ISSUE_NUMBER)
-        self.landed(legacy)
-        worktree = self.legacy_checkout(legacy)
+    The flat `orchestrator/issue-<n>` branch and the `WORKTREES_DIR/issue-<n>`
+    checkout are no configured repository's derivation, so no pass attributes
+    or reclaims them -- whatever clone the checkout is a worktree of, and
+    however cleanly its commit landed. They stay, here and on the remote, for
+    an operator to dispose of.
+    """
 
-        swept = self.only_result()
+    def test_flat_artifacts_alone_are_left(self) -> None:
+        # Landed on the base, on a clone this entry has to itself, beside a
+        # sibling on a clone of its own: still no candidate at all.
+        self.landed(LEGACY_BRANCH)
+        flat = self.legacy_checkout(LEGACY_BRANCH)
 
-        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
-        self.assertFalse(worktree.exists())
-        self.assertEqual(self.local_branches(), ())
-        self.assertEqual(self.remote_branches(), ())
+        for specs in ((self.spec,), (self.spec, self.sibling_on_its_own_clone())):
+            with self.subTest(specs=len(specs)):
+                self.assertEqual(self.swept(self.discovered(specs)), ())
+        self.assertTrue(flat.exists())
+        self.assertEqual(self.local_branches(), FLAT_ONLY)
+        self.assertEqual(self.remote_branches(), FLAT_ONLY)
 
-    def test_both_checkout_layouts_go_in_one_pass(self) -> None:
-        # Both trees are the issue's, so both come down together: a pass that
-        # answered `cleaned` having taken one of them would leave the other
-        # standing with nothing left for a later discovery to find it by.
-        legacy = _legacy_branch(ISSUE_NUMBER)
-        tip = self.landed()
-        _branch_at(self.clone, legacy, tip)
-        self.world.publish(self.clone, legacy, tip)
-        current = self.settled_checkout()
-        flat = self.legacy_checkout(legacy)
-
-        swept = self.only_result()
-
-        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
-        self.assertFalse(current.exists())
-        self.assertFalse(flat.exists())
-        self.assertEqual(self.local_branches(), ())
-        self.assertEqual(self.remote_branches(), ())
-
-    def test_a_dirty_flat_checkout_keeps_it(self) -> None:
-        # The tree the current-layout report never saw is judged like the one
-        # it did: what is loose in it keeps every artifact of the issue.
-        legacy = _legacy_branch(ISSUE_NUMBER)
-        tip = self.landed()
-        _branch_at(self.clone, legacy, tip)
-        self.world.publish(self.clone, legacy, tip)
-        self.settled_checkout()
-        flat = self.legacy_checkout(legacy)
-        (flat / _maintenance_payloads.LOOSE_FILE).write_text(_maintenance_payloads.LOOSE_CONTENT)
+    def test_a_checkout_behind_a_linked_parent_stays(self) -> None:
+        # A per-repository directory that is a symlink to `WORKTREES_DIR` makes
+        # the flat checkout -- clean, on the issue's own branch, its commit in
+        # the base -- read as the issue's checkout to every reading of the tree
+        # itself. Its path is not where the layout puts that checkout, so it is
+        # foreign, and the whole candidate is kept with both branch copies.
+        self.landed()
+        flat = self.legacy_checkout()
+        paths._repo_worktrees_root(self.spec).symlink_to(
+            config.WORKTREES_DIR, target_is_directory=True,
+        )
 
         swept = self.only_result()
 
         self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.RETAINED)
-        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.UNPROVEN)
         self.assertEqual(
             tuple(kept.reason for kept in swept.retentions),
-            (RetentionReason.WORKTREE_DIRTY,),
+            (RetentionReason.FOREIGN_CHECKOUT,),
         )
         self.assertTrue(flat.exists())
-        self.assertEqual(self.remote_branches(), (self.branch, legacy))
+        self.assertEqual(self.local_branches(), self.only_branch)
+        self.assertEqual(self.remote_branches(), self.only_branch)
+
+    def test_a_remote_only_flat_ref_is_left(self) -> None:
+        self.landed(LEGACY_BRANCH)
+        _branch_at(self.clone, LEGACY_BRANCH, None)
+
+        self.assertEqual(self.swept(), ())
+        self.assertEqual(self.remote_branches(), FLAT_ONLY)
+
+    def test_a_mixed_layout_loses_its_current_half(self) -> None:
+        # One issue under both layouts, on one commit the base carries: the
+        # current checkout and branch go, and the flat ones beside them stay --
+        # a dirty flat tree included, which no reading of this pass ever saw.
+        tip = self.landed()
+        _branch_at(self.clone, LEGACY_BRANCH, tip)
+        self.world.publish(self.clone, LEGACY_BRANCH, tip)
+        current = self.settled_checkout()
+        flat = self.legacy_checkout(LEGACY_BRANCH)
+        loose = flat / _maintenance_payloads.LOOSE_FILE
+        loose.write_text(_maintenance_payloads.LOOSE_CONTENT)
+
+        swept = self.only_result()
+
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept.candidate.artifacts.branches, self.only_branch)
+        self.assertFalse(current.exists())
+        self.assertEqual(loose.read_text(), _maintenance_payloads.LOOSE_CONTENT)
+        self.assertEqual(self.local_branches(), FLAT_ONLY)
+        self.assertEqual(self.remote_branches(), FLAT_ONLY)
 
 
 class SharedCloneCleanupTest(_support._MaintenanceTestCase):
-    """An unattributable flat checkout takes its whole issue out of the pass.
+    """A flat checkout on a shared clone keeps the branch it is standing on.
 
-    Two entries over one clone, and a flat checkout standing on one of that
-    issue's branches. Nothing on disk says which entry made the tree, so
-    nothing may take it -- and the branch it is standing on may not go either.
-    A pass that reported the branch alone would delete the ref under a live
-    checkout and answer `cleaned`, leaving that tree holding a HEAD nothing
-    resolves and no artifact any later discovery could find it by.
+    Two entries over one clone, and a flat checkout standing on the issue's
+    current branch. The scan reports the branch alone -- the tree is nobody's
+    -- and the teardown's own reading of what this clone has checked out is
+    what keeps it: deleting the ref would leave that tree holding a HEAD
+    nothing resolves.
     """
 
     def setUp(self) -> None:
         super().setUp()
         self.specs = (self.spec, self.sibling_on_this_clone())
 
-    def test_an_ambiguous_flat_checkout_stops_it(self) -> None:
+    def test_a_flat_checkout_on_the_branch_keeps_it(self) -> None:
         self.landed()
         flat = self.legacy_checkout()
 
-        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=_maintenance_payloads.WARNING):
-            swept = self.swept(self.discovered(self.specs))
+        swept = self.swept(self.discovered(self.specs))
 
-        self.assertEqual(swept, ())
+        self.assertEqual(len(swept), 1)
+        self.assertEqual(swept[0].outcome, _maintenance_results.MaintenanceOutcome.RETAINED)
+        self.assertEqual(swept[0].reason, _maintenance_results.MaintenanceReason.BRANCH_CHECKED_OUT)
+        self.assertEqual(swept[0].subject, self.branch)
         self.assertTrue(flat.exists())
-        self.assertEqual(self.local_branches(), self.only_branch)
-        self.assertEqual(self.remote_branches(), self.only_branch)
-
-    def test_the_tree_left_alone_still_has_a_head(self) -> None:
-        # What the branch deletion would have cost: the checkout is standing on
-        # that ref, so taking it leaves the tree pointing at nothing.
-        self.landed()
-        flat = self.legacy_checkout()
-
-        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=_maintenance_payloads.WARNING):
-            self.swept(self.discovered(self.specs))
-
         self.assertEqual(
             _run_git("rev-parse", "--verify", "HEAD", cwd=flat).returncode, 0,
         )
-
-    def test_an_unreadable_sibling_keeps_the_tree(self) -> None:
-        # The sibling that would have made the tree ambiguous is the one whose
-        # own clone did not answer. Nothing ruled it out, so nothing here is
-        # settled -- and the checkout the pass would otherwise have removed is
-        # still standing afterwards.
-        self.landed()
-        flat = self.legacy_checkout()
-
-        with (
-            patch.object(
-                probes,
-                "_checkout_clone",
-                side_effect=_support._CloneOfAllBut(self.specs[1]),
-            ),
-            self.assertLogs(_support.LIFECYCLE_LOGGER, level=_maintenance_payloads.WARNING),
-        ):
-            swept = self.swept(self.discovered(self.specs))
-
-        self.assertEqual(swept, ())
-        self.assertTrue(flat.exists())
         self.assertEqual(self.local_branches(), self.only_branch)
+        self.assertEqual(self.remote_branches(), self.only_branch)
+
+    def test_flat_artifacts_are_left_there_too(self) -> None:
+        self.landed(LEGACY_BRANCH)
+        flat = self.legacy_checkout(LEGACY_BRANCH)
+
+        self.assertEqual(self.swept(self.discovered(self.specs)), ())
+        self.assertTrue(flat.exists())
+        self.assertEqual(self.local_branches(), FLAT_ONLY)
 
     def test_another_issue_there_is_still_swept(self) -> None:
-        # The refusal is about the issue whose tree nobody can attribute, not
-        # about the repositories sharing the clone.
+        # The branch a tree stands on keeps its own issue, not the
+        # repositories sharing the clone.
         other = _namespaced_branch(WIDGET_SLUG, _maintenance_payloads.OTHER_ISSUE_NUMBER)
         self.gh.add_issue(_terminal_issue(_maintenance_payloads.OTHER_ISSUE_NUMBER))
         self.gh.seed_state(_maintenance_payloads.OTHER_ISSUE_NUMBER)
@@ -220,37 +230,67 @@ class SharedCloneCleanupTest(_support._MaintenanceTestCase):
         _branch_at(self.clone, other, tip)
         self.world.publish(self.clone, other, tip)
 
-        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=_maintenance_payloads.WARNING):
-            swept = self.swept(self.discovered(self.specs))
+        swept = self.swept(self.discovered(self.specs))
 
-        self.assertEqual(len(swept), 1)
-        self.assertEqual(swept[0].outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
         self.assertEqual(
-            swept[0].candidate.artifacts.issue_number, _maintenance_payloads.OTHER_ISSUE_NUMBER,
+            tuple((answer.candidate.artifacts.issue_number, answer.outcome) for answer in swept),
+            (
+                (ISSUE_NUMBER, _maintenance_results.MaintenanceOutcome.RETAINED),
+                (_maintenance_payloads.OTHER_ISSUE_NUMBER, _maintenance_results.MaintenanceOutcome.CLEANED),
+            ),
         )
         self.assertEqual(self.local_branches(), self.only_branch)
 
 
-class DistinctCloneCleanupTest(_support._MaintenanceTestCase):
-    """A second configured repository does not strand the flat checkout.
+class CollidingBranchCleanupTest(_support._MaintenanceTestCase):
+    """A checkout on a branch two repositories derive alike is left whole.
 
-    The end of the reading the discovery takes: attributed to the clone it is
-    a worktree of, the tree comes down with its branches instead of being left
-    on a host that answered `cleaned`.
+    The digest suffix lets a crafted slug land on the branch name another entry
+    derives while each keeps a checkout directory of its own. The branch is
+    refused as ambiguous, and so is the tree standing on it: the directory
+    settles nothing about whose work the tree holds.
     """
 
-    def test_a_flat_checkout_goes_beside_a_sibling(self) -> None:
-        legacy = _legacy_branch(ISSUE_NUMBER)
-        self.landed(legacy)
-        worktree = self.legacy_checkout(legacy)
-        specs = (self.spec, self.sibling_on_its_own_clone())
+    def setUp(self) -> None:
+        super().setUp()
+        self.spec = _spec(LOCK_SLUG, self.clone)
+        self.twin = _spec(DIGEST_TWIN_SLUG, self.clone)
+        self.branch = _naming._branch_name(self.spec, ISSUE_NUMBER)
+        # Publications are spelled against the world's own remote, so it is
+        # this repository's for the case; the twin gets one of its own.
+        self.world.remote = self.world.serve_beside(self.spec, "lock.git")
+        self.world.serve_beside(self.twin, "twin.git")
 
-        swept = self.swept(self.discovered(specs))
+    def kept_whole(self, twin) -> None:
+        """Run a pass over both repositories, and hold that it took nothing."""
+        self.landed()
+        checkout = self.settled_checkout()
 
-        self.assertEqual(len(swept), 1)
-        self.assertEqual(swept[0].outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
-        self.assertFalse(worktree.exists())
-        self.assertEqual(self.discovered(specs), ())
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=_maintenance_payloads.WARNING):
+            swept = self.swept(self.discovered((self.spec, twin)))
+
+        self.assertEqual(swept, ())
+        self.assertTrue(checkout.exists())
+        self.assertEqual(self.local_branches(), self.only_branch)
+        self.assertEqual(self.remote_branches(), self.only_branch)
+
+    def test_the_checkout_and_its_branch_stay(self) -> None:
+        # The collision this case is about: one branch, two directories.
+        self.assertEqual(_naming._branch_name(self.twin, ISSUE_NUMBER), self.branch)
+        self.assertNotEqual(
+            paths._worktree_path(self.twin, ISSUE_NUMBER),
+            paths._worktree_path(self.spec, ISSUE_NUMBER),
+        )
+        self.kept_whole(self.twin)
+
+    def test_a_linked_target_shares_the_refusal(self) -> None:
+        # The twin configured at a linked worktree of the clone rather than at
+        # the clone itself: another path onto the same ref store, so the two
+        # are still claimants on the same branches.
+        linked = self.world.path("linked-target")
+        _run_git("worktree", "add", "-q", "--detach", str(linked), "HEAD", cwd=self.clone)
+
+        self.kept_whole(_spec(DIGEST_TWIN_SLUG, linked))
 
 
 class RefusedStepTest(_support._MaintenanceTestCase):
@@ -406,21 +446,20 @@ class RepeatedPassTest(_support._MaintenanceTestCase):
         self.assertEqual(self.local_branches(), ())
         self.assertEqual(self.remote_branches(), ())
 
-    def test_both_layouts_go_in_one_pass(self) -> None:
-        # One issue under two names, which is what a migration leaves: both
-        # copies stand on the commit the base carries, and one pass takes all
-        # four of them.
-        legacy = _legacy_branch(ISSUE_NUMBER)
+    def test_a_flat_copy_survives_every_pass(self) -> None:
+        # One issue under both names, both copies on the commit the base
+        # carries: the first pass takes the current branch on both hosts, and
+        # the one after it finds nothing left to take.
         tip = self.landed()
-        _branch_at(self.clone, legacy, tip)
-        self.world.publish(self.clone, legacy, tip)
+        _branch_at(self.clone, LEGACY_BRANCH, tip)
+        self.world.publish(self.clone, LEGACY_BRANCH, tip)
 
         swept = self.only_result()
 
         self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
-        self.assertEqual(self.local_branches(), ())
-        self.assertEqual(self.remote_branches(), ())
-        self.assertEqual(swept.candidate.artifacts.spec.slug, WIDGET_SLUG)
+        self.assertEqual(self.swept(), ())
+        self.assertEqual(self.local_branches(), FLAT_ONLY)
+        self.assertEqual(self.remote_branches(), FLAT_ONLY)
 
 
 class OutcomeVocabularyTest(unittest.TestCase):

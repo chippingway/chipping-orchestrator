@@ -685,8 +685,8 @@ is swallowed so catalog collection never disturbs the polling tick. An empty cat
 candidate the terminal-artifact maintenance pass **decided about** — never one per phase, per artifact, or per
 deletion step. A candidate is one finished issue's artifacts on this host and its remote, and the pass takes it as a
 unit, so a count of these records is a count of finished issues considered and a count grouped by `outcome` is what
-the host did about them. An issue carrying both published branch layouts is still one record; a candidate whose
-teardown ran three steps and one whose teardown ran none are one record each. What the pass *is* and when it runs is
+the host did about them. An issue holding a checkout and a branch is still one record; a candidate whose teardown ran
+three steps and one whose teardown ran none are one record each. What the pass *is* and when it runs is
 in [`../configuration/operations.md#reclaiming-a-finished-issues-artifacts`](../configuration/operations.md#reclaiming-a-finished-issues-artifacts).
 
 Only candidates the pass reached appear. A pass that stops — a signal, a closed scheduler, its 120s host-hold budget
@@ -700,11 +700,10 @@ recorded then. Nothing here is a retry list, and no record is a promise that any
   ran and was refused.
 - `reason` — the closed code that *fixes* the outcome, listed below. The two fields are separate because two readers
   want different things: a count of what a pass did comes off `outcome`, and what to go and look at off `reason`.
-- `layout` — which of the layouts this orchestrator published the candidate under: `current` (the slug-namespaced
-  branch it publishes now, and the per-repository checkout beside it), `legacy` (the flat `orchestrator/issue-<n>` an
-  issue in flight when namespacing landed is still on), `mixed` (both at once, which a migration leaves behind), or
-  `remote_only` (this host holds no checkout and no branch — whatever the remote's copy is called, there is nothing
-  here to look at).
+- `layout` — where the candidate's artifacts were found: `current` (this host still holds the slug-namespaced branch
+  or the per-repository checkout beside it) or `remote_only` (this host holds no checkout and no branch, only the
+  remote's copy of the branch, so there is nothing here to look at). A flat `orchestrator/issue-<n>` branch or
+  `WORKTREES_DIR/issue-<n>` checkout is never a candidate, so no record is written for one.
 - `branch` — the artifact the reason is about, **only** where that artifact is a branch, and dropped entirely
   otherwise. Which kind of artifact a result names is settled from its `reason` rather than from the shape of the
   string, because the two kinds are not distinguishable as text: with `WORKTREES_DIR` set to `orchestrator`, a
@@ -714,10 +713,10 @@ recorded then. Nothing here is a retry list, and no record is a promise that any
   quiet-period ones, and `worktree_removal_failed` never name a branch. `unproven`, `tip_moved`, and `tip_unreadable`
   can be about either artifact, so those alone are measured against the candidate's own checkout paths and drop a
   subject that is both — the record has to say which artifact it means. The value written is then the name re-derived
-  from the repository and the issue number rather than the one the result carried, so it is always one of the exact
-  two names this orchestrator publishes that issue under; a checkout path, an issue reference, and a branch some
-  other configured repo sharing the clone owns each fail that match. A record with no `branch` key is a reason that
-  was never about one, or one nothing could attribute.
+  from the repository and the issue number rather than the one the result carried, so it is always the exact name this
+  orchestrator publishes that issue under; a checkout path, an issue reference, a flat `orchestrator/issue-<n>`, and a
+  branch some other configured repo sharing the clone owns each fail that match. A record with no `branch` key is a
+  reason that was never about one, or one nothing could attribute.
 
 **Reason codes.** Closed, and each is fixed to exactly one outcome, so the two fields cannot disagree:
 
@@ -730,7 +729,7 @@ recorded then. Nothing here is a retry list, and no record is a promise that any
 | `active_claim` | `retained` | Something is running for this issue right now. |
 | `claim_unreadable` | `retained` | The guard that answers whether anything is could not be asked. |
 | `writer_claim_refused` | `retained` | The issue's writer claim on this host is held elsewhere or could not be taken. |
-| `tip_moved` | `retained` | An artifact left the proved commit between the proof and the mutation. |
+| `tip_moved` | `retained` | Since the proof, an artifact left its commit or a checkout stopped being the issue's own. |
 | `tip_unreadable` | `retained` | That last reading failed, or nothing cleared a commit for a named artifact. |
 | `branch_checked_out` | `retained` | Some worktree of the clone is still standing on the branch. |
 | `worktree_removal_failed` | `failed` | `git worktree remove` refused the checkout; it is never forced. |

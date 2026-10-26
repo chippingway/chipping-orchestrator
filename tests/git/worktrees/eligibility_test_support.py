@@ -112,21 +112,17 @@ def _candidate(
     issue_number: int = ISSUE_NUMBER,
     *,
     worktree: Path | None = None,
-    worktrees: tuple[Path, ...] | None = None,
     branches: tuple[str, ...] = (),
 ) -> IssueArtifacts:
     """One entry in the shape the scan hands the classification.
 
-    A single checkout is spelled as one, because that is what all but the
-    migration cases hold; `worktrees` is for the case that holds both layouts
-    at once and needs to say which is which.
+    A candidate holds at most its one current-layout checkout, so a single
+    checkout is spelled as one.
     """
-    if worktrees is None:
-        worktrees = () if worktree is None else (worktree,)
     return IssueArtifacts(
         spec=spec,
         issue_number=issue_number,
-        worktrees=worktrees,
+        worktrees=() if worktree is None else (worktree,),
         branches=branches,
     )
 

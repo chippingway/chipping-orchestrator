@@ -69,7 +69,8 @@ class RetentionReason(StrEnum):
     something nobody here can act on -- an issue in two workflow states at
     once, a pinned comment carrying something that is not a state or a record
     under a version this build does not admit, a checkout on a branch this
-    issue never published -- is neither.
+    issue never published or reached from its path through a symlink -- is
+    neither.
 
     The third family is kept apart from the second for what an operator does
     with it. A read that failed is transient and clears itself; a pinned

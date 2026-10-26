@@ -297,19 +297,26 @@ inside it or skipped outside it. A pass that started runs under every bound that
 budget, whatever the clock does next, and the scheduling state is in memory only, so a restart inside the window may
 repeat a pass. What bounds the pass itself:
 
-- **It can only name this repository's own branches for this issue.** The candidates come from re-deriving the exact
-  names this repository publishes an issue under — the current `orchestrator/<slug>/issue-<n>` and the legacy flat
-  `orchestrator/issue-<n>`, and no third spelling — and the checkouts from the two roots it writes,
-  `WORKTREES_DIR/<slug>/issue-<n>` and the flat `WORKTREES_DIR/issue-<n>` that predates it. A directory has to be a
-  real directory under the exact name (never a symlink) and a worktree of this repository's own clone. A name on a
-  shared clone that several configured `REPOS` entries could equally own is attributed to none of them and left
-  alone, and a name outside the owned namespace is never a candidate at all. No tag, pull-request ref, or default
-  branch is reachable from this path.
+- **It can only name this repository's own current-layout artifacts for this issue.** The candidates come from
+  re-deriving the one branch name this repository publishes an issue under, `orchestrator/<slug>/issue-<n>`, and the
+  one checkout path it writes, `WORKTREES_DIR/<slug>/issue-<n>`. A directory has to be a real directory under the
+  exact name, reached through no symlink below `WORKTREES_DIR` — neither at the issue's path nor at its per-repository
+  parent — a worktree of this repository's own clone, and on that exact branch. A flat
+  `orchestrator/issue-<n>` branch or `WORKTREES_DIR/issue-<n>` checkout an earlier layout left is no repository's
+  artifact, even where a single configured entry is its only possible owner: it is never a candidate, and it stays on
+  this host and on the remote for manual disposition. A tree standing on a candidate's branch — flat, foreign, or an
+  operator's own — keeps that branch. A name several configured `REPOS` entries derive identically, a checkout
+  standing on such a name whatever directory it sits in, and every name under a checkout directory two of them are
+  handed, is attributed to none of them and left alone, and a name outside
+  the owned namespace is never a candidate at all. No tag, pull-request ref, or default branch is reachable from this
+  path.
 - **Nothing is taken on a stale reading.** Every claim is re-established inside the pass that acts, never carried
   over from an earlier tick: the issue is closed and carries exactly one terminal workflow label, no open pull
-  request stands on either branch spelling or on the recorded number, and each artifact's tip is re-read immediately
-  before the mutation it gates and compared against the commit that was proved. An artifact that moved in between is
-  kept for the next pass rather than deleted, and each delete is additionally leased at that commit (below).
+  request stands on the issue's branch, on the branch its record names, or on the recorded number, and each
+  artifact's tip is re-read immediately before the mutation it gates and compared against the commit that was proved,
+  a checkout's identity — its path, its clone, and its branch — with it. An artifact that moved in between, a
+  checkout switched onto another branch at the same commit included, is kept for the next pass rather than deleted,
+  and each delete is additionally leased at that commit (below).
 - **One orchestrator writer from the first reading to the last deletion.** Each candidate is taken under its issue's
   host-local writer claim — the one every dispatch and the base refresh take, on the same key — before the issue is
   read, and the claim is held through the teardown, so no other orchestrator writer on this host can relabel the issue
@@ -795,6 +802,18 @@ deletes the snapshot it was cut from
   the receipt *itself* names is open, in this repository, on the branch that seam would push, and standing on that
   exact commit. Anything short of it parks rather than republishing, since measured and found small the commit would be
   force-pushed onto a branch nothing could confirm.
+- **A recorded branch is not ownership.** The question and PR-terminal teardowns and a late split's superseded-branch
+  reclamation delete a branch only when it is the issue's exact current-layout name, `orchestrator/<slug>/issue-<n>` for
+  that repository and issue. The name tested is the one the record pins, not the live resolver's reading of it, so a
+  record naming the flat `orchestrator/issue-<n>`, another repository's branch, or any other name inside the
+  `orchestrator/` namespace or outside it deletes nothing on either host, and no derived name is deleted in its place:
+  the branch the record named stays for an operator. With nothing pinned, the resolver's own answer is tested: the
+  derived name, or the flat name it infers beside a recorded pull request, which is refused. The checkout at the issue's
+  own path comes down only where it is proven a worktree of the clone standing on the issue's exact branch, at that path
+  rather than through a symlink below `WORKTREES_DIR`, so a tree on the flat or a foreign branch, and a flat checkout a
+  symlink reaches, keep every file in them, and neither the tree nor the branch is touched where another configured
+  repository derives the same branch name or checkout directory. An `orchestrator/` prefix, a flat name, or an authentic
+  pin alone is never ownership evidence ([C-05](contracts.md#c-05-writer-claims-and-artifact-maintenance)).
 - **A fork cannot answer for one of this repository's publications.** A fork carries this repository's ref names over
   this repository's commits, so a pull request opened from one agrees on the branch and the head together. Every reader
   that freezes or proves a publication therefore asks `github/client.py` whether the head repository is this one —

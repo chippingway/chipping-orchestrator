@@ -716,13 +716,16 @@ which paths reach an issue decides what keeps it away:
   owner whose pinned comment the selected build refuses, that sweep and the close receipt a poll would post write
   nothing, and its pull request, branch, and snapshot ref stay where they are; a close the poll read on it is held in
   memory, costing a refused pass every tick until the comment is dealt with or the poller restarts. The
-  [maintenance pass](#reclaiming-a-finished-issues-artifacts) reclaims the worktree and branches of a closed issue on
-  one terminal label whatever its control labels or obsolete bare labels say, though only what its gates prove nothing
-  else needs, and keeps those of a closed issue carrying only an obsolete bare label, which has no workflow label to
-  own them by, and those of one whose pinned comment the selected build refuses, saying so in a local warning each
-  pass. Closing an
-  issue retires it into these paths, not out of them: retire that way only work whose records the selected build
-  reads, and keep the rest out with its repository.
+  [maintenance pass](#reclaiming-a-finished-issues-artifacts) reclaims the current-layout worktree and branch of a
+  closed issue on one terminal label whatever its control labels or obsolete bare labels say, though only what its
+  gates prove nothing else needs, and keeps those of a closed issue carrying only an obsolete bare label, which has no
+  workflow label to own them by, and those of one whose pinned comment the selected build refuses, saying so in a
+  local warning each pass. No path reclaims a flat `orchestrator/issue-<n>` branch or `WORKTREES_DIR/issue-<n>`
+  checkout an earlier layout left, and terminal, question, and late-split teardowns delete a recorded branch only
+  where it is the issue's current-layout name, remove a checkout only where it is proven a worktree of the clone on
+  that branch at its own path (never through a symlink), and touch neither where another configured repository
+  derives the same names. Closing an issue retires it into these paths, not out of them: retire that way only work
+  whose records the selected build reads, and keep the rest out with its repository.
 - **Community pull requests.** The per-tick community sweep writes to open pull requests from authors outside
   `ALLOWED_ISSUE_AUTHORS` — save, to a build that skips an issue's own, those the token's own account opened and
   any standing on a branch of the repository under `orchestrator/` — and no control label holds it. To a build whose
@@ -731,13 +734,14 @@ which paths reach an issue decides what keeps it away:
   sweep @-mentions `HITL_HANDLE` on it again and adds the namespaced label beside the bare one, which stays. Accept
   that one ping per such pull request, or leave the repository out.
 - **A whole repository.** A repository the selected build is not configured for is never polled, swept, or
-  refreshed, and the maintenance pass leaves alone every artifact whose name marks it as that repository's. A clone
-  two `REPOS` entries share is the exception: the artifacts on it whose names do not tell the entries apart, every
-  flat legacy branch and checkout among them, are attributed by elimination among the entries configured on that
-  clone ([shared clones](#what-it-looks-for)). With both entries configured the pass refuses them as ambiguous; with
-  one left out, the other claims them and judges them against its own issue of that number. So leave out every entry
-  that shares the excluded repository's clone, and keep them all out until those artifacts have been disposed of by
-  hand. Set `WORKTREES_DIR` explicitly first: left unset, it follows the first `REPOS` entry, and dropping that entry
+  refreshed, and the maintenance pass leaves alone every artifact whose name marks it as that repository's. Flat
+  `orchestrator/issue-<n>` branches and `WORKTREES_DIR/issue-<n>` checkouts are no entry's, whichever entries are
+  configured. The exception is a pair of entries whose slugs the sanitizer cannot tell apart, so that they derive one
+  branch name or checkout directory ([shared clones](#what-it-looks-for)): with both configured the pass refuses those
+  artifacts as ambiguous; with one left out, the other claims them and judges them against its own issue of that
+  number. So leave out every entry that collides with the excluded repository that way, and keep them all out until
+  those artifacts have been disposed of by hand. Set `WORKTREES_DIR` explicitly first: left unset, it follows the
+  first `REPOS` entry, and dropping that entry
   would move it away from the retained work and its records. Keep at least one compatible entry, too, or keep polling
   stopped: an installed package refuses to start with `REPOS` empty, but a source checkout then falls back to its
   developer settings, `REPO` at `TARGET_REPO_ROOT`
@@ -761,7 +765,9 @@ toward starting the selected build:
   with its worktrees: retained work recovers from them and from the claim and quota retirement records
   ([C-01](../contracts.md#c-01-durable-workflow-state-and-recovery)), and an unsettled quota record keeps holding its
   issue's developer launches until someone settles it ([owed quota retirement](#running-more-than-one-poller)).
-- Keep the target clones and every branch and ref under `orchestrator/`, locally and on the remote.
+- Keep the target clones and every branch and ref under `orchestrator/`, locally and on the remote. No automatic path
+  deletes a flat `orchestrator/issue-<n>` branch or `WORKTREES_DIR/issue-<n>` checkout an earlier layout left, so
+  those stay until you dispose of them.
 - Keep `EVENT_LOG_PATH` naming the same file, with every rotated copy beside it readable: a base-rewrite finish still to
   retry reads them so it files its `base_rebased` only once
   ([C-12](../contracts.md#c-12-observation-and-the-audit-recovery-exception)).
@@ -2183,32 +2189,35 @@ One host-wide scan per pass, then one repository at a time. A candidate is one *
 holding and wherever they are:
 
 - **Branches, in the exact orchestrator namespace.** The clone's `refs/heads/orchestrator/` listing and one
-  `git ls-remote` of the same namespace on the remote. Two names per issue are recognized and no others: the current
-  `orchestrator/<sanitized-slug>/issue-<n>` this orchestrator publishes now, and the legacy flat
-  `orchestrator/issue-<n>` an issue already in flight when slug namespacing landed is still on. A name outside that
-  pair is never a candidate — no tag, no pull-request ref, no default branch, and no branch of anyone else's is
-  reachable from this path.
-- **Checkouts, under the two roots it writes.** `WORKTREES_DIR/<sanitized-slug>/issue-<n>`, the per-repository path it
-  uses now, and `WORKTREES_DIR/issue-<n>`, the flat path that predates it. A directory has to be a real directory
-  under the exact name (never a symlink) *and* a worktree of this repository's own clone.
+  `git ls-remote` of the same namespace on the remote. One name per issue is recognized and no other: the
+  `orchestrator/<sanitized-slug>/issue-<n>` this orchestrator publishes. Any other name is never a candidate — no tag,
+  no pull-request ref, no default branch, no branch of anyone else's, and no flat `orchestrator/issue-<n>` an earlier
+  layout left, here or only on the remote, is reachable from this path.
+- **Checkouts, under the one root it writes.** `WORKTREES_DIR/<sanitized-slug>/issue-<n>`, the per-repository path. A
+  directory has to be a real directory under the exact name, reached through no symlink below `WORKTREES_DIR`, *and* a
+  worktree of this repository's own clone. A flat `WORKTREES_DIR/issue-<n>` checkout is never listed, so it is never a
+  candidate, whichever clone it is a worktree of; one a symlinked per-repository directory reaches is foreign.
 - **Remote-only artifacts.** A branch the remote still carries under the owned namespace with nothing left on this
   host — a re-cloned checkout, a host rebuilt, a local ref somebody deleted by hand. The local and remote halves are
   folded into one candidate per issue, so a branch that exists in both places is one artifact over two hosts rather
   than two artifacts.
 
-The `layout` a candidate is reported under says which of those it was found as: `current`, `legacy`, `mixed` (both
-names at once, which a migration leaves behind), or `remote_only` (nothing local at all, whatever the remote's copy is
-called).
+The `layout` a candidate is reported under says where it was found: `current` (this host still holds its checkout or
+branch) or `remote_only` (nothing local at all, only the remote's copy of the branch).
 
-**Shared clones.** Two configured `REPOS` entries can point at one `target_root` — the case slug namespacing exists
-for. Attribution re-derives each spec's own names and refuses anything ambiguous: a name several entries could equally
-own (every legacy flat branch on a shared clone, a checkout directory two lossily-sanitized slugs both produce) is
-attributed to **none** of them and left alone. The flat pre-namespacing checkout is the one artifact whose name says
-nothing at all, so it is attributed by the clone the directory turns out to be a worktree of; where that still cannot
-settle it, the whole issue is withheld from the scan — branches included, because reporting a branch whose checkout
-nobody may remove would hand a teardown a ref to delete out from under a live tree. A repository whose ref store,
-checkout root, or remote listing could not be read is left out of the pass entirely rather than reported in part, and
-said out loud on the log: a partial list of what a repository still holds reads exactly like a complete one.
+**Shared clones.** Two configured `REPOS` entries can share one ref store — the case slug namespacing exists for —
+whether they name one `target_root`, spell it differently, or name linked worktrees of one repository; entries are
+grouped by the git common directory their targets share, and one whose store cannot be read is refused and still counted
+a claimant on every clone. Attribution re-derives each spec's own names and refuses anything ambiguous: a name several
+entries derive alike, a checkout standing on such a name even in a directory of its own (the ref sanitizer's digest
+suffix lets two slugs share a branch name while their checkout directories differ), and every checkout under a directory
+two lossily-sanitized slugs both produce, is attributed to **none** of them and left alone. A flat branch or checkout is
+attributed to nobody on any host — being the only entry that could own it is not ownership — and a flat checkout
+standing on a candidate's branch keeps that branch, because the teardown reads what every tree of the clone is standing
+on before it deletes one
+([what it deletes](#what-it-deletes-and-in-what-order)). A repository whose ref store, checkout root, or remote listing
+could not be read is left out of the pass entirely rather than reported in part, and said out loud on the log: a partial
+list of what a repository still holds reads exactly like a complete one.
 
 ### What clears a candidate, and what keeps it
 
@@ -2226,18 +2235,20 @@ Every gate fails closed, and they are asked cheapest first. Nothing is deleted u
    admit, or holding something that is not a state — each keep the candidate. A refused comment keeps it even on an
    issue closed on `done` or `rejected` whose artifacts every other gate would clear: it reads back as empty as an
    issue that recorded nothing, and taken that way the pull request and branch it names would go unasked.
-4. **No pull request still stands on it.** Open pull requests are looked up for both branch spellings and for the
-   recorded number, whatever base they target. A human reviewing a branch is standing on it even though the issue
-   underneath has ended. Every branch lookup is **owner-qualified** — the query head is
+4. **No pull request still stands on it.** Open pull requests are looked up for the issue's branch, for the branch its
+   pinned record names, and for the recorded number, whatever base they target. A human reviewing a branch is standing
+   on it even though the issue underneath has ended. Every branch lookup is **owner-qualified** — the query head is
    `<this repository's owner>:<branch>`, never the bare branch name — so a fork that happens to carry a branch of the
    same name is not mistaken for this candidate's pull request, in either direction: a fork's open PR cannot keep an
-   artifact this repository owns, and it cannot be read as the ended PR that accounts for a commit. The recorded
-   number is read straight off this repository for the same reason.
+   artifact this repository owns, and it cannot be read as the ended PR that accounts for a commit. The recorded number
+   is read straight off this repository for the same reason.
 5. **Every commit an artifact holds survives its deletion.** A branch's tip and the commit a checkout's own HEAD is on
    each have to be contained in the configured base or in a pull request that has ended. The remote is asked what the
    branch is at whatever the base says, because the two answer different questions — a merged tip can sit under a
    branch somebody has since pushed past.
-6. **The checkout carries nothing of its own.** It has to be this issue's own branch, prove it holds nothing modified
+6. **The checkout carries nothing of its own.** It has to be reached at its own path rather than through a symlink and
+   be on this issue's own current branch — a checkout at that path on a flat branch or any other, or a flat checkout a
+   symlinked path reaches, is foreign and keeps the candidate — prove it holds nothing modified
    or untracked, and prove it hides nothing besides: a path the repository's own `.gitignore` covers — a `.env`, a
    virtualenv, a build directory — keeps the whole candidate, because `git worktree remove` would take all of it and
    git does not count it as dirty.
@@ -2253,10 +2264,9 @@ is never collapsed into either: a reading that failed keeps the artifact exactly
 
 Order is not a detail here — it is what a failed pass leaves behind:
 
-1. **Every checkout first**, both layouts, in the order the scan reported them. A branch a worktree still has checked
-   out cannot be deleted, so a pass that took branches first would strand the trees and make their branches
-   undeletable. Removal is **never forced**: `git worktree remove` refuses a tree written in since the proof, and that
-   refusal is the answer.
+1. **The checkout first.** A branch a worktree still has checked out cannot be deleted, so a pass that took the branch
+   first would strand the tree and make its branch undeletable. Removal is **never forced**: `git worktree remove`
+   refuses a tree written in since the proof, and that refusal is the answer.
 2. **Then each branch, on the remote before the clone.** The remote is read first so the three answers stay apart — a
    branch that is not there is a step already done (the ordinary shape of a merged pull request's head), a branch at
    another commit is a push nobody here cleared, a reading that failed is not permission to delete. The delete itself
@@ -2268,9 +2278,10 @@ Order is not a detail here — it is what a failed pass leaves behind:
    leaves it standing and the candidate discoverable; taking it first would leave a remote-only artifact that only a
    remote listing would ever surface again.
 
-Immediately before each mutation the artifact's tip is re-read against the commit the classification proved. An
-artifact that has moved since (an agent committed, a human pushed) is not a failure — it is a race, and the candidate
-is kept for the next pass to start over on.
+Immediately before each mutation the artifact's tip is re-read against the commit the classification proved, and a
+checkout's identity — its path, its clone, its branch — with it. An artifact that has moved since (an agent committed, a
+human pushed, a checkout switched onto another branch) is not a failure — it is a race, and the candidate is kept for
+the next pass to start over on.
 
 **There is no retry, and that is deliberate.** The first refusal ends the pass *for that candidate*; the ones behind it
 are still evaluated. Nothing is written down — no queue, no ledger, no backoff state — because the discovery that found
@@ -2303,13 +2314,17 @@ channel by the writer itself rather than on the lifecycle channel — so an oper
     log's `writer claim skip` line for that issue says `reason=unusable`, or the lifecycle log says the claim could not
     be keyed, nothing holds it: the claim namespace, or the repository's id, could not be read, and that is the host or
     the token to fix.
-  - `tip_moved` is a race that also clears itself: something moved the artifact between the proof and the mutation.
+  - `tip_moved` is a race that also clears itself: something moved the artifact between the proof and the mutation,
+    or a checkout stopped being the issue's own — switched onto another branch, or reached through a new symlink —
+    which the next pass keeps as `foreign_checkout` until it is put back or disposed of by hand.
   - `unproven` is the classification's own answer, and the log line beside it names the artifact it kept the candidate
     for. Look at that artifact: an open pull request still on the branch (close or merge it), a checkout carrying
     modified, untracked, or ignored files (take what you want off it — an ignored `.env` or a stray build directory is
     the common one), commits the base and every ended pull request do not account for (push them somewhere that
-    outlives the branch, or accept the artifact stays), an issue that is not closed, or a workflow label that is not
-    exactly one terminal. `state_unsupported` and `state_malformed` are a pinned comment this build refuses — an
+    outlives the branch, or accept the artifact stays), an issue that is not closed, a workflow label that is not
+    exactly one terminal, or a `foreign_checkout`: a tree at the issue's path that is another repository, stands on a
+    flat or other branch, or is reached through a symlink, which no pass removes and which is yours to dispose of by
+    hand. `state_unsupported` and `state_malformed` are a pinned comment this build refuses — an
     object unversioned or under a version it does not admit, and a body that is no state at all — and a warning on
     `orchestrator.worktree_lifecycle` names the repository, the issue, the comment, and the version found against the
     one supported. The pass reclaims nothing of that issue's for as long as the comment stands, so the record and its
@@ -2319,7 +2334,8 @@ channel by the writer itself rather than on the lifecycle channel — so an oper
     repository this installation cannot see, a remote that was down, a git command that would not run. They clear
     themselves when the underlying read works, and the log line beside them says which artifact could not be read.
   - `branch_checked_out` means some worktree of the clone is still standing on the branch — often an operator's own
-    `git worktree add`. Move that tree off the branch (or remove it) and the next pass takes it.
+    `git worktree add`, or a flat `WORKTREES_DIR/issue-<n>` checkout no pass attributes. Move that tree off the branch
+    (or remove it) and the next pass takes it.
 - **`failed`** — a step ran and was refused, which is a host or a remote to look at:
   - `worktree_removal_failed` — git would not remove the checkout. It is never forced, so the usual cause is a tree
     written into after the proof, or a permission problem on the directory. Inspect the path on the log line; remove

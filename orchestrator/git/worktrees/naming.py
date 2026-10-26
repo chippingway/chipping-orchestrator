@@ -1,10 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Repository-safe segments and current or legacy issue branch identities.
+"""Repository-safe segments and the issue branch identity this orchestrator owns.
 
 Lossy branch rewrites include a digest so distinct slugs keep distinct refs.
-Pinned branch identities are preserved across the namespace migration; local
-checkout placement uses the shared slug encoding through the paths owner.
+Only the repository-scoped `_branch_name` derivation is an owned artifact
+name: a flat `orchestrator/issue-<n>`, an `orchestrator/` prefix, or a pinned
+value alone attributes nothing to an issue and licenses no cleanup. The pinned
+resolver below still answers live callers; local checkout placement uses the
+shared slug encoding through the paths owner.
 """
 from __future__ import annotations
 
@@ -136,9 +139,10 @@ def _branch_name(spec: _config_models.RepoSpec, issue_number: int) -> str:
     would otherwise collide on `orchestrator/issue-<n>` because git
     refuses to check the same branch out in two worktrees of one repo.
     Including the sanitized slug keeps each spec's worktree on its own
-    branch. The `orchestrator/` prefix is preserved so
-    `_cleanup_terminal_branch`'s "orchestrator-owned namespace"
-    invariant still holds.
+    branch. This exact name is the only branch an issue's artifact
+    ownership and cleanup recognize: attribution, the reclaim identity
+    check, and every teardown compare against it character for character
+    rather than testing a namespace.
 
     Uses `_sanitize_branch_segment` rather than the filesystem-only
     `_sanitize_slug` so a slug like `owner/foo.lock` or
@@ -154,33 +158,11 @@ def _branch_name(spec: _config_models.RepoSpec, issue_number: int) -> str:
 def _legacy_branch_name(issue_number: int) -> str:
     """The pre-slug-namespacing branch name for an issue.
 
-    Its own name because two callers need exactly it and nothing near it: the
-    resolver that stays anchored on a legacy in-flight PR, and the ownership
-    test a caller applies before deleting a recorded branch.
+    Only the live resolver below reads it. It is no ownership evidence: no
+    configured repository derives it, so artifact attribution, reclamation,
+    and terminal cleanup all leave a branch of this name where it is.
     """
     return f"orchestrator/issue-{issue_number}"
-
-
-def _issue_branch_names(
-    spec: _config_models.RepoSpec, issue_number: int,
-) -> tuple[str, ...]:
-    """Every branch name this orchestrator could have published this issue on.
-
-    The slug-namespaced form it publishes now, and the legacy flat form an
-    issue already in flight when namespacing landed is still on -- both,
-    because either can be the live one and neither can be told from the other
-    by shape.
-
-    For a caller about to DELETE a recorded target, which is why the answer is
-    the exact names rather than a namespace: `orchestrator/` with an
-    `/issue-<n>` tail also describes ANOTHER spec's branch for another issue
-    that happens to share the number, and two specs sharing a `target_root`
-    is the case slug-namespacing exists for.
-    """
-    return (
-        _branch_name(spec, issue_number),
-        _legacy_branch_name(issue_number),
-    )
 
 
 def _resolve_branch_name(

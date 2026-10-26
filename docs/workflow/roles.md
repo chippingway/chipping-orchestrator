@@ -1763,14 +1763,17 @@ local half needs nothing from the remote to succeed. The local half is *verified
 read taken afterwards, and that read fails closed. Taking the checkout down at all is safe here for one reason: the
 snapshot was created and proved before any of this, so the commit it holds is no longer the only copy.
 
-Only a branch this issue is actually published under is ever deleted. The target comes off a ledger a human can edit
-and is spent on a destructive call, so it has to *be* one of the two names this spec gives this issue — the
-slug-namespaced form and the legacy flat one — before the remote is touched. A namespace-and-tail reading is not
-enough: `orchestrator/other-repository/issue-41` is inside `orchestrator/` and ends in this issue's tail while
-belonging to another repository entirely, and two specs sharing one `target_root` is the case slug-namespacing
-exists for. The number is taken from the issue being walked rather than from the record, so a hand-edited identity
-cannot aim the delete either. Anything that does not match is recorded `failed` and left for a human, which is the
-one answer that neither deletes somebody's branch nor quietly forgets the obligation.
+Only the branch this issue is actually published under is ever deleted. The target comes off a ledger a human can edit
+and is spent on a destructive call, so it has to *be* the one name this spec gives this issue — the slug-namespaced
+`orchestrator/<slug>/issue-<n>` — before the remote is touched. A namespace-and-tail reading is not enough:
+`orchestrator/other-repository/issue-41` is inside `orchestrator/` and ends in this issue's tail while belonging to
+another repository entirely, and two specs sharing one `target_root` is the case slug-namespacing exists for. The flat
+`orchestrator/issue-41` carries no repository at all, so it is no proof either, and neither is the exact name where
+another configured repository derives it too. The checkout at the issue's path comes down only where it is proven a
+worktree of the clone on that branch; one standing anywhere else keeps its files and the entry stays owed. The number
+is taken from the issue being walked rather than from the record, so a hand-edited identity cannot aim the delete
+either. Anything that does not match is recorded `failed` and left for a human, which is the one answer that neither
+deletes somebody's branch nor quietly forgets the obligation.
 
 What the obligation **does** block is the umbrella's own terminal completion, and the retry lives there rather than
 in the transaction — an issue that has become an umbrella never reaches the transaction again, so nothing else would

@@ -378,7 +378,9 @@ namespaced `orchestrator/<owner>__<name>/issue-N`, so two repos with the same is
 the branch ref — important when several `REPOS` entries share a `target_root` (e.g. one local clone with multiple
 remotes), where git would otherwise refuse to check the same `orchestrator/issue-N` ref out in two worktrees. In-flight
 issues whose pinned `branch` was set before this change keep using the legacy `orchestrator/issue-N` name; fresh issues
-take the namespaced form.
+take the namespaced form. Artifact ownership and cleanup recognize the namespaced forms only: a flat
+`orchestrator/issue-N` branch or `WORKTREES_DIR/issue-N` checkout is never attributed to a repository, and no terminal,
+late-split, or scheduled cleanup deletes one ([artifact ownership](security.md#scheduled-artifact-reclamation)).
 
 Slugs whose repo name contains `.lock`, `..`, or a trailing `.` (all rejected by `git check-ref-format`) get an extra
 `__h<16-hex>` suffix on the branch segment so two distinct slugs that would otherwise collapse to the same form (e.g.

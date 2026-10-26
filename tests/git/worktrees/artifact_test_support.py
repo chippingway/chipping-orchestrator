@@ -19,7 +19,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.git import locks
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming, paths
 from tests.git.worktrees import artifact_git as _artifact_git
 
 WIDGET_SLUG = "acme/widget"
@@ -28,6 +28,14 @@ STRANGER_SLUG = "stranger/repo"
 # Two slugs the sanitizer cannot tell apart: `:` is not ref-safe and becomes
 # `_`, so both entries publish under one branch segment.
 COLLIDING_SLUGS = ("acme/wid:get", "acme/wid_get")
+# Two slugs that share a branch name and nothing else: the first's ref-safe
+# segment carries a digest suffix, and the crafted second spells that suffix
+# plainly, so both publish one branch while keeping distinct checkout
+# directories.
+DIGEST_COLLIDING_SLUGS = (
+    "acme/widget.lock",
+    f"acme/widget_lock__h{naming._slug_digest('acme/widget.lock')}",
+)
 LIFECYCLE_LOGGER = "orchestrator.worktree_lifecycle"
 NOT_A_CHECKOUT = "not a checkout\n"
 BROKEN_REF_CONTENT = "not-a-sha\n"

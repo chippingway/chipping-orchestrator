@@ -16,7 +16,6 @@ from tests.git.inventory_test_support import inventory_modules
 _CANDIDATES = 'candidates'
 _MAINTENANCE_RESULTS = 'maintenance_results'
 _INVENTORY_ROOTS = 'inventory_roots'
-_LEGACY_INVENTORY = 'legacy_inventory'
 _CANDIDATE_LAYOUT = 'candidate_layout'
 _REMOTE_INVENTORY = 'remote_inventory'
 _ANCHORING = 'anchoring'
@@ -85,7 +84,6 @@ _MODULES = (
 
     "orchestrator.git.worktrees.remote_inventory",
     "orchestrator.git.worktrees.candidate_layout",
-    "orchestrator.git.worktrees.legacy_inventory",
     "orchestrator.git.worktrees.inventory_roots",
     "orchestrator.git.worktrees.maintenance_results",
     "orchestrator.git.worktrees.candidates",
@@ -152,24 +150,21 @@ _OWNER_ONLY_NAMES = (
 
 # Every name the owners define, paired with the owner that defines it: the slug
 # pattern and the digest math behind it, the two sanitizers, the branch, root,
-# and worktree-path derivations, the pinned / legacy resolver, the `issue-<n>`
-# read that runs back the other way, and the two paths one issue can have been
-# checked out at, the candidate-branch and commit-count reads behind the
-# unpushed-commit probe, the two creators, the new-commit probe, the reported
-# fetch and the start point a restore picks, the handoff anchor with the target
-# choice, the ref move, and the revision read under it, and the `worktree` argv
-# they run, the decomposer's path, creation, and removal, the per-issue removal
-# and local branch deletion, the two teardowns composed from them, and the local
-# artifact scan: the two records it answers with, the branch listing and the
-# checkout reads under it, the flat pre-namespacing checkouts among them, the
-# identity read that says which clone one of those is a worktree of, the
-# attribution rule a branch name is put to, the two a directory is -- the
-# grouping that says which entries derive one checkout directory, the flat path
-# that is a root rather than a checkout, and the claim the clone identity
-# settles, with the record carrying the owner it found beside the claimants
-# nobody may act for and the reporting behind it -- the clone resolution, the
-# grouping over it and the shape that grouping takes, the one filing what a
-# repository holds apart from what it may not touch, and the per-clone,
+# and worktree-path derivations, the pinned / legacy resolver, and the
+# `issue-<n>` read that runs back the other way, the candidate-branch and
+# commit-count reads behind the unpushed-commit probe, the two creators, the
+# new-commit probe, the reported fetch and the start point a restore picks, the
+# handoff anchor with the target choice, the ref move, and the revision read
+# under it, and the `worktree` argv they run, the decomposer's path, creation,
+# and removal, the per-issue removal and local branch deletion with the
+# ownership proof its forced removal waits on, the two teardowns composed from
+# them, the exact-name test that decides which branch they may delete, and the
+# collision check both ask, and the local artifact scan: the two records it
+# answers with, the branch listing and the checkout reads under it, the
+# identity read that says which clone a checkout is a worktree of, the
+# attribution rule a branch name is put to, the grouping that says which
+# entries derive one checkout directory, the ref-store identity, the grouping
+# over it and the shape that grouping takes, and the per-clone,
 # per-repository, and per-issue assembly. Then the classification
 # over what that scan found: the three-answer probe vocabulary, the two records
 # a verdict is made of and the commit it hands over when it clears one, the
@@ -204,12 +199,9 @@ _OWNER_DEFINED = (
     ("BranchTip", _MODELS),
     ("CandidateKey", _DISCOVERY),
     ("CandidateLayout", _CANDIDATES),
-    ("CheckoutClaim", _CHECKOUT_ATTRIBUTION),
     ("CloneGroups", _INVENTORY_ROOTS),
     ("IssueArtifacts", _CANDIDATES),
     ("IssueBranches", _ATTRIBUTION),
-    ("IssueNumbers", _LEGACY_INVENTORY),
-    ("LegacyCheckouts", _LEGACY_INVENTORY),
     ("MaintenanceCandidate", _CANDIDATES),
     ("MaintenanceOutcome", _MAINTENANCE_RESULTS),
     ("MaintenanceReason", _MAINTENANCE_RESULTS),
@@ -240,6 +232,7 @@ _OWNER_DEFINED = (
     ("_ORCHESTRATOR_BRANCH_REFS", _BRANCH_PROBES),
     ("_ORCHESTRATOR_REMOTE_REFS", _REMOTE_INVENTORY),
     ("_OUTCOMES", _MAINTENANCE_RESULTS),
+    ("_QUESTION_PREFIX", _TERMINAL),
     ("_QUIET_PERIOD_SECONDS", _MAINTENANCE_GUARDS),
     ("_REF_DELETE", _RECLAIM),
     ("_REF_SEPARATOR", _ATTRIBUTION),
@@ -262,8 +255,8 @@ _OWNER_DEFINED = (
     ("_answered", _MAINTENANCE_RESULTS),
     ("_artifact_reading", _ELIGIBILITY),
     ("_artifact_verdict", _ELIGIBILITY),
+    ("_attributable", _TERMINAL),
     ("_attributed_issues", _ATTRIBUTION),
-    ("_attributed_legacy", _LEGACY_INVENTORY),
     ("_base_anchor", _ANCHORING),
     ("_base_contains", _TIP_EVIDENCE),
     ("_branch_attribution", _ATTRIBUTION),
@@ -303,8 +296,6 @@ _OWNER_DEFINED = (
     ("_colliding_worktree_slugs", _CHECKOUT_ATTRIBUTION),
     ("_commit_accounting", _COMMIT_CLAIMS),
     ("_commit_count_from_stdout", _RECOVERY),
-    ("_countable_legacy_checkouts", _CHECKOUT_ATTRIBUTION),
-    ("_current_names", _CANDIDATE_LAYOUT),
     ("_decompose_worktree_path", _DECOMPOSITION),
     ("_delete_local_issue_branch", _CLEANUP),
     ("_delete_local_ref_at", _RECLAIM),
@@ -315,27 +306,18 @@ _OWNER_DEFINED = (
     ("_ensure_worktree", _CREATION),
     ("_fetch_for_restore", _ANCHORING),
     ("_fetched_issue", _CLAIMS),
-    ("_file_claim", _LEGACY_INVENTORY),
     ("_group_published", _REMOTE_INVENTORY),
     ("_hardened_read", _EVIDENCE_READS),
     ("_has_new_commits", _CREATION),
     ("_head_is_own_branch", _EVIDENCE),
     ("_head_ref", _EVIDENCE),
-    ("_held_checkouts", _INVENTORY),
     ("_issue_artifacts", _INVENTORY),
-    ("_issue_branch_names", _NAMING),
     ("_issue_checkout_number", _PROBES),
     ("_issue_segment_number", _PATHS),
-    ("_issue_worktree_paths", _PATHS),
     ("_kept_subject", _MAINTENANCE),
     ("_keyed_candidate", _DISCOVERY),
     ("_last_touched", _ACTIVITY_EVIDENCE),
-    ("_legacy_checkout_claim", _CHECKOUT_ATTRIBUTION),
-    ("_legacy_checkout_numbers", _PROBES),
-    ("_legacy_claim", _LEGACY_INVENTORY),
     ("_legacy_branch_name", _NAMING),
-    ("_legacy_names", _CANDIDATE_LAYOUT),
-    ("_legacy_worktree_path", _PATHS),
     ("_local_branch_tip", _TIP_EVIDENCE),
     ("_local_issue_inventory", _INVENTORY),
     ("_local_orchestrator_branches", _BRANCH_PROBES),
@@ -347,6 +329,8 @@ _OWNER_DEFINED = (
     ("_move_branch_onto", _ANCHORING),
     ("_nothing_ignored", _EVIDENCE),
     ("_open_pull_request_retentions", _CLAIMS),
+    ("_own_checkout", _CLEANUP),
+    ("_owned_branch", _TERMINAL),
     ("_pr_branch_start_point", _CREATION),
     ("_proven_tips", _ELIGIBILITY),
     ("_published_branches", _REMOTE_INVENTORY),
@@ -357,7 +341,9 @@ _OWNER_DEFINED = (
     ("_read_state", _CLAIMS),
     ("_reclaimed", _MAINTENANCE),
     ("_record_attribution", _ATTRIBUTION),
+    ("_recorded_branch", _TERMINAL),
     ("_recorded_pull_request", _CLAIMS),
+    ("_ref_store", _INVENTORY_ROOTS),
     ("_registered_worktrees", _CHECKOUT_LISTING),
     ("_remote_half", _REMOTE_INVENTORY),
     ("_remote_issue_branches", _REMOTE_INVENTORY),
@@ -365,10 +351,8 @@ _OWNER_DEFINED = (
     ("_remove_issue_worktree", _CLEANUP),
     ("_remove_recognized_worktree", _RECLAIM),
     ("_repo_worktrees_root", _PATHS),
-    ("_report_unsettled", _CHECKOUT_ATTRIBUTION),
     ("_resolve_branch_name", _NAMING),
     ("_resolved_commit", _ANCHORING),
-    ("_resolved_root", _INVENTORY_ROOTS),
     ("_resolved_tip", _TIP_EVIDENCE),
     ("_root_inventory", _INVENTORY),
     ("_run_decompose_worktree_removal", _DECOMPOSITION),
@@ -376,10 +360,11 @@ _OWNER_DEFINED = (
     ("_run_local_branch_deletion", _CLEANUP),
     ("_sanitize_branch_segment", _NAMING),
     ("_sanitize_slug", _NAMING),
-    ("_scanned", _INVENTORY),
+    ("_shared_branch", _ATTRIBUTION),
     ("_shared_repository", _EVIDENCE),
     ("_slug_digest", _NAMING),
     ("_slugs_by_worktrees_root", _CHECKOUT_ATTRIBUTION),
+    ("_sole_claimant", _ATTRIBUTION),
     ("_spec_inventory", _INVENTORY),
     ("_specs_by_clone", _INVENTORY_ROOTS),
     ("_still_there", _RECLAIM),

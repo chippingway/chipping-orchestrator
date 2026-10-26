@@ -19,22 +19,17 @@ from orchestrator.config import models as _config_models
 class IssueArtifacts:
     """The orchestrator-owned artifacts one issue left in one repository.
 
-    An issue is in a scan because an `issue-<n>` checkout of it still stands,
-    because a branch in that clone's orchestrator-owned namespace names it, or
-    because both do -- which is why either half may be empty. Never both: an
-    entry with no checkout and no branch is an issue nothing on this host
-    attests to, and the scan does not invent one.
+    An issue is in a scan because its `issue-<n>` checkout under the spec's
+    own root still stands, because the clone or its remote carries the issue's
+    repository-scoped branch, or because both do -- which is why either half
+    may be empty. Never both: an entry with no checkout and no branch is an
+    issue nothing on this host attests to, and the scan does not invent one.
 
-    Both halves are tuples, and for the same reason: this orchestrator has
-    published an issue under two layouts, and a host that was running across
-    the migration can be holding both at once. `branches` carries the
-    slug-namespaced name and the legacy flat one; `worktrees` carries the
-    checkout under the spec's own root and the legacy one directly under
-    `WORKTREES_DIR`. Each is ordered current-first, which is the order a
-    teardown takes them in.
-
-    Two entries for one issue therefore cannot happen -- the layouts are
-    several names for one issue, not several issues.
+    Each half holds at most the one name the current layout derives for the
+    issue -- `paths._worktree_path` and `naming._branch_name` -- and is a
+    tuple so an absent artifact is the empty one rather than a sentinel. A
+    flat checkout or branch an earlier layout left is never on it: nothing
+    attributes one to a repository, so no reclamation is spent on it.
     """
 
     spec: _config_models.RepoSpec
@@ -55,51 +50,31 @@ class ArtifactInventory:
     nothing to adopt or clean up -- has to skip those repositories, and this
     field is how it knows which.
 
-    `withheld` is the same refusal one granularity down: a repository and an
-    issue number this scan will not answer for, while still answering for the
-    rest of that repository. It exists for the artifact whose name says nothing
-    -- the flat pre-namespacing checkout, which several entries on one clone
-    derive identically -- because a tree nobody may take is standing on one of
-    that issue's branches, and reporting the branch alone would hand a teardown
-    a ref to delete out from under a live checkout. A caller reading only
-    `issues` would see that issue absent and go looking for it somewhere else,
-    which is exactly what a wider scan does.
-
-    `issues` is ordered by slug and then issue number, and so are both
-    refusals, so two scans of an unchanged host produce equal answers.
+    `issues` is ordered by slug and then issue number, and so is the refusal,
+    so two scans of an unchanged host produce equal answers.
     """
 
     issues: tuple[IssueArtifacts, ...]
     refused: tuple[str, ...]
-    withheld: tuple[tuple[str, int], ...] = ()
 
 
 class CandidateLayout(StrEnum):
-    """Which of the layouts this orchestrator has published a candidate under.
+    """Where a candidate's current-layout artifacts were found.
 
     Named on the candidate rather than worked out again by every reader,
-    because it is the one thing about a candidate that says how it came to
-    exist. `CURRENT` is the slug-namespaced branch this orchestrator publishes
-    now and the per-repository checkout beside it; `LEGACY` is the flat
-    `orchestrator/issue-<n>` an issue in flight when namespacing landed is
-    still on; `MIXED` is an issue carrying both names at once, which a
-    migration leaves behind and which no single derivation would ever produce.
-
-    `REMOTE_ONLY` is where the artifact is rather than what it is called, and
-    it wins over the other three when nothing local is left: a candidate this
-    host holds no checkout and no branch for is one an operator has nothing to
-    look at here for, whichever name the remote's copy carries.
+    because it is a reading only the discovery can take. `CURRENT` is a
+    candidate this host still holds its repository-scoped checkout or branch
+    for; `REMOTE_ONLY` is one whose branch only the remote still carries,
+    which leaves an operator nothing on this host to look at.
     """
 
     CURRENT = "current"
-    LEGACY = "legacy"
     REMOTE_ONLY = "remote_only"
-    MIXED = "mixed"
 
 
 @dataclass(frozen=True)
 class MaintenanceCandidate:
-    """One issue's artifacts, and the layout they were published under.
+    """One issue's artifacts, and where the discovery found them.
 
     The pair rather than the artifacts alone, because the layout is a reading
     taken where both halves of the discovery were still in hand -- what the

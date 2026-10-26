@@ -152,8 +152,9 @@ class BranchNameSlugNamespaceTest(unittest.TestCase):
         )
 
     def test_branch_name_keeps_orchestrator_prefix(self) -> None:
-        # `_cleanup_terminal_branch` relies on the `orchestrator/` prefix
-        # to constrain what branches it is willing to delete.
+        # Every branch lives under the namespace the artifact scan lists and
+        # the community sweep reads; the prefix alone owns nothing, since
+        # cleanup compares the exact name.
         for repo_slug in (ALICE_REPO_SLUG, BOB_REPO_SLUG, "weird name/x"):
             self.assertTrue(
                 _naming._branch_name(

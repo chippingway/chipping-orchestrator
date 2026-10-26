@@ -54,6 +54,11 @@ _NO_USAGE_ISSUE_NUMBER = 206
 _NO_USAGE_PR_NUMBER = 20600
 _ONE_READING_ISSUE_NUMBER = 207
 _ONE_READING_PR_NUMBER = 20700
+_FOREIGN_PIN_ISSUE_NUMBER = 208
+_FOREIGN_PIN_PR_NUMBER = 20800
+# A pin outside the `orchestrator/` namespace, which the live resolver would
+# answer with the derived name.
+_FOREIGN_PIN = "feature/manual"
 
 
 def _client_with_issue(number: int, label: str):
@@ -225,6 +230,34 @@ class FinalizeMergedPrTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
         self.assertEqual(merged_event.get("merge_method"), "external")
         self.assertEqual(merged_event.get("stage"), _IMPLEMENTING_STAGE)
+
+    def test_a_foreign_pin_reaches_the_teardown_raw(self) -> None:
+        # The teardown is handed the branch the record names rather than the
+        # resolver's reading of it, so it refuses the pin and never deletes the
+        # derived branch in its place.
+        gh, issue = _client_with_issue(_FOREIGN_PIN_ISSUE_NUMBER, _IMPLEMENTING_LABEL)
+        gh.add_pr(
+            FakePR(
+                number=_FOREIGN_PIN_PR_NUMBER,
+                head_branch=_FOREIGN_PIN,
+                merged=True,
+                state=_STATE_CLOSED,
+            ),
+        )
+        state = _state_with_pr_number(
+            gh, _FOREIGN_PIN_ISSUE_NUMBER, _FOREIGN_PIN_PR_NUMBER, branch=_FOREIGN_PIN,
+        )
+
+        mocks = self._run(
+            lambda: self.assertTrue(
+                terminals._finalize_if_pr_merged(gh, _TEST_SPEC, issue, state),
+            ),
+            run_agent=_agent(),
+        )
+
+        mocks[_CLEANUP_MOCK_KEY].assert_called_once_with(
+            gh, _TEST_SPEC, _FOREIGN_PIN_ISSUE_NUMBER, branch=_FOREIGN_PIN,
+        )
 
     def test_merged_pr_finalizes_closed_issue(self) -> None:
         # An externally-merged PR with `Resolves #N` auto-closes the issue

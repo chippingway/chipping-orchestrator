@@ -21,7 +21,12 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.worktrees import activity_evidence as _activity_evidence, evidence, tip_evidence as _tip_evidence
+from orchestrator.git.worktrees import (
+    activity_evidence as _activity_evidence,
+    evidence,
+    paths,
+    tip_evidence as _tip_evidence,
+)
 from orchestrator.git.worktrees.models import BranchTip, ProbeAnswer
 from tests.git.worktrees import (
     artifact_git as _artifact_git,
@@ -101,11 +106,34 @@ class CheckoutIdentityTest(_evidence_support._HostTestCase):
                     ProbeAnswer.REFUTED,
                 )
 
+    def test_a_path_through_a_symlink_refutes(self) -> None:
+        # A flat checkout of this clone on this issue's own branch, which every
+        # reading of the tree itself would confirm, reached from the issue's
+        # path through a per-repository parent that is a symlink, or through a
+        # symlink at the path itself: where the path resolves to is not where
+        # the layout puts this issue's checkout.
+        _candidate_refs._branch_at(self.clone, self.branch, _artifact_git.BASE_BRANCH)
+        flat = self.world.checkout_at(
+            self.spec, _artifact_git._flat_checkout_path(ISSUE_NUMBER), self.branch,
+        )
+        worktree = paths._worktree_path(self.spec, ISSUE_NUMBER)
+
+        for link, target in ((worktree.parent, flat.parent), (worktree, flat)):
+            with self.subTest(link=link.name):
+                link.parent.mkdir(parents=True, exist_ok=True)
+                link.symlink_to(target, target_is_directory=True)
+                self.assertIs(
+                    evidence._checkout_identity(self.spec, ISSUE_NUMBER, worktree),
+                    ProbeAnswer.REFUTED,
+                )
+                link.unlink()
+
     def test_no_repository_at_all_is_unreadable(self) -> None:
-        # Nothing was established about the directory, which is not the same
-        # answer as establishing that it is somebody else's.
-        worktree = self.world.path(NOT_A_CLONE)
-        worktree.mkdir()
+        # Nothing was established about the directory at the issue's own path,
+        # which is not the same answer as establishing that it is somebody
+        # else's.
+        worktree = paths._worktree_path(self.spec, ISSUE_NUMBER)
+        worktree.mkdir(parents=True)
 
         identified = evidence._checkout_identity(
             self.spec, ISSUE_NUMBER, worktree,

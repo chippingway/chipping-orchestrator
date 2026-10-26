@@ -14,26 +14,37 @@ from __future__ import annotations
 
 import logging
 import unittest
-from unittest.mock import patch
 
-from orchestrator.git.worktrees import paths, probes
+from orchestrator.git.worktrees import paths
 from tests.git.worktrees import artifact_test_support as _support, local_inventory_test_support as _inventory_support
 from tests.git.worktrees.artifact_test_support import _ArtifactWorld
+from tests.support.git import _run_git
 
 CLONE_NAME = "target"
 SECOND_CLONE_NAME = "other-target"
 CLONE_LINK_NAME = "target-link"
+LINKED_TARGET_NAME = "target-linked-worktree"
+NO_CLONE_NAME = "never-cloned"
 
 BOTH_SIDES_ISSUE_NUMBER = 4
 CHECKOUT_ONLY_ISSUE_NUMBER = 15
 LEGACY_ISSUE_NUMBER = 9
 GADGET_ISSUE_NUMBER = 6
+COLLIDING_ISSUE_NUMBER = 3
 
-# What the scan must walk past: another repository's namespaced branch, and a
-# name in the namespace that carries no issue number at all.
+# One branch each for the two entries a clone-grouping case configures.
+ONE_EACH_BRANCHES = (
+    _support._namespaced_branch(_support.WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
+    _support._namespaced_branch(_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
+)
+
+# What the scan must walk past: another repository's namespaced branch, a name
+# in the namespace that carries no issue number at all, and the flat name an
+# earlier layout left, which no configured repository derives.
 IGNORED_BRANCHES = (
     "orchestrator/stranger__repo/issue-5",
     "orchestrator/issue-abc",
+    _support._legacy_branch(LEGACY_ISSUE_NUMBER),
 )
 
 
@@ -56,18 +67,25 @@ class CloneGroupingTest(unittest.TestCase):
             listed.assert_called_once_with(self.clone)
 
     def test_one_clone_under_two_paths_is_one(self) -> None:
-        # One clone under two spellings is still one ref store, so its legacy
-        # branch has two claimants and belongs to neither. Grouped by the path
-        # each spec configures, both would claim it.
+        # One clone reached by another path -- a symlink to it, or a linked
+        # worktree of it configured as a target of its own -- is still one ref
+        # store, so it is read once and every branch on it is put to both
+        # entries together.
         link = self.world.path(CLONE_LINK_NAME)
         link.symlink_to(self.clone)
-        gadget = _support._spec(_support.GADGET_SLUG, link)
+        linked = self.world.path(LINKED_TARGET_NAME)
+        _run_git("worktree", "add", "-q", "--detach", str(linked), "HEAD", cwd=self.clone)
 
-        with _inventory_support._listing((_support._legacy_branch(LEGACY_ISSUE_NUMBER),)):
-            scanned = _inventory_support._scan(self.widget, gadget)
+        for path in (link, linked):
+            with self.subTest(path=path.name), _inventory_support._listing(ONE_EACH_BRANCHES) as listed:
+                scanned = _inventory_support._scan(self.widget, _support._spec(_support.GADGET_SLUG, path))
+                listed.assert_called_once()
 
-        self.assertEqual(scanned.issues, ())
-        self.assertEqual(scanned.refused, ())
+                self.assertEqual(_inventory_support._found(scanned), (
+                    (_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
+                    (_support.WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
+                ))
+                self.assertEqual(scanned.refused, ())
 
 
 class LocalInventoryRefusalTest(unittest.TestCase):
@@ -126,13 +144,13 @@ class LocalInventoryRefusalTest(unittest.TestCase):
     def test_a_refused_spec_still_claims_a_branch(self) -> None:
         # Refusing a repository settles what the scan REPORTS, not who could
         # have published what is on the clone. The colliding pair is still on
-        # this ref store, so its flat `orchestrator/issue-<n>` has three
-        # possible owners and belongs to none of them -- while the branch
-        # naming a repository outright is still that repository's.
+        # this ref store, so the one branch name both derive belongs to
+        # neither -- while the branch naming a repository outright is still
+        # that repository's.
         healthy = _support._spec(_support.GADGET_SLUG, self.clone)
         colliding = tuple(_support._spec(slug, self.clone) for slug in _support.COLLIDING_SLUGS)
         branches = (
-            _support._legacy_branch(LEGACY_ISSUE_NUMBER),
+            _support._namespaced_branch(_support.COLLIDING_SLUGS[1], COLLIDING_ISSUE_NUMBER),
             _support._namespaced_branch(_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
         )
 
@@ -142,21 +160,22 @@ class LocalInventoryRefusalTest(unittest.TestCase):
         self.assertEqual(scanned.refused, tuple(sorted(_support.COLLIDING_SLUGS)))
         self.assertEqual(_inventory_support._found(scanned), ((_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),))
 
-    def test_an_unread_flat_root_refuses_them_all(self) -> None:
-        # The one listing that is not per repository: every entry once put its
-        # checkout directly under `WORKTREES_DIR`, so a flat checkout nobody
-        # read is one any of them could still be holding -- and a caller
-        # acting on its absence would be acting on a reading nobody took.
-        gadget = _support._spec(_support.GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
-        self.world.checkout(gadget, GADGET_ISSUE_NUMBER)
+    def test_an_unread_store_still_claims_everywhere(self) -> None:
+        # A twin whose clone would not be read could share any ref store, so it
+        # stays a claimant on this one: the branch both derive is nobody's, and
+        # the checkout standing on it is withheld with it.
+        first, twin = (
+            _support._spec(_support.DIGEST_COLLIDING_SLUGS[0], self.clone),
+            _support._spec(_support.DIGEST_COLLIDING_SLUGS[1], self.world.path(NO_CLONE_NAME)),
+        )
+        shared = _support._namespaced_branch(_support.DIGEST_COLLIDING_SLUGS[1], COLLIDING_ISSUE_NUMBER)
+        self.world.checkout(first, COLLIDING_ISSUE_NUMBER)
 
-        with patch.object(
-            probes, "_legacy_checkout_numbers", return_value=None,
-        ):
-            scanned = _inventory_support._scan(self.widget, gadget)
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING), _inventory_support._listing((shared,)):
+            scanned = _inventory_support._scan(first, twin)
 
         self.assertEqual(scanned.issues, ())
-        self.assertEqual(scanned.refused, (_support.GADGET_SLUG, _support.WIDGET_SLUG))
+        self.assertEqual(scanned.refused, (_support.DIGEST_COLLIDING_SLUGS[1],))
 
     def test_an_unread_root_refuses_one_repository(self) -> None:
         # The refusal is per repository: a host that cannot list one
@@ -175,10 +194,9 @@ class LocalInventoryRefusalTest(unittest.TestCase):
 class FlatCheckoutInventoryTest(unittest.TestCase):
     """The checkout layout that had no per-repository parent, on a real host.
 
-    `WORKTREES_DIR/issue-<n>` is the one artifact whose name settles nothing --
-    every configured entry derived it identically -- so what has to answer
-    instead is the clone the directory turns out to be a worktree of. Driven
-    against real worktrees, since that identity is a thing only git knows.
+    `WORKTREES_DIR/issue-<n>` is no configured entry's derivation, so it is
+    never any repository's artifact: not when its clone is a single entry's,
+    and not when the tree stands on a branch the scan does report.
     """
 
     def setUp(self) -> None:
@@ -187,39 +205,36 @@ class FlatCheckoutInventoryTest(unittest.TestCase):
         self.clone = self.world.clone(CLONE_NAME)
         self.widget = _support._spec(_support.WIDGET_SLUG, self.clone)
 
-    def test_a_flat_checkout_goes_to_its_own_clone(self) -> None:
-        # A host whose entries keep their own clones: exactly one of them is
-        # holding this tree, and that settles what nothing in the name could.
-        sibling = _support._spec(_support.GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
+    def test_a_flat_checkout_is_never_reported(self) -> None:
+        # Its clone settles nothing either: a worktree of the one entry's own
+        # clone, or of a clone two entries share, is still no candidate.
         flat = self.world.legacy_checkout(self.widget, LEGACY_ISSUE_NUMBER)
+        for sibling in (
+            _support._spec(_support.GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME)),
+            _support._spec(_support.GADGET_SLUG, self.clone),
+        ):
+            with self.subTest(sibling=sibling.target_root.name):
+                scanned = _inventory_support._scan(self.widget, sibling)
 
-        scanned = _inventory_support._scan(self.widget, sibling)
+                self.assertEqual(scanned.issues, ())
+                self.assertEqual(scanned.refused, ())
+        self.assertTrue(flat.exists())
 
-        self.assertEqual(_inventory_support._found(scanned), ((_support.WIDGET_SLUG, LEGACY_ISSUE_NUMBER),))
-        self.assertEqual(scanned.issues[0].worktrees, (flat,))
-        self.assertEqual(scanned.withheld, ())
-
-    def test_a_shared_flat_checkout_withholds_it(self) -> None:
-        # A second entry on that clone claims the directory just as squarely,
-        # and what goes out of the answer is the whole issue rather than the
-        # directory alone: the tree is standing on the branch beside it, and
-        # reporting that branch would hand out a ref to delete under a live
-        # checkout.
-        sibling = _support._spec(_support.GADGET_SLUG, self.clone)
-        self.world.branch(
-            self.clone,
-            _support._namespaced_branch(_support.WIDGET_SLUG, LEGACY_ISSUE_NUMBER),
-        )
+    def test_its_current_branch_is_reported_alone(self) -> None:
+        # The tree is standing on the issue's own current branch. The branch is
+        # still the issue's, and it is reported with no checkout: the flat
+        # directory is no candidate's, and what keeps the branch while a tree
+        # stands on it is the checkout listing every branch deletion reads.
+        branch = _support._namespaced_branch(_support.WIDGET_SLUG, LEGACY_ISSUE_NUMBER)
+        self.world.branch(self.clone, branch)
         self.world.legacy_checkout(self.widget, LEGACY_ISSUE_NUMBER)
 
-        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING):
-            scanned = _inventory_support._scan(self.widget, sibling)
+        scanned = _inventory_support._scan(self.widget)
 
-        self.assertEqual(scanned.issues, ())
-        self.assertEqual(scanned.withheld, (
-            (_support.GADGET_SLUG, LEGACY_ISSUE_NUMBER),
-            (_support.WIDGET_SLUG, LEGACY_ISSUE_NUMBER),
-        ))
+        self.assertEqual(
+            tuple((found.issue_number, found.worktrees, found.branches) for found in scanned.issues),
+            ((LEGACY_ISSUE_NUMBER, (), (branch,)),),
+        )
 
 
 class LocalInventoryRealGitTest(unittest.TestCase):
@@ -255,11 +270,6 @@ class LocalInventoryRealGitTest(unittest.TestCase):
                     (_support._namespaced_branch(_support.WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),),
                 ),
                 (
-                    LEGACY_ISSUE_NUMBER,
-                    (),
-                    (_support._legacy_branch(LEGACY_ISSUE_NUMBER),),
-                ),
-                (
                     CHECKOUT_ONLY_ISSUE_NUMBER,
                     (
                         paths._worktree_path(
@@ -273,17 +283,15 @@ class LocalInventoryRealGitTest(unittest.TestCase):
         self.assertEqual(scanned.refused, ())
 
     def test_a_shared_clone_splits_by_branch(self) -> None:
-        # The second entry on this clone turns the legacy branch from "the
-        # only repository here" into an unanswerable question, while the
-        # namespaced branches keep saying who published them.
+        # A second entry on this clone: the namespaced branches keep saying who
+        # published them, and the flat one stays nobody's.
         gadget = _support._spec(_support.GADGET_SLUG, self.clone)
         self._plant_widget_artifacts()
         self.world.branch(
             self.clone, _support._namespaced_branch(_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
         )
 
-        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING):
-            scanned = _inventory_support._scan(self.widget, gadget)
+        scanned = _inventory_support._scan(self.widget, gadget)
 
         self.assertEqual(_inventory_support._found(scanned), (
             (_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
@@ -304,7 +312,6 @@ class LocalInventoryRealGitTest(unittest.TestCase):
         self.assertEqual(_inventory_support._found(scanned), (
             (_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
             (_support.WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
-            (_support.WIDGET_SLUG, LEGACY_ISSUE_NUMBER),
             (_support.WIDGET_SLUG, CHECKOUT_ONLY_ISSUE_NUMBER),
         ))
         self.assertEqual(scanned.refused, ())
@@ -326,12 +333,11 @@ class LocalInventoryRealGitTest(unittest.TestCase):
         self.assertEqual(scanned.refused, (_support.WIDGET_SLUG,))
 
     def _plant_widget_artifacts(self) -> None:
-        """The widget's artifacts: one issue under each branch layout, two
+        """The widget's artifacts: one issue under its own branch, the
         branches no configured repository owns, and two checkouts -- one
         under a branch of its own, one with no branch left at all."""
         for branch in (
             _support._namespaced_branch(_support.WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
-            _support._legacy_branch(LEGACY_ISSUE_NUMBER),
             *IGNORED_BRANCHES,
         ):
             self.world.branch(self.clone, branch)

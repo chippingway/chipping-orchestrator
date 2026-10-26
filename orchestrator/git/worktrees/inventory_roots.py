@@ -1,10 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Group configured repositories by the clone whose local artifacts they share.
+"""Group configured repositories by the ref store whose local artifacts they share.
 
-Unresolved roots stay represented in the grouping so their possible claims
-cannot be mistaken for evidence that another repository owns an artifact.
-Both local and remote inventory scans use this same grouping.
+A group is one git common directory, whatever path each entry reaches it by:
+two targets that are linked worktrees of one repository read and write the
+same branches. An entry whose store cannot be identified is refused and still
+counted a claimant on every store, so its possible claims cannot be mistaken
+for evidence that another repository owns an artifact. Both local and remote
+inventory scans use this same grouping.
 """
 from __future__ import annotations
 
@@ -13,6 +16,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
+from orchestrator.git.worktrees import probes
 
 # The channel is named for the worktree-lifecycle domain rather than for this
 # module's path: operators filter the rendered `orchestrator.worktree_lifecycle`
@@ -20,65 +24,63 @@ from orchestrator.config import models as _config_models
 # for says so where their filters already point.
 log = logging.getLogger("orchestrator.worktree_lifecycle")
 
-# The specs on each clone a scan reads, keyed by the path their spellings
-# agree on: one group is one ref store, and everyone in it is a claimant to
-# what that store holds.
+# The specs on each ref store a scan reads, keyed by the git common directory
+# they share: one group is one store, and everyone in it is a claimant to what
+# that store holds.
 CloneGroups = dict[Path, tuple[_config_models.RepoSpec, ...]]
 
 
-def _resolved_root(spec: _config_models.RepoSpec) -> Path | None:
-    """The clone this spec configures, as the one path its spellings agree on.
+def _ref_store(spec: _config_models.RepoSpec) -> Path | None:
+    """The git common directory this spec's clone keeps its refs in, or None.
 
-    `None` when the path cannot be resolved at all, which is a failure worth
-    catching here rather than letting out: resolution is what says whether two
-    entries are on one clone, it runs before any repository has been read, and
-    an exception escaping it ends the whole scan -- every healthy repository
-    in it included -- over one entry's `target_root`. What it costs to fail is
-    also version-dependent, so it cannot be reasoned about from the value: a
-    root reached through a symlink loop raises `RuntimeError` out of
-    `Path.resolve` on Python 3.12 and comes back unchanged on 3.13.
+    The identity the checkout checks already test a tree by, and the only one
+    that answers equal for every path onto one store: the clone itself, a
+    spelling of it through a symlink or a trailing `.`, and a linked worktree
+    of it configured as a target of its own. Grouping on the path instead
+    would put two linked-worktree targets in two groups, and a branch name
+    both derive would read as each one's alone.
 
-    The caller refuses that entry -- nothing about it is reported -- while
-    still grouping it under the path as written, because the two are different
-    questions. Whether this scan can answer for a repository is one; whether
-    that repository could have published what is on the clone it names is the
-    other, and dropping it from its group answers the second wrongly: the
-    legacy flat branch there would lose a claimant and read as unambiguously
-    some other entry's.
+    `None` when the store cannot be read at all -- a path that will not
+    resolve, a git that cannot be run, a directory that is no repository --
+    which is answered here rather than let out, because grouping runs before
+    any repository has been read and an exception escaping it ends the whole
+    scan, every healthy repository in it included.
     """
-    try:
-        return spec.target_root.resolve()
-    except (OSError, RuntimeError) as resolve_error:
+    store = probes._checkout_clone(spec.target_root)
+    if store is None:
         log.warning(
-            "could not resolve the clone %s is configured at (%s): %s",
-            spec.slug, spec.target_root, resolve_error,
+            "could not tell which repository %s is configured at (%s); "
+            "refusing it and counting it a claimant on every clone",
+            spec.slug, spec.target_root,
         )
-        return None
+    return store
 
 
 def _specs_by_clone(
     specs: Sequence[_config_models.RepoSpec],
 ) -> tuple[CloneGroups, tuple[str, ...]]:
-    """The specs grouped by the clone they name, and whose path did not resolve.
+    """The specs grouped by the ref store they share, and whose store did not read.
 
-    Grouped on the resolved path, so two entries spelling one clone
-    differently -- through a symlink, with a trailing `.` -- land in one group
-    with one ambiguous legacy branch between them instead of two groups each
-    claiming that branch for itself. The reads still run against a path a spec
-    configures, which is the one the rest of the worktree owners lock and run
-    git in.
+    Grouped on the git common directory, so entries reaching one store by
+    different paths land in one group, where a branch name two of them derive
+    is ambiguous between them, instead of separate groups each claiming that
+    branch for itself. The reads still run against a path a spec configures,
+    which is the one the rest of the worktree owners lock and run git in.
 
-    An entry whose path would not resolve is grouped under that path as
-    written rather than dropped: it is still one of the repositories that
-    could have published what its clone holds, and the second half of the
-    answer is what says the scan will not report for it.
+    An entry whose store would not read is added to every group rather than
+    dropped: nothing established which store it shares, so it is still one of
+    the repositories that could have published what any clone holds, and the
+    second half of the answer is what says the scan will not report for it.
     """
     grouped: CloneGroups = {}
-    unresolved: list[str] = []
+    unresolved: list[_config_models.RepoSpec] = []
     for spec in specs:
-        resolved = _resolved_root(spec)
-        if resolved is None:
-            unresolved.append(spec.slug)
-        clone = resolved or spec.target_root
-        grouped[clone] = (*grouped.get(clone, ()), spec)
-    return grouped, tuple(unresolved)
+        store = _ref_store(spec)
+        if store is None:
+            unresolved.append(spec)
+        else:
+            grouped[store] = (*grouped.get(store, ()), spec)
+    return (
+        {store: (*members, *unresolved) for store, members in grouped.items()},
+        tuple(unread.slug for unread in unresolved),
+    )

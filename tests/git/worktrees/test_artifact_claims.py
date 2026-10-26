@@ -330,11 +330,11 @@ class OpenPullRequestClaimTest(unittest.TestCase):
     def test_a_failed_lookup_names_each_branch(self) -> None:
         # One branch nobody could answer for says nothing about the others,
         # so the failure is reported against every branch it happened on --
-        # both layouts this issue can be published under among them.
+        # the current name and the one the record resolves to among them.
         with patch.object(
             self.gh, "find_open_pr", side_effect=RuntimeError("no answer"),
         ):
-            kept = _claims(self.gh, self.spec)
+            kept = _claims(self.gh, self.spec, branch=OTHER_BRANCH)
 
         self.assertEqual(
             _support._reasons(kept),
@@ -345,22 +345,16 @@ class OpenPullRequestClaimTest(unittest.TestCase):
             sorted((BRANCH, OTHER_BRANCH)),
         )
 
-    def test_a_legacy_layout_request_keeps_it(self) -> None:
-        # The host holds only the namespaced branch and the pinned state
-        # records nothing, so neither the scan nor the record names the flat
-        # `orchestrator/issue-<n>` this issue was published under before
-        # namespacing -- and the pull request open on it is what a reclaim
-        # would delete the checkout out from under.
+    def test_an_unrecorded_flat_name_claims_nothing(self) -> None:
+        # The flat `orchestrator/issue-<n>` is no name this issue is published
+        # under, and a reclaim never touches it: a pull request open on it,
+        # where neither the scan nor the record names it, stands on nothing a
+        # teardown takes, and is not asked about.
         self.gh.existing_open_pr[OTHER_BRANCH] = _support._pull_request(
             UNRECORDED_PR_NUMBER, OTHER_BRANCH, TIP_SHA, state=_support.OPEN_PR_STATE,
         )
 
-        kept = _claims(self.gh, self.spec)
-
-        self.assertEqual(
-            _support._reasons(kept), (RetentionReason.OPEN_PULL_REQUEST,),
-        )
-        self.assertEqual(kept[0].subject, OTHER_BRANCH)
+        self.assertEqual(_claims(self.gh, self.spec), ())
 
 
 class RecordedPullRequestTest(unittest.TestCase):

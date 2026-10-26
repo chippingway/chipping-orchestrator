@@ -30,7 +30,7 @@ import contextlib
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.worktrees import naming as _naming, terminal as _worktree_terminal
+from orchestrator.git.worktrees import terminal as _worktree_terminal
 from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import (
@@ -51,15 +51,17 @@ def _teardown_question_worktree(run: _models._QuestionRun) -> None:
     either road made, and a guarded commit refused over one mid-run answers
     rather than raises, so how the road ended proves nothing about the record.
 
-    The branch name is resolved rather than derived so a worktree created under
-    the legacy naming scheme is still the one torn down.
+    The branch is the one the record names rather than the live resolver's
+    reading of it, and the teardown deletes it only where it is the issue's
+    current-layout name; any other pinned name is left for manual disposition,
+    and no derived name is deleted in its place.
     """
     if not _record_admission.teardown_admitted(run.gh, run.issue):
         return
     _worktree_terminal._cleanup_question_worktree(
         run.spec,
         run.issue.number,
-        branch=_naming._resolve_branch_name(
+        branch=_worktree_terminal._recorded_branch(
             run.state, run.spec, run.issue.number,
         ),
     )

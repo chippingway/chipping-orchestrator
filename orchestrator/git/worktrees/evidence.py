@@ -11,11 +11,13 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import (
     evidence_reads as _evidence_reads,
     naming as _naming,
+    paths,
     probes,
     tip_evidence as _tip_evidence,
 )
@@ -168,19 +170,42 @@ def _head_ref(worktree: Path) -> tuple[ProbeAnswer, str]:
 def _head_is_own_branch(
     spec: _config_models.RepoSpec, issue_number: int, worktree: Path,
 ) -> ProbeAnswer:
-    """Whether this checkout's HEAD is on a branch this issue publishes under.
+    """Whether this checkout's HEAD is on the branch this issue publishes under.
 
     The half of the identity that says the tree belongs to this issue rather
-    than to whatever was checked out into it afterwards. Both names one issue
-    can be published under are accepted, since a checkout made before slug
-    namespacing landed is still on the flat one.
+    than to whatever was checked out into it afterwards. Only the current
+    layout's exact name is accepted: a tree on the flat
+    `orchestrator/issue-<n>`, on another repository's branch, or on any other
+    name in the namespace is foreign, and its candidate is kept.
     """
     answer, branch = _head_ref(worktree)
     if answer is not ProbeAnswer.CONFIRMED:
         return answer
-    if branch not in _naming._issue_branch_names(spec, issue_number):
+    if branch != _naming._branch_name(spec, issue_number):
         return ProbeAnswer.REFUTED
     return ProbeAnswer.CONFIRMED
+
+
+def _at_layout_path(
+    spec: _config_models.RepoSpec, issue_number: int, worktree: Path,
+) -> ProbeAnswer:
+    """Whether this checkout is reached at the issue's own layout path.
+
+    Every read and every removal of the tree acts on whatever the path
+    resolves to, so a symlink at the issue's path -- or a per-repository
+    parent that is one -- would hand them another tree entirely, a flat
+    checkout an earlier layout left included. The path has to resolve to
+    exactly where the layout puts this issue's checkout under `WORKTREES_DIR`,
+    which may itself be configured through a symlink. A path that will not
+    resolve is unread rather than refuted, since a symlink loop fails
+    differently across Python versions.
+    """
+    layout = paths._worktree_path(spec, issue_number).relative_to(config.WORKTREES_DIR)
+    try:
+        placed = worktree.resolve() == config.WORKTREES_DIR.resolve() / layout
+    except (OSError, RuntimeError):
+        return ProbeAnswer.UNREADABLE
+    return ProbeAnswer.CONFIRMED if placed else ProbeAnswer.REFUTED
 
 
 def _checkout_identity(
@@ -188,13 +213,17 @@ def _checkout_identity(
 ) -> ProbeAnswer:
     """Whether this checkout is the one this issue's own creator made.
 
-    Both halves have to hold and neither implies the other: a worktree of the
-    configured clone can be sitting on any branch in it, and a HEAD naming
+    Three halves have to hold and none implies another: the path has to be
+    the issue's own rather than a symlink to some other tree, a worktree of
+    the configured clone can be sitting on any branch in it, and a HEAD naming
     this issue's branch can belong to a repository somebody else made. The
-    repository is asked first, because a HEAD read against a tree that is not
-    ours answers about a ref store this classification is not entitled to
-    reason about.
+    placement is asked first and the repository next, because a HEAD read
+    against a tree that is not ours answers about a ref store this
+    classification is not entitled to reason about.
     """
+    placed = _at_layout_path(spec, issue_number, worktree)
+    if placed is not ProbeAnswer.CONFIRMED:
+        return placed
     shared = _shared_repository(spec, worktree)
     if shared is not ProbeAnswer.CONFIRMED:
         return shared

@@ -3,14 +3,23 @@
 """Reclaim only this issue's superseded branch and verify its local teardown.
 
 The obligation remains failed until both the remote branch and local
-checkout and branch are gone. An unowned branch is never deleted.
+checkout and branch are gone. Only the issue's exact current-layout branch is
+owned, and only where no other configured repository derives it too; any other
+recorded name, the flat `orchestrator/issue-<n>` included, is never deleted,
+and the checkout is removed only where it is proven the issue's own.
 """
 from __future__ import annotations
 
 import logging
 
+from orchestrator import config
 from orchestrator.config import models as _config_models
-from orchestrator.git.worktrees import cleanup as _worktree_cleanup, naming as _naming, paths as _worktree_paths
+from orchestrator.git.worktrees import (
+    attribution as _attribution,
+    cleanup as _worktree_cleanup,
+    naming as _naming,
+    paths as _worktree_paths,
+)
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.obligations import LateResourceState
@@ -25,24 +34,29 @@ log = logging.getLogger("orchestrator.workflow")
 def _ours(
     spec: _config_models.RepoSpec, issue_number: int, branch: str,
 ) -> bool:
-    """Whether a recorded target is one of THIS issue's own branches.
+    """Whether a recorded target is THIS issue's own branch.
 
     Asked before anything is deleted by it, because the target comes off a
     ledger a human can edit and the call it is spent on is destructive: an
     entry naming `main` would otherwise delete an unprotected `main`.
 
-    An exact match against the names this spec publishes this issue under,
-    not a namespace test. `orchestrator/` with an `/issue-<n>` tail is also
-    the shape of ANOTHER repository's branch for another issue that shares the
-    number -- `orchestrator/other-repository/issue-41` passes a prefix-and-
-    tail reading -- and two specs sharing one `target_root` is the ordinary
-    case, not a contrived one. The number comes from the issue being walked
-    rather than from the record, so a hand-edited identity cannot point the
-    delete at a branch of somebody else's.
+    An exact match against the one name the current layout derives for this
+    spec and issue, not a namespace test. `orchestrator/` with an
+    `/issue-<n>` tail is also the shape of ANOTHER repository's branch for
+    another issue that shares the number -- `orchestrator/other-repository/
+    issue-41` passes a prefix-and-tail reading -- and two specs sharing one
+    `target_root` is the ordinary case, not a contrived one. The flat
+    `orchestrator/issue-<n>` carries no repository at all, so it is no proof
+    either. Nor is the exact name where another configured repository derives
+    it identically, or shares the checkout directory it lives beside: that
+    name could be the other repository's issue of the same number. The number
+    comes from the issue being walked rather than from the record, so a
+    hand-edited identity cannot point the delete at a branch of somebody
+    else's.
     """
-    if not isinstance(branch, str):
+    if not isinstance(branch, str) or branch != _naming._branch_name(spec, issue_number):
         return False
-    return branch in _naming._issue_branch_names(spec, issue_number)
+    return _attribution._sole_claimant(spec, issue_number, config.default_repo_specs())
 
 
 def _reclaim_branch(
@@ -79,8 +93,8 @@ def _reclaim_branch(
     """
     if not _ours(spec, issue_number, branch):
         log.error(
-            "issue=#%d recorded branch %r is not one this issue is published "
-            "under; refusing to delete it", issue_number, branch,
+            "issue=#%d recorded branch %r is not the branch this issue alone "
+            "is published under; refusing to delete it", issue_number, branch,
         )
         return _late_cleanup_state._recorded(generation, _late_cleanup_state._BRANCH, branch, LateResourceState.FAILED)
     try:
