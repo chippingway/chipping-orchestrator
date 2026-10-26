@@ -144,75 +144,31 @@ class ArtifactShapeTest(_eligibility_case._CandidateTestCase):
             with self.subTest(shape=tuple(artifacts)):
                 self.assertEqual(self.classify(**artifacts).retentions, ())
 
-    def test_a_legacy_branch_is_read_too(self) -> None:
-        # An issue in flight when namespacing landed publishes under both
-        # names, and each is a branch that has to prove itself: the flat one
-        # here still carries work nothing accounts for.
-        self.landed()
-        legacy = _legacy_branch(ISSUE_NUMBER)
-        self.world.commit_on(self.clone, legacy)
 
-        verdict = self.classify(branches=(self.branch, legacy))
+class FlatBranchCheckoutTest(_eligibility_case._CandidateTestCase):
+    """A checkout at this issue's path standing on the flat branch is foreign.
 
-        self.assertEqual(
-            _reasons(verdict.retentions),
-            (RetentionReason.UNACCOUNTED_COMMITS,),
-        )
-        self.assertEqual(verdict.retentions[0].subject, legacy)
-
-
-class MigratedCheckoutTest(_eligibility_case._CandidateTestCase):
-    """Both checkout layouts of one issue are read, and each on its own.
-
-    A host that was running when the slug went into the path holds two trees
-    for the issue it was mid-way through: the flat one it started in and the
-    per-repository one the next tick made. They are two directories with two
-    HEADs and two reflogs, and a reading that covered one of them would clear
-    the issue while the other stayed on disk with whatever it holds.
+    The path is the current layout's, but the HEAD under it is a name no
+    configured repository derives. The tree's work belongs to that branch, not
+    to the issue's current one, so the candidate is kept rather than cleared
+    for it -- however cleanly the commit under it landed.
     """
 
-    def both_layouts(self):
-        """This issue's two checkouts, current-first, with base on their commit.
-
-        The flat branch is pointed at the tip the namespaced one already stands
-        on, since a tree may not be added on a branch another worktree holds --
-        and one commit under two names is what a migration actually left.
-        """
+    def test_a_checkout_on_the_flat_branch_keeps_it(self) -> None:
         legacy = _legacy_branch(ISSUE_NUMBER)
-        tip = self.landed()
+        self.landed()
         _candidate_refs._branch_at(self.clone, legacy, self.branch)
-        flat = self.world.checkout_at(
-            self.spec, paths._legacy_worktree_path(ISSUE_NUMBER), legacy,
-        )
-        return tip, (self.checkout(), flat)
-
-    def test_both_checkout_layouts_are_proven(self) -> None:
-        # Each tree is an artifact in its own right: the verdict clears both
-        # or it clears neither, and it hands over the commit each was found
-        # standing on, in the order a teardown takes them down in.
-        tip, worktrees = self.both_layouts()
-
-        verdict = self.classify(worktrees=worktrees)
-
-        self.assertTrue(verdict.eligible)
-        self.assertEqual(
-            verdict.proven,
-            tuple(ProvenTip(str(worktree), tip) for worktree in worktrees),
+        worktree = self.world.checkout_at(
+            self.spec, paths._worktree_path(self.spec, ISSUE_NUMBER), legacy,
         )
 
-    def test_the_flat_checkout_is_read_on_its_own(self) -> None:
-        # What a reading that covered one tree would clear the issue past: the
-        # flat one is carrying an agent's unfinished work while the current one
-        # is spotless, and the retention names the directory to go and look in.
-        _tip, worktrees = self.both_layouts()
-        (worktrees[1] / LOOSE_FILE).write_text(LOOSE_CONTENT)
-
-        verdict = self.classify(worktrees=worktrees)
+        verdict = self.classify(worktree=worktree, branches=self.branches)
 
         self.assertEqual(
-            _reasons(verdict.retentions), (RetentionReason.WORKTREE_DIRTY,),
+            _reasons(verdict.retentions), (RetentionReason.FOREIGN_CHECKOUT,),
         )
-        self.assertEqual(verdict.retentions[0].subject, str(worktrees[1]))
+        self.assertEqual(verdict.retentions[0].subject, str(worktree))
+        self.assertEqual(verdict.proven, ())
 
 
 class RemoteGateTest(_eligibility_case._CandidateTestCase):

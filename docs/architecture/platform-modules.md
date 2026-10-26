@@ -186,8 +186,9 @@ orchestrator/
     artifact_records.py the one bounded record each of those candidates is reported to the analytics sink as, and the
                         only thing the pass leaves anywhere but the log: exactly one per candidate DECIDED about --
                         never one per artifact, phase, or deletion step -- carrying the repository, the issue, the
-                        outcome, the closed reason that fixes it, the layout it was published under, and a branch
-                        only where the reason names one this repository itself publishes that issue under. Which
+                        outcome, the closed reason that fixes it, where it was found (`current` or `remote_only`),
+                        and a branch only where the reason names the one this repository publishes that issue
+                        under -- a flat or foreign name never is. Which
                         KIND of artifact a subject is comes off the reason rather than the string, since a checkout
                         path and a branch name are the same text on a host whose `WORKTREES_DIR` is `orchestrator`,
                         and what is written is the derived name rather than the one that arrived. Every
@@ -1423,23 +1424,31 @@ orchestrator/
                         and the branches beside them name, the classification of which of those may be
                         reclaimed, and the bounded pass that spends one of those classifications
       naming.py         slug sanitization, git-ref-safe branch segments, and pinned or legacy branch resolution:
-                        the exact set of names one issue's branch can be published under, and the `orchestrator/`
-                        namespace they all live in -- the only one a pinned branch is honored in, and the one the
-                        community sweep tells an issue's own pull request by
-      paths.py          the two paths an issue can have been checked out at -- the per-repository one and the flat
-                        one that predates the slug in the path -- and the
-                        `issue-<n>` read that runs back the other way -- canonical spellings only, so a padded or
-                        signed number is no issue at all
+                        the one current-layout branch name an issue owns -- the only name ownership and cleanup
+                        recognize -- and the `orchestrator/` namespace it lives in, the only one a pinned branch is
+                        honored in and the one the community sweep tells an issue's own pull request by; neither
+                        that prefix nor the flat name the resolver can still answer is ownership evidence
+      paths.py          the one per-repository path an issue is checked out at, and the `issue-<n>` read that runs
+                        back the other way -- canonical spellings only, so a padded or signed number is no issue
+                        at all; a flat `WORKTREES_DIR/issue-<n>` is no repository's derivation
       creation.py       issue and PR worktree creation, stale-worktree reuse and the unpushed-commit probe it turns on
       anchoring.py      the shared restore fetch and the guarded move that re-anchors a reused checkout onto a PR
                         head or its merged base, with the target-root lock held across refresh and movement
       cleanup.py        lock-held worktree removal and local branch deletion, each behind its best-effort boundary,
-                        plus the fail-closed read a caller that has to RECORD the teardown asks afterwards
+                        plus the fail-closed read a caller that has to RECORD the teardown asks afterwards. The
+                        forced removal is spent only on a checkout `evidence` proves a worktree of the clone on the
+                        issue's exact branch, at a path that resolves to its layout location rather than through a
+                        symlink; a foreign, symlink-reached, or unreadable tree is left with every file in it
       recovery.py       candidate-branch discovery, the unpushed-commit probe, and the tip read a recorded SHA is
                         compared against
       decomposition.py  the decomposer scratch path, its detached creation, and its best-effort removal
-      terminal.py       question-stage teardown and terminal local and remote branch cleanup
-      candidates.py     local issue artifacts, the inventory's refused and withheld claims, candidate layout,
+      terminal.py       question-stage teardown and terminal local and remote branch cleanup; a branch is
+                        deleted only where it is the issue's exact current-layout name, tested against the
+                        record's raw pin (`_recorded_branch`) rather than the live resolver's reading, so a
+                        pinned flat, foreign, or any other branch is kept on both hosts and no derived name is
+                        reaped in its place, and nothing is touched where another configured repository derives
+                        the same branch name or checkout directory
+      candidates.py     local issue artifacts, the inventory's refused repositories, where a candidate was found,
                         and the combined maintenance scan. These records describe what discovery established
       models.py         the three answers a fail-closed probe can give, branch and proven commit identities,
                         retention reasons and subjects, and the eligibility verdict over a discovered candidate
@@ -1450,40 +1459,34 @@ orchestrator/
                         named as the derivations spell it rather than as git's shortest unambiguous form, and
                         answering "could not read" -- a listing that warned about a ref it skipped included, since
                         what came back is then short by exactly that branch -- apart from "nothing here"
-      probes.py         the checkout reads a scan is built from: the directories under both roots -- the spec's own
-                        and, once for the whole host, the flat `WORKTREES_DIR` every entry shared before
-                        namespacing -- a real directory under the exact name, never a symlink into a tree the
-                        creators never wrote, read through the `lstat` that reports what the `is_dir` predicates
-                        suppress -- each answering "could not read", listing and entry alike, apart from "nothing
-                        here"; and the one read that is not a listing, which git directory a checkout and a clone
-                        share, since a flat checkout's name says nothing about whose it is and a named one's claim
-                        has to be tested. Both halves of the domain ask that one, so it is defined once and here
+      probes.py         the checkout reads a scan is built from: the directories under the spec's own root -- a
+                        real directory under the exact name, never a symlink into a tree the creators never wrote,
+                        read through the `lstat` that reports what the `is_dir` predicates suppress -- each
+                        answering "could not read", listing and entry alike, apart from "nothing here"; the flat
+                        `WORKTREES_DIR` is never listed. And the one read that is not a listing, which git
+                        directory a checkout and a clone share, since a named checkout's claim has to be tested
+                        and the checkout listing counts the clone's entries by it, so it is defined once and here
       attribution.py    which configured repository a local branch belongs to, by re-deriving each spec's own
-                        name for it; a name several entries could own -- every legacy flat branch on a shared
-                        clone, every namespaced one two lossily-sanitized slugs are handed -- is attributed to
-                        none of them, since a branch charged to the wrong repository is one a caller acts on
-                        against the wrong GitHub issue
+                        name for it; a flat `orchestrator/issue-<n>` is no entry's derivation and is attributed to
+                        nobody however few entries share the clone, and a namespaced name two lossily-sanitized
+                        slugs both derive is attributed to neither, since a branch charged to the wrong
+                        repository is one a caller acts on against the wrong GitHub issue. The same branch rule
+                        asked of one repository and issue (`_shared_branch`) refuses a checkout standing on such
+                        a name, whose own directory settles nothing; a teardown asks it with the directory rule
+                        (`_sole_claimant`)
       checkout_attribution.py
-                        the same question for a checkout directory, which carries even less of a name. The flat
-                        pre-namespacing one no name can settle, since every entry derived it identically, is
-                        attributed by the clone the directory turns out to be a worktree of -- which answers every
-                        host whose entries keep their own clones and leaves the shared-clone case ambiguous. An
-                        entry whose OWN clone would not answer claims it too, since nothing ruled that entry out
-                        and dropping it is how a shared checkout reads as uniquely owned; a flat path that is some
-                        entry's worktrees root is not a checkout at all. The per-repository parent is the
-                        configuration's own ambiguity beside it: two entries the path sanitizer cannot tell apart
-                        are handed one directory, and both are refused outright. Every unsettled shape names its
-                        claimants rather than nobody, because a tree none of them may take is standing on one of
-                        that issue's branches: the scan has to withhold the issue, not just the directory
+                        the per-repository checkout directory's own ambiguity: two entries the path sanitizer
+                        cannot tell apart are handed one directory, and both are refused outright. A flat
+                        `WORKTREES_DIR/issue-<n>` is never put to it, since no entry derives that path
       inventory_roots.py
-                        group configured repositories by their resolved clone, retaining unresolved claimants
-                        so an unreadable root cannot make another repository appear to own a shared branch
-      legacy_inventory.py
-                        attribute the host's flat checkout listing by clone identity and record both owned and
-                        ambiguous issue claims; identity reads are spent only where the listing found checkouts
-      inventory.py      combine those claims with per-repository checkout listings and one branch listing per
-                        clone. Deduplicate each issue's artifacts, withhold ambiguous issues on every claimant,
-                        and refuse unreadable or colliding roots rather than report an empty inventory
+                        group configured repositories by the git common directory their targets share, so a
+                        symlinked spelling and a linked worktree configured as a target land with the clone
+                        they share a ref store with; an entry whose store will not read is refused and counted
+                        a claimant on every clone, so it cannot make another repository appear to own a branch
+      inventory.py      combine per-repository checkout listings with one branch listing per clone, reporting
+                        each issue's current-layout checkout and branch, withholding a checkout whose branch name
+                        another entry on the clone derives, and refuse unreadable or colliding roots rather than
+                        report an empty inventory
       evidence_reads.py
                         hardened local reads, with clone reads serialized under the target-root lock so they
                         cannot land between a worktree mutation and the ref it creates; spawn failures stay unread
@@ -1492,7 +1495,9 @@ orchestrator/
                         Tracking refs cannot prove publication because a per-issue checkout can rewrite them;
                         the remote answer therefore comes over authenticated transport without fetching
       evidence.py       checkout ownership, symbolic HEAD identity, status, and ignored-file evidence. Identity
-                        compares the clone and the issue's branch names before content can justify removing it.
+                        requires the path to resolve to its layout location under `WORKTREES_DIR`, then compares the
+                        clone and the issue's exact current-layout branch before content can justify removing it,
+                        so a checkout on a flat or foreign branch, or one a symlink reaches, is kept.
                         Loose and ignored files are separate reads because git refuses removal for only the first;
                         either kind keeps the tree, as does a status or identity read that could not be taken
       activity_evidence.py
@@ -1512,8 +1517,9 @@ orchestrator/
                         exactly-one-terminal-label rule an ending has to pass, read over canonical labels alone so
                         an obsolete bare name neither ends an issue nor makes it ambiguous, and the open pull
                         requests still standing on a branch or on the recorded number. The branch claims are
-                        asked of both layouts this orchestrator publishes an issue under whether or not the host
-                        still holds them, and they name no base, since a thread retargeted onto another base
+                        asked of the issue's current-layout name whether or not the host still holds it and of
+                        the branch its record resolves to, which can only keep a candidate, and they name no
+                        base, since a thread retargeted onto another base
                         stands on the branch just as squarely. Every read is behind its own boundary, the lazy
                         fields included, and every boundary answers with a retention rather than a default
       commit_claims.py  the same side asked about one commit: whether a terminal pull request exactly accounts
@@ -1537,16 +1543,16 @@ orchestrator/
       eligibility.py    the side-effect-free classifier: issue state, pinned-record admission, and open
                         pull-request claims first, then checkout and branch retention proofs with one base reading
                         for the whole candidate.
-                        Returns every retention reason or the exact commit each artifact was cleared at, so
-                        two checkout layouts with different HEADs are each proven before either may be removed
+                        Returns every retention reason or the exact commit each artifact was cleared at, so the
+                        checkout and the branch are each proven before either may be removed
       remote_inventory.py
                         list the orchestrator branch namespace once per reachable repository and attribute it
                         against every spec sharing the clone. An unreachable remote refuses its whole repository
       candidate_layout.py
-                        classify the complete artifact names as current, legacy, mixed, or remote-only; both
-                        checkout paths and branch names contribute to that classification
-      discovery.py      merge local and remote evidence into one ordered candidate per issue. A withheld local
-                        claim stays withheld on both halves, so a remote branch cannot revive a refused candidate
+                        record whether this host still holds anything of a candidate (`current`) or only the
+                        remote does (`remote_only`), read while the clone's branches are still apart
+      discovery.py      merge local and remote evidence into one ordered candidate per issue, keeping only the
+                        issue's current-layout branch, so a remote-only flat ref never becomes a candidate
       reclaim.py        the three commit-pinned teardown steps, each behind a total boundary and each refused
                         by git or by the remote rather than
                         by the reading in front of it: the removal that does not force, so a tree written in
@@ -1567,15 +1573,16 @@ orchestrator/
                         each candidate and again immediately before its first mutation, after the costly
                         eligibility reads
       checkout_removal.py
-                        remove each checkout only after re-reading the exact HEAD the classification cleared.
-                        A moved or unreadable tip, missing proof, or failed removal stops the candidate
+                        remove each checkout only after re-reading its identity and the exact HEAD the
+                        classification cleared. A checkout no longer the issue's own, a moved or unreadable tip,
+                        missing proof, or failed removal stops the candidate
       branch_removal.py
                         require a complete checkout listing and refuse any branch still checked out. Delete on
                         the remote before the clone, re-reading each tip against its proof immediately before
                         the mutation. A failed remote delete leaves the local branch discoverable for another pass
       maintenance.py    the bounded pass: active claim, then -- under the issue's writer claim, held from the
                         classification's first reading of the issue through the teardown -- classification, quiet
-                        period, final continuation guard, then all checkouts before any branch. A refused claim
+                        period, final continuation guard, then the checkout before the branch. A refused claim
                         keeps the candidate with nothing read or touched. Records one result per candidate through
                         `maintenance_results`; a candidate not reached has no result. No retry queue, issue label,
                         pinned state, comment, or session is changed, so an interrupted pass can be rediscovered
@@ -1623,11 +1630,10 @@ off a facade:
 - `worktrees/` — the creators call `commands`, `locks`, `branch_transport`, and their `paths`, `naming`, `anchoring`,
   and `recovery` siblings. `anchoring` reads branch transport and moves the checkout under the target-root lock;
   `decomposition` resolves its own path helper; `terminal` composes its local teardown from `cleanup`. The read-only
-  scan sits on the same owners: `inventory` combines `inventory_roots` and `legacy_inventory` with `branch_probes`,
-  `probes`, `attribution`, `checkout_attribution`, and `paths`. `legacy_inventory` uses checkout attribution and
-  identity reads; `inventory_roots` resolves and groups clone roots. `probes`, `attribution`, and
-  `checkout_attribution` reach `paths` and `naming` for the names they compare against. Only the two probe owners
-  reach `commands` — `branch_probes` the `locks` its listing is taken under as well.
+  scan sits on the same owners: `inventory` combines `inventory_roots` with `branch_probes`, `probes`,
+  `attribution`, `checkout_attribution`, and `paths`; `inventory_roots` groups entries by the ref store `probes`
+  identifies. `probes`, `attribution`, and `checkout_attribution` reach `paths` and `naming` for the names they compare
+  against. Only the two probe owners reach `commands` — `branch_probes` the `locks` its listing is taken under as well.
   `candidates` and `models` carry only data; `maintenance_results` constructs the bounded record for an outcome.
   Nothing in the scan writes, fetches, or names GitHub. Classification keeps that split visible:
   `evidence_reads` owns hardened and locked git reads; `tip_evidence` adds authenticated remote answers;

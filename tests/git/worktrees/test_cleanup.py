@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from orchestrator.git import commands, locks
 from orchestrator.git.worktrees import cleanup
+from orchestrator.git.worktrees.models import ProbeAnswer
 from tests.git.worktrees.lifecycle_test_support import (
     ISSUE_BRANCH,
     ISSUE_NUMBER,
@@ -67,6 +68,21 @@ class IssueWorktreeRemovalTest(unittest.TestCase):
         with _worktree_fixture() as fixture:
             cleanup._remove_issue_worktree(fixture.spec, ISSUE_NUMBER)
             self.assertEqual(fixture.git.calls, [])
+
+    def test_an_unproven_checkout_is_left(self) -> None:
+        # The removal is forced, so a tree not proven this issue's own -- one
+        # on a flat or foreign branch, or one whose identity would not read --
+        # keeps every file in it, and git is never asked to remove it.
+        for identity in (ProbeAnswer.REFUTED, ProbeAnswer.UNREADABLE):
+            with (
+                self.subTest(identity=identity),
+                _worktree_fixture(checkout_identity=identity) as fixture,
+            ):
+                planted = fixture.plant_issue_worktree()
+                with self.assertLogs(cleanup.log, level="WARNING"):
+                    cleanup._remove_issue_worktree(fixture.spec, ISSUE_NUMBER)
+                self.assertEqual(fixture.git.calls, [])
+                self.assertTrue(planted.exists())
 
     def test_present_worktree_is_force_removed(self) -> None:
         # The parent clone owns the worktree registration, so the removal

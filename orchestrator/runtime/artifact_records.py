@@ -7,8 +7,8 @@ for -- never one per phase, per artifact, or per deletion step. That
 granularity is the whole of what a reader counts on: a pass takes a candidate
 as one unit and answers for it once, so a count of these records is a count of
 finished issues considered, and a count grouped by outcome is what the host did
-about them. A record per branch would make an issue holding both published
-layouts look like two, and a record per step would count a candidate whose
+about them. A record per artifact would make an issue holding a checkout and a
+branch look like two, and a record per step would count a candidate whose
 teardown ran further than another's as more work rather than the same one
 issue.
 
@@ -17,8 +17,9 @@ an interrupted pass answers for the prefix it got to, and the discovery that
 found the rest finds them again next pass. Nothing here is a retry list.
 
 What may travel is closed and short: the repository and the issue the envelope
-already spells, the outcome, the reason that fixes it, the layout the artifacts
-were published under, and -- only where the reason is about one -- the branch.
+already spells, the outcome, the reason that fixes it, where the artifacts were
+found (`current` or `remote_only`), and -- only where the reason is about one --
+the branch.
 Every one of them but the last is a member of a vocabulary this package
 declares, so the record cannot say anything the code does not already name.
 What a teardown actually touched stays off it: no command, no git output, no
@@ -205,10 +206,11 @@ def _named_branch(answer: MaintenanceResult) -> str | None:
     published as a branch that was never touched.
 
     Then the name itself, and it is the derived one that is written rather
-    than the subject that arrived: what reaches the sink is a value this owner
-    produced from the repository and the issue number, matched against what
-    the result named. A path, an issue reference, and a branch some other spec
-    on a shared clone owns each fail that match and are dropped.
+    than the subject that arrived: what reaches the sink is the current-layout
+    name this owner produced from the repository and the issue number, matched
+    against what the result named. A path, an issue reference, a flat
+    `orchestrator/issue-<n>`, and a branch some other spec on a shared clone
+    owns each fail that match and are dropped.
 
     Dropped rather than emptied, because the envelope leaves a `None` extra
     out entirely -- a record with no branch key is a reason that was never
@@ -217,12 +219,8 @@ def _named_branch(answer: MaintenanceResult) -> str | None:
     if not _names_a_branch(answer):
         return None
     artifacts = answer.candidate.artifacts
-    published = _naming._issue_branch_names(
-        artifacts.spec, artifacts.issue_number,
-    )
-    return next(
-        (name for name in published if name == answer.subject), None,
-    )
+    published = _naming._branch_name(artifacts.spec, artifacts.issue_number)
+    return published if published == answer.subject else None
 
 
 def _names_a_branch(answer: MaintenanceResult) -> bool:

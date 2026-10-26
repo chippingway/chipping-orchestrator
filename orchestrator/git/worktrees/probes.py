@@ -2,18 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """The local checkout reads a per-issue artifact scan is assembled from.
 
-What this host holds for an issue is a checkout under one of two roots: the
-spec's own worktrees directory, and -- for an issue that was in flight before
-the slug went into the path -- the flat `WORKTREES_DIR` every entry once
-shared. Both are read here, and neither writes, fetches, or asks GitHub
-anything: the scan above exists to answer from artifacts alone, so an issue
-nobody remembers is still found by what it left behind.
+What this host holds for an issue is a checkout under the spec's own worktrees
+directory, and that is the one root read here. A flat `issue-<n>` directly
+under `WORKTREES_DIR` is no configured entry's derivation and is never listed.
+Nothing here writes, fetches, or asks GitHub anything: the scan above exists to
+answer from artifacts alone, so an issue nobody remembers is still found by
+what it left behind.
 
-One read here is not a listing at all. A checkout under the flat root carries
-nothing in its name saying whose it is, so the scan has to ask the directory
-itself which clone it is a worktree of -- the same identity the classification
-tests a named checkout by, which is why the read lives here for both of them
-rather than twice.
+One read here is not a listing at all: which clone a checkout or a clone
+shares its git directory with. The classification tests a named checkout's
+identity by it and the checkout listing finds the clone's worktree entries
+with it, which is why it lives here once rather than in each of them.
 
 Every listing fails closed, and for the same reason. A directory that could
 not be listed is answered with `None` rather than with the empty answer it
@@ -31,7 +30,6 @@ import logging
 from pathlib import Path
 from stat import S_ISDIR
 
-from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.git import commands
 from orchestrator.git.worktrees import paths
@@ -51,12 +49,11 @@ def _checkout_clone(root: Path) -> Path | None:
     -- so the common directory is the only spelling that answers equal for a
     checkout and the clone that created it.
 
-    Two callers ask exactly this, one from each half of the domain. The scan
-    asks it of a checkout whose NAME says nothing about whose it is -- the flat
-    pre-namespacing layout -- and the classification asks it of a checkout
-    whose name does, to establish that the directory at that path really is a
-    worktree of the clone the name claims. It lives here because this is the
-    lower of the two, and because it is one read rather than two.
+    The classification asks it of a checkout whose name claims an issue, to
+    establish that the directory at that path really is a worktree of the
+    clone the name claims, and the checkout listing asks it of the clone to
+    find the worktree entries it counts. It lives here because this is the
+    lower of the owners asking it, and because it is one read rather than two.
 
     Resolved against the directory the read ran in rather than asked for
     absolutely, because git answers this one relatively whenever it can and
@@ -170,19 +167,3 @@ def _checkout_numbers(root: Path) -> frozenset[int] | None:
 def _worktree_issue_numbers(spec: _config_models.RepoSpec) -> frozenset[int] | None:
     """Every issue this host still holds a per-repository checkout for."""
     return _checkout_numbers(paths._repo_worktrees_root(spec))
-
-
-def _legacy_checkout_numbers() -> frozenset[int] | None:
-    """Every issue a flat pre-namespacing checkout still stands for.
-
-    One read for the whole host rather than one per repository, because the
-    layout it reads is the one that had no per-repository parent: every
-    configured entry put its `issue-<n>` checkout directly under
-    `WORKTREES_DIR`, so what this finds is a set of issue numbers with nothing
-    on them saying whose they are. Deciding that is ``attribution``'s.
-
-    The per-repository roots live under the same directory and are passed over
-    on their names alone -- `<owner>__<name>` is not an `issue-<n>` -- so this
-    reads the legacy layout without ever descending into the current one.
-    """
-    return _checkout_numbers(config.WORKTREES_DIR)

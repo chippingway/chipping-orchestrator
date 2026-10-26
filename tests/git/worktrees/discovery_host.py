@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.worktrees import paths
+from tests.git.worktrees import artifact_git as _artifact_git
 from tests.git.worktrees.artifact_git import BASE_BRANCH
 from tests.git.worktrees.artifact_test_support import GADGET_SLUG, WIDGET_SLUG, _namespaced_branch, _spec
 from tests.git.worktrees.candidate_host_test_support import (
@@ -63,11 +63,11 @@ class _DiscoveryHostCase(unittest.TestCase):
 
         Directly under `WORKTREES_DIR`, with no per-repository parent, which is
         the layout every entry shared until the slug went into the path -- and
-        which a host that has been running since then is still holding.
+        which no configured repository derives, so nothing attributes it.
         """
         return self.world.checkout_at(
             self.spec,
-            paths._legacy_worktree_path(ISSUE_NUMBER),
+            _artifact_git._flat_checkout_path(ISSUE_NUMBER),
             branch or self.branch,
         )
 
@@ -75,8 +75,8 @@ class _DiscoveryHostCase(unittest.TestCase):
         """A second configured repository over the very same clone.
 
         A public and a private remote across one checkout, which is the shape
-        branch namespacing exists for -- and the one shape in which an artifact
-        carrying no slug cannot be charged to either of them.
+        branch namespacing exists for: each entry's namespaced names still say
+        which of them published them, and a flat one says nothing for either.
         """
         sibling = _spec(GADGET_SLUG, self.clone)
         self.world.serve_beside(sibling, SIBLING_REMOTE_DIR)
@@ -86,9 +86,8 @@ class _DiscoveryHostCase(unittest.TestCase):
         """A second configured repository, on a clone and a remote of its own.
 
         What a multi-repo host normally looks like: the entries do not share a
-        ref store, so nothing about one of them makes the other's artifacts
-        ambiguous -- which is the whole difference between this and a shared
-        `target_root`.
+        ref store, so a flat checkout here is a worktree of exactly one of
+        their clones -- and still no entry's artifact.
         """
         sibling = _spec(GADGET_SLUG, self.world.clone(SIBLING_CLONE_NAME))
         self.world.serve_beside(sibling, SIBLING_REMOTE_DIR)

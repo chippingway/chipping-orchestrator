@@ -5,30 +5,33 @@
 A branch found in this host's orchestrator-owned namespace is not evidence of
 anything on its own. Several ``REPOS`` entries may share one `target_root` --
 a public and a private remote over a single checkout is the shape branch
-namespacing exists for -- and their ref stores are one store, so everything
-under `orchestrator/` there was published by whichever of them owns that
-issue. Attribution is therefore a question about the whole set of configured
-specs rather than about one name in isolation, and every function here takes
-that set.
+namespacing exists for -- and their ref stores are one store, so a name there
+is attributed by comparing it against every configured spec at once rather
+than by reading it in isolation. Every function here takes that set.
 
 Two rules, both exact and both failing closed:
 
-* A name is attributed only when a spec's own derivation in ``paths``
-  produces it character for character. Nothing is parsed back into a slug, so
-  a segment no configured entry writes, an extra path component, or a padded
-  number is left alone rather than reconstructed into a repository.
-* A name several specs could equally own is attributed to none of them. The
-  legacy flat layout carries no slug at all, which makes every spec on a
-  shared clone an equal claimant to `orchestrator/issue-<n>`.
+* A name is attributed only when a spec's own `naming._branch_name` produces
+  it character for character. Nothing is parsed back into a slug, so a
+  segment no configured entry writes, an extra path component, a padded
+  number, and the flat pre-namespacing `orchestrator/issue-<n>` -- which
+  carries no slug at all -- are left alone rather than reconstructed into a
+  repository, however few entries share the clone.
+* A name several specs derive identically -- two slugs the ref sanitizer
+  cannot tell apart -- is attributed to none of them.
 
 The refusal costs one thing -- a branch this scan will not report -- and the
 alternative costs more: a branch attributed to the wrong repository is one a
 caller acts on against the wrong GitHub issue.
 
-The checkouts those branches are standing in ask the same question of a name
-that carries even less, and ``checkout_attribution`` answers it: the flat
-directory every entry derived identically, and the per-repository parent a
-lossy sanitizer can hand to two of them.
+The checkouts those branches are standing in ask the same question of a
+directory, and ``checkout_attribution`` answers it for the per-repository
+parent a lossy sanitizer can hand to two entries. A checkout standing on a
+branch name two entries derive is refused with the name (`_shared_branch`),
+since a crafted slug can share another entry's branch while keeping a
+checkout directory of its own; a teardown spending one issue's names
+immediately rather than through a scan asks both rules at once
+(`_sole_claimant`).
 """
 from __future__ import annotations
 
@@ -36,7 +39,7 @@ import logging
 from collections.abc import Iterable
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.worktrees import naming as _naming, paths
+from orchestrator.git.worktrees import checkout_attribution, naming as _naming, paths
 
 # The channel is named for the worktree-lifecycle domain rather than for this
 # module's path: operators filter the rendered `orchestrator.worktree_lifecycle`
@@ -49,8 +52,9 @@ _REF_SEPARATOR = "/"
 # How a refusal lists the several things it will not choose between.
 _LISTED = ", "
 
-# One repository's branches, keyed by the issue they name: one entry per
-# issue however many layouts it is published under.
+# One repository's branches, keyed by the issue they name. A tuple because the
+# candidate it feeds holds its branches as one, and it carries at most the
+# issue's own current-layout name.
 IssueBranches = dict[int, tuple[str, ...]]
 
 # What one clone's branches say about the repositories sharing it.
@@ -66,24 +70,15 @@ def _matching_owners(
 
     The current layout carries the publishing spec's ref-safe slug, so it is
     matched by re-deriving each spec's name for that issue and comparing:
-    another repository's segment, a segment no ``REPOS`` entry produces, and
-    an `issue-<n>` tail hanging under two path components all match nobody.
-
-    The legacy layout carries no slug, so every spec sharing the clone is
-    returned for it. That is not a claim that all of them own the branch -- it
-    is the ambiguity itself, handed to the caller in the only form that can
-    express it, and a clone with a single spec on it resolves the same way
-    without a special case.
+    another repository's segment, a segment no ``REPOS`` entry produces, an
+    `issue-<n>` tail hanging under two path components, and the flat name with
+    no segment at all match nobody. More than one match is the sanitizer
+    collision, handed to the caller in the only form that can express it.
     """
-    namespaced = tuple(
+    return tuple(
         spec for spec in specs
         if _naming._branch_name(spec, issue_number) == branch
     )
-    if namespaced:
-        return namespaced
-    if branch == _naming._legacy_branch_name(issue_number):
-        return specs
-    return ()
 
 
 def _branch_attribution(
@@ -95,8 +90,9 @@ def _branch_attribution(
     way: a name carrying no readable issue number, a name no configured
     repository publishes, and a name more than one of them could. Only the
     last is worth an operator's attention -- the other two describe branches
-    somebody else's tooling or a human left in the `orchestrator/` namespace,
-    and a scan that ran every tick would say so every tick.
+    somebody else's tooling, a human, or an earlier layout left in the
+    `orchestrator/` namespace for manual disposition, and a scan that ran
+    every tick would say so every tick.
     """
     issue_number = paths._issue_segment_number(
         branch.rsplit(_REF_SEPARATOR, 1)[-1],
@@ -128,19 +124,11 @@ def _record_attribution(
 ) -> None:
     """File one attributed branch under the repository and issue it names.
 
-    Rebuilt through `naming._issue_branch_names` rather than appended in the
-    order the ref store listed them, which does two things at once: an issue
-    carrying both layouts always reads namespaced-first, the order a caller
-    acts on them in, and a name that is not one of the two that derivation
-    produces cannot enter the answer through this door either.
+    One name per issue, because an attributed name is that issue's single
+    derivation: a ref store lists it at most once.
     """
     spec, issue_number = attribution
-    issues = owned.setdefault(spec, {})
-    found = set(issues.get(issue_number, ())) | {branch}
-    issues[issue_number] = tuple(
-        name for name in _naming._issue_branch_names(spec, issue_number)
-        if name in found
-    )
+    owned.setdefault(spec, {})[issue_number] = (branch,)
 
 
 def _attributed_issues(
@@ -158,3 +146,55 @@ def _attributed_issues(
         if attribution is not None:
             _record_attribution(owned, attribution, branch)
     return owned
+
+
+def _shared_branch(
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    specs: Iterable[_config_models.RepoSpec],
+) -> bool:
+    """Whether another spec among `specs` derives this issue's branch name too.
+
+    The branch rule asked of one repository and issue rather than of a name a
+    listing turned up. A checkout standing on such a name is as unattributable
+    as the name itself: the ref sanitizer's digest suffix lets a crafted slug
+    land on another entry's branch name while the two keep distinct checkout
+    directories, so the directory settles nothing about whose work the tree
+    holds. `spec` itself is always a claimant, whether or not `specs` lists it.
+    """
+    claimants = (
+        spec, *(other for other in specs if other.slug != spec.slug),
+    )
+    branch = _naming._branch_name(spec, issue_number)
+    owners = _matching_owners(branch, issue_number, claimants)
+    if len(owners) < 2:
+        return False
+    log.warning(
+        "branch %r could belong to any of %s; refusing to attribute it "
+        "rather than charging one of them for it",
+        branch, _LISTED.join(owner.slug for owner in owners),
+    )
+    return True
+
+
+def _sole_claimant(
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    configured: Iterable[_config_models.RepoSpec],
+) -> bool:
+    """Whether this issue's current-layout branch and checkout are `spec`'s alone.
+
+    The scan's two collision refusals, asked by a teardown that is handed one
+    repository and one issue instead of a listing: a branch name another
+    configured entry derives identically, and a checkout directory the path
+    sanitizer hands another entry too. Either makes the issue's artifacts
+    nobody's, so a caller about to delete them leaves them instead. `spec`
+    itself is always a claimant, whether or not the configuration lists it.
+    """
+    claimants = (
+        spec, *(other for other in configured if other.slug != spec.slug),
+    )
+    if _shared_branch(spec, issue_number, claimants):
+        return False
+    colliding = checkout_attribution._colliding_worktree_slugs(claimants)
+    return spec.slug not in colliding

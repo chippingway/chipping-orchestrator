@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import paths
 from tests.support.git import (
@@ -12,6 +13,15 @@ from tests.support.git import (
 )
 
 BASE_BRANCH = "main"
+
+
+def _flat_checkout_path(issue_number: int) -> Path:
+    """Where a checkout sat before the slug went into the path.
+
+    Spelled out rather than derived: no owner derives it any more, and the
+    tests that plant one are proving that nothing attributes or removes it.
+    """
+    return config.WORKTREES_DIR / f"issue-{issue_number}"
 
 
 class _ArtifactGitFixture:
@@ -43,12 +53,10 @@ class _ArtifactGitFixture:
         """Add the issue's worktree where they put one before namespacing.
 
         Directly under `WORKTREES_DIR`, with no per-repository parent, so the
-        directory carries nothing saying which entry made it -- which is what
-        the attribution has to settle from the clone instead.
+        directory carries nothing saying which entry made it -- and no scan
+        attributes it to any of them.
         """
-        return self._checkout_at(
-            spec, paths._legacy_worktree_path(issue_number),
-        )
+        return self._checkout_at(spec, _flat_checkout_path(issue_number))
 
     def _checkout_at(self, spec: _config_models.RepoSpec, worktree: Path) -> Path:
         """One detached worktree of this spec's clone, at a named path."""

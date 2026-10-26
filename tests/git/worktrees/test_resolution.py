@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Pinned and legacy branch resolution, and the names an issue can be on."""
+"""Pinned and legacy branch resolution, and the one name an issue owns."""
 
 from __future__ import annotations
 
@@ -52,9 +52,8 @@ class ResolveBranchNamePinnedTest(unittest.TestCase):
         self,
     ) -> None:
         # A corrupted / foreign pinned `branch` value must not redirect
-        # the resolver at an arbitrary ref -- the `orchestrator/` prefix
-        # check keeps `_cleanup_terminal_branch`'s "orchestrator-owned
-        # namespace" invariant intact.
+        # the resolver at an arbitrary ref outside the namespace this
+        # orchestrator publishes under.
         spec = _migration_spec()
         state = _state({BRANCH_KEY: "feature/foreign-branch"})
         self.assertEqual(
@@ -141,37 +140,23 @@ class ResolveBranchNamePrMigrationTest(unittest.TestCase):
         )
 
 
-class IssueBranchNamesTest(unittest.TestCase):
-    """Every name this orchestrator could have published one issue under.
+class OwnedBranchNameTest(unittest.TestCase):
+    """The one name artifact ownership recognizes is the one fresh work uses.
 
-    Asked by callers that DELETE a recorded branch, so what matters is that
-    the answer is the exact pair and nothing shaped like it: another
-    repository's branch for an issue with the same number is in the same
-    `orchestrator/` namespace and ends in the same `/issue-<n>` tail, and two
-    specs sharing a `target_root` is the case namespacing exists for.
+    Cleanup owners delete a branch only when it is `_branch_name` exactly, so
+    the two are one fact: a fresh issue's branch the resolver would publish on
+    has to be that name, or a reclamation refuses to delete what the
+    publication just made.
     """
 
-    def test_it_names_the_current_and_legacy_forms(self) -> None:
-        self.assertEqual(
-            _naming._issue_branch_names(_migration_spec(), 7),
-            (NAMESPACED_BRANCH, LEGACY_BRANCH),
-        )
-
-    def test_another_repos_branch_is_not_listed(self) -> None:
-        names = _naming._issue_branch_names(_migration_spec(), 7)
-
-        self.assertNotIn("orchestrator/other-repository/issue-7", names)
-
-    def test_the_resolver_uses_a_name_it_lists(self) -> None:
-        # The two are one fact: a branch the resolver would publish this issue
-        # on has to be one the ownership test recognizes, or the reclamation
-        # refuses to delete what the publication just made.
+    def test_the_resolver_publishes_the_owned_name(self) -> None:
         spec = _migration_spec()
 
-        self.assertIn(
+        self.assertEqual(
             _naming._resolve_branch_name(_state(), spec, 7),
-            _naming._issue_branch_names(spec, 7),
+            _naming._branch_name(spec, 7),
         )
+        self.assertEqual(_naming._branch_name(spec, 7), NAMESPACED_BRANCH)
 
 
 if __name__ == "__main__":

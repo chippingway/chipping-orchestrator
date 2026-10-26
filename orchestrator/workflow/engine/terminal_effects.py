@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.git.worktrees import naming as _naming, terminal as _worktree_terminal
+from orchestrator.git.worktrees import terminal as _worktree_terminal
 from orchestrator.github.issues import (
     _ISSUE_STATE_CLOSED,
     _ISSUE_STATE_OPEN,
@@ -44,7 +44,7 @@ def _cleanup_review_terminal(context: _terminal_context._ReviewTerminalContext) 
         context.gh,
         context.spec,
         context.issue.number,
-        branch=_naming._resolve_branch_name(
+        branch=_worktree_terminal._recorded_branch(
             context.state, context.spec, context.issue.number,
         ),
     )

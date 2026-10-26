@@ -3,8 +3,9 @@
 """Combine local and remote artifact inventories into maintenance candidates.
 
 remote_inventory reports published branches and unreachable repositories;
-candidate_layout classifies the resulting names. This owner merges evidence
-per issue, preserves withheld claims, and orders the candidates deterministically.
+candidate_layout records whether anything local is left. This owner merges
+evidence per issue, keeps only each issue's current-layout branch, and orders
+the candidates deterministically.
 """
 from __future__ import annotations
 
@@ -28,11 +29,9 @@ def _widened(
 ) -> MaintenanceCandidate:
     """One candidate: the artifacts as the host and the remote together hold them.
 
-    The two lists are merged through `naming._issue_branch_names` rather than
-    concatenated, which does what the local scan's own recording does one level
-    up: an issue carrying both layouts always reads namespaced-first, the order
-    a teardown takes them in, one name cannot arrive twice because it is on
-    both hosts, and a name neither derivation produces cannot enter through
+    The two lists are merged by re-deriving the issue's own branch name rather
+    than concatenated: one name cannot arrive twice because it is on both
+    hosts, and a name the current layout does not produce cannot enter through
     this door either.
 
     The layout is decided here because this is the last place both halves are
@@ -40,17 +39,12 @@ def _widened(
     downstream could say which of them the clone was actually holding.
     """
     held = frozenset(artifacts.branches) | frozenset(published)
-    branches = tuple(
-        name for name in _naming._issue_branch_names(
-            artifacts.spec, artifacts.issue_number,
-        )
-        if name in held
-    )
+    branch = _naming._branch_name(artifacts.spec, artifacts.issue_number)
     widened = IssueArtifacts(
         spec=artifacts.spec,
         issue_number=artifacts.issue_number,
         worktrees=artifacts.worktrees,
-        branches=branches,
+        branches=(branch,) if branch in held else (),
     )
     return MaintenanceCandidate(
         artifacts=widened,
@@ -67,7 +61,6 @@ def _candidate_order(key: CandidateKey) -> tuple[str, int]:
 def _candidate_keys(
     local: dict[CandidateKey, IssueArtifacts],
     published: _remote_inventory.PublishedBranches,
-    withheld: frozenset[tuple[str, int]],
 ) -> tuple[CandidateKey, ...]:
     """Every repository and issue either half of the discovery named, in order.
 
@@ -75,26 +68,13 @@ def _candidate_keys(
     remote lands where the same issue would have landed had this host still
     held it -- which is what lets two discoveries of an unchanged world be
     compared.
-
-    An issue the scan withheld is dropped from BOTH halves. The scan withholds
-    one because something on this host is standing on that issue's artifacts
-    and nobody can be charged for it, and the remote knows nothing about that:
-    left in, its copy of the branch would come back as a remote-only candidate
-    and a teardown spending it would take the local ref beneath a live
-    checkout.
     """
     keyed = set(local) | {
         (spec, issue_number)
         for spec, branched in published.items()
         for issue_number in branched
     }
-    return tuple(sorted(
-        (
-            key for key in keyed
-            if (key[0].slug, key[1]) not in withheld
-        ),
-        key=_candidate_order,
-    ))
+    return tuple(sorted(keyed, key=_candidate_order))
 
 
 def _keyed_candidate(
@@ -146,9 +126,7 @@ def _maintenance_candidates(
     return MaintenanceScan(
         candidates=tuple(
             _keyed_candidate(key, local, published)
-            for key in _candidate_keys(
-                local, published, frozenset(scanned.withheld),
-            )
+            for key in _candidate_keys(local, published)
         ),
         refused=tuple(sorted(refused)),
     )

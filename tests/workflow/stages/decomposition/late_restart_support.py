@@ -85,7 +85,7 @@ RESTART_MARKER_PREFIX = "<!--orchestrator-late-restart:"
 
 # The one obligation a cancellation can be left holding here. Its state is
 # what tells a settled ending from one the cleanup path still owns.
-SUPERSEDED_BRANCH = "orchestrator/issue-41"
+SUPERSEDED_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-41"
 
 KEY_RESTART_PENDING = "late_restart_pending"
 KEY_RESTART_TARGET = "late_restart_target"

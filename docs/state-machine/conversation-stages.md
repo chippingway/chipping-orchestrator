@@ -20,7 +20,9 @@ What each prompt grants and forbids, and how a session is continued across round
 - **Internal flow**:
   1. **Terminal close.** If the issue is closed, stamp `question_closed_at`, set label `done`, write pinned state, tear
      down the per-issue worktree + local branch via `_cleanup_question_worktree` (kept where the record, read again at
-     the teardown, is refused or cannot be read). Do NOT spawn the agent.
+     the teardown, is refused or cannot be read; the checkout comes down only where it is proven the issue's own, and
+     the branch is deleted only where the one the record pins, read raw rather than through the resolver, is the
+     issue's current-layout name). Do NOT spawn the agent.
   2. **Awaiting-human resume.** If `awaiting_human`, scan for new comments past `last_action_comment_id`. No new
      comments → return (the `_question_run_cleanup` context manager still tears down any worktree from a prior safe
      tick). New comments → advance the watermark BEFORE spawning, then resume the locked session via
@@ -84,8 +86,11 @@ the per-issue checkout only has to survive a tick when an unsafe park keeps it f
   order: the `merged_at` / `closed_without_merge_at` stamp, the label, the cumulative usage receipt posted BEFORE the
   single pinned write so its comment id rides the same state, the `pr_merged` (`merge_method="external"`) /
   `pr_closed_without_merge` event with `stage="discussion"`, the issue close, and only then
-  `_cleanup_terminal_branch` — the worktree plus the local and remote branches. Teardown last is the contract: an
-  operator who finds a leftover checkout still has an issue that says what happened to it.
+  `_cleanup_terminal_branch` — the worktree, where it is proven the issue's own checkout, plus the local and remote
+  branch, only where the one the record pins, read raw, is the issue's current-layout name (any other is left for an
+  operator).
+  Teardown last is the contract: an operator who finds a leftover checkout still has an issue that says what happened
+  to it.
   An OPEN plan PR is neither, and is a strict no-op — no comment, no write, no label — that KEEPS the worktree and
   both branches, since they are what that pull request is open against. That holds whether or not the ISSUE is still
   open: a human closing the issue out from under an open plan PR has said nothing about the design, so the stage

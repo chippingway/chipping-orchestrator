@@ -4,16 +4,15 @@
 
 The local scan already answers for what a host holds; what is pinned down here
 is the half it cannot answer -- a branch this clone no longer has a ref for --
-and the reading that says which layout an issue was published under.
+and the reading that says whether anything of the issue is left locally.
 
 Driven against real clones, real branches, real checkouts, and real bare
 remotes, because every part of the question is something git answers: the
-namespace listing, the ref store the local half is read from, the exact names
-attribution re-derives and compares, and the git directory that says which
-clone a checkout carrying no name at all is a worktree of. The multi-repository
-cases are built both ways round for that last one -- two entries on one clone,
-where the flat checkout is nobody's, and two entries on their own clones, where
-each is answered for.
+namespace listing, the ref store the local half is read from, and the exact
+names attribution re-derives and compares. The flat names and checkouts an
+earlier layout left are planted beside the current ones on both kinds of host
+-- two entries on one clone, and two entries on their own clones -- and are
+nobody's candidate on either.
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.git import ref_discovery
-from orchestrator.git.worktrees import discovery, probes
+from orchestrator.git.worktrees import discovery
 from orchestrator.git.worktrees.candidates import CandidateLayout
 from tests.git.worktrees.artifact_test_support import (
     GADGET_SLUG,
@@ -33,7 +32,7 @@ from tests.git.worktrees.artifact_test_support import (
 )
 from tests.git.worktrees.candidate_refs import _branch_at
 from tests.git.worktrees.discovery_host import SIBLING_REMOTE_DIR
-from tests.git.worktrees.discovery_test_support import LIFECYCLE_LOGGER, _CloneOfAllBut, _DiscoveryTestCase
+from tests.git.worktrees.discovery_test_support import LIFECYCLE_LOGGER, _DiscoveryTestCase
 from tests.git.worktrees.eligibility_test_support import ISSUE_NUMBER
 
 OTHER_ISSUE_NUMBER = 315
@@ -43,7 +42,7 @@ LEGACY_BRANCH = _legacy_branch(ISSUE_NUMBER)
 
 
 class CandidateLayoutTest(_DiscoveryTestCase):
-    """Every shape one issue's artifacts can be found in reads as one candidate."""
+    """Every shape one issue's current artifacts can be found in reads as one candidate."""
 
     def test_a_checkout_and_branch_read_as_current(self) -> None:
         self.published()
@@ -55,27 +54,30 @@ class CandidateLayoutTest(_DiscoveryTestCase):
         self.assertEqual(found.artifacts.branches, (self.branch,))
         self.assertEqual(len(found.artifacts.worktrees), 1)
 
-    def test_the_flat_name_reads_as_the_legacy_layout(self) -> None:
-        legacy = LEGACY_BRANCH
-        self.published(legacy)
+    def test_a_flat_name_is_no_candidate(self) -> None:
+        # Published and held locally, or left only on the remote: no
+        # configured repository derives the name, so nothing is found for it.
+        self.published(LEGACY_BRANCH)
+        for local in (True, False):
+            if not local:
+                _branch_at(self.clone, LEGACY_BRANCH, None)
+            with self.subTest(local=local):
+                self.assertEqual(self.discovered(), ())
 
-        found = self.only_candidate()
-
-        self.assertEqual(found.layout, CandidateLayout.LEGACY)
-        self.assertEqual(found.artifacts.branches, (legacy,))
-
-    def test_both_names_read_as_one_mixed_candidate(self) -> None:
-        # A migration leaves an issue carrying both, and no single derivation
-        # produces that pair -- so it is one issue with two names rather than
-        # two candidates.
-        legacy = LEGACY_BRANCH
+    def test_a_mixed_layout_keeps_the_current_name(self) -> None:
+        # A migration leaves an issue carrying both names, locally or only on
+        # the remote. The candidate is the current one alone; the flat name
+        # beside it is no artifact of the issue's.
         self.published()
-        self.published(legacy)
+        self.published(LEGACY_BRANCH)
+        for local in (True, False):
+            if not local:
+                _branch_at(self.clone, LEGACY_BRANCH, None)
+            with self.subTest(local=local):
+                found = self.only_candidate()
 
-        found = self.only_candidate()
-
-        self.assertEqual(found.layout, CandidateLayout.MIXED)
-        self.assertEqual(found.artifacts.branches, (self.branch, legacy))
+                self.assertEqual(found.layout, CandidateLayout.CURRENT)
+                self.assertEqual(found.artifacts.branches, (self.branch,))
 
     def test_a_branch_only_out_there_reads_remote(self) -> None:
         # The whole reason this discovery is wider than the scan: the clone was
@@ -103,57 +105,35 @@ class CandidateLayoutTest(_DiscoveryTestCase):
         self.assertEqual(found.artifacts.branches, ())
         self.assertEqual(found.artifacts.worktrees, (worktree,))
 
-    def test_a_local_and_a_remote_name_read_mixed(self) -> None:
-        # The two halves are merged into one candidate in the order a teardown
-        # takes them, whichever host each name was found on.
-        legacy = LEGACY_BRANCH
-        self.published()
-        self.published(legacy)
-        _branch_at(self.clone, legacy, None)
 
-        found = self.only_candidate()
+class FlatCheckoutTest(_DiscoveryTestCase):
+    """The checkout layout that had no per-repository parent is nobody's.
 
-        self.assertEqual(found.layout, CandidateLayout.MIXED)
-        self.assertEqual(found.artifacts.branches, (self.branch, legacy))
-
-
-class LegacyCheckoutTest(_DiscoveryTestCase):
-    """The checkout layout that had no per-repository parent is found too.
-
-    A host that has been running since before the slug went into the path is
-    still holding `WORKTREES_DIR/issue-<n>` directories. Nothing writes there
-    now, so the only thing that will ever take one down is a teardown that can
-    see it -- and one that cleared the branches while leaving the tree would
-    take the last artifact any later discovery could have found it by.
+    A host that has been running since before the slug went into the path can
+    still hold `WORKTREES_DIR/issue-<n>` directories. No configured entry
+    derives that path, so it never becomes a candidate and is left on disk for
+    manual disposition.
     """
 
-    def test_a_flat_checkout_is_the_whole_candidate(self) -> None:
-        # The shape a host that was mid-issue at the migration is left in, once
-        # its branch has gone: the flat directory is the only thing here naming
-        # the issue, and it still makes a candidate.
-        legacy = LEGACY_BRANCH
-        self.published(legacy)
-        worktree = self.legacy_checkout(legacy)
+    def test_a_flat_checkout_is_no_candidate(self) -> None:
+        self.published(LEGACY_BRANCH)
+        flat = self.legacy_checkout(LEGACY_BRANCH)
 
-        found = self.only_candidate()
+        self.assertEqual(self.discovered(), ())
+        self.assertTrue(flat.exists())
 
-        self.assertEqual(found.layout, CandidateLayout.LEGACY)
-        self.assertEqual(found.artifacts.worktrees, (worktree,))
-        self.assertEqual(found.artifacts.branches, (legacy,))
-
-    def test_both_checkout_layouts_read_as_one(self) -> None:
-        # What the migration really left: the flat checkout the issue started
-        # in and the per-repository one the next tick made, current-first and
-        # under one candidate rather than two.
-        legacy = LEGACY_BRANCH
-        _branch_at(self.clone, legacy, self.published())
+    def test_mixed_checkouts_keep_the_current_one(self) -> None:
+        # The flat checkout the issue started in beside the per-repository one
+        # the next tick made: the candidate is the current checkout and branch.
+        _branch_at(self.clone, LEGACY_BRANCH, self.published())
         current = self.checkout()
-        flat = self.legacy_checkout(legacy)
+        self.legacy_checkout(LEGACY_BRANCH)
 
         found = self.only_candidate()
 
-        self.assertEqual(found.layout, CandidateLayout.MIXED)
-        self.assertEqual(found.artifacts.worktrees, (current, flat))
+        self.assertEqual(found.layout, CandidateLayout.CURRENT)
+        self.assertEqual(found.artifacts.worktrees, (current,))
+        self.assertEqual(found.artifacts.branches, (self.branch,))
 
 
 class CandidateOrderTest(_DiscoveryTestCase):
@@ -178,29 +158,22 @@ class CandidateOrderTest(_DiscoveryTestCase):
 
 
 class DistinctCloneDiscoveryTest(_DiscoveryTestCase):
-    """A flat checkout is attributed by the clone it is a worktree of.
+    """A flat checkout is nobody's even where its clone is one entry's alone.
 
-    Its name says nothing -- every configured entry derived
-    `WORKTREES_DIR/issue-<n>` identically -- but the directory itself is a
-    worktree of exactly one repository, and on a host whose entries keep their
-    own clones that settles it. Refusing here instead would leave the checkout
-    where it is with nothing left to find it by once its branches have gone.
+    The directory is a worktree of exactly one configured repository's clone,
+    and that settles nothing: being the only possible owner is no ownership
+    evidence, so the checkout is left for manual disposition.
     """
 
     def setUp(self) -> None:
         super().setUp()
         self.specs = (self.spec, self.sibling_on_its_own_clone())
 
-    def test_a_flat_checkout_belongs_to_its_own_clone(self) -> None:
-        legacy = LEGACY_BRANCH
-        self.published(legacy)
-        worktree = self.legacy_checkout(legacy)
+    def test_a_flat_checkout_there_is_nobody_s(self) -> None:
+        self.published(LEGACY_BRANCH)
+        self.legacy_checkout(LEGACY_BRANCH)
 
-        found = self.only_candidate(self.specs)
-
-        self.assertEqual(found.artifacts.spec.slug, WIDGET_SLUG)
-        self.assertEqual(found.artifacts.worktrees, (worktree,))
-        self.assertEqual(found.layout, CandidateLayout.LEGACY)
+        self.assertEqual(self.discovered(self.specs), ())
 
 
 class SharedCloneDiscoveryTest(_DiscoveryTestCase):
@@ -218,20 +191,13 @@ class SharedCloneDiscoveryTest(_DiscoveryTestCase):
         self.specs = (self.spec, self.sibling)
 
     def test_a_shared_flat_name_is_nobody_s(self) -> None:
-        legacy = LEGACY_BRANCH
-
-        with self.assertLogs(LIFECYCLE_LOGGER, level=WARNING):
-            self.published(legacy)
-            found = self.discovered(self.specs)
-
-        self.assertEqual(found, ())
-
-    def test_a_shared_flat_name_out_there_is_too(self) -> None:
-        legacy = LEGACY_BRANCH
-        self.published(legacy)
-        _branch_at(self.clone, legacy, None)
-
-        self.assertEqual(self.discovered(self.specs), ())
+        # Here or only out there, the flat name is no entry's derivation.
+        self.published(LEGACY_BRANCH)
+        for local in (True, False):
+            if not local:
+                _branch_at(self.clone, LEGACY_BRANCH, None)
+            with self.subTest(local=local):
+                self.assertEqual(self.discovered(self.specs), ())
 
     def test_each_repository_answers_for_its_own(self) -> None:
         self.published()
@@ -242,19 +208,18 @@ class SharedCloneDiscoveryTest(_DiscoveryTestCase):
         self.assertEqual(found.artifacts.spec.slug, WIDGET_SLUG)
         self.assertEqual(found.layout, CandidateLayout.REMOTE_ONLY)
 
-    def test_a_shared_flat_checkout_withholds_it_all(self) -> None:
-        # The path counterpart of the flat branch rule, and it is wider: the
-        # flat checkout sits under a directory every entry shares, so a second
-        # configured repository is enough to make it unattributable. What it
-        # takes with it is the whole issue -- the branch that tree is standing
-        # on included, on this host and on the remote.
+    def test_a_shared_flat_checkout_is_not_reported(self) -> None:
+        # A flat checkout standing on this issue's current branch: the branch is
+        # still the issue's candidate, and the tree is no part of it. What
+        # keeps that branch while the tree stands on it is the teardown's own
+        # checkout listing, not the scan.
         self.published()
         self.legacy_checkout()
 
-        with self.assertLogs(LIFECYCLE_LOGGER, level=WARNING):
-            found = self.discovered(self.specs)
+        found = self.only_candidate(self.specs)
 
-        self.assertEqual(found, ())
+        self.assertEqual(found.artifacts.branches, (self.branch,))
+        self.assertEqual(found.artifacts.worktrees, ())
 
     def test_a_sibling_s_name_here_is_not_ours(self) -> None:
         # A branch spelled for the other entry that turned up on this remote is
@@ -265,53 +230,6 @@ class SharedCloneDiscoveryTest(_DiscoveryTestCase):
         _branch_at(self.clone, sibling_branch, None)
 
         found = self.discovered((self.spec,))
-
-        self.assertEqual(found, ())
-
-
-class UnreadableCloneTest(_DiscoveryTestCase):
-    """An entry whose own clone will not answer still claims a flat checkout.
-
-    The identity read is what makes a flat checkout attributable at all, so a
-    configured repository it could not be taken for is one nothing ruled out.
-    Dropping such an entry from the claimants is how a checkout on a shared
-    clone reads as uniquely owned -- the sibling that would have made it
-    ambiguous simply did not answer.
-    """
-
-    def test_an_unreadable_sibling_still_claims_it(self) -> None:
-        sibling = self.sibling_on_this_clone()
-        self.landed()
-        self.legacy_checkout()
-
-        with (
-            patch.object(
-                probes,
-                "_checkout_clone",
-                side_effect=_CloneOfAllBut(sibling),
-            ),
-            self.assertLogs(LIFECYCLE_LOGGER, level=WARNING),
-        ):
-            found = self.discovered((self.spec, sibling))
-
-        self.assertEqual(found, ())
-
-    def test_a_lone_unread_entry_still_claims_it(self) -> None:
-        # One configured repository, and nothing established that the tree is
-        # its worktree: an attribution here would be a guess about the one
-        # artifact whose name says nothing at all.
-        self.landed()
-        self.legacy_checkout()
-
-        with (
-            patch.object(
-                probes,
-                "_checkout_clone",
-                side_effect=_CloneOfAllBut(self.spec),
-            ),
-            self.assertLogs(LIFECYCLE_LOGGER, level=WARNING),
-        ):
-            found = self.discovered()
 
         self.assertEqual(found, ())
 

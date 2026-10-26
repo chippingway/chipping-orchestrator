@@ -2129,7 +2129,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     terminal_context.py    the issue, publication, pinned state, and stage one ending is attributed to, with its
                             recorded PR number and conflict-round semantics
     terminal_effects.py    terminal stamps, labels, usage verdicts, pinned writes, events, issue closure, and branch
-                            cleanup in their defined order; an open PR on a human-closed issue stays available
+                            cleanup in their defined order, the branch reaped only where the one the record pins,
+                            read raw rather than through the resolver, is the issue's current-layout name; an open PR
+                            on a human-closed issue stays available
     terminals.py           select merged, rejected, and human-closed endings from their fresh readings; failed reads
                             leave the decision for a later tick, and the merged-PR path precedes closed-issue rejection
     tick.py                 one repo's polling pass and the order it drives: the base refresh below, the
@@ -3133,7 +3135,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             or records a replacement the ledger no longer names -- then require every
                             consumer to be freshly known closed before reclaiming its snapshot
       late_branch_reclamation.py
-                            delete only this issue's superseded branch and verify both local branch and checkout teardown;
+                            delete only this issue's superseded branch -- its exact current-layout name, and only
+                            where no other configured repository derives it too, so a flat, foreign, or colliding
+                            target is refused -- and verify both local branch and checkout teardown, a checkout not
+                            proven the issue's own left standing;
                             either remote or local refusal leaves the obligation failed
       late_consumer_release.py
                             deliver cycle-bound snapshot reclamation receipts once per child, checking closure around

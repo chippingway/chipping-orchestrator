@@ -5377,7 +5377,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      called by `_handle_fixing` and `_handle_resolving_conflict`). The orchestrator never merges from here, so any
      `merged` state observed was produced externally. Branch on `gh.pr_state(pr)`:
      - `merged` → stamp `merged_at`, set label `done`, write pinned state, emit `pr_merged`
-       (`merge_method="external"`), close the issue, `_cleanup_terminal_branch`.
+       (`merge_method="external"`), close the issue, `_cleanup_terminal_branch` — the checkout where it is proven the
+       issue's own, and the branch on both hosts only where the one the record pins, read raw rather than through the
+       resolver, is the issue's current-layout name; a flat or foreign branch, and a tree standing on one, are kept.
      - `closed` → stamp `closed_without_merge_at`, set label `rejected`, emit `pr_closed_without_merge`, close,
        cleanup.
      - `open` BUT the issue was closed manually → set label `rejected` WITHOUT branch cleanup so the operator can

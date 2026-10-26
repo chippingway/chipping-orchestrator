@@ -106,10 +106,9 @@ def _read_artifacts(
 ) -> tuple[tuple[Retention, ...], tuple[ProvenTip, ...]]:
     """The reading itself, once the base and the branch tips are established.
 
-    Every checkout is read against the same two, so an issue holding both
-    layouts measures them identically -- and the branch reasons are asked
-    afterwards rather than first, so the answer reads in the artifacts' own
-    order.
+    The checkout is read against the same two the branch is, and the branch
+    reasons are asked afterwards rather than first, so the answer reads in
+    the artifacts' own order.
     """
     readings = tuple(
         _retention_checkouts._checkout_reading(gh, artifacts, worktree, base, tips)

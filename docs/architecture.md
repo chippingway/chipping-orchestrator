@@ -55,6 +55,17 @@ from outside the orchestrator: a human's comment, label, or issue edit, the pull
 configuration, and the checkout on disk. A successor record another orchestrator operation wrote before the claim was
 taken is real, and the reading taken once the claim is held is what sees it.
 
+Artifact ownership is exact and current-layout only. A branch belongs to an issue when it is that repository's
+`orchestrator/<slug>/issue-<n>` character for character, and a checkout when it is that repository's
+`WORKTREES_DIR/<slug>/issue-<n>`, a worktree of its clone on that branch. A flat `orchestrator/issue-<n>` branch or
+`WORKTREES_DIR/issue-<n>` checkout an earlier layout left, an `orchestrator/` prefix, and an authentic pin naming any
+other branch are no ownership evidence: no terminal, question, late-split, or scheduled cleanup adopts or deletes such
+an artifact, and it stays for an operator. What detection remains serves refusals only — a name two entries derive alike
+and a checkout standing on one, a checkout directory two entries are handed, a checkout on a foreign branch or reached
+through a symlink, and a tree standing on a branch about to go each keep what they touch, in the scheduled pass and in
+every terminal, question, and late-split teardown alike
+([scheduled artifact reclamation](security.md#scheduled-artifact-reclamation)).
+
 The orchestrator is not fully autonomous. When a stage hits uncertainty, an unsafe repository state, a malformed agent
 response, or an exhausted retry cap, it parks with `awaiting_human` and mentions `HITL_HANDLE`; a later human issue
 comment is the resume signal for the parked agent session. The exhausted retry cap is the one park an ordinary
@@ -185,9 +196,9 @@ orchestrator/
   git/                  local git: execution, locks, and authenticated
                         transport, under the worktree lifecycle, the read-only
                         inventory of the checkouts and branches it leaves --
-                        both layouts of each, widened by what the remote still
-                        carries, so an issue this host holds nothing for is
-                        still found -- the classification that says which of
+                        the current layout's only, widened by what the remote
+                        still carries, so an issue this host holds nothing for
+                        is still found -- the classification that says which of
                         them a finished issue may have reclaimed and the
                         bounded pass that spends one, re-reading every proven
                         tip immediately before the mutation it gates and
@@ -408,8 +419,9 @@ interpreter of its own finds nothing wrong, and exit.
   issue, its pull requests, the remote reads every deletion is pinned to) happens in between, so a signal that lands
   there ends the pass instead of being answered by a teardown. All of that, from the issue's first reading to the last
   deletion, runs under the issue's writer claim, and a candidate whose pinned record admission refuses keeps every
-  artifact, however the issue ended. Past that reading one candidate is taken as a unit —
-  its checkouts, then each of its branches on the remote and in the clone, every step pinned to the commit that was
+  artifact, however the issue ended. A candidate is only ever an issue's current-layout checkout and branch; flat
+  artifacts an earlier layout left are never one. Past that reading one candidate is taken as a unit —
+  its checkout, then its branch on the remote and in the clone, every step pinned to the commit that was
   proved and idempotent — because a candidate half taken is the one state this vocabulary cannot report. The due
   gate lives in this process's memory, so nothing is persisted and a restart costs at most one extra pass — the pass
   reads the host again and reports whatever is already gone as done. The interval runs on the monotonic clock and

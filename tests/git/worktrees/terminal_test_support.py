@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
@@ -76,3 +76,14 @@ def _seed_cleanup_fixture(
         branch=branch,
         worktree=worktree,
     )
+
+
+def _flat_branch(fixture: CleanupFixture, issue_number: int) -> CleanupFixture:
+    """Put the flat `orchestrator/issue-<n>` beside the fixture's own branch.
+
+    Answered as a fixture naming that branch, so the same existence probe reads
+    both of them back.
+    """
+    branch = f"orchestrator/issue-{issue_number}"
+    _run_git("branch", branch, fixture.branch, cwd=fixture.target)
+    return replace(fixture, branch=branch)

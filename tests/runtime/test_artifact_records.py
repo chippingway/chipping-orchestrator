@@ -5,9 +5,10 @@
 One record per candidate the pass decided about -- not one per branch, one per
 checkout, or one per deletion step -- so a reader counting them is counting
 finished issues considered. The fields are three closed vocabularies and, only
-where the reason is about one, a branch this repository itself publishes the
-issue under; a checkout path, an issue reference, and a name belonging to some
-other spec on a shared clone are all dropped rather than published. Which kind
+where the reason is about one, the branch this repository itself publishes the
+issue under; a checkout path, an issue reference, a flat name no repository
+derives, and a name belonging to some other spec on a shared clone are all
+dropped rather than published. Which kind
 of artifact a reason is about is what decides that, since the kinds are one
 string on a host whose `WORKTREES_DIR` is `orchestrator`: a reason spelled only
 on a branch keeps its branch there, one never spelled on a branch publishes
@@ -24,7 +25,6 @@ from __future__ import annotations
 import logging
 import unittest
 from pathlib import Path
-from types import MappingProxyType
 from typing import NamedTuple
 from unittest.mock import patch
 
@@ -57,11 +57,13 @@ _SPEC = RepoSpec(
 _OTHER_SPEC = RepoSpec(
     slug=_support.BETA_REPO, target_root=Path("/tmp"), base_branch="main",
 )
-_BRANCH, _LEGACY_BRANCH = _naming._issue_branch_names(_SPEC, _ISSUE_NUMBER)
+_BRANCH = _naming._branch_name(_SPEC, _ISSUE_NUMBER)
 # What a subject can be that is not this candidate's branch: the checkout the
-# reason is about, the issue itself, and the name another spec sharing this
-# clone publishes its own issue 41 under.
+# reason is about, the issue itself, the name another spec sharing this clone
+# publishes its own issue 41 under, and the flat name an earlier layout left,
+# which no configured repository derives.
 _CHECKOUT = "/srv/worktrees/alpha-one/issue-41"
+_FLAT_BRANCH = f"orchestrator/issue-{_ISSUE_NUMBER}"
 _ISSUE_SUBJECT = f"#{_ISSUE_NUMBER}"
 _FOREIGN_BRANCH = _naming._branch_name(_OTHER_SPEC, _ISSUE_NUMBER)
 _REFUSED_LOG = "was not written"
@@ -73,21 +75,10 @@ _SINK_KNOB = "orchestrator.observability.analytics.settings.ANALYTICS_LOG_PATH"
 # `mkdir` in front of the append raises `NotADirectoryError` and nothing is
 # ever created.
 _UNWRITABLE_SINK = Path(__file__) / "not-a-directory" / "analytics.jsonl"
-# The checkout paths of a host whose `WORKTREES_DIR` is `orchestrator`, where
-# each of this issue's checkouts is spelled exactly like one of its branches:
+# The checkout path of a host whose `WORKTREES_DIR` is `orchestrator`, where
+# this issue's checkout is spelled exactly like its branch:
 # `orchestrator/<slug>/issue-<n>` is what that configuration derives for both.
 _COLLIDING_CHECKOUT = Path(_BRANCH)
-_COLLIDING_LEGACY_CHECKOUT = Path(_LEGACY_BRANCH)
-
-# Which branches a candidate published under each layout is holding, so a case
-# describes a host the discovery could really have found: an issue in flight
-# when namespacing landed carries both names at once.
-_LAYOUT_BRANCHES = MappingProxyType({
-    CandidateLayout.CURRENT: (_BRANCH,),
-    CandidateLayout.LEGACY: (_LEGACY_BRANCH,),
-    CandidateLayout.MIXED: (_BRANCH, _LEGACY_BRANCH),
-    CandidateLayout.REMOTE_ONLY: (_BRANCH,),
-})
 
 
 class _Case(NamedTuple):
@@ -117,7 +108,7 @@ def _case(
                 spec=_SPEC,
                 issue_number=_ISSUE_NUMBER,
                 worktrees=worktrees,
-                branches=_LAYOUT_BRANCHES[layout],
+                branches=(_BRANCH,),
             ),
             layout=layout,
         ),
@@ -138,17 +129,11 @@ def _case(
     return _Case(answer, expected)
 
 
-# Every shape a pass answers with: the three outcomes, the four layouts an
-# artifact can have been published under -- both at once included -- and the
-# three subjects that are not a branch this record may name.
+# Every shape a pass answers with: the three outcomes, both places an
+# artifact can have been found, and the four subjects that are not a branch
+# this record may name.
 _CASES = (
     _case(_maintenance_results.MaintenanceReason.RECLAIMED),
-    _case(
-        _maintenance_results.MaintenanceReason.UNPROVEN,
-        layout=CandidateLayout.LEGACY,
-        subject=_LEGACY_BRANCH,
-        branch=_LEGACY_BRANCH,
-    ),
     _case(
         _maintenance_results.MaintenanceReason.REMOTE_DELETE_FAILED,
         subject=_BRANCH,
@@ -156,9 +141,8 @@ _CASES = (
     ),
     _case(
         _maintenance_results.MaintenanceReason.BRANCH_CHECKED_OUT,
-        layout=CandidateLayout.MIXED,
-        subject=_LEGACY_BRANCH,
-        branch=_LEGACY_BRANCH,
+        subject=_BRANCH,
+        branch=_BRANCH,
     ),
     _case(
         _maintenance_results.MaintenanceReason.TIP_MOVED,
@@ -170,11 +154,15 @@ _CASES = (
     _case(_maintenance_results.MaintenanceReason.ACTIVE_CLAIM, subject=_ISSUE_SUBJECT),
     _case(_maintenance_results.MaintenanceReason.WRITER_CLAIM_REFUSED, subject=_ISSUE_SUBJECT),
     _case(_maintenance_results.MaintenanceReason.UNPROVEN, subject=_FOREIGN_BRANCH),
+    # A flat name is no branch this repository publishes, so even a reason
+    # spelled only on a branch drops it.
+    _case(_maintenance_results.MaintenanceReason.UNPROVEN, subject=_FLAT_BRANCH),
+    _case(_maintenance_results.MaintenanceReason.LOCAL_DELETE_FAILED, subject=_FLAT_BRANCH),
 )
 
 # Every shape on a host whose checkout paths are spelled exactly like its
 # branches, and what each may still say. The two reasons that are only ever
-# about a tree name no branch; the two that can be about either fail closed on
+# about a tree name no branch; the ones that can be about either fail closed on
 # a name that is both, since nothing there says which artifact is meant.
 _COLLIDING_CASES = (
     _case(
@@ -184,15 +172,13 @@ _COLLIDING_CASES = (
     ),
     _case(
         _maintenance_results.MaintenanceReason.RECENT_ACTIVITY,
-        layout=CandidateLayout.LEGACY,
-        subject=_LEGACY_BRANCH,
-        worktrees=(_COLLIDING_LEGACY_CHECKOUT,),
+        subject=_BRANCH,
+        worktrees=(_COLLIDING_CHECKOUT,),
     ),
     _case(
         _maintenance_results.MaintenanceReason.TIP_MOVED,
-        layout=CandidateLayout.MIXED,
-        subject=_LEGACY_BRANCH,
-        worktrees=(_COLLIDING_CHECKOUT, _COLLIDING_LEGACY_CHECKOUT),
+        subject=_BRANCH,
+        worktrees=(_COLLIDING_CHECKOUT,),
     ),
     _case(
         _maintenance_results.MaintenanceReason.UNPROVEN,
@@ -211,10 +197,9 @@ _COLLIDING_CASES = (
     ),
     _case(
         _maintenance_results.MaintenanceReason.LOCAL_DELETE_FAILED,
-        layout=CandidateLayout.MIXED,
-        subject=_LEGACY_BRANCH,
-        branch=_LEGACY_BRANCH,
-        worktrees=(_COLLIDING_CHECKOUT, _COLLIDING_LEGACY_CHECKOUT),
+        subject=_BRANCH,
+        branch=_BRANCH,
+        worktrees=(_COLLIDING_CHECKOUT,),
     ),
     _case(
         _maintenance_results.MaintenanceReason.BRANCH_CHECKED_OUT,

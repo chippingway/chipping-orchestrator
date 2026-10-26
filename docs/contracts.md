@@ -118,7 +118,10 @@ and dependency release read an unsupported child as neither a fresh child to see
 finalize, snapshot notices, and snapshot delete read one as neither a child to finalize or tell nor a consumer done with
 the ref: nothing is written to it, the seed, release, or notice stays uncompleted, and the ref stays. Artifact
 maintenance reads an unsupported record as no record at all to classify on, never as an issue that pinned nothing:
-every checkout and branch of its issue stays, however the issue ended, and nothing is deleted or written for it.
+every checkout and branch of its issue stays, however the issue ended, and nothing is deleted or written for it. The
+flat pre-namespacing layout is unsupported input too: an `orchestrator/issue-<n>` branch or `WORKTREES_DIR/issue-<n>`
+checkout is no repository's artifact, and no ownership, terminal, late-split, or scheduled cleanup path adopts or
+deletes one, whether the clone holds it or only the remote does.
 Current-format authentication [C-04], writer claims and artifact ownership [C-05], guarded and uncertain-write recovery
 [C-06], approval evidence [C-09], pinned session commands [C-14], lifetime run accounting [C-15], and the audit-log
 recovery exception [C-12] remain required. Optional fields the current format defines and current transactions a crash
@@ -179,18 +182,28 @@ cleanup; those also require
 The default `WORKTREES_DIR` follows the first configured repository, so pollers with different repository lists can
 resolve different roots. Artifact maintenance needs
 [exclusive access to that host's worktrees](architecture.md#process-model). Handle crashes, external changes, and
-records written before acquiring the claim; [C-06] covers lost or refused writes and comment capacity. Close
-observation, recovery, and cleanup admit the record they act on from a read under the issue's claim, the poll's
-alongside one included; a close held in memory never stands in for that record. A parent's seed or repair of a child,
-an adopted one included, its merge finalize of a closed child, its snapshot notice to a consumer, its release of a group
-of children, and its delete of a snapshot admit each child's record from a read under that child's claim, held through
-the effect; an earlier family scan never stands in for it, and a release or a delete admits every child it would act
-on before acting on any. The base refresh admits the record it routes a worktree on from its read under the claim it
-holds through that route. Artifact maintenance takes each candidate's issue claim before it reads the issue, admits the
-record it classifies on from that read, and holds the claim through the teardown; a candidate whose claim is refused
-is left untouched. The scheduler barrier, host exclusivity, and every other maintenance gate stay required beside it.
+records written before acquiring the claim; [C-06] covers lost or refused writes and comment capacity. Artifact
+ownership is exact repository and issue attribution of the current layout only: a branch is an issue's when it is that
+repository's `orchestrator/<slug>/issue-<n>` character for character, and a checkout when it is that repository's
+`WORKTREES_DIR/<slug>/issue-<n>`, a worktree of its clone, on that branch. An `orchestrator/` prefix, a flat name, or an
+authentic pin alone is no ownership evidence, so cleanup a record or a scan points at anything else deletes nothing, and
+a name two entries derive alike, a checkout standing on one, or a checkout directory two entries are handed belongs to
+neither. Terminal, question, and late-split teardowns ask those collision refusals themselves, and every teardown
+removes a checkout only where it proves the tree a worktree of the clone on the issue's exact branch, reached at its own
+path through no symlink below `WORKTREES_DIR`, so a foreign checkout keeps its files; the scheduled pass reads that
+identity again immediately before the removal. Close observation, recovery, and cleanup admit the record they act on
+from a read under the issue's claim, the poll's alongside one included; a close held in memory never stands in for that
+record. A parent's seed or repair of a child, an adopted one included, its merge finalize of a closed child, its
+snapshot notice to a consumer, its release of a group of children, and its delete of a snapshot admit each child's
+record from a read under that child's claim, held through the effect; an earlier family scan never stands in for it, and
+a release or a delete admits every child it would act on before acting on any. The base refresh admits the record it
+routes a worktree on from its read under the claim it holds through that route. Artifact maintenance takes each
+candidate's issue claim before it reads the issue, admits the record it classifies on from that read, and holds the
+claim through the teardown; a candidate whose claim is refused is left untouched. The scheduler barrier, host
+exclusivity, and every other maintenance gate stay required beside it.
 
 **Specs:** [ownership](architecture.md#design-constraints), [claims](architecture.md#process-model),
+[artifact ownership](security.md#scheduled-artifact-reclamation),
 [poller setup](configuration/operations.md#running-more-than-one-poller),
 [family writes](state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick).
 
@@ -198,6 +211,11 @@ is left untouched. The scheduler barrier, host exclusivity, and every other main
 [claimed admission](../tests/workflow/engine/test_dispatch_record_admission.py),
 [refresh claims](../tests/workflow/engine/test_base_refresh_contention.py),
 [maintenance claims](../tests/git/worktrees/test_maintenance_guards.py),
+[branch attribution](../tests/git/worktrees/test_artifact_attribution.py),
+[flat-layout preservation](../tests/git/worktrees/test_maintenance_pass.py),
+[terminal cleanup](../tests/git/worktrees/test_terminal.py),
+[teardown ownership](../tests/git/worktrees/test_teardown_ownership.py),
+[removal races](../tests/git/worktrees/test_maintenance_tips.py),
 [host exclusion](../tests/runtime/test_exclusion.py),
 [claimed release](../tests/workflow/stages/decomposition/test_claimed_release.py),
 [claimed finalize](../tests/workflow/stages/decomposition/test_claimed_closed_children.py).

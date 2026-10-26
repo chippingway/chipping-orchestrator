@@ -83,42 +83,27 @@ class CurrentLayoutTest(unittest.TestCase):
         self.assertEqual(tuple(owned), (widget,))
 
 
-class LegacyLayoutTest(unittest.TestCase):
-    """The flat pre-namespacing branch carries no slug, so the clone decides.
+class FlatLayoutTest(unittest.TestCase):
+    """The flat pre-namespacing branch carries no slug, so nobody owns it.
 
-    One repository on a clone owns it by elimination; several on one clone
-    make it unattributable, and attributing it anyway would charge one
-    repository for another's issue number.
+    Not even a repository alone on its clone: being the only claimant is no
+    ownership evidence, and a branch attributed that way is one a teardown
+    would go on to delete.
     """
 
-    def test_a_lone_repository_owns_it(self) -> None:
-        widget = _spec(WIDGET_SLUG, SHARED_CLONE)
-        legacy = _legacy_branch(LEGACY_ISSUE_NUMBER)
-
-        owned = attribution._attributed_issues((legacy,), (widget,))
-
-        self.assertEqual(owned, {widget: {LEGACY_ISSUE_NUMBER: (legacy,)}})
-
-    def test_a_shared_clone_refuses_it(self) -> None:
+    def test_no_repository_owns_it(self) -> None:
         widget = _spec(WIDGET_SLUG, SHARED_CLONE)
         gadget = _spec(GADGET_SLUG, SHARED_CLONE)
+        legacy = _legacy_branch(LEGACY_ISSUE_NUMBER)
+        for specs in ((widget,), (widget, gadget)):
+            with self.subTest(claimants=len(specs)):
+                self.assertEqual(
+                    attribution._attributed_issues((legacy,), specs), {},
+                )
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING) as logs:
-            owned = attribution._attributed_issues(
-                (_legacy_branch(LEGACY_ISSUE_NUMBER),), (widget, gadget),
-            )
-            refusal = logs.output[0]
-
-        self.assertEqual(owned, {})
-        # The operator gets both claimants by name: the refusal is theirs to
-        # resolve, and it cannot be resolved without knowing who is claiming.
-        self.assertIn(WIDGET_SLUG, refusal)
-        self.assertIn(GADGET_SLUG, refusal)
-
-    def test_both_layouts_are_one_issue(self) -> None:
-        # An issue that was migrated mid-flight has a branch under each
-        # layout. Two names, one issue -- and the namespaced one first,
-        # because that is the one a caller acts on.
+    def test_a_mixed_layout_keeps_the_current_name(self) -> None:
+        # An issue migrated mid-flight has a branch under each layout. The
+        # namespaced one is the issue's; the flat one beside it stays nobody's.
         widget = _spec(WIDGET_SLUG, SHARED_CLONE)
         namespaced = _namespaced_branch(WIDGET_SLUG, BOTH_LAYOUTS_ISSUE_NUMBER)
         legacy = _legacy_branch(BOTH_LAYOUTS_ISSUE_NUMBER)
@@ -126,7 +111,7 @@ class LegacyLayoutTest(unittest.TestCase):
         owned = attribution._attributed_issues((legacy, namespaced), (widget,))
 
         self.assertEqual(
-            owned, {widget: {BOTH_LAYOUTS_ISSUE_NUMBER: (namespaced, legacy)}},
+            owned, {widget: {BOTH_LAYOUTS_ISSUE_NUMBER: (namespaced,)}},
         )
 
 
@@ -142,19 +127,21 @@ class UnattributableBranchTest(unittest.TestCase):
                 )
 
     def test_two_repositories_deriving_one(self) -> None:
-        # The ambiguity the legacy layout has by construction, reached through
-        # the current one: two `REPOS` entries whose slugs differ only in a
-        # character the ref sanitizer rewrites publish under one branch name,
-        # and nothing in that name says which of them wrote it.
+        # Two `REPOS` entries whose slugs differ only in a character the ref
+        # sanitizer rewrites publish under one branch name, and nothing in that
+        # name says which of them wrote it. Both claimants are named.
         specs = tuple(_spec(slug, SHARED_CLONE) for slug in COLLIDING_SLUGS)
-        collided = _namespaced_branch(
-            COLLIDING_SLUGS[1], COLLIDING_ISSUE_NUMBER,
-        )
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING):
-            owned = attribution._attributed_issues((collided,), specs)
+        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING) as logs:
+            owned = attribution._attributed_issues(
+                (_namespaced_branch(COLLIDING_SLUGS[1], COLLIDING_ISSUE_NUMBER),),
+                specs,
+            )
+            refusal = logs.output[0]
 
         self.assertEqual(owned, {})
+        for slug in COLLIDING_SLUGS:
+            self.assertIn(slug, refusal)
 
 
 if __name__ == "__main__":

@@ -193,12 +193,9 @@ def _checkout_reading(
 ) -> tuple[tuple[Retention, ...], BranchTip]:
     """One checkout's whole answer: why it is kept, and what it is holding.
 
-    Per checkout rather than per issue, because an issue that was in flight
-    when slug namespacing landed can be holding two of them -- the flat one it
-    started in and the per-repository one the next tick made -- and they are
-    two directories with two trees, two HEADs, and two reflogs. A reading that
-    covered one of them would clear the issue while the other stayed on disk
-    with whatever it holds.
+    Per checkout, because the candidate carries its checkouts as a tuple --
+    the issue's current-layout one, or none -- and each tree, HEAD, and reflog
+    is read on its own terms.
 
     The tree's own state gates the commit read for the reason it always has: a
     directory that is not this issue's checkout is one whose HEAD says nothing

@@ -10,7 +10,10 @@ next surface even when this one failed.
 
 Best-effort is right for a caller whose issue is already terminal -- a stale
 ref there is tidiness -- and not for one that has to RECORD whether the
-teardown happened. `_local_branch_present` is what the second kind asks
+teardown happened. The forced removal is spent only on a checkout proven the
+issue's own (`_own_checkout`): a path reached through a symlink, a tree that is
+no worktree of the clone, and one that stands on a flat or foreign branch each
+keep every file in them. `_local_branch_present` is what the second kind asks
 afterwards, and it fails closed: a read that established nothing answers
 "still here", because a caller that took it for gone would mark an obligation
 settled that nothing had settled.
@@ -18,10 +21,12 @@ settled that nothing had settled.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import commands, locks
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import evidence, paths
+from orchestrator.git.worktrees.models import ProbeAnswer
 
 # The channel is named for the worktree-lifecycle domain rather than for
 # this module's path: operators filter the rendered
@@ -30,13 +35,43 @@ from orchestrator.git.worktrees import paths
 log = logging.getLogger("orchestrator.worktree_lifecycle")
 
 
+def _own_checkout(
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    worktree: Path,
+    log_prefix: str,
+) -> bool:
+    """Whether the tree at this issue's path is proven the issue's own.
+
+    The removal behind this is forced, so it takes whatever the tree holds;
+    it may be spent only on a worktree of this clone standing on the issue's
+    exact current-layout branch, reached at that path itself rather than
+    through a symlink. A path that leads elsewhere, a tree on a flat
+    `orchestrator/issue-<n>`, on another repository's branch, or on a
+    detached HEAD is foreign, and one whose identity could not be read is not
+    proven -- both stay, every file in them included, for an operator to
+    dispose of.
+    """
+    identity = evidence._checkout_identity(spec, issue_number, worktree)
+    if identity is ProbeAnswer.CONFIRMED:
+        return True
+    log.warning(
+        "issue=#%d %scheckout %s is not proven this issue's own (%s); "
+        "leaving it for manual disposition",
+        issue_number, log_prefix, worktree, identity,
+    )
+    return False
+
+
 def _run_issue_worktree_removal(
     spec: _config_models.RepoSpec, issue_number: int, log_prefix: str,
 ) -> None:
-    """Force-remove one issue worktree under the parent lock, logging a
-    non-zero git result."""
+    """Force-remove one issue worktree proven the issue's own, under the
+    parent lock, logging a non-zero git result."""
     worktree = paths._worktree_path(spec, issue_number)
     if not worktree.exists():
+        return
+    if not _own_checkout(spec, issue_number, worktree, log_prefix):
         return
     with locks._target_root_lock(spec.target_root):
         remove_result = commands._git(

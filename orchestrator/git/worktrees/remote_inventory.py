@@ -24,10 +24,11 @@ from orchestrator.git.worktrees import (
 log = logging.getLogger("orchestrator.worktree_lifecycle")
 
 # The namespace every branch this orchestrator publishes lives under, in the
-# pattern form `ls-remote` matches by. git's glob crosses `/` here, so the one
-# pattern covers the flat legacy name and the slug-namespaced one a component
-# deeper alike, and the trailing separator keeps a ref called
-# `refs/heads/orchestrator` itself out of the answer.
+# pattern form `ls-remote` matches by. git's glob crosses `/` here, so the
+# listing carries every name under the namespace, flat ones included, and the
+# attribution keeps only the ones a configured entry derives; the trailing
+# separator keeps a ref called `refs/heads/orchestrator` itself out of the
+# answer.
 _ORCHESTRATOR_REMOTE_REFS = "refs/heads/orchestrator/*"
 
 _REMOTE_BRANCH_PREFIX = "refs/heads/"
@@ -90,10 +91,12 @@ def _remote_issue_branches(
     """Which of this remote's branches belong to this repository, by issue.
 
     Put to every claimant on the clone rather than to this spec alone, which is
-    what keeps the ambiguous legacy name unattributed: the remote says which
-    repository the branch was pushed to, and nothing says which of the entries
-    sharing a clone created it -- so a name more than one of them could own
-    stays nobody's here as it does locally.
+    what keeps a name two entries derive identically unattributed: the remote
+    says which repository the branch was pushed to, and nothing says which of
+    the entries sharing a clone created it -- so a name more than one of them
+    could own stays nobody's here as it does locally. A flat name stays
+    nobody's too, since no entry derives it, so a remote-only flat branch never
+    becomes a candidate.
 
     A name attributed to a SIBLING on that clone is dropped rather than
     reported under it: what this repository's remote carries is evidence about
@@ -121,7 +124,7 @@ def _group_published(
     A repository the local scan already refused is not listed for, since
     nothing about it will be reported either way -- and it stays in the group
     put to the attribution, because a repository this discovery will not answer
-    for is still one the flat legacy branch on its clone could belong to.
+    for is still one a colliding branch name on its clone could belong to.
     """
     listed = {
         spec: _remote_issue_branches(spec, root_specs)

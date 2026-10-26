@@ -7,20 +7,103 @@ differ only in what the stage left behind: the question stage never
 pushed, so it has no remote side to reap, while a terminal PR does.
 Keeping them together keeps that single divergence visible instead of
 duplicating the local ordering in two stages.
+
+Both delete a branch only when it is the issue's exact current-layout
+name, tested against the branch the record names (`_recorded_branch`)
+rather than the live resolver's reading of it. A pinned or resolved branch
+that is anything else -- the flat
+`orchestrator/issue-<n>`, another repository's branch, any other name in
+the namespace -- is left on both hosts for manual disposition, since an
+`orchestrator/` prefix, a flat name, or an authentic pin alone is no proof
+that this issue owns it. The checkout comes down only where ``cleanup``
+proves it the issue's own, and neither happens at all where another
+configured repository derives the same branch name or checkout directory
+(`_attributable`).
 """
 from __future__ import annotations
 
 import logging
 
+from orchestrator import config
 from orchestrator.config import models as _config_models
-from orchestrator.git.worktrees import cleanup, naming as _naming
+from orchestrator.git.worktrees import attribution, cleanup, naming as _naming
 from orchestrator.github.client import GitHubClient
+from orchestrator.github.pinned_state import PinnedState
 
 # The channel is named for the worktree-lifecycle domain rather than for
 # this module's path: operators filter the rendered
 # `orchestrator.worktree_lifecycle` prefix and attach handlers to it, so
 # every owner in this package reports where their filters already point.
 log = logging.getLogger("orchestrator.worktree_lifecycle")
+
+# What every line the question teardown logs is prefixed with.
+_QUESTION_PREFIX = "question "
+
+
+def _recorded_branch(
+    state: PinnedState, spec: _config_models.RepoSpec, issue_number: int,
+) -> str:
+    """The branch a teardown of this issue is pointed at, as the record names it.
+
+    The pinned value itself whenever the record carries one, rather than what
+    the live resolver makes of it: the resolver answers a pin outside the
+    `orchestrator/` namespace with the derived name, and a teardown handed
+    that answer would delete the derived branch in place of the one the
+    record named. A pin that is no string is spelled out so it is refused
+    rather than read as nothing pinned. With nothing pinned, the resolver's
+    own answer stands -- the derived name for an issue that recorded no pull
+    request, or the flat name it infers beside one, which `_owned_branch`
+    refuses.
+    """
+    pinned = state.get("branch")
+    if pinned is None:
+        return _naming._resolve_branch_name(state, spec, issue_number)
+    return pinned if isinstance(pinned, str) else repr(pinned)
+
+
+def _owned_branch(
+    spec: _config_models.RepoSpec,
+    issue_number: int,
+    branch: str | None,
+    log_prefix: str,
+) -> str | None:
+    """The branch a teardown of this issue may delete, or None.
+
+    The current derivation when nothing else was named or the name handed in
+    is exactly it. Anything else is refused here, before either host is
+    touched, and said once on the lifecycle channel so an operator knows which
+    branch is waiting for them.
+    """
+    current = _naming._branch_name(spec, issue_number)
+    if branch is None or branch == current:
+        return current
+    log.warning(
+        "issue=#%d %sbranch %r is not this issue's current branch %r; "
+        "leaving it for manual disposition",
+        issue_number, log_prefix, branch, current,
+    )
+    return None
+
+
+def _attributable(
+    spec: _config_models.RepoSpec, issue_number: int, log_prefix: str,
+) -> bool:
+    """Whether this issue's checkout and branch are this repository's alone.
+
+    Asked of every configured repository at once, as the scan asks it: a name
+    another entry derives identically could be that entry's issue of the same
+    number, so neither the tree nor the ref is touched.
+    """
+    if attribution._sole_claimant(
+        spec, issue_number, config.default_repo_specs(),
+    ):
+        return True
+    log.warning(
+        "issue=#%d %scheckout and branch could belong to another configured "
+        "repository; leaving both for manual disposition",
+        issue_number, log_prefix,
+    )
+    return False
 
 
 def _cleanup_question_worktree(
@@ -52,7 +135,10 @@ def _cleanup_question_worktree(
     Removes the worktree AND the local branch. The next answer /
     resume / relabel rebuilds the worktree from a fresh
     `origin/<base>`; agent session state lives in pinned state, not
-    in the worktree, so resume across the cleanup works.
+    in the worktree, so resume across the cleanup works. A `branch`
+    that is not the issue's current-layout name is kept
+    (`_owned_branch`), and the checkout at the current path comes down
+    only where it is proven the issue's own.
 
     No remote-side step -- the question stage never pushed, so
     there is no remote branch to delete. Best-effort: each step
@@ -60,12 +146,14 @@ def _cleanup_question_worktree(
     handler. Serialized via `_target_root_lock` for the same
     `.git/config.lock` reason described on `_ensure_worktree`.
     """
-    if branch is None:
-        branch = _naming._branch_name(spec, issue_number)
-    cleanup._remove_issue_worktree(spec, issue_number, log_prefix="question ")
-    cleanup._delete_local_issue_branch(
-        spec, issue_number, branch, log_prefix="question ",
-    )
+    if not _attributable(spec, issue_number, _QUESTION_PREFIX):
+        return
+    owned = _owned_branch(spec, issue_number, branch, _QUESTION_PREFIX)
+    cleanup._remove_issue_worktree(spec, issue_number, log_prefix=_QUESTION_PREFIX)
+    if owned is not None:
+        cleanup._delete_local_issue_branch(
+            spec, issue_number, owned, log_prefix=_QUESTION_PREFIX,
+        )
 
 
 def _cleanup_terminal_branch(
@@ -85,15 +173,15 @@ def _cleanup_terminal_branch(
     time we reach here the issue has already flipped to `done` or
     `rejected`, and a stale ref is tidiness, not correctness.
 
-    `branch` overrides the default `_branch_name(spec, issue_number)`
-    so terminal cleanup of an in-flight issue that was opened on the
-    legacy `orchestrator/issue-<n>` ref reaps that branch (not the new
-    namespaced one that was never pushed).
-
-    The branch name is constrained to the orchestrator-owned
-    `orchestrator/...` namespace (verified via the
-    `orchestrator/`-prefix check in `_resolve_branch_name` upstream),
-    so this cleanup cannot touch an arbitrary branch.
+    `branch` is the one the caller resolved off the pinned record, and
+    it is deleted only when it is exactly `_branch_name(spec,
+    issue_number)` (`_owned_branch`). Any other name -- a flat
+    `orchestrator/issue-<n>`, another repository's branch, any other
+    name in the `orchestrator/` namespace -- is kept on both hosts and
+    no derived name is deleted in its place, and the branches wait for a
+    human. The checkout at this issue's current path comes down only
+    where it is proven the issue's own, so a tree standing on such a
+    branch stays with it.
 
     Order matters: the worktree must come down before `git branch -D`,
     because git refuses to delete a branch that's still checked out in a
@@ -109,17 +197,20 @@ def _cleanup_terminal_branch(
     `.git/config.lock`. The remote delete is a GitHub-side HTTP call
     (no local git plumbing) and stays outside the lock.
     """
-    if branch is None:
-        branch = _naming._branch_name(spec, issue_number)
+    if not _attributable(spec, issue_number, ""):
+        return
+    owned = _owned_branch(spec, issue_number, branch, "")
 
     # Each helper contains its own exception boundary so a local failure
     # cannot skip the next cleanup surface.
     cleanup._remove_issue_worktree(spec, issue_number)
-    cleanup._delete_local_issue_branch(spec, issue_number, branch)
+    if owned is None:
+        return
+    cleanup._delete_local_issue_branch(spec, issue_number, owned)
 
     try:
-        gh.delete_remote_branch(branch)
+        gh.delete_remote_branch(owned)
     except Exception:
         log.exception(
-            "issue=#%d remote branch %r delete raised", issue_number, branch,
+            "issue=#%d remote branch %r delete raised", issue_number, owned,
         )

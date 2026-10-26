@@ -126,10 +126,9 @@ def _activity_reason(
 ) -> tuple[_maintenance_results.MaintenanceReason | None, str]:
     """Whether this candidate's checkouts have been left alone long enough.
 
-    Asked of every checkout the issue holds, since an issue that was in flight
-    when slug namespacing landed can be sitting in two of them and either one
-    is a tree somebody may still be standing in. A branch has no tree to be
-    disturbed, so a candidate with no checkout has nothing to ask.
+    Asked of the checkout the candidate holds, since it is a tree somebody may
+    still be standing in. A branch has no tree to be disturbed, so a candidate
+    with no checkout has nothing to ask.
 
     Asked last, because a modification time is only worth reading about a tree
     that has already been established as this issue's own.

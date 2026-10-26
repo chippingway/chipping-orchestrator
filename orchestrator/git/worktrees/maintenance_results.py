@@ -55,9 +55,10 @@ class MaintenanceReason(StrEnum):
     The two tip members are the pass's own last reading, taken after everything
     else cleared and immediately before the mutation. `TIP_MOVED` is an
     artifact that has left the commit the classification proved -- an agent
-    committed, a human pushed -- which is not a failure but a race the next
-    pass re-runs from the start. `TIP_UNREADABLE` is that reading not coming
-    back at all.
+    committed, a human pushed -- or a checkout no longer the issue's own --
+    switched onto another branch at that commit, or reached through a
+    symlink since -- which is not a failure but a race the next pass re-runs
+    from the start. `TIP_UNREADABLE` is that reading not coming back at all.
 
     `WRITER_CLAIM_REFUSED` is the issue's host-local writer claim being
     refused before anything about the issue was read: another poller on this

@@ -14,7 +14,8 @@ from unittest.mock import MagicMock, patch
 from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.worktrees import decomposition, paths
+from orchestrator.git.worktrees import decomposition, evidence, paths
+from orchestrator.git.worktrees.models import ProbeAnswer
 
 BASE_BRANCH = "main"
 ORIGIN_REMOTE = "origin"
@@ -153,7 +154,10 @@ class _WorktreeFixture:
 
 @contextmanager
 def _worktree_fixture(
-    *, remote_tip: str | None = "", **recorder_options,
+    *,
+    remote_tip: str | None = "",
+    checkout_identity: ProbeAnswer = ProbeAnswer.CONFIRMED,
+    **recorder_options,
 ) -> Iterator[_WorktreeFixture]:
     """Point the worktrees root at a temp dir and fake the git plumbing.
 
@@ -166,6 +170,11 @@ def _worktree_fixture(
     only thing that turns a missing remote-tracking ref into a confirmed
     deletion: `""` is "no such branch", a SHA is "still there and this host
     just could not fetch it", and `None` is a read that failed.
+
+    `checkout_identity` is what the ownership read answers for a planted
+    checkout. A planted directory is no real worktree and the git under it is
+    faked, so the answer is stated rather than read: a teardown removes only a
+    checkout proven the issue's own.
     """
     recorder = _GitRecorder(**recorder_options)
     fetches = _AuthedFetchRecorder()
@@ -176,6 +185,9 @@ def _worktree_fixture(
         patch.object(branch_transport, "_authed_target_fetch", fetches),
         patch.object(
             branch_transport, "_remote_branch_tip", return_value=remote_tip,
+        ),
+        patch.object(
+            evidence, "_checkout_identity", return_value=checkout_identity,
         ),
     ):
         yield _WorktreeFixture(

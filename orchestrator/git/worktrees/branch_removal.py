@@ -77,9 +77,10 @@ def _take_branches(
 ) -> _maintenance_results.MaintenanceResult | None:
     """Take every cleared branch of this candidate, in the order it was named.
 
-    Each branch goes remote-side first and then locally, rather than every
-    remote and then every local, so a candidate carrying both layouts leaves
-    one whole branch behind rather than two half-taken ones when a pass stops.
+    The branch goes remote-side first and then locally, so the local ref --
+    the cheapest thing the next discovery finds -- is the last artifact of a
+    candidate to go. It is only ever the issue's current-layout name; a flat
+    branch beside it is no candidate's and is left alone.
 
     A branch nothing cleared ENDS the pass rather than being passed over. It
     is a branch the discovery named and the classification found on neither
@@ -95,8 +96,8 @@ def _take_branches(
     `branch -D` refuses a branch a worktree is on and `update-ref -d` takes it
     without a word, leaving that tree holding a HEAD nothing resolves. The
     trees that can be on it are not only this candidate's -- an operator's own
-    `worktree add` is on the branch just as squarely, and so is a checkout this
-    scan could not attribute.
+    `worktree add` is on the branch just as squarely, and so is a flat or
+    foreign checkout this scan never attributes.
 
     The first stop ends the candidate. What is left is exactly what the next
     discovery finds, and going on past a refusal would spend deletions on a

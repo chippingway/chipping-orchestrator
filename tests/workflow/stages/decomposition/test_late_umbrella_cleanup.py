@@ -24,12 +24,13 @@ from tests.workflow.stages.decomposition import late_cleanup_support as _support
 from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, RecordedDelete, SeededUmbrella
 from tests.workflow.stages.decomposition.late_crash_support import refusing
 
-# Four targets a ledger entry could name and this issue is not published under:
+# Five targets a ledger entry could name and this issue is not published under:
 # an unprotected default branch, another issue's branch in the same namespace,
-# one outside the namespace altogether, and -- the one a prefix-and-tail
-# reading lets through -- another repository's branch for an issue whose number
-# happens to match. Two specs sharing a `target_root` is what slug-namespacing
-# exists for, so that last one is the ordinary shape, not a contrived one.
+# one outside the namespace altogether, the flat name an earlier layout left --
+# which carries no repository at all -- and, the one a prefix-and-tail reading
+# lets through, another repository's branch for an issue whose number happens
+# to match. Two specs sharing a `target_root` is what slug-namespacing exists
+# for, so that last one is the ordinary shape, not a contrived one.
 _WARNING = "WARNING"
 
 _ERROR = "ERROR"
@@ -39,6 +40,8 @@ _MAIN = "main"
 _ANOTHER_ISSUE = "orchestrator/chippingway__chipping-orchestrator/issue-99"
 
 _NOT_OURS = "feature/issue-41"
+
+_FLAT = "orchestrator/issue-41"
 
 _ANOTHER_REPOSITORY = "orchestrator/other-repository/issue-41"
 
@@ -267,7 +270,7 @@ class UmbrellaCleanupRefusalTest(_UmbrellaCleanupCase, unittest.TestCase):
         # destructive call, so a hand-edited entry naming an unprotected
         # branch must delete nothing -- and must not let the umbrella close
         # over an obligation nobody settled.
-        for foreign in (_MAIN, _ANOTHER_ISSUE, _NOT_OURS, _ANOTHER_REPOSITORY):
+        for foreign in (_MAIN, _ANOTHER_ISSUE, _NOT_OURS, _FLAT, _ANOTHER_REPOSITORY):
             with self.subTest(branch=foreign):
                 seeded = _support.split_umbrella(
                     LateResourceState.PENDING, branch=foreign,
