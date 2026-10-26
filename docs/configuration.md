@@ -974,6 +974,15 @@ command ran names the reading that refused it instead. Output is redacted via `c
 - `verify_tree_changed` — Command exited 0 and left `HEAD` on the tested commit, but its tree no longer read as the
   tree recorded before the run; the park comment surfaces the before / after tree ids.
 
+The final docs pass's own run on the docs commit it published parks on `workflow:documenting` under the same tokens,
+with its docs receipt left standing, and adds one of its own:
+
+- `verify_unrecorded` — Every command passed on the docs commit, but the run could not be recorded as evidence of it
+  (its output does not fit a verification artifact), so nothing is offered for merge.
+
+On either park a bare `/orchestrator continue` resumes the docs pass over that commit, and whatever it leaves is
+verified again before the issue reaches `in_review`.
+
 ### Examples
 
 ```dotenv
