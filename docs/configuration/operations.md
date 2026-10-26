@@ -733,6 +733,16 @@ which paths reach an issue decides what keeps it away:
   mark of an earlier HITL ping, one carrying only the pre-namespace `community_contribution` is unmarked: its first
   sweep @-mentions `HITL_HANDLE` on it again and adds the namespaced label beside the bare one, which stays. Accept
   that one ping per such pull request, or leave the repository out.
+- **Requirements baselines.** A build that compares the drift baseline in the current fingerprint alone reads a
+  recorded `user_content_hash` or `observed_user_content_hash` it does not reproduce as a requirements edit, whichever
+  build wrote it -- one an earlier build recorded counting a bare `/orchestrator continue` among the requirements
+  included, on an issue whose thread carries one. Nothing rewrites that value, so the issue's next
+  [drift check](../state-machine/delivery-stages.md#user-content-drift-detection) takes the route its stage takes for
+  a human's edit: back to `workflow:decomposing` before implementation, orphaning an umbrella's tracked children; a
+  developer resume once implementation has started; the `documenting` unwind; or, in a late adjudication, a
+  content-drift park that waits for a human. An issue on `workflow:blocked` meets it on its release to
+  `workflow:ready`, and `paused` or `backlog` only defers it. Accept that one route per such issue, or leave its
+  repository out.
 - **A whole repository.** A repository the selected build is not configured for is never polled, swept, or
   refreshed, and the maintenance pass leaves alone every artifact whose name marks it as that repository's. Flat
   `orchestrator/issue-<n>` branches and `WORKTREES_DIR/issue-<n>` checkouts are no entry's, whichever entries are
