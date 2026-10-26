@@ -221,11 +221,15 @@ def binding_verdict(
     return rest_verdict(reading, binding, found)
 
 
-def current_evidence_verdict(reading: ProofReading) -> _evidence_models.ReportEvidence:
+def current_evidence_verdict(
+    reading: ProofReading,
+    ahead: Callable[[object], _evidence_models.ReportEvidence | None] | None = None,
+) -> _evidence_models.ReportEvidence:
     """Prove the current evidence still stands and is still published, or refuse it.
 
     For a reader about to rely on the current record -- a reviewer handed it,
-    a readiness decision, a docs pass that changed nothing and would keep it --
+    a readiness decision, a docs pass that changed nothing and would keep it,
+    a final-documentation completion naming it (`final_docs_proof`) --
     rather than for the reconciliation that settled it: a head, a context, a
     report, a review subject, or requirements can each move after the
     settlement, and the artifact can be deleted or edited, and the record
@@ -235,6 +239,13 @@ def current_evidence_verdict(reading: ProofReading) -> _evidence_models.ReportEv
     and its artifact are read again (`verification_current`), and then the
     whole proof a settlement takes. An issue with no current evidence defers,
     since nothing on this road can produce some.
+
+    `ahead` is a caller's own reading of the pull request the proof read, as
+    `binding_verdict` takes one -- the final-documentation proof's re-reads of
+    the artifacts a completion rests on (`final_docs_proof`) -- asked behind
+    the publication and ahead of the rest, so the branch, the report, and the
+    requirements are read behind its requests; a refusal of its own is the
+    verdict.
     """
     current = _settlement.read_current_evidence(reading.state)
     if current is None:
@@ -248,6 +259,8 @@ def current_evidence_verdict(reading: ProofReading) -> _evidence_models.ReportEv
     unpublished = _current.publication_verdict(
         reading.gh, reading.state, current, found.pull_request,
     )
+    if unpublished is None and ahead is not None:
+        unpublished = ahead(found.pull_request)
     return unpublished or rest_verdict(reading, current.binding, found)
 
 

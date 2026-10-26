@@ -20,7 +20,9 @@ hand spells them: the developer report's transaction and settled pair, the
 report debt a review subject stands only without -- an undeliverable park's
 reason and the debt it records -- the review subjects -- the approved one
 among them, since evidence carried across an approval's squash answers for the
-approved review -- and this domain's own records and revision floor. Which records those are is this domain's choice,
+approved review -- the final-documentation completion, through which a run of
+the final head answers for that review too, and this domain's own records and
+revision floor. Which records those are is this domain's choice,
 and they are the prerequisites of every guarded write it makes (`guarded`);
 a caller whose decision reads a record beyond them names it too (`rests_on`),
 and it is held the same way. The comparison is the commit's, as the comment's
@@ -57,6 +59,7 @@ from github.Issue import Issue
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    final_docs_records as _final_docs,
     pinned_commit as _commit,
     pinned_commit_models as _commit_models,
     report_delivery as _report_delivery,
@@ -72,8 +75,9 @@ from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, 
 # (`report_delivery.REPORT_DEBT`), since a review subject stands only while
 # nothing is owed -- the settled report, the review subjects -- the approved
 # one included, which evidence carried across an approval's squash answers
-# through -- and this domain's own four records and the revision floor beside
-# them.
+# through -- the final-documentation completion a run of its final head
+# answers for the approved subject through (`final_docs_records`), and this
+# domain's own four records and the revision floor beside them.
 _BOUND_RECORDS = (
     "pr_number",
     *_report_delivery.REPORT_DEBT,
@@ -82,6 +86,7 @@ _BOUND_RECORDS = (
     _review_subjects.REVIEW_SUBJECT,
     _review_subjects.RETURNED_SUBJECT,
     _review_subjects.APPROVED_SUBJECT,
+    _final_docs.FINAL_DOCS,
     _records.PENDING_EVIDENCE,
     _records.CURRENT_EVIDENCE,
     _records.EVIDENCE_HISTORY,

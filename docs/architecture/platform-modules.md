@@ -1399,7 +1399,9 @@ orchestrator/
                         not read exits like a missing one, and only that word tells them apart), and None where
                         it said neither, a lookup a signal killed or that failed any other way included -- for
                         the evidence proof, which holds rather than retires where presence answered no and
-                        nothing proved why
+                        nothing proved why; and whether one commit's history contains another (`_descends`),
+                        git's own no told apart from a walk that never answered, for the final-documentation
+                        proof's link from the head a docs pass was entered on to the head it completed on
       output.py         the redact-then-truncate pass over captured verify output, cut to the budget in UTF-8 bytes
                         and never inside a character
       probes.py         HEAD, branch, and tree identity, committed-path and regular-file reads, object presence

@@ -11,6 +11,12 @@ retires evidence only on what it proved (`workflow/engine/verification_world.py`
 answer only where git's lookup exits as it does for a name that resolves to
 nothing, without a word about any object it could not open; and None where it
 said neither.
+
+Ancestry is asked the same way (`_descends`), for the final-documentation
+proof (`workflow/engine/final_docs_proof.py`), which links the head a docs
+pass completed on to the head it was entered on: `probes._commit_contains`
+answers no on any failure, while this answers git's own no apart from a walk
+that never answered.
 """
 from __future__ import annotations
 
@@ -19,9 +25,11 @@ from pathlib import Path
 
 from orchestrator.git import commands as _commands
 
-# The status a quiet `git rev-parse --verify` exits with for a name that
-# resolves to no object. Any other failure -- git's fatal 128, or the negative
-# status of a process a signal ended -- is a lookup that never answered.
+# The status git answers no with: a quiet `git rev-parse --verify` for a name
+# that resolves to no object, and `merge-base --is-ancestor` for a commit the
+# other's history does not contain. Any other failure -- git's fatal 128, or
+# the negative status of a process a signal ended -- is a read that never
+# answered.
 _ABSENT_STATUS = 1
 
 
@@ -51,6 +59,19 @@ def _object_kind(worktree: Path, revision: str) -> str | None:
     if looked_up is None or looked_up.returncode != _ABSENT_STATUS:
         return None
     return None if (looked_up.stderr or "").strip() else ""
+
+
+def _descends(worktree: Path, ancestor: str, descendant: str) -> bool | None:
+    """Whether `descendant`'s history contains `ancestor` in `worktree`; None where git did not answer.
+
+    `merge-base --is-ancestor` exits 0 for yes and 1 for git's own no, and
+    with anything else -- an id it could not resolve, a repository it could
+    not open, a signal -- for a walk that established nothing either way.
+    """
+    asked = _git(worktree, "merge-base", "--is-ancestor", ancestor, descendant)
+    if asked is None or asked.returncode not in {0, _ABSENT_STATUS}:
+        return None
+    return asked.returncode == 0
 
 
 def _git(worktree: Path, *args: str) -> subprocess.CompletedProcess | None:

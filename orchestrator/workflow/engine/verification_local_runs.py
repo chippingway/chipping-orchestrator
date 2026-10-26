@@ -32,15 +32,20 @@ binds here renders a longer artifact than the one measured. What is left to
 the recorder is the room the pinned comment has for the record beside
 everything else the issue carries (`verification_record_state`).
 
-Two producers bind a run here. The approval squash
+Three producers bind a run here. The approval squash
 (`stages/validating/squash_evidence.py`): where the squash published another
 head, the run its verify gate made on the approved head is bound here against
 the evidence that approval rests on, and carried onto the new head. A run on
 an approval whose squash rewrote nothing stays the gate it was, and binds
-nothing. And the evidence policy of a landed automatic base rewrite
+nothing. The evidence policy of a landed automatic base rewrite
 (`rewrite_evidence`), which binds its fresh run of the rewritten head against
 a review of that very head; the finish's evidence step
 (`rewrite_finish_evidence`) records what it binds before the head is routed.
+And the documenting stage's verification of the head a final docs pass
+completed on (`stages/documenting/final_verification.py`), which binds its run
+of exactly that head against the approved review, the one subject a
+final-documentation completion lets such a run answer for
+(`final_docs_records.answers_for`).
 """
 from __future__ import annotations
 

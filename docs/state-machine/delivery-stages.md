@@ -1512,10 +1512,13 @@ because there it is the claim that this stage has already rerouted rather than a
 - **Relying on it later**: `current_evidence_verdict` proves the current record again for a reader -- no revision
   past it spent, its handoff, its artifact re-read at the recorded comment with the pass flag its commands earn, and
   then the whole proof above -- so newer evidence posted and never settled, a deleted or edited artifact, or a flag it
-  contradicts is not reported as current. Its readers are four: the approval's proof over the evidence its verdict
+  contradicts is not reported as current. Its readers are six: the approval's proof over the evidence its verdict
   names (`stages/validating/approved_evidence.py`); the squash handoff, which proves a settled carry whole again before
   the label moves over it (`stages/validating/squash_evidence.py`); a final-docs pass that changed nothing, before it
-  keeps the evidence (`stages/documenting/retention.py`); and `stages/validating/review_evidence.py`, which
+  keeps the evidence (`stages/documenting/retention.py`); the in_review ready ping, before it tells a human the head
+  is ready ([the readiness proof](#the-readiness-proof-at-the-ping)); the final-documentation proof of the evidence a
+  completion names (`workflow/engine/final_docs_proof.py`), which asks its own artifact re-reads between the
+  publication and the rest (`ahead`), so the rest is read behind them; and `stages/validating/review_evidence.py`, which
   hands a reviewer the current evidence only where the record is bound to exactly the subject that reviewer is
   handed -- pull request, head, requirements, and the complete report by revision and digest -- and it proves current,
   then re-reads the artifact for the prompt and holds it to the record again, so an edit between the two reads hands

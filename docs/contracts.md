@@ -262,13 +262,28 @@ Credential filtering does not enforce push authority; see [C-11].
 **Limits:** Evidence and approval may carry across a rewrite only when the verification protocol proves they apply
 to the new revision. The ready ping announces an approval only over current passing evidence proved at the ping.
 
+The final-documentation exception records a docs pass apart from the approval it followed: the approved review
+subject, the settled report and its source commit, and the evidence the approval rests on stay as they were, and the
+head the pass completed on is verified on its own -- unchanged, by that evidence with its own provenance; changed, by
+a run of exactly that head this orchestrator executed; changed under an empty `VERIFY_COMMANDS`, by nothing, recorded
+as no evidence that anything passed. Only that recorded completion lets the run answer for the approved review, and
+only bound to the settled report's publication at that head. No record says the reviewer was handed the docs commit
+or that checks ran on another commit, and a completion missing, malformed, or moved; an approval or its evidence
+claim that no longer reads as the one the completion followed; requirements, a report, or a publication that
+changed, an edit or a push landing while the proof reads included; the evidence that claim names no longer published
+as it settled; a lineage from the approved commit not proved; or a run owed, failed, or incomplete authorizes
+nothing, and evidence or an issue nobody could read holds it.
+
 **Specs:** [reports](workflow.md#developer-report-contract-in-developer-prompts),
 [verification](workflow/conversations.md#the-reviewer-verification-contract),
-[readiness](state-machine/delivery-stages.md#the-readiness-proof-at-the-ping).
+[readiness](state-machine/delivery-stages.md#the-readiness-proof-at-the-ping),
+[final-documentation records](state-machine/labels-and-state.md#pinned-state).
 
 **Checks:** [subjects](../tests/workflow/engine/test_review_subjects.py),
 [verification](../tests/workflow/engine/test_verification_current.py),
-[readiness](../tests/workflow/stages/in_review/test_readiness_proof.py).
+[readiness](../tests/workflow/stages/in_review/test_readiness_proof.py),
+[final documentation](../tests/workflow/engine/test_final_docs_proof.py),
+[final-head runs](../tests/workflow/stages/documenting/test_final_verification.py).
 
 ## C-10: Pauses and parks
 

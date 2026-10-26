@@ -60,6 +60,17 @@ of `head` for, once that report re-reads intact at its location. DEFER leaves
 the stale report to the reviewer road's refusal, as though nothing had asked,
 and a HOLD holds the reviewer with no developer run, for the next tick to read
 again.
+
+The half of that proof no debt is needed for -- a carry EXACTLY of a named
+review onto a named head, on the settled report's pull request and branch,
+and both commits read again as the tree it recorded -- is asked on its own as
+well (`squash_verdict`), with the same verdicts. The debt's proof names the
+review of the settled report itself, so its rule is the one above; the
+final-documentation proof (`final_docs_proof`) names the approved subject its
+completion records, which holds the head a documenting pass was entered on to
+the approved commit it may stand in for -- under the requirements that
+approval was given, which for a round an operator's grant bought are the
+thread through that grant rather than the ones the report was written against.
 """
 from __future__ import annotations
 
@@ -79,7 +90,7 @@ from orchestrator.workflow.engine import (
     verification_world as _world,
 )
 from orchestrator.workflow.engine.report_evidence_models import ReportEvidence, ReportEvidenceVerdict
-from orchestrator.workflow.engine.review_subjects import ReviewSubject
+from orchestrator.workflow.engine.review_subjects import ReviewReport, ReviewSubject
 
 _PROVED = ReportEvidence(ReportEvidenceVerdict.PROVED)
 
@@ -95,7 +106,7 @@ _UNEXPLAINED = ReportEvidence(
 
 _UNSQUASHED = ReportEvidence(
     ReportEvidenceVerdict.DEFER,
-    "no recorded approval squash carried the settled report onto the head the rewrite replaced",
+    "no recorded approval squash carried the settled report onto the head it is asked about",
 )
 
 _RETREED = ReportEvidence(
@@ -123,6 +134,8 @@ def lineage_verdict(
     has to name as the head its rewrite published. PROVED where the pinned
     records agree and the checkout of `issue_number` reads both commits as
     the recorded tree; DEFER for no proof; HOLD for a tree nobody could read.
+    The carry is held to the review of the settled report itself
+    (`_reported_review`).
     """
     debt = _rewrite_debt.read_rewrite_debt(state)
     settled = _settlement.read_current_report(state)
@@ -131,10 +144,51 @@ def lineage_verdict(
     explained = (_rewrite_debt.pinned_pull_request(state), head, settled.subject.pr_number, settled.subject.branch)
     if explained != (debt.pr_number, debt.rewritten_head, debt.pr_number, debt.branch):
         return _UNEXPLAINED
-    trees = {binding.tested_tree for binding in _carries(state) if _is_the_squash(binding, settled, debt)}
-    if not trees:
+    return squash_verdict(spec, issue_number, state, debt.previous_head, _reported_review(settled))
+
+
+def squash_verdict(
+    spec: _config_models.RepoSpec, issue_number: int, state: PinnedState, squash: str, review: dict,
+) -> ReportEvidence:
+    """Whether the commit `review` is about is the one this orchestrator's approval squash published `squash` over.
+
+    `review` is the recorded review subject the carry has to answer for,
+    exactly as `review_subjects` spells it: the review of the settled report
+    itself for `lineage_verdict`, and the approved subject a final-docs
+    completion records for `final_docs_proof` -- whose requirements, for a
+    round an operator's grant bought, are the thread through that grant, past
+    the ones the report was written against. A carry `state` keeps of exactly
+    that review onto `squash`, tested on the commit the review is about,
+    under its requirements, on the settled report's repository, pull request,
+    and branch (`_is_the_squash`), and the checkout of `issue_number` reading
+    both commits as the tree a carry recorded. PROVED, DEFER, or HOLD as
+    `lineage_verdict` answers them -- DEFER too where no settled report reads.
+    """
+    settled = _settlement.read_current_report(state)
+    approved = ReviewSubject.commit_recorded_in(review)
+    carried = () if settled is None else _carries(state)
+    trees = {binding.tested_tree for binding in carried if _is_the_squash(binding, settled, squash, review)}
+    if not (trees and approved):
         return _UNSQUASHED
-    return _trees_verdict(_worktree_paths._worktree_path(spec, issue_number), settled.subject.source_sha, debt, trees)
+    return _trees_verdict(_worktree_paths._worktree_path(spec, issue_number), approved, squash, trees)
+
+
+def _reported_review(settled: _report_records.CurrentReport) -> dict:
+    """The review subject of `settled` itself: about its own commit, under the requirements it was written against."""
+    reported = settled.subject
+    return ReviewSubject(
+        pr_number=reported.pr_number,
+        commit=reported.source_sha,
+        requirements_revision=reported.requirements_revision,
+        report=ReviewReport(
+            text="",
+            report_revision=settled.report_revision,
+            content_revision=settled.content_revision,
+            source_sha=reported.source_sha,
+            requirements_revision=reported.requirements_revision,
+            location=settled.location,
+        ),
+    ).recorded()
 
 
 def _carries(state: PinnedState) -> Iterator[_evidence_records.EvidenceBinding]:
@@ -157,35 +211,29 @@ def _carries(state: PinnedState) -> Iterator[_evidence_records.EvidenceBinding]:
 def _is_the_squash(
     binding: _evidence_records.EvidenceBinding,
     settled: _report_records.CurrentReport,
-    debt: _rewrite_debt.RewriteDebt,
+    squash: str,
+    review: dict,
 ) -> bool:
-    """Whether `binding` is the approval squash of `settled` onto the head `debt` replaced.
+    """Whether `binding` is the approval squash's carry of `review` onto `squash`.
 
-    The approved subject is about the commit that was tested, which only the
-    approval squash's carry records, and is `settled` exactly; the carry
-    answers for the head the debt's rewrite replaced, on its repository, pull
-    request, and branch, under the same requirements.
+    The review is the one the carry answers for, exactly, and about the
+    commit that was tested, which only the approval squash's carry records;
+    the carry answers for `squash` on the settled report's repository, pull
+    request, and branch, under the requirements that review was given.
     """
     reported = settled.subject
     carried = binding.target.publication
-    subject = binding.target.subject
     return (
         carried.repo_slug, carried.pr_number, carried.branch, carried.source_sha,
-        carried.requirements_revision, binding.tested_sha,
-        ReviewSubject.commit_recorded_in(subject),
-        ReviewSubject.identity_recorded_in(subject),
-        ReviewSubject.requirements_recorded_in(subject),
+        carried.requirements_revision, binding.tested_sha, binding.target.subject,
     ) == (
-        reported.repo_slug, debt.pr_number, debt.branch, debt.previous_head,
-        reported.requirements_revision, reported.source_sha,
-        reported.source_sha,
-        (reported.pr_number, settled.report_revision, settled.content_revision),
-        reported.requirements_revision,
+        reported.repo_slug, reported.pr_number, reported.branch, squash,
+        ReviewSubject.requirements_recorded_in(review), ReviewSubject.commit_recorded_in(review), review,
     )
 
 
-def _trees_verdict(worktree: Path, approved: str, debt: _rewrite_debt.RewriteDebt, trees: set[str]) -> ReportEvidence:
-    """Whether `worktree` reads `approved` and the squash `debt` replaced as one of the `trees` a carry recorded.
+def _trees_verdict(worktree: Path, approved: str, squash: str, trees: set[str]) -> ReportEvidence:
+    """Whether `worktree` reads `approved` and `squash` as one of the `trees` a carry recorded.
 
     Each commit is read as the evidence proof reads one (`verification_world.tree_of`):
     a commit in its own right, never a tag peeling to one, and its full tree.
@@ -193,7 +241,7 @@ def _trees_verdict(worktree: Path, approved: str, debt: _rewrite_debt.RewriteDeb
     if not worktree.exists():
         return _NO_CHECKOUT
     approved_tree = _world.tree_of(worktree, approved)
-    squash_tree = _world.tree_of(worktree, debt.previous_head)
+    squash_tree = _world.tree_of(worktree, squash)
     if not (approved_tree and squash_tree):
         return _UNREAD_TREE
     if approved_tree != squash_tree or approved_tree not in trees:

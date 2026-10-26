@@ -413,8 +413,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             line marked unsure where a later split leaves one too (`unsure`); else, pytest having given
                             no message, on the last
     stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call
-                            (the settled-report reader the verification-evidence proof reuses among them);
-                            the unlabeled target reaches pickup through the same resolver. Named here too, though
+                            (the settled-report reader the verification-evidence proof reuses among them, and the
+                            owners the final-documentation proof holds an approval's evidence through -- its
+                            artifact's standing, `stages/validating/approved_evidence.py`, and the claim naming it,
+                            `stages/validating/review_verdicts.py` -- and its requirements over the issue read
+                            afresh, `stages/validating/review_coverage.py`); the unlabeled target reaches pickup
+                            through the same resolver. Named here too, though
                             no label routes to any of them, are the stage owners a report record's own measurement
                             REPLAYS to size the writes that land behind it: the two code-publication receipt
                             owners, which the report evidence reads and whose gate write the record reserves; the
@@ -1385,7 +1389,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             could read; it writes nothing. `stages/validating/report_refresh.py` asks it before
                             refreshing a report of that approved commit -- for a base rebase of the squash, or for
                             the docs commit a final-docs pass published on it, whose hand-back retired the carry into
-                            the history this reads
+                            the history this reads. `squash_verdict` is the half no debt is needed for -- a carry of a
+                            named review onto a named head, on the settled report's pull request and branch, its trees
+                            read again -- which the debt's proof names the settled report's own review to, and
+                            `final_docs_proof.py` the approved review, asking it of the head a docs pass was entered
+                            on: for a round an operator's grant bought, that review is under the requirements through
+                            the grant, past the ones the report was written against
     rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the base
                             refresh publishing its own rebase, or a recovery that pushed the replay again or found it
                             standing, announced or not -- handed the typed landing (`git/base_sync/rewrite_handoffs.py`)
@@ -1758,8 +1767,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             monotonic
     verification_local_runs.py
                             what one local `VERIFY_COMMANDS` run is worth as evidence, asked by the approval squash
-                            of its verify gate's run (`stages/validating/squash_evidence.py`) and by the base-rewrite
-                            evidence policy of its fresh run (`rewrite_evidence.py`): only a run
+                            of its verify gate's run (`stages/validating/squash_evidence.py`), by the base-rewrite
+                            evidence policy of its fresh run (`rewrite_evidence.py`), and by the documenting stage's
+                            verification of a final head (`stages/documenting/final_verification.py`): only a run
                             `is_reusable` vouches for, on the head its target answers for, bound with exactly the
                             commands that ran. A failed run binds nothing, since the runner proves no
                             clean tree after a nonzero exit; nor do an empty configuration, a timeout, a dirty or moved
@@ -1776,7 +1786,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             repository holds, hold, since each is the read failing rather than an answer
     verification_subject.py the subject half: the evidence's pull request the one this issue pins as `pr_number`; no
                             developer report still owed (`report_delivery.owes_a_report`, the validating hold's rule);
-                            the bound review subject about the target head and equal to the applicable record
+                            the bound review subject about the target head -- or the approved one, for a carry of the
+                            approved commit or a run of the final head an `executed` final-documentation completion
+                            records (`final_docs_records.answers_for`) -- and equal to the applicable record
                             (`applicable_subject`: `review_returned_subject` for a reviewer's account, `review_subject`
                             for a run this orchestrator executed); the settled report re-read exactly as a reviewer is
                             handed it -- the settled pair held to each other and the report read at its location,
@@ -1803,12 +1815,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`observed`). `current_evidence_verdict`
                             is for a reader about to rely on the current record: the pull request, then its
                             publication (`verification_current.py` -- the latest record, its handoff, its artifact),
+                            then a caller's own reading of that pull request (`ahead`, as `binding_verdict` takes one),
                             then the same proof. Its readers are the reviewer's hand-off of current evidence
                             (`stages/validating/review_evidence.py`), the approval's proof over the evidence its
                             verdict names (`approved_evidence.py`), the squash handoff's proof of a settled carry
                             before the label moves over it (`squash_evidence.py`), a final-docs pass that changed
-                            nothing, before it keeps the evidence (`stages/documenting/retention.py`), and the
-                            in_review ready ping, before it tells a human the head is ready
+                            nothing, before it keeps the evidence (`stages/documenting/retention.py`), the
+                            final-documentation proof of the evidence a completion names (`final_docs_proof.py`), and
+                            the in_review ready ping, before it tells a human the head is ready
                             (`stages/in_review/merge_gate.py`)
     verification_current.py whether the current record is still what the pull request carries: no revision past it
                             spent (a newer transaction, its artifact posted or not, supersedes it), the handoff
@@ -1821,6 +1835,47 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             evidence it copied its transcript from (`copied_from`): still the current record, its
                             artifact re-read as the one that settled and carrying exactly the commands copied --
                             asked ahead of the carry's post and again ahead of its settlement
+    final_docs_records.py   the final-documentation completion (`docs_final_provenance`), recorded apart from the
+                            approval it followed: the approved subject, the head the pass was entered on, the head it
+                            completed on, how that head is verified (`retained`, `executed`, `unconfigured`), and the
+                            transaction that rests on, read whole or not at all. `final_target` is what a run of the
+                            final head answers for -- the approved review, on the settled report's publication moved
+                            to the final head -- `entry_target` what the approval's evidence answers for, the same at
+                            the entry head, and `answers_for` the one exception the evidence proof's subject rule
+                            takes (`verification_subject.py`): an orchestrator-executed run of exactly the final head
+                            an `executed` completion records, bound to exactly `final_target` -- a run moved onto
+                            another publication licenses nothing -- over the approval this issue still records, read
+                            whole before it is compared
+    final_docs_claims.py    the evidence the approval's own claim names, as a completion relies on it: the claim
+                            (`review_approved_evidence`, read through `stages/validating/review_verdicts.py`, resolved
+                            when called) read whole, passing and covering, and naming exactly a passing record bound
+                            to exactly `FinalDocs.entry_target`, branch included -- the current one for `retained`
+                            (the retained transaction) and `unconfigured`, and for `executed` the one superseded into
+                            history by the run of the final head -- and its review subject held to the evidence
+                            proof's own guard, `verification_subject.subject_verdict` (`claim_refusal`); then, on the
+                            pull request the verification read and ahead of the rest of it, that record held to the
+                            configured context and to its publication: under `unconfigured` as current evidence is held
+                            (`verification_current.publication_verdict` -- no revision past it, its handoff describing
+                            it, its artifact re-read), under `executed` the revision just before the run's and its
+                            artifact re-read, still the one that settled (`claimed_artifact_refusal`): outranked,
+                            deleted, or edited it refuses, unread it holds
+    final_docs_proof.py     the proof of that completion, each link apart and nothing written: the approval, read
+                            whole, and the pull request it pins, no report owed, and the settled report the approval
+                            covers about its commit; the evidence the approval's claim names (`final_docs_claims.py`);
+                            the verification -- the named transaction the current evidence exactly, bound to exactly
+                            `FinalDocs.final_target` (the settled report's publication at the final head), proved
+                            through `verification_proof.current_evidence_verdict`, and its artifact passing and
+                            covering the configuration (`stages/validating/approved_evidence.py`, resolved when
+                            called), or, resting on none, `VERIFY_COMMANDS` still empty and the pull request, branch,
+                            settled report, and requirements proved at the final head; and the lineage -- the entry
+                            head the approved commit or a squash `report_squash_lineage.squash_verdict` proves of the
+                            approved review, and a final head that differs descending from it
+                            (`git/verification/objects.py`). Every artifact re-read is asked between the pull
+                            request's reading and the rest of the verification (`current_evidence_verdict`'s
+                            `ahead`), and behind them the issue is read afresh for its requirements
+                            (`stages/validating/review_coverage.py`, resolved when called) -- unread, it holds --
+                            so the requirements, the branch, the checkout, and the report are read behind them, and
+                            an edit or a push landing during one refuses
     verification_carries.py a refused carry -- a transaction carrying a run onto a head it did not run on, which an
                             approval's squash records onto the head it published and a landed base rewrite's finish
                             onto its rewritten head (`rewrite_finish_evidence.py`) -- abandoned into history with the
@@ -1930,8 +1985,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the developer report's records and the report debt a review subject stands only without
                             (`report_delivery.REPORT_DEBT`: `developer_report_owed` and an undeliverable `park_reason`
                             beside them), the three review subjects -- the approved one, which a
-                            carry across an approval's squash answers through, included -- and the evidence records
-                            and revision floor exactly as the state in hand spells them, or the field that moved;
+                            carry across an approval's squash answers through, included -- the final-documentation
+                            completion, and the evidence records and revision floor exactly as the state in hand
+                            spells them, or the field that moved;
                             the capture every guarded evidence write is taken under, those bound records its
                             prerequisites with any other record the caller's decision reads (`guarded`, `rests_on`); the
                             commit of a retirement staged on the comment read afresh, laying what landed over the state
@@ -3534,6 +3590,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             last request the completion is decided behind: the completion's watermark walk is taken
                             ahead of the whole proof, and a thread it could not read, or any reading of the proof that
                             raises rather than answering, holds the same way
+      final_verification.py the stage's own verification of the head a pass completed on, staged as the
+                            final-documentation completion (`engine/final_docs_records.py`) beside the approval it
+                            followed: an unchanged head names the current evidence as it stands (`retained`); a
+                            changed head under an empty `VERIFY_COMMANDS` runs nothing and names none
+                            (`unconfigured`); a changed head under a configuration runs the configured commands
+                            through the verify runner and binds only a run of exactly that head under exactly that
+                            configuration (`verification_local_runs.py`), minted as an orchestrator-executed
+                            transaction answering for it over the approved subject and recorded beside the record
+                            naming it (`executed`). A failed run, a run of anything else, or one binding nothing
+                            stages nothing; whatever is staged is measured against the comment and landed by the
+                            caller through `VERIFIED`, owning the record, the pending transaction, the history, and
+                            the revision floor, decided on every bound evidence record
       drift.py              a body edit mid-hop: the dropped approval, the unwind sentinel, and the relabel to
                             `workflow:validating`. No developer runs on this road, so nothing about the conversation
                             is recorded -- the requirements revision alone goes down, and it says only that this
@@ -5369,8 +5437,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             move is owed over, since a push landing meanwhile is a commit nobody approved: the
                             squash tail asks all of it before its relabel, on either road into it, the settled
                             squash handoff before moving a label that tail left owed, and `in_review` before an approval
-                            may stand behind a ready ping. A returned verdict is held to its subject the same way ahead
-                            of the write persisting it, once more before it is handed back ready, on every tick it
+                            may stand behind a ready ping; the requirements alone, the final-documentation proof
+                            (`engine/final_docs_proof.py`) behind every artifact it re-reads. A returned verdict is
+                            held to its subject the same way ahead of the write persisting it, once more before it
+                            is handed back ready, on every tick it
                             waits on its evidence, and -- a change request -- behind its feedback post and behind the
                             relabel ahead of its developer (`_verdict_still_stands`) -- the subject resolved and then
                             the comment read behind it, watching the verdict and the pull request the issue points at
