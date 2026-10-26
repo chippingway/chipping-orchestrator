@@ -129,12 +129,26 @@ def _rewrite_holds_the_review(
     The pull request's head is read the way the reviewer's subject reads it,
     and a head nobody could read holds, since the next tick is as likely to
     read it. What that head's claim is owed is `_answers_the_debt`'s.
+
+    A docs commit a final docs pass published over the settled report's
+    commit is such a rewrite though no claim names it: the pass owed no
+    review, so it recorded none, and an issue back here for one all the same
+    -- requirements moved past the approval, a stale approval handed back, a
+    relabel -- would have the reviewer road refuse that report and park. So
+    where the pull request still stands on that commit, the debt it leaves is
+    recorded here first (`report_docs_lineage.documented_rewrite`), written
+    before anything acts on it, and answered as any other.
     """
-    if not _rewrite_debt.carries_rewrite_debt(state):
+    documented = _docs_lineage.documented_rewrite(state)
+    if documented is None and not _rewrite_debt.carries_rewrite_debt(state):
         return False
     head = _review_report._pull_request_head(gh, issue, _rewrite_debt.pinned_pull_request(state))
     if head is None:
         return True
+    if documented is not None:
+        if documented.rewritten_head != head or not _rewrite_debt.records_rewrite(state, documented):
+            return False
+        gh.write_pinned_state(issue, state)
     return _answers_the_debt(gh, spec, issue, state, head)
 
 

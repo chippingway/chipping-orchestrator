@@ -390,8 +390,11 @@ authorized settlement of a late adjudication published after the generation took
 `workflow/stages/validating/report_refresh.py`). The docs commit a final-docs pass publishes is none of these: the
 pass completes it straight into `in_review`, recording no claim, so no report refresh is ever asked for documentation
 alone ([`_handle_documenting`](../state-machine/delivery-stages.md#_handle_documenting-label-workflowdocumenting)
-step 12). After a base rebase of an approval's squash, the report the pull request carries is usually of the approved
-commit that squash collapsed, which the squash's carry, kept in evidence history, proves; after a base rebase of a
+step 12). Where the issue comes back here for a review over that docs commit all the same -- requirements moved past
+the approval, a stale approval handed back -- the report hold stages the claim it leaves, from the head the pass was
+entered on onto it, and the refresh runs for it as for any other rewrite. After a base rebase of an approval's squash,
+the report the pull request carries is usually of the approved commit that squash collapsed, which the squash's carry,
+kept in evidence history, proves; after a base rebase of a
 completed docs commit, it is of the approved commit that pass documented, which the pass's completion record proves
 (`workflow/engine/report_docs_lineage.py`). A published report of that
 head that already settled, still intact

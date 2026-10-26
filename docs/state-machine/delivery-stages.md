@@ -1917,7 +1917,12 @@ and handed off -- and this is what it guarantees and what stops it.
   head to `workflow:validating`, as the refresh's own finish does, and never to the two roads held below. A final
   docs pass records none: [`_handle_documenting`](#_handle_documenting-label-workflowdocumenting) completes the docs
   commit it publishes straight into `in_review`, recording it beside the approval rather than as a rewrite of the
-  head the report is about. An issue without the record passes through reading nothing.
+  head the report is about. Where the issue comes back to `workflow:validating` for a review over that docs commit
+  all the same -- requirements that moved past the approval, a stale approval `in_review` hands back, a relabel --
+  the report hold stages the claim the docs commit leaves there, from the head its pass was entered on onto it, while
+  the pull request still stands on it and the settled report is still the approved one
+  (`report_docs_lineage.documented_rewrite`), and answers it as any other. An issue without the record passes
+  through reading nothing.
 - **Holds**: `workflow:documenting` and `in_review`, the roads past an approval that would carry a head no report is
   about to the human who merges it. Nothing is written, posted, or relabelled; the claim is left for validating, and
   the hold is logged once a tick. No claim on either is a docs pass's own, so every one -- whatever head or pull
@@ -4680,7 +4685,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      (`review_resume.settles_a_bought_round`), so its reply is not answered twice.
      Once no report is owed -- on arrival, or once this tick settled it -- a claimed `developer_report_rewrite_debt` is
      asked last (`report_refresh._rewrite_holds_the_review`), against the pull request's head read the way the
-     reviewer's subject reads it; a head nobody could read holds for the next tick. A claim that is to be paid or
+     reviewer's subject reads it; a head nobody could read holds for the next tick. With no claim standing, a
+     completed final docs pass's docs commit, still the head over the approved report it covers, is staged as its
+     claim first (`report_docs_lineage.documented_rewrite`, written before anything is asked of it), so an issue
+     handed back over that commit has its report refreshed rather than refused. A claim that is to be paid or
      refreshed first waits for requirements the drift check stood down for -- an edit behind an owed reviewer round,
      or a reply with words that bought one: nothing is paid over a report that never saw them and nothing is asked
      under a baseline the issue has left, so the tick holds, drops `validating_reviewer_owes_a_round`, and the next

@@ -12,7 +12,9 @@ report exactly, the entry head is the approved commit or a squash its carry
 proves, and the docs commit descends from it. A later report, a debt about any
 other head, a squash its carry no longer proves, and a docs commit off the
 entry head's history prove nothing; a lineage git would not answer holds.
-Reading the proof writes nothing.
+Reading the proof writes nothing. With no debt claimed at all, the published
+docs commit is itself the rewrite of the head its pass was entered on, which a
+review that comes back for it all the same is owed a report of.
 """
 from __future__ import annotations
 
@@ -103,6 +105,23 @@ class DocsLineageTest(unittest.TestCase, final_support.FinalDocsCase):
 
         self.assertIsNone(_lineage.documented_into(self.state, support.SQUASHED_SHA))
         self.assertEqual(self.lineage().verdict, DEFER)
+
+    def test_a_docs_commit_is_its_own_rewrite(self) -> None:
+        # With no debt claimed, a completion that published a docs commit over
+        # the approved report's commit is the rewrite of the head it was
+        # entered on onto that commit; a later report, and a claim already
+        # standing, leave nothing of it to stage.
+        self.completes_as(final_support.EXECUTED, squashed=True)
+        self.state = self.gh.read_pinned_state(self.issue)
+
+        rewrite = _lineage.documented_rewrite(self.state)
+
+        self.assertEqual((rewrite.previous_head, rewrite.rewritten_head), (support.SQUASHED_SHA, DOCS))
+        self.state.set(_rewrite_debt.REWRITE_DEBT, rewrite.recorded())
+        self.assertIsNone(_lineage.documented_rewrite(self.state))
+        self.state.set(_rewrite_debt.REWRITE_DEBT, None)
+        _later_report(self)
+        self.assertIsNone(_lineage.documented_rewrite(self.state))
 
     def rebases_the_docs(self, *, squashed: bool, replaced: str = DOCS) -> None:
         """Complete a docs pass that published `DOCS`, then record a rebase of `replaced` onto `REBASED`."""

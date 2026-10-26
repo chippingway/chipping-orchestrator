@@ -325,7 +325,9 @@ generation took over records one for the push it makes, before its label routes 
 the refresh routes every rebase it publishes
 ([rewritten-head report debt](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch)).
 A final-docs pass records none: the docs commit it publishes is completed straight into `in_review`, recorded beside
-the approval rather than as a rewrite the report is owed for.
+the approval rather than as a rewrite the report is owed for. Where the issue comes back to `workflow:validating` for a
+review over that commit anyway -- requirements moved past the approval, a stale approval handed back -- the report hold
+stages the claim the docs commit leaves, from the head its pass was entered on, and refreshes the report for it.
 A settled report of the approved commit an approval's squash replaced is of neither head a claim names, so it pays
 nothing, and the hold refreshes it only once a proof (`workflow/engine/report_squash_lineage.py`) links it to the head
 the claim replaced -- from the squash's own recorded evidence carry, held exactly to the settled report and the claim,

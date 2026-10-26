@@ -1398,7 +1398,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the docs commit descending from the entry head in this host's checkout. PROVED,
                             DEFER, or HOLD as the squash's lineage answers; it writes nothing.
                             `stages/validating/report_refresh.py` asks it in place of the squash's lineage wherever the
-                            replaced head is a completion's docs commit, and tells the refresh prompt so
+                            replaced head is a completion's docs commit, and tells the refresh prompt so; and, with
+                            no claim standing, it stages the claim a completion's published docs commit leaves over
+                            the approved report's commit (`documented_rewrite`), where an issue comes back for a
+                            review over that commit
     rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the base
                             refresh publishing its own rebase, or a recovery that pushed the replay again or found it
                             standing, announced or not -- handed the typed landing (`git/base_sync/rewrite_handoffs.py`)
@@ -5338,7 +5341,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             Once nothing is owed it asks `report_refresh.py` about the rewritten-head report debt
       report_refresh.py     the rewritten-head report debt (`workflow/engine/report_rewrite_debt.py`) the report hold
                             asks once nothing else is owed, against the pull request's head as the reviewer's subject
-                            reads it. A published report of that head, against the current baseline and still intact
+                            reads it. With no claim standing, the claim a completed final docs pass's docs commit
+                            leaves over the approved report (`report_docs_lineage.documented_rewrite`) is written
+                            where the pull request stands on that commit, and answered as any other. A published
+                            report of that head, against the current baseline and still intact
                             where it settled -- re-read as `review_report.py` reads it -- pays it, written `null`
                             before the reviewer road; a report the thread moved out of reach pays nothing and is left
                             to that road's refusal. A readable claim owed a fresh report, on the branch the issue pins,

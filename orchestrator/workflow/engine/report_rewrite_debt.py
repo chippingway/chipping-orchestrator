@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The report a pull request is owed because this orchestrator rewrote its head.
 
-A rewrite this orchestrator publishes -- a rebase, a conflict resolution,
-commits an earlier tick left unpushed, or a final-docs pass's docs commit --
-moves the pull request onto a commit no
-developer report is about: the report the issue last settled names the head the
+A rewrite this orchestrator publishes -- a rebase, a conflict resolution, or
+commits an earlier tick left unpushed -- moves the pull request onto a commit
+no developer report is about: the report the issue last settled names the head the
 rewrite replaced, and a reviewer is right to refuse it for the one standing now.
 Left to that refusal, the rewrite parks the issue for a human whose reply only
 restarts a report for a commit this orchestrator made itself. So the rewrite is
@@ -66,11 +65,17 @@ already landed. A replay the size gate handed to an adjudication instead is
 taken over by the late generation with its attempt retired
 (`rewrite_takeover.py`), and the authorized settlement that publishes it
 records the same debt before it hands the head to `validating`
-(`stages/decomposition/late_replay_debt.py`). A final-docs pass records none:
-the docs commit it publishes completes straight into `in_review`, recorded
-beside the approval rather than as a rewrite the report is owed for
-(`stages/documenting/final_completion.py`). A settled report of the commit
-an approval's squash replaced is of neither head, so it pays nothing, and on
+(`stages/decomposition/late_replay_debt.py`). A final-docs pass records none
+as it completes: the docs commit it publishes goes straight into `in_review`,
+recorded beside the approval rather than as a rewrite the report is owed for
+(`stages/documenting/final_completion.py`), since documentation alone buys no
+review. Should the issue come back to `validating` for one all the same, the
+report hold stages the debt that docs commit leaves -- from the head the pass
+was entered on onto it -- in the one stage that pays it
+(`report_docs_lineage.documented_rewrite`); and a later rewrite of the docs
+commit, a rebase or a conflict resolution, records its own debt naming the
+docs commit as the head it replaced, as any rewrite does. A settled report
+of the commit an approval's squash replaced is of neither head, so it pays nothing, and on
 its own it is owed nothing either. Written against the requirements the issue
 carries now, it is the one case only a proof can open (`squashed` on
 `RewriteDebt.owes_a_refresh`): that this orchestrator's own squash collapsed
