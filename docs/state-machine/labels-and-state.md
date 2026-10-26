@@ -1859,7 +1859,10 @@ The keys that matter for the state machine fall into a few groups:
 
   A final-docs pass that publishes a docs commit records no claim: the commit is the pass's own, completed straight
   into `in_review` and recorded beside the approval as its final-documentation completion (**Final-docs handoff**
-  below), and no review round is spent on it.
+  below), and no review round is spent on it. Should the issue come back to `workflow:validating` for a review over
+  that commit all the same, the report hold stages the claim it leaves there -- `previous_head` the head the pass was
+  entered on, `rewritten_head` the docs commit -- while the pull request still stands on it and the settled report
+  is still the one the approval covered (`workflow/engine/report_docs_lineage.py`).
 - **HITL park.** `awaiting_human`, `last_action_comment_id`, `park_reason`. `_park_awaiting_human` (on the same
   `workflow/engine/guards.py` owner as the two run refusals) sets
   `awaiting_human=True` and clears `park_reason` to `None`; a handler that needs the reason to survive into the next

@@ -34,6 +34,16 @@ squash's own proof.
 The validating report hold (`stages/validating/report_refresh.py`) is its
 consumer, and asks it in place of the squash's proof wherever the debt's
 `previous_head` is a completion's docs commit.
+
+The docs commit is a rewrite of the head the settled report is about in its
+own right, too, though the pass that published it recorded no debt for it: it
+owed no review. Once the issue is back on `validating` for one all the same --
+requirements that moved past the approval, a stale approval handed back from
+`in_review`, a human's relabel -- the reviewer road would refuse that report
+over the docs commit and park, so the report hold stages the debt the commit
+leaves there, in the one stage that pays it (`documented_rewrite`): from the
+head the pass was entered on onto the docs commit, as the squash's carry and
+the debt's own reading then answer it.
 """
 from __future__ import annotations
 
@@ -81,6 +91,32 @@ _UNREAD_DESCENT = ReportEvidence(
     ReportEvidenceVerdict.HOLD,
     "whether the docs commit descends from the head its pass was entered on could not be read",
 )
+
+
+def documented_rewrite(state: PinnedState) -> _rewrite_debt.RewriteDebt | None:
+    """The rewrite a final docs pass's docs commit is of the settled report's commit; None where none is owed.
+
+    Only where no debt is claimed at all -- a standing claim is the debt's own
+    to answer -- the completion reads whole and published a docs commit, and
+    the approval it followed covers the settled report exactly. The rewrite
+    runs from the head the pass was entered on to that docs commit, on the
+    settled report's pull request and branch. Nothing is staged here: the
+    caller holds it to the head the pull request stands on and records it.
+    """
+    if _rewrite_debt.carries_rewrite_debt(state):
+        return None
+    final = _final_docs.read_final_docs(state)
+    settled = _settlement.read_current_report(state)
+    if final is None or settled is None or final.final_head == final.entry_head:
+        return None
+    if not _covers(final, settled):
+        return None
+    return _rewrite_debt.RewriteDebt(
+        pr_number=settled.subject.pr_number,
+        branch=settled.subject.branch,
+        previous_head=final.entry_head,
+        rewritten_head=final.final_head,
+    )
 
 
 def documented_into(state: PinnedState, previous_head: str) -> _final_docs.FinalDocs | None:

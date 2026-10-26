@@ -143,9 +143,11 @@ developer is asked with no human reply for a fresh `REPORT: READY` report of tha
 way, which clears it once it has -- a verification of the report the rewrite left behind pays nothing. A report of the
 approved commit this orchestrator's approval squash collapsed into the head a later rebase replaced is refreshed the
 same way, but only once the squash's own recorded lineage proves it and the report re-reads intact; it keeps naming
-the commit it was written about. The docs commit a final-docs pass publishes is no rewrite and owes no report: the
-pass is the last automated delivery stage and completes straight into `in_review`, its final head verified and
-recorded apart from the approval, which keeps its report and the commit that report was written about. A later
+the commit it was written about. The docs commit a final-docs pass publishes owes no report on its own: the pass is
+the last automated delivery stage and completes straight into `in_review`, its final head verified and recorded apart
+from the approval, which keeps its report and the commit that report was written about. Should the issue come back to
+`workflow:validating` for a review over that commit all the same -- requirements moved past the approval -- the docs
+commit is read as the rewrite it is, and the report is refreshed for it the same way. A later
 rebase of that docs commit is a rewrite like any other, and the approved report is refreshed for it once the pass's
 recorded completion proves the lineage from the approved commit to the docs commit it replaced. Each reviewer
 is then handed the report re-read where it settled, and what it approves is

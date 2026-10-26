@@ -3,13 +3,18 @@
 """Whether the settled report's approved commit is the one this orchestrator squashed into the head a rewrite replaced.
 
 An approval's squash moves the pull request off the commit the settled report
-is about onto one with the same tree, and an automatic base rebase, or the
-docs commit a final-docs pass publishes on it, can then move it again. The
-rewrite debt that leaves (`report_rewrite_debt`) names the squash as the head
-it replaced, while `developer_report_current`
+is about onto one with the same tree, and an automatic base rebase can then
+move it again. The rewrite debt that leaves (`report_rewrite_debt`) names the
+squash as the head it replaced, and so does the one the report hold stages for
+a final docs pass's docs commit on the squash, where an issue comes back for a
+review over that commit (`report_docs_lineage.documented_rewrite`), while
+`developer_report_current`
 still names the approved commit before the squash. Neither record is wrong,
 and neither is rewritten here: the report is an account of the commit it
-names, and the debt of the head the rebase actually replaced. What is missing
+names, and the debt of the head the rewrite actually replaced. A rebase of a
+docs commit a final docs pass completed on names that docs commit instead,
+which this owner's carry does not reach: that lineage runs through the
+completion, and `report_docs_lineage` proves it. What is missing
 is the link between them, and this owner proves it (`lineage_verdict`), so
 that a fresh report of the rewritten head can be asked for without a human.
 Reading it changes nothing: no record is relabelled, written, or dropped.
