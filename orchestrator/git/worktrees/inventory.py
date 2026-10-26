@@ -162,10 +162,11 @@ def _local_issue_inventory(
     Two refusals are settled before a repository is read, because both are
     answers about the configuration rather than about a host: the entries
     sharing a derived checkout directory, which is ``checkout_attribution``'s
-    collision rule, and the entries whose clone would not resolve. Neither is
-    read, and neither is reported -- but both stay in the group their clone
-    holds, because a repository this scan will not answer for is still one
-    that could have published what is on the clone it names.
+    collision rule, and the entries whose ref store could not be identified.
+    Neither is read, and neither is reported -- but both stay claimants, the
+    first in the group its store holds and the second in every group, because
+    a repository this scan will not answer for is still one that could have
+    published what is on the clone it shares.
     """
     configured = tuple(specs)
     colliding = checkout_attribution._colliding_worktree_slugs(configured)

@@ -1464,8 +1464,9 @@ orchestrator/
                         read through the `lstat` that reports what the `is_dir` predicates suppress -- each
                         answering "could not read", listing and entry alike, apart from "nothing here"; the flat
                         `WORKTREES_DIR` is never listed. And the one read that is not a listing, which git
-                        directory a checkout and a clone share, since a named checkout's claim has to be tested
-                        and the checkout listing counts the clone's entries by it, so it is defined once and here
+                        directory a checkout and a clone share, since a named checkout's claim has to be tested,
+                        the checkout listing counts the clone's entries by it, and `inventory_roots` groups the
+                        configured targets by the store it names, so it is defined once and here
       attribution.py    which configured repository a local branch belongs to, by re-deriving each spec's own
                         name for it; a flat `orchestrator/issue-<n>` is no entry's derivation and is attributed to
                         nobody however few entries share the clone, and a namespaced name two lossily-sanitized
