@@ -2102,7 +2102,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     run_ledger_models.py    immutable allowance, used-count, and reservation snapshots; the reserved/started vocabulary
                             and predicates for unlimited, spent, and reusable launch charges
     run_ledger_values.py    the pinned ledger field names and validated readings; an absent allowance defers to
-                            configuration, the used count is floored by the legacy meter, the start of a launch owed
+                            configuration, the used count is floored by the usage meter, the start of a launch owed
                             once is read as the count it was owed at, and malformed values supply no reservation
                             evidence
     run_ledger.py           ledger snapshots and the reserve/start/settle mutations; used counts remain monotonic,
@@ -3954,27 +3954,29 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             thread it quoted come off one read and travel on the prepared run, for the pre-session
                             edit that is settled by nothing earlier; the prompt quotes the issue's recorded split
                             rationale beside that thread, off its pinned state
-      session.py            the four session retirements -- the fourth being the continuation that buys a spent
-                            budget one more attempt, which is a fresh spawn by definition -- the read-only plan of the
-                            session a resume opens with (`_planned_dev_session`, which asks `session_retirement`'s
-                            record before either counter), the post-run persistence that pins a fresh spawn's id --
-                            the first spawn's on `spawn.py` included -- only through that owner's guarded pin, and
-                            the fresh-spawn prompt, whose re-grounding conversation is the caller's frozen read
-                            wherever it holds one and its own read otherwise, and whose preamble quotes the split
-                            rationale the resume options carry. The budget that retirement answers to is
-                            `engine/retry_budget.py`'s entire, gate and park alike, and the spawn road calls it
-                            there
-      session_read.py       the locked session read, every id either pin field holds (the legacy one that read
-                            hides once `dev_agent` is pinned included), the stale / overflow / quota classifiers --
-                            the quota one asking a failure record's verdict as well as the final message -- and
-                            the blockquote they quote with
+      session.py            the command pin every developer launch takes -- dropping, the way a retirement does, a
+                            conversation pinned under no command, which that launch never resumes
+                            (`_pin_dev_command`) -- the four session retirements -- the fourth being the continuation
+                            that buys a spent budget one more attempt, which is a fresh spawn by definition -- the
+                            read-only plan of the session a resume opens with (`_planned_dev_session`, which asks
+                            `session_retirement`'s record before either counter), the post-run persistence that pins
+                            a fresh spawn's id -- the first spawn's on `spawn.py` included -- only through that
+                            owner's guarded pin, and the fresh-spawn prompt, whose re-grounding conversation is the
+                            caller's frozen read wherever it holds one and its own read otherwise, and whose preamble
+                            quotes the split rationale the resume options carry. The budget that retirement answers
+                            to is `engine/retry_budget.py`'s entire, gate and park alike, and the spawn road calls
+                            it there
+      session_read.py       the locked session read (`dev_agent` and `dev_session_id` only), the pinned conversation
+                            id read off the comment whatever command that read resolves, the stale / overflow / quota
+                            classifiers -- the quota one asking a failure record's verdict as well as the final
+                            message -- and the blockquote they quote with
       session_retirement.py the record of a developer conversation retired as failed (`dev_session_retirement`):
-                            the idempotent retirement that records it -- every pinned one, on the tick's state and on
-                            the reading its commit lands over, where it is handed none -- and clears the pins with
+                            the idempotent retirement that records it -- the pinned one, on the tick's state and on
+                            the reading its commit lands over, where it is handed none -- and clears the pin with
                             `dev_agent` kept,
                             the reading the planned resume asks before either counter, the pin a fresh spawn's id
-                            goes through -- refusing a missing or retired id so recovery stays owed -- with every
-                            pin a fresh conversation is owed over, in either field, counted as retired and named as
+                            goes through -- refusing a missing or retired id so recovery stays owed -- with the
+                            pin a fresh conversation is owed over counted as retired and named as
                             it is cleared or replaced (an unreadable record's included, which is read fail-closed:
                             recovery owed, every id it still names retired), and the guarded commit that lands the
                             retirement alone, over a fresh reading, for a tick whose own write is discarded -- every
@@ -4039,7 +4041,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             named fields, so a mistyped option fails where the request is built; beside them, the
                             split rationale a fresh spawn is re-grounded with, read off the resumed issue's pinned
                             state and never a caller's
-      execution.py          one resume, its poisoned-session retry -- withheld on an issue a poll observed closed,
+      execution.py          one resume, the command its plan locked pinned to `dev_agent` before its first attempt,
+                            its poisoned-session retry -- withheld on an issue a poll observed closed,
                             since that retry is a SECOND agent -- and what each attempt is allowed to persist; the
                             bounded AGY command-recovery coordinator (`_coordinate_developer_run`) that recognizes
                             incomplete command outcomes and permits at most one immediate tracked continuation for

@@ -11,10 +11,10 @@ retirement held in those or in the pin alone is undone by the next commit that
 ships. It is recorded in a field nothing else writes
 (`state._DEV_SESSION_RETIREMENT`) instead:
 
-* `_retire_dev_session` records the id -- every pinned id, where it is handed
-  none -- marks a fresh conversation owed, and clears the active and legacy
-  pins the way every rotation does (`_clear_dev_session_pins`), keeping the
-  pinned `dev_agent` command.
+* `_retire_dev_session` records the id -- the pinned one, where it is handed
+  none -- marks a fresh conversation owed, and clears the pin the way every
+  rotation does (`_clear_dev_session_pins`), keeping the pinned `dev_agent`
+  command.
   Retiring a conversation already recorded only unpins it where something
   pinned it again, so the primitive is idempotent per conversation.
 * `_retired_session_reason` is asked first by the planned and resolved reads
@@ -23,17 +23,16 @@ ships. It is recorded in a field nothing else writes
 * `_held_retirement` counts that pin as retired too, and every road that
   clears it records it first (`_clear_dev_session_pins`), so a record nobody
   can fully read -- which may name no id of its own -- still refuses the
-  conversation it was owed over once the pin is gone. Both pin fields count
-  (`session_read._pinned_session_ids`): a legacy `codex_session_id` is hidden
-  from the session read once `dev_agent` is pinned, which a first spawn does
-  before its run, and is still a conversation the recovery was owed over.
+  conversation it was owed over once the pin is gone. The pin is read off the
+  comment itself (`session_read._pinned_session_id`), so a pin the session
+  read would not resolve is counted all the same.
 * `_pin_dev_session` is the write every fresh developer conversation is
   pinned through (`session._persist_dev_session_after_run`, which the first
   spawn on `spawn` calls as well as a resume). A missing id and a
   retired one are refused with recovery left owed, so the next run is fresh
   again; a distinct id is pinned with its own resume budget and ends the
   recovery. The retired ids stay recorded after that, a late restart's
-  projection included (`decomposition/late_restart_state`): it drops the pins
+  projection included (`decomposition/late_restart_state`): it drops the pin
   through `_clear_dev_session_pins` and `dev_agent` with the cycle, and keeps
   this record. The one continuation an incomplete AGY run earns (`execution`)
   is refused a retired id the same way, before that pin is asked.
@@ -82,14 +81,14 @@ _RECOVERY_PENDING = "recovery_pending"
 # owing it says no reason of its own.
 _OWED_PIN = "pinned while a fresh conversation was owed"
 
-# Every field a retirement writes: its record, the two pins it clears, the
-# command it pins in place of a legacy one, and the per-session counters it
-# zeroes. The guarded commit owns exactly these, so everything else on the
-# comment -- a park, a watermark, the run ledger -- is the fresh reading's.
+# Every field a retirement writes: its record, the pin it clears, the command
+# its commit carries where the fresh reading has none, and the per-session
+# counters it zeroes. The guarded commit owns exactly these, so everything else
+# on the comment -- a park, a watermark, the run ledger -- is the fresh
+# reading's.
 _RETIREMENT_FIELDS = frozenset((
     _state._DEV_SESSION_RETIREMENT,
     _state._DEV_SESSION_ID,
-    _state._CODEX_SESSION_ID,
     _state._DEV_AGENT,
     _state._SILENT_PARK_COUNT,
     _state._DEV_RESUME_COUNT,
@@ -133,15 +132,12 @@ def _held_retirement(state: PinnedState) -> tuple[list[str], str | None, bool]:
     id at all -- so a fresh run handing the same conversation back would be taken
     for the recovery and resumed next. Counted here, it is refused like any
     retired id, and `_clear_dev_session_pins` and `_pin_dev_session` record it
-    before the pin goes. Both pin fields count, the legacy one a pinned
-    `dev_agent` hides from the session read included
-    (`session_read._pinned_session_ids`).
+    before the pin goes.
     """
     retired, reason, pending = _retirement(state)
-    pinned = _session_read._pinned_session_ids(state) if pending else []
-    held = [session_id for session_id in pinned if session_id not in retired]
-    if held:
-        return [*retired, *held], reason or _OWED_PIN, pending
+    pinned = _session_read._pinned_session_id(state) if pending else None
+    if pinned and pinned not in retired:
+        return [*retired, pinned], reason or _OWED_PIN, pending
     return retired, reason, pending
 
 
@@ -158,37 +154,27 @@ def _retired_session_reason(state: PinnedState, session_id: str | None) -> str |
 
 
 def _clear_dev_session_pins(state: PinnedState) -> None:
-    """Clear the pinned dev session id (and legacy `codex_session_id`) and both per-session counters.
+    """Clear the pinned dev session id and both per-session counters.
 
-    Preserves the stored `dev_agent` spec when one is already pinned --
-    a retired session is a transcript problem, not a backend-selection
-    problem, so the fresh spawn that follows must replay the exact same
-    backend+args. Writing the parsed backend back here would silently
-    strip the configured CLI args from the spec and switch a `codex -m
-    gpt-5.5 -c '...'` issue back to bare `codex` on the next resume.
+    Leaves the stored `dev_agent` spec untouched -- a retired session is a
+    transcript problem, not a backend-selection problem, so the fresh spawn
+    that follows must replay the exact same backend+args. Writing the parsed
+    backend back here would silently strip the configured CLI args from the
+    spec and switch a `codex -m gpt-5.5 -c '...'` issue back to bare `codex`
+    on the next resume.
 
-    When the issue is on the legacy `codex_session_id` schema (no
-    `dev_agent` ever written), pin `dev_agent="codex"` BEFORE clearing
-    the legacy field. Without this, the next `_read_dev_session` would
-    fall through to the config default and a `DEV_AGENT=claude` flip
-    would silently switch the issue from codex to claude on retry.
-
-    Clearing the legacy field too leaves no pin of the dropped session
-    anywhere, so where a fresh conversation is owed the record names both
-    pins first (`_held_retirement`), spelled readable as it goes. A pin
-    dropped with nothing owed is recorded nowhere: only the id
-    `_retire_dev_session` is handed joins the record then.
+    Clearing the pin leaves no record of the dropped session anywhere, so
+    where a fresh conversation is owed the record names the pin first
+    (`_held_retirement`), spelled readable as it goes. A pin dropped with
+    nothing owed is recorded nowhere: only the id `_retire_dev_session` is
+    handed joins the record then.
     """
     retired, reason, pending = _held_retirement(state)
     if pending:
         state.set(_state._DEV_SESSION_RETIREMENT, {
             _SESSION_IDS: retired, _REASON: reason, _RECOVERY_PENDING: True,
         })
-    stored_spec = state.get(_state._DEV_AGENT)
-    if not stored_spec and state.get(_state._CODEX_SESSION_ID) is not None:
-        state.set(_state._DEV_AGENT, "codex")
     state.set(_state._DEV_SESSION_ID, None)
-    state.set(_state._CODEX_SESSION_ID, None)
     state.set(_state._SILENT_PARK_COUNT, 0)
     # The resume budget is per-session; clearing the session resets it so the
     # fresh spawn that follows starts its own count from zero.
@@ -200,24 +186,24 @@ def _retire_dev_session(state: PinnedState, session_id: str | None, reason: str)
 
     `session_id` is the conversation the failed run ran as, or None where the
     run named none; either way the next run must open a new one. Handed none,
-    the retirement names every conversation either pin field holds in its
-    place: the failure is no other conversation's it could name, and a pin
-    cleared unnamed could be handed back by the fresh run and pinned as the
-    recovery. A conversation the record already names is not retired a second
-    time: a recovery that has since pinned a distinct conversation keeps it,
-    and only a pin naming the retired id again -- in either field -- is
-    cleared. The pins are cleared before the record owes a fresh conversation,
-    so a pin is recorded beside a named `session_id` only where an earlier
-    retirement already owed one over it.
+    the retirement names the conversation the pin holds in its place: the
+    failure is no other conversation's it could name, and a pin cleared
+    unnamed could be handed back by the fresh run and pinned as the recovery.
+    A conversation the record already names is not retired a second time: a
+    recovery that has since pinned a distinct conversation keeps it, and only
+    a pin naming the retired id again is cleared. The pin is cleared before
+    the record owes a fresh conversation, so a pin is recorded beside a named
+    `session_id` only where an earlier retirement already owed one over it.
     """
     if session_id and session_id in _retirement(state)[0]:
-        if session_id in _session_read._pinned_session_ids(state):
+        if session_id == _session_read._pinned_session_id(state):
             _clear_dev_session_pins(state)
         return
-    named = [session_id] if session_id else _session_read._pinned_session_ids(state)
+    named = session_id or _session_read._pinned_session_id(state)
     _clear_dev_session_pins(state)
     retired = _retirement(state)[0]
-    retired.extend(name for name in named if name not in retired)
+    if named and named not in retired:
+        retired.append(named)
     state.set(_state._DEV_SESSION_RETIREMENT, {
         _SESSION_IDS: retired, _REASON: reason, _RECOVERY_PENDING: True,
     })
@@ -230,12 +216,12 @@ def _pin_dev_session(state: PinnedState, session_id: str | None) -> bool:
     leaves any recovery owed, so the next run is a fresh conversation again
     rather than a resume of the one that failed. A distinct id ends the
     recovery; the ids already retired stay recorded, so none is pinned later --
-    every pin the recovery was owed over among them (`_held_retirement`),
+    the pin the recovery was owed over among them (`_held_retirement`),
     which the distinct id is pinned in place of, so no id the record names is
-    left pinned beside it. A refused id that is still pinned in either field
-    -- an unparked tick's first spawn runs fresh beside whatever the comment
-    pinned, a legacy pin included -- is unpinned, as a retirement of a
-    conversation already recorded unpins it, so the record names it.
+    left pinned beside it. A refused id that is still pinned -- an unparked
+    tick's first spawn runs fresh beside whatever the comment pinned -- is
+    unpinned, as a retirement of a conversation already recorded unpins it,
+    so the record names it.
     """
     retired, reason, pending = _held_retirement(state)
     if not session_id or session_id in retired:
@@ -244,7 +230,7 @@ def _pin_dev_session(state: PinnedState, session_id: str | None) -> bool:
                 "dev session %r is not a fresh conversation; recovery from the retired one stays pending",
                 session_id,
             )
-        if session_id and session_id in _session_read._pinned_session_ids(state):
+        if session_id and session_id == _session_read._pinned_session_id(state):
             _clear_dev_session_pins(state)
         return False
     if pending:
@@ -279,7 +265,7 @@ def _commit_dev_session_retirement(
     and never written it, and a commit staged over the comment's record alone
     would land without it, hand that record back to `state` in place of the
     tick's own, and leave the conversation free to be pinned again. A
-    retirement handed no conversation names every one that reading pins as
+    retirement handed no conversation names the one that reading pins as
     well, before anything there is cleared: the comment may pin one the tick
     never read, and cleared unnamed it could be pinned again.
 

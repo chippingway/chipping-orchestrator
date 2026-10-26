@@ -8,11 +8,13 @@ to drop the pinned id and spawn fresh in the same worktree. That retry happens
 here rather than a tick later so a Claude session GC'd between polls does not
 park the issue for two ticks before recovering.
 
-The order the attempts and the writes are in is the contract. The pause check
-runs after BOTH runs, because each opens its own live-pause window -- the first
-before the retry spawns a second agent, the second before anything is persisted
--- and a fired guard returns before the session id is pinned and before
-`awaiting_human` is cleared, so the next tick re-derives the resume from
+The order the attempts and the writes are in is the contract. The command the
+plan locked is pinned before the first attempt, as the first spawn pins its
+own, so no conversation a resume opens is pinned under no command. The pause
+check runs after BOTH runs, because each opens its own live-pause window -- the
+first before the retry spawns a second agent, the second before anything is
+persisted -- and a fired guard returns before the session id is pinned and
+before `awaiting_human` is cleared, so the next tick re-derives the resume from
 untouched durable state. The one write not left to that is the retirement of
 a conversation an exhausted account quota stopped, which every attempt lands
 as it returns (`quota_retirement`), ahead of its pause check: a tick that
@@ -119,6 +121,15 @@ class _DevResumeContext:
 
     def execute(self) -> tuple[Path, AgentResult, bool]:
         state = self.request.state
+        # The command the plan locked is pinned before any attempt, as the
+        # first spawn pins its own (`spawn`). Where no `dev_agent` was pinned
+        # the plan read the configuration, and a fresh conversation pinned
+        # under no command would be resumed by the next reply under whatever
+        # the configuration says by then -- if at all, since the session read
+        # resolves no conversation without one. A pinned command is rewritten
+        # as it reads; a conversation pinned under none, which this plan
+        # does not resume, is dropped first.
+        _session._pin_dev_command(state, self.plan.session.spec)
         agent_result, paused = self._run_attempt(
             fresh=self.plan.fresh_spawn,
             session_id=self.plan.session.session_id,

@@ -34,7 +34,7 @@ USAGE_LIMIT = "reviewer_usage_limit"
 # The flags a usage-limit park sets, beside the one launch it charged, and
 # what it leaves as it found it.
 PARKED = (True, USAGE_LIMIT, 1)
-KEPT_FIELDS = (REVIEW_ROUND, PR_NUMBER, "branch", "codex_session_id")
+KEPT_FIELDS = (REVIEW_ROUND, PR_NUMBER, "branch", "dev_session_id")
 NOTICE_HEADLINE = "Codex usage limit"
 # The session the captured stream's `thread.started` names.
 CAPTURED_SESSION = "01a12719-eef4-7330-b188-a4ccd5feef66"
@@ -195,7 +195,7 @@ class ReviewerUsageLimitJourneyTest(unittest.TestCase, _CodexReviewTicks):
             [event.get("agent_role") for event in _events(github, "agent_spawn")], [ROLE_REVIEWER, ROLE_REVIEWER],
         )
         self.assertEqual(
-            self._pinned(github, PARK_REASON, AGENT_RUNS_USED, REVIEW_ROUND, "codex_session_id"),
+            self._pinned(github, PARK_REASON, AGENT_RUNS_USED, REVIEW_ROUND, "dev_session_id"),
             (USAGE_LIMIT, 2, 0, review_support.DEV_SESSION),
         )
         self.assertGreaterEqual(github.pinned_data(ISSUE)["last_action_comment_id"], CONTINUE_ID)

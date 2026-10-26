@@ -65,8 +65,6 @@ _DEV_AGENT = "dev_agent"
 
 _DEV_SESSION_ID = "dev_session_id"
 
-_CODEX_SESSION_ID = "codex_session_id"
-
 _SILENT_PARK_COUNT = "silent_park_count"
 
 _DEV_RESUME_COUNT = "dev_resume_count"
@@ -84,7 +82,7 @@ _DEV_RESUME_COUNT = "dev_resume_count"
 # back on a later spawn -- so a retirement kept in any of those is undone by the
 # next one, and the conversation that failed is resumed again. Written and
 # honored by `session_retirement`, and cleared by nothing: a late restart's
-# whitelist projection keeps it while dropping `dev_agent` and both pins.
+# whitelist projection keeps it while dropping `dev_agent` and the session pin.
 _DEV_SESSION_RETIREMENT = "dev_session_retirement"
 
 _RETRY_WINDOW_START = "retry_window_start"

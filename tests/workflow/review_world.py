@@ -27,7 +27,7 @@ from tests.support.fakes import DEFAULT_PR_HEAD_SHA, FakeGitHubClient, make_issu
 from tests.workflow.engine import usage_frames as _usage_frames
 from tests.workflow.fixtures import LABEL_VALIDATING, _agent, _PatchedWorkflowMixin, publishes_the_report
 from tests.workflow.git_owners import seam_patch
-from tests.workflow.repo_values import EXISTING_CHECKOUT
+from tests.workflow.repo_values import BACKEND_CODEX, EXISTING_CHECKOUT
 from tests.workflow.value_helpers import _issue_branch, _open_pr_for
 
 ISSUE = 1_999
@@ -117,7 +117,12 @@ class ReviewWorld(_PatchedWorkflowMixin):
         self.issue = make_issue(ISSUE, label=LABEL_VALIDATING)
         self.github.add_issue(self.issue)
         self.github.seed_state(
-            ISSUE, pr_number=PR, branch=_issue_branch(ISSUE), codex_session_id=DEV_SESSION, review_round=0,
+            ISSUE,
+            pr_number=PR,
+            branch=_issue_branch(ISSUE),
+            dev_agent=BACKEND_CODEX,
+            dev_session_id=DEV_SESSION,
+            review_round=0,
         )
         self.pull_request = _open_pr_for(self.github, issue_number=ISSUE, pr_number=PR)
         publishes_the_report(self.github, self.issue)

@@ -54,8 +54,8 @@ def _resume_dev_with_text(
     object reaches the resume: one a relabel did not go through would still
     report `validating`.
 
-    The backend is locked to whatever wrote `dev_session_id` (or the legacy
-    `codex_session_id`) for this issue -- resuming across backends would need
+    The backend is locked to the pinned `dev_agent` command that opened
+    `dev_session_id` for this issue -- resuming across backends would need
     an inter-backend session bridge that does not exist. Clears the
     `awaiting_human` flag because the caller is reacting to a fresh human
     signal (issue or PR comment) by spawning the agent.

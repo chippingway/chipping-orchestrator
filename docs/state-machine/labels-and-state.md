@@ -2976,9 +2976,10 @@ The keys that matter for the state machine fall into a few groups:
   developer's own launch is charged under with no owed start recorded -- at `handed` too, since a charge reserved before
   the handoff is counted in it -- or stands with a record no reader takes, which may be that very launch -- `started`,
   or in an `agent_run_reservation` phase no reader takes, under that `agent_run_fingerprint`, any charge under an
-  `agent_run_fingerprint` gone or spelled as none, `reserved` included, or a run count (`agent_runs_used`, or the legacy
-  meter where that will not read) below `handed`, which only ever rises; an unstarted `reserved` charge under the
-  launch's own fingerprint is the run circuit's to honor rather than charge again. A
+  `agent_run_fingerprint` gone or spelled as none, `reserved` included, or a run count -- the larger of
+  `agent_runs_used` and the `issue_agent_runs` usage meter beneath it -- below `handed`, which only ever rises; an
+  unstarted `reserved` charge under the launch's own fingerprint is the run circuit's to honor rather than charge
+  again. A
   launch that may have started is held to the subject resolved again, the evidence it claims, and the branch: a subject
   that moved, a claim no longer the settled evidence, a commit the pull request has not got, loose work in the checkout,
   or a remote that moved past it sets the record to `null` the same way, the anchor kept, and the next tick's own road
@@ -3716,8 +3717,9 @@ The keys that matter for the state machine fall into a few groups:
   — which is every issue nobody decided anything special about — `MAX_AGENT_RUNS_PER_ISSUE` governs and is read live,
   and a recorded `0` says unlimited exactly as a configured `0` does. `agent_runs_used` is monotonic: it is charged
   upward and never decremented, zeroed, or rolled over, it goes on counting while the ceiling is off (an unlimited
-  setting stops nothing turning runs away, not the runs), and a missing one starts from the `issue_agent_runs` meter
-  above rather than from zero — the two count the same unit, so the larger of the pair is what a read answers.
+  setting stops nothing turning runs away, not the runs), and it is never read below the `issue_agent_runs` meter
+  above — every exit that meter counts was a launch charged here first, so the larger of the pair is what a read
+  answers, and a count that is missing or unreadable refunds nothing the meter saw.
   `agent_run_reservation` is the launch currently holding a charge, as one of two stable phases: `reserved` (charged,
   not yet spawned) and `started` (the spawn happened), with `agent_run_fingerprint` naming which launch that is — the
   digest of the request's own identity (role, stage, backend, spec, resumed session, review round, retry count), never
@@ -3836,9 +3838,6 @@ The keys that matter for the state machine fall into a few groups:
   exactly what it has to survive. Every key, and what an absent one means, is in
   [Late generation state](#late-generation-state) below.
 
-The legacy `codex_session_id` key (written before `dev_agent` existed) is still honored on read by `_read_dev_session`:
-it round-trips to `spec="codex"` with no args so an older orchestrator's pin keeps running on codex.
-
 The additive `dev_session_retirement` key records the developer conversations retired as FAILED, as one object:
 `session_ids` (every retired id, oldest first), `reason` (why the last was retired), and `recovery_pending` (true until
 a fresh conversation with an id of its own is pinned). An absent key is an issue that retired none. Anything not spelled
@@ -3848,15 +3847,14 @@ a string nor null, a `recovery_pending` that is not a boolean: every id it still
 clear a resume owed a fresh conversation makes, or the pin of the distinct conversation that recovers.
 Its lifecycle, all on `stages/implementing/session_retirement.py`:
 
-- **Retired.** The retirement records the conversation's id -- or, where the failed run named none, every id either pin
-  field holds, on the tick's state and on the reading its guarded commit lands over, so no pin is cleared unnamed --
-  marks recovery owed, and clears `dev_session_id` and the legacy `codex_session_id` with both per-session counters
-  zeroed, exactly as a rotation does: `dev_agent` keeps the full command (the legacy pin is converted to `"codex"`
-  first), and the worktree, branch, pull request, issue thread, retry gates, park, and lifetime run ledger are not
-  touched.
+- **Retired.** The retirement records the conversation's id -- or, where the failed run named none, the id
+  `dev_session_id` holds, on the tick's state and on the reading its guarded commit lands over, so no pin is cleared
+  unnamed -- marks recovery owed, and clears `dev_session_id` with both per-session counters zeroed, exactly as a
+  rotation does: `dev_agent` keeps the full command, a plain backend included, and the worktree, branch, pull
+  request, issue thread, retry gates, park, and lifetime run ledger are not touched.
   Retiring a conversation the record already names changes nothing but a pin naming it again. The primitive stages
   the retirement on the tick's state; its guarded commit lands it alone over a fresh reading as well, owning only the
-  record, the two pins, `dev_agent`, and the two counters, so a tick whose own write is discarded leaves the
+  record, the pin, `dev_agent`, and the two counters, so a tick whose own write is discarded leaves the
   retirement durable without the watermarks it staged or the park it was about to clear. Every conversation the
   tick's own record names is retired over that reading first, so one the tick retired and never wrote is not
   dropped from the comment, nor from the record the tick takes back. A commit that lands puts those owned fields back
@@ -3866,7 +3864,7 @@ Its lifecycle, all on `stages/implementing/session_retirement.py`:
   (`stages/implementing/quota_retirement.py`), asked as every developer attempt returns -- a first spawn, a resume,
   and the AGY command continuation alike -- and landed through that guarded commit before the result is handed back,
   under the reason `agent_session_limit`: the conversation the failure names, or the one the attempt was launched to
-  resume where it names none, or none at all for a fresh spawn that returned none -- every pinned id then -- which still
+  resume where it names none, or none at all for a fresh spawn that returned none -- the pinned id then -- which still
   owes the fresh one. A shutdown-sweep kill, a Claude quota notice, and every other failure retire nothing. Where that
   commit refuses or goes unanswered the tick is held as a live pause holds it -- its state withheld from the whole-state
   writer, so nothing goes out over the comment -- and the retirement is owed from a record the host keeps beside the
@@ -3885,21 +3883,21 @@ Its lifecycle, all on `stages/implementing/session_retirement.py`:
   any pinned id as retired and opens a fresh conversation, re-grounded on the committed branch, whatever
   `silent_park_count` and `dev_resume_count` read. The pin such a resume clears is retired by name as it goes -- the
   conversation a record that will not read was owed over included, under the reason `pinned while a fresh conversation
-  was owed` where the record gives none -- so the same id handed back later is refused like any other. Both pin fields
-  count: a legacy `codex_session_id` is still a conversation the recovery is owed over after the first spawn or the
-  documenting pass pins `dev_agent` before its run, which hides that field from the session read. That fresh
+  was owed` where the record gives none -- so the same id handed back later is refused like any other. So is a
+  `dev_session_id` standing with no `dev_agent`, which every developer launch -- a first spawn, a documenting pass, a
+  resume -- drops as it pins its command, since it resumes no conversation without one. That fresh
   conversation's id -- like the id of an unparked tick's first spawn -- is pinned only through the guarded pin, which
-  refuses a missing id and a retired one (unpinning it where either field still pins it), so the next run is fresh
+  refuses a missing id and a retired one (unpinning it where `dev_session_id` still pins it), so the next run is fresh
   again; the one continuation an AGY run that stopped mid-command earns is refused a retired id the same way, before
   that pin is asked. A resume charges `dev_resume_count` only while the conversation it ran is still the one pinned and
   not retired, so one retired while it ran charges nothing, and neither does the fresh conversation a recovery pinned
   in its place meanwhile, whose budget starts at 0.
 - **Recovered.** The first fresh conversation returning a distinct id is pinned normally, with both per-session
-  counters at 0, and sets `recovery_pending` false. It is pinned in place of every pin the recovery was owed over, a
-  legacy one included, each named in the record first, so no retired id stays pinned beside it. The retired ids stay
+  counters at 0, and sets `recovery_pending` false. It is pinned in place of the pin the recovery was owed over, which
+  is named in the record first, so no retired id stays pinned beside it. The retired ids stay
   recorded after it: no publication, rotation, counter reset, or later spawn clears them, an id they name is never
   resumed, and the guarded pin never pins one again. Nothing drops the record: a `late_restart`'s whitelist projection
-  keeps it while dropping `dev_agent` and both session pins, through the same pin clear, so a pin recovery was still
+  keeps it while dropping `dev_agent` and the session pin, through the same pin clear, so a pin recovery was still
   owed over is named on it before it goes. The fresh cycle starts with no conversation to resume, and its first spawn
   handing a retired id back pins nothing while a distinct one is pinned.
 
@@ -4143,10 +4141,10 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
   the issue's own pinned comment through a client rebuilt from nothing else, which is what a restarted process would
   have.
   [`tests/workflow/engine/test_lifetime_compatibility.py`](../../tests/workflow/engine/test_lifetime_compatibility.py)
-  holds the three things the ceiling may not change: an issue that predates it starts from `issue_agent_runs` rather
-  than from zero, a stage cap that is spent at the same time still parks its own way with the lifetime count
-  untouched, and a closed issue's terminal still drains — posting the receipt for what the whole issue spent and
-  leaving both meters and the park exactly as it found them. The adjudicator's own sequence is
+  holds the three things the ceiling may not change: an issue whose ledger count is gone starts from
+  `issue_agent_runs` rather than from zero, a stage cap that is spent at the same time still parks its own way with
+  the lifetime count untouched, and a closed issue's terminal still drains — posting the receipt for what the whole
+  issue spent and leaving both meters and the park exactly as it found them. The adjudicator's own sequence is
   [`tests/workflow/stages/decomposition/test_late_lifetime.py`](../../tests/workflow/stages/decomposition/test_late_lifetime.py),
   which freezes one fresh candidate after another over the same issue and shows the ledger — rather than the day's
   spawn budget, pinned wider than the sequence is long — ending it, plus the restart that projects a new cycle and no

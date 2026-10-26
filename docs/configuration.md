@@ -675,7 +675,7 @@ examples.
   in under. What the setting carries is the ceiling itself — validated at import and published on
   `orchestrator.config` — and the accounting it is judged against is the per-issue ledger on
   [`workflow/engine/run_ledger.py`](../orchestrator/workflow/engine/run_ledger.py): the allowance in force (this
-  setting, unless the issue records one of its own), the monotonic `agent_runs_used` count seeded and floored by the
+  setting, unless the issue records one of its own), the monotonic `agent_runs_used` count, never read below the
   `issue_agent_runs` meter, and the `reserved` / `started` phases of the launch currently holding a charge, matched
   to it by the request fingerprint recorded beside them. That
   count goes on running while this setting is `0`, so turning the ceiling on reads a real lifetime total rather than

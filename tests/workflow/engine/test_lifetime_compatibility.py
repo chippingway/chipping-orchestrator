@@ -4,7 +4,7 @@
 
 A ceiling on agent runs arrives on issues that are already running, under
 counters that already exist, in front of caps that already refuse work. Each
-case here is one of those: an issue whose only meter is the legacy one, an
+case here is one of those: an issue whose only count is the usage meter's, an
 ending that has to report what the whole issue cost, and a stage cap that has
 always fired before anything spawns. None of them is about the ledger
 deciding something -- they are about it deciding nothing it was not asked to.
@@ -41,27 +41,27 @@ _REVIEW_CAP = "review_cap"
 # reports what the whole issue spent.
 _RECEIPT_PREFIX = ":receipt:"
 
-# How many runs an issue that predates the ledger has already spent on the
-# meter the usage accounting has always kept. One short of the allowance, so
-# what the walk under it buys is a single run and not a fresh lifetime.
-_LEGACY_SPEND = _lifetime_models.ALLOWANCE - 1
+# How many runs the usage meter has counted on an issue whose ledger count is
+# gone. One short of the allowance, so what the walk under it buys is a single
+# run and not a fresh lifetime.
+_METERED_SPEND = _lifetime_models.ALLOWANCE - 1
 
 
-class LegacyMeterTest(unittest.TestCase, _PatchedWorkflowMixin):
-    """An issue already running when the ledger arrived keeps its spend."""
+class MeterFloorTest(unittest.TestCase, _PatchedWorkflowMixin):
+    """An issue whose ledger count is gone keeps the spend the meter counted."""
 
-    def test_a_legacy_issue_keeps_what_it_spent(self) -> None:
+    def test_a_metered_issue_keeps_what_it_spent(self) -> None:
         walked = support.walk(
             self,
             journeys.ROTATED_SESSIONS,
             seeded_on=support.seeded(
                 journeys.ROTATED_SESSIONS,
                 used=None,
-                **{KEY_ISSUE_AGENT_RUNS: _LEGACY_SPEND},
+                **{KEY_ISSUE_AGENT_RUNS: _METERED_SPEND},
             ),
         )
 
-        self.assertEqual(walked.total, _lifetime_models.ALLOWANCE - _LEGACY_SPEND)
+        self.assertEqual(walked.total, _lifetime_models.ALLOWANCE - _METERED_SPEND)
         self.assertEqual(walked.spent, _lifetime_models.ALLOWANCE)
         self.assertTrue(walked.parked)
         self.assertIn(

@@ -19,7 +19,8 @@ def _review_seed():
         support._REVIEW_ISSUE_NUMBER,
         pr_number=support._REVIEW_PR_NUMBER,
         branch="orchestrator/chippingway__chipping-orchestrator/issue-711",
-        codex_session_id=support._DEV_SESSION_ID,
+        dev_agent="codex",
+        dev_session_id=support._DEV_SESSION_ID,
         review_round=0,
     )
     support._helpers._open_pr_for(

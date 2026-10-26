@@ -102,7 +102,8 @@ class FreshReviewFixtureMixin(_PatchedWorkflowMixin):
         defaults = {
             PR_NUMBER: FRESH_REVIEW_PR,
             "branch": _issue_branch(FRESH_REVIEW_ISSUE),
-            "codex_session_id": DEV_SESSION,
+            "dev_agent": BACKEND_CODEX,
+            "dev_session_id": DEV_SESSION,
             REVIEW_ROUND: 0,
         }
         defaults.update(state)
@@ -140,7 +141,8 @@ class FixLoopFixtureMixin(_PatchedWorkflowMixin):
         defaults = {
             PR_NUMBER: FIX_LOOP_PR,
             "branch": _issue_branch(FIX_LOOP_ISSUE),
-            "codex_session_id": DEV_SESSION,
+            "dev_agent": BACKEND_CODEX,
+            "dev_session_id": DEV_SESSION,
             REVIEW_ROUND: 0,
         }
         defaults.update(state)

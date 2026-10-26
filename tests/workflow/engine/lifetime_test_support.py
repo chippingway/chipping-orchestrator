@@ -100,8 +100,8 @@ def seeded(
 ) -> tuple[FakeGitHubClient, Any]:
     """One issue at the start of `journey`, on the ledger a case names.
 
-    `used=None` seeds an issue carrying no count of this ledger's own, which
-    is every issue that was already running when the ledger arrived.
+    `used=None` seeds an issue carrying no count of this ledger's own -- one
+    a hand edit removed, say -- so only the usage meter counts its spend.
     `allowance=None` seeds one carrying no ceiling of its own, which is every
     issue nobody has decided anything special about: the setting governs it.
     """

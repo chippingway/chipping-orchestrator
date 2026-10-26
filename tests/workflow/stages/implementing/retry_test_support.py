@@ -52,7 +52,6 @@ _open_pr_for = fixtures._open_pr_for
 _iso_hours_ago = fixtures._iso_hours_ago
 
 KEY_AWAITING_HUMAN = "awaiting_human"
-KEY_CODEX_SESSION_ID = "codex_session_id"
 KEY_DEV_AGENT = "dev_agent"
 KEY_DEV_RESUME_COUNT = "dev_resume_count"
 KEY_DEV_SESSION_ID = "dev_session_id"
@@ -79,7 +78,7 @@ RESUME_SESSION_ID = "resume_session_id"
 POISONED_SESSION = "poisoned-sess"
 FRESH_SESSION = "fresh-sess"
 LIVE_SESSION = "live-sess"
-LEGACY_SESSION = "sess-legacy"
+UNREAD_SESSION = "sess-unread"
 
 IMPLEMENT_PROMPT_FRAGMENT = "implement the thing"
 FIX_PROMPT_FRAGMENT = "fix it"
@@ -93,7 +92,6 @@ OK_MESSAGE = _reported("ok")
 RESUME_TEXT = "go"
 
 SILENT_SESSION_ISSUE = 950
-LEGACY_FRESH_SESSION_ISSUE = 951
 STALE_SESSION_ISSUE = 960
 OVERFLOW_SESSION_ISSUE = 961
 PROACTIVE_SESSION_ISSUE = 962
@@ -103,7 +101,7 @@ EMPTY_SESSION_RESULT_ISSUE = 965
 FRESH_BACKEND_ISSUE = 20
 REVIEW_BACKEND_ISSUE = 21
 DEV_FIX_BACKEND_ISSUE = 22
-LEGACY_BACKEND_ISSUE = 23
+UNREAD_SESSION_ISSUE = 23
 HUMAN_REPLY_ID = 1100
 ACTION_COMMENT_ID = 900
 EXPIRED_WINDOW_HOURS = 25

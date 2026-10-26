@@ -56,7 +56,6 @@ def assert_pr_state(test_case, scenario) -> None:
     )
     test_case.assertEqual(state["dev_agent"], config.DEV_AGENT)
     test_case.assertEqual(state["dev_session_id"], "sess-1")
-    test_case.assertNotIn("codex_session_id", state)
     test_case.assertEqual(state["review_round"], 0)
 
 
@@ -65,14 +64,14 @@ def assert_human_reply_resume(
     github,
     mocks,
     run_agent_key,
-    legacy_session,
+    session_id,
 ) -> None:
     mocks[run_agent_key].assert_called_once()
     agent_call = mocks[run_agent_key].call_args
     test_case.assertEqual(agent_call.args[0], "codex")
     test_case.assertEqual(
         agent_call.kwargs["options"].resume_session_id,
-        legacy_session,
+        session_id,
     )
     followup = agent_call.args[1]
     test_case.assertIn("please use sqlite", followup)

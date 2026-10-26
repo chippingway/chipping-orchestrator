@@ -2627,9 +2627,12 @@ and handed off -- and this is what it guarantees and what stops it.
      budget does not charge it — the lifetime ledger does, like every other process start — so any reply at all would
      take that park down and hand the issue an unbudgeted session. The full spec persisted
      in `dev_agent` is re-parsed via `_read_dev_session` and
-     reused; flipping `DEV_AGENT` in env does not migrate in-flight issues. When parked on `agent_timeout` with **no**
-     new reply (the `implementing/parked_replies.py` cut the resume delivers from, so our own recorded notice, a pasted
-     marker, or an answered `add-agent-runs` does not count), first attempt `_try_recover_implementing_timeout_park`
+     reused; flipping `DEV_AGENT` in env does not migrate in-flight issues. An issue with no `dev_agent` pinned has no
+     session to resume: the reply opens a fresh conversation under the configured spec, which the resume pins before
+     it runs (`session._pin_dev_command`), dropping a `dev_session_id` that stood with no command first. When parked on
+     `agent_timeout` with **no** new reply (the `implementing/parked_replies.py` cut the resume delivers from, so our
+     own recorded notice, a pasted marker, or an answered `add-agent-runs` does not count), first attempt
+     `_try_recover_implementing_timeout_park`
      (the implementing counterpart to validating's transient-park recovery): on a clean worktree whose HEAD advanced
      past the persisted `pre_implement_sha` **and carries commits `<remote>/<base>` does not**, clear the park and
      hand the recovered commit to the shared committed-work seam — the same one a finished run publishes through, so
@@ -2787,8 +2790,9 @@ and handed off -- and this is what it guarantees and what stops it.
      conversation and this step runs on grants the tick before it did not take out. See
      [the retry budget](labels-and-state.md#the-retry-budget).
   5. Else build the implementer prompt (issue body + recent comments + "commit, do not push"), persist `dev_agent`
-     BEFORE invoking `run_agent`, then spawn through the bounded developer run coordinator
-     (`_coordinate_developer_run`). A parent an ordinary split left no umbrella is handed that split's
+     BEFORE invoking `run_agent` (`session._pin_dev_command`, which first drops a `dev_session_id` standing with no
+     command, so an ID-less run cannot leave it to be resumed under this one), then spawn through the bounded developer
+     run coordinator (`_coordinate_developer_run`). A parent an ordinary split left no umbrella is handed that split's
      `split_rationale` too, read off its own pinned record and quoted in an attributed section between the body and
      the bounded thread excerpt, so the residual scope reaches the developer however far back the split summary sits
      — as it reaches any fresh session that later replaces this one (see
@@ -3283,10 +3287,11 @@ and handed off -- and this is what it guarantees and what stops it.
      pass left is still ahead of the remote, so a `DOCS: NO_CHANGE` from the rerun publishes it through the
      `ahead > 0` push below rather than advancing past it.
   11. Fresh spawn: snapshot `before_sha`, persist `docs_checked_sha=before_sha` and `dev_agent` BEFORE invoking the
-      agent, build the prompt (issue body + recent comments + `DOCS: NO_CHANGE` marker contract), then run. Under a
-      pinned Antigravity command both spawning shapes first land `docs_launched_sha` (the head they launch on) alone
-      through the guarded commit (`failed_pass._armed`); a record that did not land holds the launch, and the tick
-      returns writing nothing. Every branch below that writes drops it in that write.
+      agent (through the same `session._pin_dev_command`, so a `dev_session_id` standing with no command is dropped
+      rather than resumed under the configured one), build the prompt (issue body + recent comments + `DOCS: NO_CHANGE`
+      marker contract), then run. Under a pinned Antigravity command both spawning shapes first land `docs_launched_sha`
+      (the head they launch on) alone through the guarded commit (`failed_pass._armed`); a record that did not land
+      holds the launch, and the tick returns writing nothing. Every branch below that writes drops it in that write.
   12. Branch on result. Every success exit ends in one completion (`handoff._completes`) into `in_review` -- a pass
       that published nothing (`final_completion._completes_unchanged`, through `_hand_off_to_in_review`), or a published
       docs commit (`final_completion._completes_published`, under **Landed** below) -- recording the head the pass

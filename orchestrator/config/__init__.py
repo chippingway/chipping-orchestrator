@@ -280,13 +280,15 @@ MAX_CONFLICT_ROUNDS: int = _RESOLVED["MAX_CONFLICT_ROUNDS"]
 # one rather than refusing out of what was charged before it went off.
 MAX_RETRIES_PER_DAY: int = _RESOLVED["MAX_RETRIES_PER_DAY"]
 # Lifetime ceiling on the agent runs one issue may spend, counted on the
-# `issue_agent_runs` total the usage accounting folds onto pinned state: every
-# real agent exit charged to that issue, in every role and at every stage --
-# decomposer, developer, reviewer, and the conversation agents -- not only the
-# implementer spawns `MAX_RETRIES_PER_DAY` meters. It is the backstop under
-# the per-stage budgets rather than one more of them: those bound how often a
-# single road may be retried, and an issue that walks enough of them in turn
-# spends more than any one of them ever sees. Unlike the daily retry budget
+# per-issue ledger every launch is charged to before it spawns
+# (`workflow/engine/run_ledger.py`), never below the `issue_agent_runs` total
+# the usage accounting folds onto pinned state: every agent launch charged to
+# that issue, in every role and at every stage -- decomposer, developer,
+# reviewer, and the conversation agents -- not only the implementer spawns
+# `MAX_RETRIES_PER_DAY` meters. It is the backstop under the per-stage budgets
+# rather than one more of them: those bound how often a single road may be
+# retried, and an issue that walks enough of them in turn spends more than any
+# one of them ever sees. Unlike the daily retry budget
 # this one never reopens -- a lifetime total is spent once, and no clock
 # returns it. 0 = unlimited. A negative or non-integer value aborts at import
 # like the parallelism caps, because a ceiling under zero is one no run could

@@ -82,7 +82,7 @@ RESERVED_UNREAD = "reserved under a fingerprint no reader takes"
 _UNREAD_LEDGERS = MappingProxyType({
     UNREAD_FINGERPRINT: {_run_ledger_values.AGENT_RUN_FINGERPRINT: 7},
     UNREAD_PHASE: {_run_ledger_values.AGENT_RUN_RESERVATION: "running"},
-    UNREAD_COUNT: {_run_ledger_values.AGENT_RUNS_USED: "two", _run_ledger_values._LEGACY_RUNS_USED: 0},
+    UNREAD_COUNT: {_run_ledger_values.AGENT_RUNS_USED: "two", _run_ledger_values._METERED_RUNS: 0},
     RESERVED_UNREAD: {_run_ledger_values.AGENT_RUN_FINGERPRINT: 7},
 })
 

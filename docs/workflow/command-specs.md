@@ -83,11 +83,17 @@ How it works per role:
   (empty codex `-o` file, unparseable claude JSONL line) still anchors the role for the next tick.
 
   On a resume, `_read_dev_session` re-parses `dev_agent` via `config._parse_agent_spec` to recover `(backend,
-  extra_args)` and passes the args through to `run_agent`. `_handle_documenting`, `_handle_validating`,
-  `_handle_fixing`, and `_handle_resolving_conflict` all resume the dev session via the same path, so the locked spec
-  applies to every dev-side resume for the lifetime of the issue. `_handle_in_review` resumes it on exactly one road,
-  the requirements-drift resume its own drift owner runs; fresh PR feedback is routed to `workflow:fixing` instead of
-  being resumed there.
+  extra_args)` and passes the args through to `run_agent`. Every resume also writes the spec its plan locked back to
+  `dev_agent` before its first attempt, so a fresh conversation a resume opens on an issue that pinned no command is
+  pinned under the configured one, and the next resume reads it back whatever `DEV_AGENT` says by then. Wherever a
+  command is pinned before a run — the first spawn, the documenting pass, every resume — a `dev_session_id` standing
+  with no `dev_agent` is dropped first, the way a rotation drops a pin (named retired where a fresh conversation is
+  owed): the run does not resume it, and left beside the new command it would be resumed under a command it never ran
+  on.
+  `_handle_documenting`, `_handle_validating`, `_handle_fixing`, and `_handle_resolving_conflict` all resume the dev
+  session via the same path, so the locked spec applies to every dev-side resume for the lifetime of the issue.
+  `_handle_in_review` resumes it on exactly one road, the requirements-drift resume its own drift owner runs; fresh PR
+  feedback is routed to `workflow:fixing` instead of being resumed there.
 - **Decomposer (`DECOMPOSE_AGENT`).** Same mechanic in `_handle_decomposing`: the spec is persisted to
   `decomposer_agent` before the spawn and re-parsed via `_read_decomposer_session` on every resume. The same backend
   (not the same session) also drives the question stage — `_handle_question` reads `DECOMPOSE_AGENT_SPEC` as the
@@ -110,13 +116,16 @@ locked can still open its first question or discussion round under the new spec;
 conversation that already pinned one. Flipping `REVIEW_AGENT` takes effect on the next round of any issue in
 `workflow:validating`.
 
-### Backward compatibility
+### Plain backend specs
 
-- Legacy bare-backend values written before the spec rewrite (`"codex"` / `"claude"` in `dev_agent` /
-  `decomposer_agent`) round-trip to `(backend, ())` — no args, matching what those deployments had at the time.
-  Persisting them again is a no-op rewrite.
-- The pre-spec key `codex_session_id` (written before `dev_agent` existed) is still honored on read and yields
-  `spec="codex"`. A config flip to claude cannot strand that session — it stays on codex with no args.
+- A plain backend (`"codex"` / `"claude"` in `dev_agent` / `decomposer_agent`) is a current spec like any full one:
+  it round-trips to `(backend, ())` — no args — and persisting it again is a no-op rewrite. Resumes, rotation,
+  failure retirement, and the replacement conversation keep it exactly as pinned, never filling in the arguments the
+  current configuration carries.
+- Only `dev_agent` and `dev_session_id` lock a developer session. An issue with no `dev_agent` pinned has no session
+  to resume, whatever other key its comment carries: its next developer run is a fresh spawn under the current
+  `DEV_AGENT`, which pins that full spec before it runs. No session read, rotation, or retirement resumes, converts,
+  or clears a key no current writer produces.
 
 ## Quick reference
 

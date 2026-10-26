@@ -74,7 +74,7 @@ _RETAINED_KEYS = (
     # the ceiling an issue was granted while keeping its spend parks it on the
     # first run of the fresh cycle.
     *_run_ledger.PROJECTED_KEYS,
-    # The developer conversations a run showed to have FAILED. The pins and
+    # The developer conversations a run showed to have FAILED. The pin and
     # `dev_agent` go with the cycle, but a backend can hand a retired id back
     # to the fresh cycle's first spawn, and only this record has the pin
     # refuse it (`implementing/session_retirement.py`): dropped here, the
@@ -186,8 +186,8 @@ def _projected(
     minting a second one no reader would find. `seed` is the one group kept
     beside that list, and only on an issue whose body says a split owed it.
 
-    The developer pins go with the cycle through the clear every road that
-    drops them takes, so a pin a fresh conversation was still owed over is
+    The developer session pin goes with the cycle through the clear every road
+    that drops it takes, so a pin a fresh conversation was still owed over is
     named on the kept retirement record before it goes rather than left free
     for the fresh cycle's first spawn to pin.
     """

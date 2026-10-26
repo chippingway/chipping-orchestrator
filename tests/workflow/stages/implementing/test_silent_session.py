@@ -14,16 +14,12 @@ from orchestrator.workflow.stages.implementing import (
 from tests.workflow.stages.implementing import retry_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
-BACKEND_CODEX = support.BACKEND_CODEX
 ENSURE_WORKTREE = support.ENSURE_WORKTREE
 FRESH_SESSION = support.FRESH_SESSION
 FakeGitHubClient = support.FakeGitHubClient
-KEY_CODEX_SESSION_ID = support.KEY_CODEX_SESSION_ID
-KEY_DEV_AGENT = support.KEY_DEV_AGENT
 KEY_DEV_SESSION_ID = support.KEY_DEV_SESSION_ID
 KEY_SILENT_PARK_COUNT = support.KEY_SILENT_PARK_COUNT
 LABEL_IMPLEMENTING = support.LABEL_IMPLEMENTING
-LEGACY_FRESH_SESSION_ISSUE = support.LEGACY_FRESH_SESSION_ISSUE
 MagicMock = support.MagicMock
 OK_MESSAGE = support.OK_MESSAGE
 POISONED_SESSION = support.POISONED_SESSION
@@ -135,42 +131,3 @@ class SilentSessionResumeFallbackTest(
             state.get(KEY_DEV_SESSION_ID),
             "poisoned session id must be cleared even when the fresh spawn returns no session_id",
         )
-
-    def test_fresh_spawn_clears_legacy_session(self) -> None:
-        # An issue still on the legacy `codex_session_id` schema must
-        # also have that field cleared on fresh-spawn -- otherwise the
-        # next tick's `_read_dev_session` falls through the new keys
-        # (because `dev_session_id` is None) and resurrects the poisoned
-        # legacy id.
-        threshold = _implementing_state._SILENT_PARKS_BEFORE_FRESH_SESSION
-        gh = FakeGitHubClient()
-        issue = make_issue(LEGACY_FRESH_SESSION_ISSUE, label=LABEL_IMPLEMENTING)
-        gh.add_issue(issue)
-        gh.seed_state(
-            LEGACY_FRESH_SESSION_ISSUE,
-            # Legacy schema: only `codex_session_id` is set, no `dev_agent`.
-            codex_session_id="poisoned-legacy",
-            silent_park_count=threshold,
-        )
-        state = gh.read_pinned_state(issue)
-
-        run_agent = MagicMock(return_value=_agent(session_id="fresh-legacy", last_message=OK_MESSAGE))
-
-        with (
-            patch.object(_worktree_creation, ENSURE_WORKTREE, return_value=_FAKE_WT),
-            patch.object(_agent_runner, RUN_AGENT, run_agent),
-        ):
-            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
-                gh, _TEST_SPEC, issue, state, RESUME_TEXT,
-            ))
-
-        # Backend stays locked to codex (legacy).
-        self.assertEqual(run_agent.call_args.args[0], BACKEND_CODEX)
-        # Resume happened with no session id -- the poisoned legacy id
-        # was dropped.
-        self.assertIsNone(run_agent.call_args.kwargs["options"].resume_session_id)
-        # Pinned state migrated to the new keys with the fresh session
-        # id, and the legacy field is cleared.
-        self.assertEqual(state.get(KEY_DEV_AGENT), BACKEND_CODEX)
-        self.assertEqual(state.get(KEY_DEV_SESSION_ID), "fresh-legacy")
-        self.assertIsNone(state.get(KEY_CODEX_SESSION_ID))

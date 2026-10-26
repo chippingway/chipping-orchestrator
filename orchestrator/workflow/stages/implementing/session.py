@@ -12,7 +12,9 @@ whole purchase is a fresh attempt -- and all four end in the same
 the pinned `dev_agent` spec (neither a transcript problem nor a spent budget is
 a backend-selection problem) while clearing the id and both counters.
 Retirement drops the id BEFORE the spawn so a spawn that returns no id of its
-own cannot leave the next tick resuming the session this one just retired.
+own cannot leave the next tick resuming the session this one just retired. A
+conversation pinned under no command is dropped the same way wherever a
+command is pinned before a run (`_pin_dev_command`), since no run resumes it.
 
 A conversation a run showed to have FAILED -- one an exhausted account quota
 stopped, which `quota_retirement` retires as the attempt returns -- is retired
@@ -77,23 +79,44 @@ def _is_poisoned_session_failure(
 
 
 def _drop_poisoned_dev_session(state: PinnedState) -> None:
-    """Clear the pinned dev session id (and legacy `codex_session_id`).
+    """Clear the pinned dev session id.
 
     One retirement for every reason there is to stop replaying a transcript:
     the three the callers here decide, plus the continuation that buys a spent
     budget one more attempt, which is a fresh spawn by definition and so may
-    not leave the retired session pinned for the next reply to resume.
+    not leave the retired session pinned for the next reply to resume -- and
+    the drop a conversation pinned under no command takes as a command is
+    pinned (`_pin_dev_command`).
 
     It keeps the pinned `dev_agent` command and zeroes both per-session
     counters (`session_retirement._clear_dev_session_pins`, which says why),
     and it records nothing of its own: a transcript retired for being long,
     quiet, or poisoned is not a conversation a later spawn must refuse to pin
     again, and the record of one that is (`session_retirement`) survives this
-    drop. The only pins it does record are those dropped while that record
-    owes a fresh conversation -- in either field -- so the record still names
-    them once they are gone.
+    drop. The only pin it does record is one dropped while that record owes a
+    fresh conversation, so the record still names it once it is gone.
     """
     _session_retirement._clear_dev_session_pins(state)
+
+
+def _pin_dev_command(state: PinnedState, spec: str) -> None:
+    """Pin `spec` as the developer command, first dropping a conversation pinned under none.
+
+    Every road that pins a command before its run -- the first spawn, the
+    documenting pass, every resume -- pins it through here. The session read
+    resolves no conversation without a pinned `dev_agent`, so a `dev_session_id`
+    standing alone is one the run about to start does not resume; pinned
+    beside the configured command and left there by a run that returns no id
+    of its own, it would be resumed by the next reply under a command it never
+    ran on. It is dropped the way every retirement drops a pin
+    (`_drop_poisoned_dev_session`): the per-session counters with it, and the
+    record naming it where a fresh conversation is owed. Where a command is
+    already pinned, `spec` is the one the session read returned for it, and
+    its conversation stays.
+    """
+    if not state.get(_state._DEV_AGENT) and _session_read._pinned_session_id(state) is not None:
+        _drop_poisoned_dev_session(state)
+    state.set(_state._DEV_AGENT, spec)
 
 
 def _resolve_dev_session_for_resume(
@@ -154,28 +177,22 @@ def _planned_dev_session(state: PinnedState) -> tuple[_models._DevSession, str |
 
     The retirement record is asked before either counter, because publication
     and every rotation zero those: a conversation retired as failed stays
-    retired however healthy the counters read afterwards.
+    retired however healthy the counters read afterwards. Neither counter
+    retires a session with no conversation pinned, since there is nothing to
+    rotate.
     """
     session = _models._DevSession(*_session_read._read_dev_session(state))
     recorded = _session_retirement._retired_session_reason(state, session.session_id)
-    if recorded is not None:
+    if recorded is not None or session.session_id is None:
         return session, recorded
-    silent_count = int(state.get(_state._SILENT_PARK_COUNT) or 0)
     resume_count = int(state.get(_state._DEV_RESUME_COUNT) or 0)
-    return session, _dev_session_retirement_reason(session.session_id, resume_count, silent_count)
-
-
-def _dev_session_retirement_reason(
-    session_id: str | None, resume_count: int, silent_count: int,
-) -> str | None:
-    if session_id is None:
-        return None
     max_resumes = config.DEV_SESSION_MAX_RESUMES
     if max_resumes > 0 and resume_count >= max_resumes:
-        return f"resume budget reached: {resume_count} >= {max_resumes}"
+        return session, f"resume budget reached: {resume_count} >= {max_resumes}"
+    silent_count = int(state.get(_state._SILENT_PARK_COUNT) or 0)
     if silent_count >= _state._SILENT_PARKS_BEFORE_FRESH_SESSION:
-        return f"{silent_count} consecutive silent parks"
-    return None
+        return session, f"{silent_count} consecutive silent parks"
+    return session, None
 
 
 def _build_dev_spawn_prompt(

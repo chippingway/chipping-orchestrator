@@ -661,9 +661,11 @@ The security posture:
   `MAX_RUNS_PER_COMMAND` (50) — so a typo costs at most one bounded grant and a human who wants more says so again, on
   the record. The grant writes an absolute ceiling (`agent_run_allowance` = `used + N`), never an increment, so a
   command read twice buys the same runs once. An untrusted request is not even answered.
-- **Legacy-safe, and not a migration.** An issue already running when the ceiling arrived starts from the
-  `issue_agent_runs` meter the usage accounting has always kept, never from zero, so an in-flight issue keeps what it
-  has spent instead of being handed a fresh lifetime.
+- **Never read below the usage meter.** The count is never read below the `issue_agent_runs` meter the usage
+  accounting keeps. Every exit that meter counts was a launch charged first, so it never runs ahead of the count; it
+  answers only where the count itself is gone or unreadable — a hand edit with the orchestrator's own login, a
+  truncated write — which then reads what the meter saw rather than zero, instead of handing the issue a fresh
+  lifetime.
 - **Turning it off is a deliberate act.** `MAX_AGENT_RUNS_PER_ISSUE=0` means nothing turns a run away. The meter keeps
   counting under it — so an operator who turns the bound back on is measuring against a real total rather than
   against zero.

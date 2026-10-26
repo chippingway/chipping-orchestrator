@@ -389,12 +389,16 @@ parameters.
 
 **Why:** A configuration change must not retarget an existing conversation or discard its model and reasoning settings.
 
-**Limits:** Reviewers start fresh with current configuration. A failed developer conversation's replacement keeps
-its pinned command.
+**Limits:** Reviewers start fresh with current configuration. A plain `codex` or `claude` is a current command spec,
+kept as pinned with no arguments. Resumes, rotation, failure retirement, and a failed developer conversation's
+replacement keep the pinned command. Only `dev_agent` and `dev_session_id` lock a developer session; no other key is
+resumed, converted, or cleared as one.
 
 **Specs:** [session commands](workflow.md#in-flight-session-lock--pinned-full-spec-until-the-session-ends).
 
 **Checks:** [session pins](../tests/workflow/stages/implementing/test_full_spec_dev.py),
+[session reads](../tests/workflow/stages/implementing/test_full_spec_reader.py),
+[retirements](../tests/workflow/stages/implementing/test_rotation.py),
 [fresh reviewers](../tests/workflow/stages/implementing/test_full_spec_reviewer.py).
 
 ## C-15: Lifetime agent-run budget
@@ -404,12 +408,15 @@ its pinned command.
 **Why:** Crashes, retries, and restarts must not let an issue evade its lifetime run limit.
 
 **Limits:** Only a trusted `/orchestrator add-agent-runs N` grants more runs to an issue parked at its lifetime limit;
-other budgets have their own rules.
+other budgets have their own rules. The count is never read below the `issue_agent_runs` usage meter, whose every
+counted exit was a launch charged first, so a count that is missing or unreadable refunds nothing that meter saw.
+Session rotation and retirement touch neither meter.
 
 **Specs:** [run budget](state-machine/labels-and-state.md#the-agent-run-circuit),
 [charging before launch](security.md#bounded-agent-spend-per-issue-max_agent_runs_per_issue).
 
-**Checks:** [charging](../tests/workflow/engine/test_run_circuit.py).
+**Checks:** [charging](../tests/workflow/engine/test_run_circuit.py),
+[meter floor](../tests/workflow/engine/test_run_ledger.py).
 
 ## Maintaining the contracts
 

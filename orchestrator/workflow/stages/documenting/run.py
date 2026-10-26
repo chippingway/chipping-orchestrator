@@ -52,6 +52,7 @@ from orchestrator.workflow.stages.documenting import (
 from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
     resume_request as _dev_resume_request,
+    session as _dev_session,
     session_read as _dev_session_read,
 )
 
@@ -273,7 +274,7 @@ def _fresh_documenting_run(
     before_sha = _verification_probes._head_sha(wt)
     ctx.state.set(_state._CHECKED_DOCS_SHA, before_sha or "")
     dev_spec, _, _, _ = _dev_session_read._read_dev_session(ctx.state)
-    ctx.state.set("dev_agent", dev_spec)
+    _dev_session._pin_dev_command(ctx.state, dev_spec)
     if not _failed_pass._armed(ctx, before_sha or ""):
         return None
     wt, documentation_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(

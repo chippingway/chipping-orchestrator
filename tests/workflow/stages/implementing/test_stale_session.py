@@ -20,7 +20,6 @@ BACKEND_CLAUDE = support.BACKEND_CLAUDE
 BACKEND_CODEX = support.BACKEND_CODEX
 ENSURE_WORKTREE = support.ENSURE_WORKTREE
 FRESH_SESSION = support.FRESH_SESSION
-KEY_CODEX_SESSION_ID = support.KEY_CODEX_SESSION_ID
 KEY_DEV_AGENT = support.KEY_DEV_AGENT
 KEY_DEV_SESSION_ID = support.KEY_DEV_SESSION_ID
 KEY_SILENT_PARK_COUNT = support.KEY_SILENT_PARK_COUNT
@@ -208,7 +207,6 @@ class StaleSessionImmediateRetryTest(
             "fresh spawn's session id must be persisted",
         )
         self.assertEqual(state.get(KEY_DEV_AGENT), BACKEND_CLAUDE)
-        self.assertIsNone(state.get(KEY_CODEX_SESSION_ID))
         # Silent-park streak resets so a future blip does not immediately
         # re-drop the new session.
         self.assertEqual(state.get(KEY_SILENT_PARK_COUNT), 0)
